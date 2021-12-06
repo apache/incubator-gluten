@@ -11,6 +11,8 @@ The overview chart is like below. Spark physical plan is transformed to substrai
 
 There are several native libraries we may offload. Currently we are working on the Gazelle's C++ library and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. We can also easily use Arrow Computer Engine or any accelerator libraries as backend.
 
+##### Before we enable Gazelle's C++ code as backend, we will continue Gazelle's development.
+
 ![Overview](./docs/image/Gazelle-jni.png)
 
 One big issue we noted during our Gazelle-plugin development is that we can't easily and exactly reproduce a Spark stage. Once we meet some bugs during Spark run, Gazelle-plugin doesn't dump enough info to reproduce it natively. Mainly because we use very complex extended Gandiva tree to pass the query plan. With well defined substrait and some helper functions, we can easily reproduce the whole stage, which makes debug, profile and optimize the native code much more easier. It also make the accelerators enabling much more easier even without touching Spark code.
@@ -35,6 +37,10 @@ A simple example of execution flow is as below chart. The transformer operator t
 ![Overview](./docs/image/flow.png)
 
 # Issues to Solve
+
+The code is still not completely cleaned now. The work is still WIP.
+
+Not all the operators and functions are added. Our initial plan is to pass TPCH Q6, Q1 and Q14. Then whole TPCH, then TPCDS.
 
 Operator stat info is pretty useful to understand Spark's execution status. With this design we can only collect info for transform operator which is a combination of operators. We need to find ways to send native operators' stat info to Spark driver.
 
