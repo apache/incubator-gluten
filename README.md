@@ -2,126 +2,43 @@
 
 ##### \* Optimized Analytics Package for Spark* Platform is under Apache 2.0 (https://www.apache.org/licenses/LICENSE-2.0).
 
-# Gazelle JNI
+# Introduction
 
-A Spark JNI Layer to enable different native libraries based on Substrait
+This is a derived project from Gazelle-plugin. The JVM code and native code in Gazelle-plugin is tightly coupled. Which make it very hard to utilize other native SQL libraries. The main goal of this project is to decouple Spark JVM and JNI layer from native SQL execution engine. So we can easily enable different native SQL libraries but share all the common JVM code like fallback logic. 
+##### The basic rule of the native offloading is that we would reuse spark's whole control flow and as many JVM code as possible but offload the compute intensive data processing part to native code.
 
-## Introduction
+The overview chart is like below. Spark physical plan is transformed to substrait plan. Substrait is to create a well defined cross-language specification for data compute operations. More details can be found from https://substrait.io/. Then substrait plan is passed to native through JNI call. In native the operator chain should be built and start to run. We use Spark3.0's columnar API as the data interface, so the native library should return Columnar Batch to Spark. We may need to wrap the columnar batch for each native backend. Gazelle engine's c++ code use Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
 
-![Overview](./docs/image/nativesql_arch.png)
+There are several native libraries we may offload. Currently we are working on the Gazelle's C++ library and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. We can also easily use Arrow Computer Engine or any accelerator libraries as backend.
 
-Spark SQL works very well with structured row-based data. It used WholeStageCodeGen to improve the performance by Java JIT code. However Java JIT is usually not working very well on utilizing latest SIMD instructions, especially under complicated queries. [Apache Arrow](https://arrow.apache.org/) provided CPU-cache friendly columnar in-memory layout, its SIMD-optimized kernels and LLVM-based SQL engine Gandiva are also very efficient.
+![Overview](./docs/image/Gazelle-jni.png)
 
-Gazelle Plugin reimplements Spark SQL execution layer with SIMD-friendly columnar data processing based on Apache Arrow, 
-and leverages Arrow's CPU-cache friendly columnar in-memory layout, SIMD-optimized kernels and LLVM-based expression engine to bring better performance to Spark SQL.
+One big issue we noted during our Gazelle-plugin development is that we can't easily and exactly reproduce a Spark stage. Once we meet some bugs during Spark run, Gazelle-plugin doesn't dump enough info to reproduce it natively. Mainly because we use very complex extended Gandiva tree to pass the query plan. With well defined substrait and some helper functions, we can easily reproduce the whole stage, which makes debug, profile and optimize the native code much more easier. It also make the accelerators enabling much more easier even without touching Spark code.
 
-## How to use OAP: Gazelle JNI
+![Overview](./docs/image/reproduce_natively.png)
 
-There are three ways to use OAP: Gazelle Plugin,
-1. Use precompiled jars
-2. Building by Conda Environment
-3. Building by Yourself
+# Plan Build
 
-### Use precompiled jars
+To convert Spark's physical plan into Substrait plan, we defined a substrait transformer operator which is a wrapper of the tree of operators to be executed natively. The operator's doTransform function return the final substrait tree. doExecutorColumnar function execute the native node and return columnarBatch. Each operator has its own transformerExec which transforms this operator's plan node into a substrait plan node by transform function. The validate function is designed to check if native library support the operator. The whole process is very like Spark's whole stage code generation flow.
 
-Please go to [OAP's Maven Central Repository](https://repo1.maven.org/maven2/com/intel/oap/) to find Gazelle Plugin jars.
-For usage, you will require below two jar files:
-1. spark-arrow-datasource-standard-<version>-jar-with-dependencies.jar is located in com/intel/oap/spark-arrow-datasource-standard/<version>/
-2. spark-columnar-core-<version>-jar-with-dependencies.jar is located in com/intel/oap/spark-columnar-core/<version>/
-Please notice the files are fat jars shipped with our custom Arrow library and pre-compiled from our server(using GCC 9.3.0 and LLVM 7.0.1), which means you will require to pre-install GCC 9.3.0 and LLVM 7.0.1 in your system for normal usage. 
+![Overview](./docs/image/operators.png)
 
-### Building by Conda
+The generated substrait plan can be single operator or a tree of operators depending on if the native library has the support. Once an operator isn't supported in native, we will fallback it to Vanilla Spark. In this way the data should be converted to unsafe row format by Columanr2Row operator. Later if the following operators can be support in native, we can add Row2Columnar operator to convert unsafe row format into native columnar format. The native implementation of the two operators can be much faster than Spark's stock ones. We have implemented them in Gazelle-plugin and will port to here later.
 
-If you already have a working Hadoop Spark Cluster, we provide a Conda package which will automatically install dependencies needed by OAP, you can refer to [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md) for more information. Once finished [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md), you can find built `spark-columnar-core-<version>-jar-with-dependencies.jar` under `$HOME/miniconda2/envs/oapenv/oap_jars`.
-Then you can just skip below steps and jump to [Get Started](#get-started).
+![Overview](./docs/image/overall_design.png)
 
-### Building by yourself
 
-If you prefer to build from the source code on your hand, please follow below steps to set up your environment.
+# Execution Flow
 
-#### Prerequisite
+A simple example of execution flow is as below chart. The transformer operator transforms Spark's physical plan into Substrait. In native the operators are called according to the plan. The last native operator should return an batch which is passed to JVM. We reuse Spark's current shuffle logic but convert data into columnar format. The data split logic should be implemented natively and called by columnar shuffle operator. From Gazelle-plugin's experience the operation is expensive. 
 
-There are some requirements before you build the project.
-Please check the document [Prerequisite](./docs/Prerequisite.md) and make sure you have already installed the software in your system.
-If you are running a SPARK Cluster, please make sure all the software are installed in every single node.
+![Overview](./docs/image/flow.png)
 
-#### Installation
+# Issues to Solve
 
-Please check the document [Installation Guide](./docs/Installation.md) 
+Operator stat info is pretty useful to understand Spark's execution status. With this design we can only collect info for transform operator which is a combination of operators. We need to find ways to send native operators' stat info to Spark driver.
 
-## Get started
 
-To enable Gazelle Plugin, the previous built jar `spark-columnar-core-<version>-jar-with-dependencies.jar` should be added to Spark configuration. We also recommend to use `spark-arrow-datasource-standard-<version>-jar-with-dependencies.jar`. We will demonstrate an example by using both jar files.
-SPARK related options are:
+# Contact
 
-* `spark.driver.extraClassPath` : Set to load jar file to driver.
-* `spark.executor.extraClassPath` : Set to load jar file to executor.
-* `jars` : Set to copy jar file to the executors when using yarn cluster mode.
-* `spark.executorEnv.ARROW_LIBHDFS3_DIR` : Optional if you are using a custom libhdfs3.so.
-* `spark.executorEnv.LD_LIBRARY_PATH` : Optional if you are using a custom libhdfs3.so.
-
-For Spark Standalone Mode, please set the above value as relative path to the jar file.
-For Spark Yarn Cluster Mode, please set the above value as absolute path to the jar file.
-
-More Configuration, please check the document [Configuration Guide](./docs/Configuration.md)
-
-Example to run Spark Shell with ArrowDataSource jar file
-```
-${SPARK_HOME}/bin/spark-shell \
-        --verbose \
-        --master yarn \
-        --driver-memory 10G \
-        --conf spark.driver.extraClassPath=$PATH_TO_JAR/spark-arrow-datasource-standard-<version>-jar-with-dependencies.jar:$PATH_TO_JAR/spark-columnar-core-<version>-jar-with-dependencies.jar \
-        --conf spark.executor.extraClassPath=$PATH_TO_JAR/spark-arrow-datasource-standard-<version>-jar-with-dependencies.jar:$PATH_TO_JAR/spark-columnar-core-<version>-jar-with-dependencies.jar \
-        --conf spark.driver.cores=1 \
-        --conf spark.executor.instances=12 \
-        --conf spark.executor.cores=6 \
-        --conf spark.executor.memory=20G \
-        --conf spark.memory.offHeap.size=80G \
-        --conf spark.task.cpus=1 \
-        --conf spark.locality.wait=0s \
-        --conf spark.sql.shuffle.partitions=72 \
-        --conf spark.executorEnv.ARROW_LIBHDFS3_DIR="$PATH_TO_LIBHDFS3_DIR/" \
-        --conf spark.executorEnv.LD_LIBRARY_PATH="$PATH_TO_LIBHDFS3_DEPENDENCIES_DIR"
-        --jars $PATH_TO_JAR/spark-arrow-datasource-standard-<version>-jar-with-dependencies.jar,$PATH_TO_JAR/spark-columnar-core-<version>-jar-with-dependencies.jar
-```
-
-Here is one example to verify if Gazelle Plugin works, make sure you have TPC-H dataset.  We could do a simple projection on one parquet table. For detailed testing scripts, please refer to [Solution Guide](https://github.com/Intel-bigdata/Solution_navigator/tree/master/nativesql).
-```
-val orders = spark.read.format("arrow").load("hdfs:////user/root/date_tpch_10/orders")
-orders.createOrReplaceTempView("orders")
-spark.sql("select * from orders where o_orderdate > date '1998-07-26'").show(20000, false)
-```
-
-The result should showup on Spark console and you can check the DAG diagram with some Columnar Processing stage. Gazelle Plugin still lacks some features, please check out the [limitations](./docs/limitations.md).
-
-## Could/K8s Integration
-
-### Amazone EMR
-
-Please refer to [Gazelle_on_Dataproc](https://github.com/oap-project/oap-tools/tree/master/integrations/oap/emr) to find details about how to use OAP Gazelle on Amazon EMR Cloud.
-
-###  Google Cloud Dataproc
-
-Gazelle Plugin now supports to run on Dataproc 2.0, we provide a guide to help quickly install Gazelle Plugin and run TPC-DS with notebooks or scripts.
-
-Please refer to [Gazelle_on_Dataproc](https://github.com/oap-project/oap-tools/blob/master/docs/Gazelle_on_Dataproc.md) to find details about:
-
-1. Create a cluster on Dataproc 2.0 with initialization actions. 
-Gazelle Plugin jars compiled with `-Pdataproc-2.0` parameter will installed by Conda in all cluster nodes.
-   
-2. Config for enabling Gazelle Plugin.
-
-3. Run TPC-DS with notebooks or scripts.
-
-You can also find more information about how to use [OAP on Google Dataproc](https://github.com/oap-project/oap-tools/tree/master/integrations/oap/dataproc).
-
-## Coding Style
-
-* For Java code, we used [google-java-format](https://github.com/google/google-java-format)
-* For Scala code, we used [Spark Scala Format](https://github.com/apache/spark/blob/master/dev/.scalafmt.conf), please use [scalafmt](https://github.com/scalameta/scalafmt) or run ./scalafmt for scala codes format
-* For Cpp codes, we used Clang-Format, check on this link [google-vim-codefmt](https://github.com/google/vim-codefmt) for details.
-
-## Contact
-
-binwei.yang@intel.com
+Rui.Mo@intel.com; binwei.yang@intel.com
