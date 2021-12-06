@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.intel.oap</groupId>
+    <artifactId>spark-sql-columnar-shims</artifactId>
+    <version>1.2.0-snapshot</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>spark-sql-columnar-shims-spark311</artifactId>
+  <name>${project.name.prefix} Shims for Spark 3.1.1</name>
+  <packaging>jar</packaging>
+
+  <build>
+      <plugins>
+          <plugin>
+              <groupId>org.scalastyle</groupId>
+              <artifactId>scalastyle-maven-plugin</artifactId>
+          </plugin>
+          <plugin>
+              <groupId>net.alchim31.maven</groupId>
+              <artifactId>scala-maven-plugin</artifactId>
+              <version>3.2.2</version>
+              <executions>
+                  <execution>
+                      <id>scala-compile-first</id>
+                      <phase>process-resources</phase>
+                      <goals>
+                          <goal>compile</goal>
+                      </goals>
+                  </execution>
+                  <execution>
+                      <id>scala-test-compile-first</id>
+                      <phase>process-test-resources</phase>
+                      <goals>
+                          <goal>testCompile</goal>
+                      </goals>
+                  </execution>
+              </executions>
+          </plugin>
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <version>3.3</version>
+              <configuration>
+                  <source>${java.version}</source>
+                  <target>${java.version}</target>
+                  <encoding>UTF-8</encoding>
+                  <maxmem>1024m</maxmem>
+                  <fork>true</fork>
+                  <compilerArgs>
+                      <arg>-Xlint:all,-serial,-path</arg>
+                  </compilerArgs>
+              </configuration>
+          </plugin>
+      </plugins>
+
+      <resources>
+        <resource>
+          <directory>src/main/resources</directory>
+        </resource>
+      </resources>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.intel.oap</groupId>
+      <artifactId>${project.prefix}-shims-common</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.binary.version}</artifactId>
+      <version>${spark311.version}</version>
+    <scope>provided</scope>
+    </dependency>
+  </dependencies>
+</project>

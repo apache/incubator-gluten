@@ -1,0 +1,45 @@
+sudo: required
+dist: bionic
+language: java
+jdk: openjdk8
+jobs:
+  include:
+      
+    - name: oap-native-sql
+      dist: bionic
+      jdk:
+        - openjdk8
+      before_install:
+      - echo ${TRAVIS_COMMIT_MESSAGE}
+      #- if [[ ${TRAVIS_COMMIT_MESSAGE} != \[oap-native-sql\]* ]]; then travis_terminate 0 ; fi ;
+      - sudo apt-get install cmake
+      - sudo apt-get install libboost-all-dev
+      - export | grep JAVA_HOME
+      install:
+      - # Download spark 3.0
+      - "[ -f spark ] || mkdir spark && cd spark && wget http://archive.apache.org/dist/spark/spark-3.0.0/spark-3.0.0-bin-hadoop2.7.tgz && cd .."
+      - "tar -xf ./spark/spark-3.0.0-bin-hadoop2.7.tgz"
+      - "export SPARK_HOME=`pwd`/spark-3.0.0-bin-hadoop2.7"
+      before_script:
+      - cd /tmp
+      - git clone https://github.com/intel-bigdata/arrow.git
+      - cd arrow && git checkout oap-master && cd cpp
+      - sed -i "s/\${Python3_EXECUTABLE}/\/opt\/pyenv\/shims\/python3/g" CMakeLists.txt
+      - mkdir build && cd build 
+      - cmake .. -DARROW_JNI=ON -DARROW_GANDIVA_JAVA=ON -DARROW_GANDIVA=ON -DARROW_PARQUET=ON -DARROW_CSV=ON -DARROW_HDFS=ON -DARROW_FILESYSTEM=ON -DARROW_WITH_SNAPPY=ON -DARROW_JSON=ON -DARROW_DATASET=ON -DARROW_WITH_LZ4=ON && make
+      - sudo make install
+      - cd ../../java
+      - mvn clean install -q -P arrow-jni -am -Darrow.cpp.build.dir=/tmp/arrow/cpp/build/release/ -DskipTests -Dcheckstyle.skip
+      script:
+      - cd ${TRAVIS_BUILD_DIR}
+      - git submodule init
+      - cd dep/arrow-data-source
+      - mvn clean -q install -DskipTests
+      - cd ${TRAVIS_BUILD_DIR}/core
+      - mvn clean -q package -DskipTests  #skip core tests
+      - # run native sql unit tests
+      - count=0; while [ $count -le 3 ]; do echo "Elapsed 3 minutes"; sleep 180; let count++; done & # print log each 3 minutes for 3 times to avoid no-log issue
+      - mvn test -DmembersOnlySuites=org.apache.spark.sql.travis -DfailIfNoTests=false -Dexec.skip=true &> log-file.log # skip cpp build
+      - echo '#!/bin/bash' > grep.sh
+      - echo "module_tested=0; module_should_test=1; tests_total=0; while read -r line; do num=\$(echo \"\$line\" | grep -o -E '[0-9]+'); tests_total=\$((tests_total+num)); done <<<\"\$(grep \"Total number of tests run:\" log-file.log)\"; succeed_total=0; while read -r line; do [[ \$line =~ [^0-9]*([0-9]+)\, ]]; num=\${BASH_REMATCH[1]}; succeed_total=\$((succeed_total+num)); let module_tested++; done <<<\"\$(grep \"succeeded\" log-file.log)\"; if test \$tests_total -eq \$succeed_total -a \$module_tested -eq \$module_should_test; then echo \"All unit tests succeed\"; else echo \"Unit tests failed\"; exit 1; fi" >> grep.sh
+      - bash grep.sh

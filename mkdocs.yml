@@ -1,0 +1,29 @@
+site_name: Gazelle JNI
+
+repo_name: 'Fork on GitHub '
+repo_url: "https://github.com/oap-project/gazelle-jni.git"
+edit_uri: ""
+
+
+nav:
+- User Guide: User-Guide.md
+- Prerequisite: Prerequisite.md
+- Installation: Installation.md
+- InstallationNotes: InstallationNotes.md
+- Configuration: Configuration.md
+- SparkInstallation: SparkInstallation.md
+- ApacheArrowInstallation: ApacheArrowInstallation.md
+- OAP Installation Guide: OAP-Installation-Guide.md
+- OAP Developer Guide: OAP-Developer-Guide.md
+- Version Selector: "../"
+
+
+
+theme: readthedocs
+
+
+plugins:
+  - search
+  - mkdocs-versioning:
+      version: 1.2.0
+      exclude_from_nav: ["image", "js", "css", "fonts", "img"]

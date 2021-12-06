@@ -1,0 +1,46 @@
+diff --git a/oap-native-sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/AdaptiveSparkPlanExec.scala b/oap-native-sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/AdaptiveSparkPlanExec.scala
+index 87eb01438d..f6a3333b90 100644
+--- a/oap-native-sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/AdaptiveSparkPlanExec.scala
++++ b/oap-native-sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/AdaptiveSparkPlanExec.scala
+@@ -100,11 +100,10 @@ case class AdaptiveSparkPlanExec(
+     // The following two rules need to make use of 'CustomShuffleReaderExec.partitionSpecs'
+     // added by `CoalesceShufflePartitions`. So they must be executed after it.
+     OptimizeSkewedJoin(conf),
+-    OptimizeLocalShuffleReader(conf))
+-
+-  @transient private val additionalRules: Seq[Rule[SparkPlan]] = Seq(
++    OptimizeLocalShuffleReader(conf),
+     ApplyColumnarRulesAndInsertTransitions(conf, context.session.sessionState.columnarRules),
+-    CollapseCodegenStages(conf))
++    CollapseCodegenStages(conf)
++  )
+ 
+   @transient private val costEvaluator = SimpleCostEvaluator
+ 
+@@ -228,8 +227,7 @@ case class AdaptiveSparkPlanExec(
+       }
+ 
+       // Run the final plan when there's no more unfinished stages.
+-      currentPhysicalPlan =
+-        applyPhysicalRules(result.newPlan, queryStageOptimizerRules ++ additionalRules)
++      currentPhysicalPlan = applyPhysicalRules(result.newPlan, queryStageOptimizerRules)
+       isFinalPlan = true
+       executionId.foreach(onUpdatePlan(_, Seq(currentPhysicalPlan)))
+       currentPhysicalPlan
+@@ -376,13 +374,11 @@ case class AdaptiveSparkPlanExec(
+ 
+   private def newQueryStage(e: Exchange): QueryStageExec = {
+     val optimizedPlan = applyPhysicalRules(e.child, queryStageOptimizerRules)
+-    val optimizedPlanWithExchange =
+-      applyPhysicalRules(e.withNewChildren(Seq(optimizedPlan)), additionalRules)
+-    val queryStage = optimizedPlanWithExchange match {
++    val queryStage = e match {
+       case s: ShuffleExchangeExec =>
+-        ShuffleQueryStageExec(currentStageId, optimizedPlanWithExchange)
++        ShuffleQueryStageExec(currentStageId, s.copy(child = optimizedPlan))
+       case b: BroadcastExchangeExec =>
+-        BroadcastQueryStageExec(currentStageId, optimizedPlanWithExchange)
++        BroadcastQueryStageExec(currentStageId, b.copy(child = optimizedPlan))
+     }
+     currentStageId += 1
+     setLogicalLinkForNewQueryStage(queryStage, e)

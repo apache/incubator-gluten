@@ -1,0 +1,58 @@
+**/target/**
+*.class
+*.iml
+
+# logs
+*.log
+
+# IDEA config files
+.idea/
+*.iml
+*.class
+
+# vscode config
+.vscode
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.ear
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+
+.idea/
+target/
+*.iml
+
+**/target/**
+
+# logs
+*.log
+
+thirdparty/*.tar*
+CMakeFiles/
+CMakeCache.txt
+CTestTestfile.cmake
+Makefile
+cmake_install.cmake
+build/
+*-build/
+Testing/
+cmake-build-debug/
+cmake-build-release/
+
+# Editor temporary/working/backup files #
+.#*
+*\#*\#
+[#]*#
+*~
+*$
+*.bak
+*flymake*
+*.kdev4
+*.swp
+scalastyle-output.xml
