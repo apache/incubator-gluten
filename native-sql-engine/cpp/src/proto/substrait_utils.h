@@ -26,26 +26,63 @@
 #include "type.pb.h"
 #include "type_expressions.pb.h"
 
+#include "velox/common/file/FileSystems.h"
+#include "velox/connectors/hive/HiveConnector.h"
+#include "velox/dwio/common/Options.h"
+#include "velox/dwio/dwrf/reader/DwrfReader.h"
+#include "velox/exec/tests/utils/HiveConnectorTestBase.h"
+#include "velox/exec/tests/utils/PlanBuilder.h"
+#include "velox/functions/prestosql/SimpleFunctions.h"
+#include "velox/functions/prestosql/VectorFunctions.h"
+#include "velox/functions/prestosql/aggregates/SumAggregate.h"
+
+using namespace facebook::velox;
+using namespace facebook::velox::exec;
+using namespace facebook::velox::exec::test;
+
 class SubstraitParser {
  public:
   SubstraitParser();
+  struct SubstraitType {
+    std::string type;
+    std::string name;
+    bool nullable;
+    SubstraitType(const std::string& t, const std::string& n, const bool& nul) {
+      type = t;
+      name = n;
+      nullable = nul;
+    }
+  };
   void ParseLiteral(const io::substrait::Expression::Literal& slit);
   void ParseScalarFunction(const io::substrait::Expression::ScalarFunction& sfunc);
   void ParseReferenceSegment(const io::substrait::ReferenceSegment& sref);
   void ParseFieldReference(const io::substrait::FieldReference& sfield);
   void ParseExpression(const io::substrait::Expression& sexpr);
-  void ParseType(const io::substrait::Type& stype);
-  void ParseNamedStruct(const io::substrait::Type::NamedStruct& named_struct);
-  void ParseAggregateRel(const io::substrait::AggregateRel& sagg);
-  void ParseProjectRel(const io::substrait::ProjectRel& sproject);
+  std::shared_ptr<SubstraitType> ParseType(const io::substrait::Type& stype);
+  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> ParseNamedStruct(
+      const io::substrait::Type::NamedStruct& named_struct);
+  void ParseAggregateRel(const io::substrait::AggregateRel& sagg,
+                         std::shared_ptr<PlanBuilder>* plan_builder);
+  void ParseProjectRel(const io::substrait::ProjectRel& sproject,
+                       std::shared_ptr<PlanBuilder>* plan_builder);
   void ParseFilterRel(const io::substrait::FilterRel& sfilter);
-  void ParseReadRel(const io::substrait::ReadRel& sread);
+  void ParseReadRel(const io::substrait::ReadRel& sread,
+                    std::shared_ptr<PlanBuilder>* plan_builder, u_int32_t* index,
+                    std::vector<std::string>* paths, std::vector<u_int64_t>* starts,
+                    std::vector<u_int64_t>* lengths);
   void ParseRel(const io::substrait::Rel& srel);
   void ParsePlan(const io::substrait::Plan& splan);
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter();
 
  private:
-  std::string FindFunction(uint64_t id);
+  std::shared_ptr<PlanBuilder> plan_builder_;
   std::unordered_map<uint64_t, std::string> functions_map_;
+  u_int32_t partition_index_;
+  std::vector<std::string> paths_;
+  std::vector<u_int64_t> starts_;
+  std::vector<u_int64_t> lengths_;
+  std::string FindFunction(uint64_t id);
+  TypePtr GetVeloxType(std::string type_name);
   class WholeStageResultIterator;
+  inline static bool initialized = false;
 };

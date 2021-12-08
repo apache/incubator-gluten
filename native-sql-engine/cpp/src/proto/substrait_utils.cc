@@ -18,13 +18,36 @@
 #include "substrait_utils.h"
 
 namespace substrait = io::substrait;
+using namespace facebook::velox;
+using namespace facebook::velox::exec;
+using namespace facebook::velox::exec::test;
+using namespace facebook::velox::connector;
+using namespace facebook::velox::dwio::common;
 
 SubstraitParser::SubstraitParser() {
   std::cout << "construct SubstraitParser" << std::endl;
+  if (!initialized) {
+    initialized = true;
+    // Setup
+    filesystems::registerLocalFileSystem();
+    std::unique_ptr<folly::IOThreadPoolExecutor> executor =
+        std::make_unique<folly::IOThreadPoolExecutor>(3);
+    // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
+    // registerConnectorFactory(hiveConnectorFactory);
+    auto hiveConnector = getConnectorFactory("hive")->newConnector(
+        facebook::velox::exec::test::kHiveConnectorId, nullptr, nullptr, executor.get());
+    registerConnector(hiveConnector);
+    dwrf::registerDwrfReaderFactory();
+    // Register Velox functions
+    functions::registerFunctions();
+    functions::registerVectorFunctions();
+    aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
+  }
 }
 
 std::shared_ptr<ResultIterator<arrow::RecordBatch>> SubstraitParser::getResIter() {
-  auto wholestage_iter = std::make_shared<WholeStageResultIterator>();
+  auto wholestage_iter = std::make_shared<WholeStageResultIterator>(
+      plan_builder_, partition_index_, paths_, starts_, lengths_);
   auto res_iter =
       std::dynamic_pointer_cast<ResultIterator<arrow::RecordBatch>>(wholestage_iter);
   return res_iter;
@@ -113,21 +136,24 @@ void SubstraitParser::ParseExpression(const substrait::Expression& sexpr) {
   }
 }
 
-void SubstraitParser::ParseType(const substrait::Type& stype) {
+std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::ParseType(
+    const substrait::Type& stype) {
+  std::shared_ptr<SubstraitParser::SubstraitType> substrait_type;
   switch (stype.kind_case()) {
     case substrait::Type::KindCase::kBool: {
       auto sbool = stype.bool_();
-      auto nullable = sbool.nullability();
-      auto name = sbool.variation().name();
+      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
+          "BOOL", sbool.variation().name(), sbool.nullability());
       break;
     }
     case substrait::Type::KindCase::kFp64: {
       auto sfp64 = stype.fp64();
-      auto nullable = sfp64.nullability();
-      auto name = sfp64.variation().name();
+      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
+          "FP64", sfp64.variation().name(), sfp64.nullability());
       break;
     }
     case substrait::Type::KindCase::kStruct: {
+      // TODO
       auto sstruct = stype.struct_();
       auto stypes = sstruct.types();
       for (auto& type : stypes) {
@@ -139,28 +165,37 @@ void SubstraitParser::ParseType(const substrait::Type& stype) {
       auto sstring = stype.string();
       auto nullable = sstring.nullability();
       auto name = sstring.variation().name();
+      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
+          "STRING", sstring.variation().name(), sstring.nullability());
       break;
     }
     default:
       std::cout << "Type not supported" << std::endl;
       break;
   }
+  return substrait_type;
 }
 
-void SubstraitParser::ParseNamedStruct(const substrait::Type::NamedStruct& named_struct) {
+std::vector<std::shared_ptr<SubstraitParser::SubstraitType>>
+SubstraitParser::ParseNamedStruct(const substrait::Type::NamedStruct& named_struct) {
   auto& snames = named_struct.names();
+  std::vector<std::string> name_list;
   for (auto& sname : snames) {
-    std::cout << "NamedStruct name: " << sname << std::endl;
+    name_list.push_back(sname);
   }
   // Parse Struct
   auto& sstruct = named_struct.struct_();
   auto& stypes = sstruct.types();
+  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> substrait_type_list;
   for (auto& type : stypes) {
-    ParseType(type);
+    auto substrait_type = ParseType(type);
+    substrait_type_list.push_back(substrait_type);
   }
+  return substrait_type_list;
 }
 
-void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg) {
+void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg,
+                                        std::shared_ptr<PlanBuilder>* plan_builder) {
   if (sagg.has_input()) {
     ParseRel(sagg.input());
   }
@@ -173,9 +208,17 @@ void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg) {
     }
   }
   // Parse measures
+  bool is_partial = false;
   for (auto& smea : sagg.measures()) {
     auto aggFunction = smea.measure();
-    auto phase = aggFunction.phase();
+    switch (aggFunction.phase()) {
+      case substrait::Expression_AggregationPhase::
+          Expression_AggregationPhase_INITIAL_TO_INTERMEDIATE:
+        is_partial = true;
+        break;
+      default:
+        break;
+    }
     auto function_id = aggFunction.id().id();
     std::cout << "Agg Function id: " << function_id << std::endl;
     auto args = aggFunction.args();
@@ -192,9 +235,16 @@ void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg) {
   for (auto& stype : sagg.output_types()) {
     ParseType(stype);
   }
+  if (is_partial) {
+    (*plan_builder) = std::make_shared<PlanBuilder>(
+        (*plan_builder)
+            ->aggregation({}, {"sum(mul_res)"}, {}, core::AggregationNode::Step::kPartial,
+                          false));
+  }
 }
 
-void SubstraitParser::ParseProjectRel(const substrait::ProjectRel& sproject) {
+void SubstraitParser::ParseProjectRel(const substrait::ProjectRel& sproject,
+                                      std::shared_ptr<PlanBuilder>* plan_builder) {
   if (sproject.has_input()) {
     ParseRel(sproject.input());
   }
@@ -204,6 +254,10 @@ void SubstraitParser::ParseProjectRel(const substrait::ProjectRel& sproject) {
   for (auto& expr : sproject.expressions()) {
     ParseExpression(expr);
   }
+  (*plan_builder) = std::make_shared<PlanBuilder>(
+      (*plan_builder)
+          ->project(std::vector<std::string>{"l_extendedprice * l_discount"},
+                    std::vector<std::string>{"mul_res"}));
 }
 
 void SubstraitParser::ParseFilterRel(const substrait::FilterRel& sfilter) {
@@ -218,38 +272,76 @@ void SubstraitParser::ParseFilterRel(const substrait::FilterRel& sfilter) {
   }
 }
 
-void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread) {
+void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread,
+                                   std::shared_ptr<PlanBuilder>* plan_builder,
+                                   u_int32_t* index, std::vector<std::string>* paths,
+                                   std::vector<u_int64_t>* starts,
+                                   std::vector<u_int64_t>* lengths) {
+  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> substrait_type_list;
   if (sread.has_base_schema()) {
     auto& base_schema = sread.base_schema();
-    ParseNamedStruct(base_schema);
+    auto type_list = ParseNamedStruct(base_schema);
+    for (auto type : type_list) {
+      substrait_type_list.push_back(type);
+    }
   }
   // Parse local files
   if (sread.has_local_files()) {
     auto& local_files = sread.local_files();
-    auto index = local_files.index();
+    *index = local_files.index();
     auto& files_list = local_files.items();
     for (auto& file : files_list) {
-      auto& uri_path = file.uri_path();
-      auto start = file.start();
-      auto length = file.length();
-      std::cout << "uri_path: " << uri_path << " start: " << start
-                << " length: " << length << std::endl;
+      (*paths).push_back(file.uri_path());
+      (*starts).push_back(file.start());
+      (*lengths).push_back(file.length());
     }
+  }
+  std::vector<std::string> col_name_list;
+  for (auto sub_type : substrait_type_list) {
+    col_name_list.push_back(sub_type->name);
+  }
+  std::vector<TypePtr> velox_type_list;
+  for (auto sub_type : substrait_type_list) {
+    velox_type_list.push_back(GetVeloxType(sub_type->type));
   }
   auto& sfilter = sread.filter();
   std::cout << "filter pushdown: " << std::endl;
   ParseExpression(sfilter);
+  hive::SubfieldFilters filters;
+  filters[common::Subfield(col_name_list[3])] = std::make_unique<common::DoubleRange>(
+      8766.0, false, false, 9131.0, false, true, false);
+  filters[common::Subfield(col_name_list[0])] =
+      std::make_unique<common::DoubleRange>(0, true, false, 24, false, true, false);
+  filters[common::Subfield(col_name_list[2])] = std::make_unique<common::DoubleRange>(
+      0.05, false, false, 0.07, false, false, false);
+  auto tableHandle = HiveConnectorTestBase::makeTableHandle(std::move(filters), nullptr);
+
+  std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
+  assignments[col_name_list[0]] =
+      HiveConnectorTestBase::regularColumn(col_name_list[0], velox_type_list[0]);
+  assignments[col_name_list[1]] =
+      HiveConnectorTestBase::regularColumn(col_name_list[1], velox_type_list[1]);
+  assignments[col_name_list[2]] =
+      HiveConnectorTestBase::regularColumn(col_name_list[2], velox_type_list[2]);
+  assignments[col_name_list[3]] =
+      HiveConnectorTestBase::regularColumn(col_name_list[3], velox_type_list[3]);
+
+  auto outputType = ROW(std::move(col_name_list), std::move(velox_type_list));
+
+  (*plan_builder) = std::make_shared<PlanBuilder>(
+      PlanBuilder().tableScan(outputType, tableHandle, assignments));
 }
 
 void SubstraitParser::ParseRel(const substrait::Rel& srel) {
   if (srel.has_aggregate()) {
-    ParseAggregateRel(srel.aggregate());
+    ParseAggregateRel(srel.aggregate(), &plan_builder_);
   } else if (srel.has_project()) {
-    ParseProjectRel(srel.project());
+    ParseProjectRel(srel.project(), &plan_builder_);
   } else if (srel.has_filter()) {
     ParseFilterRel(srel.filter());
   } else if (srel.has_read()) {
-    ParseReadRel(srel.read());
+    ParseReadRel(srel.read(), &plan_builder_, &partition_index_, &paths_, &starts_,
+                 &lengths_);
   } else {
     std::cout << "not supported" << std::endl;
   }
@@ -278,11 +370,88 @@ std::string SubstraitParser::FindFunction(uint64_t id) {
   return functions_map_[id];
 }
 
+TypePtr SubstraitParser::GetVeloxType(std::string type_name) {
+  if (type_name == "BOOL") {
+    return BOOLEAN();
+  } else if (type_name == "FP64") {
+    return DOUBLE();
+  } else {
+    throw std::runtime_error("not supported");
+  }
+}
+
 class SubstraitParser::WholeStageResultIterator
     : public ResultIterator<arrow::RecordBatch> {
-  bool HasNext() override { return false; }
+ public:
+  WholeStageResultIterator(const std::shared_ptr<PlanBuilder>& plan_builder,
+                           u_int32_t index, std::vector<std::string> paths,
+                           std::vector<u_int64_t> starts, std::vector<u_int64_t> lengths)
+      : plan_builder_(plan_builder),
+        index_(index),
+        paths_(paths),
+        starts_(starts),
+        lengths_(lengths) {
+    std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
+    for (int idx = 0; idx < paths.size(); idx++) {
+      auto path = paths[idx];
+      auto start = starts[idx];
+      auto length = lengths[idx];
+      auto split = std::make_shared<hive::HiveConnectorSplit>(
+          facebook::velox::exec::test::kHiveConnectorId, path, FileFormat::ORC, start,
+          length);
+      connectorSplits.push_back(split);
+    }
+    splits_.reserve(connectorSplits.size());
+    for (const auto& connectorSplit : connectorSplits) {
+      splits_.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
+    }
+    auto op = plan_builder_->planNode();
+    params_.planNode = op;
+    cursor_ = std::make_unique<TaskCursor>(params_);
+    addSplits_ = [&](Task* task) {
+      if (noMoreSplits_) {
+        return;
+      }
+      for (auto& split : splits_) {
+        task->addSplit("0", std::move(split));
+      }
+      task->noMoreSplits("0");
+      noMoreSplits_ = true;
+    };
+  }
+
+  bool HasNext() override {
+    std::vector<RowVectorPtr> result;
+    addSplits_(cursor_->task().get());
+    while (cursor_->moveNext()) {
+      result.push_back(cursor_->current());
+      addSplits_(cursor_->task().get());
+    }
+    int64_t num_rows = 0;
+    for (auto outputVector : result) {
+      // std::cout << "out size: " << outputVector->size() << std::endl;
+      num_rows += outputVector->size();
+      for (size_t i = 0; i < outputVector->size(); ++i) {
+        std::cout << outputVector->toString(i) << std::endl;
+      }
+    }
+    std::cout << "num_rows: " << num_rows << std::endl;
+    return false;
+  }
 
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
     return arrow::Status::OK();
   }
+
+ private:
+  std::shared_ptr<PlanBuilder> plan_builder_;
+  std::unique_ptr<TaskCursor> cursor_;
+  std::vector<exec::Split> splits_;
+  bool noMoreSplits_ = false;
+  CursorParameters params_;
+  std::function<void(exec::Task*)> addSplits_;
+  u_int32_t index_;
+  std::vector<std::string> paths_;
+  std::vector<u_int64_t> starts_;
+  std::vector<u_int64_t> lengths_;
 };
