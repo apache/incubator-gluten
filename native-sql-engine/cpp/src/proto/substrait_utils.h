@@ -25,7 +25,6 @@
 #include "selection.pb.h"
 #include "type.pb.h"
 #include "type_expressions.pb.h"
-
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/common/Options.h"

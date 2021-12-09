@@ -353,7 +353,7 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   // Get the ws iter
   gandiva::ExpressionVector ws_expr_vector;
   gandiva::FieldVector ws_ret_types;
-  std::cout << "start to parse" << std::endl;
+  // std::cout << "start to parse" << std::endl;
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
   msg = ParseSubstraitPlan(env, ws_exprs_arr, &ws_expr_vector, &ws_ret_types, &res_iter);
   if (!msg.ok()) {
