@@ -384,6 +384,7 @@ JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeNext
   std::shared_ptr<arrow::RecordBatch> out;
   if (!iter->HasNext()) return nullptr;
   JniAssertOkOrThrow(iter->Next(&out), "nativeNext: get Next() failed");
+  // arrow::PrettyPrint(*out.get(), 2, &std::cout);
   jbyteArray serialized_record_batch =
       JniGetOrThrow(ToBytes(env, out), "Error deserializing message");
   return serialized_record_batch;

@@ -25,14 +25,15 @@
 #include "selection.pb.h"
 #include "type.pb.h"
 #include "type_expressions.pb.h"
+#include "velox/buffer/Buffer.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/exec/tests/utils/HiveConnectorTestBase.h"
 #include "velox/exec/tests/utils/PlanBuilder.h"
-#include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/aggregates/SumAggregate.h"
+#include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;

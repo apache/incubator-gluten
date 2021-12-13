@@ -434,9 +434,8 @@ class SubstraitParser::WholeStageResultIterator
     } else {
       addSplits_(cursor_->task().get());
       if (cursor_->moveNext()) {
-        auto current_vec = cursor_->current();
-        result_.push_back(current_vec);
-        num_rows_ += current_vec->size();
+        result_ = cursor_->current();
+        num_rows_ += result_->size();
         return true;
       } else {
         may_has_next_ = false;
@@ -455,19 +454,6 @@ class SubstraitParser::WholeStageResultIterator
   }
 
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
-    addSplits_(cursor_->task().get());
-    while (num_rows_ < batch_size_ && cursor_->moveNext()) {
-      auto current_vec = cursor_->current();
-      result_.push_back(current_vec);
-      num_rows_ += current_vec->size();
-      // If num_rows_ > batch_size_, the last RowVector needs to be sliced.
-      // In this way, the batch size can be exactly the same as the setting.
-      if (num_rows_ < batch_size_) {
-        addSplits_(cursor_->task().get());
-      }
-    }
-    // Convert RowVector to Arrow RecordBatch
-    auto batch_len = (num_rows_ > batch_size_) ? batch_size_ : num_rows_;
     // FIXME: only one-col case is considered
     auto col_num = 1;
     std::vector<std::shared_ptr<arrow::Array>> out_arrays;
@@ -475,80 +461,36 @@ class SubstraitParser::WholeStageResultIterator
       arrow::ArrayData out_data;
       out_data.type = arrow::float64();
       out_data.buffers.resize(2);
-      out_data.length = batch_len;
-      auto bytes = sizeof(double);
-      ARROW_ASSIGN_OR_RAISE(out_data.buffers[1],
-                            AllocateBuffer(bytes * batch_len, memory_pool_));
-      // FIXME: allocate null bitmap
+      out_data.length = num_rows_;
+      auto vec = result_->childAt(idx)->as<FlatVector<double>>();
       uint64_t array_null_count = 0;
-      uint64_t current_len = 0;
-      uint8_t* buffer_data = (out_data.buffers[1])->mutable_data();
-      if (in_offset_ > 0 && last_rv_) {
-        // Last RV has unconsumed rows, need to consume them first
-        auto vec = last_rv_->childAt(idx)->as<FlatVector<double>>();
-        std::optional<int32_t> null_count = vec->getNullCount();
-        if (null_count) {
-          int32_t vec_null_count = *null_count;
-          array_null_count += vec_null_count;
-          const uint64_t* rawNulls = vec->rawNulls();
-          // FIXME: copy BitMap
-        }
-        const uint8_t* raw_result = vec->rawValues<uint8_t>();
-        int32_t vec_length = vec->size() - in_offset_;
-        if (current_len + vec_length <= batch_size_) {
-          CopyBuffer(raw_result + bytes * in_offset_, buffer_data + bytes * current_len,
-                     bytes * vec_length);
-          current_len += vec_length;
-          // Last RV is totally consumed.
-          last_rv_ = nullptr;
-          in_offset_ = 0;
-        } else {
-          // Only part of this RowVector will be copied.
-          auto needed_length = batch_size_ - current_len;
-          CopyBuffer(raw_result + bytes * in_offset_, buffer_data + bytes * current_len,
-                     bytes * needed_length);
-          in_offset_ += needed_length;
-          current_len += needed_length;
-        }
+      std::optional<int32_t> null_count = vec->getNullCount();
+      std::shared_ptr<arrow::Buffer> val_buffer = nullptr;
+      if (null_count) {
+        int32_t vec_null_count = *null_count;
+        array_null_count += vec_null_count;
+        const uint64_t* rawNulls = vec->rawNulls();
+        // FIXME: set BitMap
       }
-      for (auto row_vec : result_) {
-        // FIXME: use vec_type to infer the used types
-        auto vec_type = row_vec->childAt(idx)->type();
-        auto vec = row_vec->childAt(idx)->as<FlatVector<double>>();
-        std::optional<int32_t> null_count = vec->getNullCount();
-        if (null_count) {
-          int32_t vec_null_count = *null_count;
-          array_null_count += vec_null_count;
-          const uint64_t* rawNulls = vec->rawNulls();
-          // FIXME: copy BitMap
-        }
-        const uint8_t* raw_result = vec->rawValues<uint8_t>();
-        int32_t vec_length = vec->size();
-        if (current_len + vec_length <= batch_size_) {
-          CopyBuffer(raw_result, buffer_data + bytes * current_len, bytes * vec_length);
-          current_len += vec_length;
-        } else {
-          // Only part of this RowVector will be copied.
-          auto needed_length = batch_size_ - current_len;
-          CopyBuffer(raw_result, buffer_data + bytes * current_len,
-                     bytes * needed_length);
-          in_offset_ = needed_length;
-          current_len += needed_length;
-          last_rv_ = row_vec;
-        }
-      }
-      // FIXME: array_null_count can be wrong when the slicing of a RowVector is
-      // required.
       out_data.null_count = array_null_count;
+      uint8_t* raw_result = vec->mutableRawValues<uint8_t>();
+      auto bytes = sizeof(double);
+      auto data_buffer = std::make_shared<arrow::Buffer>(raw_result, bytes * num_rows_);
+      out_data.buffers[0] = val_buffer;
+      out_data.buffers[1] = data_buffer;
       std::shared_ptr<arrow::Array> out_array =
           MakeArray(std::make_shared<arrow::ArrayData>(std::move(out_data)));
       out_arrays.push_back(out_array);
+      // int ref_count = vec->mutableValues(0)->refCount();
     }
+    // auto typed_array = std::dynamic_pointer_cast<arrow::DoubleArray>(out_arrays[0]);
+    // for (int i = 0; i < typed_array->length(); i++) {
+    //     std::cout << "array val: " << typed_array->GetView(i) << std::endl;
+    // }
     std::vector<std::shared_ptr<arrow::Field>> ret_types = {
         arrow::field("res", arrow::float64())};
-    *out = arrow::RecordBatch::Make(arrow::schema(ret_types), batch_len, out_arrays);
-    num_rows_ =
-        (num_rows_ > batch_size_) ? (num_rows_ - batch_size_) : (num_rows_ - batch_len);
+    *out = arrow::RecordBatch::Make(arrow::schema(ret_types), num_rows_, out_arrays);
+    num_rows_ = 0;
     return arrow::Status::OK();
   }
 
@@ -568,7 +510,5 @@ class SubstraitParser::WholeStageResultIterator
   uint64_t batch_size_ = 10000;
   uint64_t num_rows_ = 0;
   bool may_has_next_ = true;
-  std::vector<RowVectorPtr> result_;
-  RowVectorPtr last_rv_ = nullptr;
-  uint64_t in_offset_ = 0;
+  RowVectorPtr result_;
 };

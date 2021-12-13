@@ -56,6 +56,7 @@ set(VELOX_FUNCTIONS_LIB_PATH "${VELOX_BUILD_PATH}/functions/lib/libvelox_functio
 set(VELOX_TYPE_TZ_LIB_PATH "${VELOX_BUILD_PATH}/type/tz/libvelox_type_tz.a")
 set(VELOX_EXTERNAL_MD5_LIB_PATH "${VELOX_BUILD_PATH}/external/md5/libmd5.a")
 set(VELOX_EXPRESSION_LIB_PATH "${VELOX_BUILD_PATH}/expression/libvelox_expression.a")
+set(VELOX_BUFFER_LIB_PATH "${VELOX_BUILD_PATH}/buffer/libvelox_buffer.a")
 set(FOLLY_LIB_PATH "/usr/local/lib/libfolly.a")
 set(IBERTY_LIB_PATH "/usr/lib64/libiberty.a")
 set(GLOG_LIB_PATH "/usr/local/lib64/libglog.so")
@@ -486,6 +487,7 @@ macro(build_velox_exec)
   add_library(facebook::velox::type::tz STATIC IMPORTED)
   add_library(facebook::velox::external::md5 STATIC IMPORTED)
   add_library(facebook::velox::expression STATIC IMPORTED)
+  add_library(facebook::velox::buffer STATIC IMPORTED)
   add_library(folly STATIC IMPORTED)
   add_library(iberty STATIC IMPORTED)
   add_library(doubleconversion SHARED IMPORTED)
@@ -657,8 +659,11 @@ macro(build_velox_exec)
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXPRESSION_LIB_PATH}"
                                               INTERFACE_INCLUDE_DIRECTORIES
                                               "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::buffer
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_BUFFER_LIB_PATH}"
+                                              INTERFACE_INCLUDE_DIRECTORIES
+                                              "${BINARY_RELEASE_DIR}/include")
 
-  
   target_link_libraries(spark_columnar_jni
                     LINK_PUBLIC facebook::velox::functions::prestosql::agg
                     LINK_PUBLIC facebook::velox::exec
@@ -695,6 +700,7 @@ macro(build_velox_exec)
                     LINK_PUBLIC facebook::velox::core::config
                     LINK_PUBLIC facebook::velox::type::tz
                     LINK_PUBLIC facebook::velox::external::md5
+                    LINK_PUBLIC facebook::velox::buffer
                     LINK_PUBLIC gtest
                     LINK_PUBLIC folly
                     LINK_PUBLIC iberty
