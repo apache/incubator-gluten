@@ -45,8 +45,7 @@ SubstraitParser::SubstraitParser() {
     registerConnector(hiveConnector);
     dwrf::registerDwrfReaderFactory();
     // Register Velox functions
-    functions::registerFunctions();
-    functions::registerVectorFunctions();
+    functions::prestosql::registerAllFunctions();
     aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   }
 }

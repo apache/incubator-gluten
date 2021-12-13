@@ -31,8 +31,7 @@
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/exec/tests/utils/HiveConnectorTestBase.h"
 #include "velox/exec/tests/utils/PlanBuilder.h"
-#include "velox/functions/prestosql/SimpleFunctions.h"
-#include "velox/functions/prestosql/VectorFunctions.h"
+#include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/aggregates/SumAggregate.h"
 
 using namespace facebook::velox;
