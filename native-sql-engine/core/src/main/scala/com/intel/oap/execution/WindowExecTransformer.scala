@@ -36,7 +36,6 @@ import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistrib
 import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.{SortExec, SparkPlan}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.internal.SQLConf
@@ -49,7 +48,6 @@ import scala.collection.immutable.Stream.Empty
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 import util.control.Breaks._
 
 case class WindowExecTransformer(windowExpression: Seq[NamedExpression],

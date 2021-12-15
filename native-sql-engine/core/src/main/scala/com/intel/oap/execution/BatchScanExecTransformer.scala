@@ -25,10 +25,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-import com.intel.oap.spark.sql.execution.datasources.v2.arrow.ArrowScan
 import com.intel.oap.substrait.`type`.TypeBuiler
 import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.execution.datasources.FilePartition
@@ -38,12 +37,8 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan)
     extends BatchScanExec(output, scan) with TransformSupport {
   val tmpDir: String = GazellePluginConfig.getConf.tmpFile
-  val filterExprs: Seq[Expression] = if (scan.isInstanceOf[ParquetScan]) {
-    scan.asInstanceOf[ParquetScan].dataFilters
-  } else if (scan.isInstanceOf[OrcScan]) {
-    scan.asInstanceOf[OrcScan].dataFilters
-  } else if (scan.isInstanceOf[ArrowScan]) {
-    scan.asInstanceOf[ArrowScan].dataFilters
+  val filterExprs: Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
+    scan.asInstanceOf[FileScan].dataFilters
   } else {
     throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
@@ -57,18 +52,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     "inputSize" -> SQLMetrics.createSizeMetric(sparkContext, "input size in bytes"))
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    val numOutputRows = longMetric("numOutputRows")
-    val numInputBatches = longMetric("numInputBatches")
-    val numOutputBatches = longMetric("numOutputBatches")
-    val scanTime = longMetric("scanTime")
-    val inputSize = longMetric("inputSize")
-    val inputColumnarRDD =
-      new ColumnarDataSourceRDD(sparkContext, partitions, readerFactory, true, scanTime, numInputBatches, inputSize, tmpDir)
-    inputColumnarRDD.map { r =>
-      numOutputRows += r.numRows()
-      numOutputBatches += 1
-      r
-    }
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]

@@ -140,16 +140,28 @@
       <!--scope>provided</scope-->
     </dependency>
     <dependency>
-      <artifactId>spark-arrow-datasource-common</artifactId>
-      <groupId>com.intel.oap</groupId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <artifactId>spark-arrow-datasource-standard</artifactId>
-      <groupId>com.intel.oap</groupId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-dataset</artifactId>
+      <version>${arrow.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-buffer</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+        </exclusion>
+      </exclusions>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.scalacheck</groupId>

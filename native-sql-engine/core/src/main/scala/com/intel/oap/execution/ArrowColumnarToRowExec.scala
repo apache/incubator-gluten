@@ -20,7 +20,6 @@ package com.intel.oap.execution
 import com.intel.oap.expression.ConverterUtils
 import com.intel.oap.vectorized.{ArrowColumnarToRowJniWrapper, ArrowWritableColumnVector}
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}

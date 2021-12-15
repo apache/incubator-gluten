@@ -30,7 +30,6 @@
   </licenses>
 
   <modules>
-    <module>arrow-data-source</module>
     <module>native-sql-engine/core</module>
     <module>shims</module>
   </modules>

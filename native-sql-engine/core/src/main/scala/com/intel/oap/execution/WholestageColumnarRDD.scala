@@ -32,7 +32,6 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFacto
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.v2.VectorizedFilePartitionReaderHandler
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetPartitionReaderFactory
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
