@@ -26,6 +26,8 @@
 #include <gandiva/tree_expr_builder.h>
 #include <google/protobuf/io/coded_stream.h>
 
+#include <fstream>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -345,6 +347,9 @@ arrow::Status ParseSubstraitPlan(
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
+  // std::fstream sub("/tmp/sub.data", std::ios::binary|std::ios::out);
+  // ws_plan.SerializeToOstream(&sub);
+  // sub.close();
   auto converter = std::make_shared<SubstraitVeloxPlanConverter>();
   *out_iter = converter->getResIter(converter->toVeloxPlan(ws_plan));
   return arrow::Status::OK();

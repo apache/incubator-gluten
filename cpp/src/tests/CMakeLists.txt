@@ -1,0 +1,1 @@
+package_add_test(TestVeloxCompute velox_compute_test.cc)

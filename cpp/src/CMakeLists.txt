@@ -832,6 +832,24 @@ set_source_files_properties(${PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
 get_filename_component(PROTO_DIR ${proto_directory}/,
                        DIRECTORY)
 
+if(TESTS)
+  find_package(GTest)
+macro(package_add_test TESTNAME)
+  add_executable(${TESTNAME} ${ARGN})
+  target_link_libraries(${TESTNAME} gtest gtest_main spark_columnar_jni dl ${CMAKE_THREAD_LIBS_INIT})
+  target_include_directories(${TESTNAME} PUBLIC ${source_root_directory} ${VELOX_HOME} ${VELOX_REALEASE_PATH})
+  gtest_discover_tests(${TESTNAME}
+    WORKING_DIRECTORY ${PROJECT_DIR}
+    PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}"
+  )
+  set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+endmacro()
+  include(GoogleTest)
+  ENABLE_TESTING()
+  add_custom_target(test ${CMAKE_CTEST_COMMAND} -R TestArrowCompute --output-on-failure)
+  add_subdirectory(tests)
+endif()
+
 set(CODEGEN_HEADERS
     third_party/
     )
