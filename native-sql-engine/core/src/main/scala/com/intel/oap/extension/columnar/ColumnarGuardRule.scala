@@ -283,6 +283,10 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
 //        insertRowGuardRecursive(plan)
       case plan if !tryConvertToTransformer(plan) =>
         insertRowGuard(plan)
+      // FIXME: A tmp workaround for single Agg
+      case a: HashAggregateExec
+        if !a.child.isInstanceOf[ProjectExec] && !a.child.isInstanceOf[FilterExec] =>
+        insertRowGuard(a)
       case p: BroadcastQueryStageExec =>
         p
       case other =>

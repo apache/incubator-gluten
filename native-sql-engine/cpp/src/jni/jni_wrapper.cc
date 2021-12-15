@@ -353,7 +353,7 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   // Get the ws iter
   gandiva::ExpressionVector ws_expr_vector;
   gandiva::FieldVector ws_ret_types;
-  std::cout << "start to parse" << std::endl;
+  // std::cout << "start to parse" << std::endl;
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
   msg = ParseSubstraitPlan(env, ws_exprs_arr, &ws_expr_vector, &ws_ret_types, &res_iter);
   if (!msg.ok()) {
@@ -384,6 +384,7 @@ JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeNext
   std::shared_ptr<arrow::RecordBatch> out;
   if (!iter->HasNext()) return nullptr;
   JniAssertOkOrThrow(iter->Next(&out), "nativeNext: get Next() failed");
+  // arrow::PrettyPrint(*out.get(), 2, &std::cout);
   jbyteArray serialized_record_batch =
       JniGetOrThrow(ToBytes(env, out), "Error deserializing message");
   return serialized_record_batch;

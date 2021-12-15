@@ -17,6 +17,12 @@
 
 #include "substrait_utils.h"
 
+#include <arrow/array/array_primitive.h>
+#include <arrow/array/data.h>
+#include <arrow/array/util.h>
+#include <arrow/record_batch.h>
+#include <arrow/type_fwd.h>
+
 namespace substrait = io::substrait;
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -25,7 +31,7 @@ using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 
 SubstraitParser::SubstraitParser() {
-  std::cout << "construct SubstraitParser" << std::endl;
+  // std::cout << "construct SubstraitParser" << std::endl;
   if (!initialized) {
     initialized = true;
     // Setup
@@ -39,8 +45,7 @@ SubstraitParser::SubstraitParser() {
     registerConnector(hiveConnector);
     dwrf::registerDwrfReaderFactory();
     // Register Velox functions
-    functions::registerFunctions();
-    functions::registerVectorFunctions();
+    functions::prestosql::registerAllFunctions();
     aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   }
 }
@@ -57,7 +62,7 @@ void SubstraitParser::ParseLiteral(const substrait::Expression::Literal& slit) {
   switch (slit.literal_type_case()) {
     case substrait::Expression_Literal::LiteralTypeCase::kFp64: {
       double val = slit.fp64();
-      std::cout << "double lit: " << val << std::endl;
+      // std::cout << "double lit: " << val << std::endl;
       break;
     }
     case substrait::Expression_Literal::LiteralTypeCase::kBoolean: {
@@ -77,7 +82,7 @@ void SubstraitParser::ParseScalarFunction(
   }
   auto function_id = sfunc.id().id();
   auto function_name = FindFunction(function_id);
-  std::cout << "function_name: " << function_name << std::endl;
+  // std::cout << "function_name: " << function_name << std::endl;
   auto out_type = sfunc.output_type();
   ParseType(out_type);
 }
@@ -87,7 +92,7 @@ void SubstraitParser::ParseReferenceSegment(const ::substrait::ReferenceSegment&
     case substrait::ReferenceSegment::ReferenceTypeCase::kStructField: {
       auto sfield = sref.struct_field();
       auto field_id = sfield.field();
-      std::cout << "field_id: " << field_id << std::endl;
+      // std::cout << "field_id: " << field_id << std::endl;
       break;
     }
     default:
@@ -104,7 +109,7 @@ void SubstraitParser::ParseFieldReference(const substrait::FieldReference& sfiel
       break;
     }
     case substrait::FieldReference::ReferenceTypeCase::kMaskedReference: {
-      std::cout << "not supported" << std::endl;
+      // std::cout << "not supported" << std::endl;
       break;
     }
     default:
@@ -204,7 +209,7 @@ void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg,
   for (auto& grouping : groupings) {
     auto grouping_fields = grouping.input_fields();
     for (auto& grouping_field : grouping_fields) {
-      std::cout << "Agg grouping_field: " << grouping_field << std::endl;
+      // std::cout << "Agg grouping_field: " << grouping_field << std::endl;
     }
   }
   // Parse measures
@@ -220,7 +225,7 @@ void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg,
         break;
     }
     auto function_id = aggFunction.id().id();
-    std::cout << "Agg Function id: " << function_id << std::endl;
+    // std::cout << "Agg Function id: " << function_id << std::endl;
     auto args = aggFunction.args();
     for (auto arg : args) {
       ParseExpression(arg);
@@ -228,7 +233,7 @@ void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg,
   }
   auto agg_phase = sagg.phase();
   // Parse Input and Output types
-  std::cout << "Agg input and output:" << std::endl;
+  // std::cout << "Agg input and output:" << std::endl;
   for (auto& stype : sagg.input_types()) {
     ParseType(stype);
   }
@@ -305,7 +310,7 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread,
     velox_type_list.push_back(GetVeloxType(sub_type->type));
   }
   auto& sfilter = sread.filter();
-  std::cout << "filter pushdown: " << std::endl;
+  // std::cout << "filter pushdown: " << std::endl;
   ParseExpression(sfilter);
   hive::SubfieldFilters filters;
   filters[common::Subfield(col_name_list[3])] = std::make_unique<common::DoubleRange>(
@@ -356,7 +361,7 @@ void SubstraitParser::ParsePlan(const substrait::Plan& splan) {
     auto id = sfmap.function_id().id();
     auto name = sfmap.name();
     functions_map_[id] = name;
-    std::cout << "Function id: " << id << ", name: " << name << std::endl;
+    // std::cout << "Function id: " << id << ", name: " << name << std::endl;
   }
   for (auto& srel : splan.relations()) {
     ParseRel(srel);
@@ -421,29 +426,76 @@ class SubstraitParser::WholeStageResultIterator
   }
 
   bool HasNext() override {
-    std::vector<RowVectorPtr> result;
-    addSplits_(cursor_->task().get());
-    while (cursor_->moveNext()) {
-      result.push_back(cursor_->current());
-      addSplits_(cursor_->task().get());
+    if (!may_has_next_) {
+      return false;
     }
-    int64_t num_rows = 0;
-    for (auto outputVector : result) {
-      // std::cout << "out size: " << outputVector->size() << std::endl;
-      num_rows += outputVector->size();
-      for (size_t i = 0; i < outputVector->size(); ++i) {
-        std::cout << outputVector->toString(i) << std::endl;
+    if (num_rows_ > 0) {
+      return true;
+    } else {
+      addSplits_(cursor_->task().get());
+      if (cursor_->moveNext()) {
+        result_ = cursor_->current();
+        num_rows_ += result_->size();
+        return true;
+      } else {
+        may_has_next_ = false;
+        return false;
       }
     }
-    std::cout << "num_rows: " << num_rows << std::endl;
-    return false;
+  }
+
+  arrow::Status CopyBuffer(const uint8_t* from, uint8_t* to, int64_t copy_bytes) {
+    // ARROW_ASSIGN_OR_RAISE(*out, AllocateBuffer(size * length, memory_pool_));
+    // uint8_t* buffer_data = (*out)->mutable_data();
+    std::memcpy(to, from, copy_bytes);
+    // double val = *(double*)buffer_data;
+    // std::cout << "buffler val: " << val << std::endl;
+    return arrow::Status::OK();
   }
 
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
+    // FIXME: only one-col case is considered
+    auto col_num = 1;
+    std::vector<std::shared_ptr<arrow::Array>> out_arrays;
+    for (int idx = 0; idx < col_num; idx++) {
+      arrow::ArrayData out_data;
+      out_data.type = arrow::float64();
+      out_data.buffers.resize(2);
+      out_data.length = num_rows_;
+      auto vec = result_->childAt(idx)->as<FlatVector<double>>();
+      uint64_t array_null_count = 0;
+      std::optional<int32_t> null_count = vec->getNullCount();
+      std::shared_ptr<arrow::Buffer> val_buffer = nullptr;
+      if (null_count) {
+        int32_t vec_null_count = *null_count;
+        array_null_count += vec_null_count;
+        const uint64_t* rawNulls = vec->rawNulls();
+        // FIXME: set BitMap
+      }
+      out_data.null_count = array_null_count;
+      uint8_t* raw_result = vec->mutableRawValues<uint8_t>();
+      auto bytes = sizeof(double);
+      auto data_buffer = std::make_shared<arrow::Buffer>(raw_result, bytes * num_rows_);
+      out_data.buffers[0] = val_buffer;
+      out_data.buffers[1] = data_buffer;
+      std::shared_ptr<arrow::Array> out_array =
+          MakeArray(std::make_shared<arrow::ArrayData>(std::move(out_data)));
+      out_arrays.push_back(out_array);
+      // int ref_count = vec->mutableValues(0)->refCount();
+    }
+    // auto typed_array = std::dynamic_pointer_cast<arrow::DoubleArray>(out_arrays[0]);
+    // for (int i = 0; i < typed_array->length(); i++) {
+    //     std::cout << "array val: " << typed_array->GetView(i) << std::endl;
+    // }
+    std::vector<std::shared_ptr<arrow::Field>> ret_types = {
+        arrow::field("res", arrow::float64())};
+    *out = arrow::RecordBatch::Make(arrow::schema(ret_types), num_rows_, out_arrays);
+    num_rows_ = 0;
     return arrow::Status::OK();
   }
 
  private:
+  arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
   std::shared_ptr<PlanBuilder> plan_builder_;
   std::unique_ptr<TaskCursor> cursor_;
   std::vector<exec::Split> splits_;
@@ -454,4 +506,9 @@ class SubstraitParser::WholeStageResultIterator
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
+  // FIXME: use the setted one
+  uint64_t batch_size_ = 10000;
+  uint64_t num_rows_ = 0;
+  bool may_has_next_ = true;
+  RowVectorPtr result_;
 };

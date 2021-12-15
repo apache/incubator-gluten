@@ -345,10 +345,8 @@ arrow::Status ParseSubstraitPlan(
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
-  std::cout << "Start to parse to plan" << std::endl;
   auto parser = std::make_shared<SubstraitParser>();
   parser->ParsePlan(ws_plan);
-  std::cout << "Finish parsing to plan" << std::endl;
   *out_iter = parser->getResIter();
   return arrow::Status::OK();
 }
