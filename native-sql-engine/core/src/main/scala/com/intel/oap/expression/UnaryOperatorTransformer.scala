@@ -36,7 +36,6 @@ import com.intel.oap.substrait.`type`.TypeBuiler
 import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.arrow.vector.types.TimeUnit
 import org.apache.spark.sql.catalyst.util.DateTimeConstants
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 
 /**
  * A version of add that supports columnar processing for longs.

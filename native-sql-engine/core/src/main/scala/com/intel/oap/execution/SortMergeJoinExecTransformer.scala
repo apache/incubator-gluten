@@ -50,7 +50,6 @@ import org.apache.arrow.memory.ArrowBuf
 import com.google.common.collect.Lists
 import com.intel.oap.expression._
 import com.intel.oap.vectorized.ExpressionEvaluator
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.types.DecimalType

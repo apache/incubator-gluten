@@ -20,22 +20,20 @@ package com.intel.oap.execution
 import com.intel.oap.expression.ConverterUtils
 import com.intel.oap.vectorized.ArrowWritableColumnVector
 import com.intel.oap.vectorized.CloseableColumnBatchIterator
-
 import org.apache.arrow.vector.util.VectorBatchAppender
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
-import org.apache.arrow.vector.types.pojo.Schema;
-
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.sql.types.{StructType, StructField}
-import org.apache.spark.sql.util.ArrowUtils;
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.util.ArrowUtils
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters._

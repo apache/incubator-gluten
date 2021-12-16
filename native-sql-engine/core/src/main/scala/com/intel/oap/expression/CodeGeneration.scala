@@ -21,7 +21,6 @@ import org.apache.arrow.vector.Float4Vector
 import org.apache.arrow.vector.IntVector
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.ArrowType
-
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._

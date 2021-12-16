@@ -30,7 +30,6 @@
   </licenses>
 
   <modules>
-    <module>arrow-data-source</module>
     <module>native-sql-engine/core</module>
     <module>shims</module>
   </modules>
@@ -195,6 +194,14 @@
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
