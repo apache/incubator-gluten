@@ -80,7 +80,7 @@ set(JEMALLOC_BUILD_VERSION "5.2.1")
 
 find_package(JNI REQUIRED)
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
-set(substrait_proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../core/src/main/java/com/intel/oap/substrait/binary)
+set(substrait_proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../jvm/src/main/java/com/intel/oap/substrait/binary)
 message(STATUS "Set Substrait Directory in ${substrait_proto_directory}")
 
 find_program(CCACHE_FOUND ccache)
