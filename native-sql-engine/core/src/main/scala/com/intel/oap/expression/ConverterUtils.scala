@@ -62,8 +62,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision}
 import org.apache.spark.sql.catalyst.util.DateTimeConstants
 import org.apache.spark.sql.catalyst.util.DateTimeConstants.MICROS_PER_SECOND
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtils
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtils, SparkVectorUtils}
 
 object ConverterUtils extends Logging {
   def calcuateEstimatedSize(columnarBatch: ColumnarBatch): Long = {

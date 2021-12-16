@@ -38,7 +38,6 @@ import com.google.common.collect.Lists
 import com.intel.oap.GazellePluginConfig
 import com.intel.oap.substrait.expression.ExpressionNode
 import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 
 case class ConditionProjectExecTransformer(
     condition: Expression,
