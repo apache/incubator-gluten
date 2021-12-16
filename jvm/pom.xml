@@ -16,16 +16,15 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.intel.oap</groupId>
-    <artifactId>native-sql-engine-parent</artifactId>
+    <artifactId>gazelle-jni-parent</artifactId>
     <version>1.2.0-snapshot</version>
-    <relativePath>../../pom.xml</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>com.intel.oap</groupId>
-  <artifactId>spark-columnar-core</artifactId>
+  <artifactId>gazelle-jni-jvm</artifactId>
   <version>1.2.0-snapshot</version>
   <packaging>jar</packaging>
-  <name>OAP Project Spark Columnar Plugin</name>
+  <name>Gazelle Jni</name>
 
   <properties>
     <cpp.dir>../cpp/</cpp.dir>
