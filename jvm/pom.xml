@@ -43,6 +43,7 @@
     <nativesql.arrow_root>${arrow_root}</nativesql.arrow_root>
     <nativesql.build_protobuf>${build_protobuf}</nativesql.build_protobuf>
     <nativesql.build_jemalloc>${build_jemalloc}</nativesql.build_jemalloc>
+    <gazelle.jni.velox_home>${velox_home}</gazelle.jni.velox_home>
     <!-- protobuf paths -->
     <protobuf.input.directory>${project.basedir}/src/main/java/com/intel/oap/substrait/binary</protobuf.input.directory>
     <protobuf.output.directory>${project.build.directory}/generated-sources</protobuf.output.directory>
@@ -368,6 +369,7 @@
                           <argument>${nativesql.arrow_root}</argument>
                           <argument>${nativesql.arrow.bfs.install.dir}</argument>
                           <argument>${nativesql.build_jemalloc}</argument>
+                          <argument>${gazelle.jni.velox_home}</argument>
                       </arguments>
                   </configuration>
               </execution>
