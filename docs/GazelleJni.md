@@ -134,7 +134,7 @@ If your SPARK and HADOOP are separated in different nodes, please find `libhdfs.
 
 For more information, please check
 Arrow HDFS interface [documentation](https://github.com/apache/arrow/blob/master/cpp/apidoc/HDFS.md)
-Hadoop Native Library, please read the official Hadoop website [documentation](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/NativeLibraries.html)
+Hadoop Native Library, please read the official Hadoop website [documentation](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/NativeLibraries.html).
 
 #### Use libhdfs3 library for better performance(Optional)
 
@@ -179,7 +179,7 @@ Please notes: If you choose to use libhdfs3.so, there are some other dependency 
 During the mvn compile command, it will launch a script(build_arrow.sh) to help install and compile a Intel custom Arrow library.
 If you wish to build Apache Arrow by yourself, please follow the guide to build and install Apache Arrow [ArrowInstallation](./ApacheArrowInstallation.md)
 
-### Build Gazelle Jni
+### Gazelle Jni
 
 ##### Compile Gazelle Jni jar
 

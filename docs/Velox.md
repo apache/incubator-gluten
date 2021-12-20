@@ -1,18 +1,26 @@
 ## Velox
 
-Please refer to [Velox Installation](https://github.com/facebookincubator/velox/blob/main/scripts/setup-ubuntu.sh) to install the dependencies, and then compile Velox.
+Please refer to [Velox Installation](https://github.com/facebookincubator/velox/blob/main/scripts/setup-ubuntu.sh) to install all the dependencies.
 
-Please Note that all the dependent static libraries should be compiled as position independent code, including:
+Please Note that all the dependent libraries should be compiled as position independent code. That means, for static libraries, "-fPIC" option should be added during compilation.
+
+For Gazelle-Jni compiling, the required static libraries include:
 
 - fmt
 - folly
 - iberty
 
-Please note that Velox static libraries should also be compiled as position independent code, and some Options on OBJECT should be removed. For these two changes, please refer to this commit [Velox Compiling](https://github.com/rui-mo/velox/commit/b436af6b942b18e7f9dbd15c1e8eea49397e164a).
+The required shared libraries include:
+
+- glog
+- double-conversion
+- gtest
+
+When compiling Velox, please note that Velox generated static libraries should also be compiled as position independent code. Also, some OBJECT settings should be removed. For these two changes, please refer to this commit [Velox Compiling](https://github.com/rui-mo/velox/commit/b436af6b942b18e7f9dbd15c1e8eea49397e164a).
 
 ### An example for Velox computing in Spark based on Gazelle-Jni
 
-TPC-H Q6 test is supported in Gazelle-Jni base on Velox computing with below limitations:
+TPC-H Q6 is supported in Gazelle-Jni base on Velox computing. Current support has several limitations: 
 
 - Only Double type is supported.
 - Only single-thread is supported.
@@ -90,9 +98,9 @@ cat tpch_q6.scala | spark-shell --name tpch_col_q6 --num-executors 24 --driver-m
 
 ##### Performance
 
-In this single-thread test, Velox behaves better than vanilla Spark.
+Below show the TPC-H Q6 Performance comparison in this single-thread test.
 
-| Performance | Velox | Vanilla Spark on Parquet Data | Vanilla Spark on ORC Data |
+| TPC-H Q6 Performance | Velox | Vanilla Spark on Parquet Data | Vanilla Spark on ORC Data |
 | ---------- | ----------- | ------------- | ------------- |
 | Time(s) | 57 | 70 | 190 |
 
