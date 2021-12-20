@@ -15,7 +15,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.intel.oap</groupId>
-  <artifactId>native-sql-engine-parent</artifactId>
+  <artifactId>gazelle-jni-parent</artifactId>
   <version>1.2.0-snapshot</version>
   <packaging>pom</packaging>
 
@@ -30,8 +30,7 @@
   </licenses>
 
   <modules>
-    <module>arrow-data-source</module>
-    <module>native-sql-engine/core</module>
+    <module>jvm</module>
     <module>shims</module>
   </modules>
 
@@ -128,7 +127,7 @@
     <build_protobuf>ON</build_protobuf>
     <build_jemalloc>ON</build_jemalloc>
     <project.prefix>spark-sql-columnar</project.prefix>
-    <project.name.prefix>OAP Project Spark Columnar Plugin</project.name.prefix>
+    <project.name.prefix>Gazelle Jni</project.name.prefix>
     <spark311.version>3.1.1</spark311.version>
   </properties>
 
@@ -195,6 +194,14 @@
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
