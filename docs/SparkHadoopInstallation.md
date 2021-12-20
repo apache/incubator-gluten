@@ -1,6 +1,7 @@
-### Download Spark 3.1.1
+## Spark Installation
+### Option 1: download Spark 3.1.1
 
-Currently Gazelle Plugin works on the Spark 3.1.1 version.
+Currently Gazelle Jni works on the Spark 3.1.1 version.
 
 ```
 wget http://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
@@ -9,7 +10,7 @@ sudo cd /opt/spark && sudo tar -xf spark-3.1.1-bin-hadoop3.2.tgz
 export SPARK_HOME=/opt/spark/spark-3.1.1-bin-hadoop3.2/
 ```
 
-### [Or building Spark from source](https://spark.apache.org/docs/latest/building-spark.html)
+### [Option 2: building Spark from source](https://spark.apache.org/docs/latest/building-spark.html)
 
 ``` shell
 git clone https://github.com/intel-bigdata/spark.git
@@ -27,7 +28,22 @@ Specify SPARK_HOME to spark path
 export SPARK_HOME=${HADOOP_PATH}
 ```
 
-### Hadoop building from source
+## Hadoop Installation
+
+Currently we test Gazelle Jni on the Hadoop 3.2.0 version.
+
+
+### Option 1: download Hadoop 
+
+``` shell
+wget https://archive.apache.org/dist/hadoop/common/hadoop-3.2.0/hadoop-3.2.0.tar.gz
+sudo mkdir -p /opt/hadoop && sudo mv hadoop-3.2.0.tar.gz /opt/hadoop
+sudo cd /opt/hadoop && sudo tar -xf hadoop-3.2.0.tar.gz
+export HADOOP_HOME=/opt/hadoop/hadoop-3.2.0/
+```
+
+
+### Option 2: building Hadoop from source
 
 ``` shell
 git clone https://github.com/apache/hadoop.git

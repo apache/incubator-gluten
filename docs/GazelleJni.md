@@ -1,4 +1,6 @@
-# Prerequisite
+# How to Build OAP: Gazelle-Jni
+
+## Prerequisite
 
 There are some requirements before you build the project.
 Please make sure you have already installed the software in your system.
@@ -12,9 +14,9 @@ Please make sure you have already installed the software in your system.
 7. Spark 3.1.1 or higher version
 8. Intel Optimized Arrow 4.0.0
 
-## gcc installation
+### GCC installation
 
-// installing GCC 7.0 or higher version
+#### installing GCC 7.0 or higher version
 
 Please notes for better performance support, GCC 7.0 is a minimal requirement with Intel Microarchitecture such as SKYLAKE, CASCADELAKE, ICELAKE.
 https://gcc.gnu.org/install/index.html
@@ -24,30 +26,30 @@ C++ library may ask a certain version, if you are using GCC 7.0 the version woul
 You may have to launch ./contrib/download_prerequisites command to install all the prerequisites for gcc.
 If you are facing downloading issue in download_prerequisites command, you can try to change ftp to http.
 
-//Follow the steps to configure gcc
+- Follow the steps to configure gcc
 https://gcc.gnu.org/install/configure.html
 
-If you are facing a multilib issue, you can try to add --disable-multilib parameter in ../configure
+  If you are facing a multilib issue, you can try to add --disable-multilib parameter in ../configure
 
-//Follow the steps to build gc
+- Follow the steps to build gcc
 https://gcc.gnu.org/install/build.html
 
-//Follow the steps to install gcc
+- Follow the steps to install gcc
 https://gcc.gnu.org/install/finalinstall.html
 
-//Set up Environment for new gcc
+- Set up Environment for new gcc
 ```
 export PATH=$YOUR_GCC_INSTALLATION_DIR/bin:$PATH
 export LD_LIBRARY_PATH=$YOUR_GCC_INSTALLATION_DIR/lib64:$LD_LIBRARY_PATH
 ```
 Please remember to add and source the setup in your environment files such as /etc/profile or /etc/bashrc
 
-//Verify if gcc has been installation
+- Verify if gcc has been installation
 Use `gcc -v` command to verify if your gcc version is correct.(Must larger than 7.0)
 
-## LLVM 7.0 installation
+### LLVM 7.0 installation
 
-Arrow Gandiva depends on LLVM, and I noticed current version strictly depends on llvm7.0 if you installed any other version rather than 7.0, it will fail.
+Arrow Gandiva depends on LLVM, and current version strictly depends on llvm7.0 if you installed any other version rather than 7.0, it will fail.
 ``` shell
 wget http://releases.llvm.org/7.0.1/llvm-7.0.1.src.tar.xz
 tar xf llvm-7.0.1.src.tar.xz
@@ -72,7 +74,7 @@ make install
 ```
 
 
-## cmake installation
+### Cmake installation
 If you are facing some trouble when installing cmake, please follow below steps to install cmake.
 
 ```
@@ -89,15 +91,15 @@ sudo alternatives --install /usr/local/bin/cmake cmake /usr/bin/cmake3 20 --slav
 sudo alternatives --config cmake
 ```
 
-## maven installation
+### Maven installation
 
 If you are facing some trouble when installing maven, please follow below steps to install maven
 
-// installing maven 3.6.3
+- installing maven 3.6.3
 
-Go to https://maven.apache.org/download.cgi and download the specific version of maven
+  Go to https://maven.apache.org/download.cgi and download the specific version of maven
 
-// Below command use maven 3.6.3 as an example
+- Below command use maven 3.6.3 as an example
 ```
 wget htps://ftp.wayne.edu/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
 wget https://ftp.wayne.edu/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
@@ -106,22 +108,22 @@ mkdir /usr/local/maven
 mv apache-maven-3.6.3/ /usr/local/maven/
 ```
 
-// Set maven 3.6.3 as an option within alternatives command
+- Set maven 3.6.3 as an option within alternatives command
 ```
 sudo alternatives --install /usr/bin/mvn mvn /usr/local/maven/apache-maven-3.6.3/bin/mvn 1
 ```
 
-// Use alternatives to choose mvn version
+- Use alternatives to choose mvn version
 
 ```
 sudo alternatives --config mvn
 ```
 
-## HADOOP/SPARK Installation
+### Hadoop/Spark Installation
 
-If there is no existing Hadoop/Spark installed, Please follow the guide to install your Hadoop/Spark [SPARK/HADOOP Installation](./SparkInstallation.md)
+If there is no existing Hadoop/Spark installed, Please follow the guide to install your Hadoop/Spark [Spark/Hadoop Installation](./SparkHadoopInstallation.md)
 
-### Hadoop Native Library(Default)
+#### Hadoop Native Library(Default)
 
 Please make sure you have set up Hadoop directory properly with Hadoop Native Libraries
 By default, Apache Arrow would scan `$HADOOP_HOME` and find the native Hadoop library `libhdfs.so`(under `$HADOOP_HOME/lib/native` directory) to be used for Hadoop client.
@@ -134,7 +136,7 @@ For more information, please check
 Arrow HDFS interface [documentation](https://github.com/apache/arrow/blob/master/cpp/apidoc/HDFS.md)
 Hadoop Native Library, please read the official Hadoop website [documentation](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/NativeLibraries.html)
 
-### Use libhdfs3 library for better performance(Optional)
+#### Use libhdfs3 library for better performance(Optional)
 
 For better performance ArrowDataSource reads HDFS files using the third-party library `libhdfs3`. The library must be pre-installed on machines Spark Executor nodes are running on.
 
@@ -172,8 +174,37 @@ Add following Spark configuration options before running the DataSource to make 
 Please notes: If you choose to use libhdfs3.so, there are some other dependency libraries you have to installed such as libprotobuf or libcrypto.
 
 
-## Intel Optimized Apache Arrow Installation
+### Intel Optimized Apache Arrow Installation
 
 During the mvn compile command, it will launch a script(build_arrow.sh) to help install and compile a Intel custom Arrow library.
 If you wish to build Apache Arrow by yourself, please follow the guide to build and install Apache Arrow [ArrowInstallation](./ApacheArrowInstallation.md)
 
+### Build Gazelle Jni
+
+##### Compile Gazelle Jni jar
+
+``` shell
+git clone -b master https://github.com/oap-project/gazelle-jni.git
+cd gazelle-jni
+mvn clean package -P full-scala-compiler -DskipTests -Dcpp_tests=OFF -Dcheckstyle.skip
+```
+
+Based on the different environment, there are some parameters can be set via -D with mvn.
+
+| Parameters | Description | Default Value |
+| ---------- | ----------- | ------------- |
+| cpp_tests  | Enable or Disable CPP Tests | False |
+| build_arrow | Build Arrow from Source | True |
+| arrow_root | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library. | /usr/local |
+| build_protobuf | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library. | True |
+| velox_home | When building Gazelle-Jni with Velox, the location of Velox should be set. | /root/velox |
+
+When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-4.0.0-oap)
+If you wish to change any parameters from Arrow, you can change it from the `build_arrow.sh` script under `native-sql-engine/arrow-data-source/script/`.
+
+##### Configure the compiled jar to Spark
+
+```shell script
+spark.driver.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
+```
