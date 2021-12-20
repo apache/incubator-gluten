@@ -14,12 +14,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_BUILD_TYPE  "Release")
 
 set(ARROW_ROOT "/usr/local" CACHE PATH "Arrow Root dir")
+set(SYSTEM_LIB_PATH "/usr/lib" CACHE PATH "System Lib dir")
+set(SYSTEM_LIB64_PATH "/usr/lib64" CACHE PATH "System Lib64 dir")
+set(SYSTEM_LOCAL_LIB_PATH "/usr/local/lib" CACHE PATH "System Local Lib dir")
+set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 dir")
+
 set(ARROW_BFS_INSTALL_DIR "/usr/local" CACHE PATH "Arrow Build from Source dir")
 set(ARROW_LIB_NAME arrow)
 set(GANDIVA_LIB_NAME gandiva)
 set(ARROW_SHARED_LIBRARY_SUFFIX ".so.400")
-set(VELOX_INCLUDE_DIR "/root/rui/velox")
-set(VELOX_REALEASE_PATH "${VELOX_INCLUDE_DIR}/_build/release")
+set(VELOX_REALEASE_PATH "${VELOX_HOME}/_build/release")
 set(VELOX_BUILD_PATH "${VELOX_REALEASE_PATH}/velox")
 set(VELOX_EXEC_LIB_PATH "${VELOX_BUILD_PATH}/exec/libvelox_exec.a")
 set(VELOX_CONNECTOR_LIB_PATH "${VELOX_BUILD_PATH}/connectors/libvelox_connector.a")
@@ -57,12 +61,7 @@ set(VELOX_TYPE_TZ_LIB_PATH "${VELOX_BUILD_PATH}/type/tz/libvelox_type_tz.a")
 set(VELOX_EXTERNAL_MD5_LIB_PATH "${VELOX_BUILD_PATH}/external/md5/libmd5.a")
 set(VELOX_EXPRESSION_LIB_PATH "${VELOX_BUILD_PATH}/expression/libvelox_expression.a")
 set(VELOX_BUFFER_LIB_PATH "${VELOX_BUILD_PATH}/buffer/libvelox_buffer.a")
-set(FOLLY_LIB_PATH "/usr/local/lib/libfolly.a")
-set(IBERTY_LIB_PATH "/usr/lib64/libiberty.a")
-set(GLOG_LIB_PATH "/usr/local/lib64/libglog.so")
-set(DOUBLE_CONVERSION_LIB_PATH "/usr/local/lib64/libdouble-conversion.so")
-set(FMT_LIB_PATH "/usr/local/lib64/libfmt.a")
-set(GTEST_LIB_PATH "/usr/local/lib64/libgtest.so")
+
 option(BUILD_ARROW "Build Arrow from Source" ON)
 option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
@@ -328,7 +327,7 @@ macro(find_arrow)
   set(ARROW_BFS_INCLUDE_DIR "${ARROW_BFS_INSTALL_DIR}/include")
   set(ARROW_INCLUDE_DIR "${ARROW_ROOT}/include")
   message(STATUS "Set Arrow Include Directory in ${ARROW_BFS_INCLUDE_DIR} or ${ARROW_INCLUDE_DIR}")
-
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
   find_library(ARROW_LIB NAMES ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
   if(NOT ARROW_LIB)
     message(FATAL_ERROR "Arrow Library Not Found")
@@ -450,7 +449,86 @@ macro(find_jemalloc)
   set(PROTOC_BIN ${Jemalloc_PROTOC_EXECUTABLE})
 endmacro()
 
+# Find Folly
+macro(find_folly)
+  # Find the folly library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_library(FOLLY_LIBRARY NAMES folly PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT FOLLY_LIBRARY)
+    message(FATAL_ERROR "Folly Library Not Found")
+  else()
+    message(STATUS "Folly Library Can Be Found in ${FOLLY_LIBRARY}")
+  endif()
+  set(FOLLY_LIB_PATH "${FOLLY_LIBRARY}")
+endmacro()
+
+# Find Iberty
+macro(find_iberty)
+  # Find the iberty library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_library(IBERTY_LIBRARY NAMES iberty PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT IBERTY_LIBRARY)
+    message(FATAL_ERROR "Iberty Library Not Found")
+  else()
+    message(STATUS "Iberty Library Can Be Found in ${IBERTY_LIBRARY}")
+  endif()
+  set(IBERTY_LIB_PATH "${IBERTY_LIBRARY}")
+endmacro()
+
+# Find Glog
+macro(find_glog)
+  # Find the glog library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  find_library(GLOG_LIBRARY NAMES glog PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT GLOG_LIBRARY)
+    message(FATAL_ERROR "Glog Library Not Found")
+  else()
+    message(STATUS "Glog Library Can Be Found in ${GLOG_LIBRARY}")
+  endif()
+  set(GLOG_LIB_PATH "${GLOG_LIBRARY}")
+endmacro()
+
+# Find DOUBLE-CONVERSION
+macro(find_double_conversion)
+  # Find the double_conversion library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  find_library(DOUBLE_CONVERSION_LIBRARY NAMES double-conversion PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT DOUBLE_CONVERSION_LIBRARY)
+    message(FATAL_ERROR "Double-Conversion Library Not Found")
+  else()
+    message(STATUS "Double-Conversion Library Can Be Found in ${DOUBLE_CONVERSION_LIBRARY}")
+  endif()
+  set(DOUBLE_CONVERSION_LIB_PATH "${DOUBLE_CONVERSION_LIBRARY}")
+endmacro()
+
+# Find Fmt
+macro(find_fmt)
+  # Find the fmt library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_library(FMT_LIBRARY NAMES fmt PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT FMT_LIBRARY)
+    message(FATAL_ERROR "Fmt Library Not Found")
+  else()
+    message(STATUS "Fmt Library Can Be Found in ${FMT_LIBRARY}")
+  endif()
+  set(FMT_LIB_PATH "${FMT_LIBRARY}")
+endmacro()
+
+# Find GTEST
+macro(find_gtest)
+  # Find the gtest library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  find_library(GTEST_LIBRARY NAMES gtest PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT GTEST_LIBRARY)
+    message(FATAL_ERROR "Gtest Library Not Found")
+  else()
+    message(STATUS "Gtest Library Can Be Found in ${GTEST_LIBRARY}")
+  endif()
+  set(GTEST_LIB_PATH "${GTEST_LIBRARY}")
+endmacro()
+
 macro(build_velox_exec)
+  message(STATUS "Velox can be found in ${VELOX_HOME}")
   set(BINARY_RELEASE_DIR "${root_directory}/releases")
   add_library(facebook::velox::exec STATIC IMPORTED)
   add_library(facebook::velox::connector STATIC IMPORTED)
@@ -764,7 +842,7 @@ set(CODEGEN_HEADERS
     third_party/
     )
 set(THIRD_PARTY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE} ${VELOX_INCLUDE_DIR} ${VELOX_REALEASE_PATH})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE} ${VELOX_HOME} ${VELOX_REALEASE_PATH})
 file(MAKE_DIRECTORY ${root_directory}/releases/include)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/common/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/third_party/)
@@ -772,7 +850,6 @@ file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/precompile/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/utils/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/arrow_compute/ext/)
 file(COPY common/result_iterator.h DESTINATION ${root_directory}/releases/include/common/)
-# file(COPY ${VELOX_INCLUDE_DIR}/velox DESTINATION ${root_directory}/releases/include/)
 
 add_definitions(-DNATIVESQL_SRC_PATH="${root_directory}/releases")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
@@ -827,6 +904,12 @@ set_target_properties(spark_columnar_jni PROPERTIES
 )
 
 # Build Velox
+find_folly()
+find_iberty()
+find_glog()
+find_double_conversion()
+find_fmt()
+find_gtest()
 build_velox_exec()
 
 # Build Arrow

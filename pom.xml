@@ -124,6 +124,7 @@
     <static_arrow>OFF</static_arrow>
     <arrow.install.dir>${arrow.script.dir}/build/arrow_install</arrow.install.dir>
     <arrow_root>/usr/local</arrow_root>
+    <velox_home>/root/velox</velox_home>
     <build_protobuf>ON</build_protobuf>
     <build_jemalloc>ON</build_jemalloc>
     <project.prefix>spark-sql-columnar</project.prefix>
