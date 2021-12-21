@@ -17,6 +17,12 @@
 
 #include "substrait_utils.h"
 
+#include <arrow/record_batch.h>
+
+#include "arrow/array/builder_base.h"
+#include "arrow/array/builder_primitive.h"
+#include "arrow/util/checked_cast.h"
+
 namespace substrait = io::substrait;
 
 SubstraitParser::SubstraitParser() {
@@ -280,9 +286,36 @@ std::string SubstraitParser::FindFunction(uint64_t id) {
 
 class SubstraitParser::WholeStageResultIterator
     : public ResultIterator<arrow::RecordBatch> {
-  bool HasNext() override { return false; }
+ public:
+  WholeStageResultIterator() {
+    std::unique_ptr<arrow::ArrayBuilder> array_builder;
+    arrow::MakeBuilder(pool_, arrow::float64(), &array_builder);
+    builder_.reset(
+        arrow::internal::checked_cast<arrow::DoubleBuilder*>(array_builder.release()));
+  }
+
+  bool HasNext() override {
+    return has_next_;
+  }
 
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
+    double res = 6553665536.18;
+    builder_->Append(res);
+    std::shared_ptr<arrow::Array> array;
+    auto status = builder_->Finish(&array);
+    res_arrays.push_back(array);
+    std::vector<std::shared_ptr<arrow::Field>> ret_types = {
+        arrow::field("res", arrow::float64())};
+    *out = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, res_arrays);
+    if (has_next_) {
+      has_next_ = false;
+    }
     return arrow::Status::OK();
   }
+
+ private:
+  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
+  std::unique_ptr<arrow::DoubleBuilder> builder_;
+  bool has_next_ = true;
+  std::vector<std::shared_ptr<arrow::Array>> res_arrays;
 };
