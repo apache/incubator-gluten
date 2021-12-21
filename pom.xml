@@ -118,11 +118,10 @@
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <arrow.script.dir>${project.basedir}/script</arrow.script.dir>
+    <arrow.script.dir>${project.basedir}/../tools</arrow.script.dir>
     <cpp_tests>OFF</cpp_tests>
     <build_arrow>ON</build_arrow>
     <static_arrow>OFF</static_arrow>
-    <arrow.install.dir>${arrow.script.dir}/build/arrow_install</arrow.install.dir>
     <arrow_root>/usr/local</arrow_root>
     <build_protobuf>ON</build_protobuf>
     <build_jemalloc>ON</build_jemalloc>
