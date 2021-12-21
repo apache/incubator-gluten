@@ -176,7 +176,7 @@ Please notes: If you choose to use libhdfs3.so, there are some other dependency 
 
 ### Intel Optimized Apache Arrow Installation
 
-During the mvn compile command, it will launch a script(build_arrow.sh) to help install and compile a Intel custom Arrow library.
+During the mvn compile command, it will launch a script [build_arrow.sh](../tools/build_arrow.sh) to help install and compile a Intel custom Arrow library.
 If you wish to build Apache Arrow by yourself, please follow the guide to build and install Apache Arrow [ArrowInstallation](./ApacheArrowInstallation.md)
 
 ### Gazelle Jni
@@ -200,7 +200,7 @@ Based on the different environment, there are some parameters can be set via -D 
 | velox_home | When building Gazelle-Jni with Velox, the location of Velox should be set. | /root/velox |
 
 When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-4.0.0-oap)
-If you wish to change any parameters from Arrow, you can change it from the `build_arrow.sh` script under `native-sql-engine/arrow-data-source/script/`.
+If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.
 
 ##### Configure the compiled jar to Spark
 

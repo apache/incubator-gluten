@@ -36,13 +36,13 @@
     <hive.parquet.group>com.twitter</hive.parquet.group>
     <parquet.deps.scope>provided</parquet.deps.scope>
     <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
-    <nativesql.cpp_tests>${cpp_tests}</nativesql.cpp_tests>
-    <nativesql.build_arrow>OFF</nativesql.build_arrow>
-    <nativesql.static_arrow>${static_arrow}</nativesql.static_arrow>
-    <nativesql.arrow.bfs.install.dir>${project.basedir}/../../arrow-data-source/script/build/arrow_install</nativesql.arrow.bfs.install.dir>
-    <nativesql.arrow_root>${arrow_root}</nativesql.arrow_root>
-    <nativesql.build_protobuf>${build_protobuf}</nativesql.build_protobuf>
-    <nativesql.build_jemalloc>${build_jemalloc}</nativesql.build_jemalloc>
+    <jvm.cpp_tests>${cpp_tests}</jvm.cpp_tests>
+    <jvm.build_arrow>OFF</jvm.build_arrow>
+    <jvm.static_arrow>${static_arrow}</jvm.static_arrow>
+    <jvm.arrow.bfs.install.dir>${project.basedir}/../tools/build/arrow_install</jvm.arrow.bfs.install.dir>
+    <jvm.arrow_root>${arrow_root}</jvm.arrow_root>
+    <jvm.build_protobuf>${build_protobuf}</jvm.build_protobuf>
+    <jvm.build_jemalloc>${build_jemalloc}</jvm.build_jemalloc>
     <!-- protobuf paths -->
     <protobuf.input.directory>${project.basedir}/src/main/java/com/intel/oap/substrait/binary</protobuf.input.directory>
     <protobuf.output.directory>${project.build.directory}/generated-sources</protobuf.output.directory>
@@ -351,26 +351,43 @@
           <groupId>org.codehaus.mojo</groupId>
           <version>1.6.0</version>
           <executions>
-              <execution>
-                  <id>Build cpp</id>
-                  <phase>generate-resources</phase>
-                  <goals>
-                      <goal>exec</goal>
-                  </goals>
-                  <configuration>
-                      <executable>bash</executable>
-                      <arguments>
-                          <argument>${cpp.dir}/compile.sh</argument>
-                          <argument>${nativesql.cpp_tests}</argument>
-                          <argument>${nativesql.build_arrow}</argument>
-                          <argument>${nativesql.static_arrow}</argument>
-                          <argument>${nativesql.build_protobuf}</argument>
-                          <argument>${nativesql.arrow_root}</argument>
-                          <argument>${nativesql.arrow.bfs.install.dir}</argument>
-                          <argument>${nativesql.build_jemalloc}</argument>
-                      </arguments>
-                  </configuration>
-              </execution>
+            <execution>
+              <id>Build arrow</id>
+              <phase>generate-resources</phase>
+              <goals>
+                <goal>exec</goal>
+              </goals>
+              <configuration>
+                <executable>bash</executable>
+                <arguments>
+                  <argument>${arrow.script.dir}/build_arrow.sh</argument>
+                  <argument>--tests=${cpp_tests}</argument>
+                  <argument>--build_arrow=${build_arrow}</argument>
+                  <argument>--static_arrow=${static_arrow}</argument>
+                  <argument>--arrow_root=${arrow_root}</argument>
+                </arguments>
+              </configuration>
+            </execution>
+            <execution>
+                <id>Build cpp</id>
+                <phase>generate-resources</phase>
+                <goals>
+                    <goal>exec</goal>
+                </goals>
+                <configuration>
+                    <executable>bash</executable>
+                    <arguments>
+                        <argument>${cpp.dir}/compile.sh</argument>
+                        <argument>${jvm.cpp_tests}</argument>
+                        <argument>${jvm.build_arrow}</argument>
+                        <argument>${jvm.static_arrow}</argument>
+                        <argument>${jvm.build_protobuf}</argument>
+                        <argument>${jvm.arrow_root}</argument>
+                        <argument>${jvm.arrow.bfs.install.dir}</argument>
+                        <argument>${jvm.build_jemalloc}</argument>
+                    </arguments>
+                </configuration>
+            </execution>
           </executions>
       </plugin>
       <!-- copy protoc binary into build directory -->

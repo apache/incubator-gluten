@@ -31,8 +31,17 @@ Create a Conda environment and install OAP Conda package.
 $ conda create -n oapenv -c conda-forge -c intel -y oap=1.2.0
 ```
 
-Once finished steps above, you have completed OAP dependencies installation and OAP building.
+Dependencies below are required by OAP and all of them are included in OAP Conda package, they will be automatically installed in your cluster when you Conda install OAP. Ensure you have activated environment which you created in the previous steps.
 
+- [Arrow](https://github.com/oap-project/arrow/tree/v4.0.0-oap-1.2.0)
+- [Plasma](http://arrow.apache.org/blog/2017/08/08/plasma-in-memory-object-store/)
+- [Memkind](https://github.com/memkind/memkind/tree/v1.10.1)
+- [Vmemcache](https://github.com/pmem/vmemcache.git)
+- [HPNL](https://anaconda.org/intel/hpnl)
+- [PMDK](https://github.com/pmem/pmdk)  
+- [OneAPI](https://software.intel.com/content/www/us/en/develop/tools/oneapi.html)
+
+Once above steps finish, you have completed OAP dependencies installation and OAP building.
 You can start to build Gazelle-Jni in this environment.
 
 ##### Compile Gazelle Jni jar
@@ -53,7 +62,9 @@ Based on the different environment, there are some parameters can be set via -D 
 | build_protobuf | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library. | True |
 | velox_home | When building Gazelle-Jni with Velox, the location of Velox should be set. | /root/velox |
 
-When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-4.0.0-oap)
+When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-4.0.0-oap).
+
+The velox_home option is useful only on branch [velox_dev](https://github.com/oap-project/gazelle-jni/tree/velox_dev). If you would like build Gazelle-Jni with Velox computing, please refer to [Build with Velox](Velox.md) for more information.
 
 ##### Configure the compiled jar to Spark
 
@@ -61,17 +72,6 @@ When build_arrow set to True, the build_arrow.sh will be launched and compile a 
 spark.driver.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
 spark.executor.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
 ```
-
-Dependencies below are required by OAP and all of them are included in OAP Conda package, they will be automatically installed in your cluster when you Conda install OAP. Ensure you have activated environment which you created in the previous steps.
-
-- [Arrow](https://github.com/oap-project/arrow/tree/v4.0.0-oap-1.2.0)
-- [Plasma](http://arrow.apache.org/blog/2017/08/08/plasma-in-memory-object-store/)
-- [Memkind](https://github.com/memkind/memkind/tree/v1.10.1)
-- [Vmemcache](https://github.com/pmem/vmemcache.git)
-- [HPNL](https://anaconda.org/intel/hpnl)
-- [PMDK](https://github.com/pmem/pmdk)  
-- [OneAPI](https://software.intel.com/content/www/us/en/develop/tools/oneapi.html)
-
 
 #### Extra Steps for Shuffle Remote PMem Extension
 
