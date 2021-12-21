@@ -294,12 +294,10 @@ class SubstraitParser::WholeStageResultIterator
         arrow::internal::checked_cast<arrow::DoubleBuilder*>(array_builder.release()));
   }
 
-  bool HasNext() override {
-    return has_next_;
-  }
+  bool HasNext() override { return has_next_; }
 
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
-    double res = 6553665536.18;
+    double res = 10000;
     builder_->Append(res);
     std::shared_ptr<arrow::Array> array;
     auto status = builder_->Finish(&array);
