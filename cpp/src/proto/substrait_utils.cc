@@ -52,7 +52,7 @@ SubstraitParser::SubstraitParser() {
 
 std::shared_ptr<ResultIterator<arrow::RecordBatch>> SubstraitParser::getResIter() {
   auto wholestage_iter = std::make_shared<WholeStageResultIterator>(
-      plan_builder_, partition_index_, paths_, starts_, lengths_);
+      plan_node_, partition_index_, paths_, starts_, lengths_);
   auto res_iter =
       std::dynamic_pointer_cast<ResultIterator<arrow::RecordBatch>>(wholestage_iter);
   return res_iter;
@@ -81,7 +81,7 @@ void SubstraitParser::ParseScalarFunction(
     ParseExpression(sarg);
   }
   auto function_id = sfunc.id().id();
-  auto function_name = FindFunction(function_id);
+  auto function_name = findFunction(function_id);
   // std::cout << "function_name: " << function_name << std::endl;
   auto out_type = sfunc.output_type();
   ParseType(out_type);
@@ -199,8 +199,7 @@ SubstraitParser::ParseNamedStruct(const substrait::Type::NamedStruct& named_stru
   return substrait_type_list;
 }
 
-void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg,
-                                        std::shared_ptr<PlanBuilder>* plan_builder) {
+void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg) {
   if (sagg.has_input()) {
     ParseRel(sagg.input());
   }
@@ -241,15 +240,28 @@ void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg,
     ParseType(stype);
   }
   if (is_partial) {
-    (*plan_builder) = std::make_shared<PlanBuilder>(
-        (*plan_builder)
-            ->aggregation({}, {"sum(mul_res)"}, {}, core::AggregationNode::Step::kPartial,
-                          false));
+    bool ignoreNullKeys = false;
+    std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> groupingExpr;
+    std::vector<std::shared_ptr<const core::CallTypedExpr>> aggregateExprs;
+    aggregateExprs.reserve(1);
+    std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
+    agg_params.reserve(1);
+    auto field_agg =
+        std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), "mul_res");
+    agg_params.emplace_back(field_agg);
+    auto aggExpr = std::make_shared<const core::CallTypedExpr>(
+        DOUBLE(), std::move(agg_params), "sum");
+    aggregateExprs.emplace_back(aggExpr);
+    std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(
+        aggregateExprs.size());
+    auto aggNames = makeNames("a", aggregateExprs.size());
+    plan_node_ = std::make_shared<core::AggregationNode>(
+        nextPlanNodeId(), core::AggregationNode::Step::kPartial, groupingExpr, aggNames,
+        aggregateExprs, aggregateMasks, ignoreNullKeys, plan_node_);
   }
 }
 
-void SubstraitParser::ParseProjectRel(const substrait::ProjectRel& sproject,
-                                      std::shared_ptr<PlanBuilder>* plan_builder) {
+void SubstraitParser::ParseProjectRel(const substrait::ProjectRel& sproject) {
   if (sproject.has_input()) {
     ParseRel(sproject.input());
   }
@@ -259,10 +271,23 @@ void SubstraitParser::ParseProjectRel(const substrait::ProjectRel& sproject,
   for (auto& expr : sproject.expressions()) {
     ParseExpression(expr);
   }
-  (*plan_builder) = std::make_shared<PlanBuilder>(
-      (*plan_builder)
-          ->project(std::vector<std::string>{"l_extendedprice * l_discount"},
-                    std::vector<std::string>{"mul_res"}));
+  std::vector<std::shared_ptr<const core::ITypedExpr>> scan_params;
+  scan_params.reserve(2);
+  auto field_0 =
+      std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), "l_extendedprice");
+  auto field_1 =
+      std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), "l_discount");
+  scan_params.emplace_back(field_0);
+  scan_params.emplace_back(field_1);
+  // Expressions
+  std::vector<std::string> projectNames;
+  projectNames.push_back("mul_res");
+  std::vector<std::shared_ptr<const core::ITypedExpr>> expressions;
+  auto mulExpr = std::make_shared<const core::CallTypedExpr>(
+      DOUBLE(), std::move(scan_params), "multiply");
+  expressions.emplace_back(mulExpr);
+  plan_node_ = std::make_shared<core::ProjectNode>(
+      nextPlanNodeId(), std::move(projectNames), std::move(expressions), plan_node_);
 }
 
 void SubstraitParser::ParseFilterRel(const substrait::FilterRel& sfilter) {
@@ -277,9 +302,8 @@ void SubstraitParser::ParseFilterRel(const substrait::FilterRel& sfilter) {
   }
 }
 
-void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread,
-                                   std::shared_ptr<PlanBuilder>* plan_builder,
-                                   u_int32_t* index, std::vector<std::string>* paths,
+void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread, u_int32_t* index,
+                                   std::vector<std::string>* paths,
                                    std::vector<u_int64_t>* starts,
                                    std::vector<u_int64_t>* lengths) {
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> substrait_type_list;
@@ -307,7 +331,7 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread,
   }
   std::vector<TypePtr> velox_type_list;
   for (auto sub_type : substrait_type_list) {
-    velox_type_list.push_back(GetVeloxType(sub_type->type));
+    velox_type_list.push_back(getVeloxType(sub_type->type));
   }
   auto& sfilter = sread.filter();
   // std::cout << "filter pushdown: " << std::endl;
@@ -333,20 +357,19 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread,
 
   auto outputType = ROW(std::move(col_name_list), std::move(velox_type_list));
 
-  (*plan_builder) = std::make_shared<PlanBuilder>(
-      PlanBuilder().tableScan(outputType, tableHandle, assignments));
+  plan_node_ = std::make_shared<core::TableScanNode>(nextPlanNodeId(), outputType,
+                                                     tableHandle, assignments);
 }
 
 void SubstraitParser::ParseRel(const substrait::Rel& srel) {
   if (srel.has_aggregate()) {
-    ParseAggregateRel(srel.aggregate(), &plan_builder_);
+    ParseAggregateRel(srel.aggregate());
   } else if (srel.has_project()) {
-    ParseProjectRel(srel.project(), &plan_builder_);
+    ParseProjectRel(srel.project());
   } else if (srel.has_filter()) {
     ParseFilterRel(srel.filter());
   } else if (srel.has_read()) {
-    ParseReadRel(srel.read(), &plan_builder_, &partition_index_, &paths_, &starts_,
-                 &lengths_);
+    ParseReadRel(srel.read(), &partition_index_, &paths_, &starts_, &lengths_);
   } else {
     std::cout << "not supported" << std::endl;
   }
@@ -368,14 +391,14 @@ void SubstraitParser::ParsePlan(const substrait::Plan& splan) {
   }
 }
 
-std::string SubstraitParser::FindFunction(uint64_t id) {
+std::string SubstraitParser::findFunction(uint64_t id) {
   if (functions_map_.find(id) == functions_map_.end()) {
     throw std::runtime_error("Could not find function " + std::to_string(id));
   }
   return functions_map_[id];
 }
 
-TypePtr SubstraitParser::GetVeloxType(std::string type_name) {
+TypePtr SubstraitParser::getVeloxType(std::string type_name) {
   if (type_name == "BOOL") {
     return BOOLEAN();
   } else if (type_name == "FP64") {
@@ -385,13 +408,27 @@ TypePtr SubstraitParser::GetVeloxType(std::string type_name) {
   }
 }
 
+std::string SubstraitParser::nextPlanNodeId() {
+  auto id = fmt::format("{}", plan_node_id_);
+  plan_node_id_++;
+  return id;
+}
+
+std::vector<std::string> SubstraitParser::makeNames(const std::string& prefix, int size) {
+  std::vector<std::string> names;
+  for (int i = 0; i < size; i++) {
+    names.push_back(fmt::format("{}{}", prefix, i));
+  }
+  return names;
+}
+
 class SubstraitParser::WholeStageResultIterator
     : public ResultIterator<arrow::RecordBatch> {
  public:
-  WholeStageResultIterator(const std::shared_ptr<PlanBuilder>& plan_builder,
+  WholeStageResultIterator(const std::shared_ptr<core::PlanNode>& plan_node,
                            u_int32_t index, std::vector<std::string> paths,
                            std::vector<u_int64_t> starts, std::vector<u_int64_t> lengths)
-      : plan_builder_(plan_builder),
+      : plan_node_(plan_node),
         index_(index),
         paths_(paths),
         starts_(starts),
@@ -410,8 +447,7 @@ class SubstraitParser::WholeStageResultIterator
     for (const auto& connectorSplit : connectorSplits) {
       splits_.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
     }
-    auto op = plan_builder_->planNode();
-    params_.planNode = op;
+    params_.planNode = plan_node;
     cursor_ = std::make_unique<TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
@@ -496,7 +532,7 @@ class SubstraitParser::WholeStageResultIterator
 
  private:
   arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
-  std::shared_ptr<PlanBuilder> plan_builder_;
+  std::shared_ptr<core::PlanNode> plan_node_;
   std::unique_ptr<TaskCursor> cursor_;
   std::vector<exec::Split> splits_;
   bool noMoreSplits_ = false;
