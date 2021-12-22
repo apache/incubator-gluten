@@ -26,12 +26,10 @@
 namespace substrait = io::substrait;
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
-using namespace facebook::velox::exec::test;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 
 SubstraitParser::SubstraitParser() {
-  // std::cout << "construct SubstraitParser" << std::endl;
   if (!initialized) {
     initialized = true;
     // Setup
@@ -41,7 +39,7 @@ SubstraitParser::SubstraitParser() {
     // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
     // registerConnectorFactory(hiveConnectorFactory);
     auto hiveConnector = getConnectorFactory("hive")->newConnector(
-        facebook::velox::exec::test::kHiveConnectorId, nullptr, nullptr, executor.get());
+        "hive-connector", nullptr, nullptr, executor.get());
     registerConnector(hiveConnector);
     dwrf::registerDwrfReaderFactory();
     // Register Velox functions
@@ -343,18 +341,16 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread, u_int32_t* i
       std::make_unique<common::DoubleRange>(0, true, false, 24, false, true, false);
   filters[common::Subfield(col_name_list[2])] = std::make_unique<common::DoubleRange>(
       0.05, false, false, 0.07, false, false, false);
-  auto tableHandle = HiveConnectorTestBase::makeTableHandle(std::move(filters), nullptr);
+  bool filterPushdownEnabled = true;
+  auto tableHandle = std::make_shared<hive::HiveTableHandle>(filterPushdownEnabled,
+                                                             std::move(filters), nullptr);
 
   std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
-  assignments[col_name_list[0]] =
-      HiveConnectorTestBase::regularColumn(col_name_list[0], velox_type_list[0]);
-  assignments[col_name_list[1]] =
-      HiveConnectorTestBase::regularColumn(col_name_list[1], velox_type_list[1]);
-  assignments[col_name_list[2]] =
-      HiveConnectorTestBase::regularColumn(col_name_list[2], velox_type_list[2]);
-  assignments[col_name_list[3]] =
-      HiveConnectorTestBase::regularColumn(col_name_list[3], velox_type_list[3]);
-
+  for (int idx = 0; idx < col_name_list.size(); idx++) {
+    assignments[col_name_list[idx]] = std::make_shared<hive::HiveColumnHandle>(
+        col_name_list[idx], hive::HiveColumnHandle::ColumnType::kRegular,
+        velox_type_list[idx]);
+  }
   auto outputType = ROW(std::move(col_name_list), std::move(velox_type_list));
 
   plan_node_ = std::make_shared<core::TableScanNode>(nextPlanNodeId(), outputType,
@@ -439,8 +435,7 @@ class SubstraitParser::WholeStageResultIterator
       auto start = starts[idx];
       auto length = lengths[idx];
       auto split = std::make_shared<hive::HiveConnectorSplit>(
-          facebook::velox::exec::test::kHiveConnectorId, path, FileFormat::ORC, start,
-          length);
+          "hive-connector", path, FileFormat::ORC, start, length);
       connectorSplits.push_back(split);
     }
     splits_.reserve(connectorSplits.size());
@@ -448,7 +443,7 @@ class SubstraitParser::WholeStageResultIterator
       splits_.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
     }
     params_.planNode = plan_node;
-    cursor_ = std::make_unique<TaskCursor>(params_);
+    cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
         return;
@@ -533,10 +528,10 @@ class SubstraitParser::WholeStageResultIterator
  private:
   arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
   std::shared_ptr<core::PlanNode> plan_node_;
-  std::unique_ptr<TaskCursor> cursor_;
+  std::unique_ptr<test::TaskCursor> cursor_;
+  test::CursorParameters params_;
   std::vector<exec::Split> splits_;
   bool noMoreSplits_ = false;
-  CursorParameters params_;
   std::function<void(exec::Task*)> addSplits_;
   u_int32_t index_;
   std::vector<std::string> paths_;
