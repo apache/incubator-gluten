@@ -15,6 +15,10 @@
  * limitations under the License.
  */
 
+#include <velox/core/Expressions.h>
+#include <velox/core/ITypedExpr.h>
+#include <velox/core/PlanNode.h>
+
 #include "common/result_iterator.h"
 #include "expression.pb.h"
 #include "extensions.pb.h"
@@ -31,7 +35,6 @@
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/exec/tests/utils/HiveConnectorTestBase.h"
-#include "velox/exec/tests/utils/PlanBuilder.h"
 #include "velox/functions/prestosql/aggregates/SumAggregate.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 
