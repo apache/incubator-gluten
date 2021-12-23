@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include <folly/executors/IOThreadPoolExecutor.h>
+
 #include "common/result_iterator.h"
 #include "expression.pb.h"
 #include "extensions.pb.h"
@@ -26,18 +28,30 @@
 #include "type.pb.h"
 #include "type_expressions.pb.h"
 #include "velox/buffer/Buffer.h"
+#include "velox/common/caching/DataCache.h"
 #include "velox/common/file/FileSystems.h"
+#include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConnector.h"
+#include "velox/connectors/hive/HiveConnectorSplit.h"
+#include "velox/core/Expressions.h"
+#include "velox/core/ITypedExpr.h"
+#include "velox/core/PlanNode.h"
 #include "velox/dwio/common/Options.h"
+#include "velox/dwio/common/ScanSpec.h"
+#include "velox/dwio/dwrf/common/CachedBufferedInput.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/exec/tests/utils/HiveConnectorTestBase.h"
-#include "velox/exec/tests/utils/PlanBuilder.h"
+#include "velox/dwio/dwrf/writer/Writer.h"
+#include "velox/exec/Operator.h"
+#include "velox/exec/OperatorUtils.h"
+#include "velox/exec/tests/utils/Cursor.h"
+#include "velox/expression/Expr.h"
 #include "velox/functions/prestosql/aggregates/SumAggregate.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
+#include "velox/type/Filter.h"
+#include "velox/type/Subfield.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
-using namespace facebook::velox::exec::test;
 
 class SubstraitParser {
  public:
@@ -60,13 +74,10 @@ class SubstraitParser {
   std::shared_ptr<SubstraitType> ParseType(const io::substrait::Type& stype);
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> ParseNamedStruct(
       const io::substrait::Type::NamedStruct& named_struct);
-  void ParseAggregateRel(const io::substrait::AggregateRel& sagg,
-                         std::shared_ptr<PlanBuilder>* plan_builder);
-  void ParseProjectRel(const io::substrait::ProjectRel& sproject,
-                       std::shared_ptr<PlanBuilder>* plan_builder);
+  void ParseAggregateRel(const io::substrait::AggregateRel& sagg);
+  void ParseProjectRel(const io::substrait::ProjectRel& sproject);
   void ParseFilterRel(const io::substrait::FilterRel& sfilter);
-  void ParseReadRel(const io::substrait::ReadRel& sread,
-                    std::shared_ptr<PlanBuilder>* plan_builder, u_int32_t* index,
+  void ParseReadRel(const io::substrait::ReadRel& sread, u_int32_t* index,
                     std::vector<std::string>* paths, std::vector<u_int64_t>* starts,
                     std::vector<u_int64_t>* lengths);
   void ParseRel(const io::substrait::Rel& srel);
@@ -74,14 +85,17 @@ class SubstraitParser {
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter();
 
  private:
-  std::shared_ptr<PlanBuilder> plan_builder_;
+  std::shared_ptr<core::PlanNode> plan_node_;
+  int plan_node_id_ = 0;
   std::unordered_map<uint64_t, std::string> functions_map_;
   u_int32_t partition_index_;
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
-  std::string FindFunction(uint64_t id);
-  TypePtr GetVeloxType(std::string type_name);
+  std::string findFunction(uint64_t id);
+  TypePtr getVeloxType(std::string type_name);
+  std::string nextPlanNodeId();
+  std::vector<std::string> makeNames(const std::string& prefix, int size);
   class WholeStageResultIterator;
   inline static bool initialized = false;
 };
