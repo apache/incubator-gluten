@@ -90,6 +90,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val numaBindingInfo = GazellePluginConfig.getConf.numaBindingInfo
   val enableColumnarSortMergeJoinLazyRead =
     GazellePluginConfig.getConf.enableColumnarSortMergeJoinLazyRead
+  val libName = GazellePluginConfig.getConf.nativeLibName
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

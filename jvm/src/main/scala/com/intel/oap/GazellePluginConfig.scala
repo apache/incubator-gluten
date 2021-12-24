@@ -132,6 +132,10 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
   val loadNative: Boolean =
     conf.getConfString("spark.oap.sql.columnar.loadnative", "true").toBoolean
 
+  // This config is used for specifying the name of the native library.
+  val nativeLibName: String =
+    conf.getConfString("spark.oap.sql.columnar.libname", "spark_columnar_jni")
+
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
     conf.getConfString("spark.oap.sql.columnar.joinOptimizationLevel", "12").toInt

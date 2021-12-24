@@ -56,6 +56,7 @@ class WholestageColumnarRDD(
     extends RDD[ColumnarBatch](sc, Nil) {
   val numaBindingInfo = GazellePluginConfig.getConf.numaBindingInfo
   val loadNative = GazellePluginConfig.getConf.loadNative
+  val libName = GazellePluginConfig.getConf.nativeLibName
 
   override protected def getPartitions: Array[Partition] = {
     inputPartitions.zipWithIndex.map {
@@ -117,7 +118,7 @@ class WholestageColumnarRDD(
     var outputSchema : Schema = null
     var resIter : BatchIterator = null
     if (loadNative) {
-      val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
+      val transKernel = new ExpressionEvaluator(jarList.toList.asJava, libName)
       val inBatchIter: ColumnarNativeIterator = null
       inputSchema = ConverterUtils.toArrowSchema(wsCtx.inputAttributes)
       outputSchema = ConverterUtils.toArrowSchema(wsCtx.outputAttributes)
