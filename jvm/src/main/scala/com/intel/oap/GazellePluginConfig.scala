@@ -128,6 +128,10 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
   val enablePreferColumnar: Boolean =
     conf.getConfString("spark.oap.sql.columnar.preferColumnar", "true").toBoolean
 
+  // This config is used for testing. Setting to false will disable loading native libraries.
+  val loadNative: Boolean =
+    conf.getConfString("spark.oap.sql.columnar.loadnative", "true").toBoolean
+
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
     conf.getConfString("spark.oap.sql.columnar.joinOptimizationLevel", "12").toInt

@@ -36,13 +36,8 @@
     <hive.parquet.group>com.twitter</hive.parquet.group>
     <parquet.deps.scope>provided</parquet.deps.scope>
     <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
-    <jvm.cpp_tests>${cpp_tests}</jvm.cpp_tests>
     <jvm.build_arrow>OFF</jvm.build_arrow>
-    <jvm.static_arrow>${static_arrow}</jvm.static_arrow>
     <jvm.arrow.bfs.install.dir>${project.basedir}/../tools/build/arrow_install</jvm.arrow.bfs.install.dir>
-    <jvm.arrow_root>${arrow_root}</jvm.arrow_root>
-    <jvm.build_protobuf>${build_protobuf}</jvm.build_protobuf>
-    <jvm.build_jemalloc>${build_jemalloc}</jvm.build_jemalloc>
     <!-- protobuf paths -->
     <protobuf.input.directory>${project.basedir}/src/main/java/com/intel/oap/substrait/binary</protobuf.input.directory>
     <protobuf.output.directory>${project.build.directory}/generated-sources</protobuf.output.directory>
@@ -378,13 +373,14 @@
                     <executable>bash</executable>
                     <arguments>
                         <argument>${cpp.dir}/compile.sh</argument>
-                        <argument>${jvm.cpp_tests}</argument>
+                        <argument>${build_cpp}</argument>
+                        <argument>${cpp_tests}</argument>
                         <argument>${jvm.build_arrow}</argument>
-                        <argument>${jvm.static_arrow}</argument>
-                        <argument>${jvm.build_protobuf}</argument>
-                        <argument>${jvm.arrow_root}</argument>
+                        <argument>${static_arrow}</argument>
+                        <argument>${build_protobuf}</argument>
+                        <argument>${arrow_root}</argument>
                         <argument>${jvm.arrow.bfs.install.dir}</argument>
-                        <argument>${jvm.build_jemalloc}</argument>
+                        <argument>${build_jemalloc}</argument>
                     </arguments>
                 </configuration>
             </execution>

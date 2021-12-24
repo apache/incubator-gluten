@@ -55,6 +55,7 @@ class WholestageColumnarRDD(
     tmp_dir: String)
     extends RDD[ColumnarBatch](sc, Nil) {
   val numaBindingInfo = GazellePluginConfig.getConf.numaBindingInfo
+  val loadNative = GazellePluginConfig.getConf.loadNative
 
   override protected def getPartitions: Array[Partition] = {
     inputPartitions.zipWithIndex.map {
@@ -112,21 +113,29 @@ class WholestageColumnarRDD(
     }
 
     val wsCtx = doWholestageTransform(index, paths, starts, lengths)
-    val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
-    val inBatchIter: ColumnarNativeIterator = null
-    val inputSchema = ConverterUtils.toArrowSchema(wsCtx.inputAttributes)
-    val outputSchema = ConverterUtils.toArrowSchema(wsCtx.outputAttributes)
-    // FIXME: the 4th. and 5th. parameters are not needed for this case
-    val resIter = transKernel.createKernelWithIterator(
-      inputSchema, wsCtx.root, outputSchema,
-      Lists.newArrayList(), inBatchIter,
-      dependentKernelIterators.toArray, true)
-
+    var inputSchema : Schema = null
+    var outputSchema : Schema = null
+    var resIter : BatchIterator = null
+    if (loadNative) {
+      val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
+      val inBatchIter: ColumnarNativeIterator = null
+      inputSchema = ConverterUtils.toArrowSchema(wsCtx.inputAttributes)
+      outputSchema = ConverterUtils.toArrowSchema(wsCtx.outputAttributes)
+      // FIXME: the 4th. and 5th. parameters are not needed for this case
+      resIter = transKernel.createKernelWithIterator(
+        inputSchema, wsCtx.root, outputSchema,
+        Lists.newArrayList(), inBatchIter,
+        dependentKernelIterators.toArray, true)
+    }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
       override def hasNext: Boolean = {
-        resIter.hasNext
+        if (loadNative) {
+          resIter.hasNext
+        } else {
+          false
+        }
       }
 
       override def next(): Any = {
