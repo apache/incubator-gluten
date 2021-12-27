@@ -52,11 +52,15 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   public ExpressionEvaluator(List<String> listJars) throws IOException, IllegalAccessException, IllegalStateException {
+    this(listJars, null);
+  }
+
+  public ExpressionEvaluator(List<String> listJars, String libName) throws IOException, IllegalAccessException, IllegalStateException {
     String tmp_dir = GazellePluginConfig.getTempFile();
     if (tmp_dir == null) {
       tmp_dir = System.getProperty("java.io.tmpdir");
     }
-    jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars);
+    jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName);
     jniWrapper.nativeSetJavaTmpDir(jniWrapper.tmp_dir_path);
     jniWrapper.nativeSetBatchSize(GazellePluginConfig.getBatchSize());
     jniWrapper.nativeSetMetricsTime(GazellePluginConfig.getEnableMetricsTime());

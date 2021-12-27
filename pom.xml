@@ -119,6 +119,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <arrow.script.dir>${project.basedir}/../tools</arrow.script.dir>
+    <build_cpp>ON</build_cpp>
     <cpp_tests>OFF</cpp_tests>
     <build_arrow>ON</build_arrow>
     <static_arrow>OFF</static_arrow>
