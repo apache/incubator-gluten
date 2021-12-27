@@ -33,20 +33,24 @@ VeloxInitializer::VeloxInitializer() {}
 
 void VeloxInitializer::Init() {
   if (!initialized) {
-    initialized = true;
-    // Setup
-    filesystems::registerLocalFileSystem();
-    std::unique_ptr<folly::IOThreadPoolExecutor> executor =
-        std::make_unique<folly::IOThreadPoolExecutor>(3);
-    // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-    // registerConnectorFactory(hiveConnectorFactory);
-    auto hiveConnector = getConnectorFactory("hive")->newConnector(
-        "hive-connector", nullptr, nullptr, executor.get());
-    registerConnector(hiveConnector);
-    dwrf::registerDwrfReaderFactory();
-    // Register Velox functions
-    functions::prestosql::registerAllFunctions();
-    aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
+    mtx_.lock();
+    if (!initialized) {
+      initialized = true;
+      // Setup
+      filesystems::registerLocalFileSystem();
+      std::unique_ptr<folly::IOThreadPoolExecutor> executor =
+          std::make_unique<folly::IOThreadPoolExecutor>(3);
+      // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
+      // registerConnectorFactory(hiveConnectorFactory);
+      auto hiveConnector = getConnectorFactory("hive")->newConnector(
+          "hive-connector", nullptr, nullptr, executor.get());
+      registerConnector(hiveConnector);
+      dwrf::registerDwrfReaderFactory();
+      // Register Velox functions
+      functions::prestosql::registerAllFunctions();
+      aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
+    }
+    mtx_.unlock();
   }
 }
 
