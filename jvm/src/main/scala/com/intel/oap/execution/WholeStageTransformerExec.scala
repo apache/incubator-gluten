@@ -489,11 +489,20 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         sparkContext, batchScan.partitions, batchScan.readerFactory,
         true, child, jarList, dependentKernelIterators,
         execTempDir)
-      wsRDD.mapPartitions{ elements =>
-        val initKernel = new ExpressionEvaluator()
-        initKernel.initNative()
 
-        elements.map{ r =>
+      object InitModel {
+        lazy val init = {
+          // initialize data here. This will only happen once per JVM process
+          val initKernel = new ExpressionEvaluator()
+          initKernel.initNative()
+          true
+        }
+      }
+      wsRDD.mapPartitions{ elements =>
+        val initialized = InitModel.init
+        logWarning(s"Scala init: ${initialized}")
+
+        elements.map { r =>
           numOutputBatches += 1
           r
         }

@@ -40,7 +40,6 @@
 #include "jni/jni_common.h"
 #include "operators/columnar_to_row_converter.h"
 #include "proto/protobuf_utils.h"
-#include "proto/velox_initializer.h"
 
 namespace {
 
@@ -369,8 +368,7 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
 JNIEXPORT void JNICALL
 Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
-  auto initializer = std::make_shared<VeloxInitializer>();
-  initializer->Init();
+  InitVelox();
 }
 
 JNIEXPORT jboolean JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeHasNext(

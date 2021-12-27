@@ -351,6 +351,12 @@ arrow::Status ParseSubstraitPlan(
   return arrow::Status::OK();
 }
 
+arrow::Status InitVelox() {
+  auto initializer = std::make_shared<VeloxInitializer>();
+  initializer->Init();
+  return arrow::Status::OK();
+}
+
 jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
