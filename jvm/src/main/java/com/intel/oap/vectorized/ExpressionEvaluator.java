@@ -158,6 +158,10 @@ public class ExpressionEvaluator implements AutoCloseable {
     return new BatchIterator(batchIteratorInstance);
   }
 
+  public void initNative() {
+    jniWrapper.nativeInitNative();
+  }
+
   /** Set result Schema in some special cases */
   public void setReturnFields(Schema schema) throws RuntimeException, IOException, GandivaException {
     jniWrapper.nativeSetReturnFields(nativeHandler, getSchemaBytesBuf(schema));

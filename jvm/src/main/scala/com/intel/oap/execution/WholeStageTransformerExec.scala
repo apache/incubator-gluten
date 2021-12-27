@@ -489,10 +489,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         sparkContext, batchScan.partitions, batchScan.readerFactory,
         true, child, jarList, dependentKernelIterators,
         execTempDir)
-      wsRDD.map{ r =>
-        numOutputBatches += 1
-        r
+      wsRDD.mapPartitions{ elements =>
+        val initKernel = new ExpressionEvaluator()
+        initKernel.initNative()
+
+        elements.map{ r =>
+          numOutputBatches += 1
+          r
+        }
       }
+//      wsRDD.map{ r =>
+//        numOutputBatches += 1
+//        r
+//      }
     } else {
       val inputRDDs = columnarInputRDDs
       var curRDD = inputRDDs.head

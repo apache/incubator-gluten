@@ -223,6 +223,11 @@ public class ExpressionEvaluatorJniWrapper {
                                                    long[] dependencies, boolean finishReturn) throws RuntimeException;
 
         /**
+         * Call initNative to initialize native computing.
+         */
+        native void nativeInitNative();
+
+        /**
          * Set another evaluator's iterator as this one's dependency.
          *
          * @param nativeHandler   nativeHandler of this expression
