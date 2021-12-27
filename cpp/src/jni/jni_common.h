@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "proto/protobuf_utils.h"
+#include "proto/substrait_to_velox_plan.h"
 #include "proto/substrait_utils.h"
 
 static jclass io_exception_class;
@@ -345,9 +346,8 @@ arrow::Status ParseSubstraitPlan(
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
-  auto parser = std::make_shared<SubstraitParser>();
-  parser->ParsePlan(ws_plan);
-  *out_iter = parser->getResIter();
+  auto converter = std::make_shared<SubstraitVeloxPlanConverter>();
+  *out_iter = converter->getResIter(converter->toVeloxPlan(ws_plan));
   return arrow::Status::OK();
 }
 

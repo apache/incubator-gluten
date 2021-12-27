@@ -858,6 +858,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         ${PROTO_SRCS}
         proto/protobuf_utils.cc
         proto/substrait_utils.cc
+        proto/substrait_to_velox_plan.cc
         operators/columnar_to_row_converter.cc
         )
 
