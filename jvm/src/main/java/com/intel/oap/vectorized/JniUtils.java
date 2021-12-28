@@ -55,11 +55,15 @@ public class JniUtils {
   }
 
   public static JniUtils getInstance(String tmp_dir) throws IOException {
+    return getInstance(tmp_dir, null);
+  }
+
+  public static JniUtils getInstance(String tmp_dir, String lib_name) throws IOException {
     if (INSTANCE == null) {
       synchronized (JniUtils.class) {
         if (INSTANCE == null) {
           try {
-            INSTANCE = new JniUtils(tmp_dir);
+            INSTANCE = new JniUtils(tmp_dir, lib_name);
           } catch (IllegalAccessException ex) {
             throw new IOException("IllegalAccess", ex);
           }
@@ -70,6 +74,10 @@ public class JniUtils {
   }
 
   private JniUtils(String _tmp_dir) throws IOException, IllegalAccessException, IllegalStateException {
+    this(_tmp_dir, null);
+  }
+
+  private JniUtils(String _tmp_dir, String _lib_name) throws IOException, IllegalAccessException, IllegalStateException {
     if (!isLoaded) {
       if (_tmp_dir.contains("nativesql")) {
         tmp_dir = _tmp_dir;
@@ -79,11 +87,15 @@ public class JniUtils {
         tmp_dir = path.toAbsolutePath().toString();
       }
       try {
-        loadLibraryFromJar(tmp_dir);
+        loadLibraryFromJarWithLib(tmp_dir, _lib_name);
       } catch (IOException ex) {
         System.load(ARROW_LIBRARY_NAME);
         System.load(GANDIVA_LIBRARY_NAME);
-        System.loadLibrary(LIBRARY_NAME);
+        if (_lib_name != null) {
+          System.loadLibrary(_lib_name);
+        } else {
+          System.loadLibrary(LIBRARY_NAME);
+        }
       }
       isLoaded = true;
     }
@@ -110,32 +122,7 @@ public class JniUtils {
   }
 
   static void loadLibraryFromJar(String tmp_dir) throws IOException, IllegalAccessException {
-    synchronized (JniUtils.class) {
-      if (tmp_dir == null) {
-        tmp_dir = System.getProperty("java.io.tmpdir");
-      }
-      final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
-      Path arrow_target = Paths.get(arrowlibraryFile.getPath());
-      Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
-      if (Files.exists(arrow_link)) {
-        Files.delete(arrow_link);
-      }
-      Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
-      System.load(arrowlibraryFile.getAbsolutePath());
-
-      final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
-      Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
-      Path gandiva_link = Paths.get(tmp_dir, GANDIVA_PARENT_LIBRARY_NAME);
-      if (Files.exists(gandiva_link)) {
-        Files.delete(gandiva_link);
-      }
-      Files.createSymbolicLink(gandiva_link, gandiva_target);
-      System.load(gandivalibraryFile.getAbsolutePath());
-
-      final String libraryToLoad = System.mapLibraryName(LIBRARY_NAME);
-      final File libraryFile = moveFileFromJarToTemp(tmp_dir, libraryToLoad);
-      System.load(libraryFile.getAbsolutePath());
-    }
+    loadLibraryFromJarWithLib(tmp_dir, null);
   }
 
   private static void loadLibraryFromJar(String source_jar, String tmp_dir) throws IOException, IllegalAccessException {
@@ -162,6 +149,40 @@ public class JniUtils {
        * Files.list(new File(tmp_dir + "/tmp/").toPath()).forEach(path -> {
        * System.out.println(path); });
        */
+    }
+  }
+
+  static void loadLibraryFromJarWithLib(String tmp_dir, String lib_name) throws IOException, IllegalAccessException {
+    synchronized (JniUtils.class) {
+      if (tmp_dir == null) {
+        tmp_dir = System.getProperty("java.io.tmpdir");
+      }
+      final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
+      Path arrow_target = Paths.get(arrowlibraryFile.getPath());
+      Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
+      if (Files.exists(arrow_link)) {
+        Files.delete(arrow_link);
+      }
+      Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
+      System.load(arrowlibraryFile.getAbsolutePath());
+
+      final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
+      Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
+      Path gandiva_link = Paths.get(tmp_dir, GANDIVA_PARENT_LIBRARY_NAME);
+      if (Files.exists(gandiva_link)) {
+        Files.delete(gandiva_link);
+      }
+      Files.createSymbolicLink(gandiva_link, gandiva_target);
+      System.load(gandivalibraryFile.getAbsolutePath());
+
+      final String libraryToLoad;
+      if (lib_name != null) {
+        libraryToLoad = System.mapLibraryName(lib_name);
+      } else {
+        libraryToLoad = System.mapLibraryName(LIBRARY_NAME);
+      }
+      final File libraryFile = moveFileFromJarToTemp(tmp_dir, libraryToLoad);
+      System.load(libraryFile.getAbsolutePath());
     }
   }
 
