@@ -97,5 +97,10 @@ class SubstraitParser {
   std::string nextPlanNodeId();
   std::vector<std::string> makeNames(const std::string& prefix, int size);
   class WholeStageResultIterator;
-  inline static bool initialized = false;
+};
+
+class VeloxInitializer {
+ public:
+  VeloxInitializer();
+  void Init();
 };

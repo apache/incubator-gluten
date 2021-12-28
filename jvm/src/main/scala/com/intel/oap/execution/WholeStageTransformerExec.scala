@@ -489,7 +489,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         sparkContext, batchScan.partitions, batchScan.readerFactory,
         true, child, jarList, dependentKernelIterators,
         execTempDir)
-      wsRDD.map{ r =>
+      wsRDD.map { r =>
         numOutputBatches += 1
         r
       }

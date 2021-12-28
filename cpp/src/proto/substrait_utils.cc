@@ -29,24 +29,26 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 
-SubstraitParser::SubstraitParser() {
-  if (!initialized) {
-    initialized = true;
-    // Setup
-    filesystems::registerLocalFileSystem();
-    std::unique_ptr<folly::IOThreadPoolExecutor> executor =
-        std::make_unique<folly::IOThreadPoolExecutor>(3);
-    // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-    // registerConnectorFactory(hiveConnectorFactory);
-    auto hiveConnector = getConnectorFactory("hive")->newConnector(
-        "hive-connector", nullptr, nullptr, executor.get());
-    registerConnector(hiveConnector);
-    dwrf::registerDwrfReaderFactory();
-    // Register Velox functions
-    functions::prestosql::registerAllFunctions();
-    aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
-  }
+VeloxInitializer::VeloxInitializer() {}
+
+// The Init will be called per executor.
+void VeloxInitializer::Init() {
+  // Setup
+  filesystems::registerLocalFileSystem();
+  std::unique_ptr<folly::IOThreadPoolExecutor> executor =
+      std::make_unique<folly::IOThreadPoolExecutor>(3);
+  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
+  // registerConnectorFactory(hiveConnectorFactory);
+  auto hiveConnector = getConnectorFactory("hive")->newConnector(
+      "hive-connector", nullptr, nullptr, executor.get());
+  registerConnector(hiveConnector);
+  dwrf::registerDwrfReaderFactory();
+  // Register Velox functions
+  functions::prestosql::registerAllFunctions();
+  aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
 }
+
+SubstraitParser::SubstraitParser() {}
 
 std::shared_ptr<ResultIterator<arrow::RecordBatch>> SubstraitParser::getResIter() {
   auto wholestage_iter = std::make_shared<WholeStageResultIterator>(
