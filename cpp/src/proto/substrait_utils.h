@@ -17,8 +17,6 @@
 
 #include <folly/executors/IOThreadPoolExecutor.h>
 
-#include <mutex>
-
 #include "common/result_iterator.h"
 #include "expression.pb.h"
 #include "extensions.pb.h"
@@ -105,8 +103,4 @@ class VeloxInitializer {
  public:
   VeloxInitializer();
   void Init();
-
- private:
-  std::mutex mtx_;
-  // static bool initialized;
 };

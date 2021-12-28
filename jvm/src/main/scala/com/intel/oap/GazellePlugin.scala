@@ -62,8 +62,12 @@ private[oap] class GazelleDriverPlugin extends DriverPlugin {
 }
 
 private[oap] class GazelleExecutorPlugin extends ExecutorPlugin {
+  /**
+   * Initialize the executor plugin.
+   */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val initKernel = new ExpressionEvaluator()
+    // Init native computing.
     initKernel.initNative()
   }
 }

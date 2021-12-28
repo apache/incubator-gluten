@@ -31,26 +31,20 @@ using namespace facebook::velox::dwio::common;
 
 VeloxInitializer::VeloxInitializer() {}
 
+// The Init will be called per executor.
 void VeloxInitializer::Init() {
-  // if (!initialized) {
-  //   mtx_.lock();
-  //   if (!initialized) {
-  //     initialized = true;
-      // Setup
-      filesystems::registerLocalFileSystem();
-      std::unique_ptr<folly::IOThreadPoolExecutor> executor =
-          std::make_unique<folly::IOThreadPoolExecutor>(3);
-      // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-      // registerConnectorFactory(hiveConnectorFactory);
-      auto hiveConnector = getConnectorFactory("hive")->newConnector(
-          "hive-connector", nullptr, nullptr, executor.get());
-      registerConnector(hiveConnector);
-      dwrf::registerDwrfReaderFactory();
-      // Register Velox functions
-      functions::prestosql::registerAllFunctions();
-  //   }
-  //   mtx_.unlock();
-  // }
+  // Setup
+  filesystems::registerLocalFileSystem();
+  std::unique_ptr<folly::IOThreadPoolExecutor> executor =
+      std::make_unique<folly::IOThreadPoolExecutor>(3);
+  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
+  // registerConnectorFactory(hiveConnectorFactory);
+  auto hiveConnector = getConnectorFactory("hive")->newConnector(
+      "hive-connector", nullptr, nullptr, executor.get());
+  registerConnector(hiveConnector);
+  dwrf::registerDwrfReaderFactory();
+  // Register Velox functions
+  functions::prestosql::registerAllFunctions();
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
 }
 
