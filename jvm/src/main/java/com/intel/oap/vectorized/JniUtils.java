@@ -177,7 +177,7 @@ public class JniUtils {
 
       final String libraryToLoad;
       if (lib_name != null) {
-        libraryToLoad = lib_name;
+        libraryToLoad = System.mapLibraryName(lib_name);
       } else {
         libraryToLoad = System.mapLibraryName(LIBRARY_NAME);
       }
