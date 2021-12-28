@@ -32,10 +32,10 @@ using namespace facebook::velox::dwio::common;
 VeloxInitializer::VeloxInitializer() {}
 
 void VeloxInitializer::Init() {
-  if (!initialized) {
-    mtx_.lock();
-    if (!initialized) {
-      initialized = true;
+  // if (!initialized) {
+  //   mtx_.lock();
+  //   if (!initialized) {
+  //     initialized = true;
       // Setup
       filesystems::registerLocalFileSystem();
       std::unique_ptr<folly::IOThreadPoolExecutor> executor =
@@ -48,17 +48,13 @@ void VeloxInitializer::Init() {
       dwrf::registerDwrfReaderFactory();
       // Register Velox functions
       functions::prestosql::registerAllFunctions();
-      aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
-    }
-    mtx_.unlock();
-  }
+  //   }
+  //   mtx_.unlock();
+  // }
+  aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
 }
 
-SubstraitParser::SubstraitParser() {
-  // if (!initialized) {
-  //   initialized = true;
-  // }
-}
+SubstraitParser::SubstraitParser() {}
 
 std::shared_ptr<ResultIterator<arrow::RecordBatch>> SubstraitParser::getResIter() {
   auto wholestage_iter = std::make_shared<WholeStageResultIterator>(

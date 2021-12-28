@@ -490,19 +490,23 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         true, child, jarList, dependentKernelIterators,
         execTempDir)
 
-      object InitModel {
-        lazy val init = {
-          // initialize data here. This will only happen once per JVM process
-          val initKernel = new ExpressionEvaluator()
-          initKernel.initNative()
-        }
-      }
-      wsRDD.mapPartitions{ elements =>
-        InitModel.init
-        elements.map { r =>
-          numOutputBatches += 1
-          r
-        }
+//      object InitModel {
+//        lazy val init = {
+//          // initialize data here. This will only happen once per JVM process
+//          val initKernel = new ExpressionEvaluator()
+//          initKernel.initNative()
+//        }
+//      }
+//      wsRDD.mapPartitions{ elements =>
+//        InitModel.init
+//        elements.map { r =>
+//          numOutputBatches += 1
+//          r
+//        }
+//      }
+      wsRDD.map { r =>
+        numOutputBatches += 1
+        r
       }
     } else {
       val inputRDDs = columnarInputRDDs

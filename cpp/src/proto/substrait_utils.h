@@ -107,6 +107,6 @@ class VeloxInitializer {
   void Init();
 
  private:
-  inline static bool initialized = false;
   std::mutex mtx_;
+  // static bool initialized;
 };

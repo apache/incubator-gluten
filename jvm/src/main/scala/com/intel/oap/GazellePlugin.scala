@@ -22,11 +22,10 @@ import java.util.Collections
 import java.util.Objects
 
 import scala.language.implicitConversions
-
 import com.intel.oap.GazellePlugin.GAZELLE_SESSION_EXTENSION_NAME
 import com.intel.oap.GazellePlugin.SPARK_SESSION_EXTS_KEY
 import com.intel.oap.extension.StrategyOverrides
-
+import com.intel.oap.vectorized.ExpressionEvaluator
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.DriverPlugin
@@ -63,7 +62,10 @@ private[oap] class GazelleDriverPlugin extends DriverPlugin {
 }
 
 private[oap] class GazelleExecutorPlugin extends ExecutorPlugin {
-  // N/A
+  override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    val initKernel = new ExpressionEvaluator()
+    initKernel.initNative()
+  }
 }
 
 private[oap] class GazelleSessionExtensions extends (SparkSessionExtensions => Unit) {
