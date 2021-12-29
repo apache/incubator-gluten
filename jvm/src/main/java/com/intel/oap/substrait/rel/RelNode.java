@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.rel;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 /**
  * Contains helper functions for constructing substrait relations.

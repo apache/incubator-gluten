@@ -19,7 +19,7 @@ package com.intel.oap.substrait.rel;
 
 import com.intel.oap.substrait.expression.ExpressionNode;
 import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -40,15 +40,16 @@ public class ProjectRelNode implements RelNode, Serializable {
 
     @Override
     public Rel toProtobuf() {
+        RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
+        relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
+
         ProjectRel.Builder projectBuilder = ProjectRel.newBuilder();
+        projectBuilder.setCommon(relCommonBuilder.build());
         if (input != null) {
             projectBuilder.setInput(input.toProtobuf());
         }
         for (ExpressionNode expressionNode : expressionNodes) {
             projectBuilder.addExpressions(expressionNode.toProtobuf());
-        }
-        for (TypeNode type : inputTypes) {
-            projectBuilder.addInputTypes(type.toProtobuf());
         }
         Rel.Builder builder = Rel.newBuilder();
         builder.setProject(projectBuilder.build());

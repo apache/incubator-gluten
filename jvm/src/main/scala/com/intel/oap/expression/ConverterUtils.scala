@@ -17,52 +17,38 @@
 
 package com.intel.oap.expression
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException}
+import java.io._
 import java.nio.channels.Channels
-import java.nio.ByteBuffer
-import java.util.ArrayList
 
+import scala.collection.JavaConverters._
+
+import com.google.common.collect.Lists
+import com.intel.oap.substrait.`type`._
 import com.intel.oap.vectorized.ArrowWritableColumnVector
-import org.apache.arrow.memory.ArrowBuf
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
 import org.apache.arrow.flatbuf.MessageHeader
+import org.apache.arrow.gandiva.evaluator._
 import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression.ExpressionTree
+import org.apache.arrow.gandiva.expression._
 import org.apache.arrow.gandiva.ipc.GandivaTypes
 import org.apache.arrow.gandiva.ipc.GandivaTypes.ExpressionList
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-import org.apache.arrow.vector.ipc.{ArrowStreamReader, ReadChannel, WriteChannel}
-import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch, IpcOption, MessageChannelReader, MessageResult, MessageSerializer}
+import org.apache.arrow.vector.ipc.{ReadChannel, WriteChannel}
+import org.apache.arrow.vector.ipc.message._
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.gandiva.evaluator._
+import org.apache.arrow.vector.types.TimeUnit
+import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.catalyst.util.DateTimeConstants
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtils, SparkVectorUtils}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
-import io.netty.buffer.{ByteBuf, ByteBufAllocator, ByteBufOutputStream}
-import java.nio.channels.{Channels, WritableByteChannel}
-
-import com.google.common.collect.Lists
-import java.io.{InputStream, OutputStream}
-import java.util.concurrent.TimeUnit.SECONDS
-
-import com.intel.oap.substrait.`type`._
-import org.apache.arrow.vector.types.TimeUnit
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
-import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision}
-import org.apache.spark.sql.catalyst.util.DateTimeConstants
-import org.apache.spark.sql.catalyst.util.DateTimeConstants.MICROS_PER_SECOND
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtils, SparkVectorUtils}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 object ConverterUtils extends Logging {
   def calcuateEstimatedSize(columnarBatch: ColumnarBatch): Long = {
@@ -401,6 +387,12 @@ object ConverterUtils extends Logging {
         TypeBuiler.makeFP64(name, nullable)
       case StringType =>
         TypeBuiler.makeString(name, nullable)
+      case LongType =>
+        TypeBuiler.makeI64(name, nullable)
+      case IntegerType =>
+        TypeBuiler.makeI32(name, nullable)
+      case DateType =>
+        TypeBuiler.makeDate(name, nullable)
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported")
     }

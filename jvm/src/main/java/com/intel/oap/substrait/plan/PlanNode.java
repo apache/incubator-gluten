@@ -19,7 +19,7 @@ package com.intel.oap.substrait.plan;
 
 import com.intel.oap.substrait.extensions.MappingNode;
 import com.intel.oap.substrait.rel.RelNode;
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -36,11 +36,21 @@ public class PlanNode implements Serializable {
 
     public Plan toProtobuf() {
         Plan.Builder planBuilder = Plan.newBuilder();
+        // add the extension functions
         for (MappingNode mappingNode : mappingNodes) {
-            planBuilder.addMappings(mappingNode.toProtobuf());
+            planBuilder.addExtensions(mappingNode.toProtobuf());
         }
+
         for (RelNode relNode : relNodes) {
-            planBuilder.addRelations(relNode.toProtobuf());
+            PlanRel.Builder planRelBuilder = PlanRel.newBuilder();
+
+            RelRoot.Builder relRootBuilder = RelRoot.newBuilder();
+            relRootBuilder.setInput(relNode.toProtobuf());
+            // TODO: Set output names of RelRoot
+
+            planRelBuilder.setRoot(relRootBuilder.build());
+
+            planBuilder.addRelations(planRelBuilder.build());
         }
         return planBuilder.build();
     }

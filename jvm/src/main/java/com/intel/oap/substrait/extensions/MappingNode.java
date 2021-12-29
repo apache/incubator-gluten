@@ -17,8 +17,8 @@
 
 package com.intel.oap.substrait.extensions;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 public interface MappingNode {
-    Extensions.Mapping toProtobuf();
+    SimpleExtensionDeclaration toProtobuf();
 }

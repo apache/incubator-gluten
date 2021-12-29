@@ -1,6 +1,6 @@
 package com.intel.oap.substrait.type;
 
-import io.substrait.Type;
+import io.substrait.proto.Type;
 
 import java.io.Serializable;
 import java.util.ArrayList;

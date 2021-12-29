@@ -19,7 +19,7 @@ package com.intel.oap
 
 import com.intel.oap.execution._
 import com.intel.oap.extension.columnar.{RowGuard, TransformGuardRule}
-import org.apache.spark.internal.config._
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
@@ -34,7 +34,6 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, ArrowEvalPythonExecTransformer}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.CalendarIntervalType
 
 case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GazellePluginConfig = GazellePluginConfig.getSessionConf

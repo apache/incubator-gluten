@@ -119,9 +119,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <arrow.script.dir>${project.basedir}/../tools</arrow.script.dir>
-    <build_cpp>ON</build_cpp>
+    <build_cpp>OFF</build_cpp>
     <cpp_tests>OFF</cpp_tests>
-    <build_arrow>ON</build_arrow>
+    <build_arrow>OFF</build_arrow>
     <static_arrow>OFF</static_arrow>
     <arrow_root>/usr/local</arrow_root>
     <build_protobuf>ON</build_protobuf>
@@ -175,9 +175,19 @@
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-sql_${scala.binary.version}</artifactId>
+        <artifactId>spark-core_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-recipes</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <!-- test dependencies -->
       <dependency>

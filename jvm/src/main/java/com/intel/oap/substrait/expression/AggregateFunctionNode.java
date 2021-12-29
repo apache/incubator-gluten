@@ -19,8 +19,7 @@ package com.intel.oap.substrait.expression;
 
 import com.intel.oap.substrait.expression.ExpressionNode;
 import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.Expression;
-import io.substrait.Extensions;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -55,29 +54,25 @@ public class AggregateFunctionNode implements Serializable {
         this.outputTypeNode = outputTypeNode;
     }
 
-    public Expression.AggregateFunction toProtobuf() {
-        Expression.AggregateFunction.Builder aggBuilder =
-                Expression.AggregateFunction.newBuilder();
-        if (functionId != null) {
-            Extensions.FunctionId.Builder funcIdBuilder = Extensions.FunctionId.newBuilder();
-            funcIdBuilder.setId(functionId.longValue());
-            aggBuilder.setId(funcIdBuilder.build());
-        }
+    public AggregateFunction toProtobuf() {
+        AggregateFunction.Builder aggBuilder = AggregateFunction.newBuilder();
+        aggBuilder.setFunctionReference(functionId.intValue());
+
         if (phase == null) {
-            aggBuilder.setPhase(Expression.AggregationPhase.UNKNOWN);
+            aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_UNSPECIFIED);
         } else {
             switch(phase) {
                 case "PARTIAL":
-                    aggBuilder.setPhase(Expression.AggregationPhase.INITIAL_TO_INTERMEDIATE);
+                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE);
                     break;
                 case "PARTIAL_MERGE":
-                    aggBuilder.setPhase(Expression.AggregationPhase.INTERMEDIATE_TO_INTERMEDIATE);
+                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE);
                     break;
                 case "FINAL":
-                    aggBuilder.setPhase(Expression.AggregationPhase.INTERMEDIATE_TO_RESULT);
+                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT);
                     break;
                 default:
-                    aggBuilder.setPhase(Expression.AggregationPhase.UNKNOWN);
+                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_UNSPECIFIED);
             }
         }
         for (ExpressionNode expressionNode : expressionNodes) {

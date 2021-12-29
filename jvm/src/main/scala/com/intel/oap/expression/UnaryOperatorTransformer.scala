@@ -18,24 +18,16 @@
 package com.intel.oap.expression
 
 import com.google.common.collect.Lists
+import com.intel.oap.expression.DateTimeExpressionsTransformer._
+import com.intel.oap.substrait.`type`.TypeBuiler
+import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
 import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.pojo.Field
-import org.apache.arrow.vector.types.DateUnit
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.types._
-
-import scala.collection.mutable.ListBuffer
-import com.intel.oap.expression.DateTimeExpressionsTransformer.{DayOfWeekTransformer, DayOfYearTransformer, HourTransformer, MicrosToTimestampTransformer, MillisToTimestampTransformer, MinuteTransformer, SecondTransformer, SecondsToTimestampTransformer, UnixDateTransformer, UnixMicrosTransformer, UnixMillisTransformer, UnixSecondsTransformer}
-import com.intel.oap.substrait.`type`.TypeBuiler
-import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.arrow.vector.types.TimeUnit
-import org.apache.spark.sql.catalyst.util.DateTimeConstants
 
 /**
  * A version of add that supports columnar processing for longs.
@@ -50,14 +42,8 @@ class IsNotNullTransformer(child: Expression, original: Expression)
     if (!child_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, Long]]
-    val functionName = "IS_NOT_NULL"
-    var functionId = functionMap.size().asInstanceOf[java.lang.Integer].longValue()
-    if (!functionMap.containsKey(functionName)) {
-      functionMap.put(functionName, functionId)
-    } else {
-      functionId = functionMap.get(functionName)
-    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "IS_NOT_NULL")
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = TypeBuiler.makeBoolean("res", true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
@@ -68,7 +54,19 @@ class IsNullTransformer(child: Expression, original: Expression)
     extends IsNotNull(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val child_node: ExpressionNode =
+      child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!child_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "IS_NULL")
+
+    val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuiler.makeBoolean("res", true)
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+  }
 }
 
 class MonthTransformer(child: Expression, original: Expression)
@@ -143,14 +141,8 @@ class CastTransformer(
     if (!child_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, Long]]
-    val functionName = "CAST"
-    var functionId = functionMap.size().asInstanceOf[java.lang.Integer].longValue()
-    if (!functionMap.containsKey(functionName)) {
-      functionMap.put(functionName, functionId)
-    } else {
-      functionId = functionMap.get(functionName)
-    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "CAST")
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(dataType, "res", nullable = true)
 

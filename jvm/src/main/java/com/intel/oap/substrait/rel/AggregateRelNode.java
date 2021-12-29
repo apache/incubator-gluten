@@ -20,25 +20,22 @@ package com.intel.oap.substrait.rel;
 import com.intel.oap.substrait.expression.AggregateFunctionNode;
 import com.intel.oap.substrait.expression.ExpressionNode;
 import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.AggregateRel;
-import io.substrait.Expression;
-import io.substrait.Rel;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 
 public class AggregateRelNode implements RelNode, Serializable {
     private final RelNode input;
-    private final ArrayList<Integer> groupings = new ArrayList<>();
+    private final ArrayList<ExpressionNode> groupings = new ArrayList<>();
     private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes =
             new ArrayList<>();
-    private final String phase;
     private final ArrayList<TypeNode> inputTypeNodes = new ArrayList<>();
     private final ArrayList<TypeNode> outputTypeNodes = new ArrayList<>();
     private final ArrayList<ExpressionNode> resExprNodes = new ArrayList<>();
 
     AggregateRelNode(RelNode input,
-                     ArrayList<Integer> groupings,
+                     ArrayList<ExpressionNode> groupings,
                      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
                      ArrayList<TypeNode> inputTypeNodes,
                      ArrayList<TypeNode> outputTypeNodes,
@@ -46,21 +43,32 @@ public class AggregateRelNode implements RelNode, Serializable {
         this.input = input;
         this.groupings.addAll(groupings);
         this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
-        this.phase = null;
         this.inputTypeNodes.addAll(inputTypeNodes);
         this.outputTypeNodes.addAll(outputTypeNodes);
         this.resExprNodes.addAll(resExprNodes);
     }
 
+    AggregateRelNode(RelNode input,
+                     ArrayList<ExpressionNode> groupings,
+                     ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
+        this.input = input;
+        this.groupings.addAll(groupings);
+        this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
+    }
+
     @Override
     public Rel toProtobuf() {
+        RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
+        relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
+
         AggregateRel.Grouping.Builder groupingBuilder =
                 AggregateRel.Grouping.newBuilder();
-        for (Integer integer : groupings) {
-            groupingBuilder.addInputFields(integer.intValue());
+        for (ExpressionNode exprNode : groupings) {
+            groupingBuilder.addGroupingExpressions(exprNode.toProtobuf());
         }
 
         AggregateRel.Builder aggBuilder = AggregateRel.newBuilder();
+        aggBuilder.setCommon(relCommonBuilder.build());
         aggBuilder.addGroupings(groupingBuilder.build());
 
         for (AggregateFunctionNode aggregateFunctionNode : aggregateFunctionNodes) {
@@ -71,32 +79,7 @@ public class AggregateRelNode implements RelNode, Serializable {
         if (input != null) {
             aggBuilder.setInput(input.toProtobuf());
         }
-        if (phase == null) {
-            aggBuilder.setPhase(Expression.AggregationPhase.UNKNOWN);
-        } else {
-            switch(phase) {
-                case "PARTIAL":
-                    aggBuilder.setPhase(Expression.AggregationPhase.INITIAL_TO_INTERMEDIATE);
-                    break;
-                case "PARTIAL_MERGE":
-                    aggBuilder.setPhase(Expression.AggregationPhase.INTERMEDIATE_TO_INTERMEDIATE);
-                    break;
-                case "FINAL":
-                    aggBuilder.setPhase(Expression.AggregationPhase.INTERMEDIATE_TO_RESULT);
-                    break;
-                default:
-                    aggBuilder.setPhase(Expression.AggregationPhase.UNKNOWN);
-            }
-        }
-        for (TypeNode typeNode : inputTypeNodes) {
-            aggBuilder.addInputTypes(typeNode.toProtobuf());
-        }
-        for (TypeNode typeNode : outputTypeNodes) {
-            aggBuilder.addOutputTypes(typeNode.toProtobuf());
-        }
-        for (ExpressionNode expressionNode : resExprNodes) {
-            aggBuilder.addResultExpressions(expressionNode.toProtobuf());
-        }
+
         Rel.Builder builder = Rel.newBuilder();
         builder.setAggregate(aggBuilder.build());
         return builder.build();
