@@ -65,7 +65,7 @@ class SubstraitVeloxPlanConverter {
   std::shared_ptr<const core::PlanNode> toVeloxPlan(const io::substrait::Plan& splan);
 
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter(
-      std::shared_ptr<const core::PlanNode> plan_node);
+      const std::shared_ptr<const core::PlanNode>& plan_node);
 
  private:
   int plan_node_id_ = 0;
@@ -75,9 +75,10 @@ class SubstraitVeloxPlanConverter {
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
+  /* Helper functions */
   std::string findFunction(uint64_t id);
   std::string nextPlanNodeId();
   std::vector<std::string> makeNames(const std::string& prefix, int size);
-  std::shared_ptr<const core::PlanNode> getChildNode(const io::substrait::Rel& splan);
+  /* Result Iterator */
   class WholeStageResultIterator;
 };

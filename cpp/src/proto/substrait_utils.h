@@ -76,30 +76,7 @@ class SubstraitParser {
   std::shared_ptr<SubstraitType> ParseType(const io::substrait::Type& stype);
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> ParseNamedStruct(
       const io::substrait::Type::NamedStruct& named_struct);
-  void ParseAggregateRel(const io::substrait::AggregateRel& sagg);
-  void ParseProjectRel(const io::substrait::ProjectRel& sproject);
-  void ParseFilterRel(const io::substrait::FilterRel& sfilter);
-  void ParseReadRel(const io::substrait::ReadRel& sread, u_int32_t* index,
-                    std::vector<std::string>* paths, std::vector<u_int64_t>* starts,
-                    std::vector<u_int64_t>* lengths);
-  void ParseRel(const io::substrait::Rel& srel);
-  void ParsePlan(const io::substrait::Plan& splan);
-
-  std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter();
   TypePtr getVeloxType(std::string type_name);
-
- private:
-  std::shared_ptr<core::PlanNode> plan_node_;
-  int plan_node_id_ = 0;
-  std::unordered_map<uint64_t, std::string> functions_map_;
-  u_int32_t partition_index_;
-  std::vector<std::string> paths_;
-  std::vector<u_int64_t> starts_;
-  std::vector<u_int64_t> lengths_;
-  std::string findFunction(uint64_t id);
-  std::string nextPlanNodeId();
-  std::vector<std::string> makeNames(const std::string& prefix, int size);
-  class WholeStageResultIterator;
 };
 
 class VeloxInitializer {

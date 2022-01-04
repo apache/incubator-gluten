@@ -41,6 +41,43 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   } else {
     throw std::runtime_error("Child expected");
   }
+  /*
+  // Parse groupings
+  auto& groupings = sagg.groupings();
+  for (auto& grouping : groupings) {
+    auto grouping_fields = grouping.input_fields();
+    for (auto& grouping_field : grouping_fields) {
+      // std::cout << "Agg grouping_field: " << grouping_field << std::endl;
+    }
+  }
+  // Parse measures
+  bool is_partial = false;
+  for (auto& smea : sagg.measures()) {
+    auto aggFunction = smea.measure();
+    switch (aggFunction.phase()) {
+      case substrait::Expression_AggregationPhase::
+          Expression_AggregationPhase_INITIAL_TO_INTERMEDIATE:
+        is_partial = true;
+        break;
+      default:
+        break;
+    }
+    auto function_id = aggFunction.id().id();
+    // std::cout << "Agg Function id: " << function_id << std::endl;
+    auto args = aggFunction.args();
+    for (auto arg : args) {
+      ParseExpression(arg);
+    }
+  }
+  auto agg_phase = sagg.phase();
+  // Parse Input and Output types
+  for (auto& stype : sagg.input_types()) {
+    ParseType(stype);
+  }
+  for (auto& stype : sagg.output_types()) {
+    ParseType(stype);
+  }
+  */
   bool ignoreNullKeys = false;
   std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> groupingExpr;
   std::vector<std::shared_ptr<const core::CallTypedExpr>> aggregateExprs;
@@ -70,6 +107,14 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   } else {
     throw std::runtime_error("Child expected");
   }
+  /*
+  for (auto& stype : sproject.input_types()) {
+    ParseType(stype);
+  }
+  for (auto& expr : sproject.expressions()) {
+    ParseExpression(expr);
+  }
+  */
   std::vector<std::shared_ptr<const core::ITypedExpr>> scan_params;
   scan_params.reserve(2);
   auto field_0 =
@@ -99,6 +144,14 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   } else {
     throw std::runtime_error("Child expected");
   }
+  /*
+  if (sfilter.has_condition()) {
+    ParseExpression(sfilter.condition());
+  }
+  for (auto& stype : sfilter.input_types()) {
+    ParseType(stype);
+  }
+  */
   return child_node;
 }
 
@@ -214,7 +267,8 @@ std::vector<std::string> SubstraitVeloxPlanConverter::makeNames(const std::strin
 }
 
 std::shared_ptr<ResultIterator<arrow::RecordBatch>>
-SubstraitVeloxPlanConverter::getResIter(std::shared_ptr<const core::PlanNode> plan_node) {
+SubstraitVeloxPlanConverter::getResIter(
+    const std::shared_ptr<const core::PlanNode>& plan_node) {
   auto wholestage_iter = std::make_shared<WholeStageResultIterator>(
       plan_node, partition_index_, paths_, starts_, lengths_);
   auto res_iter =
@@ -332,7 +386,7 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
 
  private:
   arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
-  std::shared_ptr<const core::PlanNode> plan_node_;
+  const std::shared_ptr<const core::PlanNode> plan_node_;
   std::unique_ptr<test::TaskCursor> cursor_;
   test::CursorParameters params_;
   std::vector<exec::Split> splits_;
