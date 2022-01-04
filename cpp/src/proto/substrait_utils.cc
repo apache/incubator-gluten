@@ -67,73 +67,7 @@ void SubstraitParser::ParseLiteral(const substrait::Expression::Literal& slit) {
   }
 }
 
-void SubstraitParser::ParseScalarFunction(
-    const substrait::Expression::ScalarFunction& sfunc) {
-  for (auto& sarg : sfunc.args()) {
-    ParseExpression(sarg);
-  }
-  auto function_id = sfunc.id().id();
-  // auto function_name = findFunction(function_id);
-  // std::cout << "function_name: " << function_name << std::endl;
-  auto out_type = sfunc.output_type();
-  ParseType(out_type);
-}
-
-void SubstraitParser::ParseReferenceSegment(const ::substrait::ReferenceSegment& sref) {
-  switch (sref.reference_type_case()) {
-    case substrait::ReferenceSegment::ReferenceTypeCase::kStructField: {
-      auto sfield = sref.struct_field();
-      auto field_id = sfield.field();
-      // std::cout << "field_id: " << field_id << std::endl;
-      break;
-    }
-    default:
-      std::cout << "not supported" << std::endl;
-      break;
-  }
-}
-
-void SubstraitParser::ParseFieldReference(const substrait::FieldReference& sfield) {
-  switch (sfield.reference_type_case()) {
-    case substrait::FieldReference::ReferenceTypeCase::kDirectReference: {
-      auto dref = sfield.direct_reference();
-      ParseReferenceSegment(dref);
-      break;
-    }
-    case substrait::FieldReference::ReferenceTypeCase::kMaskedReference: {
-      // std::cout << "not supported" << std::endl;
-      break;
-    }
-    default:
-      std::cout << "not supported" << std::endl;
-      break;
-  }
-}
-
-void SubstraitParser::ParseExpression(const substrait::Expression& sexpr) {
-  switch (sexpr.rex_type_case()) {
-    case substrait::Expression::RexTypeCase::kLiteral: {
-      auto slit = sexpr.literal();
-      ParseLiteral(slit);
-      break;
-    }
-    case substrait::Expression::RexTypeCase::kScalarFunction: {
-      auto sfunc = sexpr.scalar_function();
-      ParseScalarFunction(sfunc);
-      break;
-    }
-    case substrait::Expression::RexTypeCase::kSelection: {
-      auto sel = sexpr.selection();
-      ParseFieldReference(sel);
-      break;
-    }
-    default:
-      std::cout << "Expression not supported" << std::endl;
-      break;
-  }
-}
-
-std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::ParseType(
+std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
     const substrait::Type& stype) {
   std::shared_ptr<SubstraitParser::SubstraitType> substrait_type;
   switch (stype.kind_case()) {
@@ -154,7 +88,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::ParseType(
       auto sstruct = stype.struct_();
       auto stypes = sstruct.types();
       for (auto& type : stypes) {
-        ParseType(type);
+        parseType(type);
       }
       break;
     }
@@ -185,7 +119,7 @@ SubstraitParser::ParseNamedStruct(const substrait::Type::NamedStruct& named_stru
   auto& stypes = sstruct.types();
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> substrait_type_list;
   for (auto& type : stypes) {
-    auto substrait_type = ParseType(type);
+    auto substrait_type = parseType(type);
     substrait_type_list.push_back(substrait_type);
   }
   return substrait_type_list;
@@ -199,4 +133,25 @@ TypePtr SubstraitParser::getVeloxType(std::string type_name) {
   } else {
     throw std::runtime_error("not supported");
   }
+}
+
+std::vector<std::string> SubstraitVeloxPlanConverter::makeNames(const std::string& prefix,
+                                                                int size) {
+  std::vector<std::string> names;
+  for (int i = 0; i < size; i++) {
+    names.push_back(fmt::format("{}_{}", prefix, i));
+  }
+  return names;
+}
+
+std::string makeNodeName(int node_id, int col_idx) {
+  return fmt::format("n{}_{}", node_id, col_idx);
+}
+
+std::string findFunction(const std::unordered_map<uint64_t, std::string>& functions_map,
+                         const uint64_t& id) {
+  if (functions_map.find(id) == functions_map.end()) {
+    throw std::runtime_error("Could not find function " + std::to_string(id));
+  }
+  return functions_map[id];
 }

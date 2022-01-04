@@ -17,8 +17,6 @@
 
 #include <folly/executors/IOThreadPoolExecutor.h>
 
-#include <mutex>
-
 #include "substrait_utils.h"
 #include "velox/common/caching/DataCache.h"
 #include "velox/common/file/FileSystems.h"
@@ -47,7 +45,24 @@ using namespace facebook::velox::exec;
 
 class SubstraitVeloxExprConverter {
  public:
-  SubstraitVeloxExprConverter();
+  SubstraitVeloxExprConverter(
+      const std::shared_ptr<SubstraitParser>& sub_parser,
+      const std::unordered_map<uint64_t, std::string>& functions_map);
+  int32_t parseReferenceSegment(const io::substrait::ReferenceSegment& sref)
+
+  std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
+      const io::substrait::FieldReference& sfield,
+      const int32_t& input_plan_node_id);  
+  std::shared_ptr<const core::ITypedExpr> toVeloxExpr(
+    const io::substrait::Expression::ScalarFunction& sfunc,
+    const int32_t& input_plan_node_id);
+
+  std::shared_ptr<const core::ITypedExpr> toVeloxExpr(
+      const io::substrait::Expression& sexpr);
+  std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
+      const io::substrait::FieldReference& sfield);
 
  private:
+  std::shared_ptr<SubstraitParser> sub_parser_;
+  std::unordered_map<uint64_t, std::string>& functions_map_;
 };

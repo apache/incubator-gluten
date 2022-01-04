@@ -69,14 +69,14 @@ class SubstraitParser {
     }
   };
   void ParseLiteral(const io::substrait::Expression::Literal& slit);
-  void ParseScalarFunction(const io::substrait::Expression::ScalarFunction& sfunc);
-  void ParseReferenceSegment(const io::substrait::ReferenceSegment& sref);
-  void ParseFieldReference(const io::substrait::FieldReference& sfield);
-  void ParseExpression(const io::substrait::Expression& sexpr);
-  std::shared_ptr<SubstraitType> ParseType(const io::substrait::Type& stype);
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> ParseNamedStruct(
       const io::substrait::Type::NamedStruct& named_struct);
+  std::shared_ptr<SubstraitType> parseType(const io::substrait::Type& stype);
   TypePtr getVeloxType(std::string type_name);
+  std::vector<std::string> makeNames(const std::string& prefix, int size);
+  std::string makeNodeName(int node_id, int col_idx);
+  std::string findFunction(const std::unordered_map<uint64_t, std::string>& functions_map,
+                           const uint64_t& id);
 };
 
 class VeloxInitializer {

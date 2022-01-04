@@ -19,6 +19,7 @@
 
 #include <mutex>
 
+#include "substrait_to_velox_expr.h"
 #include "substrait_utils.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/common/caching/DataCache.h"
@@ -70,15 +71,14 @@ class SubstraitVeloxPlanConverter {
  private:
   int plan_node_id_ = 0;
   std::shared_ptr<SubstraitParser> sub_parser_;
+  std::shared_ptr<SubstraitVeloxExprConverter> expr_converter_;
   std::unordered_map<uint64_t, std::string> functions_map_;
   u_int32_t partition_index_;
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
-  /* Helper functions */
-  std::string findFunction(uint64_t id);
+
   std::string nextPlanNodeId();
-  std::vector<std::string> makeNames(const std::string& prefix, int size);
   /* Result Iterator */
   class WholeStageResultIterator;
 };
