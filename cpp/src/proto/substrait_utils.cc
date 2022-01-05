@@ -91,7 +91,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
 }
 
 std::vector<std::shared_ptr<SubstraitParser::SubstraitType>>
-SubstraitParser::ParseNamedStruct(const substrait::Type::NamedStruct& named_struct) {
+SubstraitParser::parseNamedStruct(const substrait::Type::NamedStruct& named_struct) {
   auto& snames = named_struct.names();
   std::vector<std::string> name_list;
   for (auto& sname : snames) {

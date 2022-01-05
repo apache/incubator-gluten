@@ -90,8 +90,8 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), input_name);
   agg_params.emplace_back(field_agg);
   auto out_name = sub_parser_->makeNodeName(plan_node_id_, 0);
-  auto aggExpr = std::make_shared<const core::CallTypedExpr>(
-      DOUBLE(), std::move(agg_params), "sum");
+  auto aggExpr =
+      std::make_shared<const core::CallTypedExpr>(DOUBLE(), std::move(agg_params), "sum");
   aggregateExprs.emplace_back(aggExpr);
   std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(
       aggregateExprs.size());
@@ -122,8 +122,15 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     project_names.push_back(col_out_name);
     col_idx += 1;
   }
+  // FIXME: Multiply was hided in Aggregate by Spark, but Velox does not support
+  // conducting multiply inside Aggregate. So it should be pushed down to Project.
+  std::vector<std::shared_ptr<const core::ITypedExpr>> project_exprs;
+  std::vector<std::string> out_names = {sub_parser_->makeNodeName(plan_node_id_, 0)};
+  auto mul_expr = std::make_shared<const core::CallTypedExpr>(
+      DOUBLE(), std::move(expressions), "multiply");
+  project_exprs.push_back(mul_expr);
   auto project_node = std::make_shared<core::ProjectNode>(
-      nextPlanNodeId(), std::move(project_names), std::move(expressions), child_node);
+      nextPlanNodeId(), std::move(out_names), std::move(project_exprs), child_node);
   return project_node;
 }
 
@@ -153,7 +160,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> substrait_type_list;
   if (sread.has_base_schema()) {
     auto& base_schema = sread.base_schema();
-    auto type_list = sub_parser_->ParseNamedStruct(base_schema);
+    auto type_list = sub_parser_->parseNamedStruct(base_schema);
     for (auto type : type_list) {
       substrait_type_list.push_back(type);
     }

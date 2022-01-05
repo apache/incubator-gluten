@@ -68,7 +68,7 @@ class SubstraitParser {
       nullable = nul;
     }
   };
-  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> ParseNamedStruct(
+  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> parseNamedStruct(
       const io::substrait::Type::NamedStruct& named_struct);
   std::shared_ptr<SubstraitType> parseType(const io::substrait::Type& stype);
   TypePtr getVeloxType(std::string type_name);
