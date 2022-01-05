@@ -84,15 +84,18 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   aggregateExprs.reserve(1);
   std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
   agg_params.reserve(1);
+  auto input_name = sub_parser_->makeNodeName(plan_node_id_, 0);
   auto field_agg =
-      std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), "mul_res");
+      std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), input_name);
   agg_params.emplace_back(field_agg);
-  auto aggExpr =
-      std::make_shared<const core::CallTypedExpr>(DOUBLE(), std::move(agg_params), "sum");
+  auto current_plan_node_id = plan_node_id_ + 1;
+  auto out_name = sub_parser_->makeNodeName(current_plan_node_id, 0);
+  auto aggExpr = std::make_shared<const core::CallTypedExpr>(
+      DOUBLE(), std::move(agg_params), out_name);
   aggregateExprs.emplace_back(aggExpr);
   std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(
       aggregateExprs.size());
-  auto agg_names = sub_parser_->makeNames(node_prefix, aggregateExprs.size());
+  std::vector<std::string> agg_names = {out_name};
   auto agg_node = std::make_shared<core::AggregationNode>(
       nextPlanNodeId(), core::AggregationNode::Step::kPartial, groupingExpr, agg_names,
       aggregateExprs, aggregateMasks, ignoreNullKeys, child_node);
@@ -102,7 +105,6 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
 std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     const substrait::ProjectRel& sproject) {
   std::shared_ptr<const core::PlanNode> child_node;
-  ;
   if (sproject.has_input()) {
     child_node = toVeloxPlan(sproject.input());
   } else {
@@ -187,13 +189,16 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   auto table_handle = std::make_shared<hive::HiveTableHandle>(
       filter_pushdown_enabled, std::move(filters), nullptr);
 
+  std::vector<std::string> out_names;
   std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
   for (int idx = 0; idx < col_name_list.size(); idx++) {
-    assignments[col_name_list[idx]] = std::make_shared<hive::HiveColumnHandle>(
+    auto out_name = sub_parser_->makeNodeName(plan_node_id_, idx);
+    assignments[out_name] = std::make_shared<hive::HiveColumnHandle>(
         col_name_list[idx], hive::HiveColumnHandle::ColumnType::kRegular,
         velox_type_list[idx]);
+    out_names.push_back(out_name);
   }
-  auto output_type = ROW(std::move(col_name_list), std::move(velox_type_list));
+  auto output_type = ROW(std::move(out_names), std::move(velox_type_list));
   auto table_scan_node = std::make_shared<core::TableScanNode>(
       nextPlanNodeId(), output_type, table_handle, assignments);
   return table_scan_node;

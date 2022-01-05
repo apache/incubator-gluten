@@ -19,7 +19,8 @@ SubstraitVeloxExprConverter::SubstraitVeloxExprConverter(
   functions_map_ = functions_map;
 }
 
-int32_t parseReferenceSegment(const ::substrait::ReferenceSegment& sref) {
+int32_t SubstraitVeloxExprConverter::parseReferenceSegment(
+    const substrait::ReferenceSegment& sref) {
   switch (sref.reference_type_case()) {
     case substrait::ReferenceSegment::ReferenceTypeCase::kStructField: {
       auto sfield = sref.struct_field();
@@ -60,7 +61,7 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
     const int32_t& input_plan_node_id) {
   std::vector<std::shared_ptr<const core::ITypedExpr>> params;
   for (auto& sarg : sfunc.args()) {
-    auto expr = toVeloxExpr(sarg, input_col_prefix, input_plan_node_id);
+    auto expr = toVeloxExpr(sarg, input_plan_node_id);
     params.push_back(expr);
   }
   auto function_id = sfunc.id().id();
@@ -70,6 +71,25 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
   auto velox_type = sub_parser_->getVeloxType(sub_type->name);
   return std::make_shared<const core::CallTypedExpr>(velox_type, std::move(params),
                                                      function_name);
+}
+
+std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
+    const io::substrait::Expression::Literal& slit) {
+  switch (slit.literal_type_case()) {
+    case substrait::Expression_Literal::LiteralTypeCase::kFp64: {
+      double val = slit.fp64();
+      return std::make_shared<core::ConstantTypedExpr>(val);
+      break;
+    }
+    case substrait::Expression_Literal::LiteralTypeCase::kBoolean: {
+      bool val = slit.boolean();
+      throw new std::runtime_error("Type is not supported.");
+      break;
+    }
+    default:
+      throw new std::runtime_error("Type is not supported.");
+      break;
+  }
 }
 
 std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
@@ -88,7 +108,7 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
     }
     case substrait::Expression::RexTypeCase::kSelection: {
       auto sel = sexpr.selection();
-      velox_expr = toVeloxExpr(sel);
+      velox_expr = toVeloxExpr(sel, input_plan_node_id);
       break;
     }
     default:

@@ -50,23 +50,6 @@ void VeloxInitializer::Init() {
 
 SubstraitParser::SubstraitParser() {}
 
-void SubstraitParser::ParseLiteral(const substrait::Expression::Literal& slit) {
-  switch (slit.literal_type_case()) {
-    case substrait::Expression_Literal::LiteralTypeCase::kFp64: {
-      double val = slit.fp64();
-      // std::cout << "double lit: " << val << std::endl;
-      break;
-    }
-    case substrait::Expression_Literal::LiteralTypeCase::kBoolean: {
-      bool val = slit.boolean();
-      break;
-    }
-    default:
-      std::cout << "not supported" << std::endl;
-      break;
-  }
-}
-
 std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
     const substrait::Type& stype) {
   std::shared_ptr<SubstraitParser::SubstraitType> substrait_type;
@@ -135,8 +118,7 @@ TypePtr SubstraitParser::getVeloxType(std::string type_name) {
   }
 }
 
-std::vector<std::string> SubstraitVeloxPlanConverter::makeNames(const std::string& prefix,
-                                                                int size) {
+std::vector<std::string> SubstraitParser::makeNames(const std::string& prefix, int size) {
   std::vector<std::string> names;
   for (int i = 0; i < size; i++) {
     names.push_back(fmt::format("{}_{}", prefix, i));
@@ -144,14 +126,17 @@ std::vector<std::string> SubstraitVeloxPlanConverter::makeNames(const std::strin
   return names;
 }
 
-std::string makeNodeName(int node_id, int col_idx) {
+std::string SubstraitParser::makeNodeName(int node_id, int col_idx) {
   return fmt::format("n{}_{}", node_id, col_idx);
 }
 
-std::string findFunction(const std::unordered_map<uint64_t, std::string>& functions_map,
-                         const uint64_t& id) {
+std::string SubstraitParser::findFunction(
+    const std::unordered_map<uint64_t, std::string>& functions_map,
+    const uint64_t& id) const {
   if (functions_map.find(id) == functions_map.end()) {
     throw std::runtime_error("Could not find function " + std::to_string(id));
   }
-  return functions_map[id];
+  std::unordered_map<uint64_t, std::string>& map =
+      const_cast<std::unordered_map<uint64_t, std::string>&>(functions_map);
+  return map[id];
 }
