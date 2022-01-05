@@ -84,14 +84,14 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   aggregateExprs.reserve(1);
   std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
   agg_params.reserve(1);
-  auto input_name = sub_parser_->makeNodeName(plan_node_id_, 0);
+  auto pre_plan_node_id = plan_node_id_ - 1;
+  auto input_name = sub_parser_->makeNodeName(pre_plan_node_id, 0);
   auto field_agg =
       std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), input_name);
   agg_params.emplace_back(field_agg);
-  auto current_plan_node_id = plan_node_id_ + 1;
-  auto out_name = sub_parser_->makeNodeName(current_plan_node_id, 0);
+  auto out_name = sub_parser_->makeNodeName(plan_node_id_, 0);
   auto aggExpr = std::make_shared<const core::CallTypedExpr>(
-      DOUBLE(), std::move(agg_params), out_name);
+      DOUBLE(), std::move(agg_params), "sum");
   aggregateExprs.emplace_back(aggExpr);
   std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(
       aggregateExprs.size());
@@ -113,13 +113,14 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   // Expressions
   std::vector<std::string> project_names;
   std::vector<std::shared_ptr<const core::ITypedExpr>> expressions;
-  auto current_plan_node_id = plan_node_id_ + 1;
+  auto pre_plan_node_id = plan_node_id_ - 1;
   int col_idx = 0;
   for (auto& expr : sproject.expressions()) {
-    auto velox_expr = expr_converter_->toVeloxExpr(expr, plan_node_id_);
+    auto velox_expr = expr_converter_->toVeloxExpr(expr, pre_plan_node_id);
     expressions.push_back(velox_expr);
-    auto col_out_name = sub_parser_->makeNodeName(current_plan_node_id, col_idx++);
+    auto col_out_name = sub_parser_->makeNodeName(plan_node_id_, col_idx);
     project_names.push_back(col_out_name);
+    col_idx += 1;
   }
   auto project_node = std::make_shared<core::ProjectNode>(
       nextPlanNodeId(), std::move(project_names), std::move(expressions), child_node);
