@@ -66,11 +66,12 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
   }
   auto function_id = sfunc.id().id();
   auto function_name = sub_parser_->findFunction(functions_map_, function_id);
+  auto velox_function = sub_parser_->substrait_velox_function_map[function_name];
   auto out_type = sfunc.output_type();
   auto sub_type = sub_parser_->parseType(out_type);
-  auto velox_type = sub_parser_->getVeloxType(sub_type->name);
+  auto velox_type = sub_parser_->getVeloxType(sub_type->type);
   return std::make_shared<const core::CallTypedExpr>(velox_type, std::move(params),
-                                                     function_name);
+                                                     velox_function);
 }
 
 std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(

@@ -114,7 +114,7 @@ TypePtr SubstraitParser::getVeloxType(std::string type_name) {
   } else if (type_name == "FP64") {
     return DOUBLE();
   } else {
-    throw std::runtime_error("not supported");
+    throw std::runtime_error("Type name is not supported");
   }
 }
 

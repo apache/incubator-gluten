@@ -76,6 +76,9 @@ class SubstraitParser {
   std::string makeNodeName(int node_id, int col_idx);
   std::string findFunction(const std::unordered_map<uint64_t, std::string>& functions_map,
                            const uint64_t& id) const;
+  // Used for mapping Substrait function key word into Velox functions.
+  std::unordered_map<std::string, std::string> substrait_velox_function_map = {
+      {"MULTIPLY", "multiply"}, {"SUM", "sum"}};
 };
 
 class VeloxInitializer {
