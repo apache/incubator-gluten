@@ -51,7 +51,10 @@ class SubstraitVeloxExprConverter {
       const std::shared_ptr<SubstraitParser>& sub_parser,
       const std::unordered_map<uint64_t, std::string>& functions_map);
   int32_t parseReferenceSegment(const io::substrait::ReferenceSegment& sref);
-
+  connector::hive::SubfieldFilters toVeloxFilter(
+      const std::vector<std::string>& input_name_list,
+      const std::vector<TypePtr>& input_type_list,
+      const io::substrait::Expression& sfilter);
   std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
       const io::substrait::FieldReference& sfield, const int32_t& input_plan_node_id);
   std::shared_ptr<const core::ITypedExpr> toVeloxExpr(
@@ -66,4 +69,5 @@ class SubstraitVeloxExprConverter {
  private:
   std::shared_ptr<SubstraitParser> sub_parser_;
   std::unordered_map<uint64_t, std::string> functions_map_;
+  class FilterInfo;
 };

@@ -108,8 +108,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
           project_exprs.push_back(velox_expr);
           auto col_out_name = sub_parser_->makeNodeName(plan_node_id_, out_idx);
           project_out_names.push_back(col_out_name);
-          auto out_type = sfunc.output_type();
-          auto sub_type = sub_parser_->parseType(out_type);
+          auto sub_type = sub_parser_->parseType(sfunc.output_type());
           auto velox_type = sub_parser_->getVeloxType(sub_type->type);
           auto agg_input_param = std::make_shared<const core::FieldAccessTypedExpr>(
               velox_type, col_out_name);
@@ -231,14 +230,8 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     velox_type_list.push_back(sub_parser_->getVeloxType(sub_type->type));
   }
   auto& sfilter = sread.filter();
-  // ParseExpression(sfilter);
-  hive::SubfieldFilters filters;
-  filters[common::Subfield(col_name_list[3])] = std::make_unique<common::DoubleRange>(
-      8766.0, false, false, 9131.0, false, true, false);
-  filters[common::Subfield(col_name_list[0])] =
-      std::make_unique<common::DoubleRange>(0, true, false, 24, false, true, false);
-  filters[common::Subfield(col_name_list[2])] = std::make_unique<common::DoubleRange>(
-      0.05, false, false, 0.07, false, false, false);
+  hive::SubfieldFilters filters =
+      expr_converter_->toVeloxFilter(col_name_list, velox_type_list, sfilter);
   bool filter_pushdown_enabled = true;
   auto table_handle = std::make_shared<hive::HiveTableHandle>(
       filter_pushdown_enabled, std::move(filters), nullptr);
