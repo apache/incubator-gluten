@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "common/result_iterator.h"
@@ -27,32 +29,9 @@
 #include "selection.pb.h"
 #include "type.pb.h"
 #include "type_expressions.pb.h"
-#include "velox/buffer/Buffer.h"
-#include "velox/common/caching/DataCache.h"
-#include "velox/common/file/FileSystems.h"
-#include "velox/connectors/hive/FileHandle.h"
-#include "velox/connectors/hive/HiveConnector.h"
-#include "velox/connectors/hive/HiveConnectorSplit.h"
-#include "velox/core/Expressions.h"
-#include "velox/core/ITypedExpr.h"
-#include "velox/core/PlanNode.h"
-#include "velox/dwio/common/Options.h"
-#include "velox/dwio/common/ScanSpec.h"
-#include "velox/dwio/dwrf/common/CachedBufferedInput.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
-#include "velox/exec/Operator.h"
-#include "velox/exec/OperatorUtils.h"
-#include "velox/exec/tests/utils/Cursor.h"
-#include "velox/expression/Expr.h"
-#include "velox/functions/prestosql/aggregates/SumAggregate.h"
-#include "velox/functions/prestosql/registration/RegistrationFunctions.h"
-#include "velox/type/Filter.h"
-#include "velox/type/Subfield.h"
 
-using namespace facebook::velox;
-using namespace facebook::velox::exec;
-
+// This class contains some common funcitons used to parse Substrait components, and
+// convert it to recognizable representations.
 class SubstraitParser {
  public:
   SubstraitParser();
@@ -60,47 +39,21 @@ class SubstraitParser {
     std::string type;
     std::string name;
     bool nullable;
-    SubstraitType(const std::string& t, const std::string& n, const bool& nul) {
-      type = t;
-      name = n;
-      nullable = nul;
+    SubstraitType(const std::string& sub_type, const std::string& sub_name,
+                  const bool& sub_nullable) {
+      type = sub_type;
+      name = sub_name;
+      nullable = sub_nullable;
     }
   };
-  void ParseLiteral(const io::substrait::Expression::Literal& slit);
-  void ParseScalarFunction(const io::substrait::Expression::ScalarFunction& sfunc);
-  void ParseReferenceSegment(const io::substrait::ReferenceSegment& sref);
-  void ParseFieldReference(const io::substrait::FieldReference& sfield);
-  void ParseExpression(const io::substrait::Expression& sexpr);
-  std::shared_ptr<SubstraitType> ParseType(const io::substrait::Type& stype);
-  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> ParseNamedStruct(
+  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> parseNamedStruct(
       const io::substrait::Type::NamedStruct& named_struct);
-  void ParseAggregateRel(const io::substrait::AggregateRel& sagg);
-  void ParseProjectRel(const io::substrait::ProjectRel& sproject);
-  void ParseFilterRel(const io::substrait::FilterRel& sfilter);
-  void ParseReadRel(const io::substrait::ReadRel& sread, u_int32_t* index,
-                    std::vector<std::string>* paths, std::vector<u_int64_t>* starts,
-                    std::vector<u_int64_t>* lengths);
-  void ParseRel(const io::substrait::Rel& srel);
-  void ParsePlan(const io::substrait::Plan& splan);
-  std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter();
-
- private:
-  std::shared_ptr<core::PlanNode> plan_node_;
-  int plan_node_id_ = 0;
-  std::unordered_map<uint64_t, std::string> functions_map_;
-  u_int32_t partition_index_;
-  std::vector<std::string> paths_;
-  std::vector<u_int64_t> starts_;
-  std::vector<u_int64_t> lengths_;
-  std::string findFunction(uint64_t id);
-  TypePtr getVeloxType(std::string type_name);
-  std::string nextPlanNodeId();
+  std::shared_ptr<SubstraitType> parseType(const io::substrait::Type& stype);
   std::vector<std::string> makeNames(const std::string& prefix, int size);
-  class WholeStageResultIterator;
-};
-
-class VeloxInitializer {
- public:
-  VeloxInitializer();
-  void Init();
+  std::string makeNodeName(int node_id, int col_idx);
+  std::string findFunction(const std::unordered_map<uint64_t, std::string>& functions_map,
+                           const uint64_t& id) const;
+  // Used for mapping Substrait function key word into Velox functions.
+  std::unordered_map<std::string, std::string> substrait_velox_function_map = {
+      {"MULTIPLY", "multiply"}, {"SUM", "sum"}};
 };
