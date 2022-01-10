@@ -39,10 +39,11 @@ class SubstraitParser {
     std::string type;
     std::string name;
     bool nullable;
-    SubstraitType(const std::string& t, const std::string& n, const bool& null) {
-      type = t;
-      name = n;
-      nullable = null;
+    SubstraitType(const std::string& sub_type, const std::string& sub_name,
+                  const bool& sub_nullable) {
+      type = sub_type;
+      name = sub_name;
+      nullable = sub_nullable;
     }
   };
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> parseNamedStruct(
