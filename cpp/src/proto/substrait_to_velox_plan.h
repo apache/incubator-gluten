@@ -17,38 +17,27 @@
 
 #pragma once
 
+#include <arrow/array/array_primitive.h>
+#include <arrow/array/data.h>
+#include <arrow/array/util.h>
+#include <arrow/record_batch.h>
+#include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
-
-#include <mutex>
 
 #include "substrait_to_velox_expr.h"
 #include "substrait_utils.h"
 #include "velox/buffer/Buffer.h"
-#include "velox/common/caching/DataCache.h"
-#include "velox/common/file/FileSystems.h"
-#include "velox/connectors/hive/FileHandle.h"
-#include "velox/connectors/hive/HiveConnector.h"
-#include "velox/connectors/hive/HiveConnectorSplit.h"
-#include "velox/core/Expressions.h"
-#include "velox/core/ITypedExpr.h"
-#include "velox/core/PlanNode.h"
-#include "velox/dwio/common/Options.h"
-#include "velox/dwio/common/ScanSpec.h"
-#include "velox/dwio/dwrf/common/CachedBufferedInput.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
-#include "velox/exec/Operator.h"
-#include "velox/exec/OperatorUtils.h"
-#include "velox/exec/tests/utils/Cursor.h"
-#include "velox/expression/Expr.h"
-#include "velox/functions/prestosql/aggregates/SumAggregate.h"
-#include "velox/functions/prestosql/registration/RegistrationFunctions.h"
-#include "velox/type/Filter.h"
-#include "velox/type/Subfield.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
+class VeloxInitializer {
+ public:
+  VeloxInitializer();
+  void Init();
+};
+
+// This class is used to convert the Substrait plan into Velox plan.
 class SubstraitVeloxPlanConverter {
  public:
   SubstraitVeloxPlanConverter();
@@ -79,7 +68,6 @@ class SubstraitVeloxPlanConverter {
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
-
   std::string nextPlanNodeId();
   /* Result Iterator */
   class WholeStageResultIterator;

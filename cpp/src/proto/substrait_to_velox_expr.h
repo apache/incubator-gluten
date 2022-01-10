@@ -45,16 +45,12 @@
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
+// This class is used to convert Substrait representations to Velox expressions.
 class SubstraitVeloxExprConverter {
  public:
   SubstraitVeloxExprConverter(
       const std::shared_ptr<SubstraitParser>& sub_parser,
       const std::unordered_map<uint64_t, std::string>& functions_map);
-  int32_t parseReferenceSegment(const io::substrait::ReferenceSegment& sref);
-  connector::hive::SubfieldFilters toVeloxFilter(
-      const std::vector<std::string>& input_name_list,
-      const std::vector<TypePtr>& input_type_list,
-      const io::substrait::Expression& sfilter);
   std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
       const io::substrait::FieldReference& sfield, const int32_t& input_plan_node_id);
   std::shared_ptr<const core::ITypedExpr> toVeloxExpr(
@@ -62,9 +58,14 @@ class SubstraitVeloxExprConverter {
       const int32_t& input_plan_node_id);
   std::shared_ptr<const core::ConstantTypedExpr> toVeloxExpr(
       const io::substrait::Expression::Literal& slit);
-
   std::shared_ptr<const core::ITypedExpr> toVeloxExpr(
       const io::substrait::Expression& sexpr, const int32_t& input_plan_node_id);
+  int32_t parseReferenceSegment(const io::substrait::ReferenceSegment& sref);
+  TypePtr getVeloxType(std::string type_name);
+  connector::hive::SubfieldFilters toVeloxFilter(
+      const std::vector<std::string>& input_name_list,
+      const std::vector<TypePtr>& input_type_list,
+      const io::substrait::Expression& sfilter);
 
  private:
   std::shared_ptr<SubstraitParser> sub_parser_;

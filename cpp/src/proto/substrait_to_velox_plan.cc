@@ -17,17 +17,30 @@
 
 #include "substrait_to_velox_plan.h"
 
-#include <arrow/array/array_primitive.h>
-#include <arrow/array/data.h>
-#include <arrow/array/util.h>
-#include <arrow/record_batch.h>
-#include <arrow/type_fwd.h>
-
 namespace substrait = io::substrait;
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
+
+VeloxInitializer::VeloxInitializer() {}
+
+// The Init will be called per executor.
+void VeloxInitializer::Init() {
+  // Setup
+  filesystems::registerLocalFileSystem();
+  std::unique_ptr<folly::IOThreadPoolExecutor> executor =
+      std::make_unique<folly::IOThreadPoolExecutor>(3);
+  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
+  // registerConnectorFactory(hiveConnectorFactory);
+  auto hiveConnector = getConnectorFactory("hive")->newConnector(
+      "hive-connector", nullptr, nullptr, executor.get());
+  registerConnector(hiveConnector);
+  dwrf::registerDwrfReaderFactory();
+  // Register Velox functions
+  functions::prestosql::registerAllFunctions();
+  aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
+}
 
 SubstraitVeloxPlanConverter::SubstraitVeloxPlanConverter() {
   sub_parser_ = std::make_shared<SubstraitParser>();
@@ -109,7 +122,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
           auto col_out_name = sub_parser_->makeNodeName(plan_node_id_, out_idx);
           project_out_names.push_back(col_out_name);
           auto sub_type = sub_parser_->parseType(sfunc.output_type());
-          auto velox_type = sub_parser_->getVeloxType(sub_type->type);
+          auto velox_type = expr_converter_->getVeloxType(sub_type->type);
           auto agg_input_param = std::make_shared<const core::FieldAccessTypedExpr>(
               velox_type, col_out_name);
           agg_params.push_back(agg_input_param);
@@ -122,7 +135,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     }
     auto agg_out_type = agg_function.output_type();
     auto agg_velox_type =
-        sub_parser_->getVeloxType(sub_parser_->parseType(agg_out_type)->type);
+        expr_converter_->getVeloxType(sub_parser_->parseType(agg_out_type)->type);
     auto agg_expr = std::make_shared<const core::CallTypedExpr>(
         agg_velox_type, std::move(agg_params), func_name);
     agg_exprs.push_back(agg_expr);
@@ -227,7 +240,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   }
   std::vector<TypePtr> velox_type_list;
   for (auto sub_type : substrait_type_list) {
-    velox_type_list.push_back(sub_parser_->getVeloxType(sub_type->type));
+    velox_type_list.push_back(expr_converter_->getVeloxType(sub_type->type));
   }
   auto& sfilter = sread.filter();
   hive::SubfieldFilters filters =

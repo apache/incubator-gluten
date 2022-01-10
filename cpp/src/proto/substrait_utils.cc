@@ -17,36 +17,7 @@
 
 #include "substrait_utils.h"
 
-#include <arrow/array/array_primitive.h>
-#include <arrow/array/data.h>
-#include <arrow/array/util.h>
-#include <arrow/record_batch.h>
-#include <arrow/type_fwd.h>
-
 namespace substrait = io::substrait;
-using namespace facebook::velox;
-using namespace facebook::velox::exec;
-using namespace facebook::velox::connector;
-using namespace facebook::velox::dwio::common;
-
-VeloxInitializer::VeloxInitializer() {}
-
-// The Init will be called per executor.
-void VeloxInitializer::Init() {
-  // Setup
-  filesystems::registerLocalFileSystem();
-  std::unique_ptr<folly::IOThreadPoolExecutor> executor =
-      std::make_unique<folly::IOThreadPoolExecutor>(3);
-  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-  // registerConnectorFactory(hiveConnectorFactory);
-  auto hiveConnector = getConnectorFactory("hive")->newConnector(
-      "hive-connector", nullptr, nullptr, executor.get());
-  registerConnector(hiveConnector);
-  dwrf::registerDwrfReaderFactory();
-  // Register Velox functions
-  functions::prestosql::registerAllFunctions();
-  aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
-}
 
 SubstraitParser::SubstraitParser() {}
 
@@ -106,16 +77,6 @@ SubstraitParser::parseNamedStruct(const substrait::Type::NamedStruct& named_stru
     substrait_type_list.push_back(substrait_type);
   }
   return substrait_type_list;
-}
-
-TypePtr SubstraitParser::getVeloxType(std::string type_name) {
-  if (type_name == "BOOL") {
-    return BOOLEAN();
-  } else if (type_name == "FP64") {
-    return DOUBLE();
-  } else {
-    throw std::runtime_error("Type name is not supported");
-  }
 }
 
 std::vector<std::string> SubstraitParser::makeNames(const std::string& prefix, int size) {
