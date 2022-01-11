@@ -40,32 +40,12 @@ For these two changes, please refer to this commit [Velox Compiling](https://git
 TPC-H Q6 is supported in Gazelle-Jni base on Velox computing. Current support still has several limitations: 
 
 - Only Double type is supported.
-- Only single-thread is supported.
 - Only first stage of TPC-H Q6 (which occupies the most time in this query) is supported.
 - Metrics are missing.
 
 #### Build Gazelle Jni with Velox
 
-Please specify velox_home when compiling Gazelle-Jni with Velox.
-
-``` shell
-git clone -b velox_dev https://github.com/oap-project/gazelle-jni.git
-cd gazelle-jni
-mvn clean package -P full-scala-compiler -DskipTests -Dcpp_tests=OFF -Dcheckstyle.skip -Dvelox_home=${VELOX_HOME}
-```
-
-Based on the different environment, there are some parameters can be set via -D with mvn.
-
-| Parameters | Description | Default Value |
-| ---------- | ----------- | ------------- |
-| cpp_tests  | Enable or Disable CPP Tests | False |
-| build_arrow | Build Arrow from Source | True |
-| arrow_root | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library. | /usr/local |
-| build_protobuf | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library. | True |
-| velox_home | When building Gazelle-Jni with Velox, the location of Velox should be set. | /root/velox |
-
-When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-4.0.0-oap).
-If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.
+Please refer to [Gazelle Jni Usage](GazelleJniUsage.md) to compile and use Gazelle Jni in Spark.
 
 #### Test TPC-H Q6 on Gazelle-Jni with Velox computing
 
@@ -90,13 +70,6 @@ for (filePath <- fileLists) {
 }
 ```
 
-##### Configure the compiled jar to Spark
-
-```shell script
-spark.driver.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
-```
-
 ##### Submit the Spark SQL job
 
 The modified TPC-H Q6 query is:
@@ -115,10 +88,10 @@ lineitem.createOrReplaceTempView("lineitem")
 time{spark.sql("select sum(l_extendedprice * l_discount) as revenue from lineitem where l_shipdate_new >= 8766 and l_shipdate_new < 9131 and l_discount between .06 - 0.01 and .06 + 0.01 and l_quantity < 24").show}
 ```
 
-Submit test script from spark-shell. Please note that only single-thread is supported currently. 
+Submit test script from spark-shell.
 
 ```shell script
-cat tpch_q6.scala | spark-shell --name tpch_velox_q6 --master local --conf spark.plugins=com.intel.oap.GazellePlugin --conf spark.driver.extraClassPath=${gazelle_jvm_jar} --conf spark.executor.extraClassPath=${gazelle_jvm_jar} --conf spark.oap.sql.columnar.preferColumnar=true --conf spark.oap.sql.columnar.wholestagecodegen=true --conf spark.memory.offHeap.size=20g
+cat tpch_q6.scala | spark-shell --name tpch_velox_q6 --master yarn --deploy-mode client --conf spark.plugins=com.intel.oap.GazellePlugin --conf spark.driver.extraClassPath=${gazelle_jvm_jar} --conf spark.executor.extraClassPath=${gazelle_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
 ```
 
 ##### Result
@@ -127,11 +100,12 @@ cat tpch_q6.scala | spark-shell --name tpch_velox_q6 --master local --conf spark
 
 ##### Performance
 
-Below table shows the TPC-H Q6 Performance in this single-thread test for Velox and vanilla Spark.
+Below table shows the TPC-H Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
+Both Parquet and ORC datasets are sf1024.
 
-| TPC-H Q6 Performance | Velox | Vanilla Spark on Parquet Data | Vanilla Spark on ORC Data |
+| TPC-H Q6 Performance | Velox (ORC) | Vanilla Spark (Parquet) | Vanilla Spark (ORC) |
 | ---------- | ----------- | ------------- | ------------- |
-| Time(s) | 57 | 70 | 190 |
+| Time(s) | 13.6 | 21.6  | 34.9 |
 
 
 
