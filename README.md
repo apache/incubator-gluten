@@ -56,17 +56,23 @@ Ideally if all native library can return arrow record batch, we can share much f
 
 # How to use OAP: Gazelle-Jni
 
-There are two ways to build OAP: Gazelle-Jni
+### Build the Environment
+
+There are two ways to build the env for compiling OAP: Gazelle-Jni
 1. Building by Conda Environment
 2. Building by Yourself
 
-### Building by Conda (Recommended)
+- ### Building by Conda (Recommended)
 
 If you already have a working Hadoop Spark Cluster, we provide a Conda package which will automatically install dependencies needed by OAP, you can refer to [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md) for more information.
 
-### Building by yourself
+- ### Building by yourself
 
-If you prefer to build from the source code on your hand, please follow the steps in [Installation Guide](./docs/GazelleJni.md) to set up your environment.
+If you prefer to build from the source code on your hand, please follow the steps in [Installation Guide](./docs/GazelleJniInstallation.md) to set up your environment.
+
+### Compile and use Gazelle Jni
+
+Once your env being successfully deployed, please refer to [Gazelle Jni Usage](./docs/GazelleJniUsage.md) to compile and use Gazelle Jni in Spark.
 
 ### Notes for Building Gazelle-Jni with Velox
 

@@ -43,10 +43,6 @@ TPC-H Q6 is supported in Gazelle-Jni base on Velox computing. Current support st
 - Only first stage of TPC-H Q6 (which occupies the most time in this query) is supported.
 - Metrics are missing.
 
-#### Build Gazelle Jni with Velox
-
-Please refer to [Gazelle Jni Usage](GazelleJniUsage.md) to compile and use Gazelle Jni in Spark.
-
 #### Test TPC-H Q6 on Gazelle-Jni with Velox computing
 
 ##### Data preparation

@@ -177,4 +177,4 @@ Please notes: If you choose to use libhdfs3.so, there are some other dependency 
 ### Intel Optimized Apache Arrow Installation
 
 During the mvn compile command, it will launch a script [build_arrow.sh](../tools/build_arrow.sh) to help install and compile a Intel custom Arrow library.
-If you wish to build Apache Arrow by yourself, please follow the guide to build and install Apache Arrow [ArrowInstallation](./ApacheArrowInstallation.md)
+If you wish to build Apache Arrow by yourself, please follow [ArrowInstallation](./ArrowInstallation.md) to build and install Apache Arrow.

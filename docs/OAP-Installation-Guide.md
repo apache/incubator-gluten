@@ -44,10 +44,6 @@ Dependencies below are required by OAP and all of them are included in OAP Conda
 Once above steps finish, you have completed OAP dependencies installation and OAP building.
 You can start to build Gazelle-Jni in this environment.
 
-##### Compile and use Gazelle Jni
-
-Once your env being successfully adopted, please refer to [Gazelle Jni Usage](GazelleJniUsage.md) to compile and use Gazelle Jni in Spark.
-
 #### Extra Steps for Shuffle Remote PMem Extension
 
 If you use one of OAP features -- [PMem Shuffle](https://github.com/oap-project/pmem-shuffle) with **RDMA**, you need to configure and validate RDMA, please refer to [PMem Shuffle](https://github.com/oap-project/pmem-shuffle#4-configure-and-validate-rdma) for the details.
@@ -65,9 +61,3 @@ spark.driver.extraClassPath         $HOME/miniconda2/envs/oapenv/oap_jars/$OAP_F
 ```
 
 Then you can follow the corresponding feature documents for more details to use them.
-
-
-
-
-
-
