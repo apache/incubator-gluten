@@ -225,7 +225,7 @@ case class ConditionProjectExecTransformer(
         projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
       }
       if (filterNode != null) {
-        // The result of Filter will be the input of Project
+        // The result of Filter will be the input of Project.
         RelBuilder.makeProjectRel(filterNode, projExprNodeList, typeNodes)
       } else {
         // The original input will be the input of Project.

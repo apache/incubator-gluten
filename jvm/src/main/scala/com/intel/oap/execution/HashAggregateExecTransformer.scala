@@ -252,20 +252,6 @@ case class HashAggregateExecTransformer(
         .makeAggregateFunction(functionId, childrenNodeList, mode, outputTypeNode)
       aggregateFunctionList.add(aggFunctionNode)
     })
-    // Set ResultExpressions
-    // FIXME: allAggregateResultAttributes needs to be transformed?
-    /* val allAggregateResultAttributes: List[Attribute] =
-      groupingAttributes.toList ::: getAttrForAggregateExpr(
-        aggregateExpressions, aggregateAttributes)
-    val resExprNodes = resultExpressions.toList.map(expr => {
-      val resExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
-      resExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-    })
-    val resNodeList = new util.ArrayList[ExpressionNode]()
-    for (resExpr <- resExprNodes) {
-      resNodeList.add(resExpr)
-    } */
     // Get Aggregate Rel
     RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
   }

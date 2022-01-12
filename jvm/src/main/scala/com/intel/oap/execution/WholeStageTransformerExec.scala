@@ -506,28 +506,25 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val wsCxt = doWholestageTransform()
 
       val startTime = System.nanoTime()
-      val substraitPlanPartition = batchScan.partitions.map( p => {
-        p match {
-          case FilePartition(index, files) => {
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
-            files.foreach { f =>
-              paths.add(f.filePath)
-              starts.add(new java.lang.Long(f.start))
-              lengths.add(new java.lang.Long(f.length))
-            }
-
-            val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-            wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
-            val substraitPlan = wsCxt.root.toProtobuf
-
-            logInfo(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
-            NativeFilePartition(index, files, substraitPlan.toByteArray)
+      val substraitPlanPartition = batchScan.partitions.map {
+        case FilePartition(index, files) =>
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(new java.lang.Long(f.start))
+            lengths.add(new java.lang.Long(f.length))
           }
-          case _ => p
-        }
-      })
+
+          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          val substraitPlan = wsCxt.root.toProtobuf
+
+          logInfo(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+          NativeFilePartition(index, files, substraitPlan.toByteArray)
+        case p => p
+      }
       logWarning(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
