@@ -177,34 +177,4 @@ Please notes: If you choose to use libhdfs3.so, there are some other dependency 
 ### Intel Optimized Apache Arrow Installation
 
 During the mvn compile command, it will launch a script [build_arrow.sh](../tools/build_arrow.sh) to help install and compile a Intel custom Arrow library.
-If you wish to build Apache Arrow by yourself, please follow the guide to build and install Apache Arrow [ArrowInstallation](./ApacheArrowInstallation.md)
-
-### Gazelle Jni
-
-##### Compile Gazelle Jni jar
-
-``` shell
-git clone -b master https://github.com/oap-project/gazelle-jni.git
-cd gazelle-jni
-mvn clean package -P full-scala-compiler -DskipTests -Dcpp_tests=OFF -Dcheckstyle.skip
-```
-
-Based on the different environment, there are some parameters can be set via -D with mvn.
-
-| Parameters | Description | Default Value |
-| ---------- | ----------- | ------------- |
-| cpp_tests  | Enable or Disable CPP Tests | False |
-| build_arrow | Build Arrow from Source | True |
-| arrow_root | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library. | /usr/local |
-| build_protobuf | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library. | True |
-| velox_home | When building Gazelle-Jni with Velox, the location of Velox should be set. | /root/velox |
-
-When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-4.0.0-oap)
-If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.
-
-##### Configure the compiled jar to Spark
-
-```shell script
-spark.driver.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GAZELLE_JNI_HOME}/jvm/target/gazelle-jni-jvm-<version>-snapshot-jar-with-dependencies.jar
-```
+If you wish to build Apache Arrow by yourself, please follow [ArrowInstallation](./ArrowInstallation.md) to build and install Apache Arrow.
