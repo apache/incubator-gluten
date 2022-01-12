@@ -125,56 +125,10 @@ case class ConditionProjectExecTransformer(
     prepareCondProjectRel(args, condition, projectList, child.output, childRel)
   }
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
-    val (childCtx, kernelFunction) = child match {
-      case c: TransformSupport =>
-        val ctx = c.doTransform(args)
-        (ctx, getRelNode(args, ctx.root))
-      case _ =>
-        (null, getRelNode(args, null))
-    }
-    if (kernelFunction == null) {
-      return childCtx
-    }
-    val inputAttributes = if (childCtx != null) {
-      childCtx.inputAttributes
-    } else {
-      child.output
-    }
-    TransformContext(inputAttributes, output, kernelFunction)
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    val (childCtx, kernelFunction) = child match {
-      case c: TransformSupport =>
-        val ctx = c.doTransform(args, index, paths, starts, lengths)
-        (ctx, getRelNode(args, ctx.root))
-      case _ =>
-        (null, getRelNode(args, null))
-    }
-    if (kernelFunction == null) {
-      return childCtx
-    }
-    val inputAttributes = if (childCtx != null) {
-      childCtx.inputAttributes
-    } else {
-      child.output
-    }
-    TransformContext(inputAttributes, output, kernelFunction)
-  }
-
-  override def doTransform(context: SubstraitContext,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     val (childCtx, currRel) = child match {
       case c: TransformSupport =>
-        val ctx = c.doTransform(context, index, paths, starts, lengths)
+        val ctx = c.doTransform(context)
         (ctx, getRelNode(context.registeredFunction, ctx.root))
       case _ =>
         (null, getRelNode(context.registeredFunction, null))
@@ -279,15 +233,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 }

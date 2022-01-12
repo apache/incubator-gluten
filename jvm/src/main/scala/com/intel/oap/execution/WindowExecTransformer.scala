@@ -22,11 +22,11 @@ import java.util.concurrent.TimeUnit
 import com.google.flatbuffers.FlatBufferBuilder
 import com.intel.oap.GazellePluginConfig
 import com.intel.oap.expression.{CodeGeneration, ConverterUtils}
+import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.vectorized.{ArrowWritableColumnVector, CloseableColumnBatchIterator, ExpressionEvaluator}
 import org.apache.arrow.gandiva.expression.TreeBuilder
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -43,11 +43,11 @@ import org.apache.spark.sql.types.{DataType, DateType, DecimalType, DoubleType, 
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
+
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Stream.Empty
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
-
 import util.control.Breaks._
 
 case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
@@ -91,14 +91,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[WindowExecTransformer]
@@ -157,7 +149,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: Object): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 }
