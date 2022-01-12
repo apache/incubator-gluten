@@ -1,5 +1,3 @@
-package com.intel.oap.benchmarks
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,6 +15,8 @@ package com.intel.oap.benchmarks
  * limitations under the License.
  */
 
+package com.intel.oap.benchmarks
+
 import java.io.File
 
 import scala.collection.mutable.ArrayBuffer
@@ -33,9 +33,10 @@ object BenchmarkTest {
       (args(0), args(1), args(2).toInt, true, args(3), args(4))
     } else {
       val rootPath = this.getClass.getResource("/").getPath
-      (new File(rootPath + "../../../../tpch-data")
-        .getAbsolutePath, "parquet", 1, false,
-        rootPath + "queries/q06.sql", "")
+      val resourcePath = rootPath + "../../../../jvm/src/main/resources"
+      val dataPath = resourcePath + "/tpch-data/"
+      val queryPath = resourcePath + "/queries/"
+      (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "")
     }
 
     val sqlStr = Source.fromFile(new File(sqlFilePath), "UTF-8")
