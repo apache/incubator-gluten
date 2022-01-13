@@ -17,6 +17,7 @@
 
 package com.intel.oap.substrait.rel;
 
+import com.intel.oap.substrait.SubstraitContext;
 import com.intel.oap.substrait.expression.AggregateFunctionNode;
 import com.intel.oap.substrait.expression.ExpressionNode;
 import com.intel.oap.substrait.type.TypeNode;
@@ -47,8 +48,14 @@ public class RelBuilder {
                                          ArrayList<TypeNode> inputTypeNodes,
                                          ArrayList<TypeNode> outputTypeNodes,
                                          ArrayList<ExpressionNode> resExprNodes) {
-    return new AggregateRelNode(input, groupings, aggregateFunctionNodes,
+    return new AggregateRelNode(input, null, aggregateFunctionNodes,
                                 inputTypeNodes, outputTypeNodes, resExprNodes);
+  }
+
+  public static RelNode makeAggregateRel(RelNode input,
+                                         ArrayList<ExpressionNode> groupings,
+                                         ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
+    return new AggregateRelNode(input, groupings, aggregateFunctionNodes);
   }
 
   public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
@@ -59,5 +66,10 @@ public class RelBuilder {
   public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
                                     ExpressionNode filter, LocalFilesNode partNode) {
     return new ReadRelNode(types, names, filter, partNode);
+  }
+
+  public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
+                                    ExpressionNode filter, SubstraitContext context) {
+    return new ReadRelNode(types, names, filter, context);
   }
 }

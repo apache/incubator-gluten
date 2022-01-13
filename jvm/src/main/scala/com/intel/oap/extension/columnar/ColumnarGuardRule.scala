@@ -285,10 +285,6 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
         insertRowGuard(plan)
       case p: BroadcastQueryStageExec =>
         p
-      // FIXME: A tmp workaround for single Agg
-      case a: HashAggregateExec
-        if !a.child.isInstanceOf[ProjectExec] && !a.child.isInstanceOf[FilterExec] =>
-        insertRowGuard(a)
       case other =>
         other.withNewChildren(other.children.map(insertRowGuardOrNot))
     }

@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.rel;
 
-import io.substrait.ReadRel;
+import io.substrait.proto.ReadRel;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -38,13 +38,15 @@ public class LocalFilesNode implements Serializable {
 
     public ReadRel.LocalFiles toProtobuf() {
         ReadRel.LocalFiles.Builder localFilesBuilder = ReadRel.LocalFiles.newBuilder();
-        localFilesBuilder.setIndex(index.intValue());
         for (int i = 0; i < paths.size(); i++) {
             ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder =
                     ReadRel.LocalFiles.FileOrFiles.newBuilder();
-            fileBuilder.setUriPath(paths.get(i));
+            fileBuilder.setUriFile(paths.get(i));
+            fileBuilder.setPartitionIndex(index);
             fileBuilder.setLength(lengths.get(i));
             fileBuilder.setStart(starts.get(i));
+            // TODO: Support multiple file format
+            fileBuilder.setFormat(ReadRel.LocalFiles.FileOrFiles.FileFormat.FILE_FORMAT_PARQUET);
             localFilesBuilder.addItems(fileBuilder.build());
         }
         return localFilesBuilder.build();

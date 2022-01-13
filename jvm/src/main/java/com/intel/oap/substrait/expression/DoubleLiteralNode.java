@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.expression;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 

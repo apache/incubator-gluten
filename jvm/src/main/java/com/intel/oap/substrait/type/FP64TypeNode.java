@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.type;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 
@@ -32,15 +32,11 @@ public class FP64TypeNode implements TypeNode, Serializable {
 
     @Override
     public Type toProtobuf() {
-        Type.Variation.Builder variationBuilder = Type.Variation.newBuilder();
-        variationBuilder.setName(name);
-
         Type.FP64.Builder doubleBuilder = Type.FP64.newBuilder();
-        doubleBuilder.setVariation(variationBuilder.build());
         if (nullable) {
-            doubleBuilder.setNullability(Type.Nullability.NULLABLE);
+            doubleBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
         } else {
-            doubleBuilder.setNullability(Type.Nullability.REQUIRED);
+            doubleBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
         }
 
         Type.Builder builder = Type.newBuilder();

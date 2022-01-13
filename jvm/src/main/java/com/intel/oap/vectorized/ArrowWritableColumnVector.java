@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.complex.*;
+import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -1108,6 +1109,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
   private static class BinaryAccessor extends ArrowVectorAccessor {
     private final VarBinaryVector accessor;
+    private final NullableVarBinaryHolder stringResult = new NullableVarBinaryHolder();
 
     BinaryAccessor(VarBinaryVector vector) {
       super(vector);
@@ -1117,6 +1119,18 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     @Override
     final byte[] getBinary(int rowId) {
       return accessor.getObject(rowId);
+    }
+
+    @Override
+    final UTF8String getUTF8String(int rowId) {
+      accessor.get(rowId, stringResult);
+      if (stringResult.isSet == 0) {
+        return null;
+      } else {
+        return UTF8String.fromAddress(null,
+                stringResult.buffer.memoryAddress() + stringResult.start,
+                stringResult.end - stringResult.start);
+      }
     }
   }
 

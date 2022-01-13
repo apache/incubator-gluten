@@ -1,6 +1,6 @@
 package com.intel.oap.substrait.type;
 
-import io.substrait.Type;
+import io.substrait.proto.Type;
 
 import java.io.Serializable;
 
@@ -15,16 +15,13 @@ public class StringTypeNode implements TypeNode, Serializable {
 
     @Override
     public Type toProtobuf() {
-        Type.Variation.Builder variationBuilder = Type.Variation.newBuilder();
-        variationBuilder.setName(name);
-
         Type.String.Builder stringBuilder = Type.String.newBuilder();
-        stringBuilder.setVariation(variationBuilder.build());
         if (nullable) {
-            stringBuilder.setNullability(Type.Nullability.NULLABLE);
+            stringBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
         } else {
-            stringBuilder.setNullability(Type.Nullability.REQUIRED);
+            stringBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
         }
+
         Type.Builder builder = Type.newBuilder();
         builder.setString(stringBuilder.build());
         return builder.build();

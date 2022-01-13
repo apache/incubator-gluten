@@ -17,28 +17,26 @@
 
 package com.intel.oap.execution
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
+
 import com.google.common.collect.Lists
 import com.intel.oap.GazellePluginConfig
 import com.intel.oap.expression.ConverterUtils
 import com.intel.oap.substrait.extensions.{MappingBuilder, MappingNode}
 import com.intel.oap.substrait.plan.PlanBuilder
-import com.intel.oap.substrait.rel.LocalFilesBuilder
-import com.intel.oap.vectorized.{BatchIterator, _}
+import com.intel.oap.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark._
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.util.OASPackageBridge._
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util._
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 class WholestageRDDPartition(val index: Int, val inputPartition: InputPartition)
   extends Partition
@@ -114,6 +112,7 @@ class WholestageColumnarRDD(
     }
 
     val wsCtx = doWholestageTransform(index, paths, starts, lengths)
+    logWarning(wsCtx.root.toProtobuf.toString)
     var inputSchema : Schema = null
     var outputSchema : Schema = null
     var resIter : BatchIterator = null
