@@ -79,77 +79,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: Object): TransformContext = {
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
-    val nameList = new java.util.ArrayList[String]()
-    for (attr <- output) {
-      nameList.add(attr.name)
-    }
-    // Will put all filter expressions into an AND expression
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, Long]]
-    val functionName = "AND"
-    var functionId = functionMap.size().asInstanceOf[java.lang.Integer].longValue()
-    if (!functionMap.containsKey(functionName)) {
-      functionMap.put(functionName, functionId)
-    } else {
-      functionId = functionMap.get(functionName)
-    }
-    val filterNodes = filterExprs.toList.map(expr => {
-      val transformer = ExpressionConverter.replaceWithExpressionTransformer(expr, output)
-      transformer.asInstanceOf[ExpressionTransformer].doTransform(args)
-    })
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
-    for (filterNode <- filterNodes) {
-      expressionNodes.add(filterNode)
-    }
-    val typeNode = TypeBuiler.makeBoolean("res", true)
-    val filterNode = ExpressionBuilder
-      .makeScalarFunction(functionId, expressionNodes, typeNode)
-    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, filterNode)
-    TransformContext(output, output, relNode)
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
-    val nameList = new java.util.ArrayList[String]()
-    for (attr <- output) {
-      nameList.add(attr.name)
-    }
-    // Will put all filter expressions into an AND expression
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, Long]]
-    val functionName = "AND"
-    var functionId = functionMap.size().asInstanceOf[java.lang.Integer].longValue()
-    if (!functionMap.containsKey(functionName)) {
-      functionMap.put(functionName, functionId)
-    } else {
-      functionId = functionMap.get(functionName)
-    }
-    val filterNodes = filterExprs.toList.map(expr => {
-      val transformer = ExpressionConverter.replaceWithExpressionTransformer(expr, output)
-      transformer.asInstanceOf[ExpressionTransformer].doTransform(args)
-    })
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
-    for (filterNode <- filterNodes) {
-      expressionNodes.add(filterNode)
-    }
-    val typeNode = TypeBuiler.makeBoolean("res", true)
-    val filterNode = ExpressionBuilder
-      .makeScalarFunction(functionId, expressionNodes, typeNode)
-
-    val partNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, filterNode, partNode)
-    TransformContext(output, output, relNode)
-  }
-
-  override def doTransform(context: SubstraitContext,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
     val nameList = new java.util.ArrayList[String]()
     for (attr <- output) {

@@ -18,6 +18,7 @@
 package com.intel.oap.execution
 
 import com.intel.oap.expression._
+import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.vectorized._
 import org.apache.arrow.vector.ValueVector
 import org.apache.spark.internal.Logging
@@ -28,7 +29,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.types.DecimalType
@@ -76,15 +77,7 @@ case class ExpandExecTransformer(
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 }

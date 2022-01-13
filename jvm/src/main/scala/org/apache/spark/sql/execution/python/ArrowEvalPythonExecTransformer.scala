@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import com.intel.oap.execution.{TransformContext, TransformSupport}
 import com.intel.oap.expression._
+import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.vectorized._
 
 import scala.collection.JavaConverters._
@@ -131,15 +132,7 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 }

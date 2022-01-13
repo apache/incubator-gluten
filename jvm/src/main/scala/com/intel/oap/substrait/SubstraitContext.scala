@@ -42,5 +42,5 @@ class SubstraitContext() {
     }
   }
 
-  def registeredFunction = functionMap
+  def registeredFunction : java.util.HashMap[String, java.lang.Long] = functionMap
 }

@@ -18,6 +18,7 @@
 package com.intel.oap.execution
 
 import com.intel.oap.expression.ConverterUtils
+import com.intel.oap.substrait.SubstraitContext
 import org.apache.spark.Partition
 import org.apache.spark.SparkContext
 import org.apache.spark.TaskContext
@@ -69,15 +70,7 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 }

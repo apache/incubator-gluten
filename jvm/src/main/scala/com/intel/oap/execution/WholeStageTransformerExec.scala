@@ -69,23 +69,7 @@ trait TransformSupport extends SparkPlan {
 
   def getChild: SparkPlan
 
-  def doTransform(args: java.lang.Object): TransformContext
-
-  /** This is used by cases containing BatchScan. */
-  def doTransform(args: java.lang.Object,
-                  index: java.lang.Integer,
-                  paths: java.util.ArrayList[String],
-                  starts: java.util.ArrayList[java.lang.Long],
-                  lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    throw new UnsupportedOperationException(
-      s"This operator doesn't support doTransform with functions map.")
-  }
-
-  def doTransform(context: SubstraitContext,
-                  index: java.lang.Integer,
-                  paths: java.util.ArrayList[String],
-                  starts: java.util.ArrayList[java.lang.Long],
-                  lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
       s"This operator doesn't support doTransform with SubstraitContext.")
   }
@@ -157,22 +141,10 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       Seq()
     }
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
   def doWholestageTransform(): WholestageTransformContext = {
     val substraitContext = new SubstraitContext
     val childCtx = child.asInstanceOf[TransformSupport]
-      .doTransform(substraitContext, -1, null, null, null)
+      .doTransform(substraitContext)
     if (childCtx == null) {
       throw new NullPointerException(
         s"ColumnarWholestageTransformer can't doTansform on ${child}")

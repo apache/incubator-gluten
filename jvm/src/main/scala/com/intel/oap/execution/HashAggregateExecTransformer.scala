@@ -33,7 +33,6 @@ import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -89,10 +88,14 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-    val childOpt = this.find(child => {
-      child.isInstanceOf[ShuffleExchangeExec] || child.isInstanceOf[HashAggregateExec]
+    var isPartial = true
+    aggregateExpressions.toList.foreach(aggExpr => {
+      aggExpr.mode match {
+        case Partial =>
+        case _ => isPartial = false
+      }
     })
-    !childOpt.isDefined
+    isPartial
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -131,56 +134,10 @@ case class HashAggregateExecTransformer(
 
   // override def canEqual(that: Any): Boolean = false
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
-        c.doTransform(args)
-      case _ =>
-        null
-    }
-    val (relNode, inputAttributes) = if (childCtx != null) {
-      (
-        getAggRel(args, childCtx.root),
-        childCtx.inputAttributes)
-    } else {
-      (
-        getAggRel(args),
-        child.output)
-    }
-    TransformContext(inputAttributes, output, relNode)
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(args, index, paths, starts, lengths)
-      case _ =>
-        null
-    }
-    val (relNode, inputAttributes) = if (childCtx != null) {
-      (
-        getAggRel(args, childCtx.root),
-        childCtx.inputAttributes)
-    } else {
-      (
-        getAggRel(args),
-        child.output)
-    }
-    TransformContext(inputAttributes, output, relNode)
-  }
-
-  override def doTransform(context: SubstraitContext,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context, index, paths, starts, lengths)
+        c.doTransform(context)
       case _ =>
         null
     }
@@ -252,20 +209,6 @@ case class HashAggregateExecTransformer(
         .makeAggregateFunction(functionId, childrenNodeList, mode, outputTypeNode)
       aggregateFunctionList.add(aggFunctionNode)
     })
-    // Set ResultExpressions
-    // FIXME: allAggregateResultAttributes needs to be transformed?
-    /* val allAggregateResultAttributes: List[Attribute] =
-      groupingAttributes.toList ::: getAttrForAggregateExpr(
-        aggregateExpressions, aggregateAttributes)
-    val resExprNodes = resultExpressions.toList.map(expr => {
-      val resExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
-      resExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-    })
-    val resNodeList = new util.ArrayList[ExpressionNode]()
-    for (resExpr <- resExprNodes) {
-      resNodeList.add(resExpr)
-    } */
     // Get Aggregate Rel
     RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
   }

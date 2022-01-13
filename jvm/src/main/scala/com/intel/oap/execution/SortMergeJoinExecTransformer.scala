@@ -36,7 +36,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.BoundReference
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReference
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 
 import scala.collection.mutable.ListBuffer
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode
@@ -49,6 +49,7 @@ import org.apache.arrow.gandiva.evaluator._
 import org.apache.arrow.memory.ArrowBuf
 import com.google.common.collect.Lists
 import com.intel.oap.expression._
+import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.vectorized.ExpressionEvaluator
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
@@ -271,15 +272,7 @@ case class SortMergeJoinExecTransformer(
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 

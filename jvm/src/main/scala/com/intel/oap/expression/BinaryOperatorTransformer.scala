@@ -62,7 +62,7 @@ class OrTransformer(left: Expression, right: Expression, original: Expression)
     val right_node =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!left_node.isInstanceOf[ExpressionNode] ||
-      !right_node.isInstanceOf[ExpressionNode]) {
+        !right_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
@@ -101,7 +101,7 @@ class LikeTransformer(left: Expression, right: Expression, original: Expression)
     val right_node =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!left_node.isInstanceOf[ExpressionNode] ||
-      !right_node.isInstanceOf[ExpressionNode]) {
+        !right_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
@@ -133,7 +133,7 @@ class EqualToTransformer(left: Expression, right: Expression, original: Expressi
     val right_node =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!left_node.isInstanceOf[ExpressionNode] ||
-      !right_node.isInstanceOf[ExpressionNode]) {
+        !right_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
@@ -215,7 +215,7 @@ class GreaterThanTransformer(left: Expression, right: Expression, original: Expr
     val right_node =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!left_node.isInstanceOf[ExpressionNode] ||
-      !right_node.isInstanceOf[ExpressionNode]) {
+        !right_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
@@ -240,7 +240,7 @@ class GreaterThanOrEqualTransformer(left: Expression, right: Expression, origina
     val right_node =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!left_node.isInstanceOf[ExpressionNode] ||
-      !right_node.isInstanceOf[ExpressionNode]) {
+        !right_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
