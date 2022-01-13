@@ -69,23 +69,7 @@ trait TransformSupport extends SparkPlan {
 
   def getChild: SparkPlan
 
-  def doTransform(args: java.lang.Object): TransformContext
-
-  /** This is used by cases containing BatchScan. */
-  def doTransform(args: java.lang.Object,
-                  index: java.lang.Integer,
-                  paths: java.util.ArrayList[String],
-                  starts: java.util.ArrayList[java.lang.Long],
-                  lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    throw new UnsupportedOperationException(
-      s"This operator doesn't support doTransform with functions map.")
-  }
-
-  def doTransform(context: SubstraitContext,
-                  index: java.lang.Integer,
-                  paths: java.util.ArrayList[String],
-                  starts: java.util.ArrayList[java.lang.Long],
-                  lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
       s"This operator doesn't support doTransform with SubstraitContext.")
   }
@@ -157,22 +141,10 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       Seq()
     }
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
   def doWholestageTransform(): WholestageTransformContext = {
     val substraitContext = new SubstraitContext
     val childCtx = child.asInstanceOf[TransformSupport]
-      .doTransform(substraitContext, -1, null, null, null)
+      .doTransform(substraitContext)
     if (childCtx == null) {
       throw new NullPointerException(
         s"ColumnarWholestageTransformer can't doTansform on ${child}")
@@ -506,28 +478,25 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val wsCxt = doWholestageTransform()
 
       val startTime = System.nanoTime()
-      val substraitPlanPartition = batchScan.partitions.map( p => {
-        p match {
-          case FilePartition(index, files) => {
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
-            files.foreach { f =>
-              paths.add(f.filePath)
-              starts.add(new java.lang.Long(f.start))
-              lengths.add(new java.lang.Long(f.length))
-            }
-
-            val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-            wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
-            val substraitPlan = wsCxt.root.toProtobuf
-
-            logInfo(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
-            NativeFilePartition(index, files, substraitPlan.toByteArray)
+      val substraitPlanPartition = batchScan.partitions.map {
+        case FilePartition(index, files) =>
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(new java.lang.Long(f.start))
+            lengths.add(new java.lang.Long(f.length))
           }
-          case _ => p
-        }
-      })
+
+          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          val substraitPlan = wsCxt.root.toProtobuf
+
+          logInfo(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+          NativeFilePartition(index, files, substraitPlan.toByteArray)
+        case p => p
+      }
       logWarning(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 

@@ -29,6 +29,7 @@
   <properties>
     <cpp.dir>../cpp/</cpp.dir>
     <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
+    <resource.dir>${project.basedir}/src/main/resources</resource.dir>
     <build.testJarPhase>none</build.testJarPhase>
     <build.copyDependenciesPhase>package</build.copyDependenciesPhase>
     <hadoop.deps.scope>provided</hadoop.deps.scope>
@@ -40,9 +41,9 @@
     <jvm.arrow.bfs.install.dir>${project.basedir}/../tools/build/arrow_install</jvm.arrow.bfs.install.dir>
     <protobuf.version>3.13.0</protobuf.version>
     <!-- protobuf paths -->
-    <protobuf.input.directory>${project.basedir}/src/main/java/com/intel/oap/substrait/binary</protobuf.input.directory>
+    <protobuf.input.directory>${resource.dir}/substrait/proto</protobuf.input.directory>
     <protobuf.output.directory>${project.build.directory}/generated-sources</protobuf.output.directory>
-    <protobuf.google.protobuf.directory>${project.basedir}/protoc-include-${protobuf.version}</protobuf.google.protobuf.directory>
+    <protobuf.google.protobuf.directory>${resource.dir}/protoc-include-${protobuf.version}</protobuf.google.protobuf.directory>
     <!-- library versions -->
     <build-helper-maven-plugin.version>3.0.0</build-helper-maven-plugin.version>
     <maven-antrun-plugin.version>1.8</maven-antrun-plugin.version>
