@@ -17,49 +17,25 @@
 
 package com.intel.oap.execution
 
-import java.util
+import scala.collection.mutable.ListBuffer
 
-import com.intel.oap.GazellePluginConfig
-import com.intel.oap.expression._
-import com.intel.oap.vectorized._
 import com.google.common.collect.Lists
-import java.util.concurrent.TimeUnit._
-
+import com.intel.oap.expression._
 import com.intel.oap.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
-import org.apache.arrow.vector.types.pojo.Schema
-import org.apache.spark.TaskContext
-import org.apache.spark.memory.{SparkOutOfMemoryError, TaskMemoryManager}
+import com.intel.oap.substrait.SubstraitContext
+import java.util
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils, Utils}
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.errors._
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.codegen._
-import org.apache.spark.sql.catalyst.expressions.codegen.Block._
-import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.catalyst.util.DateTimeUtils._
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.execution.vectorized.MutableColumnarRow
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.types._
-import org.apache.spark.unsafe.KVIterator
-
-import scala.collection.JavaConverters._
-import scala.collection.Iterator
-import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks._
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * Columnar Based HashAggregateExec.
@@ -113,7 +89,10 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-    true
+    val childOpt = this.find(child => {
+      child.isInstanceOf[ShuffleExchangeExec] || child.isInstanceOf[HashAggregateExec]
+    })
+    !childOpt.isDefined
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -194,6 +173,25 @@ case class HashAggregateExecTransformer(
     TransformContext(inputAttributes, output, relNode)
   }
 
+  override def doTransform(context: SubstraitContext,
+                           index: java.lang.Integer,
+                           paths: java.util.ArrayList[String],
+                           starts: java.util.ArrayList[java.lang.Long],
+                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+    val childCtx = child match {
+      case c: TransformSupport =>
+        c.doTransform(context, index, paths, starts, lengths)
+      case _ =>
+        null
+    }
+    val (relNode, inputAttributes) = if (childCtx != null) {
+      (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes)
+    } else {
+      (getAggRel(context.registeredFunction), child.output)
+    }
+    TransformContext(inputAttributes, output, relNode)
+  }
+
   override def verboseString(maxFields: Int): String = toString(verbose = true, maxFields)
 
   override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
@@ -216,16 +214,15 @@ case class HashAggregateExecTransformer(
     val groupingAttributes = groupingExpressions.map(expr => {
       ConverterUtils.getAttrFromExpr(expr).toAttribute
     })
-    val groupingList = new util.ArrayList[Integer]()
-    for (attr <- groupingAttributes) {
-      groupingList.add(originalInputAttributes.indexOf(attr))
-    }
+    val groupingList = new util.ArrayList[ExpressionNode]()
+
     // Get the aggregate function nodes
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     groupingExpressions.toList.foreach(expr => {
       val groupingExpr: Expression = ExpressionConverter
         .replaceWithExpressionTransformer(expr, originalInputAttributes)
       val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+      groupingList.add(exprNode)
       val outputTypeNode = ConverterUtils.getTypeNode(expr.dataType, expr.name, expr.nullable)
       val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
         Lists.newArrayList(exprNode), outputTypeNode)
@@ -233,6 +230,7 @@ case class HashAggregateExecTransformer(
     })
     aggregateExpressions.toList.foreach(aggExpr => {
       val aggregatFunc = aggExpr.aggregateFunction
+      val functionId = AggregateFunctionsBuilder.create(args, aggregatFunc)
       val mode = modeToKeyWord(aggExpr.mode)
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       aggExpr.mode match {
@@ -251,15 +249,12 @@ case class HashAggregateExecTransformer(
       val outputTypeNode = ConverterUtils.getTypeNode(
         aggregatFunc.dataType, "res", aggregatFunc.nullable)
       val aggFunctionNode = ExpressionBuilder
-        .makeAggregateFunction(childrenNodeList, mode, outputTypeNode)
+        .makeAggregateFunction(functionId, childrenNodeList, mode, outputTypeNode)
       aggregateFunctionList.add(aggFunctionNode)
     })
-    // Set Input and Output types
-    val inputTypeNodes = ConverterUtils.getTypeNodeFromAttributes(originalInputAttributes)
-    val outputTypeNodes = ConverterUtils.getTypeNodeFromAttributes(resAttributes)
     // Set ResultExpressions
     // FIXME: allAggregateResultAttributes needs to be transformed?
-    val allAggregateResultAttributes: List[Attribute] =
+    /* val allAggregateResultAttributes: List[Attribute] =
       groupingAttributes.toList ::: getAttrForAggregateExpr(
         aggregateExpressions, aggregateAttributes)
     val resExprNodes = resultExpressions.toList.map(expr => {
@@ -270,10 +265,9 @@ case class HashAggregateExecTransformer(
     val resNodeList = new util.ArrayList[ExpressionNode]()
     for (resExpr <- resExprNodes) {
       resNodeList.add(resExpr)
-    }
+    } */
     // Get Aggregate Rel
-    RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList,
-                                inputTypeNodes, outputTypeNodes, resNodeList)
+    RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
   }
 
   private def modeToKeyWord(aggregateMode: AggregateMode): String = {

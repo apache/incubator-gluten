@@ -1,0 +1,278 @@
+%YAML 1.2
+---
+scalar_functions:
+  -
+    name: "add"
+    description: "Add two values."
+    impls:
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i8
+          - value: i8
+        return: i8
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i16
+          - value: i16
+        return: i16
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i32
+          - value: i32
+        return: i8
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i64
+          - value: i64
+        return: i64
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp32
+          - value: fp32
+        return: fp32
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp64
+          - value: fp64
+        return: fp64
+  -
+    name: "subtract"
+    description: "Subtract one value from another."
+    impls:
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i8
+          - value: i8
+        return: i8
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i16
+          - value: i16
+        return: i16
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i32
+          - value: i32
+        return: i8
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i64
+          - value: i64
+        return: i64
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp32
+          - value: fp32
+        return: fp32
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp64
+          - value: fp64
+        return: fp64
+  -
+    name: "multiply"
+    description: "Multiply two values."
+    impls:
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i8
+          - value: i8
+        return: i8
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i16
+          - value: i16
+        return: i16
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i32
+          - value: i32
+        return: i8
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i64
+          - value: i64
+        return: i64
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp32
+          - value: fp32
+        return: fp32
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp64
+          - value: fp64
+        return: fp64
+  -
+    name: "divide"
+    description: "Divide one value by another. Partial values are truncated."
+    impls:
+      - args:
+          - value: i8
+          - value: i8
+        return: i8
+      - args:
+          - value: i16
+          - value: i16
+        return: i16
+      - args:
+          - value: i32
+          - value: i32
+        return: i8
+      - args:
+          - value: i64
+          - value: i64
+        return: i64
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp32
+          - value: fp32
+        return: fp32
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp64
+          - value: fp64
+        return: fp64
+  -
+    name: "modulus"
+    description: "Get the remainder when dividing one value by another."
+    impls:
+      - args:
+          - value: i8
+          - value: i8
+        return: i8
+      - args:
+          - value: i16
+          - value: i16
+        return: i16
+      - args:
+          - value: i32
+          - value: i32
+        return: i8
+      - args:
+          - value: i64
+          - value: i64
+        return: i64
+aggregate_functions:
+  - name: "sum"
+    description: Sum a set of values.
+    impls:
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i8
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: i64?
+        return: i64?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i16
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: i64?
+        return: i64?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i32
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: i64?
+        return: i64?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i64
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: i64?
+        return: i64?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp32
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: fp64?
+        return: fp64?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp64
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: fp64?
+        return: fp64?
+  - name: "avg"
+    description: Average a set of values. For integral types, this truncates partial values.
+    impls:
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i8
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: "STRUCT<i64,i64>"
+        return: i8?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i16
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: "STRUCT<i64,i64>"
+        return: i16?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i32
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: "STRUCT<i64,i64>"
+        return: i32?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: i64
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: "STRUCT<i64,i64>"
+        return: i64?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp32
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: "STRUCT<fp64,i64>"
+        return: fp32?
+      - args:
+          - options: [ SILENT, SATURATE, ERROR ]
+            required: false
+          - value: fp64
+        nullability: DECLARED_OUTPUT
+        decomposable: MANY
+        intermediate: "STRUCT<fp64,i64>"
+        return: fp64?

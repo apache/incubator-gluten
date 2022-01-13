@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.derivation;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 public class DerivationExpressionBuilder {
     private DerivationExpressionBuilder() {}

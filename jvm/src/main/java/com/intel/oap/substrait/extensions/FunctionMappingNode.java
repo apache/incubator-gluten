@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.extensions;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 
@@ -31,19 +31,14 @@ public class FunctionMappingNode implements MappingNode, Serializable {
     }
 
     @Override
-    public Extensions.Mapping toProtobuf() {
-        Extensions.FunctionId.Builder funcIdBuilder =
-                Extensions.FunctionId.newBuilder();
-        funcIdBuilder.setId(functionId);
-
-        Extensions.Mapping.FunctionMapping.Builder funcBuilder =
-                Extensions.Mapping.FunctionMapping.newBuilder();
+    public SimpleExtensionDeclaration toProtobuf() {
+        SimpleExtensionDeclaration.ExtensionFunction.Builder funcBuilder =
+                SimpleExtensionDeclaration.ExtensionFunction.newBuilder();
+        funcBuilder.setFunctionAnchor(functionId.intValue());
         funcBuilder.setName(name);
-        funcBuilder.setFunctionId(funcIdBuilder.build());
 
-        Extensions.Mapping.Builder builder =
-                Extensions.Mapping.newBuilder();
-        builder.setFunctionMapping(funcBuilder.build());
-        return builder.build();
+        SimpleExtensionDeclaration.Builder declaration = SimpleExtensionDeclaration.newBuilder();
+        declaration.setExtensionFunction(funcBuilder.build());
+        return declaration.build();
     }
 }

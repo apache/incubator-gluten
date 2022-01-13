@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.expression;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 
@@ -30,14 +30,16 @@ public class SelectionNode implements ExpressionNode, Serializable {
 
     @Override
     public Expression toProtobuf() {
-        ReferenceSegment.StructField.Builder structBuilder =
-                ReferenceSegment.StructField.newBuilder();
+        Expression.ReferenceSegment.StructField.Builder structBuilder =
+                Expression.ReferenceSegment.StructField.newBuilder();
         structBuilder.setField(fieldIdx.intValue());
 
-        ReferenceSegment.Builder refBuilder = ReferenceSegment.newBuilder();
+        Expression.ReferenceSegment.Builder refBuilder =
+                Expression.ReferenceSegment.newBuilder();
         refBuilder.setStructField(structBuilder.build());
 
-        FieldReference.Builder fieldBuilder = FieldReference.newBuilder();
+        Expression.FieldReference.Builder fieldBuilder =
+                Expression.FieldReference.newBuilder();
         fieldBuilder.setDirectReference(refBuilder.build());
 
         Expression.Builder builder = Expression.newBuilder();

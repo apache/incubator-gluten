@@ -20,19 +20,13 @@ package org.apache.spark.sql.execution
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.intel.oap.execution._
-import com.intel.oap.expression.ExpressionConverter
-import org.apache.spark._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.execution._
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.types.ObjectType
 
 /**
  * InputAdapter is used to hide a SparkPlan from a subtree that supports codegen.

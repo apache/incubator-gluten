@@ -17,37 +17,38 @@
 
 package com.intel.oap.execution
 
-import java.util.concurrent.TimeUnit.NANOSECONDS
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 import com.google.common.collect.Lists
 import com.intel.oap.GazellePluginConfig
 import com.intel.oap.expression._
 import com.intel.oap.substrait.extensions.{MappingBuilder, MappingNode}
 import com.intel.oap.substrait.plan.{PlanBuilder, PlanNode}
-import com.intel.oap.substrait.rel.RelNode
-import com.intel.oap.vectorized.{BatchIterator, ExpressionEvaluator, _}
+import com.intel.oap.substrait.rel.{LocalFilesBuilder, RelNode}
+import com.intel.oap.substrait.SubstraitContext
+import com.intel.oap.vectorized._
 import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
-import org.apache.spark.SparkConf
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
-
 case class TransformContext(inputAttributes: Seq[Attribute],
-                            outputAttributes: Seq[Attribute], root: RelNode) {}
+                            outputAttributes: Seq[Attribute], root: RelNode)
 
 case class WholestageTransformContext(inputAttributes: Seq[Attribute],
-                                      outputAttributes: Seq[Attribute], root: PlanNode) {}
+                                      outputAttributes: Seq[Attribute], root: PlanNode,
+                                      substraitContext: SubstraitContext = null)
 
 trait TransformSupport extends SparkPlan {
   /**
@@ -75,7 +76,19 @@ trait TransformSupport extends SparkPlan {
                   index: java.lang.Integer,
                   paths: java.util.ArrayList[String],
                   starts: java.util.ArrayList[java.lang.Long],
-                  lengths: java.util.ArrayList[java.lang.Long]): TransformContext
+                  lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+    throw new UnsupportedOperationException(
+      s"This operator doesn't support doTransform with functions map.")
+  }
+
+  def doTransform(context: SubstraitContext,
+                  index: java.lang.Integer,
+                  paths: java.util.ArrayList[String],
+                  starts: java.util.ArrayList[java.lang.Long],
+                  lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+    throw new UnsupportedOperationException(
+      s"This operator doesn't support doTransform with SubstraitContext.")
+  }
 
   def dependentPlanCtx: TransformContext = null
 
@@ -157,13 +170,15 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   def doWholestageTransform(): WholestageTransformContext = {
-    val functionMap = new java.util.HashMap[String, Long]()
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(functionMap)
+    val substraitContext = new SubstraitContext
+    val childCtx = child.asInstanceOf[TransformSupport]
+      .doTransform(substraitContext, -1, null, null, null)
     if (childCtx == null) {
-      throw new NullPointerException(s"ColumnarWholestageTransformer can't doTansform on ${child}")
+      throw new NullPointerException(
+        s"ColumnarWholestageTransformer can't doTansform on ${child}")
     }
     val mappingNodes = new java.util.ArrayList[MappingNode]()
-    val mapIter = functionMap.entrySet().iterator()
+    val mapIter = substraitContext.registeredFunction.entrySet().iterator()
     while(mapIter.hasNext) {
       val entry = mapIter.next()
       val mappingNode = MappingBuilder.makeFunctionMapping(entry.getKey, entry.getValue)
@@ -171,8 +186,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
     val relNodes = Lists.newArrayList(childCtx.root)
     val planNode = PlanBuilder.makePlan(mappingNodes, relNodes)
+
     WholestageTransformContext(childCtx.inputAttributes,
-      childCtx.outputAttributes, planNode)
+      childCtx.outputAttributes, planNode, substraitContext)
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
@@ -299,6 +315,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     var build_elapse: Long = 0
     var eval_elapse: Long = 0
     // we should zip all dependent RDDs to current main RDD
+    // TODO: Does it still need these parameters?
     val buildPlans = getBuildPlans
     val streamedSortPlan = getStreamedLeafPlan
     val dependentKernels: ListBuffer[ExpressionEvaluator] = ListBuffer()
@@ -306,7 +323,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val buildRelationBatchHolder: ListBuffer[ColumnarBatch] = ListBuffer()
     val serializableObjectHolder: ListBuffer[SerializableObject] = ListBuffer()
     val relationHolder: ListBuffer[ColumnarHashedRelation] = ListBuffer()
-    var idx = 0
+//    var idx = 0
 //    while (idx < buildPlans.length) {
 //
 //      val curPlan = buildPlans(idx)._1
@@ -474,6 +491,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
     if (contains_batchscan) {
       // If containing batchscan, a new RDD is created.
+      // TODO: Remove ?
       val execTempDir = GazellePluginConfig.getTempFile
       val jarList = listJars.map(jarUrl => {
         logWarning(s"Get Codegened library Jar ${jarUrl}")
@@ -485,11 +503,35 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
       })
       val batchScan = current_op.asInstanceOf[BatchScanExecTransformer]
-      val wsRDD = new WholestageColumnarRDD(
-        sparkContext, batchScan.partitions, batchScan.readerFactory,
-        true, child, jarList, dependentKernelIterators,
-        execTempDir)
-      wsRDD.map { r =>
+      val wsCxt = doWholestageTransform()
+
+      val startTime = System.nanoTime()
+      val substraitPlanPartition = batchScan.partitions.map {
+        case FilePartition(index, files) =>
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(new java.lang.Long(f.start))
+            lengths.add(new java.lang.Long(f.length))
+          }
+
+          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          val substraitPlan = wsCxt.root.toProtobuf
+
+          logInfo(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+          NativeFilePartition(index, files, substraitPlan.toByteArray)
+        case p => p
+      }
+      logWarning(
+        s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
+
+      val wsRDD = new NativeWholeStageColumnarRDD(sparkContext, substraitPlanPartition,
+        batchScan.readerFactory, true,
+        wsCxt.inputAttributes, wsCxt.outputAttributes, jarList, dependentKernelIterators)
+      wsRDD.map{ r =>
         numOutputBatches += 1
         r
       }

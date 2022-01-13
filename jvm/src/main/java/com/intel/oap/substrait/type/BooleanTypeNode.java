@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.type;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 
@@ -32,15 +32,11 @@ public class BooleanTypeNode implements TypeNode, Serializable {
 
     @Override
     public Type toProtobuf() {
-        Type.Variation.Builder variationBuilder = Type.Variation.newBuilder();
-        variationBuilder.setName(name);
-
         Type.Boolean.Builder booleanBuilder = Type.Boolean.newBuilder();
-        booleanBuilder.setVariation(variationBuilder.build());
         if (nullable) {
-            booleanBuilder.setNullability(Type.Nullability.NULLABLE);
+            booleanBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
         } else {
-            booleanBuilder.setNullability(Type.Nullability.REQUIRED);
+            booleanBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
         }
 
         Type.Builder builder = Type.newBuilder();
