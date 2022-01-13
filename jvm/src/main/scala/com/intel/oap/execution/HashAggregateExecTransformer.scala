@@ -33,7 +33,6 @@ import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -89,10 +88,14 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-    val childOpt = this.find(child => {
-      child.isInstanceOf[ShuffleExchangeExec] || child.isInstanceOf[HashAggregateExec]
+    var isPartial = true
+    aggregateExpressions.toList.foreach(aggExpr => {
+      aggExpr.mode match {
+        case Partial =>
+        case _ => isPartial = false
+      }
     })
-    !childOpt.isDefined
+    isPartial
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
