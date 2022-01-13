@@ -36,8 +36,8 @@ set(JEMALLOC_BUILD_VERSION "5.2.1")
 
 find_package(JNI REQUIRED)
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
-set(substrait_proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../jvm/src/main/resources/substrait/proto)
-message(STATUS "Set Substrait Directory in ${substrait_proto_directory}")
+set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../jvm/src/main/resources/substrait/proto/)
+message(STATUS "Set Substrait Directory in ${proto_directory}")
 
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
@@ -409,51 +409,51 @@ file(MAKE_DIRECTORY ${root_directory}/src/proto)
 set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
 set(PROTO_OUTPUT_FILES "${PROTO_OUTPUT_DIR}/Exprs.pb.cc")
 set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/Exprs.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/expression.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/expression.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/extensions.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/extensions.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/function.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/function.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/parameterized_types.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/parameterized_types.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/plan.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/plan.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/relations.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/relations.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/selection.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/selection.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/type_expressions.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/type_expressions.pb.h")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/type.pb.cc")
-set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/type.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/capabilities.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/capabilities.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/expression.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/expression.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/function.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/function.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/parameterized_types.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/parameterized_types.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/plan.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/plan.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/relations.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/relations.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/type_expressions.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/type_expressions.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/type.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/type.pb.h")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/extensions/extensions.pb.cc")
+set(PROTO_OUTPUT_FILES ${PROTO_OUTPUT_FILES} "${PROTO_OUTPUT_DIR}/substrait/extensions/extensions.pb.h")
 
 set_source_files_properties(${PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
 
-get_filename_component(SUBSTRAIT_PROTO ${substrait_proto_directory}/,
+get_filename_component(PROTO_DIR ${proto_directory}/,
                        DIRECTORY)
 
 set(PROTO_SRCS "${PROTO_OUTPUT_DIR}/Exprs.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/expression.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/extensions.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/function.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/parameterized_types.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/plan.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/relations.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/selection.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/type_expressions.pb.cc")
-set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/type.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/capabilities.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/expression.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/function.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/parameterized_types.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/plan.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/relations.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/type_expressions.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/type.pb.cc")
+set(PROTO_SRCS ${PROTO_SRCS} "${PROTO_OUTPUT_DIR}/substrait/extensions/extensions.pb.cc")
 
 set(PROTO_HDRS "${PROTO_OUTPUT_DIR}/Exprs.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/expression.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/extensions.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/function.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/parameterized_types.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/plan.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/relations.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/selection.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/type_expressions.pb.h")
-set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/type.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/expression.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/extensions.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/function.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/parameterized_types.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/plan.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/relations.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/type_expressions.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/type.pb.h")
+set(PROTO_HDRS ${PROTO_HDRS} "${PROTO_OUTPUT_DIR}/substrait/extensions/extensions.pb.h")
 
 set(CODEGEN_HEADERS
     third_party/
@@ -497,21 +497,21 @@ endif()
 add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
                    COMMAND ${PROTOC_BIN}
                            --proto_path
-                           ${substrait_proto_directory}/
+                           ${proto_directory}/
                            --cpp_out
                            ${PROTO_OUTPUT_DIR}
-                           ${substrait_proto_directory}/Exprs.proto
-                           ${substrait_proto_directory}/expression.proto
-                           ${substrait_proto_directory}/extensions.proto
-                           ${substrait_proto_directory}/function.proto
-                           ${substrait_proto_directory}/parameterized_types.proto
-                           ${substrait_proto_directory}/plan.proto
-                           ${substrait_proto_directory}/relations.proto
-                           ${substrait_proto_directory}/selection.proto
-                           ${substrait_proto_directory}/type_expressions.proto
-                           ${substrait_proto_directory}/type.proto
-                   DEPENDS  ${SUBSTRAIT_PROTO}
-                   COMMENT "Running PROTO compiler on Exprs.proto"
+                           ${proto_directory}/Exprs.proto
+                           ${proto_directory}/substrait/expression.proto
+                           ${proto_directory}/substrait/function.proto
+                           ${proto_directory}/substrait/parameterized_types.proto
+                           ${proto_directory}/substrait/plan.proto
+                           ${proto_directory}/substrait/relations.proto
+                           ${proto_directory}/substrait/type_expressions.proto
+                           ${proto_directory}/substrait/type.proto
+                           ${proto_directory}/substrait/capabilities.proto
+                           ${proto_directory}/substrait/extensions/extensions.proto
+                   DEPENDS  ${PROTO_DIR}
+                   COMMENT "Running PROTO compiler"
                    VERBATIM)
 add_custom_target(jni_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)

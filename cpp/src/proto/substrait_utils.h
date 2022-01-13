@@ -16,15 +16,15 @@
  */
 
 #include "common/result_iterator.h"
-#include "expression.pb.h"
-#include "extensions.pb.h"
-#include "function.pb.h"
-#include "parameterized_types.pb.h"
-#include "plan.pb.h"
-#include "relations.pb.h"
-#include "selection.pb.h"
-#include "type.pb.h"
-#include "type_expressions.pb.h"
+#include "substrait/capabilities.pb.h"
+#include "substrait/expression.pb.h"
+#include "substrait/function.pb.h"
+#include "substrait/parameterized_types.pb.h"
+#include "substrait/plan.pb.h"
+#include "substrait/relations.pb.h"
+#include "substrait/type_expressions.pb.h"
+#include "substrait/type.pb.h"
+#include "substrait/extensions/extensions.pb.h"
 
 class SubstraitParser {
  public:
