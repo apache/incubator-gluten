@@ -37,12 +37,9 @@ class SubstraitParser {
   SubstraitParser();
   struct SubstraitType {
     std::string type;
-    std::string name;
     bool nullable;
-    SubstraitType(const std::string& sub_type, const std::string& sub_name,
-                  const bool& sub_nullable) {
+    SubstraitType(const std::string& sub_type, const bool& sub_nullable) {
       type = sub_type;
-      name = sub_name;
       nullable = sub_nullable;
     }
   };

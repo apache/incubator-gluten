@@ -21,16 +21,17 @@ SubstraitParser::SubstraitParser() {}
 
 std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
     const substrait::Type& stype) {
-  std::shared_ptr<SubstraitParser::SubstraitType> substrait_type;
+  std::string type_name;
+  substrait::Type_Nullability nullability;
   switch (stype.kind_case()) {
     case substrait::Type::KindCase::kBool: {
-      auto sbool = stype.bool_();
-      auto type_id = sbool.type_variation_reference();
+      type_name = "BOOL";
+      nullability = stype.bool_().nullability();
       break;
     }
     case substrait::Type::KindCase::kFp64: {
-      auto sfp64 = stype.fp64();
-      auto type_id = sfp64.type_variation_reference();
+      type_name = "FP64";
+      nullability = stype.fp64().nullability();
       break;
     }
     case substrait::Type::KindCase::kStruct: {
@@ -43,15 +44,31 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
       break;
     }
     case substrait::Type::KindCase::kString: {
-      auto sstring = stype.string();
-      auto nullable = sstring.nullability();
-      auto type_id = sstring.type_variation_reference();
+      type_name = "STRING";
+      nullability = stype.string().nullability();
       break;
     }
     default:
       std::cout << "Type not supported" << std::endl;
       break;
   }
+  bool nullable;
+  switch (nullability) {
+    case substrait::Type_Nullability::Type_Nullability_NULLABILITY_UNSPECIFIED:
+      nullable = true;
+      break;
+    case substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE:
+      nullable = true;
+      break;
+    case substrait::Type_Nullability::Type_Nullability_NULLABILITY_REQUIRED:
+      nullable = false;
+      break;
+    default:
+      throw new std::runtime_error("Unrecognized NULLABILITY.");
+      break;
+  }
+  std::shared_ptr<SubstraitType> substrait_type =
+      std::make_shared<SubstraitType>(type_name, nullable);
   return substrait_type;
 }
 

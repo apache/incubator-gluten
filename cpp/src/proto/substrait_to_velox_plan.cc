@@ -209,9 +209,13 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
 std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     const substrait::ReadRel& sread, u_int32_t* index, std::vector<std::string>* paths,
     std::vector<u_int64_t>* starts, std::vector<u_int64_t>* lengths) {
+  std::vector<std::string> col_name_list;
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> substrait_type_list;
   if (sread.has_base_schema()) {
     auto& base_schema = sread.base_schema();
+    for (auto& name : base_schema.names()) {
+      col_name_list.push_back(name);
+    }
     auto type_list = sub_parser_->parseNamedStruct(base_schema);
     for (auto type : type_list) {
       substrait_type_list.push_back(type);
@@ -228,10 +232,6 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       (*starts).push_back(file.start());
       (*lengths).push_back(file.length());
     }
-  }
-  std::vector<std::string> col_name_list;
-  for (auto sub_type : substrait_type_list) {
-    col_name_list.push_back(sub_type->name);
   }
   std::vector<TypePtr> velox_type_list;
   for (auto sub_type : substrait_type_list) {
