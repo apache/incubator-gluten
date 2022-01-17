@@ -17,27 +17,19 @@
 
 package com.intel.oap.execution
 
-import com.intel.oap.GazellePluginConfig
 import com.intel.oap.expression._
-import com.intel.oap.vectorized._
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen._
-import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-import org.apache.spark.sql.types.{DecimalType, StructType}
-import org.apache.spark.util.ExecutorManager
-import org.apache.spark.sql.util.StructTypeFWD
-import org.apache.spark.{SparkConf, TaskContext}
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import com.google.common.collect.Lists
-import com.intel.oap.GazellePluginConfig
 import com.intel.oap.substrait.expression.ExpressionNode
 import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
+import com.intel.oap.substrait.SubstraitContext
+
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.util.StructTypeFWD
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ConditionProjectExecTransformer(
     condition: Expression,
@@ -133,46 +125,24 @@ case class ConditionProjectExecTransformer(
     prepareCondProjectRel(args, condition, projectList, child.output, childRel)
   }
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
-    val (childCtx, kernelFunction) = child match {
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val (childCtx, currRel) = child match {
       case c: TransformSupport =>
-        val ctx = c.doTransform(args)
-        (ctx, getRelNode(args, ctx.root))
+        val ctx = c.doTransform(context)
+        (ctx, getRelNode(context.registeredFunction, ctx.root))
       case _ =>
-        (null, getRelNode(args, null))
+        (null, getRelNode(context.registeredFunction, null))
     }
-    if (kernelFunction == null) {
+    if (currRel == null) {
       return childCtx
     }
     val inputAttributes = if (childCtx != null) {
-      childCtx.inputAttributes
+      // Use the outputAttributes of child context as inputAttributes
+      childCtx.outputAttributes
     } else {
       child.output
     }
-    TransformContext(inputAttributes, output, kernelFunction)
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
-    val (childCtx, kernelFunction) = child match {
-      case c: TransformSupport =>
-        val ctx = c.doTransform(args, index, paths, starts, lengths)
-        (ctx, getRelNode(args, ctx.root))
-      case _ =>
-        (null, getRelNode(args, null))
-    }
-    if (kernelFunction == null) {
-      return childCtx
-    }
-    val inputAttributes = if (childCtx != null) {
-      childCtx.inputAttributes
-    } else {
-      child.output
-    }
-    TransformContext(inputAttributes, output, kernelFunction)
+    TransformContext(inputAttributes, output, currRel)
   }
 
   protected override def doExecute()
@@ -199,7 +169,7 @@ case class ConditionProjectExecTransformer(
     } else {
       null
     }
-    val projectRel = if (projectList != null && projectList.nonEmpty) {
+    if (projectList != null && projectList.nonEmpty) {
       val columnarProjExprs: Seq[Expression] = projectList.map(expr => {
         ExpressionConverter
           .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
@@ -209,19 +179,14 @@ case class ConditionProjectExecTransformer(
         projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
       }
       if (filterNode != null) {
-        // The result of Filter will be the input of Project
+        // The result of Filter will be the input of Project.
         RelBuilder.makeProjectRel(filterNode, projExprNodeList, typeNodes)
       } else {
         // The original input will be the input of Project.
         RelBuilder.makeProjectRel(input, projExprNodeList, typeNodes)
       }
     } else {
-      null
-    }
-    if (projectRel == null) {
       filterNode
-    } else {
-      projectRel
     }
   }
 }
@@ -268,15 +233,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 }

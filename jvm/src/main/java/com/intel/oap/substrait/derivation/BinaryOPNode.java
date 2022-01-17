@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.derivation;
 
-import io.substrait.*;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 
@@ -40,11 +40,11 @@ public class BinaryOPNode implements DerivationExpressionNode, Serializable {
         switch(op) {
             case "multiply":
                 binaryBuilder.setOpType(
-                        DerivationExpression.BinaryOp.OpType.MULTIPLY);
+                        DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_MULTIPLY);
                 break;
             case "divide":
                 binaryBuilder.setOpType(
-                        DerivationExpression.BinaryOp.OpType.DIVIDE);
+                        DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_DIVIDE);
                 break;
             default:
                 System.out.println("Not supported.");

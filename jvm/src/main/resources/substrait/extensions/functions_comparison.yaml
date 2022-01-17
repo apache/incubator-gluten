@@ -1,0 +1,29 @@
+%YAML 1.2
+---
+scalar_functions:
+  -
+    name: "not_equal"
+    description: Whether two values are not_equal (nulls are considered not not-equal).
+    impls:
+      - args:
+          - value: any1
+          - value: any1
+        return: BOOLEAN?
+  -
+    name: "equal"
+    description: Whether two values are equal (nulls are considered unequal).
+    impls:
+      - args:
+          - value: any1
+          - value: any1
+        return: BOOLEAN?
+  -
+    name: "is_not_distinct_from"
+    description: Whether two values are equal (nulls are considered equal).
+    impls:
+      - args:
+          - value: any1
+          - value: any1
+        return: BOOLEAN?
+# TODO: add lt, gt, lte, gte, compare
+

@@ -20,14 +20,10 @@ package com.intel.oap.expression
 import com.google.common.collect.Lists
 import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
 import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-
-import scala.collection.mutable.ListBuffer
 
 class AliasTransformer(child: Expression, name: String)(
     override val exprId: ExprId,
@@ -40,14 +36,8 @@ class AliasTransformer(child: Expression, name: String)(
     if (!child_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet")
     }
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, Long]]
-    val functionName = "ALIAS"
-    var functionId = functionMap.size().asInstanceOf[java.lang.Integer].longValue()
-    if (!functionMap.containsKey(functionName)) {
-      functionMap.put(functionName, functionId)
-    } else {
-      functionId = functionMap.get(functionName)
-    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "ALIAS")
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(child.dataType, name, child.nullable)
 

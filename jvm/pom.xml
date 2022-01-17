@@ -29,6 +29,7 @@
   <properties>
     <cpp.dir>../cpp/</cpp.dir>
     <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
+    <resource.dir>${project.basedir}/src/main/resources</resource.dir>
     <build.testJarPhase>none</build.testJarPhase>
     <build.copyDependenciesPhase>package</build.copyDependenciesPhase>
     <hadoop.deps.scope>provided</hadoop.deps.scope>
@@ -38,15 +39,16 @@
     <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
     <jvm.build_arrow>OFF</jvm.build_arrow>
     <jvm.arrow.bfs.install.dir>${project.basedir}/../tools/build/arrow_install</jvm.arrow.bfs.install.dir>
+    <protobuf.version>3.13.0</protobuf.version>
     <!-- protobuf paths -->
-    <protobuf.input.directory>${project.basedir}/src/main/java/com/intel/oap/substrait/binary</protobuf.input.directory>
+    <protobuf.input.directory>${resource.dir}/substrait/proto</protobuf.input.directory>
     <protobuf.output.directory>${project.build.directory}/generated-sources</protobuf.output.directory>
+    <protobuf.google.protobuf.directory>${resource.dir}/protoc-include-${protobuf.version}</protobuf.google.protobuf.directory>
     <!-- library versions -->
     <build-helper-maven-plugin.version>3.0.0</build-helper-maven-plugin.version>
     <maven-antrun-plugin.version>1.8</maven-antrun-plugin.version>
     <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
-    <protobuf.version>3.7.1</protobuf.version>
   </properties>
   <dependencies>
     <!-- Prevent our dummy JAR from being included in Spark distributions or uploaded to YARN -->
@@ -58,26 +60,17 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
-      <type>test-jar</type>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-      <type>test-jar</type>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_${scala.binary.version}</artifactId>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-network-shuffle_${scala.binary.version}</artifactId>
-      <version>${spark.version}</version>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.arrow</groupId>
@@ -130,6 +123,10 @@
           <groupId>io.netty</groupId>
           <artifactId>netty-buffer</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>protobuf-java</artifactId>
+          <groupId>com.google.protobuf</groupId>
+        </exclusion>
       </exclusions>
       <!--scope>provided</scope-->
     </dependency>
@@ -153,6 +150,10 @@
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
           <artifactId>jackson-annotations</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>protobuf-java</artifactId>
+          <groupId>com.google.protobuf</groupId>
         </exclusion>
       </exclusions>
       <scope>compile</scope>
@@ -189,19 +190,19 @@
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
       <version>2.10.0</version>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
       <version>2.10.0</version>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <version>2.10.0</version>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.h2database</groupId>
@@ -300,18 +301,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.parquet</groupId>
-      <artifactId>parquet-avro</artifactId>
-      <version>1.10.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro</artifactId>
-      <version>1.9.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>com.intel.oap</groupId>
       <artifactId>spark-sql-columnar-shims-common</artifactId>
       <version>${project.version}</version>
@@ -321,6 +310,12 @@
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.11.0</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 
@@ -438,7 +433,13 @@
                 <pathconvert pathsep=" " property="protobuf.input.filepaths" refid="protobuf.input.filepaths.path"/>
                 <exec executable="${protoc.filepath}" failonerror="true">
                   <arg value="-I"/>
+                  <arg value="${protobuf.google.protobuf.directory}"/>
+                  <arg value="-I"/>
                   <arg value="${protobuf.input.directory}"/>
+                  <arg value="-I"/>
+                  <arg value="${protobuf.input.directory}/substrait/extensions"/>
+                  <arg value="-I"/>
+                  <arg value="${protobuf.input.directory}/substrait"/>
                   <arg value="--java_out"/>
                   <arg value="${protobuf.output.directory}"/>
                   <arg line="${protobuf.input.filepaths}"/>

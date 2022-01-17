@@ -124,7 +124,7 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
     .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager") && enableCpu
 
   // for all perf turnings
-  // prefer to use columnar operators if set to true  
+  // prefer to use columnar operators if set to true
   val enablePreferColumnar: Boolean =
     conf.getConfString("spark.oap.sql.columnar.preferColumnar", "true").toBoolean
 

@@ -18,20 +18,11 @@
 package com.intel.oap.expression
 
 import com.google.common.collect.Lists
-import com.intel.oap.substrait.`type`.TypeBuiler
 import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-
-import scala.collection.mutable.ListBuffer
-import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil
 
 /**
  * A version of add that supports columnar processing for longs.
@@ -89,14 +80,8 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, Long]]
-    val functionName = "MULTIPLY"
-    var functionId = functionMap.size().asInstanceOf[java.lang.Integer].longValue()
-    if (!functionMap.containsKey(functionName)) {
-      functionMap.put(functionName, functionId)
-    } else {
-      functionId = functionMap.get(functionName)
-    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "MULTIPLY")
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])

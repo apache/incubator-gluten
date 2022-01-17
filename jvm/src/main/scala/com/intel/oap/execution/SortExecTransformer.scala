@@ -23,6 +23,7 @@ import com.intel.oap.vectorized._
 import com.google.common.collect.Lists
 import java.util.concurrent.TimeUnit._
 
+import com.intel.oap.substrait.SubstraitContext
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.ArrowType
@@ -117,15 +118,7 @@ case class SortExecTransformer(
 
   override def doValidate(): Boolean = false
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 

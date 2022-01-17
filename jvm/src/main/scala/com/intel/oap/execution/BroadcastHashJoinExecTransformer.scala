@@ -20,6 +20,7 @@ package com.intel.oap.execution
 import com.google.common.collect.Lists
 import com.intel.oap.GazellePluginConfig
 import com.intel.oap.expression._
+import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.substrait.rel.RelNode
 import com.intel.oap.vectorized.{ExpressionEvaluator, _}
 import org.apache.arrow.gandiva.expression._
@@ -200,15 +201,7 @@ case class BroadcastHashJoinExecTransformer(
 
   override def getChild: SparkPlan = streamedPlan
 
-  override def doTransform(args: java.lang.Object): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  override def doTransform(args: java.lang.Object,
-                           index: java.lang.Integer,
-                           paths: java.util.ArrayList[String],
-                           starts: java.util.ArrayList[java.lang.Long],
-                           lengths: java.util.ArrayList[java.lang.Long]): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 

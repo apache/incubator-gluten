@@ -138,9 +138,13 @@ public class ExpressionEvaluator implements AutoCloseable {
     return jniWrapper.nativeGetSignature(nativeHandler);
   }
 
+  public void initNative() {
+    jniWrapper.nativeInitNative();
+  }
+
   /** Used by WholeStageTransfrom */
-  public BatchIterator createKernelWithIterator(
-          Schema ws_in_schema, PlanNode ws_plan,
+  public BatchIterator createNativeKernelWithIterator(
+          Schema ws_in_schema, byte[] ws_plan,
           Schema ws_res_schema,
           List<ExpressionTree> in_exprs, ColumnarNativeIterator batchItr,
           BatchIterator[] dependencies, boolean finishReturn)
@@ -152,14 +156,20 @@ public class ExpressionEvaluator implements AutoCloseable {
     }
     long batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
             memoryPool.getNativeInstanceId(), getSchemaBytesBuf(ws_in_schema),
-            getPlanBytesBuf(ws_plan), getSchemaBytesBuf(ws_res_schema),
+            ws_plan, getSchemaBytesBuf(ws_res_schema),
             getExprListBytesBuf(in_exprs),
             batchItr, instanceIdList, finishReturn);
     return new BatchIterator(batchIteratorInstance);
   }
 
-  public void initNative() {
-    jniWrapper.nativeInitNative();
+  public BatchIterator createKernelWithIterator(
+          Schema ws_in_schema, PlanNode ws_plan,
+          Schema ws_res_schema,
+          List<ExpressionTree> in_exprs, ColumnarNativeIterator batchItr,
+          BatchIterator[] dependencies, boolean finishReturn)
+          throws RuntimeException, IOException, GandivaException {
+    return createNativeKernelWithIterator(ws_in_schema, getPlanBytesBuf(ws_plan),
+            ws_res_schema, in_exprs, batchItr, dependencies, finishReturn);
   }
 
   /** Set result Schema in some special cases */

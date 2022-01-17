@@ -38,4 +38,16 @@ public class TypeBuiler {
     public static TypeNode makeString(String name, Boolean nullable) {
         return new StringTypeNode(name, nullable);
     }
+
+    public static TypeNode makeI32(String name, Boolean nullable) {
+        return new I32TypeNode(name, nullable);
+    }
+
+    public static TypeNode makeI64(String name, Boolean nullable) {
+        return new I64TypeNode(name, nullable);
+    }
+
+    public static TypeNode makeDate(String name, Boolean nullable) {
+        return new DateTypeNode(name, nullable);
+    }
 }
