@@ -17,7 +17,6 @@
 
 #include "substrait_to_velox_plan.h"
 
-namespace substrait = io::substrait;
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
@@ -55,20 +54,19 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     throw std::runtime_error("Child expected");
   }
   auto input_types = child_node->outputType();
-  // Substrait's groupings are limited to be index, and pre-projection for grouping cols
-  // is not supported.
-  std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> grouping_exprs;
+  std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> velox_grouping_exprs;
   auto& groupings = sagg.groupings();
   int input_plan_node_id = plan_node_id_ - 1;
   int out_idx = 0;
   for (auto& grouping : groupings) {
-    auto grouping_fields = grouping.input_fields();
-    for (auto& field_idx : grouping_fields) {
-      auto field_name = sub_parser_->makeNodeName(input_plan_node_id, field_idx);
-      auto col_type = input_types->childAt(field_idx);
-      auto field_expr =
-          std::make_shared<const core::FieldAccessTypedExpr>(col_type, field_name);
-      grouping_exprs.push_back(field_expr);
+    auto grouping_exprs = grouping.grouping_expressions();
+    for (auto& grouping_expr : grouping_exprs) {
+      auto field_expr = expr_converter_->toVeloxExpr(grouping_expr, input_plan_node_id);
+      // Velox's groupings are limited to be Field, and pre-projection for grouping cols
+      // is not supported.
+      auto typed_field_expr =
+          std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(field_expr);
+      velox_grouping_exprs.push_back(typed_field_expr);
       out_idx += 1;
     }
   }
@@ -82,16 +80,13 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     auto agg_function = smea.measure();
     if (!phase_inited) {
       switch (agg_function.phase()) {
-        case substrait::Expression_AggregationPhase::
-            Expression_AggregationPhase_INITIAL_TO_INTERMEDIATE:
+        case substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE:
           agg_step = core::AggregationNode::Step::kPartial;
           break;
-        case substrait::Expression_AggregationPhase::
-            Expression_AggregationPhase_INTERMEDIATE_TO_INTERMEDIATE:
+        case substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE:
           agg_step = core::AggregationNode::Step::kIntermediate;
           break;
-        case substrait::Expression_AggregationPhase::
-            Expression_AggregationPhase_INTERMEDIATE_TO_RESULT:
+        case substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT:
           agg_step = core::AggregationNode::Step::kFinal;
           break;
         default:
@@ -100,10 +95,9 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       }
       phase_inited = true;
     }
-    // FIXME: func_id is missing
-    // auto func_id = agg_function.id().id();
-    // auto func_name = sub_parser_->findFunction(functions_map_, func_id);
-    auto func_name = "sum";
+    auto func_id = agg_function.function_reference();
+    auto sub_func_name = sub_parser_->findFunction(functions_map_, func_id);
+    auto func_name = sub_parser_->substrait_velox_function_map[sub_func_name];
     std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
     auto args = agg_function.args();
     for (auto arg : args) {
@@ -152,7 +146,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       agg_out_names.push_back(sub_parser_->makeNodeName(plan_node_id_, idx));
     }
     auto agg_node = std::make_shared<core::AggregationNode>(
-        nextPlanNodeId(), agg_step, grouping_exprs, agg_out_names, agg_exprs,
+        nextPlanNodeId(), agg_step, velox_grouping_exprs, agg_out_names, agg_exprs,
         aggregateMasks, ignoreNullKeys, project_node);
     return agg_node;
   } else {
@@ -161,7 +155,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       agg_out_names.push_back(sub_parser_->makeNodeName(plan_node_id_, idx));
     }
     auto agg_node = std::make_shared<core::AggregationNode>(
-        nextPlanNodeId(), agg_step, grouping_exprs, agg_out_names, agg_exprs,
+        nextPlanNodeId(), agg_step, velox_grouping_exprs, agg_out_names, agg_exprs,
         aggregateMasks, ignoreNullKeys, child_node);
     return agg_node;
   }
@@ -226,9 +220,10 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   // Parse local files
   if (sread.has_local_files()) {
     auto& local_files = sread.local_files();
-    *index = local_files.index();
     auto& files_list = local_files.items();
     for (auto& file : files_list) {
+      // Expect all partions share the same index.
+      (*index) = file.partition_index();
       (*paths).push_back(file.uri_path());
       (*starts).push_back(file.start());
       (*lengths).push_back(file.length());
@@ -280,22 +275,38 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
 }
 
 std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
+    const substrait::RelRoot& sroot) {
+  auto& snames = sroot.names();
+  if (sroot.has_input()) {
+    auto& srel = sroot.input();
+    return toVeloxPlan(srel);
+  } else {
+    throw new std::runtime_error("Input is expected in RelRoot.");
+  }
+}
+
+std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     const substrait::Plan& splan) {
-  for (auto& smap : splan.mappings()) {
-    if (!smap.has_function_mapping()) {
+  for (auto& sextension : splan.extensions()) {
+    if (!sextension.has_extension_function()) {
       continue;
     }
-    auto& sfmap = smap.function_mapping();
-    auto id = sfmap.function_id().id();
+    auto& sfmap = sextension.extension_function();
+    auto id = sfmap.function_anchor();
     auto name = sfmap.name();
     functions_map_[id] = name;
   }
   expr_converter_ =
       std::make_shared<SubstraitVeloxExprConverter>(sub_parser_, functions_map_);
   std::shared_ptr<const core::PlanNode> plan_node;
-  // FIXME: only one Rel is expected here after updating Substrait.
+  // In fact, only one RelRoot is expected here.
   for (auto& srel : splan.relations()) {
-    plan_node = toVeloxPlan(srel);
+    if (srel.has_root()) {
+      plan_node = toVeloxPlan(srel.root());
+    }
+    if (srel.has_rel()) {
+      plan_node = toVeloxPlan(srel.rel());
+    }
   }
   return plan_node;
 }

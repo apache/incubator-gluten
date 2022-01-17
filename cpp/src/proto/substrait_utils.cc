@@ -17,8 +17,6 @@
 
 #include "substrait_utils.h"
 
-namespace substrait = io::substrait;
-
 SubstraitParser::SubstraitParser() {}
 
 std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
@@ -27,14 +25,12 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
   switch (stype.kind_case()) {
     case substrait::Type::KindCase::kBool: {
       auto sbool = stype.bool_();
-      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
-          "BOOL", sbool.variation().name(), sbool.nullability());
+      auto type_id = sbool.type_variation_reference();
       break;
     }
     case substrait::Type::KindCase::kFp64: {
       auto sfp64 = stype.fp64();
-      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
-          "FP64", sfp64.variation().name(), sfp64.nullability());
+      auto type_id = sfp64.type_variation_reference();
       break;
     }
     case substrait::Type::KindCase::kStruct: {
@@ -49,9 +45,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
     case substrait::Type::KindCase::kString: {
       auto sstring = stype.string();
       auto nullable = sstring.nullability();
-      auto name = sstring.variation().name();
-      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
-          "STRING", sstring.variation().name(), sstring.nullability());
+      auto type_id = sstring.type_variation_reference();
       break;
     }
     default:
@@ -62,7 +56,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
 }
 
 std::vector<std::shared_ptr<SubstraitParser::SubstraitType>>
-SubstraitParser::parseNamedStruct(const substrait::Type::NamedStruct& named_struct) {
+SubstraitParser::parseNamedStruct(const substrait::NamedStruct& named_struct) {
   auto& snames = named_struct.names();
   std::vector<std::string> name_list;
   for (auto& sname : snames) {

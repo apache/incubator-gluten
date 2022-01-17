@@ -17,7 +17,6 @@
 
 #include "substrait_to_velox_expr.h"
 
-namespace substrait = io::substrait;
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
@@ -31,10 +30,11 @@ SubstraitVeloxExprConverter::SubstraitVeloxExprConverter(
 }
 
 std::shared_ptr<const core::FieldAccessTypedExpr>
-SubstraitVeloxExprConverter::toVeloxExpr(const substrait::FieldReference& sfield,
-                                         const int32_t& input_plan_node_id) {
+SubstraitVeloxExprConverter::toVeloxExpr(
+    const substrait::Expression::FieldReference& sfield,
+    const int32_t& input_plan_node_id) {
   switch (sfield.reference_type_case()) {
-    case substrait::FieldReference::ReferenceTypeCase::kDirectReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::kDirectReference: {
       auto dref = sfield.direct_reference();
       int32_t col_idx = parseReferenceSegment(dref);
       auto field_name = sub_parser_->makeNodeName(input_plan_node_id, col_idx);
@@ -42,7 +42,7 @@ SubstraitVeloxExprConverter::toVeloxExpr(const substrait::FieldReference& sfield
       return std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), field_name);
       break;
     }
-    case substrait::FieldReference::ReferenceTypeCase::kMaskedReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::kMaskedReference: {
       throw new std::runtime_error("not supported");
       break;
     }
@@ -60,7 +60,7 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
     auto expr = toVeloxExpr(sarg, input_plan_node_id);
     params.push_back(expr);
   }
-  auto function_id = sfunc.id().id();
+  auto function_id = sfunc.function_reference();
   auto function_name = sub_parser_->findFunction(functions_map_, function_id);
   auto velox_function = sub_parser_->substrait_velox_function_map[function_name];
   auto sub_type = sub_parser_->parseType(sfunc.output_type());
@@ -70,7 +70,7 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
 }
 
 std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
-    const io::substrait::Expression::Literal& slit) {
+    const substrait::Expression::Literal& slit) {
   switch (slit.literal_type_case()) {
     case substrait::Expression_Literal::LiteralTypeCase::kFp64: {
       double val = slit.fp64();
@@ -125,9 +125,9 @@ TypePtr SubstraitVeloxExprConverter::getVeloxType(std::string type_name) {
 }
 
 int32_t SubstraitVeloxExprConverter::parseReferenceSegment(
-    const substrait::ReferenceSegment& sref) {
+    const substrait::Expression::ReferenceSegment& sref) {
   switch (sref.reference_type_case()) {
-    case substrait::ReferenceSegment::ReferenceTypeCase::kStructField: {
+    case substrait::Expression::ReferenceSegment::ReferenceTypeCase::kStructField: {
       auto sfield = sref.struct_field();
       auto field_id = sfield.field();
       return field_id;
@@ -177,8 +177,7 @@ class SubstraitVeloxExprConverter::FilterInfo {
 
 hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
     const std::vector<std::string>& input_name_list,
-    const std::vector<TypePtr>& input_type_list,
-    const io::substrait::Expression& sfilter) {
+    const std::vector<TypePtr>& input_type_list, const substrait::Expression& sfilter) {
   hive::SubfieldFilters filters;
   std::unordered_map<int, std::shared_ptr<FilterInfo>> col_info_map;
   for (int idx = 0; idx < input_name_list.size(); idx++) {
@@ -197,8 +196,8 @@ hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
         switch (scondition.rex_type_case()) {
           case substrait::Expression::RexTypeCase::kScalarFunction: {
             auto filter_func = scondition.scalar_function();
-            filter_name =
-                sub_parser_->findFunction(functions_map_, filter_func.id().id());
+            filter_name = sub_parser_->findFunction(functions_map_,
+                                                    filter_func.function_reference());
             for (auto& param : filter_func.args()) {
               switch (param.rex_type_case()) {
                 case substrait::Expression::RexTypeCase::kSelection: {
