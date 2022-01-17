@@ -23,8 +23,6 @@
 #include "arrow/array/builder_primitive.h"
 #include "arrow/util/checked_cast.h"
 
-namespace substrait = io::substrait;
-
 SubstraitParser::SubstraitParser() {
   std::cout << "construct SubstraitParser" << std::endl;
 }
@@ -58,16 +56,17 @@ void SubstraitParser::ParseScalarFunction(
   for (auto& sarg : sfunc.args()) {
     ParseExpression(sarg);
   }
-  auto function_id = sfunc.id().id();
+  auto function_id = sfunc.function_reference();
   auto function_name = FindFunction(function_id);
   std::cout << "function_name: " << function_name << std::endl;
   auto out_type = sfunc.output_type();
   ParseType(out_type);
 }
 
-void SubstraitParser::ParseReferenceSegment(const ::substrait::ReferenceSegment& sref) {
+void SubstraitParser::ParseReferenceSegment(
+    const ::substrait::Expression::ReferenceSegment& sref) {
   switch (sref.reference_type_case()) {
-    case substrait::ReferenceSegment::ReferenceTypeCase::kStructField: {
+    case substrait::Expression::ReferenceSegment::ReferenceTypeCase::kStructField: {
       auto sfield = sref.struct_field();
       auto field_id = sfield.field();
       std::cout << "field_id: " << field_id << std::endl;
@@ -79,14 +78,15 @@ void SubstraitParser::ParseReferenceSegment(const ::substrait::ReferenceSegment&
   }
 }
 
-void SubstraitParser::ParseFieldReference(const substrait::FieldReference& sfield) {
+void SubstraitParser::ParseFieldReference(
+    const substrait::Expression::FieldReference& sfield) {
   switch (sfield.reference_type_case()) {
-    case substrait::FieldReference::ReferenceTypeCase::kDirectReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::kDirectReference: {
       auto dref = sfield.direct_reference();
       ParseReferenceSegment(dref);
       break;
     }
-    case substrait::FieldReference::ReferenceTypeCase::kMaskedReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::kMaskedReference: {
       std::cout << "not supported" << std::endl;
       break;
     }
@@ -124,13 +124,13 @@ void SubstraitParser::ParseType(const substrait::Type& stype) {
     case substrait::Type::KindCase::kBool: {
       auto sbool = stype.bool_();
       auto nullable = sbool.nullability();
-      auto name = sbool.variation().name();
+      auto type_id = sbool.type_variation_reference();
       break;
     }
     case substrait::Type::KindCase::kFp64: {
       auto sfp64 = stype.fp64();
       auto nullable = sfp64.nullability();
-      auto name = sfp64.variation().name();
+      auto type_id = sfp64.type_variation_reference();
       break;
     }
     case substrait::Type::KindCase::kStruct: {
@@ -144,7 +144,7 @@ void SubstraitParser::ParseType(const substrait::Type& stype) {
     case substrait::Type::KindCase::kString: {
       auto sstring = stype.string();
       auto nullable = sstring.nullability();
-      auto name = sstring.variation().name();
+      auto type_id = sstring.type_variation_reference();
       break;
     }
     default:
@@ -153,7 +153,7 @@ void SubstraitParser::ParseType(const substrait::Type& stype) {
   }
 }
 
-void SubstraitParser::ParseNamedStruct(const substrait::Type::NamedStruct& named_struct) {
+void SubstraitParser::ParseNamedStruct(const substrait::NamedStruct& named_struct) {
   auto& snames = named_struct.names();
   for (auto& sname : snames) {
     std::cout << "NamedStruct name: " << sname << std::endl;
@@ -173,39 +173,27 @@ void SubstraitParser::ParseAggregateRel(const substrait::AggregateRel& sagg) {
   // Parse groupings
   auto& groupings = sagg.groupings();
   for (auto& grouping : groupings) {
-    auto grouping_fields = grouping.input_fields();
-    for (auto& grouping_field : grouping_fields) {
-      std::cout << "Agg grouping_field: " << grouping_field << std::endl;
+    auto& grouping_exprs = grouping.grouping_expressions();
+    for (auto& grouping_expr : grouping_exprs) {
+      ParseExpression(grouping_expr);
     }
   }
   // Parse measures
   for (auto& smea : sagg.measures()) {
-    auto aggFunction = smea.measure();
-    auto phase = aggFunction.phase();
-    auto function_id = aggFunction.id().id();
-    std::cout << "Agg Function id: " << function_id << std::endl;
-    auto args = aggFunction.args();
+    auto agg_function = smea.measure();
+    auto phase = agg_function.phase();
+    auto function_id = agg_function.function_reference();
+    auto args = agg_function.args();
     for (auto arg : args) {
       ParseExpression(arg);
     }
-  }
-  auto agg_phase = sagg.phase();
-  // Parse Input and Output types
-  std::cout << "Agg input and output:" << std::endl;
-  for (auto& stype : sagg.input_types()) {
-    ParseType(stype);
-  }
-  for (auto& stype : sagg.output_types()) {
-    ParseType(stype);
+    auto out_type = agg_function.output_type();
   }
 }
 
 void SubstraitParser::ParseProjectRel(const substrait::ProjectRel& sproject) {
   if (sproject.has_input()) {
     ParseRel(sproject.input());
-  }
-  for (auto& stype : sproject.input_types()) {
-    ParseType(stype);
   }
   for (auto& expr : sproject.expressions()) {
     ParseExpression(expr);
@@ -219,9 +207,6 @@ void SubstraitParser::ParseFilterRel(const substrait::FilterRel& sfilter) {
   if (sfilter.has_condition()) {
     ParseExpression(sfilter.condition());
   }
-  for (auto& stype : sfilter.input_types()) {
-    ParseType(stype);
-  }
 }
 
 void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread) {
@@ -232,18 +217,15 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread) {
   // Parse local files
   if (sread.has_local_files()) {
     auto& local_files = sread.local_files();
-    auto index = local_files.index();
     auto& files_list = local_files.items();
     for (auto& file : files_list) {
       auto& uri_path = file.uri_path();
+      auto index = file.partition_index();
       auto start = file.start();
       auto length = file.length();
-      std::cout << "uri_path: " << uri_path << " start: " << start
-                << " length: " << length << std::endl;
     }
   }
   auto& sfilter = sread.filter();
-  std::cout << "filter pushdown: " << std::endl;
   ParseExpression(sfilter);
 }
 
@@ -261,19 +243,32 @@ void SubstraitParser::ParseRel(const substrait::Rel& srel) {
   }
 }
 
+void SubstraitParser::ParseRelRoot(const substrait::RelRoot& sroot) {
+  if (sroot.has_input()) {
+    auto& srel = sroot.input();
+    ParseRel(srel);
+  }
+  auto& snames = sroot.names();
+}
+
 void SubstraitParser::ParsePlan(const substrait::Plan& splan) {
-  for (auto& smap : splan.mappings()) {
-    if (!smap.has_function_mapping()) {
+  for (auto& sextension : splan.extensions()) {
+    if (!sextension.has_extension_function()) {
       continue;
     }
-    auto& sfmap = smap.function_mapping();
-    auto id = sfmap.function_id().id();
+    auto& sfmap = sextension.extension_function();
+    auto id = sfmap.function_anchor();
     auto name = sfmap.name();
     functions_map_[id] = name;
     std::cout << "Function id: " << id << ", name: " << name << std::endl;
   }
   for (auto& srel : splan.relations()) {
-    ParseRel(srel);
+    if (srel.has_root()) {
+      ParseRelRoot(srel.root());
+    }
+    if (srel.has_rel()) {
+      ParseRel(srel.rel());
+    }
   }
 }
 

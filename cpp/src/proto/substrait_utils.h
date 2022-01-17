@@ -16,32 +16,33 @@
  */
 
 #include "common/result_iterator.h"
-#include "expression.pb.h"
-#include "extensions.pb.h"
-#include "function.pb.h"
-#include "parameterized_types.pb.h"
-#include "plan.pb.h"
-#include "relations.pb.h"
-#include "selection.pb.h"
-#include "type.pb.h"
-#include "type_expressions.pb.h"
+#include "substrait/capabilities.pb.h"
+#include "substrait/expression.pb.h"
+#include "substrait/extensions/extensions.pb.h"
+#include "substrait/function.pb.h"
+#include "substrait/parameterized_types.pb.h"
+#include "substrait/plan.pb.h"
+#include "substrait/relations.pb.h"
+#include "substrait/type.pb.h"
+#include "substrait/type_expressions.pb.h"
 
 class SubstraitParser {
  public:
   SubstraitParser();
-  void ParseLiteral(const io::substrait::Expression::Literal& slit);
-  void ParseScalarFunction(const io::substrait::Expression::ScalarFunction& sfunc);
-  void ParseReferenceSegment(const io::substrait::ReferenceSegment& sref);
-  void ParseFieldReference(const io::substrait::FieldReference& sfield);
-  void ParseExpression(const io::substrait::Expression& sexpr);
-  void ParseType(const io::substrait::Type& stype);
-  void ParseNamedStruct(const io::substrait::Type::NamedStruct& named_struct);
-  void ParseAggregateRel(const io::substrait::AggregateRel& sagg);
-  void ParseProjectRel(const io::substrait::ProjectRel& sproject);
-  void ParseFilterRel(const io::substrait::FilterRel& sfilter);
-  void ParseReadRel(const io::substrait::ReadRel& sread);
-  void ParseRel(const io::substrait::Rel& srel);
-  void ParsePlan(const io::substrait::Plan& splan);
+  void ParseLiteral(const substrait::Expression::Literal& slit);
+  void ParseScalarFunction(const substrait::Expression::ScalarFunction& sfunc);
+  void ParseReferenceSegment(const substrait::Expression::ReferenceSegment& sref);
+  void ParseFieldReference(const substrait::Expression::FieldReference& sfield);
+  void ParseExpression(const substrait::Expression& sexpr);
+  void ParseType(const substrait::Type& stype);
+  void ParseNamedStruct(const substrait::NamedStruct& named_struct);
+  void ParseAggregateRel(const substrait::AggregateRel& sagg);
+  void ParseProjectRel(const substrait::ProjectRel& sproject);
+  void ParseFilterRel(const substrait::FilterRel& sfilter);
+  void ParseReadRel(const substrait::ReadRel& sread);
+  void ParseRelRoot(const substrait::RelRoot& sroot);
+  void ParseRel(const substrait::Rel& srel);
+  void ParsePlan(const substrait::Plan& splan);
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter();
 
  private:
