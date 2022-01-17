@@ -228,7 +228,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     for (auto& file : files_list) {
       // Expect all partions share the same index.
       (*index) = file.partition_index();
-      (*paths).push_back(file.uri_path());
+      (*paths).push_back(file.uri_file());
       (*starts).push_back(file.start());
       (*lengths).push_back(file.length());
     }

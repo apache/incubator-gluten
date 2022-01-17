@@ -68,6 +68,9 @@ class SubstraitVeloxExprConverter {
       const std::vector<TypePtr>& input_type_list, const substrait::Expression& sfilter);
 
  private:
+  void getFlatConditions(
+      const substrait::Expression& sfilter,
+      std::vector<substrait::Expression_ScalarFunction>* scalar_functions);
   std::shared_ptr<SubstraitParser> sub_parser_;
   std::unordered_map<uint64_t, std::string> functions_map_;
   class FilterInfo;

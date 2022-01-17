@@ -175,6 +175,25 @@ class SubstraitVeloxExprConverter::FilterInfo {
   bool is_initialized_ = false;
 };
 
+void SubstraitVeloxExprConverter::getFlatConditions(
+    const substrait::Expression& sfilter,
+    std::vector<substrait::Expression_ScalarFunction>* scalar_functions) {
+  switch (sfilter.rex_type_case()) {
+    case substrait::Expression::RexTypeCase::kScalarFunction: {
+      auto sfunc = sfilter.scalar_function();
+      auto filter_name =
+          sub_parser_->findFunction(functions_map_, sfunc.function_reference());
+      if (filter_name == "AND") {
+        for (auto& scondition : sfunc.args()) {
+          getFlatConditions(scondition, scalar_functions);
+        }
+      } else {
+        (*scalar_functions).push_back(sfunc);
+      }
+    }
+  }
+}
+
 hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
     const std::vector<std::string>& input_name_list,
     const std::vector<TypePtr>& input_type_list, const substrait::Expression& sfilter) {
@@ -184,65 +203,47 @@ hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
     auto filter_info = std::make_shared<FilterInfo>();
     col_info_map[idx] = filter_info;
   }
-  switch (sfilter.rex_type_case()) {
-    // Conditions are: AND (A, B, C, ...)
-    case substrait::Expression::RexTypeCase::kScalarFunction: {
-      auto sfunc = sfilter.scalar_function();
-      for (auto& scondition : sfunc.args()) {
-        int32_t col_idx;
-        // FIXME: differen type support
-        double val;
-        std::string filter_name;
-        switch (scondition.rex_type_case()) {
-          case substrait::Expression::RexTypeCase::kScalarFunction: {
-            auto filter_func = scondition.scalar_function();
-            filter_name = sub_parser_->findFunction(functions_map_,
-                                                    filter_func.function_reference());
-            for (auto& param : filter_func.args()) {
-              switch (param.rex_type_case()) {
-                case substrait::Expression::RexTypeCase::kSelection: {
-                  auto sel = param.selection();
-                  // FIXME: only direct reference is considered here.
-                  auto dref = sel.direct_reference();
-                  col_idx = parseReferenceSegment(dref);
-                }
-                case substrait::Expression::RexTypeCase::kLiteral: {
-                  auto slit = param.literal();
-                  // FIXME: only double is considered here.
-                  val = slit.fp64();
-                  break;
-                }
-                default:
-                  throw new std::runtime_error("Condition arg is not supported.");
-                  break;
-              }
-            }
-            break;
-          }
-          default:
-            throw new std::runtime_error("Filter condition is not supported.");
-            break;
+  std::vector<substrait::Expression_ScalarFunction> scalar_functions;
+  getFlatConditions(sfilter, &scalar_functions);
+  for (auto& scalar_function : scalar_functions) {
+    auto filter_name =
+        sub_parser_->findFunction(functions_map_, scalar_function.function_reference());
+    int32_t col_idx;
+    // FIXME: differen type support
+    double val;
+    for (auto& param : scalar_function.args()) {
+      switch (param.rex_type_case()) {
+        case substrait::Expression::RexTypeCase::kSelection: {
+          auto sel = param.selection();
+          // FIXME: only direct reference is considered here.
+          auto dref = sel.direct_reference();
+          col_idx = parseReferenceSegment(dref);
+          break;
         }
-        if (filter_name == "IS_NOT_NULL") {
-          col_info_map[col_idx]->forbidsNull();
-        } else if (filter_name == "GREATER_THAN_OR_EQUAL") {
-          col_info_map[col_idx]->setLeft(val, false);
-        } else if (filter_name == "GREATER_THAN") {
-          col_info_map[col_idx]->setLeft(val, true);
-        } else if (filter_name == "LESS_THAN_OR_EQUAL") {
-          col_info_map[col_idx]->setRight(val, false);
-        } else if (filter_name == "LESS_THAN") {
-          col_info_map[col_idx]->setRight(val, true);
-        } else {
-          throw new std::runtime_error("Function name is not supported.");
+        case substrait::Expression::RexTypeCase::kLiteral: {
+          auto slit = param.literal();
+          // FIXME: only double is considered here.
+          val = slit.fp64();
+          break;
         }
+        default:
+          throw new std::runtime_error("Condition arg is not supported.");
+          break;
       }
-      break;
     }
-    default:
-      throw new std::runtime_error(
-          "Filter conditions should be connected with And or Or.");
-      break;
+    if (filter_name == "IS_NOT_NULL") {
+      col_info_map[col_idx]->forbidsNull();
+    } else if (filter_name == "GREATER_THAN_OR_EQUAL") {
+      col_info_map[col_idx]->setLeft(val, false);
+    } else if (filter_name == "GREATER_THAN") {
+      col_info_map[col_idx]->setLeft(val, true);
+    } else if (filter_name == "LESS_THAN_OR_EQUAL") {
+      col_info_map[col_idx]->setRight(val, false);
+    } else if (filter_name == "LESS_THAN") {
+      col_info_map[col_idx]->setRight(val, true);
+    } else {
+      throw new std::runtime_error("Function name is not supported.");
+    }
   }
   for (int idx = 0; idx < input_name_list.size(); idx++) {
     auto filter_info = col_info_map[idx];
