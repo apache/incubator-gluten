@@ -337,7 +337,7 @@ arrow::Status ParseSubstraitPlan(
     JNIEnv* env, jbyteArray exprs_arr, gandiva::ExpressionVector* expr_vector,
     gandiva::FieldVector* ret_types,
     std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out_iter) {
-  io::substrait::Plan ws_plan;
+  substrait::Plan ws_plan;
   jsize exprs_len = env->GetArrayLength(exprs_arr);
   jbyte* exprs_bytes = env->GetByteArrayElements(exprs_arr, 0);
 
