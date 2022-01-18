@@ -19,8 +19,9 @@ package com.intel.oap.substrait.rel;
 
 import com.intel.oap.substrait.expression.AggregateFunctionNode;
 import com.intel.oap.substrait.expression.ExpressionNode;
-import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.proto.*;
+import io.substrait.proto.AggregateRel;
+import io.substrait.proto.Rel;
+import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -28,25 +29,7 @@ import java.util.ArrayList;
 public class AggregateRelNode implements RelNode, Serializable {
     private final RelNode input;
     private final ArrayList<ExpressionNode> groupings = new ArrayList<>();
-    private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes =
-            new ArrayList<>();
-    private final ArrayList<TypeNode> inputTypeNodes = new ArrayList<>();
-    private final ArrayList<TypeNode> outputTypeNodes = new ArrayList<>();
-    private final ArrayList<ExpressionNode> resExprNodes = new ArrayList<>();
-
-    AggregateRelNode(RelNode input,
-                     ArrayList<ExpressionNode> groupings,
-                     ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                     ArrayList<TypeNode> inputTypeNodes,
-                     ArrayList<TypeNode> outputTypeNodes,
-                     ArrayList<ExpressionNode> resExprNodes) {
-        this.input = input;
-        this.groupings.addAll(groupings);
-        this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
-        this.inputTypeNodes.addAll(inputTypeNodes);
-        this.outputTypeNodes.addAll(outputTypeNodes);
-        this.resExprNodes.addAll(resExprNodes);
-    }
+    private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes = new ArrayList<>();
 
     AggregateRelNode(RelNode input,
                      ArrayList<ExpressionNode> groupings,

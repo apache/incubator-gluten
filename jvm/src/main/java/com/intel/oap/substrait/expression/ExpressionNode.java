@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.expression;
 
-import io.substrait.proto.*;
+import io.substrait.proto.Expression;
 
 /**
  * Contains helper functions for constructing substrait relations.

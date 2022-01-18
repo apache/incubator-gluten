@@ -31,41 +31,19 @@ public class RelBuilder {
   private RelBuilder() {}
 
   public static RelNode makeFilterRel(RelNode input,
-                                      ExpressionNode condition,
-                                      ArrayList<TypeNode> types) {
-    return new FilterRelNode(input, condition, types);
+                                      ExpressionNode condition) {
+    return new FilterRelNode(input, condition);
   }
 
   public static RelNode makeProjectRel(RelNode input,
-                                       ArrayList<ExpressionNode> expressionNodes,
-                                       ArrayList<TypeNode> inputTypes) {
-    return new ProjectRelNode(input, expressionNodes, inputTypes);
-  }
-
-  public static RelNode makeAggregateRel(RelNode input,
-                                         ArrayList<Integer> groupings,
-                                         ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                                         ArrayList<TypeNode> inputTypeNodes,
-                                         ArrayList<TypeNode> outputTypeNodes,
-                                         ArrayList<ExpressionNode> resExprNodes) {
-    return new AggregateRelNode(input, null, aggregateFunctionNodes,
-                                inputTypeNodes, outputTypeNodes, resExprNodes);
+                                       ArrayList<ExpressionNode> expressionNodes) {
+    return new ProjectRelNode(input, expressionNodes);
   }
 
   public static RelNode makeAggregateRel(RelNode input,
                                          ArrayList<ExpressionNode> groupings,
                                          ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes);
-  }
-
-  public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
-                                    ExpressionNode filterNode) {
-    return new ReadRelNode(types, names, filterNode);
-  }
-
-  public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
-                                    ExpressionNode filter, LocalFilesNode partNode) {
-    return new ReadRelNode(types, names, filter, partNode);
   }
 
   public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,

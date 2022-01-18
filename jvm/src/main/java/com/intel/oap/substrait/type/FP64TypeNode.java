@@ -17,16 +17,14 @@
 
 package com.intel.oap.substrait.type;
 
-import io.substrait.proto.*;
+import io.substrait.proto.Type;
 
 import java.io.Serializable;
 
 public class FP64TypeNode implements TypeNode, Serializable {
-    private final String name;
     private final Boolean nullable;
 
-    FP64TypeNode(String name, Boolean nullable) {
-        this.name = name;
+    FP64TypeNode(Boolean nullable) {
         this.nullable = nullable;
     }
 
