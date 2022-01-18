@@ -180,7 +180,7 @@ case class HashAggregateExecTransformer(
         .replaceWithExpressionTransformer(expr, originalInputAttributes)
       val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
       groupingList.add(exprNode)
-      val outputTypeNode = ConverterUtils.getTypeNode(expr.dataType, expr.name, expr.nullable)
+      val outputTypeNode = ConverterUtils.getTypeNode(expr.dataType, expr.nullable)
       val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
         Lists.newArrayList(exprNode), outputTypeNode)
       aggregateFunctionList.add(aggFunctionNode)
@@ -204,7 +204,7 @@ case class HashAggregateExecTransformer(
       }
       // FIXME: return type of a aggregateFunciton
       val outputTypeNode = ConverterUtils.getTypeNode(
-        aggregatFunc.dataType, "res", aggregatFunc.nullable)
+        aggregatFunc.dataType, aggregatFunc.nullable)
       val aggFunctionNode = ExpressionBuilder
         .makeAggregateFunction(functionId, childrenNodeList, mode, outputTypeNode)
       aggregateFunctionList.add(aggFunctionNode)

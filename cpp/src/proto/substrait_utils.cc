@@ -219,7 +219,7 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread) {
     auto& local_files = sread.local_files();
     auto& files_list = local_files.items();
     for (auto& file : files_list) {
-      auto& uri_path = file.uri_path();
+      auto& uri_file = file.uri_file();
       auto index = file.partition_index();
       auto start = file.start();
       auto length = file.length();

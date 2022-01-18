@@ -159,13 +159,12 @@ case class ConditionProjectExecTransformer(
                             projectList: Seq[NamedExpression],
                             originalInputAttributes: Seq[Attribute],
                             input: RelNode): RelNode = {
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(originalInputAttributes)
     val filterNode = if (condExpr != null) {
       val columnarCondExpr: Expression = ExpressionConverter
         .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
       val condExprNode =
         columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      RelBuilder.makeFilterRel(input, condExprNode, typeNodes)
+      RelBuilder.makeFilterRel(input, condExprNode)
     } else {
       null
     }
@@ -180,10 +179,10 @@ case class ConditionProjectExecTransformer(
       }
       if (filterNode != null) {
         // The result of Filter will be the input of Project.
-        RelBuilder.makeProjectRel(filterNode, projExprNodeList, typeNodes)
+        RelBuilder.makeProjectRel(filterNode, projExprNodeList)
       } else {
         // The original input will be the input of Project.
-        RelBuilder.makeProjectRel(input, projExprNodeList, typeNodes)
+        RelBuilder.makeProjectRel(input, projExprNodeList)
       }
     } else {
       filterNode

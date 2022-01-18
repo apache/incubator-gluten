@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.derivation;
 
-import io.substrait.proto.*;
+import io.substrait.proto.DerivationExpression;
 
 public interface DerivationExpressionNode {
     DerivationExpression toProtobuf();

@@ -12,31 +12,13 @@ public class ReadRelNode implements RelNode, Serializable {
     private final ArrayList<TypeNode> types = new ArrayList<>();
     private final ArrayList<String> names = new ArrayList<>();
     private final ExpressionNode filterNode;
-    private final LocalFilesNode partNode;
-    private SubstraitContext context = null;
-
-    ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-               ExpressionNode filterNode) {
-        this.types.addAll(types);
-        this.names.addAll(names);
-        this.filterNode = filterNode;
-        this.partNode = null;
-    }
-
-    ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-                ExpressionNode filterNode, LocalFilesNode partNode) {
-        this.types.addAll(types);
-        this.names.addAll(names);
-        this.filterNode = filterNode;
-        this.partNode = partNode;
-    }
+    private final SubstraitContext context;
 
     ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
                 ExpressionNode filterNode, SubstraitContext context) {
         this.types.addAll(types);
         this.names.addAll(names);
         this.filterNode = filterNode;
-        this.partNode = null;
         this.context = context;
     }
 

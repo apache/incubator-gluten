@@ -17,9 +17,9 @@
 
 package com.intel.oap.substrait.expression;
 
-import com.intel.oap.substrait.expression.ExpressionNode;
 import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.proto.*;
+import io.substrait.proto.AggregateFunction;
+import io.substrait.proto.AggregationPhase;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -33,14 +33,6 @@ public class AggregateFunctionNode implements Serializable {
     AggregateFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
                           String phase, TypeNode outputTypeNode) {
         this.functionId = functionId;
-        this.expressionNodes.addAll(expressionNodes);
-        this.phase = phase;
-        this.outputTypeNode = outputTypeNode;
-    }
-
-    AggregateFunctionNode(ArrayList<ExpressionNode> expressionNodes,
-                          String phase, TypeNode outputTypeNode) {
-        this.functionId = null;
         this.expressionNodes.addAll(expressionNodes);
         this.phase = phase;
         this.outputTypeNode = outputTypeNode;

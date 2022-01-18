@@ -18,8 +18,9 @@
 package com.intel.oap.substrait.rel;
 
 import com.intel.oap.substrait.expression.ExpressionNode;
-import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.proto.*;
+import io.substrait.proto.ProjectRel;
+import io.substrait.proto.Rel;
+import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -28,14 +29,11 @@ public class ProjectRelNode implements RelNode, Serializable {
     private final RelNode input;
     private final ArrayList<ExpressionNode> expressionNodes =
             new ArrayList<>();
-    private final ArrayList<TypeNode> inputTypes = new ArrayList<>();
 
     ProjectRelNode(RelNode input,
-                   ArrayList<ExpressionNode> expressionNodes,
-                   ArrayList<TypeNode> inputTypes) {
+                   ArrayList<ExpressionNode> expressionNodes) {
         this.input = input;
         this.expressionNodes.addAll(expressionNodes);
-        this.inputTypes.addAll(inputTypes);
     }
 
     @Override

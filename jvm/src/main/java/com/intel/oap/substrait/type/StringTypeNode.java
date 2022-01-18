@@ -5,11 +5,9 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class StringTypeNode implements TypeNode, Serializable {
-    private final String name;
     private final Boolean nullable;
 
-    StringTypeNode(String name, Boolean nullable) {
-        this.name = name;
+    StringTypeNode(Boolean nullable) {
         this.nullable = nullable;
     }
 

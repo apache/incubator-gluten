@@ -19,7 +19,9 @@ package com.intel.oap.substrait.plan;
 
 import com.intel.oap.substrait.extensions.MappingNode;
 import com.intel.oap.substrait.rel.RelNode;
-import io.substrait.proto.*;
+import io.substrait.proto.Plan;
+import io.substrait.proto.PlanRel;
+import io.substrait.proto.RelRoot;
 
 import java.io.Serializable;
 import java.util.ArrayList;
