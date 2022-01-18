@@ -379,20 +379,20 @@ object ConverterUtils extends Logging {
     }
   }
 
-  def getTypeNode(datatye: DataType, name: String, nullable: Boolean): TypeNode = {
+  def getTypeNode(datatye: DataType, nullable: Boolean): TypeNode = {
     datatye match {
       case BooleanType =>
-        TypeBuiler.makeBoolean(name, nullable)
+        TypeBuiler.makeBoolean(nullable)
       case DoubleType =>
-        TypeBuiler.makeFP64(name, nullable)
+        TypeBuiler.makeFP64(nullable)
       case StringType =>
-        TypeBuiler.makeString(name, nullable)
+        TypeBuiler.makeString(nullable)
       case LongType =>
-        TypeBuiler.makeI64(name, nullable)
+        TypeBuiler.makeI64(nullable)
       case IntegerType =>
-        TypeBuiler.makeI32(name, nullable)
+        TypeBuiler.makeI32(nullable)
       case DateType =>
-        TypeBuiler.makeDate(name, nullable)
+        TypeBuiler.makeDate(nullable)
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported")
     }
@@ -401,7 +401,7 @@ object ConverterUtils extends Logging {
   def getTypeNodeFromAttributes(attributes: Seq[Attribute]): java.util.ArrayList[TypeNode] = {
     val typeNodes = new java.util.ArrayList[TypeNode]()
     for (attr <- attributes) {
-      typeNodes.add(getTypeNode(attr.dataType, attr.name, attr.nullable))
+      typeNodes.add(getTypeNode(attr.dataType, attr.nullable))
     }
     typeNodes
   }

@@ -18,7 +18,6 @@
 package com.intel.oap.substrait.expression;
 
 import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.proto.*;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -31,7 +30,7 @@ public class ExpressionBuilder {
 
     public static Long newScalarFunction(Map<String, Long> functionMap, String functionName) {
         if (!functionMap.containsKey(functionName)) {
-            Long functionId = Long.valueOf(functionMap.size());
+            Long functionId = (long) functionMap.size();
             functionMap.put(functionName, functionId);
             return functionId;
         } else {

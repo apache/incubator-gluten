@@ -17,16 +17,15 @@
 
 package com.intel.oap.substrait.derivation;
 
-import io.substrait.proto.*;
+import io.substrait.proto.DerivationExpression;
+import io.substrait.proto.Type;
 
 import java.io.Serializable;
 
 public class DerivationFP64TypeNode implements DerivationExpressionNode, Serializable {
-    private final String name;
     private final Boolean nullable;
 
-    DerivationFP64TypeNode(String name, Boolean nullable) {
-        this.name = name;
+    DerivationFP64TypeNode(Boolean nullable) {
         this.nullable = nullable;
     }
 

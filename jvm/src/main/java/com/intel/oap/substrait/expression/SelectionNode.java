@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.expression;
 
-import io.substrait.proto.*;
+import io.substrait.proto.Expression;
 
 import java.io.Serializable;
 
@@ -46,5 +46,4 @@ public class SelectionNode implements ExpressionNode, Serializable {
         builder.setSelection(fieldBuilder.build());
         return builder.build();
     }
-
 }

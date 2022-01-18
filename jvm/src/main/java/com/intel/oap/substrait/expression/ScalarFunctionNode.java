@@ -18,7 +18,7 @@
 package com.intel.oap.substrait.expression;
 
 import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.proto.*;
+import io.substrait.proto.Expression;
 
 import java.io.Serializable;
 import java.util.ArrayList;

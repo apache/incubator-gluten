@@ -46,7 +46,7 @@ class AndTransformer(left: Expression, right: Expression, original: Expression)
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
     expressionNodes.add(left_node.asInstanceOf[ExpressionNode])
     expressionNodes.add(right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -71,7 +71,7 @@ class OrTransformer(left: Expression, right: Expression, original: Expression)
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
     expressionNodes.add(left_node.asInstanceOf[ExpressionNode])
     expressionNodes.add(right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -110,7 +110,7 @@ class LikeTransformer(left: Expression, right: Expression, original: Expression)
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
@@ -142,7 +142,7 @@ class EqualToTransformer(left: Expression, right: Expression, original: Expressi
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
@@ -174,7 +174,7 @@ class LessThanTransformer(left: Expression, right: Expression, original: Express
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
@@ -199,7 +199,7 @@ class LessThanOrEqualTransformer(left: Expression, right: Expression, original: 
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
@@ -224,7 +224,7 @@ class GreaterThanTransformer(left: Expression, right: Expression, original: Expr
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
@@ -249,7 +249,7 @@ class GreaterThanOrEqualTransformer(left: Expression, right: Expression, origina
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }

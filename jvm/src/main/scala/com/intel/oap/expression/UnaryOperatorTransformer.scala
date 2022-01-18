@@ -45,7 +45,7 @@ class IsNotNullTransformer(child: Expression, original: Expression)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, "IS_NOT_NULL")
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
@@ -64,7 +64,7 @@ class IsNullTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, "IS_NULL")
 
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean("res", true)
+    val typeNode = TypeBuiler.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
@@ -144,7 +144,7 @@ class CastTransformer(
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, "CAST")
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(dataType, "res", nullable = true)
+    val typeNode = ConverterUtils.getTypeNode(dataType, nullable = true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }

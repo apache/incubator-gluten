@@ -20,34 +20,33 @@ package com.intel.oap.substrait.type;
 import java.util.ArrayList;
 
 public class TypeBuiler {
-    private TypeBuiler() {
+    private TypeBuiler() {}
+
+    public static TypeNode makeFP64(Boolean nullable) {
+        return new FP64TypeNode(nullable);
     }
 
-    public static TypeNode makeFP64(String name, Boolean nullable) {
-        return new FP64TypeNode(name, nullable);
-    }
-
-    public static TypeNode makeBoolean(String name, Boolean nullable) {
-        return new BooleanTypeNode(name, nullable);
+    public static TypeNode makeBoolean(Boolean nullable) {
+        return new BooleanTypeNode(nullable);
     }
 
     public static TypeNode makeStruct(ArrayList<TypeNode> types) {
         return new StructNode(types);
     }
 
-    public static TypeNode makeString(String name, Boolean nullable) {
-        return new StringTypeNode(name, nullable);
+    public static TypeNode makeString(Boolean nullable) {
+        return new StringTypeNode(nullable);
     }
 
-    public static TypeNode makeI32(String name, Boolean nullable) {
-        return new I32TypeNode(name, nullable);
+    public static TypeNode makeI32(Boolean nullable) {
+        return new I32TypeNode(nullable);
     }
 
-    public static TypeNode makeI64(String name, Boolean nullable) {
-        return new I64TypeNode(name, nullable);
+    public static TypeNode makeI64(Boolean nullable) {
+        return new I64TypeNode(nullable);
     }
 
-    public static TypeNode makeDate(String name, Boolean nullable) {
-        return new DateTypeNode(name, nullable);
+    public static TypeNode makeDate(Boolean nullable) {
+        return new DateTypeNode(nullable);
     }
 }
