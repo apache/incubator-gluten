@@ -17,7 +17,6 @@
 
 #include "substrait_to_velox_expr.h"
 
-namespace substrait = io::substrait;
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
@@ -31,10 +30,11 @@ SubstraitVeloxExprConverter::SubstraitVeloxExprConverter(
 }
 
 std::shared_ptr<const core::FieldAccessTypedExpr>
-SubstraitVeloxExprConverter::toVeloxExpr(const substrait::FieldReference& sfield,
-                                         const int32_t& input_plan_node_id) {
+SubstraitVeloxExprConverter::toVeloxExpr(
+    const substrait::Expression::FieldReference& sfield,
+    const int32_t& input_plan_node_id) {
   switch (sfield.reference_type_case()) {
-    case substrait::FieldReference::ReferenceTypeCase::kDirectReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::kDirectReference: {
       auto dref = sfield.direct_reference();
       int32_t col_idx = parseReferenceSegment(dref);
       auto field_name = sub_parser_->makeNodeName(input_plan_node_id, col_idx);
@@ -42,7 +42,7 @@ SubstraitVeloxExprConverter::toVeloxExpr(const substrait::FieldReference& sfield
       return std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), field_name);
       break;
     }
-    case substrait::FieldReference::ReferenceTypeCase::kMaskedReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::kMaskedReference: {
       throw new std::runtime_error("not supported");
       break;
     }
@@ -60,7 +60,7 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
     auto expr = toVeloxExpr(sarg, input_plan_node_id);
     params.push_back(expr);
   }
-  auto function_id = sfunc.id().id();
+  auto function_id = sfunc.function_reference();
   auto function_name = sub_parser_->findFunction(functions_map_, function_id);
   auto velox_function = sub_parser_->substrait_velox_function_map[function_name];
   auto sub_type = sub_parser_->parseType(sfunc.output_type());
@@ -70,7 +70,7 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
 }
 
 std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
-    const io::substrait::Expression::Literal& slit) {
+    const substrait::Expression::Literal& slit) {
   switch (slit.literal_type_case()) {
     case substrait::Expression_Literal::LiteralTypeCase::kFp64: {
       double val = slit.fp64();
@@ -125,9 +125,9 @@ TypePtr SubstraitVeloxExprConverter::getVeloxType(std::string type_name) {
 }
 
 int32_t SubstraitVeloxExprConverter::parseReferenceSegment(
-    const substrait::ReferenceSegment& sref) {
+    const substrait::Expression::ReferenceSegment& sref) {
   switch (sref.reference_type_case()) {
-    case substrait::ReferenceSegment::ReferenceTypeCase::kStructField: {
+    case substrait::Expression::ReferenceSegment::ReferenceTypeCase::kStructField: {
       auto sfield = sref.struct_field();
       auto field_id = sfield.field();
       return field_id;
@@ -175,75 +175,75 @@ class SubstraitVeloxExprConverter::FilterInfo {
   bool is_initialized_ = false;
 };
 
+void SubstraitVeloxExprConverter::getFlatConditions(
+    const substrait::Expression& sfilter,
+    std::vector<substrait::Expression_ScalarFunction>* scalar_functions) {
+  switch (sfilter.rex_type_case()) {
+    case substrait::Expression::RexTypeCase::kScalarFunction: {
+      auto sfunc = sfilter.scalar_function();
+      auto filter_name =
+          sub_parser_->findFunction(functions_map_, sfunc.function_reference());
+      if (filter_name == "AND") {
+        for (auto& scondition : sfunc.args()) {
+          getFlatConditions(scondition, scalar_functions);
+        }
+      } else {
+        (*scalar_functions).push_back(sfunc);
+      }
+    }
+  }
+}
+
 hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
     const std::vector<std::string>& input_name_list,
-    const std::vector<TypePtr>& input_type_list,
-    const io::substrait::Expression& sfilter) {
+    const std::vector<TypePtr>& input_type_list, const substrait::Expression& sfilter) {
   hive::SubfieldFilters filters;
   std::unordered_map<int, std::shared_ptr<FilterInfo>> col_info_map;
   for (int idx = 0; idx < input_name_list.size(); idx++) {
     auto filter_info = std::make_shared<FilterInfo>();
     col_info_map[idx] = filter_info;
   }
-  switch (sfilter.rex_type_case()) {
-    // Conditions are: AND (A, B, C, ...)
-    case substrait::Expression::RexTypeCase::kScalarFunction: {
-      auto sfunc = sfilter.scalar_function();
-      for (auto& scondition : sfunc.args()) {
-        int32_t col_idx;
-        // FIXME: differen type support
-        double val;
-        std::string filter_name;
-        switch (scondition.rex_type_case()) {
-          case substrait::Expression::RexTypeCase::kScalarFunction: {
-            auto filter_func = scondition.scalar_function();
-            filter_name =
-                sub_parser_->findFunction(functions_map_, filter_func.id().id());
-            for (auto& param : filter_func.args()) {
-              switch (param.rex_type_case()) {
-                case substrait::Expression::RexTypeCase::kSelection: {
-                  auto sel = param.selection();
-                  // FIXME: only direct reference is considered here.
-                  auto dref = sel.direct_reference();
-                  col_idx = parseReferenceSegment(dref);
-                }
-                case substrait::Expression::RexTypeCase::kLiteral: {
-                  auto slit = param.literal();
-                  // FIXME: only double is considered here.
-                  val = slit.fp64();
-                  break;
-                }
-                default:
-                  throw new std::runtime_error("Condition arg is not supported.");
-                  break;
-              }
-            }
-            break;
-          }
-          default:
-            throw new std::runtime_error("Filter condition is not supported.");
-            break;
+  std::vector<substrait::Expression_ScalarFunction> scalar_functions;
+  getFlatConditions(sfilter, &scalar_functions);
+  for (auto& scalar_function : scalar_functions) {
+    auto filter_name =
+        sub_parser_->findFunction(functions_map_, scalar_function.function_reference());
+    int32_t col_idx;
+    // FIXME: differen type support
+    double val;
+    for (auto& param : scalar_function.args()) {
+      switch (param.rex_type_case()) {
+        case substrait::Expression::RexTypeCase::kSelection: {
+          auto sel = param.selection();
+          // FIXME: only direct reference is considered here.
+          auto dref = sel.direct_reference();
+          col_idx = parseReferenceSegment(dref);
+          break;
         }
-        if (filter_name == "IS_NOT_NULL") {
-          col_info_map[col_idx]->forbidsNull();
-        } else if (filter_name == "GREATER_THAN_OR_EQUAL") {
-          col_info_map[col_idx]->setLeft(val, false);
-        } else if (filter_name == "GREATER_THAN") {
-          col_info_map[col_idx]->setLeft(val, true);
-        } else if (filter_name == "LESS_THAN_OR_EQUAL") {
-          col_info_map[col_idx]->setRight(val, false);
-        } else if (filter_name == "LESS_THAN") {
-          col_info_map[col_idx]->setRight(val, true);
-        } else {
-          throw new std::runtime_error("Function name is not supported.");
+        case substrait::Expression::RexTypeCase::kLiteral: {
+          auto slit = param.literal();
+          // FIXME: only double is considered here.
+          val = slit.fp64();
+          break;
         }
+        default:
+          throw new std::runtime_error("Condition arg is not supported.");
+          break;
       }
-      break;
     }
-    default:
-      throw new std::runtime_error(
-          "Filter conditions should be connected with And or Or.");
-      break;
+    if (filter_name == "IS_NOT_NULL") {
+      col_info_map[col_idx]->forbidsNull();
+    } else if (filter_name == "GREATER_THAN_OR_EQUAL") {
+      col_info_map[col_idx]->setLeft(val, false);
+    } else if (filter_name == "GREATER_THAN") {
+      col_info_map[col_idx]->setLeft(val, true);
+    } else if (filter_name == "LESS_THAN_OR_EQUAL") {
+      col_info_map[col_idx]->setRight(val, false);
+    } else if (filter_name == "LESS_THAN") {
+      col_info_map[col_idx]->setRight(val, true);
+    } else {
+      throw new std::runtime_error("Function name is not supported.");
+    }
   }
   for (int idx = 0; idx < input_name_list.size(); idx++) {
     auto filter_info = col_info_map[idx];

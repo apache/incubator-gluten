@@ -17,24 +17,21 @@
 
 #include "substrait_utils.h"
 
-namespace substrait = io::substrait;
-
 SubstraitParser::SubstraitParser() {}
 
 std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
     const substrait::Type& stype) {
-  std::shared_ptr<SubstraitParser::SubstraitType> substrait_type;
+  std::string type_name;
+  substrait::Type_Nullability nullability;
   switch (stype.kind_case()) {
     case substrait::Type::KindCase::kBool: {
-      auto sbool = stype.bool_();
-      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
-          "BOOL", sbool.variation().name(), sbool.nullability());
+      type_name = "BOOL";
+      nullability = stype.bool_().nullability();
       break;
     }
     case substrait::Type::KindCase::kFp64: {
-      auto sfp64 = stype.fp64();
-      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
-          "FP64", sfp64.variation().name(), sfp64.nullability());
+      type_name = "FP64";
+      nullability = stype.fp64().nullability();
       break;
     }
     case substrait::Type::KindCase::kStruct: {
@@ -47,22 +44,36 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
       break;
     }
     case substrait::Type::KindCase::kString: {
-      auto sstring = stype.string();
-      auto nullable = sstring.nullability();
-      auto name = sstring.variation().name();
-      substrait_type = std::make_shared<SubstraitParser::SubstraitType>(
-          "STRING", sstring.variation().name(), sstring.nullability());
+      type_name = "STRING";
+      nullability = stype.string().nullability();
       break;
     }
     default:
       std::cout << "Type not supported" << std::endl;
       break;
   }
+  bool nullable;
+  switch (nullability) {
+    case substrait::Type_Nullability::Type_Nullability_NULLABILITY_UNSPECIFIED:
+      nullable = true;
+      break;
+    case substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE:
+      nullable = true;
+      break;
+    case substrait::Type_Nullability::Type_Nullability_NULLABILITY_REQUIRED:
+      nullable = false;
+      break;
+    default:
+      throw new std::runtime_error("Unrecognized NULLABILITY.");
+      break;
+  }
+  std::shared_ptr<SubstraitType> substrait_type =
+      std::make_shared<SubstraitType>(type_name, nullable);
   return substrait_type;
 }
 
 std::vector<std::shared_ptr<SubstraitParser::SubstraitType>>
-SubstraitParser::parseNamedStruct(const substrait::Type::NamedStruct& named_struct) {
+SubstraitParser::parseNamedStruct(const substrait::NamedStruct& named_struct) {
   auto& snames = named_struct.names();
   std::vector<std::string> name_list;
   for (auto& sname : snames) {

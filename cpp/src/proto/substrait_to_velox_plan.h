@@ -42,19 +42,18 @@ class SubstraitVeloxPlanConverter {
  public:
   SubstraitVeloxPlanConverter();
 
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::AggregateRel& sagg);
   std::shared_ptr<const core::PlanNode> toVeloxPlan(
-      const io::substrait::AggregateRel& sagg);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(
-      const io::substrait::ProjectRel& sproject);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(
-      const io::substrait::FilterRel& sfilter);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const io::substrait::ReadRel& sread,
+      const substrait::ProjectRel& sproject);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::FilterRel& sfilter);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::ReadRel& sread,
                                                     u_int32_t* index,
                                                     std::vector<std::string>* paths,
                                                     std::vector<u_int64_t>* starts,
                                                     std::vector<u_int64_t>* lengths);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const io::substrait::Rel& srel);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const io::substrait::Plan& splan);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::Rel& srel);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::RelRoot& sroot);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::Plan& splan);
 
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter(
       const std::shared_ptr<const core::PlanNode>& plan_node);
