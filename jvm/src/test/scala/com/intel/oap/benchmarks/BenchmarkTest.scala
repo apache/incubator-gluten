@@ -36,7 +36,7 @@ object BenchmarkTest {
       val resourcePath = rootPath + "../../../src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
-      (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "")
+      (new File(dataPath).getAbsolutePath, "parquet", 10, false, queryPath + "q06.sql", "")
     }
 
     val sqlStr = Source.fromFile(new File(sqlFilePath), "UTF-8")
@@ -68,7 +68,10 @@ object BenchmarkTest {
         .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.oap.sql.columnar.columnartorow", "false")
         .config("spark.oap.sql.columnar.loadnative", "false")
-        .config("spark.sql.planChangeLog.level", "info")
+        .config("spark.oap.sql.columnar.libpath",
+          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
+        .config("spark.oap.sql.columnar.iterator", "true")
+        //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "6442450944")
@@ -105,6 +108,7 @@ object BenchmarkTest {
       val startTime = System.nanoTime()
       spark.sql(sql).show(200, false)
       val tookTime = (System.nanoTime() - startTime) / 1000000
+      println(s"Execute ${i} time, time: ${tookTime}")
       tookTimeArr += tookTime
     }
 
