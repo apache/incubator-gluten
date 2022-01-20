@@ -17,7 +17,6 @@
 
 package com.intel.oap
 
-import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -128,6 +127,10 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
   val enablePreferColumnar: Boolean =
     conf.getConfString("spark.oap.sql.columnar.preferColumnar", "true").toBoolean
 
+  // This config is used for specifying whether to use columnar basic iterator.
+  val enableColumnarIterator: Boolean =
+    conf.getConfString("spark.oap.sql.columnar.iterator", "true").toBoolean
+
   // This config is used for testing. Setting to false will disable loading native libraries.
   val loadNative: Boolean =
     conf.getConfString("spark.oap.sql.columnar.loadnative", "true").toBoolean
@@ -135,6 +138,10 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
     conf.getConfString("spark.oap.sql.columnar.libname", "spark_columnar_jni")
+
+  // This config is used for specifying the absolute path of the native library.
+  val nativeLibPath: String =
+    conf.getConfString("spark.oap.sql.columnar.libpath", "")
 
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =

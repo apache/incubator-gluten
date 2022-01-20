@@ -15,23 +15,18 @@
  * limitations under the License.
  */
 
-package com.intel.oap.vectorized;
+package com.intel.oap.row;
 
-/** POJO to hold the output file path of the designated partition id */
-public class PartitionFileInfo {
-  private final int partitionId;
-  private final String filePath;
+public class SparkRowInfo {
+    public long[] offsets;
+    public long[] lengths;
+    public long memoryAddress;
+    public long fieldsNum;
 
-  public PartitionFileInfo(int partitionId, String filePath) {
-    this.partitionId = partitionId;
-    this.filePath = filePath;
-  }
-
-  public int getPartitionId() {
-    return partitionId;
-  }
-
-  public String getFilePath() {
-    return filePath;
-  }
+    public SparkRowInfo(long[] offsets, long[] lengths, long memoryAddress, long fieldsNum) {
+        this.offsets = offsets;
+        this.lengths = lengths;
+        this.memoryAddress = memoryAddress;
+        this.fieldsNum = fieldsNum;
+    }
 }

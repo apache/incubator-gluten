@@ -19,10 +19,8 @@ package com.intel.oap.execution
 
 import com.intel.oap.GazellePluginConfig
 import com.intel.oap.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import com.intel.oap.substrait.rel.{LocalFilesBuilder, RelBuilder}
+import com.intel.oap.substrait.rel.RelBuilder
 import com.intel.oap.substrait.SubstraitContext
-import com.intel.oap.substrait.`type`.TypeBuiler
-import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -34,14 +32,16 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan)
     extends BatchScanExec(output, scan) with TransformSupport {
-  val tmpDir: String = GazellePluginConfig.getConf.tmpFile
+
   val filterExprs: Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
     scan.asInstanceOf[FileScan].dataFilters
   } else {
     throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
 
-  override def supportsColumnar(): Boolean = true
+  override def supportsColumnar(): Boolean =
+    super.supportsColumnar && GazellePluginConfig.getConf.enableColumnarIterator
+
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
