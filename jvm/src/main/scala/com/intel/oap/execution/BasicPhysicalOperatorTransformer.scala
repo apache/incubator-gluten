@@ -21,8 +21,9 @@ import com.intel.oap.expression._
 import com.intel.oap.substrait.expression.ExpressionNode
 import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
 import com.intel.oap.substrait.SubstraitContext
-
+import com.intel.oap.GazellePluginConfig
 import org.apache.spark.SparkConf
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -43,7 +44,7 @@ case class ConditionProjectExecTransformer(
 
   val sparkConf: SparkConf = sparkContext.getConf
 
-  override def supportsColumnar: Boolean = true
+  override def supportsColumnar: Boolean = GazellePluginConfig.getConf.enableColumnarIterator
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -159,13 +160,12 @@ case class ConditionProjectExecTransformer(
                             projectList: Seq[NamedExpression],
                             originalInputAttributes: Seq[Attribute],
                             input: RelNode): RelNode = {
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(originalInputAttributes)
     val filterNode = if (condExpr != null) {
       val columnarCondExpr: Expression = ExpressionConverter
         .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
       val condExprNode =
         columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      RelBuilder.makeFilterRel(input, condExprNode, typeNodes)
+      RelBuilder.makeFilterRel(input, condExprNode)
     } else {
       null
     }
@@ -180,10 +180,10 @@ case class ConditionProjectExecTransformer(
       }
       if (filterNode != null) {
         // The result of Filter will be the input of Project.
-        RelBuilder.makeProjectRel(filterNode, projExprNodeList, typeNodes)
+        RelBuilder.makeProjectRel(filterNode, projExprNodeList)
       } else {
         // The original input will be the input of Project.
-        RelBuilder.makeProjectRel(input, projExprNodeList, typeNodes)
+        RelBuilder.makeProjectRel(input, projExprNodeList)
       }
     } else {
       filterNode

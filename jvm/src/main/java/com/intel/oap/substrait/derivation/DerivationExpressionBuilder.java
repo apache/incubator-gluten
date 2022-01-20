@@ -17,14 +17,11 @@
 
 package com.intel.oap.substrait.derivation;
 
-import io.substrait.proto.*;
-
 public class DerivationExpressionBuilder {
     private DerivationExpressionBuilder() {}
 
-    public static DerivationExpressionNode makeDerivationFP64(
-            String name, Boolean nullable) {
-        return new DerivationFP64TypeNode(name, nullable);
+    public static DerivationExpressionNode makeDerivationFP64(Boolean nullable) {
+        return new DerivationFP64TypeNode(nullable);
     }
 
     public static DerivationExpressionNode makeBinaryOP(

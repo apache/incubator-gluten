@@ -15,18 +15,32 @@
  * limitations under the License.
  */
 
-package com.intel.oap.substrait.rel;
+package io.kyligence.jni.engine;
 
-import io.substrait.proto.Rel;
+import java.io.Closeable;
+import java.io.IOException;
 
-/**
- * Contains helper functions for constructing substrait relations.
- */
-public interface RelNode {
-    /**
-     * Converts a Rel into a protobuf.
-     *
-     * @return A rel protobuf
-     */
-    Rel toProtobuf();
+import com.intel.oap.row.SparkRowInfo;
+
+public class LocalEngine implements Closeable {
+    public static native long test(int a, int b);
+
+    public static native void initEngineEnv();
+
+    private long nativeExecutor;
+    private byte[] plan;
+
+    public LocalEngine(byte[] plan) {
+        this.plan = plan;
+    }
+
+    public native void execute();
+
+    public native boolean hasNext();
+
+    public native SparkRowInfo next();
+
+
+    @Override
+    public native void close() throws IOException;
 }

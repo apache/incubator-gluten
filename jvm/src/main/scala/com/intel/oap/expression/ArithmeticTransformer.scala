@@ -85,7 +85,7 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, "res", nullable = true)
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }

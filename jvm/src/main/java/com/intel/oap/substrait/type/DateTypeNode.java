@@ -5,11 +5,9 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class DateTypeNode implements TypeNode, Serializable {
-    private final String name;
     private final Boolean nullable;
 
-    DateTypeNode(String name, Boolean nullable) {
-        this.name = name;
+    DateTypeNode(Boolean nullable) {
         this.nullable = nullable;
     }
 

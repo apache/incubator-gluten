@@ -17,7 +17,7 @@
 
 package com.intel.oap.substrait.type;
 
-import io.substrait.proto.*;
+import io.substrait.proto.Type;
 
 public interface TypeNode {
     Type toProtobuf();

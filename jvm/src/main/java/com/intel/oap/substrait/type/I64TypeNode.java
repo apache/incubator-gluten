@@ -20,11 +20,9 @@ package com.intel.oap.substrait.type;
 import io.substrait.proto.Type;
 
 public class I64TypeNode implements TypeNode {
-    private final String name;
     private final Boolean nullable;
 
-    I64TypeNode(String name, Boolean nullable) {
-        this.name = name;
+    I64TypeNode(Boolean nullable) {
         this.nullable = nullable;
     }
 

@@ -18,23 +18,20 @@
 package com.intel.oap.substrait.rel;
 
 import com.intel.oap.substrait.expression.ExpressionNode;
-import com.intel.oap.substrait.type.TypeNode;
-import io.substrait.proto.*;
+import io.substrait.proto.FilterRel;
+import io.substrait.proto.Rel;
+import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 
 public class FilterRelNode implements RelNode, Serializable {
     private final RelNode input;
     private final ExpressionNode condition;
-    private final ArrayList<TypeNode> types = new ArrayList<>();
 
     FilterRelNode(RelNode input,
-                  ExpressionNode condition,
-                  ArrayList<TypeNode> types) {
+                  ExpressionNode condition) {
         this.input = input;
         this.condition = condition;
-        this.types.addAll(types);
     }
 
     @Override

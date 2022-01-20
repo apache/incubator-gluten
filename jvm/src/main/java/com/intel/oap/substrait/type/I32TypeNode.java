@@ -20,11 +20,9 @@ package com.intel.oap.substrait.type;
 import io.substrait.proto.Type;
 
 public class I32TypeNode implements TypeNode {
-    private final String name;
     private final Boolean nullable;
 
-    I32TypeNode(String name, Boolean nullable) {
-        this.name = name;
+    I32TypeNode(Boolean nullable) {
         this.nullable = nullable;
     }
 
