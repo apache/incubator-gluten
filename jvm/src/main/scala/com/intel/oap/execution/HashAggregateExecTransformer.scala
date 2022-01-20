@@ -24,6 +24,7 @@ import com.intel.oap.expression._
 import com.intel.oap.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
 import com.intel.oap.substrait.SubstraitContext
+import com.intel.oap.GazellePluginConfig
 import java.util
 
 import org.apache.spark.rdd.RDD
@@ -52,7 +53,7 @@ case class HashAggregateExecTransformer(
 
   val sparkConf = sparkContext.getConf
 
-  override def supportsColumnar: Boolean = true
+  override def supportsColumnar: Boolean = GazellePluginConfig.getConf.enableColumnarIterator
 
   val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
@@ -89,7 +90,7 @@ case class HashAggregateExecTransformer(
 
   override def doValidate(): Boolean = {
     var isPartial = true
-    aggregateExpressions.toList.foreach(aggExpr => {
+    aggregateExpressions.foreach(aggExpr => {
       aggExpr.mode match {
         case Partial =>
         case _ => isPartial = false
@@ -175,7 +176,7 @@ case class HashAggregateExecTransformer(
 
     // Get the aggregate function nodes
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
-    groupingExpressions.toList.foreach(expr => {
+    groupingExpressions.foreach(expr => {
       val groupingExpr: Expression = ExpressionConverter
         .replaceWithExpressionTransformer(expr, originalInputAttributes)
       val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -185,7 +186,7 @@ case class HashAggregateExecTransformer(
         Lists.newArrayList(exprNode), outputTypeNode)
       aggregateFunctionList.add(aggFunctionNode)
     })
-    aggregateExpressions.toList.foreach(aggExpr => {
+    aggregateExpressions.foreach(aggExpr => {
       val aggregatFunc = aggExpr.aggregateFunction
       val functionId = AggregateFunctionsBuilder.create(args, aggregatFunc)
       val mode = modeToKeyWord(aggExpr.mode)
