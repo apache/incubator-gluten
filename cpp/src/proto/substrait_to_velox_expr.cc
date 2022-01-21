@@ -119,6 +119,8 @@ TypePtr SubstraitVeloxExprConverter::getVeloxType(std::string type_name) {
     return BOOLEAN();
   } else if (type_name == "FP64") {
     return DOUBLE();
+  } else if (type_name == "STRING") {
+    return VARCHAR();
   } else {
     throw std::runtime_error("Type name is not supported");
   }

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/array/array_binary.h>
 #include <arrow/array/array_primitive.h>
 #include <arrow/array/data.h>
 #include <arrow/array/util.h>
