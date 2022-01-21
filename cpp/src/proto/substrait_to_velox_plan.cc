@@ -17,6 +17,9 @@
 
 #include "substrait_to_velox_plan.h"
 
+#include "velox/buffer/Buffer.h"
+#include "velox/vector/arrow/Bridge.h"
+
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
@@ -403,20 +406,19 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
       out_data.type = arrow::float64();
       out_data.buffers.resize(2);
       out_data.length = num_rows_;
-      auto vec = result_->childAt(idx)->as<FlatVector<double>>();
-      uint64_t array_null_count = 0;
-      std::optional<int32_t> null_count = vec->getNullCount();
+      auto vec = result_->childAt(idx);
+      // FIXME: need to release this.
+      ArrowArray arrowArray;
+      exportToArrow(vec, arrowArray, velox_pool_.get());
       std::shared_ptr<arrow::Buffer> val_buffer = nullptr;
-      if (null_count) {
-        int32_t vec_null_count = *null_count;
-        array_null_count += vec_null_count;
-        const uint64_t* rawNulls = vec->rawNulls();
+      if (arrowArray.null_count > 0) {
+        arrowArray.buffers[0];
         // FIXME: set BitMap
       }
-      out_data.null_count = array_null_count;
-      uint8_t* raw_result = vec->mutableRawValues<uint8_t>();
+      out_data.null_count = arrowArray.null_count;
       auto bytes = sizeof(double);
-      auto data_buffer = std::make_shared<arrow::Buffer>(raw_result, bytes * num_rows_);
+      auto data_buffer = std::make_shared<arrow::Buffer>(
+          static_cast<const uint8_t*>(arrowArray.buffers[1]), bytes * num_rows_);
       out_data.buffers[0] = val_buffer;
       out_data.buffers[1] = data_buffer;
       std::shared_ptr<arrow::Array> out_array =
@@ -437,6 +439,7 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
 
  private:
   arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
+  std::unique_ptr<memory::MemoryPool> velox_pool_{memory::getDefaultScopedMemoryPool()};
   const std::shared_ptr<const core::PlanNode> plan_node_;
   std::unique_ptr<test::TaskCursor> cursor_;
   test::CursorParameters params_;
