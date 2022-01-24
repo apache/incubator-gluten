@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package com.intel.oap
+package com.intel.oap.extension
 
+import com.intel.oap.{GazelleJniConfig, GazelleSparkExtensionsInjector}
 import com.intel.oap.execution._
 import com.intel.oap.extension.columnar.{RowGuard, TransformGuardRule}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
@@ -36,7 +36,7 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
 
 case class TransformPreOverrides() extends Rule[SparkPlan] {
-  val columnarConf: GazellePluginConfig = GazellePluginConfig.getSessionConf
+  val columnarConf: GazelleJniConfig = GazelleJniConfig.getSessionConf
   var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
@@ -46,10 +46,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       val actualPlan = plan.child match {
         case p: BroadcastHashJoinExec =>
           p.withNewChildren(p.children.map {
-            case RowGuard(queryStage: BroadcastQueryStageExec) =>
-              fallBackBroadcastQueryStage(queryStage)
-            case queryStage: BroadcastQueryStageExec =>
-              fallBackBroadcastQueryStage(queryStage)
             case plan: BroadcastExchangeExec =>
               // if BroadcastHashJoin is row-based, BroadcastExchange should also be row-based
               RowGuard(plan)
@@ -149,32 +145,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         s"actual plan is ${plan.plan.getClass}.")
       plan
     case plan: BroadcastExchangeExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      if (isSupportAdaptive) {
-        new ColumnarBroadcastExchangeAdaptor(plan.mode, child)
-      } else {
-        ColumnarBroadcastExchangeExec(plan.mode, child)
-      }
+      plan
     case plan: BroadcastHashJoinExec =>
-      if (columnarConf.enableColumnarBroadcastJoin) {
-        val left = replaceWithTransformerPlan(plan.left)
-        val right = replaceWithTransformerPlan(plan.right)
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        BroadcastHashJoinExecTransformer(
-          plan.leftKeys,
-          plan.rightKeys,
-          plan.joinType,
-          plan.buildSide,
-          plan.condition,
-          left,
-          right,
-          nullAware = plan.isNullAwareAntiJoin)
-      } else {
-        val children = plan.children.map(replaceWithTransformerPlan)
-        logDebug(s"Columnar Processing for ${plan.getClass} is not currently supported.")
-        plan.withNewChildren(children)
-      }
+      plan
     case plan: SortMergeJoinExec =>
       if (columnarConf.enableColumnarSortMergeJoin) {
         val left = replaceWithTransformerPlan(plan.left)
@@ -230,39 +203,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     case p =>
       val children = plan.children.map(replaceWithTransformerPlan)
       logDebug(s"Transformation for ${p.getClass} is currently not supported.")
-      p.withNewChildren(children.map(fallBackBroadcastExchangeOrNot))
-  }
-
-  def fallBackBroadcastQueryStage(curPlan: BroadcastQueryStageExec): BroadcastQueryStageExec = {
-    curPlan.plan match {
-      case originalBroadcastPlan: ColumnarBroadcastExchangeAdaptor =>
-        BroadcastQueryStageExec(
-          curPlan.id,
-          BroadcastExchangeExec(
-            originalBroadcastPlan.mode,
-            DataToArrowColumnarExec(originalBroadcastPlan, 1)))
-      case ReusedExchangeExec(_, originalBroadcastPlan: ColumnarBroadcastExchangeAdaptor) =>
-        BroadcastQueryStageExec(
-          curPlan.id,
-          BroadcastExchangeExec(
-            originalBroadcastPlan.mode,
-            DataToArrowColumnarExec(curPlan.plan, 1)))
-      case _ =>
-        curPlan
-    }
-  }
-
-  def fallBackBroadcastExchangeOrNot(plan: SparkPlan): SparkPlan = plan match {
-    case p: ColumnarBroadcastExchangeExec =>
-      // aqe is disabled
-      BroadcastExchangeExec(p.mode, DataToArrowColumnarExec(p, 1))
-    case p: ColumnarBroadcastExchangeAdaptor =>
-      // aqe is disabled
-      BroadcastExchangeExec(p.mode, DataToArrowColumnarExec(p, 1))
-    case p: BroadcastQueryStageExec =>
-      // ape is enabled
-      fallBackBroadcastQueryStage(p)
-    case other => other
+      p.withNewChildren(children)
   }
   def setAdaptiveSupport(enable: Boolean): Unit = { isSupportAdaptive = enable }
 
@@ -273,7 +214,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 }
 
 case class TransformPostOverrides() extends Rule[SparkPlan] {
-  val columnarConf = GazellePluginConfig.getSessionConf
+  val columnarConf = GazelleJniConfig.getSessionConf
   var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
@@ -282,8 +223,6 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
       RowToArrowColumnarExec(child)
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
-      replaceWithTransformerPlan(child)
-    case ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
@@ -337,13 +276,14 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
     "org.apache.spark.example.columnar.enabled", "true").trim.toBoolean
   def conf = session.sparkContext.getConf
 
-  // Do not create rules in class initialization as we should access SQLConf while creating the rules. At this time
-  // SQLConf may not be there yet.
+  // Do not create rules in class initialization as we should access SQLConf while creating the rules.
+  // At this time SQLConf may not be there yet.
   def rowGuardOverrides = TransformGuardRule()
   def preOverrides = TransformPreOverrides()
   def postOverrides = TransformPostOverrides()
 
-  val columnarWholeStageEnabled = conf.getBoolean("spark.oap.sql.columnar.wholestagetransform", defaultValue = true)
+  val columnarWholeStageEnabled: Boolean = conf.getBoolean(
+    "spark.oap.sql.columnar.wholestagetransform", defaultValue = true)
   def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
 
   var isSupportAdaptive: Boolean = true

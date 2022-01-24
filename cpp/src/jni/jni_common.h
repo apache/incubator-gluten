@@ -335,8 +335,7 @@ arrow::Status MakeExprVector(JNIEnv* env, jbyteArray exprs_arr,
 }
 
 arrow::Status ParseSubstraitPlan(
-    JNIEnv* env, jbyteArray exprs_arr, gandiva::ExpressionVector* expr_vector,
-    gandiva::FieldVector* ret_types,
+    JNIEnv* env, jbyteArray exprs_arr,
     std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out_iter) {
   substrait::Plan ws_plan;
   jsize exprs_len = env->GetArrayLength(exprs_arr);

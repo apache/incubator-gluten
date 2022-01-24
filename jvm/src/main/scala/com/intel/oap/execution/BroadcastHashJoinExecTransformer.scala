@@ -18,7 +18,7 @@
 package com.intel.oap.execution
 
 import com.google.common.collect.Lists
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression._
 import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.substrait.rel.RelNode

@@ -20,7 +20,7 @@ package org.apache.spark.shuffle
 import java.io.IOException
 
 import com.google.common.annotations.VisibleForTesting
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow.Spiller
 import com.intel.oap.vectorized.{ArrowWritableColumnVector, ShuffleSplitterJniWrapper, SplitResult}
@@ -62,13 +62,13 @@ class ColumnarShuffleWriter[K, V](
     conf.getInt("spark.sql.execution.arrow.maxRecordsPerBatch", 4096)
 
   private val customizedCompressCodec =
-    GazellePluginConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+    GazelleJniConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
   private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
     conf.get("spark.io.compression.codec", "lz4")
   } else {
     "uncompressed"
   }
-  private val preferSpill = GazellePluginConfig.getConf.columnarShufflePreferSpill
+  private val preferSpill = GazelleJniConfig.getConf.columnarShufflePreferSpill
 
   private val jniWrapper = new ShuffleSplitterJniWrapper()
 

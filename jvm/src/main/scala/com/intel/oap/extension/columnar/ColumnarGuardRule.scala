@@ -17,7 +17,7 @@
 
 package com.intel.oap.extension.columnar
 
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.execution._
 
 import org.apache.spark.rdd.RDD
@@ -45,7 +45,7 @@ case class RowGuard(child: SparkPlan) extends SparkPlan {
 }
 
 case class TransformGuardRule() extends Rule[SparkPlan] {
-  val columnarConf = GazellePluginConfig.getSessionConf
+  val columnarConf = GazelleJniConfig.getSessionConf
   val preferColumnar = columnarConf.enablePreferColumnar
   val optimizeLevel = columnarConf.joinOptimizationThrottle
   val enableColumnarShuffle = columnarConf.enableColumnarShuffle
@@ -138,49 +138,10 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.right)
           if (!transformer.doValidate()) return false
           transformer
-//        case plan: BroadcastExchangeExec =>
-//          if (!enableColumnarBroadcastExchange) return false
-//          ColumnarBroadcastExchangeExec(plan.mode, plan.child)
-//        case plan: BroadcastHashJoinExec =>
-//          // We need to check if BroadcastExchangeExec can be converted to columnar-based.
-//          // If not, BHJ should also be row-based.
-//          if (!enableColumnarBroadcastJoin) return false
-//          val left = plan.left
-//          left match {
-//            case exec: BroadcastExchangeExec =>
-//              new ColumnarBroadcastExchangeExec(exec.mode, exec.child)
-//            case BroadcastQueryStageExec(_, plan: BroadcastExchangeExec) =>
-//              new ColumnarBroadcastExchangeExec(plan.mode, plan.child)
-//            case BroadcastQueryStageExec(_, plan: ReusedExchangeExec) =>
-//              plan match {
-//                case ReusedExchangeExec(_, b: BroadcastExchangeExec) =>
-//                  new ColumnarBroadcastExchangeExec(b.mode, b.child)
-//                case _ =>
-//              }
-//            case _ =>
-//          }
-//          val right = plan.right
-//          right match {
-//            case exec: BroadcastExchangeExec =>
-//              new ColumnarBroadcastExchangeExec(exec.mode, exec.child)
-//            case BroadcastQueryStageExec(_, plan: BroadcastExchangeExec) =>
-//              new ColumnarBroadcastExchangeExec(plan.mode, plan.child)
-//            case BroadcastQueryStageExec(_, plan: ReusedExchangeExec) =>
-//              plan match {
-//                case ReusedExchangeExec(_, b: BroadcastExchangeExec) =>
-//                  new ColumnarBroadcastExchangeExec(b.mode, b.child)
-//                case _ =>
-//              }
-//            case _ =>
-//          }
-//          ColumnarBroadcastHashJoinExec(
-//            plan.leftKeys,
-//            plan.rightKeys,
-//            plan.joinType,
-//            plan.buildSide,
-//            plan.condition,
-//            plan.left,
-//            plan.right)
+        case plan: BroadcastExchangeExec =>
+          return false
+        case plan: BroadcastHashJoinExec =>
+          return false
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) return false
           val transformer = SortMergeJoinExecTransformer(

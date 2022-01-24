@@ -17,7 +17,7 @@
 
 package com.intel.oap.execution
 
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import com.intel.oap.substrait.rel.RelBuilder
 import com.intel.oap.substrait.SubstraitContext
@@ -40,7 +40,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   }
 
   override def supportsColumnar(): Boolean =
-    super.supportsColumnar && GazellePluginConfig.getConf.enableColumnarIterator
+    super.supportsColumnar && GazelleJniConfig.getConf.enableColumnarIterator
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

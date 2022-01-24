@@ -334,28 +334,35 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsTime
 
 JNIEXPORT jlong JNICALL
 Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
-    JNIEnv* env, jobject obj, jlong memory_pool_id, jbyteArray ws_in_schema_arr,
-    jbyteArray ws_exprs_arr, jbyteArray ws_res_schema_arr, jbyteArray in_exprs_arr,
-    jobject itr, jlongArray dep_ids, jboolean return_when_finish = false) {
+    JNIEnv* env, jobject obj, jlong memory_pool_id, jbyteArray ws_exprs_arr,
+    jobjectArray iter_arr) {
   arrow::Status msg;
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     std::string error_message = "Unable to get JavaVM instance";
     env->ThrowNew(io_exception_class, error_message.c_str());
   }
-  // Get input schema
-  std::shared_ptr<arrow::Schema> ws_in_schema;
-  msg = MakeSchema(env, ws_in_schema_arr, &ws_in_schema);
-  if (!msg.ok()) {
-    std::string error_message = "failed to readSchema, err msg is " + msg.message();
-    env->ThrowNew(io_exception_class, error_message.c_str());
+  // Handle the Java iters
+  jsize iters_len = env->GetArrayLength(iter_arr);
+  std::vector<arrow::Result<arrow::RecordBatchIterator>> arrow_iters;
+  if (iters_len > 0) {
+    for (int idx = 0; idx < iters_len; idx++) {
+      jobject iter = env->GetObjectArrayElement(iter_arr, idx);
+      // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
+      // TODO Release this in JNI Unload or dependent object's destructor
+      jobject ref_iter = env->NewGlobalRef(iter);
+      // FIXME: Schema should be obtained from Substrait plan.
+      std::shared_ptr<arrow::Schema> schema;
+      arrow::Result<arrow::RecordBatchIterator> rb_iter =
+          MakeJavaRecordBatchIterator(vm, ref_iter, schema);
+      arrow_iters.push_back(std::move(rb_iter));
+    }
   }
   // Get the ws iter
   gandiva::ExpressionVector ws_expr_vector;
   gandiva::FieldVector ws_ret_types;
-  // std::cout << "start to parse" << std::endl;
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
-  msg = ParseSubstraitPlan(env, ws_exprs_arr, &ws_expr_vector, &ws_ret_types, &res_iter);
+  msg = ParseSubstraitPlan(env, ws_exprs_arr, &res_iter);
   if (!msg.ok()) {
     std::string error_message =
         "failed to parse expressions protobuf, err msg is " + msg.message();
