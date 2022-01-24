@@ -34,6 +34,7 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ExpressionEvaluator implements AutoCloseable {
@@ -66,33 +67,20 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   /** Used by WholeStageTransfrom */
-  public BatchIterator createNativeKernelWithIterator(
-          Schema ws_in_schema, byte[] ws_plan,
-          Schema ws_res_schema,
-          List<ExpressionTree> in_exprs, ColumnarNativeIterator batchItr,
-          BatchIterator[] dependencies, boolean finishReturn)
-          throws RuntimeException, IOException, GandivaException {
+  public BatchIterator createKernelWithIterator(
+          byte[] wsPlan, ArrayList<ColumnarNativeIterator> iterList)
+          throws RuntimeException, IOException {
     NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-    long[] instanceIdList = new long[dependencies.length];
-    for (int i = 0; i < dependencies.length; i++) {
-      instanceIdList[i] = dependencies[i].getInstanceId();
-    }
+    ColumnarNativeIterator[] iterArray = new ColumnarNativeIterator[iterList.size()];
     long batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
-            memoryPool.getNativeInstanceId(), getSchemaBytesBuf(ws_in_schema),
-            ws_plan, getSchemaBytesBuf(ws_res_schema),
-            getExprListBytesBuf(in_exprs),
-            batchItr, instanceIdList, finishReturn);
+            memoryPool.getNativeInstanceId(), wsPlan, iterList.toArray(iterArray));
     return new BatchIterator(batchIteratorInstance);
   }
 
   public BatchIterator createKernelWithIterator(
-          Schema ws_in_schema, PlanNode ws_plan,
-          Schema ws_res_schema,
-          List<ExpressionTree> in_exprs, ColumnarNativeIterator batchItr,
-          BatchIterator[] dependencies, boolean finishReturn)
-          throws RuntimeException, IOException, GandivaException {
-    return createNativeKernelWithIterator(ws_in_schema, getPlanBytesBuf(ws_plan),
-            ws_res_schema, in_exprs, batchItr, dependencies, finishReturn);
+          PlanNode wsPlan, ArrayList<ColumnarNativeIterator> iterList)
+          throws RuntimeException, IOException {
+    return createKernelWithIterator(getPlanBytesBuf(wsPlan), iterList);
   }
 
   @Override

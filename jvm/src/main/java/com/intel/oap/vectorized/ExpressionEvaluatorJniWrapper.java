@@ -79,16 +79,14 @@ public class ExpressionEvaluatorJniWrapper {
         native long nativeSpill(long nativeHandler, long size, boolean callBySelf) throws RuntimeException;
 
         /**
-         * Call Finish to create a whole_stage_transfrom kernel, result will be as a iterator.
+         * Create a whole_stage_transfrom kernel, and return a result iterator.
          *
          * @param nativeHandler nativeHandler of this expression
          * @return iterator instance id
          */
-        native long nativeCreateKernelWithIterator(long nativeHandler, byte[] wsInSchemaBuf,
-                                                   byte[] wsExprListBuf, byte[] wsResSchemaBuf,
-                                                   byte[] inExprListBuf,
-                                                   ColumnarNativeIterator batchItr,
-                                                   long[] dependencies, boolean finishReturn) throws RuntimeException;
+        native long nativeCreateKernelWithIterator(long nativeHandler,
+                                                   byte[] wsExprListBuf,
+                                                   ColumnarNativeIterator[] batchItr) throws RuntimeException;
 
         /**
          * Closes the projector referenced by nativeHandler.

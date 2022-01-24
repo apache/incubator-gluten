@@ -302,32 +302,29 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val wsCxt = doWholestageTransform()
 
       val startTime = System.nanoTime()
-      val substraitPlanPartition = batchScan.partitions.map( p => {
-        p match {
-          case FilePartition(index, files) => {
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
-            files.foreach { f =>
-              paths.add(f.filePath)
-              starts.add(new java.lang.Long(f.start))
-              lengths.add(new java.lang.Long(f.length))
-            }
-
-            val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-            wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
-            val substraitPlan = wsCxt.root.toProtobuf
-            /*val out = new DataOutputStream(new FileOutputStream("/tmp/SubStraitTest-Q6.dat",
-                        false));
-            out.write(substraitPlan.toByteArray());
-            out.flush();*/
-
-            //logWarning(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
-            NativeFilePartition(index, files, substraitPlan.toByteArray)
+      val substraitPlanPartition = batchScan.partitions.map {
+        case FilePartition(index, files) =>
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(new java.lang.Long(f.start))
+            lengths.add(new java.lang.Long(f.length))
           }
-          case _ => p
-        }
-      })
+          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          val substraitPlan = wsCxt.root.toProtobuf
+          /*
+          val out = new DataOutputStream(new FileOutputStream("/tmp/SubStraitTest-Q6.dat",
+                      false));
+          out.write(substraitPlan.toByteArray());
+          out.flush();
+          */
+          // logWarning(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+          NativeFilePartition(index, files, substraitPlan.toByteArray)
+        case p => p
+      }
       logWarning(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
@@ -434,16 +431,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             lazyReadFunction,
             Field.nullable("result", new ArrowType.Int(32, true)))
         val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
-
         val inBatchIter = new ColumnarNativeIterator(iter.asJava)
+        val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
+        inBatchIters.add(inBatchIter);
         // we need to complete dependency RDD's firstly
         val beforeBuild = System.nanoTime()
         val inputSchema = ConverterUtils.toArrowSchema(inputAttributes)
         val outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
-        val nativeIterator = transKernel.createKernelWithIterator(
-          inputSchema, rootNode, outputSchema,
-          Lists.newArrayList(lazyReadExpr), inBatchIter,
-          dependentKernelIterators.toArray, true)
+        val nativeIterator = transKernel.createKernelWithIterator(rootNode, inBatchIters)
         build_elapse += System.nanoTime() - beforeBuild
         val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
         val resIter = streamedSortPlan match {
