@@ -22,7 +22,7 @@ import java.io.IOException;
 public class ArrowColumnarToRowJniWrapper {
 
   public ArrowColumnarToRowJniWrapper() throws IOException {
-    JniUtils.getInstance();
+    JniInstance.getInstance();
   }
 
   public native ArrowColumnarToRowInfo nativeConvertColumnarToRow(

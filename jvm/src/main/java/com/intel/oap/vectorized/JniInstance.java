@@ -17,11 +17,10 @@
 
 package com.intel.oap.vectorized;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import io.kyligence.jni.engine.LocalEngine;
+import org.apache.commons.lang3.StringUtils;
+
+import java.io.*;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -37,7 +36,14 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 /** Helper class for JNI related operations. */
-public class JniUtils {
+
+/**
+ * Java API for in-process profiling. Serves as a wrapper around
+ * async-profiler native library. This class is a singleton.
+ * The first call to {@link #getInstance()} initiates loading of
+ * libasyncProfiler.so.
+ */
+public class JniInstance {
   private static final String LIBRARY_NAME = "spark_columnar_jni";
   private static final String ARROW_LIBRARY_NAME = "libarrow.so.400.0.0";
   private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.400";
@@ -46,24 +52,24 @@ public class JniUtils {
   private static boolean isLoaded = false;
   private static boolean isCodegenDependencyLoaded = false;
   private static List<String> codegenJarsLoadedCache = new ArrayList<>();
-  private static volatile JniUtils INSTANCE;
+  private static volatile JniInstance INSTANCE;
   private String tmp_dir;
 
-  public static JniUtils getInstance() throws IOException {
+  public static JniInstance getInstance() throws IOException {
     String tmp_dir = System.getProperty("java.io.tmpdir");
     return getInstance(tmp_dir);
   }
 
-  public static JniUtils getInstance(String tmp_dir) throws IOException {
+  public static JniInstance getInstance(String tmp_dir) throws IOException {
     return getInstance(tmp_dir, null);
   }
 
-  public static JniUtils getInstance(String tmp_dir, String lib_name) throws IOException {
+  public static JniInstance getInstance(String tmp_dir, String lib_name) throws IOException {
     if (INSTANCE == null) {
-      synchronized (JniUtils.class) {
+      synchronized (JniInstance.class) {
         if (INSTANCE == null) {
           try {
-            INSTANCE = new JniUtils(tmp_dir, lib_name);
+            INSTANCE = new JniInstance(tmp_dir, lib_name);
           } catch (IllegalAccessException ex) {
             throw new IOException("IllegalAccess", ex);
           }
@@ -73,11 +79,61 @@ public class JniUtils {
     return INSTANCE;
   }
 
-  private JniUtils(String _tmp_dir) throws IOException, IllegalAccessException, IllegalStateException {
-    this(_tmp_dir, null);
+  public static JniInstance getInstanceWithLibPath() {
+    return getInstanceWithLibPath(null);
   }
 
-  private JniUtils(String _tmp_dir, String _lib_name) throws IOException, IllegalAccessException, IllegalStateException {
+  /**
+   * A function used to load an pre-installed library from the specific path.
+   * **/
+  public static synchronized JniInstance getInstanceWithLibPath(String libPath) {
+    if (INSTANCE != null) {
+      return INSTANCE;
+    }
+    File file = null;
+    boolean libPathExists = false;
+    if (StringUtils.isNotBlank(libPath)) {
+      file = new File(libPath);
+      libPathExists = file.isFile() && file.exists();
+    }
+    String libName = "liblocal_engine_jnid";
+    if (!libPathExists) {
+      String soFileName = "/" + libName + ".so";
+      try {
+        InputStream is = JniInstance.class.getResourceAsStream(soFileName);
+        file = File.createTempFile("lib", ".so");
+        OutputStream os = new FileOutputStream(file);
+        byte[] buffer = new byte[128 << 10];
+        int length;
+        while ((length = is.read(buffer)) != -1) {
+          os.write(buffer, 0, length);
+        }
+        is.close();
+        os.close();
+      } catch (IOException e) {
+      }
+    }
+    if (file != null) {
+      try {
+        file.setReadable(true, false);
+        System.load(file.getAbsolutePath());
+        libPath = file.getAbsolutePath();
+      } catch (UnsatisfiedLinkError error) {
+        throw error;
+      }
+    }
+    INSTANCE = new JniInstance();
+    LocalEngine.initEngineEnv();
+    return INSTANCE;
+  }
+
+  public LocalEngine buildLocalEngine(byte[] substraitPlan) {
+    return new LocalEngine(substraitPlan);
+  }
+
+  private JniInstance() throws IllegalStateException {}
+
+  private JniInstance(String _tmp_dir, String _lib_name) throws IOException, IllegalAccessException, IllegalStateException {
     if (!isLoaded) {
       if (_tmp_dir.contains("nativesql")) {
         tmp_dir = _tmp_dir;
@@ -126,7 +182,7 @@ public class JniUtils {
   }
 
   private static void loadLibraryFromJar(String source_jar, String tmp_dir) throws IOException, IllegalAccessException {
-    synchronized (JniUtils.class) {
+    synchronized (JniInstance.class) {
       if (tmp_dir == null) {
         tmp_dir = System.getProperty("java.io.tmpdir");
       }
@@ -153,7 +209,7 @@ public class JniUtils {
   }
 
   static void loadLibraryFromJarWithLib(String tmp_dir, String lib_name) throws IOException, IllegalAccessException {
-    synchronized (JniUtils.class) {
+    synchronized (JniInstance.class) {
       if (tmp_dir == null) {
         tmp_dir = System.getProperty("java.io.tmpdir");
       }
@@ -187,12 +243,12 @@ public class JniUtils {
   }
 
   private static void loadIncludeFromJar(String tmp_dir) throws IOException, IllegalAccessException {
-    synchronized (JniUtils.class) {
+    synchronized (JniInstance.class) {
       if (tmp_dir == null) {
         tmp_dir = System.getProperty("java.io.tmpdir");
       }
       final String folderToLoad = "include";
-      final URLConnection urlConnection = JniUtils.class.getClassLoader().getResource("include").openConnection();
+      final URLConnection urlConnection = JniInstance.class.getClassLoader().getResource("include").openConnection();
       if (urlConnection instanceof JarURLConnection) {
         final JarFile jarFile = ((JarURLConnection) urlConnection).getJarFile();
         extractResourcesToDirectory(jarFile, folderToLoad, tmp_dir + "/" + "nativesql_include");
@@ -217,7 +273,7 @@ public class JniUtils {
       return new File(tmpDir + "/" + libraryToLoad);
     }
     final File temp = new File(tmpDir + "/" + libraryToLoad);
-    try (final InputStream is = JniUtils.class.getClassLoader().getResourceAsStream(libraryToLoad)) {
+    try (final InputStream is = JniInstance.class.getClassLoader().getResourceAsStream(libraryToLoad)) {
       if (is == null) {
         throw new FileNotFoundException(libraryToLoad);
       }
