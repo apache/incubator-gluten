@@ -60,6 +60,7 @@ set(VELOX_FUNCTIONS_LIB_PATH "${VELOX_BUILD_PATH}/functions/lib/libvelox_functio
 set(VELOX_TYPE_TZ_LIB_PATH "${VELOX_BUILD_PATH}/type/tz/libvelox_type_tz.a")
 set(VELOX_EXTERNAL_MD5_LIB_PATH "${VELOX_BUILD_PATH}/external/md5/libmd5.a")
 set(VELOX_EXPRESSION_LIB_PATH "${VELOX_BUILD_PATH}/expression/libvelox_expression.a")
+set(VELOX_EXPRESSION_FUNCTIONS_LIB_PATH "${VELOX_BUILD_PATH}/expression/libvelox_expression_functions.a")
 set(VELOX_BUFFER_LIB_PATH "${VELOX_BUILD_PATH}/buffer/libvelox_buffer.a")
 
 option(BUILD_ARROW "Build Arrow from Source" ON)
@@ -528,6 +529,19 @@ macro(find_gtest)
   set(GTEST_LIB_PATH "${GTEST_LIBRARY}")
 endmacro()
 
+# Find Snappy
+macro(find_snappy)
+  # Find the snappy library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  find_library(SNAPPY_LIBRARY NAMES snappy PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT SNAPPY_LIBRARY)
+    message(FATAL_ERROR "Snappy Library Not Found")
+  else()
+    message(STATUS "Snappy Library Can Be Found in ${SNAPPY_LIBRARY}")
+  endif()
+  set(SNAPPY_LIB_PATH "${SNAPPY_LIBRARY}")
+endmacro()
+
 macro(build_velox_exec)
   message(STATUS "Velox can be found in ${VELOX_HOME}")
   set(BINARY_RELEASE_DIR "${root_directory}/releases")
@@ -566,10 +580,12 @@ macro(build_velox_exec)
   add_library(facebook::velox::type::tz STATIC IMPORTED)
   add_library(facebook::velox::external::md5 STATIC IMPORTED)
   add_library(facebook::velox::expression STATIC IMPORTED)
+  add_library(facebook::velox::expression::function STATIC IMPORTED)
   add_library(facebook::velox::buffer STATIC IMPORTED)
   add_library(folly STATIC IMPORTED)
   add_library(iberty STATIC IMPORTED)
   add_library(doubleconversion SHARED IMPORTED)
+  add_library(snappy SHARED IMPORTED)
   add_library(glog SHARED IMPORTED)
   add_library(fmt STATIC IMPORTED)
   add_library(gtest SHARED IMPORTED)
@@ -644,6 +660,10 @@ macro(build_velox_exec)
                                     "${BINARY_RELEASE_DIR}/include")                                              
   set_target_properties(fmt
                         PROPERTIES IMPORTED_LOCATION "${FMT_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                    "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(snappy
+                        PROPERTIES IMPORTED_LOCATION "${SNAPPY_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
                                     "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::common::memory
@@ -738,6 +758,10 @@ macro(build_velox_exec)
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXPRESSION_LIB_PATH}"
                                               INTERFACE_INCLUDE_DIRECTORIES
                                               "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::expression::function
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_EXPRESSION_FUNCTIONS_LIB_PATH}"
+                                              INTERFACE_INCLUDE_DIRECTORIES
+                                              "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::buffer
                         PROPERTIES IMPORTED_LOCATION "${VELOX_BUFFER_LIB_PATH}"
                                               INTERFACE_INCLUDE_DIRECTORIES
@@ -764,6 +788,7 @@ macro(build_velox_exec)
                     LINK_PUBLIC facebook::velox::common::base::exception
                     LINK_PUBLIC facebook::velox::connector::hive
                     LINK_PUBLIC facebook::velox::expression
+                    LINK_PUBLIC facebook::velox::expression::function
                     LINK_PUBLIC facebook::velox::dwio::dwrf::writer
                     LINK_PUBLIC facebook::velox::dwio::dwrf::reader
                     LINK_PUBLIC facebook::velox::dwio::dwrf::common
@@ -784,6 +809,7 @@ macro(build_velox_exec)
                     LINK_PUBLIC folly
                     LINK_PUBLIC iberty
                     LINK_PUBLIC doubleconversion
+                    LINK_PUBLIC snappy
                     LINK_PUBLIC glog
                     LINK_PUBLIC fmt)
 endmacro()
@@ -871,6 +897,7 @@ find_glog()
 find_double_conversion()
 find_fmt()
 find_gtest()
+find_snappy()
 build_velox_exec()
 
 # Build Arrow
