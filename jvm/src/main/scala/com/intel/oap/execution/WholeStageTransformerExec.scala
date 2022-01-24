@@ -21,7 +21,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 import com.google.common.collect.Lists
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression._
 import com.intel.oap.substrait.extensions.{MappingBuilder, MappingNode}
 import com.intel.oap.substrait.plan.{PlanBuilder, PlanNode}
@@ -84,10 +84,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     with TransformSupport {
 
   val sparkConf = sparkContext.getConf
-  val numaBindingInfo = GazellePluginConfig.getConf.numaBindingInfo
-  val enableColumnarSortMergeJoinLazyRead =
-    GazellePluginConfig.getConf.enableColumnarSortMergeJoinLazyRead
-  val libName = GazellePluginConfig.getConf.nativeLibName
+  val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
+  val enableColumnarSortMergeJoinLazyRead: Boolean =
+    GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
+  val libName: String = GazelleJniConfig.getConf.nativeLibName
+  val loadArrow: Boolean = GazelleJniConfig.getConf.loadArrow
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -101,7 +102,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  override def supportsColumnar: Boolean = GazellePluginConfig.getConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GazelleJniConfig.getConf.enableColumnarIterator
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(transformStageId.asInstanceOf[Integer])
   override def generateTreeString(
@@ -131,7 +132,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def uploadAndListJars(signature: String): Seq[String] =
     if (signature != "") {
       if (sparkContext.listJars.filter(path => path.contains(s"${signature}.jar")).isEmpty) {
-        val tempDir = GazellePluginConfig.getRandomTempDir
+        val tempDir = GazelleJniConfig.getRandomTempDir
         val jarFileName =
           s"${tempDir}/tmp/spark-columnar-plugin-codegen-precompile-${signature}.jar"
         sparkContext.addJar(jarFileName)
@@ -302,36 +303,33 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val wsCxt = doWholestageTransform()
 
       val startTime = System.nanoTime()
-      val substraitPlanPartition = batchScan.partitions.map( p => {
-        p match {
-          case FilePartition(index, files) => {
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
-            files.foreach { f =>
-              paths.add(f.filePath)
-              starts.add(new java.lang.Long(f.start))
-              lengths.add(new java.lang.Long(f.length))
-            }
-
-            val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-            wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
-            val substraitPlan = wsCxt.root.toProtobuf
-            /*val out = new DataOutputStream(new FileOutputStream("/tmp/SubStraitTest-Q6.dat",
-                        false));
-            out.write(substraitPlan.toByteArray());
-            out.flush();*/
-
-            //logWarning(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
-            NativeFilePartition(index, files, substraitPlan.toByteArray)
+      val substraitPlanPartition = batchScan.partitions.map {
+        case FilePartition(index, files) =>
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(new java.lang.Long(f.start))
+            lengths.add(new java.lang.Long(f.length))
           }
-          case _ => p
-        }
-      })
+          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          val substraitPlan = wsCxt.root.toProtobuf
+          /*
+          val out = new DataOutputStream(new FileOutputStream("/tmp/SubStraitTest-Q6.dat",
+                      false));
+          out.write(substraitPlan.toByteArray());
+          out.flush();
+          */
+          // logWarning(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+          NativeFilePartition(index, files, substraitPlan.toByteArray)
+        case p => p
+      }
       logWarning(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
-      val wsRDD = new WholestageNativeRowRDD(sparkContext, substraitPlanPartition,
+      val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition,
         batchScan.readerFactory, true)
       wsRDD
     } else {
@@ -363,7 +361,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     if (current_op.isDefined) {
       // If containing batchscan, a new RDD is created.
       // TODO: Remove ?
-      val execTempDir = GazellePluginConfig.getTempFile
+      val execTempDir = GazelleJniConfig.getTempFile
       val jarList = listJars.map(jarUrl => {
         logWarning(s"Get Codegened library Jar ${jarUrl}")
         UserAddedJarUtils.fetchJarFromSpark(
@@ -416,8 +414,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       curRDD.mapPartitions { iter =>
         ExecutorManager.tryTaskSet(numaBindingInfo)
-        GazellePluginConfig.getConf
-        val execTempDir = GazellePluginConfig.getTempFile
+        GazelleJniConfig.getConf
+        val execTempDir = GazelleJniConfig.getTempFile
         val jarList = listJars.map(jarUrl => {
           logWarning(s"Get Codegened library Jar ${jarUrl}")
           UserAddedJarUtils.fetchJarFromSpark(
@@ -433,17 +431,15 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           TreeBuilder.makeExpression(
             lazyReadFunction,
             Field.nullable("result", new ArrowType.Int(32, true)))
-        val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
-
+        val transKernel = new ExpressionEvaluator(jarList.toList.asJava, libName, loadArrow)
         val inBatchIter = new ColumnarNativeIterator(iter.asJava)
+        val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
+        inBatchIters.add(inBatchIter);
         // we need to complete dependency RDD's firstly
         val beforeBuild = System.nanoTime()
         val inputSchema = ConverterUtils.toArrowSchema(inputAttributes)
         val outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
-        val nativeIterator = transKernel.createKernelWithIterator(
-          inputSchema, rootNode, outputSchema,
-          Lists.newArrayList(lazyReadExpr), inBatchIter,
-          dependentKernelIterators.toArray, true)
+        val nativeIterator = transKernel.createKernelWithIterator(rootNode, inBatchIters)
         build_elapse += System.nanoTime() - beforeBuild
         val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
         val resIter = streamedSortPlan match {

@@ -22,7 +22,7 @@ import java.io.IOException;
 public class ShuffleSplitterJniWrapper {
 
   public ShuffleSplitterJniWrapper() throws IOException {
-    JniUtils.getInstance();
+    JniInstance.getInstance();
   }
 
   /**

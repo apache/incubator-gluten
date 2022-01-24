@@ -25,22 +25,22 @@ case class GazelleNumaBindingInfo(
     totalCoreRange: Array[String] = null,
     numCoresPerExecutor: Int = -1) {}
 
-class GazellePluginConfig(conf: SQLConf) extends Logging {
-  def getCpu(): Boolean = {
+class GazelleJniConfig(conf: SQLConf) extends Logging {
+  def getCpu: Boolean = {
     val source = scala.io.Source.fromFile("/proc/cpuinfo")
     val lines = try source.mkString finally source.close()
-    //TODO(): check CPU flags to enable/disable AVX512
+    // TODO(): check CPU flags to enable/disable AVX512
     if (lines.contains("GenuineIntel")) {
-      return true
+      true
     } else {
-      //System.out.println(actualSchemaRoot.getRowCount());
+      // System.out.println(actualSchemaRoot.getRowCount());
       logWarning("running on non-intel CPU, disable all columnar operators")
-      return false
+      false
     }
   }
 
   // for all operators
-  val enableCpu = getCpu()
+  val enableCpu: Boolean = getCpu
   
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
@@ -59,10 +59,10 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.oap.sql.columnar.sort", "true").toBoolean && enableCpu
   
   // enable or disable codegen columnar sort
-  val enableColumnarCodegenSort: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.codegen.sort", "true").toBoolean && enableColumnarSort
+  val enableColumnarCodegenSort: Boolean = conf.getConfString(
+    "spark.oap.sql.columnar.codegen.sort", "true").toBoolean && enableColumnarSort
 
-  // enable or disable columnar window  
+  // enable or disable columnar window
   val enableColumnarWindow: Boolean =
     conf.getConfString("spark.oap.sql.columnar.window", "true").toBoolean && enableCpu
   
@@ -85,7 +85,7 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     conf.getConfString("spark.oap.sql.columnar.sortmergejoin.lazyread", "false").toBoolean
 
-  // enable or disable columnar union  
+  // enable or disable columnar union
   val enableColumnarUnion: Boolean =
     conf.getConfString("spark.oap.sql.columnar.union", "true").toBoolean && enableCpu
 
@@ -97,7 +97,7 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
   val enableColumnarBroadcastExchange: Boolean =
     conf.getConfString("spark.oap.sql.columnar.broadcastexchange", "true").toBoolean && enableCpu
 
-  // enable or disable NAN check  
+  // enable or disable NAN check
   val enableColumnarNaNCheck: Boolean =
     conf.getConfString("spark.oap.sql.columnar.nanCheck", "true").toBoolean
   
@@ -105,35 +105,41 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
   val hashCompare: Boolean =
     conf.getConfString("spark.oap.sql.columnar.hashCompare", "true").toBoolean
 
-  // enable or disable columnar BroadcastHashJoin  
+  // enable or disable columnar BroadcastHashJoin
   val enableColumnarBroadcastJoin: Boolean =
     conf.getConfString("spark.oap.sql.columnar.broadcastJoin", "true").toBoolean && enableCpu
 
-  // enable or disable columnar columnar arrow udf 
-  val enableColumnarArrowUDF: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.arrowudf", "true").toBoolean && enableCpu
+  // enable or disable columnar columnar arrow udf
+  val enableColumnarArrowUDF: Boolean = conf.getConfString(
+    "spark.oap.sql.columnar.arrowudf", "true").toBoolean && enableCpu
 
-  // enable or disable columnar wholestagecodegen  
-  val enableColumnarWholeStageCodegen: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
+  // enable or disable columnar wholestagecodegen
+  val enableColumnarWholeStageCodegen: Boolean = conf.getConfString(
+    "spark.oap.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
   
   // enable or disable columnar exchange
   val enableColumnarShuffle: Boolean = conf
     .getConfString("spark.shuffle.manager", "sort")
     .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager") && enableCpu
 
-  // for all perf turnings
   // prefer to use columnar operators if set to true
   val enablePreferColumnar: Boolean =
     conf.getConfString("spark.oap.sql.columnar.preferColumnar", "true").toBoolean
 
-  // This config is used for specifying whether to use columnar basic iterator.
+  // This config is used for specifying whether to use a columnar iterator in WS transformer.
   val enableColumnarIterator: Boolean =
     conf.getConfString("spark.oap.sql.columnar.iterator", "true").toBoolean
 
-  // This config is used for testing. Setting to false will disable loading native libraries.
+  // This config is used for deciding whether to load the native library.
+  // When false, only Java code will be executed for a quick test.
   val loadNative: Boolean =
     conf.getConfString("spark.oap.sql.columnar.loadnative", "true").toBoolean
+
+  // This config is used for deciding whether to load Arrow and Gandiva libraries from
+  // the native library. If the native library does not depend on Arrow and Gandiva,
+  // this config should will set as false.
+  val loadArrow: Boolean =
+    conf.getConfString("spark.oap.sql.columnar.loadarrow", "true").toBoolean
 
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
@@ -177,38 +183,38 @@ class GazellePluginConfig(conf: SQLConf) extends Logging {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.oap.sql.columnar.numaBinding", "false").toBoolean
     if (!enableNumaBinding) {
-      GazelleNumaBindingInfo(false)
+      GazelleNumaBindingInfo(enableNumaBinding = false)
     } else {
       val tmp = conf.getConfString("spark.oap.sql.columnar.coreRange", null)
       if (tmp == null) {
-        GazelleNumaBindingInfo(false)
+        GazelleNumaBindingInfo(enableNumaBinding = false)
       } else {
         val numCores = conf.getConfString("spark.executor.cores", "1").toInt
         val coreRangeList: Array[String] = tmp.split('|').map(_.trim)
-        GazelleNumaBindingInfo(true, coreRangeList, numCores)
+        GazelleNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
       }
 
     }
   }
 }
 
-object GazellePluginConfig {
-  var ins: GazellePluginConfig = null
+object GazelleJniConfig {
+  var ins: GazelleJniConfig = null
   var random_temp_dir_path: String = null
 
   /**
    * @deprecated We should avoid caching this value in entire JVM. us
    */
   @Deprecated
-  def getConf: GazellePluginConfig = synchronized {
+  def getConf: GazelleJniConfig = synchronized {
     if (ins == null) {
       ins = getSessionConf
     }
     ins
   }
 
-  def getSessionConf: GazellePluginConfig = {
-    new GazellePluginConfig(SQLConf.get)
+  def getSessionConf: GazelleJniConfig = {
+    new GazelleJniConfig(SQLConf.get)
   }
 
   def getBatchSize: Int = synchronized {
@@ -232,10 +238,10 @@ object GazellePluginConfig {
       System.getProperty("java.io.tmpdir")
     }
   }
-  def setRandomTempDir(path: String) = synchronized {
+  def setRandomTempDir(path: String): Unit = synchronized {
     random_temp_dir_path = path
   }
-  def getRandomTempDir = synchronized {
+  def getRandomTempDir: String = synchronized {
     random_temp_dir_path
   }
 }

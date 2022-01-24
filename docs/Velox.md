@@ -19,6 +19,7 @@ Required shared libraries are:
 - glog
 - double-conversion
 - gtest
+- snappy
 
 Gazelle-Jni will try to find above libraries from system lib paths.
 If they are not installed there, please copy them to system lib paths,
@@ -33,7 +34,9 @@ set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 di
 
 Secondly, when compiling Velox, please note that Velox generated static libraries should also be compiled as position independent code.
 Also, some OBJECT settings in CMakeLists are removed in order to acquire the static libraries.
-For these two changes, please refer to this commit [Velox Compiling](https://github.com/rui-mo/velox/commit/b436af6b942b18e7f9dbd15c1e8eea49397e164a).
+For these two changes, please refer to this commit [Velox Compiling](https://github.com/rui-mo/velox/commit/ce1dee8f776bc3afa36cd3fc033161fc062cbe98).
+
+Currently, we depends on this Velox commmit: **8d3e951 (Jan 18 2022)**
 
 ### An example for Velox computing in Spark based on Gazelle-Jni
 

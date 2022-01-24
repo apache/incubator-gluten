@@ -11,7 +11,7 @@ If compiling on the master branch:
 
 ```shell script
 git checkout master
-mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip
+mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON
 ```
 
 If compiling with Velox:
@@ -21,11 +21,18 @@ git checkout velox_dev
 mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dvelox_home=${VELOX_HOME}
 ```
 
+If Arrow has once been installed successfully on your env, and there is no change to Arrow, you can
+add below config to disable Arrow compilation each time when compiling Gazelle-Jni:
+
+```shell script
+-Dbuild_arrow=OFF -Darrow_root=${ARROW_LIB_PATH}
+```
+
 Based on the different environment, there are some parameters can be set via -D with mvn.
 
 | Parameters | Description | Default Value |
 | ---------- | ----------- | ------------- |
-| build_cpp | Enable or Disable building CPP library | True |
+| build_cpp | Enable or Disable building CPP library | False |
 | cpp_tests | Enable or Disable CPP Tests | False |
 | build_arrow | Build Arrow from Source | True |
 | arrow_root | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library. | /usr/local |

@@ -22,7 +22,7 @@ import java.io.IOException;
 public class ShuffleDecompressionJniWrapper {
 
   public ShuffleDecompressionJniWrapper() throws IOException {
-    JniUtils.getInstance();
+    JniInstance.getInstance();
   }
 
   /**

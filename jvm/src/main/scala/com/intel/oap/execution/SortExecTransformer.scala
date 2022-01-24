@@ -17,7 +17,7 @@
 
 package com.intel.oap.execution
 
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression._
 import com.intel.oap.vectorized._
 import com.google.common.collect.Lists
