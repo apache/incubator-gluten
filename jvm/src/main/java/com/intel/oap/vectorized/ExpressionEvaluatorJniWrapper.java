@@ -33,13 +33,24 @@ public class ExpressionEvaluatorJniWrapper {
         public String tmp_dir_path;
 
         /** Wrapper for native API. */
-        public ExpressionEvaluatorJniWrapper(String tmp_dir, List<String> listJars, String libName)
+        public ExpressionEvaluatorJniWrapper(String tmp_dir, List<String> listJars, String libName,
+                                             boolean loadArrowAndGandiva)
                         throws IOException, IllegalAccessException, IllegalStateException {
-                JniInstance jni = JniInstance.getInstance(tmp_dir, libName);
+                JniInstance jni = JniInstance.getInstance(tmp_dir, libName, loadArrowAndGandiva);
                 jni.setTempDir();
                 jni.setJars(listJars);
                 tmp_dir_path = jni.getTempDir();
         }
+
+        /**
+         * Create a whole_stage_transfrom kernel, and return a result iterator.
+         *
+         * @param nativeHandler nativeHandler of this expression
+         * @return iterator instance id
+         */
+        native long nativeCreateKernelWithIterator(long nativeHandler,
+                                                   byte[] wsExprListBuf,
+                                                   ColumnarNativeIterator[] batchItr)throws RuntimeException;
 
         /**
          * Set native env variables NATIVE_TMP_DIR
@@ -63,30 +74,6 @@ public class ExpressionEvaluatorJniWrapper {
          *                   spark.sql.execution.arrow.maxRecordsPerBatch
          */
         native void nativeSetMetricsTime(boolean is_enable);
-
-        /**
-         *
-         * Spill data to disk.
-         *
-         * @param nativeHandler nativeHandler representing expressions. Created using a
-         *                      call to buildNativeCode
-         * @param size expected size to spill (in bytes)
-         * @param callBySelf whether the caller is the expression evaluator itself, true
-         *                   when running out of off-heap memory due to allocations from
-         *                   the evaluator itself
-         * @return actual spilled size
-         */
-        native long nativeSpill(long nativeHandler, long size, boolean callBySelf) throws RuntimeException;
-
-        /**
-         * Create a whole_stage_transfrom kernel, and return a result iterator.
-         *
-         * @param nativeHandler nativeHandler of this expression
-         * @return iterator instance id
-         */
-        native long nativeCreateKernelWithIterator(long nativeHandler,
-                                                   byte[] wsExprListBuf,
-                                                   ColumnarNativeIterator[] batchItr) throws RuntimeException;
 
         /**
          * Closes the projector referenced by nativeHandler.

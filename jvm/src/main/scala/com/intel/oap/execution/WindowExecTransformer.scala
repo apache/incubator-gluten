@@ -20,7 +20,7 @@ package com.intel.oap.execution
 import java.util.concurrent.TimeUnit
 
 import com.google.flatbuffers.FlatBufferBuilder
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.{CodeGeneration, ConverterUtils}
 import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.vectorized.{ArrowWritableColumnVector, CloseableColumnBatchIterator, ExpressionEvaluator}

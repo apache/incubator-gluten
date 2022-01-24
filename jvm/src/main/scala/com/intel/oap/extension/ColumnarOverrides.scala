@@ -17,7 +17,7 @@
 
 package com.intel.oap.extension
 
-import com.intel.oap.{GazellePluginConfig, GazelleSparkExtensionsInjector}
+import com.intel.oap.{GazelleJniConfig, GazelleSparkExtensionsInjector}
 import com.intel.oap.execution._
 import com.intel.oap.extension.columnar.{RowGuard, TransformGuardRule}
 import org.apache.spark.internal.Logging
@@ -36,7 +36,7 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
 
 case class TransformPreOverrides() extends Rule[SparkPlan] {
-  val columnarConf: GazellePluginConfig = GazellePluginConfig.getSessionConf
+  val columnarConf: GazelleJniConfig = GazelleJniConfig.getSessionConf
   var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
@@ -214,7 +214,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 }
 
 case class TransformPostOverrides() extends Rule[SparkPlan] {
-  val columnarConf = GazellePluginConfig.getSessionConf
+  val columnarConf = GazelleJniConfig.getSessionConf
   var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {

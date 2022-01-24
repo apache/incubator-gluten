@@ -17,7 +17,7 @@
 
 package com.intel.oap.extension.columnar
 
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.execution._
 
 import org.apache.spark.rdd.RDD
@@ -45,7 +45,7 @@ case class RowGuard(child: SparkPlan) extends SparkPlan {
 }
 
 case class TransformGuardRule() extends Rule[SparkPlan] {
-  val columnarConf = GazellePluginConfig.getSessionConf
+  val columnarConf = GazelleJniConfig.getSessionConf
   val preferColumnar = columnarConf.enablePreferColumnar
   val optimizeLevel = columnarConf.joinOptimizationThrottle
   val enableColumnarShuffle = columnarConf.enableColumnarShuffle

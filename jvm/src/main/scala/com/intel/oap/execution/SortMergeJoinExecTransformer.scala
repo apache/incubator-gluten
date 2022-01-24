@@ -20,7 +20,7 @@ package com.intel.oap.execution
 import java.util.concurrent.TimeUnit._
 
 import com.intel.oap.vectorized._
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.{UserAddedJarUtils, Utils}

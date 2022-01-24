@@ -21,7 +21,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 import com.google.common.collect.Lists
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression._
 import com.intel.oap.substrait.extensions.{MappingBuilder, MappingNode}
 import com.intel.oap.substrait.plan.{PlanBuilder, PlanNode}
@@ -84,10 +84,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     with TransformSupport {
 
   val sparkConf = sparkContext.getConf
-  val numaBindingInfo = GazellePluginConfig.getConf.numaBindingInfo
-  val enableColumnarSortMergeJoinLazyRead =
-    GazellePluginConfig.getConf.enableColumnarSortMergeJoinLazyRead
-  val libName = GazellePluginConfig.getConf.nativeLibName
+  val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
+  val enableColumnarSortMergeJoinLazyRead: Boolean =
+    GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
+  val libName: String = GazelleJniConfig.getConf.nativeLibName
+  val loadArrow: Boolean = GazelleJniConfig.getConf.loadArrow
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -101,7 +102,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  override def supportsColumnar: Boolean = GazellePluginConfig.getConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GazelleJniConfig.getConf.enableColumnarIterator
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(transformStageId.asInstanceOf[Integer])
   override def generateTreeString(
@@ -131,7 +132,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def uploadAndListJars(signature: String): Seq[String] =
     if (signature != "") {
       if (sparkContext.listJars.filter(path => path.contains(s"${signature}.jar")).isEmpty) {
-        val tempDir = GazellePluginConfig.getRandomTempDir
+        val tempDir = GazelleJniConfig.getRandomTempDir
         val jarFileName =
           s"${tempDir}/tmp/spark-columnar-plugin-codegen-precompile-${signature}.jar"
         sparkContext.addJar(jarFileName)
@@ -360,7 +361,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     if (current_op.isDefined) {
       // If containing batchscan, a new RDD is created.
       // TODO: Remove ?
-      val execTempDir = GazellePluginConfig.getTempFile
+      val execTempDir = GazelleJniConfig.getTempFile
       val jarList = listJars.map(jarUrl => {
         logWarning(s"Get Codegened library Jar ${jarUrl}")
         UserAddedJarUtils.fetchJarFromSpark(
@@ -413,8 +414,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       curRDD.mapPartitions { iter =>
         ExecutorManager.tryTaskSet(numaBindingInfo)
-        GazellePluginConfig.getConf
-        val execTempDir = GazellePluginConfig.getTempFile
+        GazelleJniConfig.getConf
+        val execTempDir = GazelleJniConfig.getTempFile
         val jarList = listJars.map(jarUrl => {
           logWarning(s"Get Codegened library Jar ${jarUrl}")
           UserAddedJarUtils.fetchJarFromSpark(
@@ -430,7 +431,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           TreeBuilder.makeExpression(
             lazyReadFunction,
             Field.nullable("result", new ArrowType.Int(32, true)))
-        val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
+        val transKernel = new ExpressionEvaluator(jarList.toList.asJava, libName, loadArrow)
         val inBatchIter = new ColumnarNativeIterator(iter.asJava)
         val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
         inBatchIters.add(inBatchIter);

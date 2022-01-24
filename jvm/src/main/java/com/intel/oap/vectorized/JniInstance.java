@@ -35,21 +35,17 @@ import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-/** Helper class for JNI related operations. */
-
-/**
- * Java API for in-process profiling. Serves as a wrapper around
- * async-profiler native library. This class is a singleton.
- * The first call to {@link #getInstance()} initiates loading of
- * libasyncProfiler.so.
+/** Helper Java class for JNI Instance creation.
+ * Serves as a wrapper for native library. This class is a singleton.
+ * The first call to {@link #getInstance()} initiates loading of the native library.
  */
 public class JniInstance {
+  /** Default names for native backend, Arrow and Gandiva libraries. */
   private static final String LIBRARY_NAME = "spark_columnar_jni";
   private static final String ARROW_LIBRARY_NAME = "libarrow.so.400.0.0";
   private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.400";
   private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.400.0.0";
   private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.400";
-  private static final boolean loadArrowAndGandiva = true;
   private static boolean isLoaded = false;
   private static boolean isCodegenDependencyLoaded = false;
   private static List<String> codegenJarsLoadedCache = new ArrayList<>();
@@ -62,15 +58,16 @@ public class JniInstance {
   }
 
   public static JniInstance getInstance(String tmp_dir) throws IOException {
-    return getInstance(tmp_dir, null);
+    return getInstance(tmp_dir, null, true);
   }
 
-  public static JniInstance getInstance(String tmp_dir, String lib_name) throws IOException {
+  public static JniInstance getInstance(String tmp_dir, String lib_name,
+                                        boolean loadArrowAndGandiva) throws IOException {
     if (INSTANCE == null) {
       synchronized (JniInstance.class) {
         if (INSTANCE == null) {
           try {
-            INSTANCE = new JniInstance(tmp_dir, lib_name);
+            INSTANCE = new JniInstance(tmp_dir, lib_name, loadArrowAndGandiva);
           } catch (IllegalAccessException ex) {
             throw new IOException("IllegalAccess", ex);
           }
@@ -134,7 +131,8 @@ public class JniInstance {
 
   private JniInstance() throws IllegalStateException {}
 
-  private JniInstance(String _tmp_dir, String _lib_name) throws IOException, IllegalAccessException, IllegalStateException {
+  private JniInstance(String _tmp_dir, String _lib_name, boolean loadArrowAndGandiva)
+          throws IOException, IllegalAccessException, IllegalStateException {
     if (!isLoaded) {
       if (_tmp_dir.contains("nativesql")) {
         tmp_dir = _tmp_dir;
@@ -144,7 +142,7 @@ public class JniInstance {
         tmp_dir = path.toAbsolutePath().toString();
       }
       try {
-        loadLibraryFromJarWithLib(tmp_dir, _lib_name);
+        loadLibraryFromJarWithLib(tmp_dir, _lib_name, loadArrowAndGandiva);
       } catch (IOException ex) {
         if (_lib_name != null) {
           System.loadLibrary(_lib_name);
@@ -181,7 +179,7 @@ public class JniInstance {
   }
 
   static void loadLibraryFromJar(String tmp_dir) throws IOException, IllegalAccessException {
-    loadLibraryFromJarWithLib(tmp_dir, null);
+    loadLibraryFromJarWithLib(tmp_dir, null, true);
   }
 
   private static void loadLibraryFromJar(String source_jar, String tmp_dir) throws IOException, IllegalAccessException {
@@ -211,7 +209,8 @@ public class JniInstance {
     }
   }
 
-  static void loadLibraryFromJarWithLib(String tmp_dir, String lib_name) throws IOException, IllegalAccessException {
+  static void loadLibraryFromJarWithLib(String tmp_dir, String lib_name,
+                                        boolean loadArrowAndGandiva) throws IOException, IllegalAccessException {
     synchronized (JniInstance.class) {
       if (tmp_dir == null) {
         tmp_dir = System.getProperty("java.io.tmpdir");

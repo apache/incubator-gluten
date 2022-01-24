@@ -17,9 +17,8 @@
 
 package com.intel.oap.vectorized;
 
-import com.intel.oap.GazellePluginConfig;
+import com.intel.oap.GazelleJniConfig;
 import com.intel.oap.execution.ColumnarNativeIterator;
-import com.intel.oap.spark.sql.execution.datasources.v2.arrow.Spiller;
 import com.intel.oap.substrait.plan.PlanNode;
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
@@ -51,15 +50,20 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   public ExpressionEvaluator(List<String> listJars, String libName) throws IOException, IllegalAccessException, IllegalStateException {
-    String tmp_dir = GazellePluginConfig.getTempFile();
+    this(listJars, libName, true);
+  }
+
+  public ExpressionEvaluator(List<String> listJars, String libName, boolean loadArrowAndGandiva)
+          throws IOException, IllegalAccessException, IllegalStateException {
+    String tmp_dir = GazelleJniConfig.getTempFile();
     if (tmp_dir == null) {
       tmp_dir = System.getProperty("java.io.tmpdir");
     }
-    jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName);
+    jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName, loadArrowAndGandiva);
     jniWrapper.nativeSetJavaTmpDir(jniWrapper.tmp_dir_path);
-    jniWrapper.nativeSetBatchSize(GazellePluginConfig.getBatchSize());
-    jniWrapper.nativeSetMetricsTime(GazellePluginConfig.getEnableMetricsTime());
-    GazellePluginConfig.setRandomTempDir(jniWrapper.tmp_dir_path);
+    jniWrapper.nativeSetBatchSize(GazelleJniConfig.getBatchSize());
+    jniWrapper.nativeSetMetricsTime(GazelleJniConfig.getEnableMetricsTime());
+    GazelleJniConfig.setRandomTempDir(jniWrapper.tmp_dir_path);
   }
 
   long getInstanceId() {
@@ -89,7 +93,7 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   byte[] getSchemaBytesBuf(Schema schema) throws IOException {
-    if (schema == null) return null; 
+    if (schema == null) return null;
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema);
     return out.toByteArray();
@@ -105,21 +109,5 @@ public class ExpressionEvaluator implements AutoCloseable {
 
   byte[] getPlanBytesBuf(PlanNode planNode) {
     return planNode.toProtobuf().toByteArray();
-  }
-
-  private class NativeSpiller implements Spiller {
-
-    private NativeSpiller() {
-    }
-
-    @Override
-    public long spill(long size, MemoryConsumer trigger) {
-      if (nativeHandler == 0) {
-        throw new IllegalStateException("Fatal: spill() called before a spillable expression " +
-            "evaluator is created. This behavior should be optimized by moving memory " +
-            "allocations from expression build to evaluation");
-      }
-      return jniWrapper.nativeSpill(nativeHandler, size, false); // fixme pass true when being called by self
-    }
   }
 }

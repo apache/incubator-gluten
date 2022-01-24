@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit._
 
 import com.intel.oap.vectorized._
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 
 import org.apache.spark.{broadcast, TaskContext}
 import org.apache.spark.rdd.RDD
