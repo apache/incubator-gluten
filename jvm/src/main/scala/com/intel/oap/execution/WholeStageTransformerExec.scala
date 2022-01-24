@@ -329,7 +329,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       logWarning(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
-      val wsRDD = new WholestageNativeRowRDD(sparkContext, substraitPlanPartition,
+      val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition,
         batchScan.readerFactory, true)
       wsRDD
     } else {

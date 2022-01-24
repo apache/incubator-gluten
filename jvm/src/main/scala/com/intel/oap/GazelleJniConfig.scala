@@ -26,7 +26,7 @@ case class GazelleNumaBindingInfo(
     numCoresPerExecutor: Int = -1) {}
 
 class GazelleJniConfig(conf: SQLConf) extends Logging {
-  def getCpu(): Boolean = {
+  def getCpu: Boolean = {
     val source = scala.io.Source.fromFile("/proc/cpuinfo")
     val lines = try source.mkString finally source.close()
     // TODO(): check CPU flags to enable/disable AVX512
@@ -40,7 +40,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   }
 
   // for all operators
-  val enableCpu: Boolean = getCpu()
+  val enableCpu: Boolean = getCpu
   
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
