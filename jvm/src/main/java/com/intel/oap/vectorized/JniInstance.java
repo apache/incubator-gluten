@@ -48,7 +48,8 @@ public class JniInstance {
   private static final String ARROW_LIBRARY_NAME = "libarrow.so.400.0.0";
   private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.400";
   private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.400.0.0";
-  private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.400"; 
+  private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.400";
+  private static final boolean loadArrowAndGandiva = false;
   private static boolean isLoaded = false;
   private static boolean isCodegenDependencyLoaded = false;
   private static List<String> codegenJarsLoadedCache = new ArrayList<>();
@@ -145,12 +146,14 @@ public class JniInstance {
       try {
         loadLibraryFromJarWithLib(tmp_dir, _lib_name);
       } catch (IOException ex) {
-        System.load(ARROW_LIBRARY_NAME);
-        System.load(GANDIVA_LIBRARY_NAME);
         if (_lib_name != null) {
           System.loadLibrary(_lib_name);
         } else {
           System.loadLibrary(LIBRARY_NAME);
+        }
+        if (loadArrowAndGandiva) {
+          System.load(ARROW_LIBRARY_NAME);
+          System.load(GANDIVA_LIBRARY_NAME);
         }
       }
       isLoaded = true;
@@ -158,7 +161,7 @@ public class JniInstance {
   }
 
   public void setTempDir() throws IOException, IllegalAccessException {
-    if (isCodegenDependencyLoaded == false) {
+    if (!isCodegenDependencyLoaded) {
       loadIncludeFromJar(tmp_dir);
       isCodegenDependencyLoaded = true;
     }
@@ -213,23 +216,6 @@ public class JniInstance {
       if (tmp_dir == null) {
         tmp_dir = System.getProperty("java.io.tmpdir");
       }
-      final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
-      Path arrow_target = Paths.get(arrowlibraryFile.getPath());
-      Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
-      if (Files.exists(arrow_link)) {
-        Files.delete(arrow_link);
-      }
-      Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
-      System.load(arrowlibraryFile.getAbsolutePath());
-
-      final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
-      Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
-      Path gandiva_link = Paths.get(tmp_dir, GANDIVA_PARENT_LIBRARY_NAME);
-      if (Files.exists(gandiva_link)) {
-        Files.delete(gandiva_link);
-      }
-      Files.createSymbolicLink(gandiva_link, gandiva_target);
-      System.load(gandivalibraryFile.getAbsolutePath());
 
       final String libraryToLoad;
       if (lib_name != null) {
@@ -239,6 +225,26 @@ public class JniInstance {
       }
       final File libraryFile = moveFileFromJarToTemp(tmp_dir, libraryToLoad);
       System.load(libraryFile.getAbsolutePath());
+
+      if (loadArrowAndGandiva) {
+        final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
+        Path arrow_target = Paths.get(arrowlibraryFile.getPath());
+        Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
+        if (Files.exists(arrow_link)) {
+          Files.delete(arrow_link);
+        }
+        Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
+        System.load(arrowlibraryFile.getAbsolutePath());
+
+        final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
+        Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
+        Path gandiva_link = Paths.get(tmp_dir, GANDIVA_PARENT_LIBRARY_NAME);
+        if (Files.exists(gandiva_link)) {
+          Files.delete(gandiva_link);
+        }
+        Files.createSymbolicLink(gandiva_link, gandiva_target);
+        System.load(gandivalibraryFile.getAbsolutePath());
+      }
     }
   }
 

@@ -25,35 +25,17 @@ import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.Serializable;
-import java.util.List;
-import org.apache.arrow.memory.ArrowBuf;
 import java.io.ByteArrayOutputStream;
 import java.nio.channels.Channels;
-import org.apache.arrow.gandiva.evaluator.SelectionVectorInt16;
 import org.apache.arrow.vector.ipc.WriteChannel;
-import org.apache.arrow.vector.ipc.message.ArrowBuffer;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 
 public class BatchIterator implements AutoCloseable, Serializable {
   private native boolean nativeHasNext(long nativeHandler);
   private native byte[] nativeNext(long nativeHandler);
-  private native MetricsObject nativeFetchMetrics(long nativeHandler);
-  private native byte[] nativeProcess(long nativeHandler,
-      byte[] schemaBuf, int numRows, long[] bufAddrs, long[] bufSizes);
-  private native void nativeProcessAndCacheOne(long nativeHandler, byte[] schemaBuf,
-      int numRows, long[] bufAddrs, long[] bufSizes);
-  private native byte[] nativeProcessWithSelection(long nativeHandler,
-      byte[] schemaBuf, int numRows, long[] bufAddrs, long[] bufSizes,
-      int selectionVectorRecordCount, long selectionVectorAddr, long selectionVectorSize);
-  private native void nativeProcessAndCacheOneWithSelection(long nativeHandler,
-      byte[] schemaBuf, int numRows, long[] bufAddrs, long[] bufSizes,
-      int selectionVectorRecordCount, long selectionVectorAddr, long selectionVectorSize);
-  private native void nativeSetDependencies(long nativeHandler, long[] dependencies);
-  private native NativeSerializableObject nativeNextHashRelation(long nativeHandler);
-  private native void nativeSetHashRelation(
-      long nativeHandler, long[] memoryAddrs, int[] sizes);
   private native void nativeClose(long nativeHandler);
+  private native MetricsObject nativeFetchMetrics(long nativeHandler);
 
   private long nativeHandler = 0;
   private boolean closed = false;
@@ -87,119 +69,6 @@ public class BatchIterator implements AutoCloseable, Serializable {
       return null;
     }
     return nativeFetchMetrics(nativeHandler);
-  }
-
-  public SerializableObject nextHashRelationObject()
-      throws IOException, ClassNotFoundException {
-    if (nativeHandler == 0) {
-      return null;
-    }
-    NativeSerializableObject obj = nativeNextHashRelation(nativeHandler);
-    SerializableObject objImpl = new SerializableObject(obj, new AutoCloseable[]{this});
-    return objImpl;
-  }
-
-  public void setHashRelationObject(SerializableObject obj) throws IOException {
-    if (nativeHandler == 0) {
-      return;
-    }
-    // pass directbuffer memory to below function
-    nativeSetHashRelation(nativeHandler, obj.getDirectMemoryAddrs(), obj.size);
-  }
-
-  public ArrowRecordBatch process(Schema schema, ArrowRecordBatch recordBatch)
-      throws IOException {
-    return process(schema, recordBatch, null);
-  }
-
-  public ArrowRecordBatch process(Schema schema, ArrowRecordBatch recordBatch,
-      SelectionVectorInt16 selectionVector) throws IOException {
-    int num_rows = recordBatch.getLength();
-    List<ArrowBuf> buffers = recordBatch.getBuffers();
-    List<ArrowBuffer> buffersLayout = recordBatch.getBuffersLayout();
-
-    long[] bufAddrs = new long[buffers.size()];
-    long[] bufSizes = new long[buffers.size()];
-
-    int idx = 0;
-    for (ArrowBuf buf : buffers) {
-      bufAddrs[idx++] = buf.memoryAddress();
-    }
-
-    idx = 0;
-    for (ArrowBuffer bufLayout : buffersLayout) {
-      bufSizes[idx++] = bufLayout.getSize();
-    }
-
-    if (nativeHandler == 0) {
-      return null;
-    }
-    BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
-    byte[] serializedRecordBatch;
-    if (selectionVector != null) {
-      int selectionVectorRecordCount = selectionVector.getRecordCount();
-      long selectionVectorAddr = selectionVector.getBuffer().memoryAddress();
-      long selectionVectorSize = selectionVector.getBuffer().capacity();
-      serializedRecordBatch = nativeProcessWithSelection(nativeHandler,
-          getSchemaBytesBuf(schema), num_rows, bufAddrs, bufSizes,
-          selectionVectorRecordCount, selectionVectorAddr, selectionVectorSize);
-    } else {
-      serializedRecordBatch = nativeProcess(
-          nativeHandler, getSchemaBytesBuf(schema), num_rows, bufAddrs, bufSizes);
-    }
-    if (serializedRecordBatch == null) {
-      return null;
-    }
-    return UnsafeRecordBatchSerializer.deserializeUnsafe(allocator,
-        serializedRecordBatch);
-  }
-
-  public void processAndCacheOne(Schema schema, ArrowRecordBatch recordBatch)
-      throws IOException {
-    processAndCacheOne(schema, recordBatch, null);
-  }
-
-  public void processAndCacheOne(Schema schema, ArrowRecordBatch recordBatch,
-      SelectionVectorInt16 selectionVector) throws IOException {
-    int num_rows = recordBatch.getLength();
-    List<ArrowBuf> buffers = recordBatch.getBuffers();
-    List<ArrowBuffer> buffersLayout = recordBatch.getBuffersLayout();
-
-    long[] bufAddrs = new long[buffers.size()];
-    long[] bufSizes = new long[buffers.size()];
-
-    int idx = 0;
-    for (ArrowBuf buf : buffers) {
-      bufAddrs[idx++] = buf.memoryAddress();
-    }
-
-    idx = 0;
-    for (ArrowBuffer bufLayout : buffersLayout) {
-      bufSizes[idx++] = bufLayout.getSize();
-    }
-
-    if (nativeHandler == 0) {
-      return;
-    }
-    if (selectionVector != null) {
-      int selectionVectorRecordCount = selectionVector.getRecordCount();
-      long selectionVectorAddr = selectionVector.getBuffer().memoryAddress();
-      long selectionVectorSize = selectionVector.getBuffer().capacity();
-      nativeProcessAndCacheOneWithSelection(nativeHandler, getSchemaBytesBuf(schema),
-          num_rows, bufAddrs, bufSizes, selectionVectorRecordCount, selectionVectorAddr,
-          selectionVectorSize);
-    } else {
-      nativeProcessAndCacheOne(
-          nativeHandler, getSchemaBytesBuf(schema), num_rows, bufAddrs, bufSizes);
-    }
-  }
-
-  public void setDependencies(BatchIterator[] dependencies) {
-    long[] instanceIdList = new long[dependencies.length];
-    for (int i = 0; i < dependencies.length; i++) {
-      instanceIdList[i] = dependencies[i].getInstanceId();
-    }
-    nativeSetDependencies(nativeHandler, instanceIdList);
   }
 
   @Override

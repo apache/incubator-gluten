@@ -138,49 +138,10 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.right)
           if (!transformer.doValidate()) return false
           transformer
-//        case plan: BroadcastExchangeExec =>
-//          if (!enableColumnarBroadcastExchange) return false
-//          ColumnarBroadcastExchangeExec(plan.mode, plan.child)
-//        case plan: BroadcastHashJoinExec =>
-//          // We need to check if BroadcastExchangeExec can be converted to columnar-based.
-//          // If not, BHJ should also be row-based.
-//          if (!enableColumnarBroadcastJoin) return false
-//          val left = plan.left
-//          left match {
-//            case exec: BroadcastExchangeExec =>
-//              new ColumnarBroadcastExchangeExec(exec.mode, exec.child)
-//            case BroadcastQueryStageExec(_, plan: BroadcastExchangeExec) =>
-//              new ColumnarBroadcastExchangeExec(plan.mode, plan.child)
-//            case BroadcastQueryStageExec(_, plan: ReusedExchangeExec) =>
-//              plan match {
-//                case ReusedExchangeExec(_, b: BroadcastExchangeExec) =>
-//                  new ColumnarBroadcastExchangeExec(b.mode, b.child)
-//                case _ =>
-//              }
-//            case _ =>
-//          }
-//          val right = plan.right
-//          right match {
-//            case exec: BroadcastExchangeExec =>
-//              new ColumnarBroadcastExchangeExec(exec.mode, exec.child)
-//            case BroadcastQueryStageExec(_, plan: BroadcastExchangeExec) =>
-//              new ColumnarBroadcastExchangeExec(plan.mode, plan.child)
-//            case BroadcastQueryStageExec(_, plan: ReusedExchangeExec) =>
-//              plan match {
-//                case ReusedExchangeExec(_, b: BroadcastExchangeExec) =>
-//                  new ColumnarBroadcastExchangeExec(b.mode, b.child)
-//                case _ =>
-//              }
-//            case _ =>
-//          }
-//          ColumnarBroadcastHashJoinExec(
-//            plan.leftKeys,
-//            plan.rightKeys,
-//            plan.joinType,
-//            plan.buildSide,
-//            plan.condition,
-//            plan.left,
-//            plan.right)
+        case plan: BroadcastExchangeExec =>
+          return false
+        case plan: BroadcastHashJoinExec =>
+          return false
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) return false
           val transformer = SortMergeJoinExecTransformer(

@@ -22,16 +22,10 @@ import com.intel.oap.execution.ColumnarNativeIterator;
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow.Spiller;
 import com.intel.oap.substrait.plan.PlanNode;
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
-import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer;
-import org.apache.arrow.gandiva.evaluator.SelectionVectorInt16;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.gandiva.expression.ExpressionTree;
 import org.apache.arrow.gandiva.ipc.GandivaTypes;
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.WriteChannel;
-import org.apache.arrow.vector.ipc.message.ArrowBuffer;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.memory.MemoryConsumer;
@@ -71,73 +65,6 @@ public class ExpressionEvaluator implements AutoCloseable {
     return nativeHandler;
   }
 
-  /** Convert ExpressionTree into native function. */
-  public String build(Schema schema, List<ExpressionTree> exprs)
-      throws RuntimeException, IOException, GandivaException {
-    NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-    nativeHandler = jniWrapper.nativeBuild(memoryPool.getNativeInstanceId(), getSchemaBytesBuf(schema),
-        getExprListBytesBuf(exprs), null, false);
-    return jniWrapper.nativeGetSignature(nativeHandler);
-  }
-
-  /** Convert ExpressionTree into native function. */
-  public String build(Schema schema, List<ExpressionTree> exprs, boolean finishReturn)
-      throws RuntimeException, IOException, GandivaException {
-    NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-    nativeHandler = jniWrapper.nativeBuild(memoryPool.getNativeInstanceId(), getSchemaBytesBuf(schema),
-        getExprListBytesBuf(exprs), null, finishReturn);
-    return jniWrapper.nativeGetSignature(nativeHandler);
-  }
-
-  /** Convert ExpressionTree into native function. */
-  public String build(Schema schema, List<ExpressionTree> exprs, Schema resSchema)
-      throws RuntimeException, IOException, GandivaException {
-    NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-    nativeHandler = jniWrapper.nativeBuild(memoryPool.getNativeInstanceId(), getSchemaBytesBuf(schema),
-        getExprListBytesBuf(exprs), getSchemaBytesBuf(resSchema), false);
-    return jniWrapper.nativeGetSignature(nativeHandler);
-  }
-
-  /** Convert ExpressionTree into native function. */
-  public String build(Schema schema, List<ExpressionTree> exprs, Schema resSchema, boolean finishReturn)
-      throws RuntimeException, IOException, GandivaException {
-    NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-    nativeHandler = jniWrapper.nativeBuild(memoryPool.getNativeInstanceId(), getSchemaBytesBuf(schema),
-        getExprListBytesBuf(exprs), getSchemaBytesBuf(resSchema), finishReturn);
-    return jniWrapper.nativeGetSignature(nativeHandler);
-  }
-
-  /** Convert ExpressionTree into native function. */
-  public String build(Schema schema, List<ExpressionTree> exprs, Schema resSchema, boolean finishReturn, NativeMemoryPool memoryPool)
-      throws RuntimeException, IOException, GandivaException {
-    nativeHandler = jniWrapper.nativeBuild(memoryPool.getNativeInstanceId(), getSchemaBytesBuf(schema),
-        getExprListBytesBuf(exprs), getSchemaBytesBuf(resSchema), finishReturn);
-    return jniWrapper.nativeGetSignature(nativeHandler);
-  }
-
-  /** Convert ExpressionTree into native function. */
-  public String build(Schema schema, List<ExpressionTree> exprs, Schema resSchema, boolean finishReturn, boolean enableSpill)
-      throws RuntimeException, IOException, GandivaException {
-    final NativeMemoryPool memoryPool;
-    if (enableSpill) {
-      memoryPool = SparkMemoryUtils.createSpillableMemoryPool(new NativeSpiller());
-    } else {
-      memoryPool = SparkMemoryUtils.contextMemoryPool();
-    }
-    nativeHandler = jniWrapper.nativeBuild(memoryPool.getNativeInstanceId(), getSchemaBytesBuf(schema),
-        getExprListBytesBuf(exprs), getSchemaBytesBuf(resSchema), finishReturn);
-    return jniWrapper.nativeGetSignature(nativeHandler);
-  }
-
-  /** Convert ExpressionTree into native function. */
-  public String build(Schema schema, List<ExpressionTree> exprs, List<ExpressionTree> finish_exprs)
-      throws RuntimeException, IOException, GandivaException {
-    NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-    nativeHandler = jniWrapper.nativeBuildWithFinish(memoryPool.getNativeInstanceId(),
-        getSchemaBytesBuf(schema), getExprListBytesBuf(exprs), getExprListBytesBuf(finish_exprs));
-    return jniWrapper.nativeGetSignature(nativeHandler);
-  }
-
   /** Used by WholeStageTransfrom */
   public BatchIterator createNativeKernelWithIterator(
           Schema ws_in_schema, byte[] ws_plan,
@@ -166,135 +93,6 @@ public class ExpressionEvaluator implements AutoCloseable {
           throws RuntimeException, IOException, GandivaException {
     return createNativeKernelWithIterator(ws_in_schema, getPlanBytesBuf(ws_plan),
             ws_res_schema, in_exprs, batchItr, dependencies, finishReturn);
-  }
-
-  /** Set result Schema in some special cases */
-  public void setReturnFields(Schema schema) throws RuntimeException, IOException, GandivaException {
-    jniWrapper.nativeSetReturnFields(nativeHandler, getSchemaBytesBuf(schema));
-  }
-
-  /**
-   * Evaluate input data using builded native function, and output as recordBatch.
-   */
-  public ArrowRecordBatch[] evaluate(ArrowRecordBatch recordBatch) throws RuntimeException, IOException {
-    return evaluate(recordBatch, null);
-  }
-
-  public void evaluate(ColumnarNativeIterator batchItr)
-          throws RuntimeException, IOException {
-    jniWrapper.nativeEvaluateWithIterator(nativeHandler,
-        batchItr);
-  }
-
-  /**
-   * Evaluate input data using builded native function, and output as recordBatch.
-   */
-  public ArrowRecordBatch[] evaluate2(ArrowRecordBatch recordBatch) throws RuntimeException, IOException {
-    byte[] bytes = UnsafeRecordBatchSerializer.serializeUnsafe(recordBatch);
-    byte[][] serializedBatchArray = jniWrapper.nativeEvaluate2(nativeHandler, bytes);
-    BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
-    ArrowRecordBatch[] recordBatchList = new ArrowRecordBatch[serializedBatchArray.length];
-    for (int i = 0; i < serializedBatchArray.length; i++) {
-      if (serializedBatchArray[i] == null) {
-        recordBatchList[i] = null;
-        break;
-      }
-      recordBatchList[i] = UnsafeRecordBatchSerializer.deserializeUnsafe(allocator,
-          serializedBatchArray[i]);
-    }
-    return recordBatchList;
-  }
-
-  /**
-   * Evaluate input data using builded native function, and output as recordBatch.
-   */
-  public ArrowRecordBatch[] evaluate(ArrowRecordBatch recordBatch, SelectionVectorInt16 selectionVector)
-      throws RuntimeException, IOException {
-    List<ArrowBuf> buffers = recordBatch.getBuffers();
-    List<ArrowBuffer> buffersLayout = recordBatch.getBuffersLayout();
-    long[] bufAddrs = new long[buffers.size()];
-    long[] bufSizes = new long[buffers.size()];
-    int idx = 0;
-    for (ArrowBuf buf : buffers) {
-      bufAddrs[idx++] = buf.memoryAddress();
-    }
-
-    idx = 0;
-    for (ArrowBuffer bufLayout : buffersLayout) {
-      bufSizes[idx++] = bufLayout.getSize();
-    }
-
-    BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
-
-    byte[][] serializedBatchArray;
-    if (selectionVector != null) {
-      int selectionVectorRecordCount = selectionVector.getRecordCount();
-      long selectionVectorAddr = selectionVector.getBuffer().memoryAddress();
-      long selectionVectorSize = selectionVector.getBuffer().capacity();
-      serializedBatchArray = jniWrapper.nativeEvaluateWithSelection(nativeHandler, recordBatch.getLength(),
-          bufAddrs, bufSizes, selectionVectorRecordCount, selectionVectorAddr, selectionVectorSize);
-    } else {
-      serializedBatchArray = jniWrapper.nativeEvaluate(nativeHandler, recordBatch.getLength(), bufAddrs, bufSizes);
-    }
-    ArrowRecordBatch[] recordBatchList = new ArrowRecordBatch[serializedBatchArray.length];
-    for (int i = 0; i < serializedBatchArray.length; i++) {
-      if (serializedBatchArray[i] == null) {
-        recordBatchList[i] = null;
-        break;
-      }
-      recordBatchList[i] = UnsafeRecordBatchSerializer.deserializeUnsafe(allocator,
-          serializedBatchArray[i]);
-    }
-    return recordBatchList;
-  }
-
-  /**
-   * Evaluate input data using builded native function, and output as recordBatch.
-   */
-  public void SetMember(ArrowRecordBatch recordBatch) throws RuntimeException, IOException {
-    List<ArrowBuf> buffers = recordBatch.getBuffers();
-    List<ArrowBuffer> buffersLayout = recordBatch.getBuffersLayout();
-    long[] bufAddrs = new long[buffers.size()];
-    long[] bufSizes = new long[buffers.size()];
-    int idx = 0;
-    for (ArrowBuf buf : buffers) {
-      bufAddrs[idx++] = buf.memoryAddress();
-    }
-
-    idx = 0;
-    for (ArrowBuffer bufLayout : buffersLayout) {
-      bufSizes[idx++] = bufLayout.getSize();
-    }
-
-    jniWrapper.nativeSetMember(nativeHandler, recordBatch.getLength(), bufAddrs, bufSizes);
-  }
-
-  public ArrowRecordBatch[] finish() throws RuntimeException, IOException {
-    BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
-    byte[][] serializedBatchArray = jniWrapper.nativeFinish(nativeHandler);
-    ArrowRecordBatch[] recordBatchList = new ArrowRecordBatch[serializedBatchArray.length];
-    for (int i = 0; i < serializedBatchArray.length; i++) {
-      if (serializedBatchArray[i] == null) {
-        recordBatchList[i] = null;
-        break;
-      }
-      recordBatchList[i] = UnsafeRecordBatchSerializer.deserializeUnsafe(allocator,
-          serializedBatchArray[i]);
-    }
-    return recordBatchList;
-  }
-
-  public BatchIterator finishByIterator() throws RuntimeException, IOException {
-    long batchIteratorInstance = jniWrapper.nativeFinishByIterator(nativeHandler);
-    return new BatchIterator(batchIteratorInstance);
-  }
-
-  public void setDependency(BatchIterator child) throws RuntimeException, IOException {
-    jniWrapper.nativeSetDependency(nativeHandler, child.getInstanceId(), -1);
-  }
-
-  public void setDependency(BatchIterator child, int index) throws RuntimeException, IOException {
-    jniWrapper.nativeSetDependency(nativeHandler, child.getInstanceId(), index);
   }
 
   @Override
