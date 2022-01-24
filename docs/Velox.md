@@ -36,8 +36,7 @@ Secondly, when compiling Velox, please note that Velox generated static librarie
 Also, some OBJECT settings in CMakeLists are removed in order to acquire the static libraries.
 For these two changes, please refer to this commit [Velox Compiling](https://github.com/rui-mo/velox/commit/ce1dee8f776bc3afa36cd3fc033161fc062cbe98).
 
-Currently, we depends on this Velox commmit: 
-8d3e951 (Jan 18 2022)
+Currently, we depends on this Velox commmit: **8d3e951 (Jan 18 2022)**
 
 ### An example for Velox computing in Spark based on Gazelle-Jni
 

@@ -24,7 +24,7 @@ import java.util.Objects
 import scala.language.implicitConversions
 import com.intel.oap.GazellePlugin.GAZELLE_SESSION_EXTENSION_NAME
 import com.intel.oap.GazellePlugin.SPARK_SESSION_EXTS_KEY
-import com.intel.oap.extension.StrategyOverrides
+import com.intel.oap.extension.{ColumnarOverrides, StrategyOverrides}
 import com.intel.oap.vectorized.ExpressionEvaluator
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext

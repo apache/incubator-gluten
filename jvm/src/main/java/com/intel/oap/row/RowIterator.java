@@ -17,6 +17,7 @@
 
 package com.intel.oap.row;
 
+import com.intel.oap.vectorized.JniInstance;
 import io.kyligence.jni.engine.LocalEngine;
 
 import java.io.IOException;
@@ -29,7 +30,7 @@ public class RowIterator {
   public RowIterator() throws IOException {}
 
   public RowIterator(byte[] plan, String soFilePath) throws IOException {
-    this.localEngine = JniInstance.getInstance(soFilePath).buildLocalEngine(plan);
+    this.localEngine = JniInstance.getInstanceWithLibPath(soFilePath).buildLocalEngine(plan);
     this.localEngine.execute();
   }
 

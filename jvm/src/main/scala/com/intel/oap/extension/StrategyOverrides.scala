@@ -18,7 +18,7 @@
 package com.intel.oap.extension
 
 import com.intel.oap.GazellePlugin
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.GazelleSparkExtensionsInjector
 
 import org.apache.spark.sql.SparkSessionExtensions
@@ -39,7 +39,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
         return Nil
       }
 
-      if (GazellePluginConfig.getSessionConf.forceShuffledHashJoin) {
+      if (GazelleJniConfig.getSessionConf.forceShuffledHashJoin) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
         return Option(getSmallerSide(left, right)).map {

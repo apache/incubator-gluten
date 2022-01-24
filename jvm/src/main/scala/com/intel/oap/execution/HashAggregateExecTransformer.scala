@@ -24,7 +24,7 @@ import com.intel.oap.expression._
 import com.intel.oap.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
 import com.intel.oap.substrait.SubstraitContext
-import com.intel.oap.GazellePluginConfig
+import com.intel.oap.GazelleJniConfig
 import java.util
 
 import org.apache.spark.rdd.RDD
@@ -53,7 +53,7 @@ case class HashAggregateExecTransformer(
 
   val sparkConf = sparkContext.getConf
 
-  override def supportsColumnar: Boolean = GazellePluginConfig.getConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GazelleJniConfig.getConf.enableColumnarIterator
 
   val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
