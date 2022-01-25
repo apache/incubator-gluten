@@ -21,6 +21,7 @@ import java.io._
 
 import com.intel.oap.GazelleJniConfig
 import com.intel.oap.row.RowIterator
+import com.intel.oap.vectorized.ExpressionEvaluator
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 
 import org.apache.spark.rdd.RDD
@@ -37,7 +38,6 @@ class NativeWholestageRowRDD(
     extends RDD[InternalRow](sc, Nil) {
   val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
   val loadNative = GazelleJniConfig.getConf.loadNative
-  val libName = GazelleJniConfig.getConf.nativeLibName
 
   override protected def getPartitions: Array[Partition] = {
     inputPartitions.zipWithIndex.map {
@@ -62,8 +62,9 @@ class NativeWholestageRowRDD(
 
     var resIter : RowIterator = null
     if (loadNative) {
-      resIter = new RowIterator(inputPartition.substraitPlan,
-        GazelleJniConfig.getConf.nativeLibPath)
+      val transKernel = new ExpressionEvaluator()
+      val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
+      resIter = transKernel.createKernelWithRowIterator(inputPartition.substraitPlan, inBatchIters)
     }
 
     val iter = new Iterator[InternalRow] with AutoCloseable {

@@ -18,24 +18,24 @@
 package com.intel.oap.execution
 
 import java.io.Serializable
-import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import com.google.common.collect.Lists
+
 import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
 import com.intel.oap.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.util.OASPackageBridge._
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util._
 
 case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
@@ -74,8 +74,6 @@ class NativeWholeStageColumnarRDD(
     extends RDD[ColumnarBatch](sc, Nil) {
   val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
   val loadNative: Boolean = GazelleJniConfig.getConf.loadNative
-  val libName: String = GazelleJniConfig.getConf.nativeLibName
-  val loadArrow: Boolean = GazelleJniConfig.getConf.loadArrow
 
   override protected def getPartitions: Array[Partition] = {
     inputPartitions.zipWithIndex.map {
@@ -103,10 +101,10 @@ class NativeWholeStageColumnarRDD(
     var resIter : BatchIterator = null
     if (loadNative) {
       // TODO: 'jarList' is kept for codegen
-      val transKernel = new ExpressionEvaluator(jarList.toList.asJava, libName, loadArrow)
+      val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
       val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
       outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
-      resIter = transKernel.createKernelWithIterator(
+      resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
     }
     val iter = new Iterator[Any] {

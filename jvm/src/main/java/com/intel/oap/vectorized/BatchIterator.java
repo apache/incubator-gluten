@@ -43,7 +43,6 @@ public class BatchIterator implements AutoCloseable, Serializable {
   public BatchIterator() throws IOException {}
 
   public BatchIterator(long instance_id) throws IOException {
-    JniInstance.getInstance();
     nativeHandler = instance_id;
   }
 
