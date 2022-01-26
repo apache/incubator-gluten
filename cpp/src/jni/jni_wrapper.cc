@@ -372,6 +372,10 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   return batch_iterator_holder_.Insert(std::move(ws_result_iterator));
 }
 
+JNIEXPORT void JNICALL
+Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
+    JNIEnv* env, jobject obj) {}
+
 JNIEXPORT jboolean JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeHasNext(
     JNIEnv* env, jobject obj, jlong id) {
   JNI_METHOD_START
