@@ -17,20 +17,17 @@
 
 package com.intel.oap
 
-import java.util
-import java.util.Collections
-import java.util.Objects
+import java.util.{Collections, Objects}
 
 import scala.language.implicitConversions
-import com.intel.oap.GazellePlugin.GAZELLE_SESSION_EXTENSION_NAME
-import com.intel.oap.GazellePlugin.SPARK_SESSION_EXTS_KEY
+
+import com.intel.oap.GazellePlugin.{GAZELLE_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import com.intel.oap.extension.{ColumnarOverrides, StrategyOverrides}
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.api.plugin.DriverPlugin
-import org.apache.spark.api.plugin.ExecutorPlugin
-import org.apache.spark.api.plugin.PluginContext
-import org.apache.spark.api.plugin.SparkPlugin
+import com.intel.oap.vectorized.ExpressionEvaluator
+import java.util
+import org.apache.spark.{SparkConf, SparkContext}
+
+import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
 
@@ -61,7 +58,27 @@ private[oap] class GazelleDriverPlugin extends DriverPlugin {
 }
 
 private[oap] class GazelleExecutorPlugin extends ExecutorPlugin {
-  // N/A
+  /**
+   * Initialize the executor plugin.
+   */
+  override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    // SQLConf is not initialed here, so it can not use 'GazelleJniConfig.getConf' to get conf.
+    if (ctx.conf().getBoolean(GazelleJniConfig.OAP_LOAD_NATIVE, true)) {
+      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
+        ctx.conf().get(GazelleJniConfig.OAP_LIB_NAME, "spark_columnar_jni"),
+        ctx.conf().get(GazelleJniConfig.OAP_LIB_PATH, ""),
+        ctx.conf().getBoolean(GazelleJniConfig.OAP_LOAD_ARROW, true))
+      initKernel.initNative()
+    }
+  }
+
+  /**
+   * Clean up and terminate this plugin.
+   * For example: close the native engine.
+   */
+  override def shutdown(): Unit = {
+    super.shutdown()
+  }
 }
 
 private[oap] class GazelleSessionExtensions extends (SparkSessionExtensions => Unit) {

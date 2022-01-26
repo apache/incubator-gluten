@@ -22,6 +22,8 @@ import java.io.File
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
+import com.intel.oap.GazelleJniConfig
+
 import org.apache.spark.sql.SparkSession
 
 object BenchmarkTest {
@@ -36,7 +38,8 @@ object BenchmarkTest {
       val resourcePath = rootPath + "../../../src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
-      (new File(dataPath).getAbsolutePath, "parquet", 10, false, queryPath + "q06.sql", "")
+      //(new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "")
+      ("/data1/test_output/tpch-data-sf10", "parquet", 100, false, queryPath + "q06.sql", "")
     }
 
     val sqlStr = Source.fromFile(new File(sqlFilePath), "UTF-8")
@@ -47,14 +50,14 @@ object BenchmarkTest {
 
     val sessionBuilder = if (!configed) {
       sessionBuilderTmp
-        .master("local[1]")
+        .master("local[3]")
         .config("spark.driver.memory", "4G")
         .config("spark.driver.memoryOverhead", "6G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
         .config("spark.sql.shuffle.partitions", 1)
         .config("spark.sql.adaptive.enabled", "false")
-        .config("spark.sql.files.maxPartitionBytes", 128 << 10 << 10) // default is 128M
+        .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.minPartitionNum", "1")
         .config("spark.sql.parquet.filterPushdown", "true")
         .config("spark.locality.wait", "0s")
@@ -63,14 +66,15 @@ object BenchmarkTest {
         .config("spark.sql.sources.useV1SourceList", "avro")
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
-        .config("spark.sql.parquet.columnarReaderBatchSize", "20000")
+        //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         .config("spark.plugins", "com.intel.oap.GazellePlugin")
-        .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
+        //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.oap.sql.columnar.columnartorow", "false")
-        .config("spark.oap.sql.columnar.loadnative", "false")
-        .config("spark.oap.sql.columnar.libpath",
+        .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
+        .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
+        .config(GazelleJniConfig.OAP_LIB_PATH,
           "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
-        .config("spark.oap.sql.columnar.iterator", "true")
+        .config("spark.oap.sql.columnar.iterator", "false")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
@@ -81,7 +85,7 @@ object BenchmarkTest {
 
     val spark = sessionBuilder.getOrCreate()
     if (!configed) {
-      spark.sparkContext.setLogLevel("INFO")
+      spark.sparkContext.setLogLevel("WARN")
     }
 
     testSQL(spark, parquetFilesPath, fileFormat, executedCnt, sqlStr.mkString)

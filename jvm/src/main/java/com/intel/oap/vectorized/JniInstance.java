@@ -17,7 +17,6 @@
 
 package com.intel.oap.vectorized;
 
-import io.kyligence.jni.engine.LocalEngine;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
@@ -58,16 +57,16 @@ public class JniInstance {
   }
 
   public static JniInstance getInstance(String tmp_dir) throws IOException {
-    return getInstance(tmp_dir, null, true);
+    return getInstance(tmp_dir, null, null, true);
   }
 
-  public static JniInstance getInstance(String tmp_dir, String lib_name,
+  public static JniInstance getInstance(String tmp_dir, String lib_name, String libPath,
                                         boolean loadArrowAndGandiva) throws IOException {
     if (INSTANCE == null) {
       synchronized (JniInstance.class) {
         if (INSTANCE == null) {
           try {
-            INSTANCE = new JniInstance(tmp_dir, lib_name, loadArrowAndGandiva);
+            INSTANCE = new JniInstance(tmp_dir, lib_name, libPath, loadArrowAndGandiva);
           } catch (IllegalAccessException ex) {
             throw new IOException("IllegalAccess", ex);
           }
@@ -77,61 +76,8 @@ public class JniInstance {
     return INSTANCE;
   }
 
-  public static JniInstance getInstanceWithLibPath() {
-    return getInstanceWithLibPath(null);
-  }
-
-  /**
-   * A function used to load an pre-installed library from the specific path.
-   * **/
-  public static synchronized JniInstance getInstanceWithLibPath(String libPath) {
-    if (INSTANCE != null) {
-      return INSTANCE;
-    }
-    File file = null;
-    boolean libPathExists = false;
-    if (StringUtils.isNotBlank(libPath)) {
-      file = new File(libPath);
-      libPathExists = file.isFile() && file.exists();
-    }
-    String libName = "liblocal_engine_jnid";
-    if (!libPathExists) {
-      String soFileName = "/" + libName + ".so";
-      try {
-        InputStream is = JniInstance.class.getResourceAsStream(soFileName);
-        file = File.createTempFile("lib", ".so");
-        OutputStream os = new FileOutputStream(file);
-        byte[] buffer = new byte[128 << 10];
-        int length;
-        while ((length = is.read(buffer)) != -1) {
-          os.write(buffer, 0, length);
-        }
-        is.close();
-        os.close();
-      } catch (IOException e) {
-      }
-    }
-    if (file != null) {
-      try {
-        file.setReadable(true, false);
-        System.load(file.getAbsolutePath());
-        libPath = file.getAbsolutePath();
-      } catch (UnsatisfiedLinkError error) {
-        throw error;
-      }
-    }
-    INSTANCE = new JniInstance();
-    LocalEngine.initEngineEnv();
-    return INSTANCE;
-  }
-
-  public LocalEngine buildLocalEngine(byte[] substraitPlan) {
-    return new LocalEngine(substraitPlan);
-  }
-
-  private JniInstance() throws IllegalStateException {}
-
-  private JniInstance(String _tmp_dir, String _lib_name, boolean loadArrowAndGandiva)
+  private JniInstance(String _tmp_dir, String _lib_name, String libPath,
+                      boolean loadArrowAndGandiva)
           throws IOException, IllegalAccessException, IllegalStateException {
     if (!isLoaded) {
       if (_tmp_dir.contains("nativesql")) {
@@ -142,7 +88,11 @@ public class JniInstance {
         tmp_dir = path.toAbsolutePath().toString();
       }
       try {
-        loadLibraryFromJarWithLib(tmp_dir, _lib_name, loadArrowAndGandiva);
+        if (StringUtils.isNotBlank(libPath)) {
+          loadLibraryFromLibPath(tmp_dir, libPath, loadArrowAndGandiva);
+        } else {
+          loadLibraryFromJarWithLib(tmp_dir, _lib_name, loadArrowAndGandiva);
+        }
       } catch (IOException ex) {
         if (_lib_name != null) {
           System.loadLibrary(_lib_name);
@@ -209,6 +159,48 @@ public class JniInstance {
     }
   }
 
+  /**
+   * A function used to load arrow and gandiva lib from jars
+   */
+  static void loadArrowAndGandivaFromJarWithLib(String tmp_dir) throws IOException, IllegalAccessException {
+    final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
+    Path arrow_target = Paths.get(arrowlibraryFile.getPath());
+    Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
+    if (Files.exists(arrow_link)) {
+      Files.delete(arrow_link);
+    }
+    Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
+    System.load(arrowlibraryFile.getAbsolutePath());
+
+    final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
+    Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
+    Path gandiva_link = Paths.get(tmp_dir, GANDIVA_PARENT_LIBRARY_NAME);
+    if (Files.exists(gandiva_link)) {
+      Files.delete(gandiva_link);
+    }
+    Files.createSymbolicLink(gandiva_link, gandiva_target);
+    System.load(gandivalibraryFile.getAbsolutePath());
+  }
+
+  /**
+   * A function used to load an pre-installed library from the specific path.
+   * **/
+  static void loadLibraryFromLibPath(String tmp_dir, String libPath,
+                                     boolean loadArrowAndGandiva)
+          throws IOException, IllegalAccessException {
+    synchronized (JniInstance.class) {
+      File file = new File(libPath);
+      if (!file.isFile() || !file.exists()) {
+        throw new IOException("Library path: " + libPath + " is not a file or does not exist.");
+      }
+      System.load(file.getAbsolutePath());
+
+      if (loadArrowAndGandiva) {
+        loadArrowAndGandivaFromJarWithLib(tmp_dir);
+      }
+    }
+  }
+
   static void loadLibraryFromJarWithLib(String tmp_dir, String lib_name,
                                         boolean loadArrowAndGandiva) throws IOException, IllegalAccessException {
     synchronized (JniInstance.class) {
@@ -226,23 +218,7 @@ public class JniInstance {
       System.load(libraryFile.getAbsolutePath());
 
       if (loadArrowAndGandiva) {
-        final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
-        Path arrow_target = Paths.get(arrowlibraryFile.getPath());
-        Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
-        if (Files.exists(arrow_link)) {
-          Files.delete(arrow_link);
-        }
-        Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
-        System.load(arrowlibraryFile.getAbsolutePath());
-
-        final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
-        Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
-        Path gandiva_link = Paths.get(tmp_dir, GANDIVA_PARENT_LIBRARY_NAME);
-        if (Files.exists(gandiva_link)) {
-          Files.delete(gandiva_link);
-        }
-        Files.createSymbolicLink(gandiva_link, gandiva_target);
-        System.load(gandivalibraryFile.getAbsolutePath());
+        loadArrowAndGandivaFromJarWithLib(tmp_dir);
       }
     }
   }

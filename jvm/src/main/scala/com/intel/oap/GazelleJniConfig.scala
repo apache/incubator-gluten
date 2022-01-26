@@ -17,6 +17,8 @@
 
 package com.intel.oap
 
+import java.util.Locale
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -27,15 +29,20 @@ case class GazelleNumaBindingInfo(
 
 class GazelleJniConfig(conf: SQLConf) extends Logging {
   def getCpu: Boolean = {
-    val source = scala.io.Source.fromFile("/proc/cpuinfo")
-    val lines = try source.mkString finally source.close()
-    // TODO(): check CPU flags to enable/disable AVX512
-    if (lines.contains("GenuineIntel")) {
+    // only for developing on mac
+    if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac")) {
       true
     } else {
-      // System.out.println(actualSchemaRoot.getRowCount());
-      logWarning("running on non-intel CPU, disable all columnar operators")
-      false
+      val source = scala.io.Source.fromFile("/proc/cpuinfo")
+      val lines = try source.mkString finally source.close()
+      // TODO(): check CPU flags to enable/disable AVX512
+      if (lines.contains("GenuineIntel")) {
+        true
+      } else {
+        // System.out.println(actualSchemaRoot.getRowCount());
+        logWarning("running on non-intel CPU, disable all columnar operators")
+        false
+      }
     }
   }
 
@@ -133,21 +140,21 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // This config is used for deciding whether to load the native library.
   // When false, only Java code will be executed for a quick test.
   val loadNative: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.loadnative", "true").toBoolean
+    conf.getConfString(GazelleJniConfig.OAP_LOAD_NATIVE, "true").toBoolean
 
   // This config is used for deciding whether to load Arrow and Gandiva libraries from
   // the native library. If the native library does not depend on Arrow and Gandiva,
   // this config should will set as false.
   val loadArrow: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.loadarrow", "true").toBoolean
+    conf.getConfString(GazelleJniConfig.OAP_LOAD_ARROW, "true").toBoolean
 
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
-    conf.getConfString("spark.oap.sql.columnar.libname", "spark_columnar_jni")
+    conf.getConfString(GazelleJniConfig.OAP_LIB_NAME, "spark_columnar_jni")
 
   // This config is used for specifying the absolute path of the native library.
   val nativeLibPath: String =
-    conf.getConfString("spark.oap.sql.columnar.libpath", "")
+    conf.getConfString(GazelleJniConfig.OAP_LIB_PATH, "")
 
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
@@ -199,6 +206,12 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
 }
 
 object GazelleJniConfig {
+
+  val OAP_LOAD_NATIVE = "spark.oap.sql.columnar.loadnative"
+  val OAP_LIB_NAME = "spark.oap.sql.columnar.libname"
+  val OAP_LIB_PATH = "spark.oap.sql.columnar.libpath"
+  val OAP_LOAD_ARROW = "spark.oap.sql.columnar.loadarrow"
+
   var ins: GazelleJniConfig = null
   var random_temp_dir_path: String = null
 

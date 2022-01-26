@@ -34,23 +34,34 @@ public class ExpressionEvaluatorJniWrapper {
 
         /** Wrapper for native API. */
         public ExpressionEvaluatorJniWrapper(String tmp_dir, List<String> listJars, String libName,
-                                             boolean loadArrowAndGandiva)
+                                             String libPath, boolean loadArrowAndGandiva)
                         throws IOException, IllegalAccessException, IllegalStateException {
-                JniInstance jni = JniInstance.getInstance(tmp_dir, libName, loadArrowAndGandiva);
+                JniInstance jni = JniInstance.getInstance(tmp_dir, libName, libPath,
+                        loadArrowAndGandiva);
                 jni.setTempDir();
                 jni.setJars(listJars);
                 tmp_dir_path = jni.getTempDir();
         }
 
         /**
-         * Create a whole_stage_transfrom kernel, and return a result iterator.
+         * Call initNative to initialize native computing.
+         */
+        native void nativeInitNative();
+
+        /**
+         * Create a whole_stage_transform kernel, and return a result iterator.
          *
          * @param nativeHandler nativeHandler of this expression
          * @return iterator instance id
          */
         native long nativeCreateKernelWithIterator(long nativeHandler,
                                                    byte[] wsExprListBuf,
-                                                   ColumnarNativeIterator[] batchItr)throws RuntimeException;
+                                                   ColumnarNativeIterator[] batchItr) throws RuntimeException;
+
+        /**
+         * Create a whole stage transform kernel and return a row iterator.
+         */
+        native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
 
         /**
          * Set native env variables NATIVE_TMP_DIR
@@ -69,9 +80,6 @@ public class ExpressionEvaluatorJniWrapper {
 
         /**
          * Set native env variables NATIVESQL_METRICS_TIME
-         *
-         * @param batch_size numRows of one batch, use
-         *                   spark.sql.execution.arrow.maxRecordsPerBatch
          */
         native void nativeSetMetricsTime(boolean is_enable);
 
