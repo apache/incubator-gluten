@@ -87,8 +87,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
-  val libName: String = GazelleJniConfig.getConf.nativeLibName
-  val loadArrow: Boolean = GazelleJniConfig.getConf.loadArrow
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -330,7 +328,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
       val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition,
-        batchScan.readerFactory, true)
+        batchScan.readerFactory, false)
       wsRDD
     } else {
       sparkContext.emptyRDD
@@ -431,7 +429,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           TreeBuilder.makeExpression(
             lazyReadFunction,
             Field.nullable("result", new ArrowType.Int(32, true)))
-        val transKernel = new ExpressionEvaluator(jarList.toList.asJava, libName, loadArrow)
+        val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
         val inBatchIter = new ColumnarNativeIterator(iter.asJava)
         val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
         inBatchIters.add(inBatchIter);
@@ -439,7 +437,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         val beforeBuild = System.nanoTime()
         val inputSchema = ConverterUtils.toArrowSchema(inputAttributes)
         val outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
-        val nativeIterator = transKernel.createKernelWithIterator(rootNode, inBatchIters)
+        val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
         build_elapse += System.nanoTime() - beforeBuild
         val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
         val resIter = streamedSortPlan match {

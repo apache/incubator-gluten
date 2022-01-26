@@ -19,6 +19,7 @@ package com.intel.oap.vectorized;
 
 import com.intel.oap.GazelleJniConfig;
 import com.intel.oap.execution.ColumnarNativeIterator;
+import com.intel.oap.row.RowIterator;
 import com.intel.oap.substrait.plan.PlanNode;
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
@@ -46,20 +47,29 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   public ExpressionEvaluator(List<String> listJars) throws IOException, IllegalAccessException, IllegalStateException {
-    this(listJars, null);
+    this(listJars, GazelleJniConfig.getConf().nativeLibName());
   }
 
   public ExpressionEvaluator(List<String> listJars, String libName) throws IOException, IllegalAccessException, IllegalStateException {
-    this(listJars, libName, true);
+    this(listJars, libName,
+            GazelleJniConfig.getSessionConf().nativeLibPath(),
+            GazelleJniConfig.getConf().loadArrow());
   }
 
-  public ExpressionEvaluator(List<String> listJars, String libName, boolean loadArrowAndGandiva)
+  public ExpressionEvaluator(String libPath)
+          throws IOException, IllegalAccessException, IllegalStateException {
+    this(java.util.Collections.emptyList(), null, libPath, GazelleJniConfig.getConf().loadArrow());
+  }
+
+  public ExpressionEvaluator(List<String> listJars, String libName,
+                             String libPath, boolean loadArrowAndGandiva)
           throws IOException, IllegalAccessException, IllegalStateException {
     String tmp_dir = GazelleJniConfig.getTempFile();
     if (tmp_dir == null) {
       tmp_dir = System.getProperty("java.io.tmpdir");
     }
-    jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName, loadArrowAndGandiva);
+    jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName, libPath,
+            loadArrowAndGandiva);
     jniWrapper.nativeSetJavaTmpDir(jniWrapper.tmp_dir_path);
     jniWrapper.nativeSetBatchSize(GazelleJniConfig.getBatchSize());
     jniWrapper.nativeSetMetricsTime(GazelleJniConfig.getEnableMetricsTime());
@@ -75,7 +85,7 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   /** Used by WholeStageTransfrom */
-  public BatchIterator createKernelWithIterator(
+  public BatchIterator createKernelWithBatchIterator(
           byte[] wsPlan, ArrayList<ColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
     NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
@@ -85,10 +95,17 @@ public class ExpressionEvaluator implements AutoCloseable {
     return new BatchIterator(batchIteratorInstance);
   }
 
-  public BatchIterator createKernelWithIterator(
+  public BatchIterator createKernelWithBatchIterator(
           PlanNode wsPlan, ArrayList<ColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
-    return createKernelWithIterator(getPlanBytesBuf(wsPlan), iterList);
+    return createKernelWithBatchIterator(getPlanBytesBuf(wsPlan), iterList);
+  }
+
+  public RowIterator createKernelWithRowIterator(
+          byte[] wsPlan,
+          ArrayList<ColumnarNativeIterator> iterList) throws RuntimeException, IOException {
+      long rowIteratorInstance = jniWrapper.nativeCreateKernelWithRowIterator(wsPlan);
+      return new RowIterator(rowIteratorInstance);
   }
 
   @Override

@@ -17,41 +17,45 @@
 
 package com.intel.oap.row;
 
-import com.intel.oap.vectorized.JniInstance;
-import io.kyligence.jni.engine.LocalEngine;
+import com.intel.oap.vectorized.MetricsObject;
 
 import java.io.IOException;
 
 public class RowIterator {
+  private native boolean nativeHasNext(long nativeHandler);
+  private native SparkRowInfo nativeNext(long nativeHandler);
+  private native void nativeClose(long nativeHandler);
+  private native MetricsObject nativeFetchMetrics(long nativeHandler);
 
-  private LocalEngine localEngine;
+  private long nativeHandler = 0L;
   private boolean closed = false;
 
-  public RowIterator() throws IOException {}
-
-  public RowIterator(byte[] plan, String soFilePath) throws IOException {
-    this.localEngine = JniInstance.getInstanceWithLibPath(soFilePath).buildLocalEngine(plan);
-    this.localEngine.execute();
+  public RowIterator(long nativeHandler) throws IOException {
+      this.nativeHandler = nativeHandler;
   }
 
   public boolean hasNext() throws IOException {
-    return this.localEngine.hasNext();
+      return nativeHasNext(nativeHandler);
   }
 
   public SparkRowInfo next() throws IOException {
-    if (this.localEngine == null) {
+    if (nativeHandler == 0) {
       return null;
     }
-    return this.localEngine.next();
+    return nativeNext(nativeHandler);
+  }
+
+  public MetricsObject getMetrics() throws IOException, ClassNotFoundException {
+    if (nativeHandler == 0) {
+      return null;
+    }
+    return nativeFetchMetrics(nativeHandler);
   }
 
   public void close() {
     if (!closed) {
-      if (this.localEngine != null) {
-        try {
-          this.localEngine.close();
-        } catch (IOException e) {
-        }
+      if (nativeHandler != 0L) {
+          nativeClose(nativeHandler);
       }
       closed = true;
     }
