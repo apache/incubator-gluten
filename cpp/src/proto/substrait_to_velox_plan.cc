@@ -17,6 +17,7 @@
 
 #include "substrait_to_velox_plan.h"
 
+#include "type_utils.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -404,31 +405,6 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
     return arrow::Status::OK();
   }
 
-  bool isPrimitive(const TypePtr& type) {
-    switch (type->kind()) {
-      case TypeKind::TINYINT:
-      case TypeKind::SMALLINT:
-      case TypeKind::INTEGER:
-      case TypeKind::BIGINT:
-      case TypeKind::REAL:
-      case TypeKind::DOUBLE:
-        return true;
-      default:
-        break;
-    }
-    return false;
-  }
-
-  bool isString(const TypePtr& type) {
-    switch (type->kind()) {
-      case TypeKind::VARCHAR:
-        return true;
-      default:
-        break;
-    }
-    return false;
-  }
-
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
     // FIXME: only one-col case is considered
     auto out_types = plan_node_->outputType();
@@ -452,15 +428,15 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
       }
       out_data.buffers[0] = val_buffer;
       auto col_type = out_types->childAt(idx);
+      auto col_arrow_type = toArrowType(col_type);
+      ret_types.push_back(arrow::field("res", col_arrow_type));
+      out_data.type = col_arrow_type;
       if (isPrimitive(col_type)) {
-        out_data.type = arrow::float64();
-        auto bytes = sizeof(double);
         auto data_buffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[1]), bytes * num_rows_);
+            static_cast<const uint8_t*>(arrowArray.buffers[1]),
+            bytesOfType(col_type) * num_rows_);
         out_data.buffers[1] = data_buffer;
-        ret_types = {arrow::field("res", arrow::float64())};
       } else if (isString(col_type)) {
-        out_data.type = arrow::utf8();
         auto value_buffer = std::make_shared<arrow::Buffer>(
             static_cast<const uint8_t*>(arrowArray.buffers[1]),
             arrowArray.string_data_size);
@@ -474,7 +450,6 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
         */
         out_data.buffers[1] = offset_buffer;
         out_data.buffers[2] = value_buffer;
-        ret_types = {arrow::field("res", arrow::utf8())};
       }
       std::shared_ptr<arrow::Array> out_array =
           MakeArray(std::make_shared<arrow::ArrayData>(std::move(out_data)));
