@@ -17,6 +17,10 @@
 
 #include "substrait_to_velox_plan.h"
 
+#include "type_utils.h"
+#include "velox/buffer/Buffer.h"
+#include "velox/vector/arrow/Bridge.h"
+
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
@@ -237,13 +241,20 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   for (auto sub_type : substrait_type_list) {
     velox_type_list.push_back(expr_converter_->getVeloxType(sub_type->type));
   }
-  auto& sfilter = sread.filter();
-  hive::SubfieldFilters filters =
-      expr_converter_->toVeloxFilter(col_name_list, velox_type_list, sfilter);
+  // Note: Velox require Filter pushdown must being enabled.
   bool filter_pushdown_enabled = true;
-  auto table_handle = std::make_shared<hive::HiveTableHandle>(
-      filter_pushdown_enabled, std::move(filters), nullptr);
-
+  std::shared_ptr<hive::HiveTableHandle> table_handle;
+  if (!sread.has_filter()) {
+    std::cout << "no filter" << std::endl;
+    table_handle = std::make_shared<hive::HiveTableHandle>(
+        filter_pushdown_enabled, hive::SubfieldFilters{}, nullptr);
+  } else {
+    auto& sfilter = sread.filter();
+    hive::SubfieldFilters filters =
+        expr_converter_->toVeloxFilter(col_name_list, velox_type_list, sfilter);
+    table_handle = std::make_shared<hive::HiveTableHandle>(filter_pushdown_enabled,
+                                                           std::move(filters), nullptr);
+  }
   std::vector<std::string> out_names;
   std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
   for (int idx = 0; idx < col_name_list.size(); idx++) {
@@ -396,40 +407,59 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
 
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
     // FIXME: only one-col case is considered
-    auto col_num = 1;
+    auto out_types = plan_node_->outputType();
+    uint32_t col_num = out_types->size();
     std::vector<std::shared_ptr<arrow::Array>> out_arrays;
-    for (int idx = 0; idx < col_num; idx++) {
+    std::vector<std::shared_ptr<arrow::Field>> ret_types;
+    for (uint32_t idx = 0; idx < col_num; idx++) {
       arrow::ArrayData out_data;
-      out_data.type = arrow::float64();
-      out_data.buffers.resize(2);
       out_data.length = num_rows_;
-      auto vec = result_->childAt(idx)->as<FlatVector<double>>();
-      uint64_t array_null_count = 0;
-      std::optional<int32_t> null_count = vec->getNullCount();
+      auto vec = result_->childAt(idx);
+      // FIXME: need to release this.
+      ArrowArray arrowArray;
+      exportToArrow(vec, arrowArray, velox_pool_.get());
+      out_data.buffers.resize(arrowArray.n_buffers);
+      out_data.null_count = arrowArray.null_count;
+      // Validity buffer
       std::shared_ptr<arrow::Buffer> val_buffer = nullptr;
-      if (null_count) {
-        int32_t vec_null_count = *null_count;
-        array_null_count += vec_null_count;
-        const uint64_t* rawNulls = vec->rawNulls();
+      if (arrowArray.null_count > 0) {
+        arrowArray.buffers[0];
         // FIXME: set BitMap
       }
-      out_data.null_count = array_null_count;
-      uint8_t* raw_result = vec->mutableRawValues<uint8_t>();
-      auto bytes = sizeof(double);
-      auto data_buffer = std::make_shared<arrow::Buffer>(raw_result, bytes * num_rows_);
       out_data.buffers[0] = val_buffer;
-      out_data.buffers[1] = data_buffer;
+      auto col_type = out_types->childAt(idx);
+      auto col_arrow_type = toArrowType(col_type);
+      ret_types.push_back(arrow::field("res", col_arrow_type));
+      out_data.type = col_arrow_type;
+      if (isPrimitive(col_type)) {
+        auto data_buffer = std::make_shared<arrow::Buffer>(
+            static_cast<const uint8_t*>(arrowArray.buffers[1]),
+            bytesOfType(col_type) * num_rows_);
+        out_data.buffers[1] = data_buffer;
+      } else if (isString(col_type)) {
+        auto value_buffer = std::make_shared<arrow::Buffer>(
+            static_cast<const uint8_t*>(arrowArray.buffers[1]),
+            arrowArray.string_data_size);
+        auto offset_bytes = sizeof(int32_t);
+        auto offset_buffer = std::make_shared<arrow::Buffer>(
+            static_cast<const uint8_t*>(arrowArray.buffers[2]),
+            offset_bytes * (num_rows_ + 1));
+        /* Velox:                     Arrow:
+           buffer_1 -> value          buffer_1 -> offset
+           buffer_2 -> offset         buffer_2 -> value
+        */
+        out_data.buffers[1] = offset_buffer;
+        out_data.buffers[2] = value_buffer;
+      }
       std::shared_ptr<arrow::Array> out_array =
           MakeArray(std::make_shared<arrow::ArrayData>(std::move(out_data)));
       out_arrays.push_back(out_array);
       // int ref_count = vec->mutableValues(0)->refCount();
     }
-    // auto typed_array = std::dynamic_pointer_cast<arrow::DoubleArray>(out_arrays[0]);
+    // auto typed_array = std::dynamic_pointer_cast<arrow::StringArray>(out_arrays[0]);
     // for (int i = 0; i < typed_array->length(); i++) {
-    //     std::cout << "array val: " << typed_array->GetView(i) << std::endl;
+    //   std::cout << "array val: " << typed_array->GetString(i) << std::endl;
     // }
-    std::vector<std::shared_ptr<arrow::Field>> ret_types = {
-        arrow::field("res", arrow::float64())};
     *out = arrow::RecordBatch::Make(arrow::schema(ret_types), num_rows_, out_arrays);
     num_rows_ = 0;
     return arrow::Status::OK();
@@ -437,6 +467,7 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
 
  private:
   arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
+  std::unique_ptr<memory::MemoryPool> velox_pool_{memory::getDefaultScopedMemoryPool()};
   const std::shared_ptr<const core::PlanNode> plan_node_;
   std::unique_ptr<test::TaskCursor> cursor_;
   test::CursorParameters params_;

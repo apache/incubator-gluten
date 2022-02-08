@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/array/array_binary.h>
 #include <arrow/array/array_primitive.h>
 #include <arrow/array/data.h>
 #include <arrow/array/util.h>
@@ -26,7 +27,6 @@
 
 #include "substrait_to_velox_expr.h"
 #include "substrait_utils.h"
-#include "velox/buffer/Buffer.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
