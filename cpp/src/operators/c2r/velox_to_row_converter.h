@@ -18,6 +18,7 @@
 #pragma once
 
 #include <arrow/memory_pool.h>
+#include <arrow/record_batch.h>
 #include <arrow/type.h>
 
 #include "velox/vector/ComplexVector.h"
@@ -25,7 +26,7 @@
 namespace gazellejni {
 namespace columnartorow {
 
-class VeloxToRowConverter(const RowVectorPtr& rv) : rv_(rv) {}
+class VeloxToRowConverter(const std::shared_ptr<arrow::RecordBatch>& rb) : rb_(rb) {}
 
 public:
 VeloxToRowConverter(const std::shared_ptr<arrow::Schema>& schema);
@@ -38,9 +39,12 @@ const std::vector<int64_t>& GetOffsets() { return offsets_; }
 const std::vector<int64_t>& GetLengths() { return lengths_; }
 
 private:
-RowVectorPtr rv_;
+// RowVectorPtr rv_;
+std::vector<VectorPtr> vecs_;
+std::shared_ptr<arrow::RecordBatch> rb_;
 char* buffer_address_;
 arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
+std::unique_ptr<memory::MemoryPool> velox_pool_{memory::getDefaultScopedMemoryPool()};
 std::vector<int64_t> offsets_;
 std::vector<int64_t> lengths_;
 std::shared_ptr<arrow::Schema> schema_;
