@@ -28,6 +28,9 @@
 namespace gazellejni {
 namespace columnartorow {
 
+void mockSchemaRelease(ArrowSchema*) {}
+void mockArrayRelease(ArrowArray*) {}
+
 arrow::Status VeloxToRowConverter::Init() {
   num_rows_ = rb_->num_rows();
   num_cols_ = rb_->num_columns();
@@ -62,24 +65,49 @@ arrow::Status VeloxToRowConverter::Init() {
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = (char*)buffer_->mutable_data();
   // The input is fake Arrow batch. We need to resume Velox Vector here.
-  for (int col_idx; col_idx < num_cols_; col_idx++) {
+  for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
     auto array = rb_->column(col_idx);
     auto array_data = array->data();
     const void* data_addr = array_data->buffers[1]->data();
-    BufferPtr nulls = nullptr;
-    BufferPtr values = wrapInBufferViewAsViewer(data_addr, 8 * num_rows_);
-    auto& pool = *velox_pool_;
-    auto flatVector = std::make_shared<FlatVector<double>>(
-        &pool, nulls, num_rows_, values, std::vector<BufferPtr>());
-    vecs_.push_back(flatVector);
+    const void* buffers[] = {nullptr, data_addr};
+    const char* format = "g";
+    auto arrow_schema = ArrowSchema{
+        .format = format,
+        .name = nullptr,
+        .metadata = nullptr,
+        .flags = 0,
+        .n_children = 0,
+        .children = nullptr,
+        .dictionary = nullptr,
+        .release = mockSchemaRelease,
+        .private_data = nullptr,
+    };
+    // auto null_count = array->null_count();
+    auto arrow_array = ArrowArray{
+        .length = num_rows_,
+        .null_count = 0,
+        .offset = 0,
+        .n_buffers = 2,
+        .n_children = 0,
+        .string_data_size = 0,
+        .buffers = buffers,
+        .children = nullptr,
+        .dictionary = nullptr,
+        .release = mockArrayRelease,
+        .private_data = nullptr,
+    };
+
+    VectorPtr vec = importFromArrowAsViewer(arrow_schema, arrow_array);
+    // auto& pool = *velox_pool_;
+    vecs_.push_back(vec);
   }
   return arrow::Status::OK();
 }
 
 void VeloxToRowConverter::Write() {
-  for (int col_idx; col_idx < num_cols_; col_idx++) {
+  for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
     auto vec = vecs_[col_idx];
-    for (int row_idx; row_idx < num_rows_; row_idx++) {
+    for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
       int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, row_idx);
       auto value_address = buffer_address_ + offsets_[row_idx] + field_offset;
       auto serialized =
