@@ -23,35 +23,38 @@
 
 #include "velox/vector/ComplexVector.h"
 
+using namespace facebook::velox;
+
 namespace gazellejni {
 namespace columnartorow {
 
-class VeloxToRowConverter(const std::shared_ptr<arrow::RecordBatch>& rb) : rb_(rb) {}
+class VeloxToRowConverter {
+ public:
+  VeloxToRowConverter(const std::shared_ptr<arrow::RecordBatch>& rb,
+                      arrow::MemoryPool* memory_pool)
+      : rb_(rb), memory_pool_(memory_pool) {}
 
-public:
-VeloxToRowConverter(const std::shared_ptr<arrow::Schema>& schema);
+  arrow::Status Init();
+  void Write();
 
-void Init();
-void Write();
+  char* GetBufferAddress() { return buffer_address_; }
+  const std::vector<int64_t>& GetOffsets() { return offsets_; }
+  const std::vector<int64_t>& GetLengths() { return lengths_; }
 
-char* GetBufferAddress() { return buffer_address_; }
-const std::vector<int64_t>& GetOffsets() { return offsets_; }
-const std::vector<int64_t>& GetLengths() { return lengths_; }
+ private:
+  // RowVectorPtr rv_;
+  std::vector<VectorPtr> vecs_;
+  std::shared_ptr<arrow::RecordBatch> rb_;
+  std::shared_ptr<arrow::Buffer> buffer_;
+  char* buffer_address_;
+  arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
+  std::unique_ptr<memory::MemoryPool> velox_pool_{memory::getDefaultScopedMemoryPool()};
+  std::vector<int64_t> offsets_;
+  std::vector<int64_t> lengths_;
+  int64_t nullBitsetWidthInBytes_;
+  int64_t num_cols_;
+  int64_t num_rows_;
+};
 
-private:
-// RowVectorPtr rv_;
-std::vector<VectorPtr> vecs_;
-std::shared_ptr<arrow::RecordBatch> rb_;
-char* buffer_address_;
-arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
-std::unique_ptr<memory::MemoryPool> velox_pool_{memory::getDefaultScopedMemoryPool()};
-std::vector<int64_t> offsets_;
-std::vector<int64_t> lengths_;
-std::shared_ptr<arrow::Schema> schema_;
-int64_t nullBitsetWidthInBytes_;
-int64_t num_cols_;
-int64_t num_rows_;
 }  // namespace columnartorow
-
-}  // namespace gazellejni
 }  // namespace gazellejni

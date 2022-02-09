@@ -75,10 +75,6 @@ void BitSet(uint8_t* buffer_address, int32_t index) {
   memcpy(buffer_address + wordOffset, &value, sizeof(int64_t));
 }
 
-int64_t GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index) {
-  return nullBitsetWidthInBytes + 8L * index;
-}
-
 void SetNullAt(uint8_t* buffer_address, int64_t row_offset, int64_t field_offset,
                int32_t col_index) {
   BitSet(buffer_address + row_offset, col_index);

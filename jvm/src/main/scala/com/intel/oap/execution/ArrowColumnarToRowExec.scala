@@ -18,7 +18,7 @@
 package com.intel.oap.execution
 
 import com.intel.oap.expression.ConverterUtils
-import com.intel.oap.vectorized.{ArrowColumnarToRowJniWrapper, ArrowWritableColumnVector}
+import com.intel.oap.vectorized.{ArrowWritableColumnVector, ColumnarToRowJniWrapper}
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -74,7 +74,7 @@ class ArrowColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child =
 
     child.executeColumnar().mapPartitions { batches =>
       // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
-      val jniWrapper = new ArrowColumnarToRowJniWrapper()
+      val jniWrapper = new ColumnarToRowJniWrapper()
       var arrowSchema: Array[Byte] = null
 
       def serializeSchema(fields: Seq[Field]): Array[Byte] = {
@@ -118,7 +118,7 @@ class ArrowColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child =
 
           val beforeConvert = System.nanoTime()
 
-          val info = jniWrapper.nativeConvertColumnarToRow(
+          val info = jniWrapper.nativeConvertVeloxColumnarToRow(
             arrowSchema, batch.numRows, bufAddrs.toArray, bufSizes.toArray,
             SparkMemoryUtils.contextMemoryPool().getNativeInstanceId)
 

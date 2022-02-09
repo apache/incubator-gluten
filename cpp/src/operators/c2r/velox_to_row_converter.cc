@@ -17,22 +17,23 @@
 
 #include "velox_to_row_converter.h"
 
+#include <arrow/array/array_base.h>
+#include <arrow/buffer.h>
+
 #include "conversion_utils.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
+#include "velox/vector/arrow/Bridge.h"
 
 namespace gazellejni {
 namespace columnartorow {
 
-VeloxToRowConverter::VeloxToRowConverter(const std::shared_ptr<arrow::Schema>& schema)
-    : schema_(schema) {}
-
-void VeloxToRowConverter::Init() {
+arrow::Status VeloxToRowConverter::Init() {
   num_rows_ = rb_->num_rows();
   num_cols_ = rb_->num_columns();
   // Calculate the initial size
   nullBitsetWidthInBytes_ = CalculateBitSetWidthInBytes(num_cols_);
-  int64_t fixed_size_per_row = CalculatedFixeSizePerRow(schema_, num_cols_);
+  int64_t fixed_size_per_row = CalculatedFixeSizePerRow(rb_->schema(), num_cols_);
   // Initialize the offsets_ , lengths_, buffer_cursor_
   for (auto i = 0; i < num_rows_; i++) {
     lengths_.push_back(fixed_size_per_row);
@@ -57,30 +58,32 @@ void VeloxToRowConverter::Init() {
     offsets_[i] = offsets_[i - 1] + lengths_[i - 1];
     total_memory_size += lengths_[i];
   }
-  ARROW_ASSIGN_OR_RAISE(buffer_, AllocateBuffer(total_memory_size, memory_pool_));
+  ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, memory_pool_));
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = (char*)buffer_->mutable_data();
   // The input is fake Arrow batch. We need to resume Velox Vector here.
   for (int col_idx; col_idx < num_cols_; col_idx++) {
     auto array = rb_->column(col_idx);
-    uint8_t* data_addr = array->data()->buffers[1]->data();
+    auto array_data = array->data();
+    const void* data_addr = array_data->buffers[1]->data();
     BufferPtr nulls = nullptr;
-    BufferPtr values = BufferPtr(data_addr, 8 * num_rows_);
+    BufferPtr values = wrapInBufferViewAsViewer(data_addr, 8 * num_rows_);
+    auto& pool = *velox_pool_;
     auto flatVector = std::make_shared<FlatVector<double>>(
-        velox_pool_, nulls, num_rows_, values, std::vector<BufferPtr>());
+        &pool, nulls, num_rows_, values, std::vector<BufferPtr>());
     vecs_.push_back(flatVector);
   }
+  return arrow::Status::OK();
 }
 
 void VeloxToRowConverter::Write() {
   for (int col_idx; col_idx < num_cols_; col_idx++) {
-    auto vec = vecs_(col_idx);
-    auto num_rows = vec->size();
-    for (int row_idx; row_idx < num_rows; row_idx++) {
+    auto vec = vecs_[col_idx];
+    for (int row_idx; row_idx < num_rows_; row_idx++) {
       int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, row_idx);
-      auto value_address = buffer_address_ + offsets[row_idx] + field_offset;
+      auto value_address = buffer_address_ + offsets_[row_idx] + field_offset;
       auto serialized =
-          UnsafeRowSerializer::serialize<DoubleType>(vec, value_address, row_idx);
+          row::UnsafeRowSerializer::serialize<DoubleType>(vec, value_address, row_idx);
     }
   }
 }
