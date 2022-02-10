@@ -408,9 +408,13 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
     return arrow::Status::OK();
   }
 
-  arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
-    // FIXME: only one-col case is considered
-    auto out_types = plan_node_->outputType();
+  /* This method converts Velox RowVector into Arrow RecordBatch based on Velox's
+     Arrow conversion implementation, in which memcopy is not needed for fixed-width data
+     types, but is conducted in String conversion. The output batch will be the input of
+     Columnar Shuffle.
+  */
+  void toRealArrowBatch(const RowTypePtr& out_types,
+                        std::shared_ptr<arrow::RecordBatch>* out) {
     uint32_t col_num = out_types->size();
     std::vector<std::shared_ptr<arrow::Array>> out_arrays;
     std::vector<std::shared_ptr<arrow::Field>> ret_types;
@@ -464,6 +468,70 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
     //   std::cout << "array val: " << typed_array->GetString(i) << std::endl;
     // }
     *out = arrow::RecordBatch::Make(arrow::schema(ret_types), num_rows_, out_arrays);
+  }
+
+  /* This method converts Velox RowVector into Faked Arrow RecordBatch. Velox's impl is
+    used for fixed-width data types. For String conversion, a faked array is constructed.
+    The output batch will be converted into Unsafe Row in Velox-to-Row converter.
+  */
+  void toFakedArrowBatch(const RowTypePtr& out_types,
+                         std::shared_ptr<arrow::RecordBatch>* out) {
+    uint32_t col_num = out_types->size();
+    std::vector<std::shared_ptr<arrow::Array>> out_arrays;
+    std::vector<std::shared_ptr<arrow::Field>> ret_types;
+    for (uint32_t idx = 0; idx < col_num; idx++) {
+      arrow::ArrayData out_data;
+      out_data.length = num_rows_;
+      auto vec = result_->childAt(idx);
+      auto col_type = out_types->childAt(idx);
+      if (isPrimitive(col_type)) {
+        auto col_arrow_type = toArrowType(col_type);
+        ret_types.push_back(arrow::field("res", col_arrow_type));
+        out_data.type = col_arrow_type;
+        // FIXME: need to release this.
+        ArrowArray arrowArray;
+        exportToArrow(vec, arrowArray, velox_pool_.get());
+        out_data.buffers.resize(arrowArray.n_buffers);
+        out_data.null_count = arrowArray.null_count;
+        auto data_buffer = std::make_shared<arrow::Buffer>(
+            static_cast<const uint8_t*>(arrowArray.buffers[1]),
+            bytesOfType(col_type) * num_rows_);
+        // Validity buffer
+        std::shared_ptr<arrow::Buffer> val_buffer = nullptr;
+        if (arrowArray.null_count > 0) {
+          arrowArray.buffers[0];
+          // FIXME: set BitMap
+        }
+        out_data.buffers[0] = val_buffer;
+        out_data.buffers[1] = data_buffer;
+      } else if (isString(col_type)) {
+        // Will use Double Array as a faked String Array.
+        ret_types.push_back(arrow::field("res", arrow::float64()));
+        out_data.buffers.resize(2);
+        out_data.null_count = 0;
+        out_data.type = arrow::float64();
+        auto str_values = vec->asFlatVector<StringView>()->rawValues();
+        auto val_buffer = std::make_shared<arrow::Buffer>(
+            reinterpret_cast<const uint8_t*>(str_values), 8 * num_rows_);
+        out_data.buffers[0] = nullptr;
+        out_data.buffers[1] = val_buffer;
+      }
+      std::shared_ptr<arrow::Array> out_array =
+          MakeArray(std::make_shared<arrow::ArrayData>(std::move(out_data)));
+      out_arrays.push_back(out_array);
+      // int ref_count = vec->mutableValues(0)->refCount();
+    }
+    // auto typed_array = std::dynamic_pointer_cast<arrow::StringArray>(out_arrays[0]);
+    // for (int i = 0; i < typed_array->length(); i++) {
+    //   std::cout << "array val: " << typed_array->GetString(i) << std::endl;
+    // }
+    *out = arrow::RecordBatch::Make(arrow::schema(ret_types), num_rows_, out_arrays);
+  }
+
+  arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
+    // FIXME: only one-col case is considered
+    auto out_types = plan_node_->outputType();
+    toFakedArrowBatch(out_types, out);
     num_rows_ = 0;
     return arrow::Status::OK();
   }
