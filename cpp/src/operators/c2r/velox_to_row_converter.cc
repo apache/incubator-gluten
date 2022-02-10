@@ -115,10 +115,10 @@ arrow::Status VeloxToRowConverter::Init() {
 
 void VeloxToRowConverter::Write() {
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
+    int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
     if (!arrow::is_binary_like(schema_->field(col_idx)->type()->id())) {
       auto vec = vecs_[col_idx];
       for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-        int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, row_idx);
         auto value_address = buffer_address_ + offsets_[row_idx] + field_offset;
         auto serialized =
             row::UnsafeRowSerializer::serialize<DoubleType>(vec, value_address, row_idx);
@@ -128,15 +128,14 @@ void VeloxToRowConverter::Write() {
       const uint8_t* val = array_data->buffers[2]->data();
       auto str_view = reinterpret_cast<const StringView*>(val);
       for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-        auto length = str_view[row_idx].size();
+        auto str = str_view[row_idx].getString();
+        int32_t length = (int32_t)str_view[row_idx].size();
         auto value = str_view[row_idx].data();
         memcpy(buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx], value,
                length);
         int64_t offsetAndSize = (buffer_cursor_[row_idx] << 32) | length;
-        int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, row_idx);
         memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offsetAndSize,
                sizeof(int64_t));
-        lengths_[row_idx] += RoundNumberOfBytesToNearestWord(length);
         buffer_cursor_[row_idx] += length;
       }
     }

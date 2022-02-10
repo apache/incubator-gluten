@@ -513,7 +513,7 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
         auto val_buffer = std::make_shared<arrow::Buffer>(
             reinterpret_cast<const uint8_t*>(str_values), 8 * num_rows_);
         out_data.buffers[0] = nullptr;
-        out_data.buffers[1] = nullptr;
+        out_data.buffers[1] = val_buffer;
         out_data.buffers[2] = val_buffer;
       }
       std::shared_ptr<arrow::Array> out_array =
