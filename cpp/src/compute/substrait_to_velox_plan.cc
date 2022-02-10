@@ -484,9 +484,9 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
       out_data.length = num_rows_;
       auto vec = result_->childAt(idx);
       auto col_type = out_types->childAt(idx);
+      auto col_arrow_type = toArrowType(col_type);
+      ret_types.push_back(arrow::field("res", col_arrow_type));
       if (isPrimitive(col_type)) {
-        auto col_arrow_type = toArrowType(col_type);
-        ret_types.push_back(arrow::field("res", col_arrow_type));
         out_data.type = col_arrow_type;
         // FIXME: need to release this.
         ArrowArray arrowArray;
@@ -505,16 +505,16 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
         out_data.buffers[0] = val_buffer;
         out_data.buffers[1] = data_buffer;
       } else if (isString(col_type)) {
-        // Will use Double Array as a faked String Array.
-        ret_types.push_back(arrow::field("res", arrow::float64()));
-        out_data.buffers.resize(2);
+        // Will construct a faked String Array.
+        out_data.buffers.resize(3);
         out_data.null_count = 0;
         out_data.type = arrow::float64();
         auto str_values = vec->asFlatVector<StringView>()->rawValues();
         auto val_buffer = std::make_shared<arrow::Buffer>(
             reinterpret_cast<const uint8_t*>(str_values), 8 * num_rows_);
         out_data.buffers[0] = nullptr;
-        out_data.buffers[1] = val_buffer;
+        out_data.buffers[1] = nullptr;
+        out_data.buffers[2] = val_buffer;
       }
       std::shared_ptr<arrow::Array> out_array =
           MakeArray(std::make_shared<arrow::ArrayData>(std::move(out_data)));

@@ -73,7 +73,7 @@ class ArrowColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child =
     val convertTime = longMetric("convertTime")
 
     child.executeColumnar().mapPartitions { batches =>
-      // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
+      // TODO:: pass the jni jniWrapper and arrowSchema and serializeSchema method by broadcast
       val jniWrapper = new ColumnarToRowJniWrapper()
       var arrowSchema: Array[Byte] = null
 

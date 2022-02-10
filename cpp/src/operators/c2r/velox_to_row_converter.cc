@@ -19,6 +19,7 @@
 
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
+#include <arrow/type_traits.h>
 
 #include "conversion_utils.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
@@ -34,27 +35,29 @@ void mockArrayRelease(ArrowArray*) {}
 arrow::Status VeloxToRowConverter::Init() {
   num_rows_ = rb_->num_rows();
   num_cols_ = rb_->num_columns();
+  schema_ = rb_->schema();
   // Calculate the initial size
   nullBitsetWidthInBytes_ = CalculateBitSetWidthInBytes(num_cols_);
-  int64_t fixed_size_per_row = CalculatedFixeSizePerRow(rb_->schema(), num_cols_);
+  int64_t fixed_size_per_row = CalculatedFixeSizePerRow(schema_, num_cols_);
   // Initialize the offsets_ , lengths_, buffer_cursor_
   for (auto i = 0; i < num_rows_; i++) {
     lengths_.push_back(fixed_size_per_row);
     offsets_.push_back(0);
+    buffer_cursor_.push_back(nullBitsetWidthInBytes_ + 8 * num_cols_);
   }
   // Calculated the lengths_
-  // for (auto i = 0; i < num_cols_; i++) {
-  //   auto array = rb_->column(i);
-  //   if (arrow::is_binary_like(array->type_id())) {
-  //     auto binary_array = std::static_pointer_cast<arrow::BinaryArray>(array);
-  //     using offset_type = typename arrow::BinaryType::offset_type;
-  //     offset_type length;
-  //     for (auto j = 0; j < num_rows_; j++) {
-  //       auto value = binary_array->GetValue(j, &length);
-  //       lengths_[j] += RoundNumberOfBytesToNearestWord(length);
-  //     }
-  //   }
-  // }
+  for (auto col_idx = 0; col_idx < num_cols_; col_idx++) {
+    auto array = rb_->column(col_idx);
+    if (arrow::is_binary_like(array->type_id())) {
+      auto array_data = array->data();
+      const uint8_t* val = array_data->buffers[2]->data();
+      auto str_view = reinterpret_cast<const StringView*>(val);
+      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
+        auto length = str_view[row_idx].size();
+        lengths_[row_idx] += RoundNumberOfBytesToNearestWord(length);
+      }
+    }
+  }
   // Calculated the offsets_  and total memory size based on lengths_
   int64_t total_memory_size = lengths_[0];
   for (auto i = 1; i < num_rows_; i++) {
@@ -67,6 +70,12 @@ arrow::Status VeloxToRowConverter::Init() {
   // The input is fake Arrow batch. We need to resume Velox Vector here.
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
     auto array = rb_->column(col_idx);
+    if (arrow::is_binary_like(array->type_id())) {
+      VectorPtr vec;
+      // push an invalid vec for position occupation
+      vecs_.push_back(vec);
+      continue;
+    }
     auto array_data = array->data();
     const void* data_addr = array_data->buffers[1]->data();
     const void* buffers[] = {nullptr, data_addr};
@@ -106,12 +115,30 @@ arrow::Status VeloxToRowConverter::Init() {
 
 void VeloxToRowConverter::Write() {
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
-    auto vec = vecs_[col_idx];
-    for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-      int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, row_idx);
-      auto value_address = buffer_address_ + offsets_[row_idx] + field_offset;
-      auto serialized =
-          row::UnsafeRowSerializer::serialize<DoubleType>(vec, value_address, row_idx);
+    if (!arrow::is_binary_like(schema_->field(col_idx)->type()->id())) {
+      auto vec = vecs_[col_idx];
+      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
+        int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, row_idx);
+        auto value_address = buffer_address_ + offsets_[row_idx] + field_offset;
+        auto serialized =
+            row::UnsafeRowSerializer::serialize<DoubleType>(vec, value_address, row_idx);
+      }
+    } else {
+      auto array_data = rb_->column(col_idx)->data();
+      const uint8_t* val = array_data->buffers[2]->data();
+      auto str_view = reinterpret_cast<const StringView*>(val);
+      for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
+        auto length = str_view[row_idx].size();
+        auto value = str_view[row_idx].data();
+        memcpy(buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx], value,
+               length);
+        int64_t offsetAndSize = (buffer_cursor_[row_idx] << 32) | length;
+        int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, row_idx);
+        memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offsetAndSize,
+               sizeof(int64_t));
+        lengths_[row_idx] += RoundNumberOfBytesToNearestWord(length);
+        buffer_cursor_[row_idx] += length;
+      }
     }
   }
 }

@@ -44,7 +44,9 @@ class VeloxToRowConverter {
  private:
   // RowVectorPtr rv_;
   std::vector<VectorPtr> vecs_;
+  std::vector<int64_t> buffer_cursor_;
   std::shared_ptr<arrow::RecordBatch> rb_;
+  std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::Buffer> buffer_;
   char* buffer_address_;
   arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
