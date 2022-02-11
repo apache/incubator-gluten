@@ -18,7 +18,7 @@ If compiling with Velox:
 
 ```shell script
 git checkout velox_dev
-mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dvelox_home=${VELOX_HOME}
+mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dvelox_home=${VELOX_HOME}
 ```
 
 If Arrow has once been installed successfully on your env, and there is no change to Arrow, you can
