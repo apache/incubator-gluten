@@ -478,7 +478,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           dependentKernels.foreach(_.close)
           dependentKernelIterators.foreach(_.close)
           // nativeKernel.close
-          nativeIterator.close
+          nativeIterator.close()
           relationHolder.clear()
         }
         SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {

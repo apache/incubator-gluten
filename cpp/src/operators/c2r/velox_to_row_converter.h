@@ -56,6 +56,8 @@ class VeloxToRowConverter {
   int64_t nullBitsetWidthInBytes_;
   int64_t num_cols_;
   int64_t num_rows_;
+
+  void ResumeVeloxVector();
 };
 
 }  // namespace columnartorow

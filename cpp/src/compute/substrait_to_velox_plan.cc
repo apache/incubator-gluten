@@ -508,7 +508,7 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
         // Will construct a faked String Array.
         out_data.buffers.resize(3);
         out_data.null_count = 0;
-        out_data.type = arrow::float64();
+        out_data.type = arrow::utf8();
         auto str_values = vec->asFlatVector<StringView>()->rawValues();
         auto val_buffer = std::make_shared<arrow::Buffer>(
             reinterpret_cast<const uint8_t*>(str_values), 8 * num_rows_);
