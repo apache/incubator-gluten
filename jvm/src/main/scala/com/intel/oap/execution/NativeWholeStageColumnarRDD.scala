@@ -31,7 +31,7 @@ import org.apache.spark._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
+import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.util.OASPackageBridge._
@@ -65,7 +65,6 @@ case class NativeSubstraitPartition(val index: Int, val inputPartition: InputPar
 class NativeWholeStageColumnarRDD(
     sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
-    partitionReaderFactory: PartitionReaderFactory,
     columnarReads: Boolean,
     inputAttributes: Seq[Attribute],
     outputAttributes: Seq[Attribute],
