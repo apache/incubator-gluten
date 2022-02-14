@@ -65,4 +65,11 @@ public class CompressedVectorLoader extends VectorLoader {
               + Collections2.toList(buffers).toString());
     }
   }
+
+  /**
+   * Direct router to VectorLoader#load()
+   */
+  public void loadUncompressed(ArrowRecordBatch recordBatch) {
+    super.load(recordBatch);
+  }
 }

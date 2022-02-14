@@ -19,7 +19,6 @@
 
 #include <folly/executors/IOThreadPoolExecutor.h>
 
-#include "common/result_iterator.h"
 #include "substrait/capabilities.pb.h"
 #include "substrait/expression.pb.h"
 #include "substrait/extensions/extensions.pb.h"
@@ -29,6 +28,10 @@
 #include "substrait/relations.pb.h"
 #include "substrait/type.pb.h"
 #include "substrait/type_expressions.pb.h"
+#include "utils/result_iterator.h"
+
+namespace gazellejni {
+namespace compute {
 
 // This class contains some common funcitons used to parse Substrait components, and
 // convert it to recognizable representations.
@@ -54,3 +57,6 @@ class SubstraitParser {
   std::unordered_map<std::string, std::string> substrait_velox_function_map = {
       {"MULTIPLY", "multiply"}, {"SUM", "sum"}};
 };
+
+}  // namespace compute
+}  // namespace gazellejni

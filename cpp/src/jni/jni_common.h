@@ -34,9 +34,9 @@
 #include <utility>
 #include <vector>
 
-#include "proto/protobuf_utils.h"
-#include "proto/substrait_to_velox_plan.h"
-#include "proto/substrait_utils.h"
+#include "compute/substrait_to_velox_plan.h"
+#include "compute/protobuf_utils.h"
+#include "compute/substrait_utils.h"
 
 static jclass io_exception_class;
 static jclass runtime_exception_class;
@@ -345,7 +345,7 @@ arrow::Status ParseSubstraitPlan(
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
-  auto converter = std::make_shared<SubstraitVeloxPlanConverter>();
+  auto converter = std::make_shared<gazellejni::compute::SubstraitVeloxPlanConverter>();
   *out_iter = converter->getResIter(converter->toVeloxPlan(ws_plan));
   return arrow::Status::OK();
 }

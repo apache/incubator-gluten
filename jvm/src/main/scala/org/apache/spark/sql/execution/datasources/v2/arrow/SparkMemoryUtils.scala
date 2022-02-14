@@ -15,23 +15,23 @@
  * limitations under the License.
  */
 
-
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
 import java.io.PrintWriter
 import java.util
 import java.util.UUID
 
-import com.intel.oap.spark.sql.execution.datasources.v2.arrow.{NativeSQLMemoryConsumer, NativeSQLMemoryMetrics, SparkManagedAllocationListener, SparkManagedReservationListener, Spiller}
-import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
-
 import scala.collection.JavaConverters._
+
+import com.intel.oap.spark.sql.execution.datasources.v2.arrow._
+import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
 import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.AllocationListener
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.memory.MemoryChunkCleaner
 import org.apache.arrow.memory.MemoryChunkManager
 import org.apache.arrow.memory.RootAllocator
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
@@ -53,7 +53,7 @@ object SparkMemoryUtils extends Logging {
 
     val isArrowAutoReleaseEnabled: Boolean = {
       SQLConf.get
-          .getConfString("spark.oap.sql.columnar.autorelease", "false").toBoolean
+        .getConfString("spark.oap.sql.columnar.autorelease", "false").toBoolean
     }
 
     val memoryChunkManagerFactory: MemoryChunkManager.Factory = if (isArrowAutoReleaseEnabled) {
@@ -70,6 +70,12 @@ object SparkMemoryUtils extends Logging {
       MemoryChunkCleaner.gcTrigger(sparkManagedAllocationListener)
     } else {
       sparkManagedAllocationListener
+    }
+
+    val allocListenerForBufferImport: AllocationListener = if (isArrowAutoReleaseEnabled) {
+      MemoryChunkCleaner.gcTrigger()
+    } else {
+      AllocationListener.NOOP
     }
 
     private def collectStackForDebug = {
@@ -91,13 +97,17 @@ object SparkMemoryUtils extends Logging {
     val taskDefaultAllocator: BufferAllocator = {
       val alloc = new RootAllocator(
         RootAllocator.configBuilder()
-            .maxAllocation(Long.MaxValue)
-            .memoryChunkManagerFactory(memoryChunkManagerFactory)
-            .listener(allocListener)
-            .build)
+          .maxAllocation(Long.MaxValue)
+          .memoryChunkManagerFactory(memoryChunkManagerFactory)
+          .listener(allocListener)
+          .build)
       allocators.add(alloc)
       alloc
     }
+
+    val taskDefaultAllocatorForBufferImport: BufferAllocator = taskDefaultAllocator
+      .newChildAllocator("CHILD-ALLOC-BUFFER-IMPORT", allocListenerForBufferImport, 0L,
+        Long.MaxValue)
 
     val defaultMemoryPool: NativeMemoryPoolWrapper = {
       val rl = new SparkManagedReservationListener(
@@ -249,10 +259,10 @@ object SparkMemoryUtils extends Logging {
 
   private val globalAlloc = new RootAllocator(
     RootAllocator.configBuilder()
-        .maxAllocation(maxAllocationSize)
-        .memoryChunkManagerFactory(MemoryChunkCleaner.newFactory())
-        .listener(MemoryChunkCleaner.gcTrigger())
-        .build)
+      .maxAllocation(maxAllocationSize)
+      .memoryChunkManagerFactory(MemoryChunkCleaner.newFactory())
+      .listener(MemoryChunkCleaner.gcTrigger())
+      .build)
 
   def globalAllocator(): BufferAllocator = {
     globalAlloc
@@ -283,6 +293,13 @@ object SparkMemoryUtils extends Logging {
     getTaskMemoryResources().taskDefaultAllocator
   }
 
+  def contextAllocatorForBufferImport(): BufferAllocator = {
+    if (!inSparkTask()) {
+      return globalAllocator()
+    }
+    getTaskMemoryResources().taskDefaultAllocatorForBufferImport
+  }
+
   def contextMemoryPool(): NativeMemoryPool = {
     if (!inSparkTask()) {
       return globalMemoryPool()
@@ -301,7 +318,7 @@ object SparkMemoryUtils extends Logging {
   }
 
   class UnsafeItr[T <: AutoCloseable](delegate: Iterator[T])
-      extends Iterator[T] {
+    extends Iterator[T] {
     val holder = new GenericRetainer[T]()
 
     SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((_: TaskContext) => {
@@ -338,5 +355,5 @@ object SparkMemoryUtils extends Logging {
   }
 
   case class NativeMemoryPoolWrapper(pool: NativeMemoryPool,
-      listener: SparkManagedReservationListener, log: String = null)
+                                     listener: SparkManagedReservationListener, log: String = null)
 }
