@@ -125,7 +125,10 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           if (!transformer.doValidate()) return false
           transformer
         case plan: ShuffleExchangeExec =>
-          return false
+          if (!enableColumnarShuffle) return false
+          new ColumnarShuffleExchangeExec(
+            plan.outputPartitioning,
+            plan.child)
         case plan: ShuffledHashJoinExec =>
           if (!enableColumnarShuffledHashJoin) return false
           val transformer = ShuffledHashJoinExecTransformer(

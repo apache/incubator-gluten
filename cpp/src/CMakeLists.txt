@@ -444,6 +444,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         proto/protobuf_utils.cc
         proto/substrait_utils.cc
         operators/columnar_to_row_converter.cc
+        shuffle/splitter.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
