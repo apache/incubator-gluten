@@ -35,12 +35,12 @@
 #include <string>
 #include <utility>
 
-#include "utils/result_iterator.h"
+#include "compute/protobuf_utils.h"
 #include "jni/concurrent_map.h"
 #include "jni/jni_common.h"
 #include "operators/c2r/columnar_to_row_converter.h"
-#include "compute/protobuf_utils.h"
 #include "operators/shuffle/splitter.h"
+#include "utils/result_iterator.h"
 
 namespace {
 

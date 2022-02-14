@@ -23,6 +23,9 @@
 #include "arrow/array/builder_primitive.h"
 #include "arrow/util/checked_cast.h"
 
+namespace gazellejni {
+namespace compute {
+
 SubstraitParser::SubstraitParser() {
   std::cout << "construct SubstraitParser" << std::endl;
 }
@@ -312,3 +315,6 @@ class SubstraitParser::WholeStageResultIterator
   bool has_next_ = true;
   std::vector<std::shared_ptr<arrow::Array>> res_arrays;
 };
+
+}  // namespace compute
+}  // namespace gazellejni

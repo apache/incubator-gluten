@@ -344,7 +344,7 @@ arrow::Status ParseSubstraitPlan(
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
-  auto parser = std::make_shared<SubstraitParser>();
+  auto parser = std::make_shared<gazellejni::compute::SubstraitParser>();
   parser->ParsePlan(ws_plan);
   *out_iter = parser->getResIter();
   return arrow::Status::OK();
