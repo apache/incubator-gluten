@@ -39,9 +39,9 @@
 #include "jni/concurrent_map.h"
 #include "jni/jni_common.h"
 #include "operators/c2r/columnar_to_row_converter.h"
+#include "operators/c2r/velox_to_row_converter.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/result_iterator.h"
-#include "operators/c2r/velox_to_row_converter.h"
 
 namespace {
 
@@ -131,7 +131,7 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<ResultIteratorBase>>
 static arrow::jni::ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>>
     columnar_to_row_converter_holder_;
 static arrow::jni::ConcurrentMap<std::shared_ptr<VeloxToRowConverter>>
-    velox_to_row_converter_holder_; 
+    velox_to_row_converter_holder_;
 
 using gazellejni::shuffle::SplitOptions;
 using gazellejni::shuffle::Splitter;

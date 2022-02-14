@@ -291,6 +291,13 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
 std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     const substrait::RelRoot& sroot) {
   auto& snames = sroot.names();
+  int name_idx = 0;
+  for (auto& sname : snames) {
+    if (name_idx == 0 && sname == "fake_arrow_output") {
+      fake_arrow_output_ = true;
+    }
+    name_idx += 1;
+  }
   if (sroot.has_input()) {
     auto& srel = sroot.input();
     return toVeloxPlan(srel);
@@ -335,7 +342,7 @@ std::shared_ptr<ResultIterator<arrow::RecordBatch>>
 SubstraitVeloxPlanConverter::getResIter(
     const std::shared_ptr<const core::PlanNode>& plan_node) {
   auto wholestage_iter = std::make_shared<WholeStageResultIterator>(
-      plan_node, partition_index_, paths_, starts_, lengths_);
+      plan_node, partition_index_, paths_, starts_, lengths_, fake_arrow_output_);
   auto res_iter =
       std::dynamic_pointer_cast<ResultIterator<arrow::RecordBatch>>(wholestage_iter);
   return res_iter;
@@ -347,12 +354,14 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
   WholeStageResultIterator(const std::shared_ptr<const core::PlanNode>& plan_node,
                            const u_int32_t& index, const std::vector<std::string>& paths,
                            const std::vector<u_int64_t>& starts,
-                           const std::vector<u_int64_t>& lengths)
+                           const std::vector<u_int64_t>& lengths,
+                           const bool& fake_arrow_output)
       : plan_node_(plan_node),
         index_(index),
         paths_(paths),
         starts_(starts),
-        lengths_(lengths) {
+        lengths_(lengths),
+        fake_arrow_output_(fake_arrow_output) {
     std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
     for (int idx = 0; idx < paths.size(); idx++) {
       auto path = paths[idx];
@@ -531,7 +540,11 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
     // FIXME: only one-col case is considered
     auto out_types = plan_node_->outputType();
-    toFakedArrowBatch(out_types, out);
+    if (fake_arrow_output_) {
+      toFakedArrowBatch(out_types, out);
+    } else {
+      toRealArrowBatch(out_types, out);
+    }
     num_rows_ = 0;
     return arrow::Status::OK();
   }
@@ -549,6 +562,7 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
+  bool fake_arrow_output_;
   // FIXME: use the setted one
   uint64_t batch_size_ = 10000;
   uint64_t num_rows_ = 0;

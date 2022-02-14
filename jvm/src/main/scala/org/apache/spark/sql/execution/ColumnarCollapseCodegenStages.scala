@@ -136,7 +136,12 @@ case class ColumnarCollapseCodegenStages(
             t.withNewChildren(t.children.map(insertInputAdapter)))(
             codegenStageCounter.incrementAndGet())
       case other =>
-        other.withNewChildren(other.children.map(insertWholeStageTransformer))
+        val maybeWS = other.children.map(insertWholeStageTransformer)
+        if (other.isInstanceOf[ArrowColumnarToRowExec] &&
+            maybeWS.head.isInstanceOf[WholeStageTransformerExec]) {
+          maybeWS.head.asInstanceOf[WholeStageTransformerExec].setFakeOutput()
+        }
+        other.withNewChildren(maybeWS)
     }
   }
 

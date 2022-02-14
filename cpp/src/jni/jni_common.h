@@ -34,8 +34,8 @@
 #include <utility>
 #include <vector>
 
-#include "compute/substrait_to_velox_plan.h"
 #include "compute/protobuf_utils.h"
+#include "compute/substrait_to_velox_plan.h"
 #include "compute/substrait_utils.h"
 
 static jclass io_exception_class;

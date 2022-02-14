@@ -26,7 +26,8 @@ public class PlanBuilder {
     private PlanBuilder() {}
 
     public static PlanNode makePlan(ArrayList<MappingNode> mappingNodes,
-                                    ArrayList<RelNode> relNodes) {
-        return new PlanNode(mappingNodes, relNodes);
+                                    ArrayList<RelNode> relNodes,
+                                    ArrayList<String> outputNames) {
+        return new PlanNode(mappingNodes, relNodes, outputNames);
     }
 }

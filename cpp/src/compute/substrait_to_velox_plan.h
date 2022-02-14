@@ -67,6 +67,7 @@ class SubstraitVeloxPlanConverter {
   std::shared_ptr<SubstraitVeloxExprConverter> expr_converter_;
   std::unordered_map<uint64_t, std::string> functions_map_;
   u_int32_t partition_index_;
+  bool fake_arrow_output_ = false;
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
