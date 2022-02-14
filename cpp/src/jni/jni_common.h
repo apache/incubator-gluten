@@ -34,8 +34,8 @@
 #include <utility>
 #include <vector>
 
-#include "proto/protobuf_utils.h"
-#include "proto/substrait_utils.h"
+#include "compute/protobuf_utils.h"
+#include "compute/substrait_utils.h"
 
 static jclass io_exception_class;
 static jclass runtime_exception_class;

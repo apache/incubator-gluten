@@ -28,10 +28,10 @@
 #include <random>
 #include <utility>
 
-#include "shuffle/type.h"
-#include "shuffle/utils.h"
+#include "operators/shuffle/type.h"
+#include "operators/shuffle/utils.h"
 
-namespace sparkcolumnarplugin {
+namespace gazellejni {
 namespace shuffle {
 
 class Splitter {
@@ -289,4 +289,4 @@ class FallbackRangeSplitter : public Splitter {
 };
 
 }  // namespace shuffle
-}  // namespace sparkcolumnarplugin
+}  // namespace gazellejni

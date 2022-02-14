@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "shuffle/splitter.h"
+#include "operators/shuffle/splitter.h"
 
 #include <arrow/ipc/writer.h>
 #include <arrow/memory_pool.h>
@@ -28,7 +28,7 @@
 #include <memory>
 #include <utility>
 
-#include "shuffle/utils.h"
+#include "operators/shuffle/utils.h"
 #include "utils/macros.h"
 
 #if defined(COLUMNAR_PLUGIN_USE_AVX512)
@@ -37,7 +37,7 @@
 #include <xmmintrin.h>
 #endif
 
-namespace sparkcolumnarplugin {
+namespace gazellejni {
 namespace shuffle {
 using arrow::internal::checked_cast;
 
@@ -1441,4 +1441,4 @@ arrow::Status FallbackRangeSplitter::ComputeAndCountPartitionId(
 }
 
 }  // namespace shuffle
-}  // namespace sparkcolumnarplugin
+}  // namespace gazellejni

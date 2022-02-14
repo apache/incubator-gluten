@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-#include "operators/columnar_to_row_converter.h"
+#include "operators/c2r/columnar_to_row_converter.h"
 
 #include <iostream>
 
-namespace sparkcolumnarplugin {
+namespace gazellejni {
 namespace columnartorow {
 
 int64_t CalculateBitSetWidthInBytes(int32_t numFields) {
@@ -503,4 +503,4 @@ arrow::Status ColumnarToRowConverter::Write() {
 }
 
 }  // namespace columnartorow
-}  // namespace sparkcolumnarplugin
+}  // namespace gazellejni

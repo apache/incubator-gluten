@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "common/result_iterator.h"
+#include "utils/result_iterator.h"
 #include "substrait/capabilities.pb.h"
 #include "substrait/expression.pb.h"
 #include "substrait/extensions/extensions.pb.h"

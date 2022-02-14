@@ -27,7 +27,7 @@
 
 #include "gandiva/decimal_type_util.h"
 
-namespace sparkcolumnarplugin {
+namespace gazellejni {
 namespace columnartorow {
 
 class ColumnarToRowConverter {
@@ -57,4 +57,4 @@ class ColumnarToRowConverter {
 };
 
 }  // namespace columnartorow
-}  // namespace sparkcolumnarplugin
+}  // namespace gazellejni

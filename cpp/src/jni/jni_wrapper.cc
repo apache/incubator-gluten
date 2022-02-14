@@ -35,12 +35,12 @@
 #include <string>
 #include <utility>
 
-#include "common/result_iterator.h"
+#include "utils/result_iterator.h"
 #include "jni/concurrent_map.h"
 #include "jni/jni_common.h"
-#include "operators/columnar_to_row_converter.h"
-#include "proto/protobuf_utils.h"
-#include "shuffle/splitter.h"
+#include "operators/c2r/columnar_to_row_converter.h"
+#include "compute/protobuf_utils.h"
+#include "operators/shuffle/splitter.h"
 
 namespace {
 
@@ -122,15 +122,15 @@ using arrow::jni::ConcurrentMap;
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
-using ColumnarToRowConverter = sparkcolumnarplugin::columnartorow::ColumnarToRowConverter;
+using ColumnarToRowConverter = gazellejni::columnartorow::ColumnarToRowConverter;
 static arrow::jni::ConcurrentMap<std::shared_ptr<ResultIteratorBase>>
     batch_iterator_holder_;
 
 static arrow::jni::ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>>
     columnar_to_row_converter_holder_;
 
-using sparkcolumnarplugin::shuffle::SplitOptions;
-using sparkcolumnarplugin::shuffle::Splitter;
+using gazellejni::shuffle::SplitOptions;
+using gazellejni::shuffle::Splitter;
 static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_holder_;
 static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
     decompression_schema_holder_;
