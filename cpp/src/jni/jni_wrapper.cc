@@ -272,7 +272,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   split_result_class =
       CreateGlobalClassReference(env, "Lcom/intel/oap/vectorized/SplitResult;");
   split_result_constructor =
-      GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J)V");
+      GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
   metrics_builder_class =
       CreateGlobalClassReference(env, "Lcom/intel/oap/vectorized/MetricsObject;");
