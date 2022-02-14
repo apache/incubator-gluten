@@ -351,7 +351,7 @@ arrow::Status ParseSubstraitPlan(
 }
 
 arrow::Status InitVelox() {
-  auto initializer = std::make_shared<VeloxInitializer>();
+  auto initializer = std::make_shared<gazellejni::compute::VeloxInitializer>();
   initializer->Init();
   return arrow::Status::OK();
 }

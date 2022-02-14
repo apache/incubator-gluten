@@ -31,6 +31,9 @@
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
+namespace gazellejni {
+namespace compute {
+
 class VeloxInitializer {
  public:
   VeloxInitializer();
@@ -71,3 +74,6 @@ class SubstraitVeloxPlanConverter {
   /* Result Iterator */
   class WholeStageResultIterator;
 };
+
+}  // namespace compute
+}  // namespace gazellejni

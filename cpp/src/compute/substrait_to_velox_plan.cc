@@ -26,6 +26,9 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 
+namespace gazellejni {
+namespace compute {
+
 VeloxInitializer::VeloxInitializer() {}
 
 // The Init will be called per executor.
@@ -484,3 +487,6 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
   bool may_has_next_ = true;
   RowVectorPtr result_;
 };
+
+}  // namespace compute
+}  // namespace gazellejni
