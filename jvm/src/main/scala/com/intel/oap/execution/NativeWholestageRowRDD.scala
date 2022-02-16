@@ -27,13 +27,12 @@ import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
-import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
+import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.util._
 
 class NativeWholestageRowRDD(
     sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
-    partitionReaderFactory: PartitionReaderFactory,
     columnarReads: Boolean)
     extends RDD[InternalRow](sc, Nil) {
   val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo

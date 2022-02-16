@@ -62,6 +62,17 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     case plan: BatchScanExec =>
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
       new BatchScanExecTransformer(plan.output, plan.scan)
+    case plan: FileSourceScanExec =>
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      new FileSourceScanExecTransformer(plan.relation,
+        plan.output,
+        plan.requiredSchema,
+        plan.partitionFilters,
+        plan.optionalBucketSet,
+        plan.optionalNumCoalescedBuckets,
+        plan.dataFilters,
+        plan.tableIdentifier,
+        plan.disableBucketedScan)
     case plan: CoalesceExec =>
       CoalesceExecTransformer(plan.numPartitions, replaceWithTransformerPlan(plan.child))
     case plan: InMemoryTableScanExec =>

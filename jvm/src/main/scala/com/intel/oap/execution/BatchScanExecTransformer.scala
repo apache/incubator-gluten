@@ -18,26 +18,27 @@
 package com.intel.oap.execution
 
 import com.intel.oap.GazelleJniConfig
-import com.intel.oap.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import com.intel.oap.substrait.rel.RelBuilder
-import com.intel.oap.substrait.SubstraitContext
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.Scan
+import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan)
-    extends BatchScanExec(output, scan) with TransformSupport {
+    extends BatchScanExec(output, scan) with BasicScanExecTransformer {
 
-  val filterExprs: Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
+  override def filterExprs(): Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
     scan.asInstanceOf[FileScan].dataFilters
   } else {
     throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
+
+  override def outputAttributes(): Seq[Attribute] = output
+
+  override def getPartitions: Seq[InputPartition] = partitions
 
   override def supportsColumnar(): Boolean =
     super.supportsColumnar && GazelleJniConfig.getConf.enableColumnarIterator
@@ -78,23 +79,4 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   }
 
   override def doValidate(): Boolean = false
-
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
-    val nameList = new java.util.ArrayList[String]()
-    for (attr <- output) {
-      nameList.add(attr.name)
-    }
-    // Will put all filter expressions into an AND expression
-    // val functionId = context.registerFunction("AND")
-    val transformer = filterExprs.reduceLeftOption(And).map(
-      ExpressionConverter.replaceWithExpressionTransformer(_, output)
-    )
-    val filterNodes = transformer.map(
-      _.asInstanceOf[ExpressionTransformer].doTransform(context.registeredFunction))
-
-    // val partNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, filterNodes.getOrElse(null), context)
-    TransformContext(output, output, relNode)
-  }
 }
