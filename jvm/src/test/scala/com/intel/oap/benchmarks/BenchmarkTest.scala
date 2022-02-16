@@ -38,8 +38,7 @@ object BenchmarkTest {
       val resourcePath = rootPath + "../../../src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
-      //(new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "")
-      ("/data1/test_output/tpch-data-sf10", "parquet", 100, false, queryPath + "q06.sql", "")
+      (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "")
     }
 
     val sqlStr = Source.fromFile(new File(sqlFilePath), "UTF-8")
@@ -63,7 +62,7 @@ object BenchmarkTest {
         .config("spark.locality.wait", "0s")
         .config("spark.sql.sources.ignoreDataLocality", "true")
         .config("spark.sql.parquet.enableVectorizedReader", "true")
-        .config("spark.sql.sources.useV1SourceList", "avro")
+        //.config("spark.sql.sources.useV1SourceList", "avro")
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")

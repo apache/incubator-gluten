@@ -75,10 +75,16 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           if (!enableColumnarBatchScan) return false
           new BatchScanExecTransformer(plan.output, plan.scan)
         case plan: FileSourceScanExec =>
-          if (plan.supportsColumnar) {
-            return false
-          }
-          plan
+          if (!enableColumnarBatchScan) return false
+          new FileSourceScanExecTransformer(plan.relation,
+            plan.output,
+            plan.requiredSchema,
+            plan.partitionFilters,
+            plan.optionalBucketSet,
+            plan.optionalNumCoalescedBuckets,
+            plan.dataFilters,
+            plan.tableIdentifier,
+            plan.disableBucketedScan)
         case plan: InMemoryTableScanExec =>
           if (plan.relation.cacheBuilder.serializer
               .isInstanceOf[ArrowColumnarCachedBatchSerializer]) {
