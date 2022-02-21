@@ -18,7 +18,6 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
-
 import com.google.common.annotations.VisibleForTesting
 import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
@@ -34,7 +33,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -58,8 +57,12 @@ class ColumnarShuffleWriter[K, V](
   private var mapStatus: MapStatus = _
 
   private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
-  private val nativeBufferSize =
-    conf.getInt("spark.sql.execution.arrow.maxRecordsPerBatch", 4096)
+
+  private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
+  private val executorNum = conf.getInt("spark.executor.cores", 1)
+  private val offheapPerTask = offheapSize / executorNum;
+
+  private val nativeBufferSize = GazelleJniConfig.getConf.shuffleSplitDefaultSize
 
   private val customizedCompressCodec =
     GazelleJniConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
@@ -68,7 +71,12 @@ class ColumnarShuffleWriter[K, V](
   } else {
     "uncompressed"
   }
+  private val batchCompressThreshold =
+    GazelleJniConfig.getConf.columnarShuffleBatchCompressThreshold;
+
   private val preferSpill = GazelleJniConfig.getConf.columnarShufflePreferSpill
+
+  private val writeSchema = GazelleJniConfig.getConf.columnarShuffleWriteSchema
 
   private val jniWrapper = new ShuffleSplitterJniWrapper()
 
@@ -77,6 +85,8 @@ class ColumnarShuffleWriter[K, V](
   private var splitResult: SplitResult = _
 
   private var partitionLengths: Array[Long] = _
+
+  private var rawPartitionLengths: Array[Long] = _
 
   private var firstRecordBatch: Boolean = true
 
@@ -93,8 +103,10 @@ class ColumnarShuffleWriter[K, V](
     if (nativeSplitter == 0) {
       nativeSplitter = jniWrapper.make(
         dep.nativePartitioning,
+        offheapPerTask,
         nativeBufferSize,
         defaultCompressionCodec,
+        batchCompressThreshold,
         dataTmp.getAbsolutePath,
         blockManager.subDirsPerLocalDir,
         localDirs,
@@ -110,7 +122,8 @@ class ColumnarShuffleWriter[K, V](
               // fixme pass true when being called by self
               return jniWrapper.nativeSpill(nativeSplitter, size, false)
             }
-          }).getNativeInstanceId)
+          }).getNativeInstanceId,
+        writeSchema)
     }
 
     while (records.hasNext) {
@@ -118,6 +131,7 @@ class ColumnarShuffleWriter[K, V](
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
+        val startTimeForPrepare = System.nanoTime()
         val bufAddrs = new ListBuffer[Long]()
         val bufSizes = new ListBuffer[Long]()
         val recordBatch = ConverterUtils.createArrowRecordBatch(cb)
@@ -158,8 +172,10 @@ class ColumnarShuffleWriter[K, V](
           }
         }
         firstRecordBatch = false
+        dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
 
-        jniWrapper.split(nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
+        jniWrapper
+          .split(nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
         writeMetrics.incRecordsWritten(1)
@@ -170,8 +186,9 @@ class ColumnarShuffleWriter[K, V](
     val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeSplitter)
 
-    dep.splitTime.add(System
-      .nanoTime() - startTime - splitResult.getTotalSpillTime - splitResult.getTotalWriteTime - splitResult.getTotalComputePidTime - splitResult.getTotalCompressTime)
+    dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+      splitResult.getTotalWriteTime - splitResult.getTotalComputePidTime -
+      splitResult.getTotalCompressTime)
     dep.spillTime.add(splitResult.getTotalSpillTime)
     dep.compressTime.add(splitResult.getTotalCompressTime)
     dep.computePidTime.add(splitResult.getTotalComputePidTime)
@@ -180,6 +197,7 @@ class ColumnarShuffleWriter[K, V](
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
     partitionLengths = splitResult.getPartitionLengths
+    rawPartitionLengths = splitResult.getRawPartitionLengths
     try {
       shuffleBlockResolver.writeIndexFileAndCommit(
         dep.shuffleId,
@@ -191,7 +209,12 @@ class ColumnarShuffleWriter[K, V](
         logError(s"Error while deleting temp file ${dataTmp.getAbsolutePath}")
       }
     }
-    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+
+    // fixme workaround: to store uncompressed sizes on the rhs of (maybe) compressed sizes
+    val unionPartitionLengths = ArrayBuffer[Long]()
+    unionPartitionLengths ++= partitionLengths
+    unionPartitionLengths ++= rawPartitionLengths
+    mapStatus = MapStatus(blockManager.shuffleServerId, unionPartitionLengths.toArray, mapId)
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {

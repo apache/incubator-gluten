@@ -17,6 +17,9 @@
 
 #include "substrait_utils.h"
 
+namespace gazellejni {
+namespace compute {
+
 SubstraitParser::SubstraitParser() {}
 
 std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
@@ -112,3 +115,6 @@ std::string SubstraitParser::findFunction(
       const_cast<std::unordered_map<uint64_t, std::string>&>(functions_map);
   return map[id];
 }
+
+}  // namespace compute
+}  // namespace gazellejni

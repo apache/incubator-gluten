@@ -22,6 +22,9 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 
+namespace gazellejni {
+namespace compute {
+
 SubstraitVeloxExprConverter::SubstraitVeloxExprConverter(
     const std::shared_ptr<SubstraitParser>& sub_parser,
     const std::unordered_map<uint64_t, std::string>& functions_map) {
@@ -275,3 +278,6 @@ hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
   }
   return filters;
 }
+
+}  // namespace compute
+}  // namespace gazellejni

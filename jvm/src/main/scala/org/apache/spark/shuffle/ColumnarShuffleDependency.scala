@@ -44,6 +44,7 @@ import scala.reflect.ClassTag
  * @param bytesSpilled for shuffle spill size tracking
  * @param computePidTime partition id computation time metric
  * @param splitTime native split time metric
+ * @param prepareTime native split prepare time metric
  */
 class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
     @transient private val _rdd: RDD[_ <: Product2[K, V]],
@@ -60,7 +61,8 @@ class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
     val computePidTime: SQLMetric,
     val splitTime: SQLMetric,
     val spillTime: SQLMetric,
-    val compressTime: SQLMetric)
+    val compressTime: SQLMetric,
+    val prepareTime: SQLMetric)
     extends ShuffleDependency[K, V, C](
       _rdd,
       partitioner,

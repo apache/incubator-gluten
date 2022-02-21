@@ -45,6 +45,9 @@
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
+namespace gazellejni {
+namespace compute {
+
 // This class is used to convert Substrait representations to Velox expressions.
 class SubstraitVeloxExprConverter {
  public:
@@ -75,3 +78,6 @@ class SubstraitVeloxExprConverter {
   std::unordered_map<uint64_t, std::string> functions_map_;
   class FilterInfo;
 };
+
+}  // namespace compute
+}  // namespace gazellejni

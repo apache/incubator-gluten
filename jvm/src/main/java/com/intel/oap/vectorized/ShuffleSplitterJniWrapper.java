@@ -39,40 +39,49 @@ public class ShuffleSplitterJniWrapper {
    * @return native splitter instance id if created successfully.
    */
   public long make(
-      NativePartitioning part,
-      int bufferSize,
-      String codec,
-      String dataFile,
-      int subDirsPerLocalDir,
-      String localDirs,
-      boolean preferSpill,
-      long memoryPoolId) {
+          NativePartitioning part,
+          long offheapPerTask,
+          int bufferSize,
+          String codec,
+          int batchCompressThreshold,
+          String dataFile,
+          int subDirsPerLocalDir,
+          String localDirs,
+          boolean preferSpill,
+          long memoryPoolId,
+          boolean writeSchema) {
     return nativeMake(
-        part.getShortName(),
-        part.getNumPartitions(),
-        part.getSchema(),
-        part.getExprList(),
-        bufferSize,
-        codec,
-        dataFile,
-        subDirsPerLocalDir,
-        localDirs,
-        preferSpill,
-        memoryPoolId);
+            part.getShortName(),
+            part.getNumPartitions(),
+            part.getSchema(),
+            part.getExprList(),
+            offheapPerTask,
+            bufferSize,
+            codec,
+            batchCompressThreshold,
+            dataFile,
+            subDirsPerLocalDir,
+            localDirs,
+            preferSpill,
+            memoryPoolId,
+            writeSchema);
   }
 
   public native long nativeMake(
-      String shortName,
-      int numPartitions,
-      byte[] schema,
-      byte[] exprList,
-      int bufferSize,
-      String codec,
-      String dataFile,
-      int subDirsPerLocalDir,
-      String localDirs,
-      boolean preferSpill,
-      long memoryPoolId);
+          String shortName,
+          int numPartitions,
+          byte[] schema,
+          byte[] exprList,
+          long offheapPerTask,
+          int bufferSize,
+          String codec,
+          int batchCompressThreshold,
+          String dataFile,
+          int subDirsPerLocalDir,
+          String localDirs,
+          boolean preferSpill,
+          long memoryPoolId,
+          boolean writeSchema);
 
   /**
    *
@@ -101,8 +110,8 @@ public class ShuffleSplitterJniWrapper {
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(
-      long splitterId, int numRows, long[] bufAddrs, long[] bufSizes, boolean firstRecordBatch)
-      throws IOException;
+          long splitterId, int numRows, long[] bufAddrs, long[] bufSizes, boolean firstRecordBatch)
+          throws IOException;
 
   /**
    * Update the compress type.
