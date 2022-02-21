@@ -15,18 +15,20 @@
  * limitations under the License.
  */
 
-package com.intel.oap.vectorized;
+#pragma once
 
-import java.io.IOException;
+#include <arrow/type.h>
 
-public class ArrowColumnarToRowJniWrapper {
+namespace gazellejni {
+namespace columnartorow {
 
-  public ArrowColumnarToRowJniWrapper() throws IOException {
-    JniInstance.getInstance();
-  }
+int64_t CalculateBitSetWidthInBytes(int32_t numFields);
 
-  public native ArrowColumnarToRowInfo nativeConvertColumnarToRow(
-          byte[] schema, int numRows, long[] bufAddrs,
-          long[] bufSizes, long memoryPollID) throws RuntimeException;
-  public native void nativeClose(long instanceID);
-}
+int64_t RoundNumberOfBytesToNearestWord(int64_t numBytes);
+
+int64_t CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols);
+
+int64_t GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index);
+
+}  // namespace columnartorow
+}  // namespace gazellejni

@@ -29,11 +29,14 @@ import java.util.ArrayList;
 public class PlanNode implements Serializable {
     private final ArrayList<MappingNode> mappingNodes = new ArrayList<>();
     private final ArrayList<RelNode> relNodes = new ArrayList<>();
+    private final ArrayList<String> outputNames = new ArrayList<>();
 
     PlanNode(ArrayList<MappingNode> mappingNodes,
-             ArrayList<RelNode> relNodes) {
+             ArrayList<RelNode> relNodes,
+             ArrayList<String> outputNames) {
         this.mappingNodes.addAll(mappingNodes);
         this.relNodes.addAll(relNodes);
+        this.outputNames.addAll(outputNames);
     }
 
     public Plan toProtobuf() {
@@ -48,8 +51,9 @@ public class PlanNode implements Serializable {
 
             RelRoot.Builder relRootBuilder = RelRoot.newBuilder();
             relRootBuilder.setInput(relNode.toProtobuf());
-            // TODO: Set output names of RelRoot
-
+            for (String name : outputNames) {
+                relRootBuilder.addNames(name);
+            }
             planRelBuilder.setRoot(relRootBuilder.build());
 
             planBuilder.addRelations(planRelBuilder.build());

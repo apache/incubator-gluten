@@ -17,14 +17,14 @@
 
 package com.intel.oap.vectorized;
 
-public class ArrowColumnarToRowInfo {
+public class ColumnarToRowInfo {
     public long instanceID;
     public long[] offsets;
     public long[] lengths;
     public long memoryAddress;
 
-    public ArrowColumnarToRowInfo(long instanceID,
-                                  long[] offsets, long[] lengths, long memoryAddress) {
+    public ColumnarToRowInfo(long instanceID, long[] offsets,
+                             long[] lengths, long memoryAddress) {
         this.instanceID = instanceID;
         this.offsets = offsets;
         this.lengths = lengths;

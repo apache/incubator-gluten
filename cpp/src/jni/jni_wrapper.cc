@@ -39,6 +39,7 @@
 #include "jni/concurrent_map.h"
 #include "jni/jni_common.h"
 #include "operators/c2r/columnar_to_row_converter.h"
+#include "operators/c2r/velox_to_row_converter.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/result_iterator.h"
 
@@ -115,19 +116,22 @@ static jmethodID metrics_builder_constructor;
 static jmethodID serialized_record_batch_iterator_hasNext;
 static jmethodID serialized_record_batch_iterator_next;
 
-static jclass arrow_columnar_to_row_info_class;
-static jmethodID arrow_columnar_to_row_info_constructor;
+static jclass columnar_to_row_info_class;
+static jmethodID columnar_to_row_info_constructor;
 
 using arrow::jni::ConcurrentMap;
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
 using ColumnarToRowConverter = gazellejni::columnartorow::ColumnarToRowConverter;
+using VeloxToRowConverter = gazellejni::columnartorow::VeloxToRowConverter;
 static arrow::jni::ConcurrentMap<std::shared_ptr<ResultIteratorBase>>
     batch_iterator_holder_;
 
 static arrow::jni::ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>>
     columnar_to_row_converter_holder_;
+static arrow::jni::ConcurrentMap<std::shared_ptr<VeloxToRowConverter>>
+    velox_to_row_converter_holder_;
 
 using gazellejni::shuffle::SplitOptions;
 using gazellejni::shuffle::Splitter;
@@ -286,10 +290,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   serialized_record_batch_iterator_next =
       GetMethodID(env, serialized_record_batch_iterator_class, "next", "()[B");
 
-  arrow_columnar_to_row_info_class = CreateGlobalClassReference(
-      env, "Lcom/intel/oap/vectorized/ArrowColumnarToRowInfo;");
-  arrow_columnar_to_row_info_constructor =
-      GetMethodID(env, arrow_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
+  columnar_to_row_info_class =
+      CreateGlobalClassReference(env, "Lcom/intel/oap/vectorized/ColumnarToRowInfo;");
+  columnar_to_row_info_constructor =
+      GetMethodID(env, columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
 
   return JNI_VERSION;
 }
@@ -308,12 +312,13 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(serializable_obj_builder_class);
   env->DeleteGlobalRef(split_result_class);
   env->DeleteGlobalRef(serialized_record_batch_iterator_class);
-  env->DeleteGlobalRef(arrow_columnar_to_row_info_class);
+  env->DeleteGlobalRef(columnar_to_row_info_class);
 
   env->DeleteGlobalRef(byte_array_class);
 
   batch_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
+  velox_to_row_converter_holder_.Clear();
   shuffle_splitter_holder_.Clear();
   decompression_schema_holder_.Clear();
 }
@@ -425,7 +430,7 @@ JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeClose(
 }
 
 JNIEXPORT jobject JNICALL
-Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnarToRow(
+Java_com_intel_oap_vectorized_ColumnarToRowJniWrapper_nativeConvertArrowColumnarToRow(
     JNIEnv* env, jobject, jbyteArray schema_arr, jint num_rows, jlongArray buf_addrs,
     jlongArray buf_sizes, jlong memory_pool_id) {
   if (schema_arr == NULL) {
@@ -524,10 +529,10 @@ Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnar
     env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
     long address = reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
 
-    jobject arrow_columnar_to_row_info = env->NewObject(
-        arrow_columnar_to_row_info_class, arrow_columnar_to_row_info_constructor,
-        instanceID, offsets_arr, lengths_arr, address);
-    return arrow_columnar_to_row_info;
+    jobject columnar_to_row_info =
+        env->NewObject(columnar_to_row_info_class, columnar_to_row_info_constructor,
+                       instanceID, offsets_arr, lengths_arr, address);
+    return columnar_to_row_info;
   } catch (const std::runtime_error& error) {
     env->ThrowNew(unsupportedoperation_exception_class, error.what());
   } catch (const std::exception& error) {
@@ -536,10 +541,120 @@ Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnar
   return NULL;
 }
 
-JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeClose(
+JNIEXPORT jobject JNICALL
+Java_com_intel_oap_vectorized_ColumnarToRowJniWrapper_nativeConvertVeloxColumnarToRow(
+    JNIEnv* env, jobject, jbyteArray schema_arr, jint num_rows, jlongArray buf_addrs,
+    jlongArray buf_sizes, jlong memory_pool_id) {
+  if (schema_arr == NULL) {
+    env->ThrowNew(
+        illegal_argument_exception_class,
+        std::string("Native convert columnar to row schema can't be null").c_str());
+    return NULL;
+  }
+  if (buf_addrs == NULL) {
+    env->ThrowNew(
+        illegal_argument_exception_class,
+        std::string("Native convert columnar to row: buf_addrs can't be null").c_str());
+    return NULL;
+  }
+  if (buf_sizes == NULL) {
+    env->ThrowNew(
+        illegal_argument_exception_class,
+        std::string("Native convert columnar to row: buf_sizes can't be null").c_str());
+    return NULL;
+  }
+
+  int in_bufs_len = env->GetArrayLength(buf_addrs);
+  if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
+    env->ThrowNew(
+        illegal_argument_exception_class,
+        std::string(
+            "Native convert columnar to row: length of buf_addrs and buf_sizes mismatch")
+            .c_str());
+    return NULL;
+  }
+
+  std::shared_ptr<arrow::Schema> schema;
+  // ValueOrDie in MakeSchema
+  MakeSchema(env, schema_arr, &schema);
+
+  jlong* in_buf_addrs = env->GetLongArrayElements(buf_addrs, JNI_FALSE);
+  jlong* in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
+
+  std::shared_ptr<arrow::RecordBatch> rb;
+  auto status = MakeRecordBatch(schema, num_rows, (int64_t*)in_buf_addrs,
+                                (int64_t*)in_buf_sizes, in_bufs_len, &rb);
+
+  env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
+  env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
+
+  if (!status.ok()) {
+    env->ThrowNew(illegal_argument_exception_class,
+                  std::string("Native convert columnar to row: make record batch failed, "
+                              "error message is " +
+                              status.message())
+                      .c_str());
+    return NULL;
+  }
+
+  // convert the record batch to spark unsafe row.
+  try {
+    auto* pool = reinterpret_cast<arrow::MemoryPool*>(memory_pool_id);
+    if (pool == nullptr) {
+      env->ThrowNew(illegal_argument_exception_class,
+                    "Memory pool does not exist or has been closed");
+      return NULL;
+    }
+
+    std::shared_ptr<VeloxToRowConverter> velox_to_row_converter =
+        std::make_shared<VeloxToRowConverter>(rb, pool);
+    auto status = velox_to_row_converter->Init();
+    if (!status.ok()) {
+      env->ThrowNew(illegal_argument_exception_class,
+                    std::string("Native convert columnar to row: Init "
+                                "ColumnarToRowConverter failed, error message is " +
+                                status.message())
+                        .c_str());
+      return NULL;
+    }
+    velox_to_row_converter->Write();
+    if (!status.ok()) {
+      env->ThrowNew(
+          illegal_argument_exception_class,
+          std::string("Native convert columnar to row: ColumnarToRowConverter write "
+                      "failed, error message is " +
+                      status.message())
+              .c_str());
+      return NULL;
+    }
+
+    const auto& offsets = velox_to_row_converter->GetOffsets();
+    const auto& lengths = velox_to_row_converter->GetLengths();
+    int64_t instanceID = velox_to_row_converter_holder_.Insert(velox_to_row_converter);
+
+    auto offsets_arr = env->NewLongArray(num_rows);
+    auto offsets_src = reinterpret_cast<const jlong*>(offsets.data());
+    env->SetLongArrayRegion(offsets_arr, 0, num_rows, offsets_src);
+    auto lengths_arr = env->NewLongArray(num_rows);
+    auto lengths_src = reinterpret_cast<const jlong*>(lengths.data());
+    env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
+    long address = reinterpret_cast<long>(velox_to_row_converter->GetBufferAddress());
+
+    jobject velox_columnar_to_row_info =
+        env->NewObject(columnar_to_row_info_class, columnar_to_row_info_constructor,
+                       instanceID, offsets_arr, lengths_arr, address);
+    return velox_columnar_to_row_info;
+  } catch (const std::runtime_error& error) {
+    env->ThrowNew(unsupportedoperation_exception_class, error.what());
+  } catch (const std::exception& error) {
+    env->ThrowNew(io_exception_class, error.what());
+  }
+  return NULL;
+}
+
+JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_ColumnarToRowJniWrapper_nativeClose(
     JNIEnv* env, jobject, jlong instance_id) {
-  columnar_to_row_converter_holder_.Erase(instance_id);
+  velox_to_row_converter_holder_.Erase(instance_id);
 }
 
 // Shuffle

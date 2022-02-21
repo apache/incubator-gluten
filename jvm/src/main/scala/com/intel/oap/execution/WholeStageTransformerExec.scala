@@ -87,6 +87,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
+  var fakeArrowOutput = false
+
+  def setFakeOutput(): Unit = {
+    fakeArrowOutput = true
+  }
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -155,8 +160,16 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val mappingNode = MappingBuilder.makeFunctionMapping(entry.getKey, entry.getValue)
       mappingNodes.add(mappingNode)
     }
+    val outputNames = new java.util.ArrayList[String]()
+    // Use the first item in output names to specify the output format of the WS computing.
+    // When the next operator is ArrowColumnarToRow, fake Arrow output will be returned.
+    if (fakeArrowOutput) {
+      outputNames.add("fake_arrow_output")
+    } else {
+      outputNames.add("real_arrow_output")
+    }
     val relNodes = Lists.newArrayList(childCtx.root)
-    val planNode = PlanBuilder.makePlan(mappingNodes, relNodes)
+    val planNode = PlanBuilder.makePlan(mappingNodes, relNodes, outputNames)
 
     WholestageTransformContext(childCtx.inputAttributes,
       childCtx.outputAttributes, planNode, substraitContext)
@@ -478,7 +491,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           dependentKernels.foreach(_.close)
           dependentKernelIterators.foreach(_.close)
           // nativeKernel.close
-          nativeIterator.close
+          nativeIterator.close()
           relationHolder.clear()
         }
         SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {

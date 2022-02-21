@@ -15,44 +15,14 @@
  * limitations under the License.
  */
 
-#include "operators/c2r/columnar_to_row_converter.h"
+#include "columnar_to_row_converter.h"
 
 #include <iostream>
 
+#include "conversion_utils.h"
+
 namespace gazellejni {
 namespace columnartorow {
-
-int64_t CalculateBitSetWidthInBytes(int32_t numFields) {
-  return ((numFields + 63) / 64) * 8;
-}
-
-int64_t RoundNumberOfBytesToNearestWord(int64_t numBytes) {
-  int64_t remainder = numBytes & 0x07;  // This is equivalent to `numBytes % 8`
-  if (remainder == 0) {
-    return numBytes;
-  } else {
-    return numBytes + (8 - remainder);
-  }
-}
-
-int64_t CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema,
-                                 int64_t num_cols) {
-  std::vector<std::shared_ptr<arrow::Field>> fields = schema->fields();
-  // Calculate the decimal col num when the precision >18
-  int32_t count = 0;
-  for (auto i = 0; i < num_cols; i++) {
-    auto type = fields[i]->type();
-    if (type->id() == arrow::Decimal128Type::type_id) {
-      auto dtype = dynamic_cast<arrow::Decimal128Type*>(type.get());
-      int32_t precision = dtype->precision();
-      if (precision > 18) count++;
-    }
-  }
-
-  int64_t fixed_size = CalculateBitSetWidthInBytes(num_cols) + num_cols * 8;
-  int64_t decimal_cols_size = count * 16;
-  return fixed_size + decimal_cols_size;
-}
 
 arrow::Status ColumnarToRowConverter::Init() {
   num_rows_ = rb_->num_rows();
@@ -103,10 +73,6 @@ void BitSet(uint8_t* buffer_address, int32_t index) {
   memcpy(&word, buffer_address + wordOffset, sizeof(int64_t));
   int64_t value = word | mask;
   memcpy(buffer_address + wordOffset, &value, sizeof(int64_t));
-}
-
-int64_t GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index) {
-  return nullBitsetWidthInBytes + 8L * index;
 }
 
 void SetNullAt(uint8_t* buffer_address, int64_t row_offset, int64_t field_offset,

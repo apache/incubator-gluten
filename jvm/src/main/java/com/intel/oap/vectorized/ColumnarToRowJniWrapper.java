@@ -15,19 +15,23 @@
  * limitations under the License.
  */
 
-package com.intel.oap.substrait.plan;
+package com.intel.oap.vectorized;
 
-import com.intel.oap.substrait.extensions.MappingNode;
-import com.intel.oap.substrait.rel.RelNode;
+import java.io.IOException;
 
-import java.util.ArrayList;
+public class ColumnarToRowJniWrapper {
 
-public class PlanBuilder {
-    private PlanBuilder() {}
+  public ColumnarToRowJniWrapper() throws IOException {
+    JniInstance.getInstance();
+  }
 
-    public static PlanNode makePlan(ArrayList<MappingNode> mappingNodes,
-                                    ArrayList<RelNode> relNodes,
-                                    ArrayList<String> outputNames) {
-        return new PlanNode(mappingNodes, relNodes, outputNames);
-    }
+  public native ColumnarToRowInfo nativeConvertArrowColumnarToRow(
+          byte[] schema, int numRows, long[] bufAddrs,
+          long[] bufSizes, long memoryPollID) throws RuntimeException;
+
+  public native ColumnarToRowInfo nativeConvertVeloxColumnarToRow(
+          byte[] schema, int numRows, long[] bufAddrs,
+          long[] bufSizes, long memoryPollID) throws RuntimeException;
+
+  public native void nativeClose(long instanceID);
 }
