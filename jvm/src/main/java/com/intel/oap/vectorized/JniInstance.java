@@ -194,7 +194,11 @@ public class JniInstance {
         throw new IOException("Library path: " + libPath + " is not a file or does not exist.");
       }
       System.load(file.getAbsolutePath());
-
+      // To use columnar Shuffle, the shared library compiled by Gazelle-Jni native code
+      // will be also loaded.
+      final String jniLibrary = System.mapLibraryName(LIBRARY_NAME);
+      final File jniLibraryFile = moveFileFromJarToTemp(tmp_dir, jniLibrary);
+      System.load(jniLibraryFile.getAbsolutePath());
       if (loadArrowAndGandiva) {
         loadArrowAndGandivaFromJarWithLib(tmp_dir);
       }
