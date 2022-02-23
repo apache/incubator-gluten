@@ -36,8 +36,8 @@ public class ExpressionEvaluatorJniWrapper {
         public ExpressionEvaluatorJniWrapper(String tmp_dir, List<String> listJars, String libName,
                                              String libPath, boolean loadArrowAndGandiva)
                         throws IOException, IllegalAccessException, IllegalStateException {
-                JniInstance jni = JniInstance.getInstance(tmp_dir, libName, libPath,
-                        loadArrowAndGandiva);
+                JniInstance jni = JniInstance
+                        .getInstance(tmp_dir, libName, libPath, loadArrowAndGandiva);
                 jni.setTempDir();
                 jni.setJars(listJars);
                 tmp_dir_path = jni.getTempDir();

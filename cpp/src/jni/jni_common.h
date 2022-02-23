@@ -34,8 +34,8 @@
 #include <utility>
 #include <vector>
 
-#include "proto/protobuf_utils.h"
-#include "proto/substrait_utils.h"
+#include "compute/protobuf_utils.h"
+#include "compute/substrait_utils.h"
 
 static jclass io_exception_class;
 static jclass runtime_exception_class;
@@ -344,7 +344,7 @@ arrow::Status ParseSubstraitPlan(
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
-  auto parser = std::make_shared<SubstraitParser>();
+  auto parser = std::make_shared<gazellejni::compute::SubstraitParser>();
   parser->ParsePlan(ws_plan);
   *out_iter = parser->getResIter();
   return arrow::Status::OK();

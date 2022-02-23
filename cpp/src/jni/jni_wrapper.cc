@@ -35,11 +35,12 @@
 #include <string>
 #include <utility>
 
-#include "common/result_iterator.h"
+#include "compute/protobuf_utils.h"
 #include "jni/concurrent_map.h"
 #include "jni/jni_common.h"
-#include "operators/columnar_to_row_converter.h"
-#include "proto/protobuf_utils.h"
+#include "operators/c2r/columnar_to_row_converter.h"
+#include "operators/shuffle/splitter.h"
+#include "utils/result_iterator.h"
 
 namespace {
 
@@ -121,12 +122,18 @@ using arrow::jni::ConcurrentMap;
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
-using ColumnarToRowConverter = sparkcolumnarplugin::columnartorow::ColumnarToRowConverter;
+using ColumnarToRowConverter = gazellejni::columnartorow::ColumnarToRowConverter;
 static arrow::jni::ConcurrentMap<std::shared_ptr<ResultIteratorBase>>
     batch_iterator_holder_;
 
 static arrow::jni::ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>>
     columnar_to_row_converter_holder_;
+
+using gazellejni::shuffle::SplitOptions;
+using gazellejni::shuffle::Splitter;
+static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_holder_;
+static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
+    decompression_schema_holder_;
 
 std::shared_ptr<ResultIteratorBase> GetBatchIterator(JNIEnv* env, jlong id) {
   auto handler = batch_iterator_holder_.Lookup(id);
@@ -265,7 +272,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   split_result_class =
       CreateGlobalClassReference(env, "Lcom/intel/oap/vectorized/SplitResult;");
   split_result_constructor =
-      GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J)V");
+      GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
   metrics_builder_class =
       CreateGlobalClassReference(env, "Lcom/intel/oap/vectorized/MetricsObject;");
@@ -307,6 +314,8 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 
   batch_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
+  shuffle_splitter_holder_.Clear();
+  decompression_schema_holder_.Clear();
 }
 
 JNIEXPORT void JNICALL
@@ -528,6 +537,300 @@ JNIEXPORT void JNICALL
 Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeClose(
     JNIEnv* env, jobject, jlong instance_id) {
   columnar_to_row_converter_holder_.Erase(instance_id);
+}
+
+// Shuffle
+JNIEXPORT jlong JNICALL
+Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
+    JNIEnv* env, jobject, jstring partitioning_name_jstr, jint num_partitions,
+    jbyteArray schema_arr, jbyteArray expr_arr, jlong offheap_per_task, jint buffer_size,
+    jstring compression_type_jstr, jint batch_compress_threshold, jstring data_file_jstr,
+    jint num_sub_dirs, jstring local_dirs_jstr, jboolean prefer_spill,
+    jlong memory_pool_id, jboolean write_schema) {
+  JNI_METHOD_START
+  if (partitioning_name_jstr == NULL) {
+    JniThrow(std::string("Short partitioning name can't be null"));
+    return 0;
+  }
+  if (schema_arr == NULL) {
+    JniThrow(std::string("Make splitter schema can't be null"));
+  }
+  if (data_file_jstr == NULL) {
+    JniThrow(std::string("Shuffle DataFile can't be null"));
+  }
+  if (local_dirs_jstr == NULL) {
+    JniThrow(std::string("Shuffle DataFile can't be null"));
+  }
+
+  auto partitioning_name_c = env->GetStringUTFChars(partitioning_name_jstr, JNI_FALSE);
+  auto partitioning_name = std::string(partitioning_name_c);
+  env->ReleaseStringUTFChars(partitioning_name_jstr, partitioning_name_c);
+
+  auto splitOptions = SplitOptions::Defaults();
+  splitOptions.write_schema = write_schema;
+  splitOptions.prefer_spill = prefer_spill;
+  splitOptions.buffered_write = true;
+  if (buffer_size > 0) {
+    splitOptions.buffer_size = buffer_size;
+  }
+  splitOptions.offheap_per_task = offheap_per_task;
+
+  if (num_sub_dirs > 0) {
+    splitOptions.num_sub_dirs = num_sub_dirs;
+  }
+
+  if (compression_type_jstr != NULL) {
+    auto compression_type_result = GetCompressionType(env, compression_type_jstr);
+    if (compression_type_result.status().ok()) {
+      splitOptions.compression_type = compression_type_result.MoveValueUnsafe();
+    }
+  }
+
+  auto data_file_c = env->GetStringUTFChars(data_file_jstr, JNI_FALSE);
+  splitOptions.data_file = std::string(data_file_c);
+  env->ReleaseStringUTFChars(data_file_jstr, data_file_c);
+
+  auto* pool = reinterpret_cast<arrow::MemoryPool*>(memory_pool_id);
+  if (pool == nullptr) {
+    JniThrow("Memory pool does not exist or has been closed");
+  }
+  splitOptions.memory_pool = pool;
+
+  auto local_dirs = env->GetStringUTFChars(local_dirs_jstr, JNI_FALSE);
+  setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
+  env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
+
+  std::shared_ptr<arrow::Schema> schema;
+  // ValueOrDie in MakeSchema
+  MakeSchema(env, schema_arr, &schema);
+
+  gandiva::ExpressionVector expr_vector = {};
+  if (expr_arr != NULL) {
+    gandiva::FieldVector ret_types;
+    JniAssertOkOrThrow(MakeExprVector(env, expr_arr, &expr_vector, &ret_types),
+                       "Failed to parse expressions protobuf");
+  }
+
+  jclass cls = env->FindClass("java/lang/Thread");
+  jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
+  jobject thread = env->CallStaticObjectMethod(cls, mid);
+  if (thread == NULL) {
+    std::cout << "Thread.currentThread() return NULL" << std::endl;
+  } else {
+    jmethodID mid_getid = env->GetMethodID(cls, "getId", "()J");
+    jlong sid = env->CallLongMethod(thread, mid_getid);
+    splitOptions.thread_id = (int64_t)sid;
+  }
+
+  jclass tc_cls = env->FindClass("org/apache/spark/TaskContext");
+  jmethodID get_tc_mid =
+      env->GetStaticMethodID(tc_cls, "get", "()Lorg/apache/spark/TaskContext;");
+  jobject tc_obj = env->CallStaticObjectMethod(tc_cls, get_tc_mid);
+  if (tc_obj == NULL) {
+    std::cout << "TaskContext.get() return NULL" << std::endl;
+  } else {
+    jmethodID get_tsk_attmpt_mid = env->GetMethodID(tc_cls, "taskAttemptId", "()J");
+    jlong attmpt_id = env->CallLongMethod(tc_obj, get_tsk_attmpt_mid);
+    splitOptions.task_attempt_id = (int64_t)attmpt_id;
+  }
+  splitOptions.batch_compress_threshold = batch_compress_threshold;
+
+  auto splitter =
+      JniGetOrThrow(Splitter::Make(partitioning_name, std::move(schema), num_partitions,
+                                   expr_vector, std::move(splitOptions)),
+                    "Failed create native shuffle splitter");
+
+  return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));
+
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT void JNICALL
+Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_setCompressType(
+    JNIEnv* env, jobject, jlong splitter_id, jstring compression_type_jstr) {
+  JNI_METHOD_START
+  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
+  if (!splitter) {
+    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+    JniThrow(error_message);
+  }
+
+  if (compression_type_jstr != NULL) {
+    auto compression_type_result = GetCompressionType(env, compression_type_jstr);
+    if (compression_type_result.status().ok()) {
+      JniAssertOkOrThrow(
+          splitter->SetCompressType(compression_type_result.MoveValueUnsafe()));
+    }
+  }
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jlong JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_split(
+    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlongArray buf_addrs,
+    jlongArray buf_sizes, jboolean first_record_batch) {
+  JNI_METHOD_START
+  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
+  if (!splitter) {
+    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+    JniThrow(error_message);
+  }
+  if (buf_addrs == NULL) {
+    JniThrow("Native split: buf_addrs can't be null");
+  }
+  if (buf_sizes == NULL) {
+    JniThrow("Native split: buf_sizes can't be null");
+  }
+
+  int in_bufs_len = env->GetArrayLength(buf_addrs);
+  if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
+    JniThrow("Native split: length of buf_addrs and buf_sizes mismatch");
+  }
+
+  jlong* in_buf_addrs = env->GetLongArrayElements(buf_addrs, JNI_FALSE);
+  jlong* in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
+
+  std::shared_ptr<arrow::RecordBatch> in;
+  JniAssertOkOrThrow(
+      MakeRecordBatch(splitter->input_schema(), num_rows, (int64_t*)in_buf_addrs,
+                      (int64_t*)in_buf_sizes, in_bufs_len, &in),
+      "Native split: make record batch failed");
+
+  env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
+  env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
+
+  if (first_record_batch) {
+    return splitter->CompressedSize(*in);
+  }
+  JniAssertOkOrThrow(splitter->Split(*in), "Native split: splitter split failed");
+  return -1L;
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_stop(
+    JNIEnv* env, jobject, jlong splitter_id) {
+  JNI_METHOD_START
+  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
+  if (!splitter) {
+    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+    JniThrow(error_message);
+  }
+
+  JniAssertOkOrThrow(splitter->Stop(), "Native split: splitter stop failed");
+
+  const auto& partition_lengths = splitter->PartitionLengths();
+  auto partition_length_arr = env->NewLongArray(partition_lengths.size());
+  auto src = reinterpret_cast<const jlong*>(partition_lengths.data());
+  env->SetLongArrayRegion(partition_length_arr, 0, partition_lengths.size(), src);
+
+  const auto& raw_partition_lengths = splitter->RawPartitionLengths();
+  auto raw_partition_length_arr = env->NewLongArray(raw_partition_lengths.size());
+  auto raw_src = reinterpret_cast<const jlong*>(raw_partition_lengths.data());
+  env->SetLongArrayRegion(raw_partition_length_arr, 0, raw_partition_lengths.size(),
+                          raw_src);
+
+  jobject split_result = env->NewObject(
+      split_result_class, split_result_constructor, splitter->TotalComputePidTime(),
+      splitter->TotalWriteTime(), splitter->TotalSpillTime(),
+      splitter->TotalCompressTime(), splitter->TotalBytesWritten(),
+      splitter->TotalBytesSpilled(), partition_length_arr, raw_partition_length_arr);
+
+  return split_result;
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_close(
+    JNIEnv* env, jobject, jlong splitter_id) {
+  JNI_METHOD_START
+  shuffle_splitter_holder_.Erase(splitter_id);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jlong JNICALL Java_com_intel_oap_vectorized_ShuffleDecompressionJniWrapper_make(
+    JNIEnv* env, jobject, jbyteArray schema_arr) {
+  JNI_METHOD_START
+  std::shared_ptr<arrow::Schema> schema;
+  // ValueOrDie in MakeSchema
+  JniAssertOkOrThrow(MakeSchema(env, schema_arr, &schema));
+
+  return decompression_schema_holder_.Insert(schema);
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT jobject JNICALL
+Java_com_intel_oap_vectorized_ShuffleDecompressionJniWrapper_decompress(
+    JNIEnv* env, jobject obj, jlong schema_holder_id, jstring compression_type_jstr,
+    jint num_rows, jlongArray buf_addrs, jlongArray buf_sizes, jlongArray buf_mask) {
+  JNI_METHOD_START
+  auto schema = decompression_schema_holder_.Lookup(schema_holder_id);
+  if (!schema) {
+    std::string error_message =
+        "Invalid schema holder id " + std::to_string(schema_holder_id);
+    JniThrow(error_message);
+  }
+  if (buf_addrs == NULL) {
+    JniThrow("Native decompress: buf_addrs can't be null");
+  }
+  if (buf_sizes == NULL) {
+    JniThrow("Native decompress: buf_sizes can't be null");
+  }
+  if (buf_mask == NULL) {
+    JniThrow("Native decompress: buf_mask can't be null");
+  }
+
+  int in_bufs_len = env->GetArrayLength(buf_addrs);
+  if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
+    JniThrow("Native decompress: length of buf_addrs and buf_sizes mismatch");
+  }
+
+  auto compression_type = arrow::Compression::UNCOMPRESSED;
+  if (compression_type_jstr != NULL) {
+    auto compression_type_result = GetCompressionType(env, compression_type_jstr);
+    if (compression_type_result.status().ok()) {
+      compression_type = compression_type_result.MoveValueUnsafe();
+    }
+  }
+
+  // make buffers from raws
+  auto in_buf_addrs = env->GetLongArrayElements(buf_addrs, JNI_FALSE);
+  auto in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
+  auto in_buf_mask = env->GetLongArrayElements(buf_mask, JNI_FALSE);
+
+  std::vector<std::shared_ptr<arrow::Buffer>> input_buffers;
+  input_buffers.reserve(in_bufs_len);
+  for (auto buffer_idx = 0; buffer_idx < in_bufs_len; buffer_idx++) {
+    input_buffers.push_back(std::make_shared<arrow::Buffer>(
+        reinterpret_cast<const uint8_t*>(in_buf_addrs[buffer_idx]),
+        in_buf_sizes[buffer_idx]));
+  }
+
+  // decompress buffers
+  auto options = arrow::ipc::IpcReadOptions::Defaults();
+  options.use_threads = false;
+  JniAssertOkOrThrow(
+      DecompressBuffers(compression_type, options, (uint8_t*)in_buf_mask, input_buffers,
+                        schema->fields()),
+      "ShuffleDecompressionJniWrapper_decompress, failed to decompress buffers");
+
+  env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
+  env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
+  env->ReleaseLongArrayElements(buf_mask, in_buf_mask, JNI_ABORT);
+
+  // make arrays from buffers
+  std::shared_ptr<arrow::RecordBatch> rb;
+  JniAssertOkOrThrow(
+      MakeRecordBatch(schema, num_rows, input_buffers, input_buffers.size(), &rb),
+      "ShuffleDecompressionJniWrapper_decompress, failed to MakeRecordBatch upon "
+      "buffers");
+  jbyteArray serialized_record_batch =
+      JniGetOrThrow(ToBytes(env, rb), "Error deserializing message");
+
+  return serialized_record_batch;
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_ShuffleDecompressionJniWrapper_close(
+    JNIEnv* env, jobject, jlong schema_holder_id) {
+  decompression_schema_holder_.Erase(schema_holder_id);
 }
 
 JNIEXPORT void JNICALL Java_com_intel_oap_tpc_MallocUtils_mallocTrim(JNIEnv* env,

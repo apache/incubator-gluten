@@ -26,6 +26,7 @@ public class SplitResult {
   private final long totalBytesWritten;
   private final long totalBytesSpilled;
   private final long[] partitionLengths;
+  private final long[] rawPartitionLengths;
 
   public SplitResult(
       long totalComputePidTime,
@@ -34,7 +35,8 @@ public class SplitResult {
       long totalCompressTime,
       long totalBytesWritten,
       long totalBytesSpilled,
-      long[] partitionLengths) {
+      long[] partitionLengths,
+      long[] rawPartitionLengths) {
     this.totalComputePidTime = totalComputePidTime;
     this.totalWriteTime = totalWriteTime;
     this.totalSpillTime = totalSpillTime;
@@ -42,6 +44,7 @@ public class SplitResult {
     this.totalBytesWritten = totalBytesWritten;
     this.totalBytesSpilled = totalBytesSpilled;
     this.partitionLengths = partitionLengths;
+    this.rawPartitionLengths = rawPartitionLengths;
   }
 
   public long getTotalComputePidTime() {
@@ -70,5 +73,9 @@ public class SplitResult {
 
   public long[] getPartitionLengths() {
     return partitionLengths;
+  }
+
+  public long[] getRawPartitionLengths() {
+    return rawPartitionLengths;
   }
 }

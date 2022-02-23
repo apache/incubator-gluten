@@ -25,6 +25,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
 import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer
 import org.apache.arrow.memory.ArrowBuf
@@ -32,6 +33,7 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.ArrowStreamReader
 import org.apache.arrow.vector.VectorLoader
 import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
@@ -42,19 +44,25 @@ import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class ArrowColumnarBatchSerializer(readBatchNumRows: SQLMetric, numOutputRows: SQLMetric)
-    extends Serializer
-    with Serializable {
+class ArrowColumnarBatchSerializer(
+    schema: StructType, readBatchNumRows: SQLMetric, numOutputRows: SQLMetric)
+extends Serializer with Serializable {
 
   /** Creates a new [[SerializerInstance]]. */
-  override def newInstance(): SerializerInstance =
-    new ArrowColumnarBatchSerializerInstance(readBatchNumRows, numOutputRows)
+  override def newInstance(): SerializerInstance = {
+    val arrowSchema = ArrowUtils.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
+    new ArrowColumnarBatchSerializerInstance(arrowSchema, readBatchNumRows, numOutputRows)
+  }
 }
 
 private class ArrowColumnarBatchSerializerInstance(
+    schema: Schema,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric)
     extends SerializerInstance
@@ -63,11 +71,13 @@ private class ArrowColumnarBatchSerializerInstance(
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
 
+      private val readSchema = GazelleJniConfig.getConf.columnarShuffleWriteSchema
+
       private val compressionEnabled =
         SparkEnv.get.conf.getBoolean("spark.shuffle.compress", true)
 
       private val allocator: BufferAllocator = SparkMemoryUtils
-        .contextAllocator()
+        .contextAllocatorForBufferImport()
         .newChildAllocator("ArrowColumnarBatch deserialize", 0, Long.MaxValue)
 
       private var reader: ArrowStreamReader = _
@@ -121,7 +131,9 @@ private class ArrowColumnarBatchSerializerInstance(
             numRowsTotal += numRows
 
             // jni call to decompress buffers
-            if (compressionEnabled) {
+            if (compressionEnabled &&
+                reader.asInstanceOf[SchemaAwareArrowCompressedStreamReader]
+                    .isCurrentBatchCompressed) {
               try {
                 decompressVectors()
               } catch {
@@ -148,10 +160,11 @@ private class ArrowColumnarBatchSerializerInstance(
             throw new EOFException
           }
         } else {
+          val suggestedSchema = if (readSchema) null else schema
           if (compressionEnabled) {
-            reader = new ArrowCompressedStreamReader(in, allocator)
+            reader = new SchemaAwareArrowCompressedStreamReader(suggestedSchema, in, allocator)
           } else {
-            reader = new ArrowStreamReader(in, allocator)
+            reader = new SchemaAwareArrowStreamReader(suggestedSchema, in, allocator)
           }
           try {
             root = reader.getVectorSchemaRoot
@@ -220,7 +233,7 @@ private class ArrowColumnarBatchSerializerInstance(
 
         val serializedBatch = jniWrapper.decompress(
           schemaHolderId,
-          reader.asInstanceOf[ArrowCompressedStreamReader].GetCompressType(),
+          reader.asInstanceOf[SchemaAwareArrowCompressedStreamReader].getCompressType,
           root.getRowCount,
           bufAddrs.toArray,
           bufSizes.toArray,
