@@ -39,8 +39,8 @@ object TableBenchmarkTest {
       val resourcePath = rootPath + "../../../src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
-      (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", false,
-      "/tmp/gazelle-jni")
+      (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
+      "")
     }
 
     val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
@@ -87,13 +87,22 @@ object TableBenchmarkTest {
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         .config("spark.plugins", "com.intel.oap.GazellePlugin")
+        //.config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.oap.sql.columnar.columnartorow", "false")
         .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
         .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
+        // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so
+        // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse/cmake-build-release/utils/local-engine/liblocal_engine_jni.so
+        // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-debug/utils/local-engine/liblocal_engine_jnid.so
         .config(GazelleJniConfig.OAP_LIB_PATH,
-          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
+          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
         .config("spark.oap.sql.columnar.iterator", "false")
+        .config("spark.oap.sql.columnar.ch.mergetree.enabled", "true")
+        .config("spark.oap.sql.columnar.ch.mergetree.table.path",
+          "data1/clickhouse-test/test-tpch10/")
+        .config("spark.oap.sql.columnar.ch.mergetree.database", "default")
+        .config("spark.oap.sql.columnar.ch.mergetree.table", "test")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
@@ -136,14 +145,14 @@ object TableBenchmarkTest {
               fileFormat: String, executedCnt: Int,
               sql: String): Unit = {
 
-    spark.sql(
+    /*spark.sql(
       s"""
          | show databases;
          |""".stripMargin).show(100, false)
     spark.sql(
       s"""
          | show tables;
-         |""".stripMargin).show(100, false)
+         |""".stripMargin).show(100, false)*/
 
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
@@ -183,17 +192,17 @@ object TableBenchmarkTest {
     val customerData = parquetFilesPath + "/customer"
     spark.sql(
       s"""
-        | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
-        | c_custkey    bigint,
-        | c_name       string,
-        | c_address    string,
-        | c_nationkey  bigint,
-        | c_phone      string,
-        | c_acctbal    double,
-        | c_mktsegment string,
-        | c_comment    string)
-        | STORED AS PARQUET LOCATION '${customerData}'
-        |""".stripMargin).show(1, false)
+         | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
+         | c_custkey    bigint,
+         | c_name       string,
+         | c_address    string,
+         | c_nationkey  bigint,
+         | c_phone      string,
+         | c_acctbal    double,
+         | c_mktsegment string,
+         | c_comment    string)
+         | STORED AS PARQUET LOCATION '${customerData}'
+         |""".stripMargin).show(1, false)
 
     val lineitemData = parquetFilesPath + "/lineitem"
     spark.sql(
@@ -297,7 +306,7 @@ object TableBenchmarkTest {
          | STORED AS PARQUET LOCATION '${supplierData}'
          |""".stripMargin).show(1, false)
 
-    spark.sql(
+    /*spark.sql(
       s"""
          | show databases;
          |""".stripMargin).show(100, false)
@@ -317,6 +326,6 @@ object TableBenchmarkTest {
              | select count(1) from $key;
              |""".stripMargin).show(10, false)
       }
-    }
+    }*/
   }
 }

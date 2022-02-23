@@ -17,19 +17,26 @@
 
 package com.intel.oap.substrait
 
-import com.intel.oap.substrait.rel.LocalFilesNode
+import com.intel.oap.substrait.rel.{ExtensionTableNode, LocalFilesNode}
 
 class SubstraitContext() {
 
   private val functionMap = new java.util.HashMap[String, java.lang.Long]()
 
   private var localFilesNode: LocalFilesNode = null
+  private var extensionTableNode: ExtensionTableNode = null
 
   def setLocalFilesNode(localFilesNode: LocalFilesNode): Unit = {
     this.localFilesNode = localFilesNode
   }
 
   def getLocalFilesNode(): LocalFilesNode = this.localFilesNode
+
+  def setExtensionTableNode(extensionTableNode: ExtensionTableNode): Unit = {
+    this.extensionTableNode = extensionTableNode
+  }
+
+  def getExtensionTableNode(): ExtensionTableNode = this.extensionTableNode
 
   def registerFunction(funcName: String): java.lang.Long = {
     if (!functionMap.containsKey(funcName)) {
