@@ -44,7 +44,7 @@ void VeloxInitializer::Init() {
   registerConnector(hiveConnector);
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
-  functions::prestosql::registerAllFunctions();
+  functions::prestosql::registerAllScalarFunctions();
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
 }
 
@@ -144,6 +144,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   }
   bool ignoreNullKeys = false;
   std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(out_idx);
+  std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> pre_grouping_exprs;
   if (project_out_names.size() > 0) {
     auto project_node = std::make_shared<core::ProjectNode>(
         nextPlanNodeId(), std::move(project_out_names), std::move(project_exprs),
@@ -153,8 +154,8 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       agg_out_names.push_back(sub_parser_->makeNodeName(plan_node_id_, idx));
     }
     auto agg_node = std::make_shared<core::AggregationNode>(
-        nextPlanNodeId(), agg_step, velox_grouping_exprs, agg_out_names, agg_exprs,
-        aggregateMasks, ignoreNullKeys, project_node);
+        nextPlanNodeId(), agg_step, velox_grouping_exprs, pre_grouping_exprs,
+        agg_out_names, agg_exprs, aggregateMasks, ignoreNullKeys, project_node);
     return agg_node;
   } else {
     std::vector<std::string> agg_out_names;
@@ -162,8 +163,8 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       agg_out_names.push_back(sub_parser_->makeNodeName(plan_node_id_, idx));
     }
     auto agg_node = std::make_shared<core::AggregationNode>(
-        nextPlanNodeId(), agg_step, velox_grouping_exprs, agg_out_names, agg_exprs,
-        aggregateMasks, ignoreNullKeys, child_node);
+        nextPlanNodeId(), agg_step, velox_grouping_exprs, pre_grouping_exprs,
+        agg_out_names, agg_exprs, aggregateMasks, ignoreNullKeys, child_node);
     return agg_node;
   }
 }
@@ -453,9 +454,10 @@ class SubstraitVeloxPlanConverter::WholeStageResultIterator
             bytesOfType(col_type) * num_rows_);
         out_data.buffers[1] = data_buffer;
       } else if (isString(col_type)) {
+        auto offsets = static_cast<const uint32_t*>(arrowArray.buffers[2]);
+        auto string_data_size = offsets[num_rows_];
         auto value_buffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[1]),
-            arrowArray.string_data_size);
+            static_cast<const uint8_t*>(arrowArray.buffers[1]), string_data_size);
         auto offset_bytes = sizeof(int32_t);
         auto offset_buffer = std::make_shared<arrow::Buffer>(
             static_cast<const uint8_t*>(arrowArray.buffers[2]),
