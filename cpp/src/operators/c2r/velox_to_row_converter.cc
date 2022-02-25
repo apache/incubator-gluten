@@ -105,7 +105,6 @@ void VeloxToRowConverter::ResumeVeloxVector() {
         .offset = 0,
         .n_buffers = 2,
         .n_children = 0,
-        .string_data_size = 0,
         .buffers = buffers,
         .children = nullptr,
         .dictionary = nullptr,

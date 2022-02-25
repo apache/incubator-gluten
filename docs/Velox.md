@@ -34,9 +34,9 @@ set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 di
 
 Secondly, when compiling Velox, please note that Velox generated static libraries should also be compiled as position independent code.
 Also, some OBJECT settings in CMakeLists are removed in order to acquire the static libraries.
-For these two changes, please refer to this commit [Velox Compiling](https://github.com/rui-mo/velox/commit/ce1dee8f776bc3afa36cd3fc033161fc062cbe98).
+For these two changes, please refer to this branch [Velox_Branch](https://github.com/rui-mo/velox/tree/dev_on_main).
 
-Currently, we depends on this Velox commmit: **8d3e951 (Jan 18 2022)**
+Currently, we depends on this Velox commmit: **0f1983 (Feb 25 2022)**
 
 ### An example for Velox computing in Spark based on Gazelle-Jni
 

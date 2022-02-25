@@ -51,6 +51,7 @@ set(VELOX_DWIO_DWRF_READER_LIB_PATH "${VELOX_BUILD_PATH}/dwio/dwrf/reader/libvel
 set(VELOX_EXTERNAL_DUCKDB_LIB_PATH "${VELOX_BUILD_PATH}/external/duckdb/libduckdb.a")
 set(VELOX_DUCKDB_PARSER_LIB_PATH "${VELOX_BUILD_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
 set(VELOX_DUCKDB_CONVERSION_LIB_PATH "${VELOX_BUILD_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
+set(VELOX_FUNCTIONS_PRESTOSQL_TYPES_LIB_PATH "${VELOX_BUILD_PATH}/functions/prestosql/types/libvelox_presto_types.a")
 set(VELOX_FUNCTIONS_PRESTOSQL_LIB_PATH "${VELOX_BUILD_PATH}/functions/prestosql/registration/libvelox_functions_prestosql.a")
 set(VELOX_FUNCTIONS_PRESTOSQL_IMPL_LIB_PATH "${VELOX_BUILD_PATH}/functions/prestosql/libvelox_functions_prestosql_impl.a")
 set(VELOX_FUNCTIONS_PRESTOSQL_JSON_LIB_PATH "${VELOX_BUILD_PATH}/functions/prestosql/json/libvelox_functions_json.a")
@@ -573,6 +574,7 @@ macro(build_velox_exec)
   add_library(facebook::velox::duckdb::parser STATIC IMPORTED)
   add_library(facebook::velox::duckdb::conversion STATIC IMPORTED)
   add_library(facebook::velox::functions::prestosql STATIC IMPORTED)
+  add_library(facebook::velox::functions::prestosql::types STATIC IMPORTED)
   add_library(facebook::velox::functions::prestosql::impl STATIC IMPORTED)
   add_library(facebook::velox::functions::json STATIC IMPORTED)
   add_library(facebook::velox::functions::hyperloglog STATIC IMPORTED)
@@ -728,6 +730,10 @@ macro(build_velox_exec)
                         PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
                                    "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::functions::prestosql::types
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_TYPES_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::functions::prestosql::impl
                         PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_IMPL_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
@@ -812,6 +818,7 @@ macro(build_velox_exec)
                     LINK_PUBLIC facebook::velox::type::tz
                     LINK_PUBLIC facebook::velox::external::md5
                     LINK_PUBLIC facebook::velox::buffer
+                    LINK_PUBLIC facebook::velox::functions::prestosql::types
                     LINK_PUBLIC gtest
                     LINK_PUBLIC folly
                     LINK_PUBLIC iberty
