@@ -72,8 +72,13 @@ object BenchmarkTest {
         .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
         .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
         .config(GazelleJniConfig.OAP_LIB_PATH,
-          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
+          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
         .config("spark.oap.sql.columnar.iterator", "false")
+        .config("spark.oap.sql.columnar.ch.mergetree.enabled", "true")
+        .config("spark.oap.sql.columnar.ch.mergetree.table.path",
+          "data1/clickhouse-test/test-tpch10/")
+        .config("spark.oap.sql.columnar.ch.mergetree.database", "default")
+        .config("spark.oap.sql.columnar.ch.mergetree.table", "test")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
