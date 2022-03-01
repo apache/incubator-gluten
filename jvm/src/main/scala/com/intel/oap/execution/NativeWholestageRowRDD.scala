@@ -63,7 +63,9 @@ class NativeWholestageRowRDD(
     if (loadNative) {
       val transKernel = new ExpressionEvaluator()
       val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
+      var startTime = System.nanoTime()
       resIter = transKernel.createKernelWithRowIterator(inputPartition.substraitPlan, inBatchIters)
+      logWarning(s"===========create ${System.nanoTime() - startTime}")
     }
 
     val iter = new Iterator[InternalRow] with AutoCloseable {
@@ -83,11 +85,11 @@ class NativeWholestageRowRDD(
       private def nextIterator(): Boolean = {
         var startTime = System.nanoTime()
         if (resIter.hasNext) {
-          logWarning(s"===========${totalBatch} ${System.nanoTime() - startTime}")
+          logWarning(s"===========hasNext ${totalBatch} ${System.nanoTime() - startTime}")
           startTime = System.nanoTime()
           val sparkRowInfo = resIter.next()
           totalBatch += 1
-          logWarning(s"===========${totalBatch} ${System.nanoTime() - startTime}")
+          logWarning(s"===========next ${totalBatch} ${System.nanoTime() - startTime}")
           val result = if (sparkRowInfo.offsets != null && sparkRowInfo.offsets.length > 0) {
             val numRows = sparkRowInfo.offsets.length
             val numFields = sparkRowInfo.fieldsNum
@@ -129,8 +131,13 @@ class NativeWholestageRowRDD(
       }
 
       override def close(): Unit = {
+        var startTime = System.nanoTime()
         resIter.close()
+        logWarning(s"===========close ${System.nanoTime() - startTime}")
       }
+    }
+    context.addTaskCompletionListener[Unit] { _ =>
+      iter.close()
     }
     iter
   }
