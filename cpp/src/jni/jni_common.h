@@ -340,6 +340,17 @@ arrow::Status ParseSubstraitPlan(
   jsize exprs_len = env->GetArrayLength(exprs_arr);
   jbyte* exprs_bytes = env->GetByteArrayElements(exprs_arr, 0);
 
+#ifdef DEBUG
+  auto maybe_plan_json = SubstraitToJSON(
+      "Plan", arrow::Buffer(reinterpret_cast<const uint8_t*>(exprs_bytes), exprs_len));
+  if (maybe_plan_json.status().ok()) {
+    std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
+    std::cout << maybe_plan_json.ValueOrDie() << std::endl;
+  } else {
+    std::cout << "Error parsing substrait plan to json" << std::endl;
+  }
+#endif
+
   if (!ParseProtobuf(reinterpret_cast<uint8_t*>(exprs_bytes), exprs_len, &ws_plan)) {
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
