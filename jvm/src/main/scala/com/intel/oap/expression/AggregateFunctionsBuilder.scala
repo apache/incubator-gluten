@@ -17,8 +17,8 @@
 
 package com.intel.oap.expression
 
+import com.intel.oap.expression.ConverterUtils.FunctionConfig
 import com.intel.oap.substrait.expression.ExpressionBuilder
-
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 object AggregateFunctionsBuilder {
@@ -27,7 +27,9 @@ object AggregateFunctionsBuilder {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     aggregateFunc match {
       case sum: Sum =>
-        ExpressionBuilder.newScalarFunction(functionMap, "SUM")
+        val functionName = ConverterUtils.makeFuncName(
+          "sum", Seq(sum.child.dataType), FunctionConfig.OPT)
+        ExpressionBuilder.newScalarFunction(functionMap, functionName)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
