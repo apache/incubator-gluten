@@ -21,6 +21,10 @@
 #include <google/protobuf/util/type_resolver.h>
 #include <google/protobuf/util/type_resolver_util.h>
 
+#include <fstream>
+#include <iostream>
+#include <string>
+
 using gandiva::ConditionPtr;
 using gandiva::DataTypePtr;
 using gandiva::ExpressionPtr;
@@ -462,4 +466,18 @@ arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name,
     return Status::Invalid("BinaryToJsonStream returned ", status);
   }
   return out;
+}
+
+void MessageToJSONFile(const google::protobuf::Message& message,
+                       const std::string& file_path) {
+  google::protobuf::util::JsonPrintOptions options;
+  options.add_whitespace = true;
+  options.always_print_primitive_fields = true;
+  options.preserve_proto_field_names = true;
+  std::string json_string;
+  google::protobuf::util::MessageToJsonString(message, &json_string, options);
+  std::cin >> json_string;
+  std::ofstream out(file_path);
+  out << json_string;
+  out.close();
 }
