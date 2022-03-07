@@ -43,31 +43,6 @@ static jclass unsupportedoperation_exception_class;
 static jclass illegal_access_exception_class;
 static jclass illegal_argument_exception_class;
 
-#define ARROW_ASSIGN_OR_THROW_IMPL(status_name, lhs, rexpr)                    \
-  auto status_name = (rexpr);                                                  \
-  if (!status_name.status().ok()) {                                            \
-    env->ThrowNew(io_exception_class, status_name.status().message().c_str()); \
-  }                                                                            \
-  lhs = std::move(status_name).ValueOrDie();
-
-#define ARROW_ASSIGN_OR_THROW_NAME(x, y) ARROW_CONCAT(x, y)
-
-// Executes an expression that returns a Result, extracting its value
-// into the variable defined by lhs (or returning on error).
-//
-// Example: Assigning to a new value
-//   ARROW_ASSIGN_OR_THROW(auto value, MaybeGetValue(arg));
-//
-// Example: Assigning to an existing value
-//   ValueType value;
-//   ARROW_ASSIGN_OR_THROW(value, MaybeGetValue(arg));
-//
-// WARNING: ASSIGN_OR_RAISE expands into multiple statements; it cannot be used
-//  in a single statement (e.g. as the body of an if statement without {})!
-#define ARROW_ASSIGN_OR_THROW(lhs, rexpr)                                              \
-  ARROW_ASSIGN_OR_THROW_IMPL(ARROW_ASSIGN_OR_THROW_NAME(_error_or_value, __COUNTER__), \
-                             lhs, rexpr);
-
 jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
   jclass local_class = env->FindClass(class_name);
   jclass global_class = (jclass)env->NewGlobalRef(local_class);
@@ -167,7 +142,7 @@ arrow::Status FIXOffsetBuffer(std::shared_ptr<arrow::Buffer>* in_buf, int fix_ro
                 static_cast<size_t>((*in_buf)->size()));
     (*in_buf) = std::move(valid_copy);
   }
-  arrow::BitUtil::SetBitsTo(const_cast<uint8_t*>((*in_buf)->data()), fix_row, 1, true);
+  arrow::bit_util::SetBitsTo(const_cast<uint8_t*>((*in_buf)->data()), fix_row, 1, true);
   return arrow::Status::OK();
 }
 
@@ -333,35 +308,6 @@ arrow::Status MakeExprVector(JNIEnv* env, jbyteArray exprs_arr,
   return arrow::Status::OK();
 }
 
-arrow::Status ParseSubstraitPlan(
-    JNIEnv* env, jbyteArray exprs_arr,
-    std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out_iter) {
-  substrait::Plan ws_plan;
-  jsize exprs_len = env->GetArrayLength(exprs_arr);
-  jbyte* exprs_bytes = env->GetByteArrayElements(exprs_arr, 0);
-
-#ifdef DEBUG
-  auto maybe_plan_json = SubstraitToJSON(
-      "Plan", arrow::Buffer(reinterpret_cast<const uint8_t*>(exprs_bytes), exprs_len));
-  if (maybe_plan_json.status().ok()) {
-    std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
-    std::cout << maybe_plan_json.ValueOrDie() << std::endl;
-  } else {
-    std::cout << "Error parsing substrait plan to json" << std::endl;
-  }
-#endif
-
-  if (!ParseProtobuf(reinterpret_cast<uint8_t*>(exprs_bytes), exprs_len, &ws_plan)) {
-    env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
-    return arrow::Status::UnknownError("Unable to parse");
-  }
-  // MessageToJSONFile(ws_plan, "/tmp/sub.json");
-  auto parser = std::make_shared<gazellejni::compute::SubstraitParser>();
-  parser->ParsePlan(ws_plan);
-  *out_iter = parser->getResIter();
-  return arrow::Status::OK();
-}
-
 jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
@@ -402,7 +348,7 @@ Status DecompressBuffer(const arrow::Buffer& buffer, arrow::util::Codec* codec,
   const uint8_t* data = buffer.data();
   int64_t compressed_size = buffer.size() - sizeof(int64_t);
   int64_t uncompressed_size =
-      arrow::BitUtil::FromLittleEndian(arrow::util::SafeLoadAs<int64_t>(data));
+      arrow::bit_util::FromLittleEndian(arrow::util::SafeLoadAs<int64_t>(data));
   ARROW_ASSIGN_OR_RAISE(auto uncompressed, AllocateBuffer(uncompressed_size, pool));
 
   int64_t actual_decompressed;
@@ -442,7 +388,7 @@ Status DecompressBuffersByType(
         continue;
       }
       // if the buffer has been rebuilt to uncompressed on java side, return
-      if (arrow::BitUtil::GetBit(buf_mask, buffer_idx + i)) {
+      if (arrow::bit_util::GetBit(buf_mask, buffer_idx + i)) {
         continue;
       }
       if (buffer->size() < 8) {
@@ -499,7 +445,7 @@ arrow::Status DecompressBuffers(
       return arrow::Status::OK();
     }
     // if the buffer has been rebuilt to uncompressed on java side, return
-    if (arrow::BitUtil::GetBit(buf_mask, i)) {
+    if (arrow::bit_util::GetBit(buf_mask, i)) {
       ARROW_ASSIGN_OR_RAISE(auto valid_copy,
                             buffers[i]->CopySlice(0, buffers[i]->size()));
       buffers[i] = valid_copy;

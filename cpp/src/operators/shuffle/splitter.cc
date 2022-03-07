@@ -644,7 +644,7 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
         std::shared_ptr<arrow::ResizableBuffer> value_buffer;
         if (column_type_id_[i]->id() == arrow::BooleanType::type_id) {
           ARROW_ASSIGN_OR_RAISE(value_buffer, arrow::AllocateResizableBuffer(
-                                                  arrow::BitUtil::BytesForBits(new_size),
+                                                  arrow::bit_util::BytesForBits(new_size),
                                                   options_.memory_pool));
         } else {
           ARROW_ASSIGN_OR_RAISE(
@@ -658,7 +658,7 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
           std::shared_ptr<arrow::ResizableBuffer> validity_buffer;
           ARROW_ASSIGN_OR_RAISE(
               validity_buffer,
-              arrow::AllocateResizableBuffer(arrow::BitUtil::BytesForBits(new_size),
+              arrow::AllocateResizableBuffer(arrow::bit_util::BytesForBits(new_size),
                                              options_.memory_pool));
           new_validity_buffers.push_back(std::move(validity_buffer));
         } else {
@@ -1138,7 +1138,7 @@ arrow::Status Splitter::SplitFixedWidthValidityBuffer(const arrow::RecordBatch& 
     if (rb.column_data(col_idx)->GetNullCount() == 0) {
       for (auto pid = 0; pid < num_partitions_; ++pid) {
         if (partition_id_cnt_[pid] > 0 && dst_addrs[pid] != nullptr) {
-          arrow::BitUtil::SetBitsTo(dst_addrs[pid], partition_buffer_idx_base_[pid],
+          arrow::bit_util::SetBitsTo(dst_addrs[pid], partition_buffer_idx_base_[pid],
                                     partition_id_cnt_[pid], true);
         }
       }
@@ -1151,10 +1151,10 @@ arrow::Status Splitter::SplitFixedWidthValidityBuffer(const arrow::RecordBatch& 
                               : options_.buffer_size;
           ARROW_ASSIGN_OR_RAISE(
               auto validity_buffer,
-              arrow::AllocateResizableBuffer(arrow::BitUtil::BytesForBits(new_size),
+              arrow::AllocateResizableBuffer(arrow::bit_util::BytesForBits(new_size),
                                              options_.memory_pool));
           dst_addrs[pid] = const_cast<uint8_t*>(validity_buffer->data());
-          arrow::BitUtil::SetBitsTo(dst_addrs[pid], 0, partition_buffer_idx_base_[pid],
+          arrow::bit_util::SetBitsTo(dst_addrs[pid], 0, partition_buffer_idx_base_[pid],
                                     true);
           partition_fixed_width_buffers_[col][pid][0] = std::move(validity_buffer);
         }

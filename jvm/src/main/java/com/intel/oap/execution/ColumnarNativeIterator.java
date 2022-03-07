@@ -18,12 +18,26 @@
 package com.intel.oap.execution;
 
 import com.intel.oap.expression.ConverterUtils;
-import org.apache.arrow.dataset.jni.NativeSerializedRecordBatchIterator;
 import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
+
+/**
+ * Iterate on flatbuffers-serialized {@link org.apache.arrow.vector.ipc.message.ArrowRecordBatch}.
+ * <p>
+ * {@link #next()} should be called from C++ scanner to read Java-generated Arrow data.
+ */
+interface NativeSerializedRecordBatchIterator extends Iterator<byte[]>, AutoCloseable {
+
+  /**
+   * Return next serialized {@link org.apache.arrow.vector.ipc.message.ArrowRecordBatch} Java
+   * byte array.
+   */
+  @Override
+  byte[] next();
+}
 
 public class ColumnarNativeIterator implements NativeSerializedRecordBatchIterator {
   private final Iterator<ColumnarBatch> delegated;

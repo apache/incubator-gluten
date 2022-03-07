@@ -17,19 +17,29 @@
 
 #pragma once
 
-#include <arrow/status.h>
-#include <arrow/type_fwd.h>
+#include "compute/substrait_utils.h"
 
-struct Metrics {
-  int num_metrics;
-  long* process_time;
-  long* output_length;
-  Metrics(int size) : num_metrics(size) {
-    process_time = new long[num_metrics];
-    output_length = new long[num_metrics];
+namespace gazellecpp {
+namespace compute {
+
+class ArrowSubstraitParser : public gazellejni::ExecBackendBase {
+ public:
+  ArrowSubstraitParser() {
+    delegate_ = std::make_unique<gazellejni::compute::SubstraitParser>();
   }
-  ~Metrics() {
-    delete[] process_time;
-    delete[] output_length;
+
+  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator() override {
+    return delegate_->GetResultIterator();
   }
+
+  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator(
+      std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs) override {
+    return delegate_->GetResultIterator();
+  }
+
+ private:
+  std::unique_ptr<gazellejni::compute::SubstraitParser> delegate_;
 };
+
+}  // namespace compute
+}  // namespace gazellecpp

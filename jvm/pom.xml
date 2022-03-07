@@ -389,6 +389,7 @@
                         <argument>${arrow_root}</argument>
                         <argument>${jvm.arrow.bfs.install.dir}</argument>
                         <argument>${build_jemalloc}</argument>
+                        <argument>${build_gazelle_cpp}</argument>
                     </arguments>
                 </configuration>
             </execution>

@@ -19,6 +19,8 @@ package com.intel.oap
 
 import java.util.Locale
 
+import com.intel.oap.GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -67,7 +69,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar sort
   val enableColumnarSort: Boolean =
     conf.getConfString("spark.oap.sql.columnar.sort", "true").toBoolean && enableCpu
-  
+
   // enable or disable codegen columnar sort
   val enableColumnarCodegenSort: Boolean = conf.getConfString(
     "spark.oap.sql.columnar.codegen.sort", "true").toBoolean && enableColumnarSort
@@ -75,7 +77,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar window
   val enableColumnarWindow: Boolean =
     conf.getConfString("spark.oap.sql.columnar.window", "true").toBoolean && enableCpu
-  
+
   // enable or disable columnar shuffledhashjoin
   val enableColumnarShuffledHashJoin: Boolean =
     conf.getConfString("spark.oap.sql.columnar.shuffledhashjoin", "true").toBoolean && enableCpu
@@ -110,7 +112,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable NAN check
   val enableColumnarNaNCheck: Boolean =
     conf.getConfString("spark.oap.sql.columnar.nanCheck", "true").toBoolean
-  
+
   // enable or disable hashcompare in hashjoins or hashagg
   val hashCompare: Boolean =
     conf.getConfString("spark.oap.sql.columnar.hashCompare", "true").toBoolean
@@ -126,7 +128,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar wholestagecodegen
   val enableColumnarWholeStageCodegen: Boolean = conf.getConfString(
     "spark.oap.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
-  
+
   // enable or disable columnar exchange
   val enableColumnarShuffle: Boolean = conf
     .getConfString("spark.shuffle.manager", "sort")
@@ -171,7 +173,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
     conf.getConfString(
       "spark.oap.sql.columnar.wholestagecodegen.breakdownTime",
       "false").toBoolean
-  
+
   // a folder to store the codegen files
   val tmpFile: String =
     conf.getConfString("spark.oap.sql.columnar.tmp_dir", null)
@@ -224,6 +226,8 @@ object GazelleJniConfig {
   val OAP_LIB_NAME = "spark.oap.sql.columnar.libname"
   val OAP_LIB_PATH = "spark.oap.sql.columnar.libpath"
   val OAP_LOAD_ARROW = "spark.oap.sql.columnar.loadarrow"
+
+  val GAZELLE_JNI_BACKEND_LIB = "spark.oap.sql.columnar.backend.lib"
 
   var ins: GazelleJniConfig = null
   var random_temp_dir_path: String = null

@@ -16,40 +16,28 @@
 # under the License.
 
 cmake_minimum_required(VERSION 3.16)
-message(STATUS "Building using CMake version: ${CMAKE_VERSION}")
 
-if (POLICY CMP0126)
-  cmake_policy(SET CMP0126 NEW)
-endif ()
+project(gazelle_cpp)
 
-if (NOT DEFINED CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE
-      Release
-      CACHE STRING "Choose the type of build.")
-endif ()
+include(ExternalProject)
+include(FindPkgConfig)
+include(GNUInstallDirs)
+include(CheckCXXCompilerFlag)
 
-project(spark_columnar_plugin)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(DEBUG "Enable Debug Info" OFF)
-option(BUILD_TESTS "Build Tests" OFF)
-option(BUILD_GAZELLE_CPP "Build the gazelle-cpp libraries" OFF)
+find_package(JNI REQUIRED)
 
-set(root_directory ${PROJECT_BINARY_DIR})
+set(GAZELLE_CPP_JNI_SRCS
+    jni/jni_wrapper.cc
+    )
 
-#
-# Compiler flags
-#
+add_library(gazelle_cpp SHARED ${GAZELLE_CPP_JNI_SRCS})
 
-if (DEBUG)
-  add_definitions(-DDEBUG)
-endif ()
+target_include_directories(gazelle_cpp PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${root_directory}/src)
+target_link_libraries(gazelle_cpp spark_columnar_jni)
 
-#
-# Subdirectories
-#
-
-add_subdirectory(src)
-
-if (BUILD_GAZELLE_CPP)
-  add_subdirectory(gazelle-cpp)
-endif ()
+set_target_properties(gazelle_cpp PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
+    )

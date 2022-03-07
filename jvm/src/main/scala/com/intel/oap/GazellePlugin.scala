@@ -67,8 +67,8 @@ private[oap] class GazelleExecutorPlugin extends ExecutorPlugin {
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
         ctx.conf().get(GazelleJniConfig.OAP_LIB_NAME, "spark_columnar_jni"),
         ctx.conf().get(GazelleJniConfig.OAP_LIB_PATH, ""),
+        ctx.conf().get(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, ""),
         ctx.conf().getBoolean(GazelleJniConfig.OAP_LOAD_ARROW, defaultValue = true))
-      initKernel.initNative()
     }
   }
 

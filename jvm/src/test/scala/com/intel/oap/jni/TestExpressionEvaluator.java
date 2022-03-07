@@ -26,6 +26,7 @@ public class TestExpressionEvaluator {
         ExpressionEvaluator transKernel = new ExpressionEvaluator(new ArrayList<String>(),
                 "spark_columnar_jni",
                 "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-debug/utils/local-engine/liblocal_engine_jnid.so",
+                null,
                 false);
         transKernel.initNative();
 

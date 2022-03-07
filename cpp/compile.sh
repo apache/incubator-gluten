@@ -1,42 +1,40 @@
 #!/usr/bin/env bash
 
 set -eu
+set -x
 
 BUILD_CPP=${1:-ON}
-TESTS=${2:-OFF}
+BUILD_TESTS=${2:-OFF}
 BUILD_ARROW=${3:-ON}
 STATIC_ARROW=${4:-OFF}
 BUILD_PROTOBUF=${5:-ON}
 ARROW_ROOT=${6:-/usr/local}
 ARROW_BFS_INSTALL_DIR=${7}
 BUILD_JEMALLOC=${8:-ON}
+BUILD_GAZELLE_CPP=${9:-OFF}
 
-echo "CMAKE Arguments:"
-echo "BUILD_CPP=${BUILD_CPP}"
-echo "TESTS=${TESTS}"
-echo "BUILD_ARROW=${BUILD_ARROW}"
-echo "STATIC_ARROW=${STATIC_ARROW}"
-echo "BUILD_PROTOBUF=${BUILD_PROTOBUF}"
-echo "ARROW_ROOT=${ARROW_ROOT}"
-echo "ARROW_BUILD_FROM_SOURCE_INSTALL_DIR=${ARROW_BFS_INSTALL_DIR}"
-echo "BUILD_JEMALLOC=${BUILD_JEMALLOC}"
+if [ "$BUILD_CPP" == "ON" ]; then
+  NPROC=$(nproc --ignore=2)
 
-CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-echo $CURRENT_DIR
-cd ${CURRENT_DIR}
-if [ -d build ]; then
+  CURRENT_DIR=$(
+    cd "$(dirname "$BASH_SOURCE")"
+    pwd
+  )
+  cd "${CURRENT_DIR}"
+
+  if [ -d build ]; then
     rm -r build
-fi
-
-if [ $BUILD_CPP == "ON" ]; then
-mkdir build
-cd build
-cmake .. -DTESTS=${TESTS} -DBUILD_ARROW=${BUILD_ARROW} -DSTATIC_ARROW=${STATIC_ARROW} -DBUILD_PROTOBUF=${BUILD_PROTOBUF} -DARROW_ROOT=${ARROW_ROOT} -DARROW_BFS_INSTALL_DIR=${ARROW_BFS_INSTALL_DIR} -DBUILD_JEMALLOC=${BUILD_JEMALLOC}
-make -j2
-
-set +eu
-
-make -j2
-
-set +eu
+  fi
+  mkdir build
+  cd build
+  cmake .. \
+    -DBUILD_TESTS=${BUILD_TESTS} \
+    -DBUILD_ARROW=${BUILD_ARROW} \
+    -DSTATIC_ARROW=${STATIC_ARROW} \
+    -DBUILD_PROTOBUF=${BUILD_PROTOBUF} \
+    -DARROW_ROOT=${ARROW_ROOT} \
+    -DARROW_BFS_INSTALL_DIR=${ARROW_BFS_INSTALL_DIR} \
+    -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
+    -DBUILD_GAZELLE_CPP=${BUILD_GAZELLE_CPP}
+  make -j$NPROC
 fi

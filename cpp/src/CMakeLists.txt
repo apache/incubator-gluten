@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 cmake_minimum_required(VERSION 3.16)
 
 project(spark_columnar_jni)
@@ -11,13 +28,13 @@ set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_BUILD_TYPE  "Release")
-
 set(ARROW_ROOT "/usr/local" CACHE PATH "Arrow Root dir")
 set(ARROW_BFS_INSTALL_DIR "/usr/local" CACHE PATH "Arrow Build from Source dir")
 set(ARROW_LIB_NAME arrow)
 set(GANDIVA_LIB_NAME gandiva)
-set(ARROW_SHARED_LIBRARY_SUFFIX ".so.400")
+set(ARROW_SHARED_LIBRARY_SUFFIX ".so.700")
+set(ARROW_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
+set(GANDIVA_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
 
 option(BUILD_ARROW "Build Arrow from Source" ON)
 option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
@@ -26,7 +43,6 @@ option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(TESTS "Build the tests" OFF)
 option(BENCHMARKS "Build the benchmarks" OFF)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
-option(DEBUG "Enable Debug Info" OFF)
 
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
@@ -113,10 +129,6 @@ macro(find_protobuf)
   set(PROTOC_BIN ${Protobuf_PROTOC_EXECUTABLE})
 endmacro()
 
-if(DEBUG)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -DDEBUG -DDEBUG_LEVEL_1 -DDEBUG_LEVEL_2")
-endif()
-
 if(USE_AVX512)
   # Only enable additional instruction sets if they are supported
   message(STATUS "System processor: ${CMAKE_SYSTEM_PROCESSOR}")
@@ -148,7 +160,7 @@ macro(build_arrow STATIC_ARROW)
                       INSTALL_DIR ${ARROW_PREFIX}
                       INSTALL_COMMAND make install
                       SOURCE_SUBDIR cpp
-                      CMAKE_ARGS 
+                      CMAKE_ARGS
                       -DARROW_BUILD_STATIC=OFF
                       -DARROW_BUILD_SHARED=ON
                       -DARROW_COMPUTE=ON
@@ -222,16 +234,16 @@ macro(build_arrow STATIC_ARROW)
 
   else()
 
-    ExternalProject_Add_Step(arrow_ep copy_arrow_binary_400_0_0
-                      COMMAND cp -a ${ARROW_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX} ${root_directory}/releases/
-                      COMMENT "Copy libarrow.so.400.0.0 to releases/"
+    ExternalProject_Add_Step(arrow_ep copy_arrow_binary
+                      COMMAND cp -a ${ARROW_PREFIX}/lib/${ARROW_SHARED_LIB_NAME} ${root_directory}/releases/
+                      COMMENT "Copy ${ARROW_SHARED_LIB_NAME} to releases/"
                       DEPENDEES mkdir download update patch configure build install java_install
                       WORKING_DIRECTORY "${ARROW_PREFIX}/"
     )
 
-    ExternalProject_Add_Step(arrow_ep copy_gandiva_binary_400_0_0
-                      COMMAND cp -a ${ARROW_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX} ${root_directory}/releases/
-                      COMMENT "Copy libgandiva.so.400.0.0 to releases/"
+    ExternalProject_Add_Step(arrow_ep copy_gandiva_binary
+                      COMMAND cp -a ${ARROW_PREFIX}/lib/${GANDIVA_SHARED_LIB_NAME} ${root_directory}/releases/
+                      COMMENT "Copy ${GANDIVA_SHARED_LIB_NAME} to releases/"
                       DEPENDEES mkdir download update patch configure build install java_install
                       WORKING_DIRECTORY "${ARROW_PREFIX}/"
     )
@@ -248,7 +260,7 @@ macro(build_arrow STATIC_ARROW)
     # Set up Arrow Shared Library Directory
     set(
       ARROW_SHARED_LIB
-      "${root_directory}/releases/${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX}"
+      "${root_directory}/releases/${ARROW_SHARED_LIB_NAME}"
       )
     add_library(Arrow::arrow SHARED IMPORTED)
     set_target_properties(Arrow::arrow
@@ -260,7 +272,7 @@ macro(build_arrow STATIC_ARROW)
     # Set up Gandiva Shared Library Directory
     set(
       GANDIVA_SHARED_LIB
-      "${root_directory}/releases/${CMAKE_SHARED_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX}"
+      "${root_directory}/releases/${GANDIVA_SHARED_LIB_NAME}"
       )
     add_library(Arrow::gandiva SHARED IMPORTED)
     set_target_properties(Arrow::gandiva
@@ -284,14 +296,14 @@ macro(find_arrow)
   set(ARROW_INCLUDE_DIR "${ARROW_ROOT}/include")
   message(STATUS "Set Arrow Include Directory in ${ARROW_BFS_INCLUDE_DIR} or ${ARROW_INCLUDE_DIR}")
 
-  find_library(ARROW_LIB NAMES ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
+  find_library(ARROW_LIB NAMES ${ARROW_SHARED_LIB_NAME} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
   if(NOT ARROW_LIB)
     message(FATAL_ERROR "Arrow Library Not Found")
   else()
     message(STATUS "Arrow Library Can Be Found in ${ARROW_LIB}")
   endif()
 
-  find_library(GANDIVA_LIB NAMES ${CMAKE_SHARED_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
+  find_library(GANDIVA_LIB NAMES ${GANDIVA_SHARED_LIB_NAME} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
   if(NOT GANDIVA_LIB)
     message(FATAL_ERROR "Gandiva Library Not Found")
   else()
@@ -316,7 +328,7 @@ macro(find_arrow)
   # Set up Arrow Shared Library Directory
   set(
     ARROW_SHARED_LIB
-    "${root_directory}/releases/${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX}"
+    "${root_directory}/releases/${ARROW_SHARED_LIB_NAME}"
     )
 
   add_library(Arrow::arrow SHARED IMPORTED)
@@ -328,7 +340,7 @@ macro(find_arrow)
   # Set up Gandiva Shared Library Directory
   set(
     GANDIVA_SHARED_LIB
-    "${root_directory}/releases/${CMAKE_SHARED_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX}"
+    "${root_directory}/releases/${GANDIVA_SHARED_LIB_NAME}"
     )
   add_library(Arrow::gandiva SHARED IMPORTED)
   set_target_properties(Arrow::gandiva
@@ -440,6 +452,7 @@ add_definitions(-DNATIVESQL_SRC_PATH="${root_directory}/releases")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 set(SPARK_COLUMNAR_PLUGIN_SRCS
         jni/jni_wrapper.cc
+        jni/exec_backend.cc
         ${PROTO_SRCS}
         compute/protobuf_utils.cc
         compute/substrait_utils.cc
@@ -497,6 +510,37 @@ if(BUILD_JEMALLOC)
 else() #
   find_jemalloc()
   message(STATUS "Use existing Jemalloc libraries")
+endif()
+
+if(BUILD_TESTS)
+  enable_testing()
+  include(GoogleTest)
+  find_package(GTest REQUIRED)
+
+  function(ADD_TEST_CASE TEST_NAME)
+    set(options)
+    set(one_value_args)
+    set(multi_value_args
+        SOURCES)
+
+    cmake_parse_arguments(ARG
+                          "${options}"
+                          "${one_value_args}"
+                          "${multi_value_args}"
+                          ${ARGN})
+
+    if(ARG_SOURCES)
+      set(SOURCES ${ARG_SOURCES})
+    else()
+      message(FATAL_ERROR "No sources specified for test ${TEST_NAME}")
+    endif()
+
+    add_executable(${TEST_NAME} ${SOURCES})
+    target_link_libraries(${TEST_NAME} gtest gtest_main spark_columnar_jni)
+    gtest_discover_tests(${TEST_NAME})
+  endfunction()
+
+  add_test_case(exec_backend_test SOURCES jni/exec_backend_test.cc)
 endif()
 
 if(DEFINED ENV{HADOOP_HOME})

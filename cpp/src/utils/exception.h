@@ -17,9 +17,32 @@
 
 #pragma once
 
+#include <arrow/status.h>
+
 #include <stdexcept>
+
+#define GAZELLE_JNI_THROW_NOT_OK(s)                             \
+  do {                                                          \
+    ::arrow::Status _s = ::arrow::internal::GenericToStatus(s); \
+    if (!_s.ok()) {                                             \
+      throw ::gazellejni::JniPendingException(_s.ToString());   \
+    }                                                           \
+  } while (0)
+
+#define GAZELLE_JNI_ASSIGN_OR_THROW_IMPL(status_name, lhs, rexpr) \
+  auto status_name = (rexpr);                                     \
+  GAZELLE_JNI_THROW_NOT_OK(status_name.status());                 \
+  lhs = std::move(status_name).ValueOrDie();
+
+#define GAZELLE_JNI_ASSIGN_OR_THROW(lhs, rexpr) \
+  GAZELLE_JNI_ASSIGN_OR_THROW_IMPL(             \
+      ARROW_ASSIGN_OR_RAISE_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
+
+namespace gazellejni {
 
 class JniPendingException : public std::runtime_error {
  public:
   explicit JniPendingException(const std::string& arg) : runtime_error(arg) {}
 };
+
+}  // namespace gazellejni

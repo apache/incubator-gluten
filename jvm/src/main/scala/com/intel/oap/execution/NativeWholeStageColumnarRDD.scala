@@ -33,6 +33,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.PartitionedFile
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.util.OASPackageBridge._
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
@@ -124,6 +125,7 @@ class NativeWholeStageColumnarRDD(
       outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
+      SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
