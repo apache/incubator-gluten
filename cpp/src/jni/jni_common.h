@@ -352,6 +352,7 @@ arrow::Status getSubstraitPlan(JNIEnv* env, jbyteArray exprs_arr,
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
+  // MessageToJSONFile(*outPlan, "/tmp/sub.json");
   return arrow::Status::OK();
 }
 
