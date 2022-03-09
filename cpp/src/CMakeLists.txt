@@ -872,6 +872,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         operators/c2r/velox_to_row_converter.cc
         operators/c2r/conversion_utils.cc
         operators/shuffle/splitter.cc
+        operators/bridge/velox_bridge.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
