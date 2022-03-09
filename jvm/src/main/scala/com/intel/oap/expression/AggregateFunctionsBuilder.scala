@@ -26,10 +26,9 @@ object AggregateFunctionsBuilder {
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     aggregateFunc match {
-      case sum: Sum => {
+      case sum: Sum =>
         ExpressionBuilder.newScalarFunction(functionMap, "SUM")
-      }
-      case other => null
+      case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
   }
