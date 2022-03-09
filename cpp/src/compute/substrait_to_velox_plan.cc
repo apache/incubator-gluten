@@ -390,11 +390,11 @@ std::string SubstraitVeloxPlanConverter::nextPlanNodeId() {
 
 std::shared_ptr<ResultIterator<arrow::RecordBatch>>
 SubstraitVeloxPlanConverter::getResIter(
-    const std::shared_ptr<substrait::Plan>& plan_ptr,
+    const substrait::Plan& plan,
     std::vector<arrow::RecordBatchIterator> arrow_iters) {
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
   const std::shared_ptr<const core::PlanNode> plan_node =
-      toVeloxPlan(*plan_ptr, std::move(arrow_iters));
+      toVeloxPlan(plan, std::move(arrow_iters));
   if (ds_as_input_) {
     auto wholestage_iter = std::make_shared<WholeStageResIterFirstStage>(
         plan_node, partition_index_, paths_, starts_, lengths_, fake_arrow_output_);
@@ -407,6 +407,66 @@ SubstraitVeloxPlanConverter::getResIter(
         std::dynamic_pointer_cast<ResultIterator<arrow::RecordBatch>>(wholestage_iter);
   }
   return res_iter;
+}
+
+void SubstraitVeloxPlanConverter::getIterInputSchemaFromRel(
+    const substrait::Rel& srel,
+    std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
+  if (srel.has_aggregate() && srel.aggregate().has_input()) {
+    getIterInputSchemaFromRel(srel.aggregate().input(), schema_map);
+  } else if (srel.has_project() && srel.project().has_input()) {
+    getIterInputSchemaFromRel(srel.project().input(), schema_map);
+  } else if (srel.has_filter() && srel.filter().has_input()) {
+    getIterInputSchemaFromRel(srel.filter().input(), schema_map);
+  } else if (srel.has_input()) {
+    const auto& sinput = srel.input();
+    uint64_t iter_idx = sinput.iter_idx();
+
+    if (sinput.has_input_schema()) {
+      const auto& input_schema = sinput.input_schema();
+      std::vector<std::string> colNameList;
+      colNameList.reserve(input_schema.names().size());
+      for (const auto& name : input_schema.names()) {
+        colNameList.emplace_back(name);
+      }
+      // Should convert them into Arrow types and use them in below Schema generation.
+      std::vector<std::shared_ptr<arrow::DataType>> arrowTypes;
+      arrowTypes.reserve(input_schema.struct_().types().size());
+      for (auto& type : input_schema.struct_().types()) {
+        auto arrowType = toArrowTypeFromName(sub_parser_->parseType(type)->type);
+        arrowTypes.emplace_back(arrowType);
+      }
+      if (arrowTypes.size() != colNameList.size()) {
+        throw std::runtime_error("The number of names and types should be equal.");
+      }
+      std::vector<std::shared_ptr<arrow::Field>> inputFields;
+      inputFields.reserve(colNameList.size());
+      for (int colIdx = 0; colIdx < colNameList.size(); colIdx++) {
+        inputFields.emplace_back(arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
+      }
+      schema_map[iter_idx] = arrow::schema(inputFields);
+    } else {
+      throw new std::runtime_error("Input schema expected.");
+    }
+  } else {
+    throw new std::runtime_error("Not supported.");
+  }
+}
+
+void SubstraitVeloxPlanConverter::getIterInputSchema(
+    const substrait::Plan& splan,
+    std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
+  for (auto& srel : splan.relations()) {
+    if (srel.has_root()) {
+      auto& sroot = srel.root();
+      if (sroot.has_input()) {
+        getIterInputSchemaFromRel(sroot.input(), schema_map);
+      }
+    }
+    if (srel.has_rel()) {
+      getIterInputSchemaFromRel(srel.rel(), schema_map);
+    }
+  }
 }
 
 class SubstraitVeloxPlanConverter::WholeStageResIter

@@ -72,8 +72,12 @@ class SubstraitVeloxPlanConverter {
       const substrait::Plan& splan, std::vector<arrow::RecordBatchIterator> arrow_iters);
 
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter(
-      const std::shared_ptr<substrait::Plan>& plan_ptr,
+      const substrait::Plan& plan,
       std::vector<arrow::RecordBatchIterator> arrow_iters);
+
+  void getIterInputSchema(
+      const substrait::Plan& splan,
+      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map);
 
  private:
   int plan_node_id_ = 0;
@@ -92,6 +96,10 @@ class SubstraitVeloxPlanConverter {
   class WholeStageResIter;
   class WholeStageResIterFirstStage;
   class WholeStageResIterMiddleStage;
+
+  void getIterInputSchemaFromRel(
+      const substrait::Rel& srel,
+      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map);
 };
 
 }  // namespace compute

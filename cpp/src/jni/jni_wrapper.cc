@@ -363,20 +363,31 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
     std::string error_message = "Unable to get JavaVM instance";
     env->ThrowNew(io_exception_class, error_message.c_str());
   }
-  // Handle the Java iters
+  // Get Substrait Plan.
+  substrait::Plan subPlan;
+  getSubstraitPlan(env, ws_exprs_arr, &subPlan);
+  // Parse the plan and get the input schema for Java iters.
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<arrow::RecordBatchIterator> arrow_iters;
   if (iters_len > 0) {
-    for (int idx = 0; idx < iters_len; idx++) {
+    // Construct a map between iter index and input schema.
+    std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>> schemaMap;
+    // Get input schema from Substrait plan.
+    getIterInputSchema(subPlan, schemaMap);
+    for (uint64_t idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
       // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
       // TODO Release this in JNI Unload or dependent object's destructor
       jobject ref_iter = env->NewGlobalRef(iter);
       // FIXME: Schema should be obtained from Substrait plan.
-      auto f_0 = arrow::field("sum", arrow::float64());
-      std::shared_ptr<arrow::Schema> schema = arrow::schema({f_0});
+      std::shared_ptr<arrow::Schema> inputSchema;
+      if (schemaMap.find(idx) == schemaMap.end()) {
+        std::cout << "Not found the schema for index: " << idx << std::endl;
+      } else {
+        inputSchema = schemaMap[idx];
+      }
       arrow::RecordBatchIterator arrow_iter =
-          JniGetOrThrow(MakeJavaRecordBatchIterator(vm, ref_iter, schema),
+          JniGetOrThrow(MakeJavaRecordBatchIterator(vm, ref_iter, inputSchema),
                         "nativeCreateKernelWithIterator: error making java iterator");
       arrow_iters.push_back(std::move(arrow_iter));
     }
@@ -385,9 +396,7 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   gandiva::ExpressionVector ws_expr_vector;
   gandiva::FieldVector ws_ret_types;
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
-  JniAssertOKOrThrow(
-      parseSubstraitPlan(env, ws_exprs_arr, std::move(arrow_iters), &res_iter),
-      "failed to parse expressions protobuf, err msg is ");
+  getSubstraitPlanIter(subPlan, std::move(arrow_iters), &res_iter);
   auto ws_result_iterator = std::dynamic_pointer_cast<ResultIteratorBase>(res_iter);
   return batch_iterator_holder_.Insert(std::move(ws_result_iterator));
   JNI_METHOD_END(-1L)
@@ -504,9 +513,9 @@ Java_com_intel_oap_vectorized_ColumnarToRowJniWrapper_nativeConvertArrowColumnar
   env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
   long address = reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
 
-  jobject arrow_columnar_to_row_info = env->NewObject(
-      arrow_columnar_to_row_info_class, arrow_columnar_to_row_info_constructor,
-      instanceID, offsets_arr, lengths_arr, address);
+  jobject arrow_columnar_to_row_info =
+      env->NewObject(columnar_to_row_info_class, columnar_to_row_info_constructor,
+                     instanceID, offsets_arr, lengths_arr, address);
   return arrow_columnar_to_row_info;
   JNI_METHOD_END(nullptr)
 }
@@ -559,10 +568,7 @@ Java_com_intel_oap_vectorized_ColumnarToRowJniWrapper_nativeConvertVeloxColumnar
   JniAssertOkOrThrow(velox_to_row_converter->Init(),
                      "Native convert columnar to row: Init "
                      "ColumnarToRowConverter failed");
-  JniAssertOkOrThrow(
-      velox_to_row_converter->Write(),
-      "Native convert columnar to row: ColumnarToRowConverter write failed");
-
+  velox_to_row_converter->Write();
   const auto& offsets = velox_to_row_converter->GetOffsets();
   const auto& lengths = velox_to_row_converter->GetLengths();
   int64_t instanceID = velox_to_row_converter_holder_.Insert(velox_to_row_converter);
