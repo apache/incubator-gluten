@@ -212,6 +212,18 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
 
     }
   }
+
+  val clickhouseMergeTreeTablePath: String =
+    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.table.path", "")
+
+  val clickhouseMergeTreeEnabled: Boolean =
+    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.enabled", "false").toBoolean
+
+  val clickhouseMergeTreeDatabase: String =
+    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.database", "default")
+
+  val clickhouseMergeTreeTable: String =
+    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.table", "test")
 }
 
 object GazelleJniConfig {

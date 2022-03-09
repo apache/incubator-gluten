@@ -44,6 +44,8 @@ public class ReadRelNode implements RelNode, Serializable {
         }
         if (context.getLocalFilesNode() != null) {
             readBuilder.setLocalFiles(context.getLocalFilesNode().toProtobuf());
+        } else if (context.getExtensionTableNode() != null) {
+            readBuilder.setExtensionTable(context.getExtensionTableNode().toProtobuf());
         }
         Rel.Builder builder = Rel.newBuilder();
         builder.setRead(readBuilder.build());
