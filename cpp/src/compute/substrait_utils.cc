@@ -67,7 +67,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
       nullable = false;
       break;
     default:
-      throw new std::runtime_error("Unrecognized NULLABILITY.");
+      throw std::runtime_error("Unrecognized NULLABILITY.");
       break;
   }
   std::shared_ptr<SubstraitType> substrait_type =

@@ -36,14 +36,13 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "velox_helpers.h"
 #include "velox_util_internal.h"
-
-#include <iostream>
 
 namespace gazellejni {
 namespace bridge {
@@ -603,8 +602,7 @@ arrow::Status ExportArray(const arrow::Array& array, struct ArrowArray* out,
   return arrow::Status::OK();
 }
 
-arrow::Status ExportRecordBatch(const arrow::RecordBatch& batch,
-                                struct ArrowArray* out,
+arrow::Status ExportRecordBatch(const arrow::RecordBatch& batch, struct ArrowArray* out,
                                 struct ArrowSchema* out_schema) {
   // XXX perhaps bypass ToStructArray() for speed?
   ARROW_ASSIGN_OR_RAISE(auto array, batch.ToStructArray());
@@ -799,8 +797,7 @@ struct SchemaImporter {
   arrow::Result<std::shared_ptr<arrow::DataType>> MakeType() const { return type_; }
 
  protected:
-  arrow::Status ImportChild(const SchemaImporter* parent,
-                            struct ArrowSchema* src) {
+  arrow::Status ImportChild(const SchemaImporter* parent, struct ArrowSchema* src) {
     if (VeloxArrowSchemaIsReleased(src)) {
       return arrow::Status::Invalid("Cannot import released ArrowSchema");
     }
@@ -1116,18 +1113,18 @@ struct SchemaImporter {
   arrow::Status CheckNumChildren(const std::shared_ptr<arrow::DataType>& type,
                                  int64_t n_children) {
     if (c_struct_->n_children != n_children) {
-      return arrow::Status::Invalid(
-          "Expected ", n_children, " children for imported type ", *type,
-          ", ArrowArray struct has ", c_struct_->n_children);
+      return arrow::Status::Invalid("Expected ", n_children,
+                                    " children for imported type ", *type,
+                                    ", ArrowArray struct has ", c_struct_->n_children);
     }
     return arrow::Status::OK();
   }
 
   arrow::Status CheckNumChildren(int64_t n_children) {
     if (c_struct_->n_children != n_children) {
-      return arrow::Status::Invalid(
-          "Expected ", n_children, " children for imported format '", c_struct_->format,
-          "', ArrowArray struct has ", c_struct_->n_children);
+      return arrow::Status::Invalid("Expected ", n_children,
+                                    " children for imported format '", c_struct_->format,
+                                    "', ArrowArray struct has ", c_struct_->n_children);
     }
     return arrow::Status::OK();
   }
@@ -1142,22 +1139,19 @@ struct SchemaImporter {
 
 }  // namespace
 
-arrow::Result<std::shared_ptr<arrow::DataType>> ImportType(
-    struct ArrowSchema* schema) {
+arrow::Result<std::shared_ptr<arrow::DataType>> ImportType(struct ArrowSchema* schema) {
   SchemaImporter importer;
   RETURN_NOT_OK(importer.Import(schema));
   return importer.MakeType();
 }
 
-arrow::Result<std::shared_ptr<arrow::Field>> ImportField(
-    struct ArrowSchema* schema) {
+arrow::Result<std::shared_ptr<arrow::Field>> ImportField(struct ArrowSchema* schema) {
   SchemaImporter importer;
   RETURN_NOT_OK(importer.Import(schema));
   return importer.MakeField();
 }
 
-arrow::Result<std::shared_ptr<arrow::Schema>> ImportSchema(
-    struct ArrowSchema* schema) {
+arrow::Result<std::shared_ptr<arrow::Schema>> ImportSchema(struct ArrowSchema* schema) {
   SchemaImporter importer;
   RETURN_NOT_OK(importer.Import(schema));
   return importer.MakeSchema();
@@ -1270,9 +1264,9 @@ struct ArrayImporter {
     // First import children (required for reconstituting parent array data)
     const auto& fields = type_->fields();
     if (c_struct_->n_children != static_cast<int64_t>(fields.size())) {
-      return arrow::Status::Invalid("ArrowArray struct has ",
-                                    c_struct_->n_children, " children, expected ",
-                                    fields.size(), " for type ", type_->ToString());
+      return arrow::Status::Invalid("ArrowArray struct has ", c_struct_->n_children,
+                                    " children, expected ", fields.size(), " for type ",
+                                    type_->ToString());
     }
     child_importers_.reserve(fields.size());
     for (int64_t i = 0; i < c_struct_->n_children; ++i) {
@@ -1413,9 +1407,9 @@ struct ArrayImporter {
 
   arrow::Status CheckNumChildren(int64_t n_children) {
     if (c_struct_->n_children != n_children) {
-      return arrow::Status::Invalid(
-          "Expected ", n_children, " children for imported type ", type_->ToString(),
-          ", ArrowArray struct has ", c_struct_->n_children);
+      return arrow::Status::Invalid("Expected ", n_children,
+                                    " children for imported type ", type_->ToString(),
+                                    ", ArrowArray struct has ", c_struct_->n_children);
     }
     return arrow::Status::OK();
   }
@@ -1511,8 +1505,8 @@ arrow::Result<std::shared_ptr<arrow::Array>> ImportArray(
   return importer.MakeArray();
 }
 
-arrow::Result<std::shared_ptr<arrow::Array>> ImportArray(
-    struct ArrowArray* array, struct ArrowSchema* type) {
+arrow::Result<std::shared_ptr<arrow::Array>> ImportArray(struct ArrowArray* array,
+                                                         struct ArrowSchema* type) {
   auto maybe_type = ImportType(type);
   if (!maybe_type.ok()) {
     VeloxArrowArrayRelease(array);
@@ -1557,8 +1551,7 @@ class ExportedArrayStream {
     ARROW_DISALLOW_COPY_AND_ASSIGN(PrivateData);
   };
 
-  explicit ExportedArrayStream(struct ArrowArrayStream* stream)
-      : stream_(stream) {}
+  explicit ExportedArrayStream(struct ArrowArrayStream* stream) : stream_(stream) {}
 
   arrow::Status GetSchema(struct ArrowSchema* out_schema) {
     return ExportSchema(*reader()->schema(), out_schema);

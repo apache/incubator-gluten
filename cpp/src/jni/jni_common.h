@@ -334,8 +334,9 @@ arrow::Status MakeExprVector(JNIEnv* env, jbyteArray exprs_arr,
   return arrow::Status::OK();
 }
 
-arrow::Status ParseSubstraitPlan(
+arrow::Status parseSubstraitPlan(
     JNIEnv* env, jbyteArray exprs_arr,
+    std::vector<arrow::RecordBatchIterator> arrow_iters,
     std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out_iter) {
   substrait::Plan ws_plan;
   jsize exprs_len = env->GetArrayLength(exprs_arr);
@@ -357,7 +358,8 @@ arrow::Status ParseSubstraitPlan(
     return arrow::Status::UnknownError("Unable to parse");
   }
   auto converter = std::make_shared<gazellejni::compute::SubstraitVeloxPlanConverter>();
-  *out_iter = converter->getResIter(converter->toVeloxPlan(ws_plan));
+  auto plan_ptr = std::make_shared<substrait::Plan>(ws_plan);
+  *out_iter = converter->GetResIter(plan_ptr, std::move(arrow_iters));
   return arrow::Status::OK();
 }
 

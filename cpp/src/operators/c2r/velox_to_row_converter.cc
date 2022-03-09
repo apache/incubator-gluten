@@ -153,7 +153,7 @@ void VeloxToRowConverter::Write() {
         break;
       }
       default:
-        throw new std::runtime_error("Type is not supported in VeloxToRow conversion.");
+        throw std::runtime_error("Type is not supported in VeloxToRow conversion.");
     }
   }
 }

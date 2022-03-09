@@ -82,8 +82,7 @@ arrow::Status ExportArray(const arrow::Array& array, struct ArrowArray* out,
 /// \param[out] out C struct where to export the record batch
 /// \param[out] out_schema optional C struct where to export the record batch schema
 ARROW_EXPORT
-arrow::Status ExportRecordBatch(const arrow::RecordBatch& batch,
-                                struct ArrowArray* out,
+arrow::Status ExportRecordBatch(const arrow::RecordBatch& batch, struct ArrowArray* out,
                                 struct ArrowSchema* out_schema = NULLPTR);
 
 /// \brief Import C++ DataType from the C data interface.
@@ -94,8 +93,7 @@ arrow::Status ExportRecordBatch(const arrow::RecordBatch& batch,
 /// \param[in,out] schema C data interface struct representing the data type
 /// \return Imported type object
 ARROW_EXPORT
-arrow::Result<std::shared_ptr<arrow::DataType>> ImportType(
-    struct ArrowSchema* schema);
+arrow::Result<std::shared_ptr<arrow::DataType>> ImportType(struct ArrowSchema* schema);
 
 /// \brief Import C++ Field from the C data interface.
 ///
@@ -105,8 +103,7 @@ arrow::Result<std::shared_ptr<arrow::DataType>> ImportType(
 /// \param[in,out] schema C data interface struct representing the field
 /// \return Imported field object
 ARROW_EXPORT
-arrow::Result<std::shared_ptr<arrow::Field>> ImportField(
-    struct ArrowSchema* schema);
+arrow::Result<std::shared_ptr<arrow::Field>> ImportField(struct ArrowSchema* schema);
 
 /// \brief Import C++ Schema from the C data interface.
 ///
@@ -116,8 +113,7 @@ arrow::Result<std::shared_ptr<arrow::Field>> ImportField(
 /// \param[in,out] schema C data interface struct representing the field
 /// \return Imported field object
 ARROW_EXPORT
-arrow::Result<std::shared_ptr<arrow::Schema>> ImportSchema(
-    struct ArrowSchema* schema);
+arrow::Result<std::shared_ptr<arrow::Schema>> ImportSchema(struct ArrowSchema* schema);
 
 /// \brief Import C++ array from the C data interface.
 ///

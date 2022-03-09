@@ -40,8 +40,7 @@ inline void VeloxArrowSchemaMarkReleased(struct ArrowSchema* schema) {
 ///
 /// Note `dest` must *not* point to a valid schema already, otherwise there
 /// will be a memory leak.
-inline void VeloxArrowSchemaMove(struct ArrowSchema* src,
-                                 struct ArrowSchema* dest) {
+inline void VeloxArrowSchemaMove(struct ArrowSchema* src, struct ArrowSchema* dest) {
   assert(dest != src);
   assert(!VeloxArrowSchemaIsReleased(src));
   memcpy(dest, src, sizeof(struct ArrowSchema));
@@ -70,8 +69,7 @@ inline void VeloxArrowArrayMarkReleased(struct ArrowArray* array) {
 ///
 /// Note `dest` must *not* point to a valid array already, otherwise there
 /// will be a memory leak.
-inline void VeloxArrowArrayMove(struct ArrowArray* src,
-                                struct ArrowArray* dest) {
+inline void VeloxArrowArrayMove(struct ArrowArray* src, struct ArrowArray* dest) {
   assert(dest != src);
   assert(!VeloxArrowArrayIsReleased(src));
   memcpy(dest, src, sizeof(struct ArrowArray));

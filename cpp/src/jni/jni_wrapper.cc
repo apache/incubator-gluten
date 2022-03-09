@@ -358,7 +358,7 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   }
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
-  std::vector<arrow::Result<arrow::RecordBatchIterator>> arrow_iters;
+  std::vector<arrow::RecordBatchIterator> arrow_iters;
   if (iters_len > 0) {
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
@@ -366,17 +366,24 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
       // TODO Release this in JNI Unload or dependent object's destructor
       jobject ref_iter = env->NewGlobalRef(iter);
       // FIXME: Schema should be obtained from Substrait plan.
-      std::shared_ptr<arrow::Schema> schema;
-      arrow::Result<arrow::RecordBatchIterator> rb_iter =
+      auto f_0 = arrow::field("sum", arrow::float64());
+      std::shared_ptr<arrow::Schema> schema = arrow::schema({f_0});
+      arrow::Result<arrow::RecordBatchIterator> rb_iter_status =
           MakeJavaRecordBatchIterator(vm, ref_iter, schema);
-      arrow_iters.push_back(std::move(rb_iter));
+      if (!rb_iter_status.ok()) {
+        std::string error_message =
+            "nativeCreateKernelWithIterator: error making java iterator" +
+            rb_iter_status.status().ToString();
+        env->ThrowNew(io_exception_class, error_message.c_str());
+      }
+      arrow_iters.push_back(std::move(rb_iter_status.ValueOrDie()));
     }
   }
   // Get the ws iter
   gandiva::ExpressionVector ws_expr_vector;
   gandiva::FieldVector ws_ret_types;
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
-  msg = ParseSubstraitPlan(env, ws_exprs_arr, &res_iter);
+  msg = parseSubstraitPlan(env, ws_exprs_arr, std::move(arrow_iters), &res_iter);
   if (!msg.ok()) {
     std::string error_message =
         "failed to parse expressions protobuf, err msg is " + msg.message();
