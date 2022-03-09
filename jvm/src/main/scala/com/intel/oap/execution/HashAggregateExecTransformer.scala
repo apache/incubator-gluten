@@ -262,7 +262,7 @@ case class HashAggregateExecTransformer(
       groupingAttributes.toList ::: getAttrForAggregateExpr(
         aggregateExpressions,
         aggregateAttributes)
-    if (needsPostProjection(allAggregateResultAttributes)) {
+    if (!needsPostProjection(allAggregateResultAttributes)) {
       aggRel
     } else {
       // Will add an projection after Agg.

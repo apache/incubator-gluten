@@ -17,6 +17,9 @@
 
 #include "substrait_to_velox_plan.h"
 
+#include <arrow/type_fwd.h>
+#include <arrow/util/iterator.h>
+
 #include "operators/bridge/velox_bridge.h"
 #include "type_utils.h"
 #include "velox/buffer/Buffer.h"
@@ -109,7 +112,6 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     // FIXME: func_name
     std::string func_name = "sum";
     // auto func_name = sub_parser_->substrait_velox_function_map[sub_func_name];
-    auto func_name = sub_parser_->substrait_velox_function_map[sub_func_name];
     std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
     auto args = agg_function.args();
     for (auto arg : args) {
@@ -302,8 +304,6 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     throw std::runtime_error("Reader is not created.");
   }
   auto reader = maybe_reader.ValueOrDie();
-
-  // struct ArrowArrayStreamInVelox velox_array_stream;
   gazellejni::bridge::ExportRecordBatchReader(reader, &velox_array_stream_);
 
   std::vector<std::string> out_names;
@@ -326,7 +326,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   if (srel.has_aggregate()) {
     return toVeloxPlan(srel.aggregate(), std::move(arrow_iters));
   } else if (srel.has_project()) {
-    return ToVeloxPlan(srel.project(), std::move(arrow_iters));
+    return toVeloxPlan(srel.project(), std::move(arrow_iters));
   } else if (srel.has_filter()) {
     return toVeloxPlan(srel.filter(), std::move(arrow_iters));
   } else if (srel.has_read()) {
@@ -394,7 +394,7 @@ SubstraitVeloxPlanConverter::getResIter(
     std::vector<arrow::RecordBatchIterator> arrow_iters) {
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
   const std::shared_ptr<const core::PlanNode> plan_node =
-      ToVeloxPlan(*plan_ptr, std::move(arrow_iters));
+      toVeloxPlan(*plan_ptr, std::move(arrow_iters));
   if (ds_as_input_) {
     auto wholestage_iter = std::make_shared<WholeStageResIterFirstStage>(
         plan_node, partition_index_, paths_, starts_, lengths_, fake_arrow_output_);
@@ -439,7 +439,7 @@ class SubstraitVeloxPlanConverter::WholeStageResIter
       out_data.length = num_rows;
       auto vec = rv->childAt(idx);
       // FIXME: need to release this.
-      ArrowArrayInVelox arrowArray;
+      ArrowArray arrowArray;
       exportToArrow(vec, arrowArray, velox_pool_.get());
       out_data.buffers.resize(arrowArray.n_buffers);
       out_data.null_count = arrowArray.null_count;
@@ -507,7 +507,7 @@ class SubstraitVeloxPlanConverter::WholeStageResIter
       if (isPrimitive(col_type)) {
         out_data.type = col_arrow_type;
         // FIXME: need to release this.
-        ArrowArrayInVelox arrowArray;
+        ArrowArray arrowArray;
         exportToArrow(vec, arrowArray, velox_pool_.get());
         out_data.buffers.resize(arrowArray.n_buffers);
         out_data.null_count = arrowArray.null_count;

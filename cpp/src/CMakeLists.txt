@@ -868,6 +868,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/substrait_utils.cc
         compute/substrait_to_velox_expr.cc
         compute/substrait_to_velox_plan.cc
+        compute/type_utils.cc
         operators/c2r/columnar_to_row_converter.cc
         operators/c2r/velox_to_row_converter.cc
         operators/c2r/conversion_utils.cc

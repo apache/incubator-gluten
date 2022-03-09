@@ -359,7 +359,7 @@ arrow::Status parseSubstraitPlan(
   }
   auto converter = std::make_shared<gazellejni::compute::SubstraitVeloxPlanConverter>();
   auto plan_ptr = std::make_shared<substrait::Plan>(ws_plan);
-  *out_iter = converter->GetResIter(plan_ptr, std::move(arrow_iters));
+  *out_iter = converter->getResIter(plan_ptr, std::move(arrow_iters));
   return arrow::Status::OK();
 }
 
