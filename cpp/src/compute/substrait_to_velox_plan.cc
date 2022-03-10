@@ -316,9 +316,9 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     velox_type_list.push_back(toVeloxTypeFromName(sub_type->type));
   }
   auto output_type = ROW(std::move(out_names), std::move(velox_type_list));
-  auto arrow_values_node = std::make_shared<core::ArrowValuesNode>(
+  auto arrow_stream_node = std::make_shared<core::ArrowStreamNode>(
       nextPlanNodeId(), output_type, &velox_array_stream_);
-  return arrow_values_node;
+  return arrow_stream_node;
 }
 
 std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
