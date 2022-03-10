@@ -49,8 +49,9 @@ class NativeWholestageRowRDD(
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
-  private def castNativePartition(split: Partition): NativeFilePartition = split match {
+  private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
     case NativeSubstraitPartition(_, p: NativeFilePartition) => p
+    case NativeSubstraitPartition(_, m: NativeMergeTreePartition) => m
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
@@ -132,7 +133,9 @@ class NativeWholestageRowRDD(
 
       override def close(): Unit = {
         var startTime = System.nanoTime()
-        resIter.close()
+        if (resIter != null) {
+          resIter.close()
+        }
         logWarning(s"===========close ${System.nanoTime() - startTime}")
       }
     }

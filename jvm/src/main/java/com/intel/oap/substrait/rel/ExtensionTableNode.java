@@ -25,22 +25,25 @@ import java.io.Serializable;
 
 public class ExtensionTableNode implements Serializable {
     private static final String MERGE_TREE = "MergeTree;";
-    private Integer index;
+    private Long minPartsNum;
+    private Long maxPartsNum;
     private String database = null;
     private String tableName = null;
     private String relativePath = null;
     private StringBuffer extensionTableStr = new StringBuffer(MERGE_TREE);
 
-    ExtensionTableNode(Integer index, String database, String tableName, String relativePath) {
-        this.index = index;
+    ExtensionTableNode(Long minPartsNum, Long maxPartsNum, String database, String tableName,
+                       String relativePath) {
+        this.minPartsNum = minPartsNum;
+        this.maxPartsNum = maxPartsNum;
         this.database = database;
         this.tableName = tableName;
         this.relativePath = relativePath;
         // MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
         extensionTableStr.append(database).append("\n").append(tableName).append("\n")
                 .append(relativePath).append("\n")
-                .append((this.index + 1)).append("\n")
-                .append((this.index + 2)).append("\n");
+                .append(this.minPartsNum).append("\n")
+                .append(this.maxPartsNum).append("\n");
     }
 
     public ReadRel.ExtensionTable toProtobuf() {

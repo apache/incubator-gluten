@@ -20,8 +20,9 @@ package com.intel.oap.substrait.rel;
 public class ExtensionTableBuilder {
     private ExtensionTableBuilder() {}
 
-    public static ExtensionTableNode makeExtensionTable(Integer index, String database,
-                                                    String tableName, String relativePath) {
-        return new ExtensionTableNode(index, database, tableName, relativePath);
+    public static ExtensionTableNode makeExtensionTable(Long minPartsNum, Long maxPartsNum,
+                                                        String database, String tableName,
+                                                        String relativePath) {
+        return new ExtensionTableNode(minPartsNum, maxPartsNum, database, tableName, relativePath);
     }
 }

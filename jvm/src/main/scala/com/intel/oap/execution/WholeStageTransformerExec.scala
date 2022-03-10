@@ -88,11 +88,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
 
-  val clickhouseMergeTreeTablePath = GazelleJniConfig.getConf.clickhouseMergeTreeTablePath
-  val clickhouseMergeTreeEnabled = GazelleJniConfig.getConf.clickhouseMergeTreeEnabled
-  val clickhouseMergeTreeDatabase = GazelleJniConfig.getConf.clickhouseMergeTreeDatabase
-  val clickhouseMergeTreeTable = GazelleJniConfig.getConf.clickhouseMergeTreeTable
-
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_wholestagetransform"),
@@ -313,25 +308,26 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map {
+        case p: NativeMergeTreePartition =>
+          val extensionTableNode =
+            ExtensionTableBuilder.makeExtensionTable(p.minParts,
+              p.maxParts, p.database, p.table, p.tablePath)
+          wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
+          // logWarning(s"The substrait plan for partition " +
+          //   s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
+          p.copySubstraitPlan(wsCxt.root.toProtobuf.toByteArray)
         case FilePartition(index, files) =>
-          val substraitPlan = if (clickhouseMergeTreeEnabled) {
-            val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(index,
-              clickhouseMergeTreeDatabase, clickhouseMergeTreeTable, clickhouseMergeTreeTablePath)
-            wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
-            wsCxt.root.toProtobuf
-          } else {
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
-            files.foreach { f =>
-              paths.add(f.filePath)
-              starts.add(new java.lang.Long(f.start))
-              lengths.add(new java.lang.Long(f.length))
-            }
-            val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-            wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
-            wsCxt.root.toProtobuf
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(new java.lang.Long(f.start))
+            lengths.add(new java.lang.Long(f.length))
           }
+          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          val substraitPlan = wsCxt.root.toProtobuf
           /*
           val out = new DataOutputStream(new FileOutputStream("/tmp/SubStraitTest-Q6.dat",
                       false));

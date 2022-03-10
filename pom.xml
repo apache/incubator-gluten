@@ -280,6 +280,22 @@
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>io.delta</groupId>
+        <artifactId>delta-core_${scala.binary.version}</artifactId>
+        <version>1.0.1</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.antlr</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest_${scala.binary.version}</artifactId>
         <version>3.2.3</version>

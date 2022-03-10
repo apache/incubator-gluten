@@ -92,9 +92,6 @@ object TableBenchmarkTest {
         .config("spark.oap.sql.columnar.columnartorow", "false")
         .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
         .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
-        // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so
-        // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse/cmake-build-release/utils/local-engine/liblocal_engine_jni.so
-        // /home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-debug/utils/local-engine/liblocal_engine_jnid.so
         .config(GazelleJniConfig.OAP_LIB_PATH,
           "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
         .config("spark.oap.sql.columnar.iterator", "false")
@@ -165,7 +162,7 @@ object TableBenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    spark.conf.set("org.apache.spark.example.columnar.enabled", "false")
+    spark.conf.set("spark.oap.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)

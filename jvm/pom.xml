@@ -78,6 +78,11 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-core_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>${arrow-memory.artifact}</artifactId>
       <version>${arrow.version}</version>
@@ -328,6 +333,9 @@
     <resources>
       <resource>
         <directory>${cpp.build.dir}</directory>
+      </resource>
+      <resource>
+        <directory>${resource.dir}</directory>
       </resource>
     </resources>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
