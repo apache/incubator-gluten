@@ -25,9 +25,9 @@
 #include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
+#include "arrow/c/abi.h"
 #include "substrait_to_velox_expr.h"
 #include "substrait_utils.h"
-#include "velox/vector/arrow/Abi.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -72,8 +72,7 @@ class SubstraitVeloxPlanConverter {
       const substrait::Plan& splan, std::vector<arrow::RecordBatchIterator> arrow_iters);
 
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter(
-      const substrait::Plan& plan,
-      std::vector<arrow::RecordBatchIterator> arrow_iters);
+      const substrait::Plan& plan, std::vector<arrow::RecordBatchIterator> arrow_iters);
 
   void getIterInputSchema(
       const substrait::Plan& splan,

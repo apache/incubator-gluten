@@ -17,13 +17,13 @@
 
 #include "substrait_to_velox_plan.h"
 
+#include <arrow/c/bridge.h>
 #include <arrow/type_fwd.h>
 #include <arrow/util/iterator.h>
 
-#include "operators/bridge/velox_bridge.h"
+#include "arrow/c/Bridge.h"
 #include "type_utils.h"
 #include "velox/buffer/Buffer.h"
-#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -304,7 +304,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     throw std::runtime_error("Reader is not created.");
   }
   auto reader = maybe_reader.ValueOrDie();
-  gazellejni::bridge::ExportRecordBatchReader(reader, &velox_array_stream_);
+  arrow::ExportRecordBatchReader(reader, &velox_array_stream_);
 
   std::vector<std::string> out_names;
   for (int idx = 0; idx < col_name_list.size(); idx++) {
@@ -390,8 +390,7 @@ std::string SubstraitVeloxPlanConverter::nextPlanNodeId() {
 
 std::shared_ptr<ResultIterator<arrow::RecordBatch>>
 SubstraitVeloxPlanConverter::getResIter(
-    const substrait::Plan& plan,
-    std::vector<arrow::RecordBatchIterator> arrow_iters) {
+    const substrait::Plan& plan, std::vector<arrow::RecordBatchIterator> arrow_iters) {
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
   const std::shared_ptr<const core::PlanNode> plan_node =
       toVeloxPlan(plan, std::move(arrow_iters));
