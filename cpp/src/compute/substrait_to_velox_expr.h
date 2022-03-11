@@ -56,14 +56,15 @@ class SubstraitVeloxExprConverter {
       const std::unordered_map<uint64_t, std::string>& functions_map);
   std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
       const substrait::Expression::FieldReference& sfield,
-      const int32_t& input_plan_node_id);
+      const int32_t& input_plan_node_id, const RowTypePtr& inputType);
   std::shared_ptr<const core::ITypedExpr> toVeloxExpr(
       const substrait::Expression::ScalarFunction& sfunc,
-      const int32_t& input_plan_node_id);
+      const int32_t& input_plan_node_id, const RowTypePtr& inputType);
   std::shared_ptr<const core::ConstantTypedExpr> toVeloxExpr(
       const substrait::Expression::Literal& slit);
   std::shared_ptr<const core::ITypedExpr> toVeloxExpr(const substrait::Expression& sexpr,
-                                                      const int32_t& input_plan_node_id);
+                                                      const int32_t& input_plan_node_id,
+                                                      const RowTypePtr& inputType);
   int32_t parseReferenceSegment(const substrait::Expression::ReferenceSegment& sref);
   connector::hive::SubfieldFilters toVeloxFilter(
       const std::vector<std::string>& input_name_list,

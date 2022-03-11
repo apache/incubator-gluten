@@ -47,6 +47,10 @@ bool isString(const TypePtr& type) {
 TypePtr toVeloxTypeFromName(const std::string& type_name) {
   if (type_name == "BOOL") {
     return BOOLEAN();
+  } else if (type_name == "I32") {
+    return INTEGER();
+  } else if (type_name == "I64") {
+    return BIGINT();
   } else if (type_name == "FP64") {
     return DOUBLE();
   } else if (type_name == "STRING") {
@@ -59,6 +63,10 @@ TypePtr toVeloxTypeFromName(const std::string& type_name) {
 std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name) {
   if (type_name == "BOOL") {
     return arrow::boolean();
+  } else if (type_name == "I32") {
+    return arrow::int32();
+  } else if (type_name == "I64") {
+    return arrow::int64();
   } else if (type_name == "FP64") {
     return arrow::float64();
   } else if (type_name == "STRING") {
