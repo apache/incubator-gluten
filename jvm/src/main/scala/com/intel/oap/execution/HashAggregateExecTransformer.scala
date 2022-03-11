@@ -27,6 +27,7 @@ import com.intel.oap.GazelleJniConfig
 import java.util
 
 import com.intel.oap.substrait.`type`.TypeNode
+import org.apache.hadoop.yarn.webapp.log.AggregatedLogsPage
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -36,6 +37,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import scala.util.control.Breaks.{break, breakable}
 
 /**
@@ -90,7 +92,14 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-    true
+    var isPartial = true
+    aggregateExpressions.foreach(aggExpr => {
+      aggExpr.mode match {
+        case Partial =>
+        case _ => isPartial = false
+      }
+    })
+    isPartial
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -216,10 +225,6 @@ case class HashAggregateExecTransformer(
         .replaceWithExpressionTransformer(expr, originalInputAttributes)
       val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
       groupingList.add(exprNode)
-      val outputTypeNode = ConverterUtils.getTypeNode(expr.dataType, expr.nullable)
-      val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-        Lists.newArrayList(exprNode), outputTypeNode)
-      aggregateFunctionList.add(aggFunctionNode)
     })
     // Get the aggregation nodes.
     aggregateExpressions.foreach(aggExpr => {
