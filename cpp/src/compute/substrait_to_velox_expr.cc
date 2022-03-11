@@ -17,6 +17,8 @@
 
 #include "substrait_to_velox_expr.h"
 
+#include "type_utils.h"
+
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
@@ -46,11 +48,11 @@ SubstraitVeloxExprConverter::toVeloxExpr(
       break;
     }
     case substrait::Expression::FieldReference::ReferenceTypeCase::kMaskedReference: {
-      throw new std::runtime_error("not supported");
+      throw std::runtime_error("not supported");
       break;
     }
     default:
-      throw new std::runtime_error("not supported");
+      throw std::runtime_error("not supported");
       break;
   }
 }
@@ -65,11 +67,22 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
   }
   auto function_id = sfunc.function_reference();
   auto function_name = sub_parser_->findFunction(functions_map_, function_id);
-  auto velox_function = sub_parser_->substrait_velox_function_map[function_name];
   auto sub_type = sub_parser_->parseType(sfunc.output_type());
-  auto velox_type = getVeloxType(sub_type->type);
-  return std::make_shared<const core::CallTypedExpr>(velox_type, std::move(params),
-                                                     velox_function);
+  auto velox_type = toVeloxTypeFromName(sub_type->type);
+  if (function_name == "CAST") {
+    return std::make_shared<const core::CastTypedExpr>(velox_type, std::move(params),
+                                                       true);
+  } else if (function_name == "ALIAS") {
+    if (params.size() == 0) {
+      throw std::runtime_error("Alias expects one parameter.");
+    }
+    return params[0];
+  } else {
+    auto velox_function = sub_parser_->substrait_velox_function_map[function_name];
+
+    return std::make_shared<const core::CallTypedExpr>(velox_type, std::move(params),
+                                                       velox_function);
+  }
 }
 
 std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
@@ -82,11 +95,11 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
     }
     case substrait::Expression_Literal::LiteralTypeCase::kBoolean: {
       bool val = slit.boolean();
-      throw new std::runtime_error("Type is not supported.");
+      throw std::runtime_error("Type is not supported.");
       break;
     }
     default:
-      throw new std::runtime_error("Type is not supported.");
+      throw std::runtime_error("Type is not supported.");
       break;
   }
 }
@@ -111,22 +124,10 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
       break;
     }
     default:
-      throw new std::runtime_error("Expression not supported");
+      throw std::runtime_error("Expression not supported");
       break;
   }
   return velox_expr;
-}
-
-TypePtr SubstraitVeloxExprConverter::getVeloxType(std::string type_name) {
-  if (type_name == "BOOL") {
-    return BOOLEAN();
-  } else if (type_name == "FP64") {
-    return DOUBLE();
-  } else if (type_name == "STRING") {
-    return VARCHAR();
-  } else {
-    throw std::runtime_error("Type name is not supported");
-  }
 }
 
 int32_t SubstraitVeloxExprConverter::parseReferenceSegment(
@@ -139,7 +140,7 @@ int32_t SubstraitVeloxExprConverter::parseReferenceSegment(
       break;
     }
     default:
-      throw new std::runtime_error("not supported");
+      throw std::runtime_error("not supported");
       break;
   }
 }
@@ -232,7 +233,7 @@ hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
           break;
         }
         default:
-          throw new std::runtime_error("Condition arg is not supported.");
+          throw std::runtime_error("Condition arg is not supported.");
           break;
       }
     }
@@ -247,7 +248,7 @@ hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
     } else if (filter_name == "LESS_THAN") {
       col_info_map[col_idx]->setRight(val, true);
     } else {
-      throw new std::runtime_error("Function name is not supported.");
+      throw std::runtime_error("Function name is not supported.");
     }
   }
   for (int idx = 0; idx < input_name_list.size(); idx++) {

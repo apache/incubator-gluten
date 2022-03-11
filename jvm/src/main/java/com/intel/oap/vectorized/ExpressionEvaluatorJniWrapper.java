@@ -55,7 +55,7 @@ public class ExpressionEvaluatorJniWrapper {
          * @return iterator instance id
          */
         native long nativeCreateKernelWithIterator(long nativeHandler,
-                                                   byte[] wsExprListBuf,
+                                                   byte[] wsPlan,
                                                    ColumnarNativeIterator[] batchItr) throws RuntimeException;
 
         /**

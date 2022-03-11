@@ -15,55 +15,22 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <arrow/type_fwd.h>
 
 #include "velox/type/Type.h"
 
-bool isPrimitive(const TypePtr& type) {
-  switch (type->kind()) {
-    case TypeKind::TINYINT:
-    case TypeKind::SMALLINT:
-    case TypeKind::INTEGER:
-    case TypeKind::BIGINT:
-    case TypeKind::REAL:
-    case TypeKind::DOUBLE:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
+using namespace facebook::velox;
 
-bool isString(const TypePtr& type) {
-  switch (type->kind()) {
-    case TypeKind::VARCHAR:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
+bool isPrimitive(const TypePtr& type);
 
-std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
-  switch (type->kind()) {
-    case TypeKind::DOUBLE:
-      return arrow::float64();
-    case TypeKind::VARCHAR:
-      return arrow::utf8();
-    default:
-      throw new std::runtime_error("Type conversion is not supported.");
-  }
-}
+bool isString(const TypePtr& type);
 
-int64_t bytesOfType(const TypePtr& type) {
-  switch (type->kind()) {
-    case TypeKind::INTEGER:
-      return 4;
-    case TypeKind::BIGINT:
-    case TypeKind::REAL:
-    case TypeKind::DOUBLE:
-      return 8;
-    default:
-      throw new std::runtime_error("bytesOfType is not supported.");
-  }
-}
+TypePtr toVeloxTypeFromName(const std::string& type_name);
+
+std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name);
+
+std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type);
+
+int64_t bytesOfType(const TypePtr& type);

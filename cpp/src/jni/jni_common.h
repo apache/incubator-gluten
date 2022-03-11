@@ -334,13 +334,10 @@ arrow::Status MakeExprVector(JNIEnv* env, jbyteArray exprs_arr,
   return arrow::Status::OK();
 }
 
-arrow::Status ParseSubstraitPlan(
-    JNIEnv* env, jbyteArray exprs_arr,
-    std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out_iter) {
-  substrait::Plan ws_plan;
+arrow::Status getSubstraitPlan(JNIEnv* env, jbyteArray exprs_arr,
+                               substrait::Plan* outPlan) {
   jsize exprs_len = env->GetArrayLength(exprs_arr);
   jbyte* exprs_bytes = env->GetByteArrayElements(exprs_arr, 0);
-
 #ifdef DEBUG
   auto maybe_plan_json = SubstraitToJSON(
       "Plan", arrow::Buffer(reinterpret_cast<const uint8_t*>(exprs_bytes), exprs_len));
@@ -351,13 +348,26 @@ arrow::Status ParseSubstraitPlan(
     std::cout << "Error parsing substrait plan to json" << std::endl;
   }
 #endif
-
-  if (!ParseProtobuf(reinterpret_cast<uint8_t*>(exprs_bytes), exprs_len, &ws_plan)) {
+  if (!ParseProtobuf(reinterpret_cast<uint8_t*>(exprs_bytes), exprs_len, outPlan)) {
     env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
     return arrow::Status::UnknownError("Unable to parse");
   }
+  return arrow::Status::OK();
+}
+
+arrow::Status getIterInputSchema(
+    const substrait::Plan& subPlan,
+    std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
   auto converter = std::make_shared<gazellejni::compute::SubstraitVeloxPlanConverter>();
-  *out_iter = converter->getResIter(converter->toVeloxPlan(ws_plan));
+  converter->getIterInputSchema(subPlan, schema_map);
+  return arrow::Status::OK();
+}
+
+arrow::Status getSubstraitPlanIter(
+    const substrait::Plan& subPlan, std::vector<arrow::RecordBatchIterator> arrow_iters,
+    std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out_iter) {
+  auto converter = std::make_shared<gazellejni::compute::SubstraitVeloxPlanConverter>();
+  *out_iter = converter->getResIter(subPlan, std::move(arrow_iters));
   return arrow::Status::OK();
 }
 

@@ -21,10 +21,10 @@
 #include <arrow/buffer.h>
 #include <arrow/type_traits.h>
 
+#include "arrow/c/Bridge.h"
 #include "conversion_utils.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
-#include "velox/vector/arrow/Bridge.h"
 
 namespace gazellejni {
 namespace columnartorow {
@@ -153,7 +153,7 @@ void VeloxToRowConverter::Write() {
         break;
       }
       default:
-        throw new std::runtime_error("Type is not supported in VeloxToRow conversion.");
+        throw std::runtime_error("Type is not supported in VeloxToRow conversion.");
     }
   }
 }

@@ -25,6 +25,7 @@
 #include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
+#include "arrow/c/abi.h"
 #include "substrait_to_velox_expr.h"
 #include "substrait_utils.h"
 
@@ -45,35 +46,59 @@ class SubstraitVeloxPlanConverter {
  public:
   SubstraitVeloxPlanConverter();
 
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::AggregateRel& sagg);
   std::shared_ptr<const core::PlanNode> toVeloxPlan(
-      const substrait::ProjectRel& sproject);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::FilterRel& sfilter);
+      const substrait::AggregateRel& sagg,
+      std::vector<arrow::RecordBatchIterator> arrow_iters);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(
+      const substrait::ProjectRel& sproject,
+      std::vector<arrow::RecordBatchIterator> arrow_iters);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(
+      const substrait::FilterRel& sfilter,
+      std::vector<arrow::RecordBatchIterator> arrow_iters);
   std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::ReadRel& sread,
                                                     u_int32_t* index,
                                                     std::vector<std::string>* paths,
                                                     std::vector<u_int64_t>* starts,
                                                     std::vector<u_int64_t>* lengths);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::Rel& srel);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::RelRoot& sroot);
-  std::shared_ptr<const core::PlanNode> toVeloxPlan(const substrait::Plan& splan);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(
+      const substrait::InputRel& sinput,
+      std::vector<arrow::RecordBatchIterator> arrow_iters);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(
+      const substrait::Rel& srel, std::vector<arrow::RecordBatchIterator> arrow_iters);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(
+      const substrait::RelRoot& sroot,
+      std::vector<arrow::RecordBatchIterator> arrow_iters);
+  std::shared_ptr<const core::PlanNode> toVeloxPlan(
+      const substrait::Plan& splan, std::vector<arrow::RecordBatchIterator> arrow_iters);
 
   std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter(
-      const std::shared_ptr<const core::PlanNode>& plan_node);
+      const substrait::Plan& plan, std::vector<arrow::RecordBatchIterator> arrow_iters);
+
+  void getIterInputSchema(
+      const substrait::Plan& splan,
+      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map);
 
  private:
   int plan_node_id_ = 0;
   std::shared_ptr<SubstraitParser> sub_parser_;
   std::shared_ptr<SubstraitVeloxExprConverter> expr_converter_;
   std::unordered_map<uint64_t, std::string> functions_map_;
-  u_int32_t partition_index_;
   bool fake_arrow_output_ = false;
+  bool ds_as_input_ = true;
+  u_int32_t partition_index_;
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
   std::string nextPlanNodeId();
+  struct ArrowArrayStream velox_array_stream_;
   /* Result Iterator */
-  class WholeStageResultIterator;
+  class WholeStageResIter;
+  class WholeStageResIterFirstStage;
+  class WholeStageResIterMiddleStage;
+
+  void getIterInputSchemaFromRel(
+      const substrait::Rel& srel,
+      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map);
 };
 
 }  // namespace compute

@@ -63,7 +63,7 @@ set(VELOX_EXTERNAL_MD5_LIB_PATH "${VELOX_BUILD_PATH}/external/md5/libmd5.a")
 set(VELOX_EXPRESSION_LIB_PATH "${VELOX_BUILD_PATH}/expression/libvelox_expression.a")
 set(VELOX_EXPRESSION_FUNCTIONS_LIB_PATH "${VELOX_BUILD_PATH}/expression/libvelox_expression_functions.a")
 set(VELOX_BUFFER_LIB_PATH "${VELOX_BUILD_PATH}/buffer/libvelox_buffer.a")
-set(VELOX_ARROW_BRIDGE_LIB_PATH "${VELOX_BUILD_PATH}/vector/arrow/libvelox_arrow_bridge.a")
+set(VELOX_ARROW_BRIDGE_LIB_PATH "${VELOX_BUILD_PATH}/vector/arrow/c/libvelox_arrow_bridge.a")
 
 option(BUILD_ARROW "Build Arrow from Source" ON)
 option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
@@ -850,7 +850,7 @@ set(CODEGEN_HEADERS
     third_party/
     )
 set(THIRD_PARTY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE} ${VELOX_HOME} ${VELOX_REALEASE_PATH})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE} ${VELOX_HOME} ${VELOX_HOME}/velox/vector ${VELOX_REALEASE_PATH})
 file(MAKE_DIRECTORY ${root_directory}/releases/include)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/common/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/third_party/)
@@ -868,6 +868,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/substrait_utils.cc
         compute/substrait_to_velox_expr.cc
         compute/substrait_to_velox_plan.cc
+        compute/type_utils.cc
         operators/c2r/columnar_to_row_converter.cc
         operators/c2r/velox_to_row_converter.cc
         operators/c2r/conversion_utils.cc

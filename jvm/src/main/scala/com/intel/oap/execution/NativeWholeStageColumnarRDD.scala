@@ -66,7 +66,6 @@ class NativeWholeStageColumnarRDD(
     sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
     columnarReads: Boolean,
-    inputAttributes: Seq[Attribute],
     outputAttributes: Seq[Attribute],
     jarList: Seq[String],
     dependentKernelIterators: ListBuffer[BatchIterator])
