@@ -37,7 +37,8 @@ class AliasTransformer(child: Expression, name: String)(
       throw new UnsupportedOperationException(s"not supported yet")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "ALIAS")
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName("alias", Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(child.dataType, child.nullable)
 

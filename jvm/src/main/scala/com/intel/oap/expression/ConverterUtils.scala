@@ -394,8 +394,56 @@ object ConverterUtils extends Logging {
       case DateType =>
         TypeBuiler.makeDate(nullable)
       case unknown =>
-        throw new UnsupportedOperationException(s"Type $unknown not supported")
+        throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }
+  }
+
+  object FunctionConfig extends Enumeration {
+    type Config = Value
+    val REQ, OPT, NON = Value
+  }
+
+  // This method is used to create a function name with input types.
+  // The format would be aligned with that specified in Substrait.
+  // The function name Format:
+  // <function name>:<short_arg_type0>_<short_arg_type1>_..._<short_arg_typeN>
+  def makeFuncName(funcName: String, datatypes: Seq[DataType],
+                   config: FunctionConfig.Config = FunctionConfig.NON): String = {
+    var typedFuncName = config match {
+      case FunctionConfig.REQ =>
+        funcName.concat(":req_")
+      case FunctionConfig.OPT =>
+        funcName.concat(":opt_")
+      case FunctionConfig.NON =>
+        funcName.concat(":")
+      case other =>
+        throw new UnsupportedOperationException(s"$other is not supported.")
+    }
+    for (idx <- datatypes.indices) {
+      val datatype = datatypes(idx)
+      typedFuncName = datatype match {
+        case BooleanType =>
+          // TODO: Not in Substrait yet.
+          typedFuncName.concat("bool")
+        case IntegerType =>
+          typedFuncName.concat("i32")
+        case LongType =>
+          typedFuncName.concat("i64")
+        case DoubleType =>
+          typedFuncName.concat("fp64")
+        case DateType =>
+          typedFuncName.concat("date")
+        case StringType =>
+          typedFuncName.concat("str")
+        case other =>
+          throw new UnsupportedOperationException(s"Type $other not supported.")
+      }
+      // For the last item, do not need to add _.
+      if (idx < (datatypes.size - 1)) {
+        typedFuncName = typedFuncName.concat("_")
+      }
+    }
+    typedFuncName
   }
 
   def getTypeNodeFromAttributes(attributes: Seq[Attribute]): java.util.ArrayList[TypeNode] = {

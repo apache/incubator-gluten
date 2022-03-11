@@ -18,8 +18,8 @@
 package com.intel.oap.expression
 
 import com.google.common.collect.Lists
+import com.intel.oap.expression.ConverterUtils.FunctionConfig
 import com.intel.oap.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -46,34 +46,11 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
     with ExpressionTransformer
     with Logging {
 
-  val left_val: Any = left match {
-    case c: CastTransformer =>
-      if (c.child.dataType.isInstanceOf[DecimalType] &&
-        c.dataType.isInstanceOf[DecimalType]) {
-        c.child
-      } else {
-        left
-      }
-    case _ =>
-      left
-  }
-  val right_val: Any = right match {
-    case c: CastTransformer =>
-      if (c.child.dataType.isInstanceOf[DecimalType] &&
-        c.dataType.isInstanceOf[DecimalType]) {
-        c.child
-      } else {
-        right
-      }
-    case _ =>
-      right
-  }
-
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val left_node =
-      left_val.asInstanceOf[ExpressionTransformer].doTransform(args)
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val right_node =
-      right_val.asInstanceOf[ExpressionTransformer].doTransform(args)
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!left_node.isInstanceOf[ExpressionNode] ||
         !right_node.isInstanceOf[ExpressionNode]) {
@@ -81,7 +58,9 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "MULTIPLY")
+    val functionName = ConverterUtils.makeFuncName(
+      "multiply", Seq(left.dataType, right.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
