@@ -105,15 +105,42 @@ std::string SubstraitParser::makeNodeName(int node_id, int col_idx) {
   return fmt::format("n{}_{}", node_id, col_idx);
 }
 
-std::string SubstraitParser::findFunction(
-    const std::unordered_map<uint64_t, std::string>& functions_map,
-    const uint64_t& id) const {
-  if (functions_map.find(id) == functions_map.end()) {
-    throw std::runtime_error("Could not find function " + std::to_string(id));
+std::string SubstraitParser::findSubstraitFuncSpec(
+    const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id) const {
+  if (functionMap.find(id) == functionMap.end()) {
+    throw std::runtime_error("Could not find function id in function map.");
   }
   std::unordered_map<uint64_t, std::string>& map =
-      const_cast<std::unordered_map<uint64_t, std::string>&>(functions_map);
+      const_cast<std::unordered_map<uint64_t, std::string>&>(functionMap);
   return map[id];
+}
+
+std::string SubstraitParser::getSubFunctionName(const std::string& subFuncSpec) const {
+  // Get the position of ":" in the function name.
+  std::size_t pos = subFuncSpec.find(":");
+  if (pos == std::string::npos) {
+    return subFuncSpec;
+  }
+  return subFuncSpec.substr(0, pos);
+}
+
+std::string SubstraitParser::findVeloxFunction(
+    const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id) const {
+  std::string subFuncSpec = findSubstraitFuncSpec(functionMap, id);
+  std::string subFuncName = getSubFunctionName(subFuncSpec);
+  return mapToVeloxFunction(subFuncName);
+}
+
+std::string SubstraitParser::mapToVeloxFunction(const std::string& subFunc) const {
+  if (substraitVeloxFunctionMap.find(subFunc) == substraitVeloxFunctionMap.end()) {
+    // If not finding the mapping from Substrait function name to Velox function
+    // name, the original Substrait function name will be used.
+    return subFunc;
+  }
+  std::unordered_map<std::string, std::string>& map =
+      const_cast<std::unordered_map<std::string, std::string>&>(
+          substraitVeloxFunctionMap);
+  return map[subFunc];
 }
 
 }  // namespace compute
