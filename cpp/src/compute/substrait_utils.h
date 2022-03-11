@@ -50,11 +50,32 @@ class SubstraitParser {
   std::shared_ptr<SubstraitType> parseType(const substrait::Type& stype);
   std::vector<std::string> makeNames(const std::string& prefix, int size);
   std::string makeNodeName(int node_id, int col_idx);
-  std::string findFunction(const std::unordered_map<uint64_t, std::string>& functions_map,
-                           const uint64_t& id) const;
+
+  /// Used to find the Substrait function name according to the function id
+  /// from a pre-constructed function map. The function specification can be
+  /// a simple name or a compound name. The compound name format is:
+  /// <function name>:<short_arg_type0>_<short_arg_type1>_..._<short_arg_typeN>.
+  /// Currently, the input types in the function specification are not used. But
+  /// in the future, they should be used for the validation according the specifications
+  /// in Substrait yaml files.
+  /// in the future, they should be used for the validation according the
+  /// specifications in Substrait yaml files.
+  std::string findSubstraitFuncSpec(
+      const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id) const;
+
+  /// This function is used to get the function name from the compound name.
+  /// When the input is a simple name, it will be returned.
+  std::string getSubFunctionName(const std::string& subFuncSpec) const;
+
+  /// Used to find the Velox function name according to the function id
+  /// from a pre-constructed function map.
+  std::string findVeloxFunction(
+      const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id) const;
+  /// Used to map the Substrait function key word into Velox function key word.
+  std::string mapToVeloxFunction(const std::string& subFunc) const;
+
   // Used for mapping Substrait function key word into Velox functions.
-  std::unordered_map<std::string, std::string> substrait_velox_function_map = {
-      {"MULTIPLY", "multiply"}, {"SUM", "sum"}};
+  std::unordered_map<std::string, std::string> substraitVeloxFunctionMap = {};
 };
 
 }  // namespace compute

@@ -66,22 +66,20 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
     params.push_back(expr);
   }
   auto function_id = sfunc.function_reference();
-  auto function_name = sub_parser_->findFunction(functions_map_, function_id);
+  auto function_name = sub_parser_->findVeloxFunction(functions_map_, function_id);
   auto sub_type = sub_parser_->parseType(sfunc.output_type());
   auto velox_type = toVeloxTypeFromName(sub_type->type);
-  if (function_name == "CAST") {
+  if (function_name == "cast") {
     return std::make_shared<const core::CastTypedExpr>(velox_type, std::move(params),
                                                        true);
-  } else if (function_name == "ALIAS") {
+  } else if (function_name == "alias") {
     if (params.size() == 0) {
       throw std::runtime_error("Alias expects one parameter.");
     }
     return params[0];
   } else {
-    auto velox_function = sub_parser_->substrait_velox_function_map[function_name];
-
     return std::make_shared<const core::CallTypedExpr>(velox_type, std::move(params),
-                                                       velox_function);
+                                                       function_name);
   }
 }
 
@@ -188,8 +186,8 @@ void SubstraitVeloxExprConverter::getFlatConditions(
     case substrait::Expression::RexTypeCase::kScalarFunction: {
       auto sfunc = sfilter.scalar_function();
       auto filter_name =
-          sub_parser_->findFunction(functions_map_, sfunc.function_reference());
-      if (filter_name == "AND") {
+          sub_parser_->findVeloxFunction(functions_map_, sfunc.function_reference());
+      if (filter_name == "and") {
         for (auto& scondition : sfunc.args()) {
           getFlatConditions(scondition, scalar_functions);
         }
@@ -212,8 +210,8 @@ hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
   std::vector<substrait::Expression_ScalarFunction> scalar_functions;
   getFlatConditions(sfilter, &scalar_functions);
   for (auto& scalar_function : scalar_functions) {
-    auto filter_name =
-        sub_parser_->findFunction(functions_map_, scalar_function.function_reference());
+    auto filter_name = sub_parser_->findVeloxFunction(
+        functions_map_, scalar_function.function_reference());
     int32_t col_idx;
     // FIXME: differen type support
     double val;
@@ -237,15 +235,15 @@ hive::SubfieldFilters SubstraitVeloxExprConverter::toVeloxFilter(
           break;
       }
     }
-    if (filter_name == "IS_NOT_NULL") {
+    if (filter_name == "is_not_null") {
       col_info_map[col_idx]->forbidsNull();
-    } else if (filter_name == "GREATER_THAN_OR_EQUAL") {
+    } else if (filter_name == "gte") {
       col_info_map[col_idx]->setLeft(val, false);
-    } else if (filter_name == "GREATER_THAN") {
+    } else if (filter_name == "gt") {
       col_info_map[col_idx]->setLeft(val, true);
-    } else if (filter_name == "LESS_THAN_OR_EQUAL") {
+    } else if (filter_name == "lte") {
       col_info_map[col_idx]->setRight(val, false);
-    } else if (filter_name == "LESS_THAN") {
+    } else if (filter_name == "lt") {
       col_info_map[col_idx]->setRight(val, true);
     } else {
       throw std::runtime_error("Function name is not supported.");

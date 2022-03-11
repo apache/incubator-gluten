@@ -103,15 +103,11 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
           break;
         default:
           throw std::runtime_error("Aggregate phase is not supported.");
-          break;
       }
       phase_inited = true;
     }
-    auto func_id = agg_function.function_reference();
-    auto sub_func_name = sub_parser_->findFunction(functions_map_, func_id);
-    // FIXME: func_name
-    std::string func_name = "sum";
-    // auto func_name = sub_parser_->substrait_velox_function_map[sub_func_name];
+    uint64_t func_id = agg_function.function_reference();
+    std::string func_name = sub_parser_->findVeloxFunction(functions_map_, func_id);
     std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
     auto args = agg_function.args();
     for (auto arg : args) {
