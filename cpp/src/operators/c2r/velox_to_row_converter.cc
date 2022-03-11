@@ -123,6 +123,26 @@ void VeloxToRowConverter::Write() {
     int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
     auto col_type_id = schema_->field(col_idx)->type()->id();
     switch (col_type_id) {
+      case arrow::Int32Type::type_id: {
+        // Will use Velox's conversion.
+        auto vec = vecs_[col_idx];
+        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
+          auto write_address = buffer_address_ + offsets_[row_idx] + field_offset;
+          auto serialized = row::UnsafeRowSerializer::serialize<IntegerType>(
+              vec, write_address, row_idx);
+        }
+        break;
+      }
+      case arrow::Int64Type::type_id: {
+        // Will use Velox's conversion.
+        auto vec = vecs_[col_idx];
+        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
+          auto write_address = buffer_address_ + offsets_[row_idx] + field_offset;
+          auto serialized = row::UnsafeRowSerializer::serialize<BigintType>(
+              vec, write_address, row_idx);
+        }
+        break;
+      }
       case arrow::DoubleType::type_id: {
         // Will use Velox's conversion.
         auto vec = vecs_[col_idx];

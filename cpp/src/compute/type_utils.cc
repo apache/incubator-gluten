@@ -78,6 +78,10 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
 
 std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
   switch (type->kind()) {
+    case TypeKind::INTEGER:
+      return arrow::int32();
+    case TypeKind::BIGINT:
+      return arrow::int64();
     case TypeKind::DOUBLE:
       return arrow::float64();
     case TypeKind::VARCHAR:

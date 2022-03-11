@@ -45,9 +45,7 @@ SubstraitVeloxExprConverter::toVeloxExpr(
       auto dref = sfield.direct_reference();
       uint32_t col_idx = parseReferenceSegment(dref);
       auto inType = inputType->childAt(col_idx);
-      auto field_name =
-          sub_parser_->makeNodeName(input_plan_node_id, col_idx);
-      std::cout << "field_name: " << field_name << std::endl;
+      auto field_name = sub_parser_->makeNodeName(input_plan_node_id, col_idx);
       return std::make_shared<const core::FieldAccessTypedExpr>(inType, field_name);
       break;
     }

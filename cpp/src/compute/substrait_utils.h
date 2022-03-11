@@ -76,7 +76,7 @@ class SubstraitParser {
 
   // Used for mapping Substrait function key word into Velox functions.
   std::unordered_map<std::string, std::string> substraitVeloxFunctionMap = {
-    {"add", "plus"}, {"subtract", "minus"}};
+      {"add", "plus"}, {"subtract", "minus"}};
 };
 
 }  // namespace compute

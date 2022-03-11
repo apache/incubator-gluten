@@ -25,6 +25,9 @@
 #include "type_utils.h"
 #include "velox/buffer/Buffer.h"
 
+#include "velox/functions/prestosql/aggregates/AverageAggregate.h"
+#include "velox/functions/prestosql/aggregates/CountAggregate.h"
+
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
@@ -50,6 +53,8 @@ void VeloxInitializer::Init() {
   // Register Velox functions
   functions::prestosql::registerAllScalarFunctions();
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
+  aggregate::registerAverageAggregate("avg");
+  aggregate::registerCountAggregate("count");
 }
 
 SubstraitVeloxPlanConverter::SubstraitVeloxPlanConverter() {
@@ -73,7 +78,6 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   for (auto& grouping : groupings) {
     auto grouping_exprs = grouping.grouping_expressions();
     for (auto& grouping_expr : grouping_exprs) {
-      std::cout << "grouping input id: " << input_plan_node_id << std::endl;
       auto field_expr =
           expr_converter_->toVeloxExpr(grouping_expr, input_plan_node_id, input_types);
       // Velox's groupings are limited to be Field, and pre-projection for grouping cols
@@ -85,12 +89,10 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     }
   }
   // Parse measures
-  core::AggregationNode::Step agg_step;
   bool phase_inited = false;
-  std::vector<std::shared_ptr<const core::CallTypedExpr>> agg_exprs;
-  std::vector<std::shared_ptr<const core::ITypedExpr>> project_exprs;
-  std::vector<std::string> project_out_names;
+  core::AggregationNode::Step agg_step;
   int agg_idx = grouping_idx;
+  std::vector<std::shared_ptr<const core::CallTypedExpr>> agg_exprs;
   for (auto& smea : sagg.measures()) {
     auto agg_function = smea.measure();
     if (!phase_inited) {
@@ -112,8 +114,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     uint64_t func_id = agg_function.function_reference();
     std::string func_name = sub_parser_->findVeloxFunction(functions_map_, func_id);
     std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
-    auto args = agg_function.args();
-    for (auto arg : args) {
+    for (auto arg : agg_function.args()) {
       switch (arg.rex_type_case()) {
         case substrait::Expression::RexTypeCase::kLiteral: {
           auto lit_expr = expr_converter_->toVeloxExpr(arg.literal());
@@ -125,21 +126,6 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
           auto field_expr =
               expr_converter_->toVeloxExpr(sel, input_plan_node_id, input_types);
           agg_params.push_back(field_expr);
-          break;
-        }
-        case substrait::Expression::RexTypeCase::kScalarFunction: {
-          // Pre-projection is needed before Aggregate.
-          auto sfunc = arg.scalar_function();
-          auto velox_expr =
-              expr_converter_->toVeloxExpr(sfunc, input_plan_node_id, input_types);
-          project_exprs.push_back(velox_expr);
-          auto col_out_name = sub_parser_->makeNodeName(plan_node_id_, agg_idx);
-          project_out_names.push_back(col_out_name);
-          auto sub_type = sub_parser_->parseType(sfunc.output_type());
-          auto velox_type = toVeloxTypeFromName(sub_type->type);
-          auto agg_input_param = std::make_shared<const core::FieldAccessTypedExpr>(
-              velox_type, col_out_name);
-          agg_params.push_back(agg_input_param);
           break;
         }
         default:
@@ -156,30 +142,17 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     agg_idx += 1;
   }
   bool ignoreNullKeys = false;
-  std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(agg_idx - grouping_idx);
+  std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(
+      agg_idx - grouping_idx);
   std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> pre_grouping_exprs;
-  if (project_out_names.size() > 0) {
-    auto project_node = std::make_shared<core::ProjectNode>(
-        nextPlanNodeId(), std::move(project_out_names), std::move(project_exprs),
-        child_node);
-    std::vector<std::string> agg_out_names;
-    for (int idx = grouping_idx; idx < agg_idx; idx++) {
-      agg_out_names.push_back(sub_parser_->makeNodeName(plan_node_id_, idx));
-    }
-    auto agg_node = std::make_shared<core::AggregationNode>(
-        nextPlanNodeId(), agg_step, velox_grouping_exprs, pre_grouping_exprs,
-        agg_out_names, agg_exprs, aggregateMasks, ignoreNullKeys, project_node);
-    return agg_node;
-  } else {
-    std::vector<std::string> agg_out_names;
-    for (int idx = grouping_idx; idx < agg_idx; idx++) {
-      agg_out_names.push_back(sub_parser_->makeNodeName(plan_node_id_, idx));
-    }
-    auto agg_node = std::make_shared<core::AggregationNode>(
-        nextPlanNodeId(), agg_step, velox_grouping_exprs, pre_grouping_exprs,
-        agg_out_names, agg_exprs, aggregateMasks, ignoreNullKeys, child_node);
-    return agg_node;
+  std::vector<std::string> agg_out_names;
+  for (int idx = grouping_idx; idx < agg_idx; idx++) {
+    agg_out_names.push_back(sub_parser_->makeNodeName(plan_node_id_, idx));
   }
+  auto agg_node = std::make_shared<core::AggregationNode>(
+      nextPlanNodeId(), agg_step, velox_grouping_exprs, pre_grouping_exprs, agg_out_names,
+      agg_exprs, aggregateMasks, ignoreNullKeys, child_node);
+  return agg_node;
 }
 
 std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
