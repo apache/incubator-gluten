@@ -139,7 +139,11 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     auto agg_expr = std::make_shared<const core::CallTypedExpr>(
         agg_velox_type, std::move(agg_params), func_name);
     agg_exprs.push_back(agg_expr);
-    agg_idx += 1;
+    if (func_name == "avg") {
+      agg_idx += 2;
+    } else {
+      agg_idx += 1;
+    }
   }
   bool ignoreNullKeys = false;
   std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> aggregateMasks(
