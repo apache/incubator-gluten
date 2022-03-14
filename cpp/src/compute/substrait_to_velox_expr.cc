@@ -59,6 +59,14 @@ SubstraitVeloxExprConverter::toVeloxExpr(
   }
 }
 
+std::shared_ptr<const core::FieldAccessTypedExpr>
+SubstraitVeloxExprConverter::toVeloxExpr(const uint32_t colIdx,
+                                         const int32_t& input_plan_node_id,
+                                         const TypePtr& inputType) {
+  auto field_name = sub_parser_->makeNodeName(input_plan_node_id, colIdx);
+  return std::make_shared<const core::FieldAccessTypedExpr>(inputType, field_name);
+}
+
 std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
     const substrait::Expression::ScalarFunction& sfunc, const int32_t& input_plan_node_id,
     const RowTypePtr& inputType) {

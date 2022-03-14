@@ -57,6 +57,10 @@ class SubstraitVeloxExprConverter {
   std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
       const substrait::Expression::FieldReference& sfield,
       const int32_t& input_plan_node_id, const RowTypePtr& inputType);
+  std::shared_ptr<const core::FieldAccessTypedExpr>
+  SubstraitVeloxExprConverter::toVeloxExpr(const uint32_t colIdx,
+                                           const int32_t& input_plan_node_id,
+                                           const TypePtr& inputType);
   std::shared_ptr<const core::ITypedExpr> toVeloxExpr(
       const substrait::Expression::ScalarFunction& sfunc,
       const int32_t& input_plan_node_id, const RowTypePtr& inputType);

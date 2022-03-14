@@ -24,7 +24,6 @@
 #include "arrow/c/Bridge.h"
 #include "type_utils.h"
 #include "velox/buffer/Buffer.h"
-
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
 
@@ -91,6 +90,9 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   // Parse measures
   bool phase_inited = false;
   bool isPartial = false;
+  bool isFinal = false;
+  bool existsFinalAvg = false;
+  uint32_t newColIdx = 0;
   core::AggregationNode::Step agg_step;
   int agg_idx = grouping_idx;
   std::vector<std::shared_ptr<const core::CallTypedExpr>> agg_exprs;
@@ -107,6 +109,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
           break;
         case substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT:
           agg_step = core::AggregationNode::Step::kFinal;
+          isFinal = true;
           break;
         default:
           throw std::runtime_error("Aggregate phase is not supported.");
@@ -116,6 +119,24 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     uint64_t func_id = agg_function.function_reference();
     std::string func_name = sub_parser_->findVeloxFunction(functions_map_, func_id);
     std::vector<std::shared_ptr<const core::ITypedExpr>> agg_params;
+    if (func_name == "avg" && isFinal) {
+      auto avgInputType = ROW({"sum", "count"}, {DOUBLE(), BIGINT()});
+      auto args = agg_function.args();
+      if (arg.size() != 2) {
+        throw std::runtime_error("Final avg should have two args.");
+      }
+      uint32_t colIdx = parseReferenceSegment(args[0].selection().direct_reference());
+      if (!existsFinalAvg) {
+        newColIdx = colIdx;
+      } else {
+        newColIdx += 1;
+      }
+      auto avgInputField =
+          expr_converter_->toVeloxExpr(newColIdx, input_plan_node_id, avgInputType);
+      agg_params.push_back(avgInputField);
+      existsFinalAvg = true;
+      continue;
+    }
     for (auto arg : agg_function.args()) {
       switch (arg.rex_type_case()) {
         case substrait::Expression::RexTypeCase::kLiteral: {
@@ -124,9 +145,18 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
           break;
         }
         case substrait::Expression::RexTypeCase::kSelection: {
+          std::shared_ptr<const core::FieldAccessTypedExpr> fieldExpr;
           auto sel = arg.selection();
-          auto field_expr =
-              expr_converter_->toVeloxExpr(sel, input_plan_node_id, input_types);
+          if (existsFinalAvg) {
+            uint32_t colIdx = parseReferenceSegment(sel.direct_reference());
+            auto inputType = inputType->childAt(colIdx);
+            newColIdx += 1;
+            fieldExpr =
+                expr_converter_->toVeloxExpr(newColIdx, input_plan_node_id, inputType);
+          } else {
+            fieldExpr =
+                expr_converter_->toVeloxExpr(sel, input_plan_node_id, input_types);
+          }
           agg_params.push_back(field_expr);
           break;
         }
@@ -138,19 +168,26 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     }
     auto agg_out_type = agg_function.output_type();
     auto agg_velox_type = toVeloxTypeFromName(sub_parser_->parseType(agg_out_type)->type);
-    
+
     if (func_name == "avg" && isPartial) {
       // Currently will used sum and count to replace partial avg.
       auto sum_expr = std::make_shared<const core::CallTypedExpr>(
-        agg_velox_type, std::move(agg_params), "sum");
+          agg_velox_type, std::move(agg_params), "sum");
       auto count_expr = std::make_shared<const core::CallTypedExpr>(
-        BIGINT(), std::move(agg_params), "count");
+          BIGINT(), std::move(agg_params), "count");
       agg_exprs.push_back(sum_expr);
       agg_exprs.push_back(count_expr);
       agg_idx += 2;
+    } else if (func_name == "avg" && isFinal) {
+      // Need to combine sum and count vectors into RowVector.
+      auto avgType = ROW({"sum", "count"}, {DOUBLE(), BIGINT()});
+      auto avgExpr = std::make_shared<const core::CallTypedExpr>(
+          avgType, std::move(agg_params), "avg");
+      agg_exprs.push_back(avgExpr);
+      agg_idx += 1;
     } else {
       auto agg_expr = std::make_shared<const core::CallTypedExpr>(
-        agg_velox_type, std::move(agg_params), func_name);
+          agg_velox_type, std::move(agg_params), func_name);
       agg_exprs.push_back(agg_expr);
       agg_idx += 1;
     }
