@@ -90,6 +90,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
   }
   // Parse measures
   bool phase_inited = false;
+  bool isPartial = false;
   core::AggregationNode::Step agg_step;
   int agg_idx = grouping_idx;
   std::vector<std::shared_ptr<const core::CallTypedExpr>> agg_exprs;
@@ -99,6 +100,7 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
       switch (agg_function.phase()) {
         case substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE:
           agg_step = core::AggregationNode::Step::kPartial;
+          isPartial = true;
           break;
         case substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE:
           agg_step = core::AggregationNode::Step::kIntermediate;
@@ -136,12 +138,20 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     }
     auto agg_out_type = agg_function.output_type();
     auto agg_velox_type = toVeloxTypeFromName(sub_parser_->parseType(agg_out_type)->type);
-    auto agg_expr = std::make_shared<const core::CallTypedExpr>(
-        agg_velox_type, std::move(agg_params), func_name);
-    agg_exprs.push_back(agg_expr);
-    if (func_name == "avg") {
+    
+    if (func_name == "avg" && isPartial) {
+      // Currently will used sum and count to replace partial avg.
+      auto sum_expr = std::make_shared<const core::CallTypedExpr>(
+        agg_velox_type, std::move(agg_params), "sum");
+      auto count_expr = std::make_shared<const core::CallTypedExpr>(
+        BIGINT(), std::move(agg_params), "count");
+      agg_exprs.push_back(sum_expr);
+      agg_exprs.push_back(count_expr);
       agg_idx += 2;
     } else {
+      auto agg_expr = std::make_shared<const core::CallTypedExpr>(
+        agg_velox_type, std::move(agg_params), func_name);
+      agg_exprs.push_back(agg_expr);
       agg_idx += 1;
     }
   }
@@ -663,7 +673,6 @@ class SubstraitVeloxPlanConverter::WholeStageResIterFirstStage
   }
 
   arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
-    // FIXME: only one-col case is considered
     auto out_types = plan_node_->outputType();
     if (fake_arrow_output_) {
       toFakedArrowBatch(result_, num_rows_, out_types, out);
