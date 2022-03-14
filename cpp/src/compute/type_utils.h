@@ -34,3 +34,5 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
 std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type);
 
 int64_t bytesOfType(const TypePtr& type);
+
+const char* arrowTypeIdToFormatStr(arrow::Type::type typeId);

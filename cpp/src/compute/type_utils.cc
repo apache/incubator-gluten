@@ -103,3 +103,21 @@ int64_t bytesOfType(const TypePtr& type) {
       throw std::runtime_error("bytesOfType is not supported.");
   }
 }
+
+const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
+  switch (typeId) {
+    case arrow::Type::type::BOOL:
+      return "b"; // boolean
+    case arrow::Type::type::INT32:
+      return "i"; // int32
+    case arrow::Type::type::INT64:
+      return "l"; // int64
+    case arrow::Type::type::DOUBLE:
+      return "g"; // float64
+    case arrow::Type::type::STRING:
+      return "u"; // utf-8 string
+    default:
+      // Unsupported types.
+      throw std::runtime_error("Arrow type id not supported.");
+  }
+}

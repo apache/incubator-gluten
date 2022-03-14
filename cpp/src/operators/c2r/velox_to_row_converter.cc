@@ -16,6 +16,7 @@
  */
 
 #include "velox_to_row_converter.h"
+#include "compute/type_utils.h"
 
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
@@ -85,8 +86,7 @@ void VeloxToRowConverter::ResumeVeloxVector() {
     auto array_data = array->data();
     const void* data_addr = array_data->buffers[1]->data();
     const void* buffers[] = {nullptr, data_addr};
-    // FIXME: support other data types
-    const char* format = "g";
+    const char* format = arrowTypeIdToFormatStr(array->type_id());
     auto arrow_schema = ArrowSchema{
         .format = format,
         .name = nullptr,

@@ -506,7 +506,9 @@ class SubstraitVeloxPlanConverter::WholeStageResIter
       out_data.buffers[0] = val_buffer;
       auto col_type = out_types->childAt(idx);
       auto col_arrow_type = toArrowType(col_type);
-      ret_types.push_back(arrow::field("res", col_arrow_type));
+      // TODO: use the names in RelRoot.
+      auto col_name = "res_" + std::to_string(idx);
+      ret_types.push_back(arrow::field(col_name, col_arrow_type));
       out_data.type = col_arrow_type;
       if (isPrimitive(col_type)) {
         auto data_buffer = std::make_shared<arrow::Buffer>(
@@ -557,7 +559,9 @@ class SubstraitVeloxPlanConverter::WholeStageResIter
       auto vec = rv->childAt(idx);
       auto col_type = out_types->childAt(idx);
       auto col_arrow_type = toArrowType(col_type);
-      ret_types.push_back(arrow::field("res", col_arrow_type));
+      // TODO: use the names in RelRoot.
+      auto col_name = "res_" + std::to_string(idx);
+      ret_types.push_back(arrow::field(col_name, col_arrow_type));
       if (isPrimitive(col_type)) {
         out_data.type = col_arrow_type;
         // FIXME: need to release this.
