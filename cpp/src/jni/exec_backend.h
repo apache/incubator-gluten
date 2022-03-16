@@ -52,22 +52,27 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
   template <typename T>
   explicit RecordBatchResultIterator(std::shared_ptr<T> iter,
                                      std::shared_ptr<ExecBackendBase> backend = nullptr)
-      : iter_(std::make_shared<arrow::RecordBatchIterator>(Wrapper<T>(std::move(iter)))),
+      : iter_(std::make_unique<arrow::RecordBatchIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),
         backend_(std::move(backend)) {}
 
   bool HasNext() override {
+    CheckValid();
     GetNext();
     return next_ != nullptr;
   }
 
   std::shared_ptr<arrow::RecordBatch> Next() override {
+    CheckValid();
     GetNext();
     return std::move(next_);
   }
 
+  /// arrow::RecordBatchIterator doesn't support shared ownership. Once this method is
+  /// called, the caller should take it's ownership, and RecordBatchResultIterator
+  /// will no longer have access to the underlying iterator.
   std::shared_ptr<arrow::RecordBatchIterator> ToArrowRecordBatchIterator() {
-    return iter_;
+    return std::move(iter_);
   }
 
  private:
@@ -82,11 +87,18 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
     std::shared_ptr<T> ptr_;
   };
 
-  std::shared_ptr<arrow::RecordBatchIterator> iter_;
+  std::unique_ptr<arrow::RecordBatchIterator> iter_;
   std::shared_ptr<arrow::RecordBatch> next_;
   std::shared_ptr<ExecBackendBase> backend_;
 
-  void GetNext() {
+  inline void CheckValid() {
+    if (iter_ == nullptr) {
+      throw JniPendingException(
+          "RecordBatchResultIterator: the underlying iterator has expired.");
+    }
+  }
+
+  inline void GetNext() {
     if (next_ == nullptr) {
       GAZELLE_JNI_ASSIGN_OR_THROW(next_, iter_->Next());
     }
@@ -117,22 +129,26 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   }
 
   /// Parse and get the input schema from the cached plan.
-  arrow::Status GetInputSchemaMap(
-      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
-    for (auto& srel : plan_.relations()) {
-      if (srel.has_root()) {
-        auto& sroot = srel.root();
-        if (sroot.has_input()) {
-          GetIterInputSchemaFromRel(sroot.input(), schema_map);
-        } else {
-          throw std::runtime_error("Expect Rel as input.");
+  const std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>&
+  GetInputSchemaMap() {
+    if (schema_map_.empty()) {
+      for (auto& srel : plan_.relations()) {
+        if (srel.has_root()) {
+          auto& sroot = srel.root();
+          if (sroot.has_input()) {
+            // TODO: remove arrow::Status
+            GAZELLE_JNI_THROW_NOT_OK(GetIterInputSchemaFromRel(sroot.input()));
+          } else {
+            throw JniPendingException("Expect Rel as input.");
+          }
+        }
+        if (srel.has_rel()) {
+          // TODO: remove arrow::Status
+          GAZELLE_JNI_THROW_NOT_OK(GetIterInputSchemaFromRel(srel.rel()));
         }
       }
-      if (srel.has_rel()) {
-        GetIterInputSchemaFromRel(srel.rel(), schema_map);
-      }
     }
-    return arrow::Status::OK();
+    return schema_map_;
   }
 
   /// This function is used to create certain converter from the format used by the
@@ -146,6 +162,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
 
  protected:
   substrait::Plan plan_;
+  std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>> schema_map_;
 
   arrow::Result<std::shared_ptr<arrow::DataType>> subTypeToArrowType(
       const substrait::Type& stype) {
@@ -168,19 +185,17 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   }
 
  private:
-  // This method is used to get the input schema in ReadRel.
-  arrow::Status GetIterInputSchemaFromRel(
-      const substrait::Rel& srel,
-      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
+  // This method is used to get the input schema in InputRel.
+  arrow::Status GetIterInputSchemaFromRel(const substrait::Rel& srel) {
     // TODO: need to support more Substrait Rels here.
     if (srel.has_aggregate() && srel.aggregate().has_input()) {
-      return GetIterInputSchemaFromRel(srel.aggregate().input(), schema_map);
+      return GetIterInputSchemaFromRel(srel.aggregate().input());
     }
     if (srel.has_project() && srel.project().has_input()) {
-      return GetIterInputSchemaFromRel(srel.project().input(), schema_map);
+      return GetIterInputSchemaFromRel(srel.project().input());
     }
     if (srel.has_filter() && srel.filter().has_input()) {
-      return GetIterInputSchemaFromRel(srel.filter().input(), schema_map);
+      return GetIterInputSchemaFromRel(srel.filter().input());
     }
     if (!srel.has_read()) {
       return arrow::Status::Invalid("Read Rel expected.");
@@ -216,7 +231,6 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     }
 
     // Get the iterator index.
-    int32_t iterIdx;
     if (sread.has_local_files()) {
       const auto& fileList = sread.local_files().items();
       if (fileList.size() == 0) {
@@ -229,11 +243,12 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
         return arrow::Status::Invalid("Iterator index is not found.");
       }
       std::string idxStr = filePath.substr(pos + prefix.size(), filePath.size());
-      iterIdx = std::stoi(idxStr);
+      auto iterIdx = std::stoi(idxStr);
+
+      // Set up the schema map.
+      schema_map_[iterIdx] = arrow::schema(input_fields);
     }
 
-    // Set up the schema map.
-    schema_map[iterIdx] = arrow::schema(input_fields);
     return arrow::Status::OK();
   }
 };

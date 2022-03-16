@@ -44,7 +44,7 @@ JNIEXPORT void JNICALL
 Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
   gazellejni::SetBackendFactory(
-      [] { return std::make_shared<gazellecpp::compute::ArrowSubstraitParser>(); });
+      [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
 }
 
 #ifdef __cplusplus
