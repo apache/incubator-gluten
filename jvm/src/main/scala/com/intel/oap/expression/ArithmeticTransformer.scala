@@ -66,7 +66,7 @@ class SubtractTransformer(left: Expression, right: Expression, original: Express
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!left_node.isInstanceOf[ExpressionNode] ||
-      !right_node.isInstanceOf[ExpressionNode]) {
+        !right_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -124,7 +124,7 @@ class DivideTransformer(left: Expression, right: Expression,
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!left_node.isInstanceOf[ExpressionNode] ||
-      !right_node.isInstanceOf[ExpressionNode]) {
+        !right_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 

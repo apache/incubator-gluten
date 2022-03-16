@@ -41,9 +41,4 @@ object AggregateFunctionsBuilder {
     }
     ExpressionBuilder.newScalarFunction(functionMap, functionName)
   }
-
-  def createGrouping(args: java.lang.Object): Long = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    ExpressionBuilder.newScalarFunction(functionMap, "grouping")
-  }
 }
