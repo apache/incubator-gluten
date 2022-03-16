@@ -92,14 +92,7 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-    var isPartial = true
-    aggregateExpressions.foreach(aggExpr => {
-      aggExpr.mode match {
-        case Partial =>
-        case _ => isPartial = false
-      }
-    })
-    isPartial
+    true
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

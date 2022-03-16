@@ -91,6 +91,20 @@ class SubstraitVeloxPlanConverter {
   std::vector<u_int64_t> lengths_;
   std::string nextPlanNodeId();
   struct ArrowArrayStream velox_array_stream_;
+
+  bool needsRowConstruct(const substrait::AggregateRel& sagg,
+                         core::AggregationNode::Step& aggStep);
+
+  std::shared_ptr<const core::PlanNode> toVeloxAggWithRowConstruct(
+      const substrait::AggregateRel& sagg,
+      const std::shared_ptr<const core::PlanNode>& childNode,
+      const core::AggregationNode::Step& aggStep);
+
+  std::shared_ptr<const core::PlanNode> toVeloxAgg(
+      const substrait::AggregateRel& sagg,
+      const std::shared_ptr<const core::PlanNode>& childNode,
+      const core::AggregationNode::Step& aggStep);
+
   /* Result Iterator */
   class WholeStageResIter;
   class WholeStageResIterFirstStage;
