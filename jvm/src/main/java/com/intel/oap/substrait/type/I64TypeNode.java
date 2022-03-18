@@ -19,7 +19,9 @@ package com.intel.oap.substrait.type;
 
 import io.substrait.proto.Type;
 
-public class I64TypeNode implements TypeNode {
+import java.io.Serializable;
+
+public class I64TypeNode implements TypeNode, Serializable {
     private final Boolean nullable;
 
     I64TypeNode(Boolean nullable) {

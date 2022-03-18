@@ -136,6 +136,14 @@ void SubstraitParser::ParseType(const substrait::Type& stype) {
       auto type_id = sbool.type_variation_reference();
       break;
     }
+    case substrait::Type::KindCase::kI32: {
+      auto nullable = stype.i32().nullability();
+      break;
+    }
+    case substrait::Type::KindCase::kI64: {
+      auto nullability = stype.i64().nullability();
+      break;
+    }
     case substrait::Type::KindCase::kFp64: {
       auto sfp64 = stype.fp64();
       auto nullable = sfp64.nullability();
@@ -157,7 +165,7 @@ void SubstraitParser::ParseType(const substrait::Type& stype) {
       break;
     }
     default:
-      std::cout << "Type not supported" << std::endl;
+      std::cout << "Type not supported: " << stype.kind_case() << std::endl;
       break;
   }
 }
