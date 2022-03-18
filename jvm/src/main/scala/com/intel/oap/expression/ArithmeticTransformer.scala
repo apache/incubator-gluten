@@ -31,14 +31,56 @@ class AddTransformer(left: Expression, right: Expression, original: Expression)
     extends Add(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val left_node =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val right_node =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+
+    if (!left_node.isInstanceOf[ExpressionNode] ||
+        !right_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      "add", Seq(left.dataType, right.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressNodes = Lists.newArrayList(
+      left_node.asInstanceOf[ExpressionNode],
+      right_node.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+  }
 }
 
 class SubtractTransformer(left: Expression, right: Expression, original: Expression)
     extends Subtract(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val left_node =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val right_node =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+
+    if (!left_node.isInstanceOf[ExpressionNode] ||
+        !right_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      "subtract", Seq(left.dataType, right.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressNodes = Lists.newArrayList(
+      left_node.asInstanceOf[ExpressionNode],
+      right_node.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+  }
 }
 
 class MultiplyTransformer(left: Expression, right: Expression, original: Expression)
@@ -75,28 +117,55 @@ class DivideTransformer(left: Expression, right: Expression,
     extends Divide(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val left_node =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val right_node =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+
+    if (!left_node.isInstanceOf[ExpressionNode] ||
+        !right_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      "divide", Seq(left.dataType, right.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressNodes = Lists.newArrayList(
+      left_node.asInstanceOf[ExpressionNode],
+      right_node.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+  }
 }
 
 class BitwiseAndTransformer(left: Expression, right: Expression, original: Expression)
     extends BitwiseAnd(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("not supported.")
+  }
 }
 
 class BitwiseOrTransformer(left: Expression, right: Expression, original: Expression)
     extends BitwiseOr(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("not supported.")
+  }
 }
 
 class BitwiseXorTransformer(left: Expression, right: Expression, original: Expression)
     extends BitwiseXor(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("not supported.")
+  }
 }
 
 object BinaryArithmeticTransformer {

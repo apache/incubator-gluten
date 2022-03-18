@@ -47,6 +47,10 @@ bool isString(const TypePtr& type) {
 TypePtr toVeloxTypeFromName(const std::string& type_name) {
   if (type_name == "BOOL") {
     return BOOLEAN();
+  } else if (type_name == "I32") {
+    return INTEGER();
+  } else if (type_name == "I64") {
+    return BIGINT();
   } else if (type_name == "FP64") {
     return DOUBLE();
   } else if (type_name == "STRING") {
@@ -59,6 +63,10 @@ TypePtr toVeloxTypeFromName(const std::string& type_name) {
 std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name) {
   if (type_name == "BOOL") {
     return arrow::boolean();
+  } else if (type_name == "I32") {
+    return arrow::int32();
+  } else if (type_name == "I64") {
+    return arrow::int64();
   } else if (type_name == "FP64") {
     return arrow::float64();
   } else if (type_name == "STRING") {
@@ -70,6 +78,10 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
 
 std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
   switch (type->kind()) {
+    case TypeKind::INTEGER:
+      return arrow::int32();
+    case TypeKind::BIGINT:
+      return arrow::int64();
     case TypeKind::DOUBLE:
       return arrow::float64();
     case TypeKind::VARCHAR:
@@ -89,5 +101,23 @@ int64_t bytesOfType(const TypePtr& type) {
       return 8;
     default:
       throw std::runtime_error("bytesOfType is not supported.");
+  }
+}
+
+const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
+  switch (typeId) {
+    case arrow::Type::type::BOOL:
+      return "b";  // boolean
+    case arrow::Type::type::INT32:
+      return "i";  // int32
+    case arrow::Type::type::INT64:
+      return "l";  // int64
+    case arrow::Type::type::DOUBLE:
+      return "g";  // float64
+    case arrow::Type::type::STRING:
+      return "u";  // utf-8 string
+    default:
+      // Unsupported types.
+      throw std::runtime_error("Arrow type id not supported.");
   }
 }

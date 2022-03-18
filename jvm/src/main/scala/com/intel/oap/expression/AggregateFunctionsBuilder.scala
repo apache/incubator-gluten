@@ -25,13 +25,20 @@ object AggregateFunctionsBuilder {
 
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    aggregateFunc match {
+    val functionName = aggregateFunc match {
       case sum: Sum =>
-        val functionName = ConverterUtils.makeFuncName(
+        ConverterUtils.makeFuncName(
           "sum", Seq(sum.child.dataType), FunctionConfig.OPT)
-        ExpressionBuilder.newScalarFunction(functionMap, functionName)
+      case avg: Average =>
+        ConverterUtils.makeFuncName(
+          "avg", Seq(avg.child.dataType), FunctionConfig.OPT)
+      case count: Count =>
+        val childrenTypes = count.children.map(child => child.dataType)
+        ConverterUtils.makeFuncName(
+          "count", childrenTypes, FunctionConfig.OPT)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
+    ExpressionBuilder.newScalarFunction(functionMap, functionName)
   }
 }

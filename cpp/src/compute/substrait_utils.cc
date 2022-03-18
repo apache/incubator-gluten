@@ -32,6 +32,16 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
       nullability = stype.bool_().nullability();
       break;
     }
+    case substrait::Type::KindCase::kI32: {
+      type_name = "I32";
+      nullability = stype.i32().nullability();
+      break;
+    }
+    case substrait::Type::KindCase::kI64: {
+      type_name = "I64";
+      nullability = stype.i64().nullability();
+      break;
+    }
     case substrait::Type::KindCase::kFp64: {
       type_name = "FP64";
       nullability = stype.fp64().nullability();
@@ -52,7 +62,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(
       break;
     }
     default:
-      std::cout << "Type not supported" << std::endl;
+      std::cout << "Type not supported: " << stype.kind_case() << std::endl;
       break;
   }
   bool nullable;

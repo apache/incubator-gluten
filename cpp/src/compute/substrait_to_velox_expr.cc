@@ -16,7 +16,6 @@
  */
 
 #include "substrait_to_velox_expr.h"
-
 #include "type_utils.h"
 
 using namespace facebook::velox;
@@ -37,14 +36,14 @@ SubstraitVeloxExprConverter::SubstraitVeloxExprConverter(
 std::shared_ptr<const core::FieldAccessTypedExpr>
 SubstraitVeloxExprConverter::toVeloxExpr(
     const substrait::Expression::FieldReference& sfield,
-    const int32_t& input_plan_node_id) {
+    const int32_t& input_plan_node_id, const RowTypePtr& inputType) {
   switch (sfield.reference_type_case()) {
     case substrait::Expression::FieldReference::ReferenceTypeCase::kDirectReference: {
       auto dref = sfield.direct_reference();
-      int32_t col_idx = parseReferenceSegment(dref);
+      uint32_t col_idx = parseReferenceSegment(dref);
+      auto inType = inputType->childAt(col_idx);
       auto field_name = sub_parser_->makeNodeName(input_plan_node_id, col_idx);
-      // FIXME: How to get the input types?
-      return std::make_shared<const core::FieldAccessTypedExpr>(DOUBLE(), field_name);
+      return std::make_shared<const core::FieldAccessTypedExpr>(inType, field_name);
       break;
     }
     case substrait::Expression::FieldReference::ReferenceTypeCase::kMaskedReference: {
@@ -58,12 +57,11 @@ SubstraitVeloxExprConverter::toVeloxExpr(
 }
 
 std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
-    const substrait::Expression::ScalarFunction& sfunc,
-    const int32_t& input_plan_node_id) {
+    const substrait::Expression::ScalarFunction& sfunc, const int32_t& input_plan_node_id,
+    const RowTypePtr& inputType) {
   std::vector<std::shared_ptr<const core::ITypedExpr>> params;
   for (auto& sarg : sfunc.args()) {
-    auto expr = toVeloxExpr(sarg, input_plan_node_id);
-    params.push_back(expr);
+    params.push_back(toVeloxExpr(sarg, input_plan_node_id, inputType));
   }
   auto function_id = sfunc.function_reference();
   auto function_name = sub_parser_->findVeloxFunction(functions_map_, function_id);
@@ -86,44 +84,41 @@ std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr
 std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
     const substrait::Expression::Literal& slit) {
   switch (slit.literal_type_case()) {
+    case substrait::Expression_Literal::LiteralTypeCase::kI32: {
+      return std::make_shared<core::ConstantTypedExpr>(slit.i32());
+    }
     case substrait::Expression_Literal::LiteralTypeCase::kFp64: {
-      double val = slit.fp64();
-      return std::make_shared<core::ConstantTypedExpr>(val);
-      break;
+      return std::make_shared<core::ConstantTypedExpr>(slit.fp64());
     }
     case substrait::Expression_Literal::LiteralTypeCase::kBoolean: {
-      bool val = slit.boolean();
-      throw std::runtime_error("Type is not supported.");
-      break;
+      return std::make_shared<core::ConstantTypedExpr>(slit.boolean());
     }
     default:
-      throw std::runtime_error("Type is not supported.");
+      std::cout << "literal case: " << slit.literal_type_case() << std::endl;
+      throw std::runtime_error("Literal type is not supported.");
       break;
   }
 }
 
 std::shared_ptr<const core::ITypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
-    const substrait::Expression& sexpr, const int32_t& input_plan_node_id) {
+    const substrait::Expression& sexpr, const int32_t& input_plan_node_id,
+    const RowTypePtr& inputType) {
   std::shared_ptr<const core::ITypedExpr> velox_expr;
   switch (sexpr.rex_type_case()) {
     case substrait::Expression::RexTypeCase::kLiteral: {
-      auto slit = sexpr.literal();
-      velox_expr = toVeloxExpr(slit);
+      velox_expr = toVeloxExpr(sexpr.literal());
       break;
     }
     case substrait::Expression::RexTypeCase::kScalarFunction: {
-      auto sfunc = sexpr.scalar_function();
-      velox_expr = toVeloxExpr(sfunc, input_plan_node_id);
+      velox_expr = toVeloxExpr(sexpr.scalar_function(), input_plan_node_id, inputType);
       break;
     }
     case substrait::Expression::RexTypeCase::kSelection: {
-      auto sel = sexpr.selection();
-      velox_expr = toVeloxExpr(sel, input_plan_node_id);
+      velox_expr = toVeloxExpr(sexpr.selection(), input_plan_node_id, inputType);
       break;
     }
     default:
-      throw std::runtime_error("Expression not supported");
-      break;
+      throw std::runtime_error("To Velox expression not supported.");
   }
   return velox_expr;
 }
