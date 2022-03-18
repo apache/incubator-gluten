@@ -368,7 +368,7 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   }
   // Get Substrait Plan.
   substrait::Plan subPlan;
-  getSubstraitPlan(env, ws_exprs_arr, &subPlan);
+  getSubstraitPlan<substrait::Plan>(env, ws_exprs_arr, &subPlan);
   // Parse the plan and get the input schema for Java iters.
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<arrow::RecordBatchIterator> arrow_iters;
@@ -663,13 +663,12 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   // ValueOrDie in MakeSchema
   MakeSchema(env, schema_arr, &schema);
 
-  gandiva::ExpressionVector expr_vector = {};
+  substrait::Rel subRel;
   if (expr_arr != NULL) {
-    gandiva::FieldVector ret_types;
-    JniAssertOkOrThrow(MakeExprVector(env, expr_arr, &expr_vector, &ret_types),
+    JniAssertOkOrThrow(
+      getSubstraitPlan<substrait::Rel>(env, expr_arr, &subRel),
                        "Failed to parse expressions protobuf");
   }
-
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
@@ -696,7 +695,7 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
 
   auto splitter =
       JniGetOrThrow(Splitter::Make(partitioning_name, std::move(schema), num_partitions,
-                                   expr_vector, std::move(splitOptions)),
+                                   subRel, std::move(splitOptions)),
                     "Failed create native shuffle splitter");
 
   return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));
