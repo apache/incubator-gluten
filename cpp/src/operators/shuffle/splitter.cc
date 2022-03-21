@@ -1320,11 +1320,12 @@ arrow::Result<std::shared_ptr<HashSplitter>> HashSplitter::Create(
   std::shared_ptr<HashSplitter> res(
       new HashSplitter(num_partitions, std::move(schema), std::move(options)));
   RETURN_NOT_OK(res->Init());
-  RETURN_NOT_OK(res->CreateHasher(subRel));
+  RETURN_NOT_OK(res->CreateGandivaExpr(subRel));
+  RETURN_NOT_OK(res->CreateProjector());
   return res;
 }
 
-arrow::Status HashSplitter::CreateHasher(const substrait::Rel& subRel) {
+arrow::Status HashSplitter::CreateGandivaExpr(const substrait::Rel& subRel) {
   // Parse the ProjectRel to get hash expression.
   // Currently, only filed is supported.
   substrait::ProjectRel subProject;
@@ -1359,7 +1360,50 @@ arrow::Status HashSplitter::CreateHasher(const substrait::Rel& subRel) {
         return arrow::Status::Invalid("Only Fields are supported as hash keys.");
     }
   }
+  for (auto idx : hashIndices_) {
+    const auto& field = schema_->field(idx);
+    auto node = gandiva::TreeExprBuilder::MakeField(field);
+    exprVector_.push_back(gandiva::TreeExprBuilder::MakeExpression(
+        std::move(node), arrow::field("res_" + field->name(), field->type())));
+  }
   return arrow::Status::OK();
+}
+
+arrow::Status HashSplitter::CreateProjector() {
+  // same seed as spark's
+  auto hash = gandiva::TreeExprBuilder::MakeLiteral((int32_t)42);
+  for (const auto& expr : exprVector_) {
+    switch (expr->root()->return_type()->id()) {
+      case arrow::NullType::type_id:
+        break;
+      case arrow::BooleanType::type_id:
+      case arrow::Int8Type::type_id:
+      case arrow::Int16Type::type_id:
+      case arrow::Int32Type::type_id:
+      case arrow::FloatType::type_id:
+      case arrow::Date32Type::type_id:
+        hash = gandiva::TreeExprBuilder::MakeFunction(
+            "hash32_spark", {expr->root(), hash}, arrow::int32());
+        break;
+      case arrow::Int64Type::type_id:
+      case arrow::DoubleType::type_id:
+        hash = gandiva::TreeExprBuilder::MakeFunction(
+            "hash64_spark", {expr->root(), hash}, arrow::int32());
+        break;
+      case arrow::StringType::type_id:
+        hash = gandiva::TreeExprBuilder::MakeFunction(
+            "hashbuf_spark", {expr->root(), hash}, arrow::int32());
+        break;
+      default:
+        hash = gandiva::TreeExprBuilder::MakeFunction("hash32", {expr->root(), hash},
+                                                      arrow::int32());
+        /*return arrow::Status::NotImplemented("HashSplitter::CreateProjector
+           doesn't support type ", expr->result()->type()->ToString());*/
+    }
+  }
+  auto hash_expr =
+      gandiva::TreeExprBuilder::MakeExpression(hash, arrow::field("pid", arrow::int32()));
+  return gandiva::Projector::Make(schema_, {hash_expr}, &projector_);
 }
 
 arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
@@ -1367,7 +1411,17 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
   partition_id_.resize(num_rows);
   std::fill(std::begin(partition_id_cnt_), std::end(partition_id_cnt_), 0);
 
-  std::shared_ptr<arrow::Int32Array> pid_arr;
+  arrow::ArrayVector outputs;
+  TIME_NANO_OR_RAISE(total_compute_pid_time_,
+                     projector_->Evaluate(rb, options_.memory_pool, &outputs));
+  if (outputs.size() != 1) {
+    return arrow::Status::Invalid("Projector result should have one field, actual is ",
+                                  std::to_string(outputs.size()));
+  }
+  auto pid_arr = std::dynamic_pointer_cast<arrow::Int32Array>(outputs.at(0));
+  if (pid_arr == nullptr) {
+    return arrow::Status::Invalid("failed to cast outputs.at(0)");
+  }
   // Calculate hash value.
   for (auto i = 0; i < num_rows; ++i) {
     // positive mod
