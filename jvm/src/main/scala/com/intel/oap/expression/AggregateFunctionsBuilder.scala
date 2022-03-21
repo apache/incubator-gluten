@@ -28,7 +28,7 @@ object AggregateFunctionsBuilder {
     aggregateFunc match {
       case sum: Sum =>
         val functionName = ConverterUtils.makeFuncName(
-          "sum", Seq(sum.child.dataType), FunctionConfig.OPT)
+          ConverterUtils.SUM, Seq(sum.child.dataType), FunctionConfig.OPT)
         ExpressionBuilder.newScalarFunction(functionMap, functionName)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")

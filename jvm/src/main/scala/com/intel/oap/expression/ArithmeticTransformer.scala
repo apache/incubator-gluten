@@ -59,7 +59,7 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
-      "multiply", Seq(left.dataType, right.dataType), FunctionConfig.OPT)
+      ConverterUtils.MULTIPLY, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],

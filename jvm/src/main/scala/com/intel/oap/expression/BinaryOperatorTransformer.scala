@@ -42,7 +42,7 @@ class AndTransformer(left: Expression, right: Expression, original: Expression)
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("and", Seq(left.dataType, right.dataType)))
+      ConverterUtils.makeFuncName(ConverterUtils.AND, Seq(left.dataType, right.dataType)))
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
     expressionNodes.add(left_node.asInstanceOf[ExpressionNode])
@@ -68,7 +68,7 @@ class OrTransformer(left: Expression, right: Expression, original: Expression)
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("or", Seq(left.dataType, right.dataType)))
+      ConverterUtils.makeFuncName(ConverterUtils.OR, Seq(left.dataType, right.dataType)))
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
     expressionNodes.add(left_node.asInstanceOf[ExpressionNode])
@@ -108,7 +108,7 @@ class LikeTransformer(left: Expression, right: Expression, original: Expression)
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("like", Seq(left.dataType, right.dataType)))
+      ConverterUtils.makeFuncName(ConverterUtils.LIKE, Seq(left.dataType, right.dataType)))
 
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
@@ -141,7 +141,7 @@ class EqualToTransformer(left: Expression, right: Expression, original: Expressi
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("equal", Seq(left.dataType, right.dataType)))
+      ConverterUtils.makeFuncName(ConverterUtils.EQUAL, Seq(left.dataType, right.dataType)))
 
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
@@ -174,7 +174,7 @@ class LessThanTransformer(left: Expression, right: Expression, original: Express
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("lt", Seq(left.dataType, right.dataType)))
+      ConverterUtils.makeFuncName(ConverterUtils.LESS_THAN, Seq(left.dataType, right.dataType)))
 
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
@@ -199,8 +199,8 @@ class LessThanOrEqualTransformer(left: Expression, right: Expression, original: 
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("lte", Seq(left.dataType, right.dataType)))
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+        ConverterUtils.LESS_THAN_OR_EQUAL, Seq(left.dataType, right.dataType)))
 
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
@@ -226,7 +226,7 @@ class GreaterThanTransformer(left: Expression, right: Expression, original: Expr
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("gt", Seq(left.dataType, right.dataType)))
+      ConverterUtils.makeFuncName(ConverterUtils.GREATER_THAN, Seq(left.dataType, right.dataType)))
 
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
@@ -251,8 +251,8 @@ class GreaterThanOrEqualTransformer(left: Expression, right: Expression, origina
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName("gte", Seq(left.dataType, right.dataType)))
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+        ConverterUtils.GREATER_THAN_OR_EQUAL, Seq(left.dataType, right.dataType)))
 
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
