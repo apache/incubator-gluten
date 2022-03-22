@@ -434,14 +434,16 @@ std::shared_ptr<const core::PlanNode> SubstraitVeloxPlanConverter::toVeloxPlan(
     throw std::runtime_error("Reader is not created.");
   }
   auto reader = maybe_reader.ValueOrDie();
-  arrow::ExportRecordBatchReader(reader, &velox_array_stream_);
+  struct ArrowArrayStream velox_array_stream;
+  arrow::ExportRecordBatchReader(reader, &velox_array_stream);
+  arrowStreamIter_ = std::make_shared<ArrowArrayStream>(velox_array_stream);
   std::vector<TypePtr> velox_type_list;
   for (auto sub_type : sub_type_list) {
     velox_type_list.push_back(toVeloxTypeFromName(sub_type->type));
   }
   auto output_type = ROW(std::move(out_names), std::move(velox_type_list));
   auto arrow_stream_node = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(), output_type, &velox_array_stream_);
+      nextPlanNodeId(), output_type, arrowStreamIter_);
   return arrow_stream_node;
 }
 

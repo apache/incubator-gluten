@@ -90,7 +90,7 @@ class SubstraitVeloxPlanConverter {
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
   std::string nextPlanNodeId();
-  struct ArrowArrayStream velox_array_stream_;
+  std::shared_ptr<ArrowArrayStream> arrowStreamIter_;
 
   /// This class is used to check if some of the input columns of Aggregation
   /// should be combined into a single column. Currently, this case occurs in
