@@ -335,8 +335,7 @@ arrow::Status MakeExprVector(JNIEnv* env, jbyteArray exprs_arr,
 }
 
 template <typename T>
-arrow::Status getSubstraitPlan(JNIEnv* env, jbyteArray exprs_arr,
-                               T* outPlan) {
+arrow::Status getSubstraitPlan(JNIEnv* env, jbyteArray exprs_arr, T* outPlan) {
   jsize exprs_len = env->GetArrayLength(exprs_arr);
   jbyte* exprs_bytes = env->GetByteArrayElements(exprs_arr, 0);
 #ifdef DEBUG

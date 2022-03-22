@@ -16,13 +16,13 @@
  */
 
 #include "velox_to_row_converter.h"
-#include "compute/type_utils.h"
 
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
 #include <arrow/type_traits.h>
 
 #include "arrow/c/Bridge.h"
+#include "compute/type_utils.h"
 #include "conversion_utils.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"

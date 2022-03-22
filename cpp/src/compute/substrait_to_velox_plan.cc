@@ -647,18 +647,14 @@ class SubstraitVeloxPlanConverter::WholeStageResIter
             bytesOfType(col_type) * num_rows);
         out_data.buffers[1] = data_buffer;
       } else if (isString(col_type)) {
-        auto offsets = static_cast<const uint32_t*>(arrowArray.buffers[2]);
-        auto string_data_size = offsets[num_rows];
+        auto offsets = static_cast<const int32_t*>(arrowArray.buffers[1]);
+        int32_t string_data_size = offsets[num_rows];
         auto value_buffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[1]), string_data_size);
+            static_cast<const uint8_t*>(arrowArray.buffers[2]), string_data_size);
         auto offset_bytes = sizeof(int32_t);
         auto offset_buffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[2]),
+            static_cast<const uint8_t*>(arrowArray.buffers[1]),
             offset_bytes * (num_rows + 1));
-        /* Velox:                     Arrow:
-           buffer_1 -> value          buffer_1 -> offset
-           buffer_2 -> offset         buffer_2 -> value
-        */
         out_data.buffers[1] = offset_buffer;
         out_data.buffers[2] = value_buffer;
       }

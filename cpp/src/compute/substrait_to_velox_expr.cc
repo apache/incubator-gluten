@@ -16,6 +16,7 @@
  */
 
 #include "substrait_to_velox_expr.h"
+
 #include "type_utils.h"
 
 using namespace facebook::velox;

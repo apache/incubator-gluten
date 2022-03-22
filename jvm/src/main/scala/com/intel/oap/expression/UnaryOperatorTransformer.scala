@@ -74,49 +74,63 @@ class MonthTransformer(child: Expression, original: Expression)
     extends Month(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class DayOfMonthTransformer(child: Expression, original: Expression)
   extends DayOfMonth(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class YearTransformer(child: Expression, original: Expression)
   extends Year(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class NotTransformer(child: Expression, original: Expression)
     extends Not(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class AbsTransformer(child: Expression, original: Expression)
     extends Abs(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class UpperTransformer(child: Expression, original: Expression)
     extends Upper(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class BitwiseNotTransformer(child: Expression, original: Expression)
     extends BitwiseNot(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class CheckOverflowTransformer(child: Expression, original: CheckOverflow)
@@ -126,7 +140,9 @@ class CheckOverflowTransformer(child: Expression, original: CheckOverflow)
       original.nullOnOverflow: Boolean)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class CastTransformer(
@@ -156,7 +172,9 @@ class UnscaledValueTransformer(child: Expression, original: Expression)
     extends UnscaledValue(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class MakeDecimalTransformer(
@@ -168,14 +186,23 @@ class MakeDecimalTransformer(
     extends MakeDecimal(child: Expression, precision: Int, scale: Int, nullOnOverflow: Boolean)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class NormalizeNaNAndZeroTransformer(child: Expression, original: NormalizeNaNAndZero)
     extends NormalizeNaNAndZero(child: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // Not supported currently.
+    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!child_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet")
+    }
+    child_node
+  }
 }
 
 object UnaryOperatorTransformer {

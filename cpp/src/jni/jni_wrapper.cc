@@ -193,13 +193,13 @@ class JavaRecordBatchIterator {
     JNIEnv* env;
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
-#ifdef DEBUG    
+#ifdef DEBUG
       std::cout << "JNIEnv was not attached to current thread." << std::endl;
 #endif
       if (vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL) != 0) {
         return arrow::Status::Invalid("Failed to attach thread.");
-      } else {       
-#ifdef DEBUG       
+      } else {
+#ifdef DEBUG
         std::cout << "Succeeded attaching current thread." << std::endl;
 #endif
       }
@@ -665,8 +665,7 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
 
   substrait::Rel subRel;
   if (expr_arr != NULL) {
-    JniAssertOkOrThrow(
-      getSubstraitPlan<substrait::Rel>(env, expr_arr, &subRel),
+    JniAssertOkOrThrow(getSubstraitPlan<substrait::Rel>(env, expr_arr, &subRel),
                        "Failed to parse expressions protobuf");
   }
   jclass cls = env->FindClass("java/lang/Thread");
