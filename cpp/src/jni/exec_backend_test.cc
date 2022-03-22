@@ -46,8 +46,7 @@ class DummyBackend : public ExecBackendBase {
       std::shared_ptr<arrow::Array> array;
       RETURN_NOT_OK(
           arrow::MakeBuilder(arrow::default_memory_pool(), arrow::float64(), &tmp));
-      builder.reset(
-          arrow::internal::checked_cast<arrow::DoubleBuilder*>(tmp.release()));
+      builder.reset(arrow::internal::checked_cast<arrow::DoubleBuilder*>(tmp.release()));
 
       RETURN_NOT_OK(builder->Append(1000));
       RETURN_NOT_OK(builder->Finish(&array));

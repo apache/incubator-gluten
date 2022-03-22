@@ -116,15 +116,98 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     return plan_.ParseFromZeroCopyStream(&buf_stream);
   }
 
-  /// Parse and get the input schema from cached plan.
-  std::shared_ptr<arrow::Schema> GetInputSchema() {
-    // TODO: parse schema
-    auto schema = arrow::schema({});
-    return std::move(schema);
+  /// Parse and get the input schema from the cached plan.
+  arrow::Status GetInputSchemaMap(
+      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
+    for (auto& srel : plan_.relations()) {
+      if (srel.has_root()) {
+        auto& sroot = srel.root();
+        if (sroot.has_input()) {
+          GetIterInputSchemaFromRel(sroot.input(), schema_map);
+        } else {
+          throw std::runtime_error("Expect Rel as input.");
+        }
+      }
+      if (srel.has_rel()) {
+        GetIterInputSchemaFromRel(srel.rel(), schema_map);
+      }
+    }
+    return arrow::Status::OK();
   }
 
  protected:
   substrait::Plan plan_;
+
+  arrow::Result<std::shared_ptr<arrow::DataType>> subTypeToArrowType(
+      const substrait::Type& stype) {
+    // TODO: need to add more types here.
+    switch (stype.kind_case()) {
+      case substrait::Type::KindCase::kBool: {
+        return arrow::boolean();
+      }
+      case substrait::Type::KindCase::kFp64: {
+        return arrow::float64();
+      }
+      case substrait::Type::KindCase::kString: {
+        return arrow::utf8();
+      }
+      default:
+        return arrow::Result<std::shared_ptr<arrow::DataType>>(
+            arrow::Status::Invalid("Type not supported: " + stype.kind_case()));
+    }
+  }
+
+ private:
+  // This method is used to get the input schema in InputRel.
+  arrow::Status GetIterInputSchemaFromRel(
+      const substrait::Rel& srel,
+      std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
+    // TODO: need to support more Substrait Rels here.
+    if (srel.has_aggregate() && srel.aggregate().has_input()) {
+      return GetIterInputSchemaFromRel(srel.aggregate().input(), schema_map);
+    }
+    if (srel.has_project() && srel.project().has_input()) {
+      return GetIterInputSchemaFromRel(srel.project().input(), schema_map);
+    }
+    if (srel.has_filter() && srel.filter().has_input()) {
+      return GetIterInputSchemaFromRel(srel.filter().input(), schema_map);
+    }
+    if (!srel.has_input()) {
+      return arrow::Status::Invalid("Input Rel expected.");
+    }
+    const auto& sinput = srel.input();
+    std::vector<std::string> col_name_list;
+    if (!sinput.has_input_schema()) {
+      return arrow::Status::Invalid("Input schema expected.");
+    }
+    const auto& input_schema = sinput.input_schema();
+    // Get column names from input schema.
+    for (const auto& name : input_schema.names()) {
+      col_name_list.push_back(name);
+    }
+    // Get column types from input schema.
+    auto& stypes = input_schema.struct_().types();
+    std::vector<std::shared_ptr<arrow::DataType>> arrow_types;
+    arrow_types.reserve(stypes.size());
+    for (const auto& type : stypes) {
+      auto type_res = subTypeToArrowType(type);
+      if (!type_res.status().ok()) {
+        return arrow::Status::Invalid(type_res.status().message());
+      }
+      arrow_types.emplace_back(std::move(type_res).ValueOrDie());
+    }
+    if (col_name_list.size() != arrow_types.size()) {
+      return arrow::Status::Invalid("Incorrect column names or types.");
+    }
+    // Create input fields.
+    std::vector<std::shared_ptr<arrow::Field>> input_fields;
+    for (int col_idx = 0; col_idx < col_name_list.size(); col_idx++) {
+      input_fields.push_back(arrow::field(col_name_list[col_idx], arrow_types[col_idx]));
+    }
+    // Set up the schema map.
+    schema_map[sinput.iter_idx()] = arrow::schema(input_fields);
+    return arrow::Status::OK();
+  }
 };
 
 void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory);

@@ -18,8 +18,5 @@
 #include "substrait_arrow.h"
 
 namespace gazellecpp {
-namespace compute {
-
-
-}  // namespace compute
+namespace compute {}  // namespace compute
 }  // namespace gazellecpp

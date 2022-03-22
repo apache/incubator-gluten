@@ -33,8 +33,9 @@ class ArrowSubstraitParser : public gazellejni::ExecBackendBase {
   }
 
   std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs) override {
-    return delegate_->GetResultIterator();
+      std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs)
+      override {
+    return delegate_->GetResultIterator(std::move(inputs));
   }
 
  private:

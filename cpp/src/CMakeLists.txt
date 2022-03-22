@@ -456,6 +456,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         ${PROTO_SRCS}
         compute/protobuf_utils.cc
         compute/substrait_utils.cc
+        compute/kernels_ext.cc
         operators/c2r/columnar_to_row_converter.cc
         operators/shuffle/splitter.cc
         )

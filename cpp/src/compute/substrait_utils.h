@@ -45,6 +45,7 @@ class SubstraitParser : public ExecBackendBase {
   void ParseProjectRel(const substrait::ProjectRel& sproject);
   void ParseFilterRel(const substrait::FilterRel& sfilter);
   void ParseReadRel(const substrait::ReadRel& sread);
+  void ParseInputRel(const substrait::InputRel& sinput);
   void ParseRelRoot(const substrait::RelRoot& sroot);
   void ParseRel(const substrait::Rel& srel);
   void ParsePlan(const substrait::Plan& splan);
@@ -55,7 +56,8 @@ class SubstraitParser : public ExecBackendBase {
  private:
   std::string FindFunction(uint64_t id);
   std::unordered_map<uint64_t, std::string> functions_map_;
-  class WholeStageResultIterator;
+  class FirstStageResultIterator;
+  class MiddleStageResultIterator;
 };
 
 }  // namespace compute

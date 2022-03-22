@@ -358,15 +358,23 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<RecordBatchResultIterator>> input_iters;
   if (iters_len > 0) {
-    auto schema = backend->GetInputSchema();
+    // Construct a map between iter index and input schema.
+    std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>> schema_map;
+    // Get input schema from Substrait plan.
+    backend->GetInputSchemaMap(schema_map);
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
       // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
       // TODO Release this in JNI Unload or dependent object's destructor
       jobject ref_iter = env->NewGlobalRef(iter);
-      // FIXME: Schema should be obtained from Substrait plan.
-      auto rb_iter =
-          std::make_shared<JavaRecordBatchIterator>(vm, ref_iter, std::move(schema));
+      std::shared_ptr<arrow::Schema> input_schema;
+      if (schema_map.find(idx) == schema_map.end()) {
+        ThrowPendingException("Not found the schema.");
+      } else {
+        input_schema = schema_map[idx];
+      }
+      auto rb_iter = std::make_shared<JavaRecordBatchIterator>(vm, ref_iter,
+                                                               std::move(input_schema));
       input_iters.push_back(
           std::make_shared<RecordBatchResultIterator>(std::move(rb_iter)));
     }
@@ -408,6 +416,7 @@ JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeNext
 
 JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeClose(
     JNIEnv* env, jobject this_obj, jlong id) {
+  JNI_METHOD_START
 #ifdef DEBUG
   auto it = batch_iterator_holder_.Lookup(id);
   if (it.use_count() > 2) {
@@ -415,39 +424,28 @@ JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeClose(
   }
 #endif
   batch_iterator_holder_.Erase(id);
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jobject JNICALL
 Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnarToRow(
     JNIEnv* env, jobject, jbyteArray schema_arr, jint num_rows, jlongArray buf_addrs,
     jlongArray buf_sizes, jlong memory_pool_id) {
+  JNI_METHOD_START
   if (schema_arr == NULL) {
-    env->ThrowNew(
-        illegal_argument_exception_class,
-        std::string("Native convert columnar to row schema can't be null").c_str());
-    return NULL;
+    JniThrow("Native convert columnar to row schema can't be null");
   }
   if (buf_addrs == NULL) {
-    env->ThrowNew(
-        illegal_argument_exception_class,
-        std::string("Native convert columnar to row: buf_addrs can't be null").c_str());
-    return NULL;
+    JniThrow("Native convert columnar to row: buf_addrs can't be null");
   }
   if (buf_sizes == NULL) {
-    env->ThrowNew(
-        illegal_argument_exception_class,
-        std::string("Native convert columnar to row: buf_sizes can't be null").c_str());
-    return NULL;
+    JniThrow("Native convert columnar to row: buf_sizes can't be null");
   }
 
   int in_bufs_len = env->GetArrayLength(buf_addrs);
   if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
-    env->ThrowNew(
-        illegal_argument_exception_class,
-        std::string(
-            "Native convert columnar to row: length of buf_addrs and buf_sizes mismatch")
-            .c_str());
-    return NULL;
+    JniThrow(
+        "Native convert columnar to row: length of buf_addrs and buf_sizes mismatch");
   }
 
   std::shared_ptr<arrow::Schema> schema;
@@ -458,81 +456,54 @@ Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnar
   jlong* in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
 
   std::shared_ptr<arrow::RecordBatch> rb;
-  auto status = MakeRecordBatch(schema, num_rows, (int64_t*)in_buf_addrs,
-                                (int64_t*)in_buf_sizes, in_bufs_len, &rb);
+  JniAssertOkOrThrow(MakeRecordBatch(schema, num_rows, (int64_t*)in_buf_addrs,
+                                     (int64_t*)in_buf_sizes, in_bufs_len, &rb),
+                     "Native convert columnar to row: make record batch failed");
 
   env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
   env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
 
-  if (!status.ok()) {
-    env->ThrowNew(illegal_argument_exception_class,
-                  std::string("Native convert columnar to row: make record batch failed, "
-                              "error message is " +
-                              status.message())
-                      .c_str());
-    return NULL;
-  }
-
   // convert the record batch to spark unsafe row.
-  try {
-    auto* pool = reinterpret_cast<arrow::MemoryPool*>(memory_pool_id);
-    if (pool == nullptr) {
-      env->ThrowNew(illegal_argument_exception_class,
-                    "Memory pool does not exist or has been closed");
-      return NULL;
-    }
-
-    std::shared_ptr<ColumnarToRowConverter> columnar_to_row_converter =
-        std::make_shared<ColumnarToRowConverter>(rb, pool);
-    auto status = columnar_to_row_converter->Init();
-    if (!status.ok()) {
-      env->ThrowNew(illegal_argument_exception_class,
-                    std::string("Native convert columnar to row: Init "
-                                "ColumnarToRowConverter failed, error message is " +
-                                status.message())
-                        .c_str());
-      return NULL;
-    }
-    status = columnar_to_row_converter->Write();
-    if (!status.ok()) {
-      env->ThrowNew(
-          illegal_argument_exception_class,
-          std::string("Native convert columnar to row: ColumnarToRowConverter write "
-                      "failed, error message is " +
-                      status.message())
-              .c_str());
-      return NULL;
-    }
-
-    const auto& offsets = columnar_to_row_converter->GetOffsets();
-    const auto& lengths = columnar_to_row_converter->GetLengths();
-    int64_t instanceID =
-        columnar_to_row_converter_holder_.Insert(columnar_to_row_converter);
-
-    auto offsets_arr = env->NewLongArray(num_rows);
-    auto offsets_src = reinterpret_cast<const jlong*>(offsets.data());
-    env->SetLongArrayRegion(offsets_arr, 0, num_rows, offsets_src);
-    auto lengths_arr = env->NewLongArray(num_rows);
-    auto lengths_src = reinterpret_cast<const jlong*>(lengths.data());
-    env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
-    long address = reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
-
-    jobject arrow_columnar_to_row_info = env->NewObject(
-        arrow_columnar_to_row_info_class, arrow_columnar_to_row_info_constructor,
-        instanceID, offsets_arr, lengths_arr, address);
-    return arrow_columnar_to_row_info;
-  } catch (const std::runtime_error& error) {
-    env->ThrowNew(unsupportedoperation_exception_class, error.what());
-  } catch (const std::exception& error) {
-    env->ThrowNew(io_exception_class, error.what());
+  auto* pool = reinterpret_cast<arrow::MemoryPool*>(memory_pool_id);
+  if (pool == nullptr) {
+    JniThrow("Memory pool does not exist or has been closed");
   }
-  return NULL;
+
+  std::shared_ptr<ColumnarToRowConverter> columnar_to_row_converter =
+      std::make_shared<ColumnarToRowConverter>(rb, pool);
+  JniAssertOkOrThrow(columnar_to_row_converter->Init(),
+                     "Native convert columnar to row: Init "
+                     "ColumnarToRowConverter failed");
+  JniAssertOkOrThrow(
+      columnar_to_row_converter->Write(),
+      "Native convert columnar to row: ColumnarToRowConverter write failed");
+
+  const auto& offsets = columnar_to_row_converter->GetOffsets();
+  const auto& lengths = columnar_to_row_converter->GetLengths();
+  int64_t instanceID =
+      columnar_to_row_converter_holder_.Insert(columnar_to_row_converter);
+
+  auto offsets_arr = env->NewLongArray(num_rows);
+  auto offsets_src = reinterpret_cast<const jlong*>(offsets.data());
+  env->SetLongArrayRegion(offsets_arr, 0, num_rows, offsets_src);
+  auto lengths_arr = env->NewLongArray(num_rows);
+  auto lengths_src = reinterpret_cast<const jlong*>(lengths.data());
+  env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
+  long address = reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
+
+  jobject arrow_columnar_to_row_info = env->NewObject(
+      arrow_columnar_to_row_info_class, arrow_columnar_to_row_info_constructor,
+      instanceID, offsets_arr, lengths_arr, address);
+  return arrow_columnar_to_row_info;
+  JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT void JNICALL
 Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeClose(
     JNIEnv* env, jobject, jlong instance_id) {
+  JNI_METHOD_START
   columnar_to_row_converter_holder_.Erase(instance_id);
+  JNI_METHOD_END()
 }
 
 // Shuffle

@@ -1139,7 +1139,7 @@ arrow::Status Splitter::SplitFixedWidthValidityBuffer(const arrow::RecordBatch& 
       for (auto pid = 0; pid < num_partitions_; ++pid) {
         if (partition_id_cnt_[pid] > 0 && dst_addrs[pid] != nullptr) {
           arrow::bit_util::SetBitsTo(dst_addrs[pid], partition_buffer_idx_base_[pid],
-                                    partition_id_cnt_[pid], true);
+                                     partition_id_cnt_[pid], true);
         }
       }
     } else {
@@ -1155,7 +1155,7 @@ arrow::Status Splitter::SplitFixedWidthValidityBuffer(const arrow::RecordBatch& 
                                              options_.memory_pool));
           dst_addrs[pid] = const_cast<uint8_t*>(validity_buffer->data());
           arrow::bit_util::SetBitsTo(dst_addrs[pid], 0, partition_buffer_idx_base_[pid],
-                                    true);
+                                     true);
           partition_fixed_width_buffers_[col][pid][0] = std::move(validity_buffer);
         }
       }
