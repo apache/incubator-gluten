@@ -46,6 +46,11 @@ class SubstraitVeloxPlanConverter {
  public:
   SubstraitVeloxPlanConverter();
 
+  /// This method is used to create a Project node as the parent of Aggregation node,
+  /// in order to unify the plan node id in column names.
+  std::shared_ptr<const core::PlanNode> createUnifyNode(
+      const std::shared_ptr<const core::PlanNode>& aggNode, uint64_t groupingSize,
+      uint64_t aggSize);
   std::shared_ptr<const core::PlanNode> toVeloxPlan(
       const substrait::AggregateRel& sagg,
       std::vector<arrow::RecordBatchIterator> arrow_iters);
