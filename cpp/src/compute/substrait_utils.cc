@@ -22,6 +22,7 @@
 #include "arrow/array/builder_base.h"
 #include "arrow/array/builder_primitive.h"
 #include "arrow/util/checked_cast.h"
+#include "kernels_ext.h"
 #include "protobuf_utils.h"
 
 namespace gazellejni {
@@ -32,13 +33,14 @@ SubstraitParser::SubstraitParser() {
 }
 
 std::shared_ptr<RecordBatchResultIterator> SubstraitParser::GetResultIterator() {
-  auto res_iter = std::make_shared<WholeStageResultIterator>();
+  auto res_iter = std::make_shared<FirstStageResultIterator>();
   return std::make_shared<RecordBatchResultIterator>(std::move(res_iter));
 }
 
 std::shared_ptr<RecordBatchResultIterator> SubstraitParser::GetResultIterator(
     std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) {
-  return GetResultIterator();
+  auto res_iter = std::make_shared<MiddleStageResultIterator>(std::move(inputs));
+  return std::make_shared<RecordBatchResultIterator>(std::move(res_iter));
 }
 
 void SubstraitParser::ParseLiteral(const substrait::Expression::Literal& slit) {
@@ -236,6 +238,19 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread) {
   ParseExpression(sfilter);
 }
 
+void SubstraitParser::ParseInputRel(const substrait::InputRel& sinput) {
+  auto iter_idx = sinput.iter_idx();
+  std::cout << "input iter index: " << iter_idx << std::endl;
+  std::vector<std::string> col_name_list;
+  if (sinput.has_input_schema()) {
+    const auto& input_schema = sinput.input_schema();
+    for (const auto& name : input_schema.names()) {
+      col_name_list.push_back(name);
+    }
+    ParseNamedStruct(input_schema);
+  }
+}
+
 void SubstraitParser::ParseRel(const substrait::Rel& srel) {
   if (srel.has_aggregate()) {
     ParseAggregateRel(srel.aggregate());
@@ -245,6 +260,8 @@ void SubstraitParser::ParseRel(const substrait::Rel& srel) {
     ParseFilterRel(srel.filter());
   } else if (srel.has_read()) {
     ParseReadRel(srel.read());
+  } else if (srel.has_input()) {
+    ParseInputRel(srel.input());
   } else {
     std::cout << "not supported" << std::endl;
   }
@@ -286,9 +303,9 @@ std::string SubstraitParser::FindFunction(uint64_t id) {
   return functions_map_[id];
 }
 
-class SubstraitParser::WholeStageResultIterator {
+class SubstraitParser::FirstStageResultIterator {
  public:
-  WholeStageResultIterator() {
+  FirstStageResultIterator() {
     std::unique_ptr<arrow::ArrayBuilder> array_builder;
     arrow::MakeBuilder(pool_, arrow::float64(), &array_builder);
     builder_.reset(
@@ -315,6 +332,29 @@ class SubstraitParser::WholeStageResultIterator {
   std::unique_ptr<arrow::DoubleBuilder> builder_;
   bool has_next_ = true;
   std::vector<std::shared_ptr<arrow::Array>> res_arrays;
+};
+
+class SubstraitParser::MiddleStageResultIterator {
+ public:
+  MiddleStageResultIterator(
+      std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) {
+    // TODO: the iter index should be acquired from Substrait Plan.
+    int iter_idx = 0;
+    lazy_iter_ = std::make_shared<LazyReadIterator>(
+        std::move(inputs[iter_idx]->ToArrowRecordBatchIterator()));
+  }
+
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+    if (!lazy_iter_->HasNext()) {
+      return nullptr;
+    }
+    std::shared_ptr<arrow::RecordBatch> rb;
+    lazy_iter_->Next(&rb);
+    return rb;
+  }
+
+ private:
+  std::shared_ptr<LazyReadIterator> lazy_iter_;
 };
 
 }  // namespace compute

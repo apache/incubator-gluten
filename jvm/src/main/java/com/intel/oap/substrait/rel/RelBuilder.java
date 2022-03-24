@@ -50,4 +50,9 @@ public class RelBuilder {
                                     ExpressionNode filter, SubstraitContext context) {
     return new ReadRelNode(types, names, filter, context);
   }
+
+  public static RelNode makeInputRel(ArrayList<String> names, ArrayList<TypeNode> types,
+                                     Long iterIdx) {
+    return new InputRelNode(names, types, iterIdx);
+  }
 }

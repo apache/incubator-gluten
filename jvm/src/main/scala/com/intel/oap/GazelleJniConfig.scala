@@ -62,6 +62,11 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val enableColumnarHashAgg: Boolean =
     conf.getConfString("spark.oap.sql.columnar.hashagg", "true").toBoolean && enableCpu
 
+  // A tmp config used to fallback Final Aggregation.
+  // Can be removed after Final Aggregation is fully supported.
+  val enableColumnarFinalAgg: Boolean = conf.getConfString(
+    "spark.oap.sql.columnar.hashagg.enablefinal", "true").toBoolean && enableCpu
+
   // enable or disable columnar project and filter
   val enableColumnarProjFilter: Boolean =
     conf.getConfString("spark.oap.sql.columnar.projfilter", "true").toBoolean && enableCpu
