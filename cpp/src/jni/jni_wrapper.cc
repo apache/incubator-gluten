@@ -37,12 +37,16 @@
 
 #include "compute/protobuf_utils.h"
 #include "jni/concurrent_map.h"
+#include "jni/exec_backend.h"
 #include "jni/jni_common.h"
 #include "operators/c2r/columnar_to_row_converter.h"
 #include "operators/shuffle/splitter.h"
+#include "utils/exception.h"
 #include "utils/result_iterator.h"
 
 namespace {
+
+using gazellejni::JniPendingException;
 
 #define JNI_METHOD_START try {
 // macro ended
@@ -54,11 +58,6 @@ namespace {
     return fallback_expr;                             \
   }
 // macro ended
-
-class JniPendingException : public std::runtime_error {
- public:
-  explicit JniPendingException(const std::string& arg) : runtime_error(arg) {}
-};
 
 void ThrowPendingException(const std::string& message) {
   throw JniPendingException(message);
@@ -123,11 +122,12 @@ using arrow::jni::ConcurrentMap;
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
 using ColumnarToRowConverter = gazellejni::columnartorow::ColumnarToRowConverter;
-static arrow::jni::ConcurrentMap<std::shared_ptr<ResultIteratorBase>>
-    batch_iterator_holder_;
-
 static arrow::jni::ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>>
     columnar_to_row_converter_holder_;
+
+using gazellejni::RecordBatchResultIterator;
+static arrow::jni::ConcurrentMap<std::shared_ptr<RecordBatchResultIterator>>
+    batch_iterator_holder_;
 
 using gazellejni::shuffle::SplitOptions;
 using gazellejni::shuffle::Splitter;
@@ -135,19 +135,13 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_hol
 static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
     decompression_schema_holder_;
 
-std::shared_ptr<ResultIteratorBase> GetBatchIterator(JNIEnv* env, jlong id) {
+std::shared_ptr<RecordBatchResultIterator> GetBatchIterator(JNIEnv* env, jlong id) {
   auto handler = batch_iterator_holder_.Lookup(id);
   if (!handler) {
     std::string error_message = "invalid handler id " + std::to_string(id);
     env->ThrowNew(illegal_argument_exception_class, error_message.c_str());
   }
   return handler;
-}
-
-template <typename T>
-std::shared_ptr<ResultIterator<T>> GetBatchIterator(JNIEnv* env, jlong id) {
-  auto handler = GetBatchIterator(env, id);
-  return std::dynamic_pointer_cast<ResultIterator<T>>(handler);
 }
 
 arrow::Result<std::shared_ptr<arrow::RecordBatch>> FromBytes(
@@ -231,14 +225,12 @@ class JavaRecordBatchIteratorWrapper {
 // See Java class
 // org/apache/arrow/dataset/jni/NativeSerializedRecordBatchIterator
 //
-arrow::Result<arrow::RecordBatchIterator> MakeJavaRecordBatchIterator(
+std::shared_ptr<JavaRecordBatchIterator> MakeJavaRecordBatchIterator(
     JavaVM* vm, jobject java_serialized_record_batch_iterator,
     std::shared_ptr<arrow::Schema> schema) {
   std::shared_ptr<arrow::Schema> schema_moved = std::move(schema);
-  arrow::RecordBatchIterator itr = arrow::Iterator<std::shared_ptr<arrow::RecordBatch>>(
-      JavaRecordBatchIteratorWrapper(std::make_shared<JavaRecordBatchIterator>(
-          vm, java_serialized_record_batch_iterator, schema_moved)));
-  return itr;
+  return std::make_shared<JavaRecordBatchIterator>(
+      vm, java_serialized_record_batch_iterator, schema_moved);
 }
 
 using FileSystem = arrow::fs::FileSystem;
@@ -343,47 +335,52 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsTime
 
 JNIEXPORT jlong JNICALL
 Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
-    JNIEnv* env, jobject obj, jlong memory_pool_id, jbyteArray ws_exprs_arr,
+    JNIEnv* env, jobject obj, jlong memory_pool_id, jbyteArray plan_arr,
     jobjectArray iter_arr) {
+  JNI_METHOD_START
   arrow::Status msg;
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     std::string error_message = "Unable to get JavaVM instance";
     env->ThrowNew(io_exception_class, error_message.c_str());
   }
+
+  auto plan_data =
+      reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(plan_arr, 0));
+  auto plan_size = env->GetArrayLength(plan_arr);
+
+  auto backend = gazellejni::CreateBackend();
+  if (!backend->ParsePlan(plan_data, plan_size)) {
+    ThrowPendingException("Failed to parse plan.");
+  }
+
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
-  std::vector<arrow::Result<arrow::RecordBatchIterator>> arrow_iters;
+  std::vector<std::shared_ptr<RecordBatchResultIterator>> input_iters;
   if (iters_len > 0) {
+    auto schema = backend->GetInputSchema();
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
       // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
       // TODO Release this in JNI Unload or dependent object's destructor
       jobject ref_iter = env->NewGlobalRef(iter);
       // FIXME: Schema should be obtained from Substrait plan.
-      std::shared_ptr<arrow::Schema> schema;
-      arrow::Result<arrow::RecordBatchIterator> rb_iter =
-          MakeJavaRecordBatchIterator(vm, ref_iter, schema);
-      arrow_iters.push_back(std::move(rb_iter));
+      auto rb_iter =
+          std::make_shared<JavaRecordBatchIterator>(vm, ref_iter, std::move(schema));
+      input_iters.push_back(
+          std::make_shared<RecordBatchResultIterator>(std::move(rb_iter)));
     }
   }
-  // Get the ws iter
-  gandiva::ExpressionVector ws_expr_vector;
-  gandiva::FieldVector ws_ret_types;
-  std::shared_ptr<ResultIterator<arrow::RecordBatch>> res_iter;
-  msg = ParseSubstraitPlan(env, ws_exprs_arr, &res_iter);
-  if (!msg.ok()) {
-    std::string error_message =
-        "failed to parse expressions protobuf, err msg is " + msg.message();
-    env->ThrowNew(io_exception_class, error_message.c_str());
-  }
-  auto ws_result_iterator = std::dynamic_pointer_cast<ResultIteratorBase>(res_iter);
-  return batch_iterator_holder_.Insert(std::move(ws_result_iterator));
-}
 
-JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
-    JNIEnv* env, jobject obj) {}
+  std::shared_ptr<RecordBatchResultIterator> res_iter;
+  if (input_iters.empty()) {
+    res_iter = backend->GetResultIterator();
+  } else {
+    res_iter = backend->GetResultIterator(input_iters);
+  }
+  return batch_iterator_holder_.Insert(std::move(res_iter));
+  JNI_METHOD_END(-1)
+}
 
 JNIEXPORT jboolean JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeHasNext(
     JNIEnv* env, jobject obj, jlong id) {
@@ -400,13 +397,12 @@ JNIEXPORT jboolean JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeHas
 JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeNext(
     JNIEnv* env, jobject obj, jlong id) {
   JNI_METHOD_START
-  auto iter = GetBatchIterator<arrow::RecordBatch>(env, id);
-  std::shared_ptr<arrow::RecordBatch> out;
+  auto iter = GetBatchIterator(env, id);
   if (!iter->HasNext()) return nullptr;
-  JniAssertOkOrThrow(iter->Next(&out), "nativeNext: get Next() failed");
-  jbyteArray serialized_record_batch =
-      JniGetOrThrow(ToBytes(env, out), "Error deserializing message");
-  return serialized_record_batch;
+  auto batch = std::move(iter->Next());
+  auto maybe_bytes = arrow::jniutil::SerializeUnsafeFromNative(env, batch);
+  JniAssertOkOrThrow(maybe_bytes.status());
+  return maybe_bytes.ValueOrDie();
   JNI_METHOD_END(nullptr)
 }
 
@@ -415,7 +411,7 @@ JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeClose(
 #ifdef DEBUG
   auto it = batch_iterator_holder_.Lookup(id);
   if (it.use_count() > 2) {
-    std::cout << it->ToString() << " ptr use count is " << it.use_count() << std::endl;
+    std::cout << "Id " << id << " use count is " << it.use_count() << std::endl;
   }
 #endif
   batch_iterator_holder_.Erase(id);

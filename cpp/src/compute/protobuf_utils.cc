@@ -416,7 +416,7 @@ SchemaPtr ProtoTypeToSchema(const exprs::Schema& schema) {
 
 // Common for both projector and filters.
 
-bool ParseProtobuf(uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
+bool ParseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
   google::protobuf::io::CodedInputStream cis(buf, bufLen);
   cis.SetRecursionLimit(1000);
   return msg->ParseFromCodedStream(&cis);
@@ -424,10 +424,11 @@ bool ParseProtobuf(uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
 
 inline google::protobuf::util::TypeResolver* GetGeneratedTypeResolver() {
   static std::unique_ptr<google::protobuf::util::TypeResolver> type_resolver;
-  if (!type_resolver) {
+  static std::once_flag type_resolver_init;
+  std::call_once(type_resolver_init, []() {
     type_resolver.reset(google::protobuf::util::NewTypeResolverForDescriptorPool(
         /*url_prefix=*/"", google::protobuf::DescriptorPool::generated_pool()));
-  }
+  });
   return type_resolver.get();
 }
 

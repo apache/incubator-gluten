@@ -22,6 +22,7 @@
 #include "arrow/array/builder_base.h"
 #include "arrow/array/builder_primitive.h"
 #include "arrow/util/checked_cast.h"
+#include "protobuf_utils.h"
 
 namespace gazellejni {
 namespace compute {
@@ -30,11 +31,14 @@ SubstraitParser::SubstraitParser() {
   std::cout << "construct SubstraitParser" << std::endl;
 }
 
-std::shared_ptr<ResultIterator<arrow::RecordBatch>> SubstraitParser::getResIter() {
-  auto wholestage_iter = std::make_shared<WholeStageResultIterator>();
-  auto res_iter =
-      std::dynamic_pointer_cast<ResultIterator<arrow::RecordBatch>>(wholestage_iter);
-  return res_iter;
+std::shared_ptr<RecordBatchResultIterator> SubstraitParser::GetResultIterator() {
+  auto res_iter = std::make_shared<WholeStageResultIterator>();
+  return std::make_shared<RecordBatchResultIterator>(std::move(res_iter));
+}
+
+std::shared_ptr<RecordBatchResultIterator> SubstraitParser::GetResultIterator(
+    std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) {
+  return GetResultIterator();
 }
 
 void SubstraitParser::ParseLiteral(const substrait::Expression::Literal& slit) {
@@ -282,8 +286,7 @@ std::string SubstraitParser::FindFunction(uint64_t id) {
   return functions_map_[id];
 }
 
-class SubstraitParser::WholeStageResultIterator
-    : public ResultIterator<arrow::RecordBatch> {
+class SubstraitParser::WholeStageResultIterator {
  public:
   WholeStageResultIterator() {
     std::unique_ptr<arrow::ArrayBuilder> array_builder;
@@ -292,9 +295,10 @@ class SubstraitParser::WholeStageResultIterator
         arrow::internal::checked_cast<arrow::DoubleBuilder*>(array_builder.release()));
   }
 
-  bool HasNext() override { return has_next_; }
-
-  arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) override {
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+    if (!has_next_) {
+      return nullptr;
+    }
     double res = 10000;
     builder_->Append(res);
     std::shared_ptr<arrow::Array> array;
@@ -302,11 +306,8 @@ class SubstraitParser::WholeStageResultIterator
     res_arrays.push_back(array);
     std::vector<std::shared_ptr<arrow::Field>> ret_types = {
         arrow::field("res", arrow::float64())};
-    *out = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, res_arrays);
-    if (has_next_) {
-      has_next_ = false;
-    }
-    return arrow::Status::OK();
+    has_next_ = false;
+    return arrow::RecordBatch::Make(arrow::schema(ret_types), 1, res_arrays);
   }
 
  private:

@@ -28,6 +28,7 @@ import org.apache.arrow.gandiva.ipc.GandivaTypes;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 
@@ -53,23 +54,25 @@ public class ExpressionEvaluator implements AutoCloseable {
   public ExpressionEvaluator(List<String> listJars, String libName) throws IOException, IllegalAccessException, IllegalStateException {
     this(listJars, libName,
             GazelleJniConfig.getSessionConf().nativeLibPath(),
+            GazelleJniConfig.getConf().gazelleJniBackendLib(),
             GazelleJniConfig.getConf().loadArrow());
   }
 
   public ExpressionEvaluator(String libPath)
           throws IOException, IllegalAccessException, IllegalStateException {
-    this(java.util.Collections.emptyList(), null, libPath, GazelleJniConfig.getConf().loadArrow());
+    this(java.util.Collections.emptyList(), null, libPath, null, GazelleJniConfig.getConf().loadArrow());
   }
 
   public ExpressionEvaluator(List<String> listJars, String libName,
-                             String libPath, boolean loadArrowAndGandiva)
+                             String libPath, String customBackendLib,
+                             boolean loadArrowAndGandiva)
           throws IOException, IllegalAccessException, IllegalStateException {
     String tmp_dir = GazelleJniConfig.getTempFile();
     if (tmp_dir == null) {
       tmp_dir = System.getProperty("java.io.tmpdir");
     }
     jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName, libPath,
-            loadArrowAndGandiva);
+            customBackendLib, loadArrowAndGandiva);
     jniWrapper.nativeSetJavaTmpDir(jniWrapper.tmp_dir_path);
     jniWrapper.nativeSetBatchSize(GazelleJniConfig.getBatchSize());
     jniWrapper.nativeSetMetricsTime(GazelleJniConfig.getEnableMetricsTime());

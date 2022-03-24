@@ -64,11 +64,16 @@ private[oap] class GazelleExecutorPlugin extends ExecutorPlugin {
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     // SQLConf is not initialed here, so it can not use 'GazelleJniConfig.getConf' to get conf.
     if (ctx.conf().getBoolean(GazelleJniConfig.OAP_LOAD_NATIVE, defaultValue = true)) {
+      val customOAPLib = ctx.conf().get(GazelleJniConfig.OAP_LIB_PATH, "")
+      val customBackendLib = ctx.conf().get(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, "")
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
         ctx.conf().get(GazelleJniConfig.OAP_LIB_NAME, "spark_columnar_jni"),
-        ctx.conf().get(GazelleJniConfig.OAP_LIB_PATH, ""),
+        customOAPLib,
+        customBackendLib,
         ctx.conf().getBoolean(GazelleJniConfig.OAP_LOAD_ARROW, defaultValue = true))
-      initKernel.initNative()
+      if (customOAPLib.nonEmpty || customBackendLib.nonEmpty) {
+        initKernel.initNative()
+      }
     }
   }
 

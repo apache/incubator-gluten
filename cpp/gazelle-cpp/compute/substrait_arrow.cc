@@ -15,21 +15,11 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "substrait_arrow.h"
 
-#include <arrow/status.h>
-#include <arrow/type_fwd.h>
+namespace gazellecpp {
+namespace compute {
 
-struct Metrics {
-  int num_metrics;
-  long* process_time;
-  long* output_length;
-  Metrics(int size) : num_metrics(size) {
-    process_time = new long[num_metrics];
-    output_length = new long[num_metrics];
-  }
-  ~Metrics() {
-    delete[] process_time;
-    delete[] output_length;
-  }
-};
+
+}  // namespace compute
+}  // namespace gazellecpp
