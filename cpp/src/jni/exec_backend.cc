@@ -25,15 +25,12 @@
 namespace gazellejni {
 
 static std::function<std::shared_ptr<ExecBackendBase>()> backend_factory;
-static std::once_flag backend_factory_initialized_;
 
 void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory) {
-  std::call_once(backend_factory_initialized_, [&factory]() {
 #ifdef DEBUG
-    std::cout << "Set backend factory." << std::endl;
+  std::cout << "Set backend factory." << std::endl;
 #endif
-    backend_factory = std::move(factory);
-  });
+  backend_factory = std::move(factory);
 }
 
 std::shared_ptr<ExecBackendBase> CreateBackend() {

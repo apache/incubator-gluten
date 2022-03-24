@@ -161,6 +161,10 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val nativeLibPath: String =
     conf.getConfString(GazelleJniConfig.OAP_LIB_PATH, "")
 
+  // customized backend library name
+  val gazelleJniBackendLib: String =
+    conf.getConfString(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, "")
+
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
     conf.getConfString("spark.oap.sql.columnar.joinOptimizationLevel", "12").toInt
