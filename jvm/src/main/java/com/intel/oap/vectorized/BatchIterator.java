@@ -30,10 +30,14 @@ import java.nio.channels.Channels;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.vectorized.ColumnVector;
+import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 public class BatchIterator implements AutoCloseable, Serializable {
   private native boolean nativeHasNext(long nativeHandler);
   private native byte[] nativeNext(long nativeHandler);
+  private native long nativeCHNext(long nativeHandler);
   private native void nativeClose(long nativeHandler);
   private native MetricsObject nativeFetchMetrics(long nativeHandler);
 
@@ -68,6 +72,17 @@ public class BatchIterator implements AutoCloseable, Serializable {
       return null;
     }
     return nativeFetchMetrics(nativeHandler);
+  }
+
+  public ColumnarBatch chNext() {
+    long block = nativeCHNext(nativeHandler);
+    CHNativeBlock nativeBlock = new CHNativeBlock(block);
+    int cols = nativeBlock.numColumns();
+    ColumnVector[] columnVectors = new ColumnVector[cols];
+    for (int i = 0; i < cols; i++) {
+      columnVectors[i] = new CHColumnVector(DataType.fromDDL(nativeBlock.getTypeByPosition(i)), block, i);
+    }
+    return new ColumnarBatch(columnVectors, nativeBlock.numRows());
   }
 
   @Override
