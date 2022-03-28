@@ -33,14 +33,34 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.PartitionedFile
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.util.OASPackageBridge._
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util._
 
+trait BaseNativeFilePartition extends Partition with InputPartition {
+  def substraitPlan: Array[Byte]
+}
+
+case class NativeMergeTreePartition(index: Int, engine: String,
+                                    database: String,
+                                    table: String, tablePath: String,
+                                    minParts: Long, maxParts: Long,
+                                    substraitPlan: Array[Byte] = Array.empty[Byte])
+  extends BaseNativeFilePartition {
+  override def preferredLocations(): Array[String] = {
+    Array.empty[String]
+  }
+
+  def copySubstraitPlan(newSubstraitPlan: Array[Byte]): NativeMergeTreePartition = {
+    this.copy(substraitPlan = newSubstraitPlan)
+  }
+}
+
 case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
-                               val substraitPlan: Array[Byte])
-  extends Partition with InputPartition {
+                               substraitPlan: Array[Byte])
+  extends BaseNativeFilePartition {
   override def preferredLocations(): Array[String] = {
     // Computes total number of bytes can be retrieved from each host.
     val hostToNumBytes = mutable.HashMap.empty[String, Long]
@@ -66,7 +86,6 @@ class NativeWholeStageColumnarRDD(
     sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
     columnarReads: Boolean,
-    inputAttributes: Seq[Attribute],
     outputAttributes: Seq[Attribute],
     jarList: Seq[String],
     dependentKernelIterators: ListBuffer[BatchIterator])
@@ -105,6 +124,7 @@ class NativeWholeStageColumnarRDD(
       outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
+      SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics

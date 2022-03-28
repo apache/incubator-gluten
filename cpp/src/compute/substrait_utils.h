@@ -15,6 +15,9 @@
  * limitations under the License.
  */
 
+#pragma once
+
+#include "jni/exec_backend.h"
 #include "substrait/algebra.pb.h"
 #include "substrait/capabilities.pb.h"
 #include "substrait/extensions/extensions.pb.h"
@@ -28,7 +31,7 @@
 namespace gazellejni {
 namespace compute {
 
-class SubstraitParser {
+class SubstraitParser : public ExecBackendBase {
  public:
   SubstraitParser();
   void ParseLiteral(const substrait::Expression::Literal& slit);
@@ -42,15 +45,19 @@ class SubstraitParser {
   void ParseProjectRel(const substrait::ProjectRel& sproject);
   void ParseFilterRel(const substrait::FilterRel& sfilter);
   void ParseReadRel(const substrait::ReadRel& sread);
+  void ParseInputRel(const substrait::InputRel& sinput);
   void ParseRelRoot(const substrait::RelRoot& sroot);
   void ParseRel(const substrait::Rel& srel);
   void ParsePlan(const substrait::Plan& splan);
-  std::shared_ptr<ResultIterator<arrow::RecordBatch>> getResIter();
+  std::shared_ptr<RecordBatchResultIterator> GetResultIterator() override;
+  std::shared_ptr<RecordBatchResultIterator> GetResultIterator(
+      std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) override;
 
  private:
   std::string FindFunction(uint64_t id);
   std::unordered_map<uint64_t, std::string> functions_map_;
-  class WholeStageResultIterator;
+  class FirstStageResultIterator;
+  class MiddleStageResultIterator;
 };
 
 }  // namespace compute

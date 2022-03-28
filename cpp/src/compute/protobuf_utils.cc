@@ -21,6 +21,10 @@
 #include <google/protobuf/util/type_resolver.h>
 #include <google/protobuf/util/type_resolver_util.h>
 
+#include <fstream>
+#include <iostream>
+#include <string>
+
 using gandiva::ConditionPtr;
 using gandiva::DataTypePtr;
 using gandiva::ExpressionPtr;
@@ -412,7 +416,7 @@ SchemaPtr ProtoTypeToSchema(const exprs::Schema& schema) {
 
 // Common for both projector and filters.
 
-bool ParseProtobuf(uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
+bool ParseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
   google::protobuf::io::CodedInputStream cis(buf, bufLen);
   cis.SetRecursionLimit(1000);
   return msg->ParseFromCodedStream(&cis);
@@ -420,10 +424,11 @@ bool ParseProtobuf(uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
 
 inline google::protobuf::util::TypeResolver* GetGeneratedTypeResolver() {
   static std::unique_ptr<google::protobuf::util::TypeResolver> type_resolver;
-  if (!type_resolver) {
+  static std::once_flag type_resolver_init;
+  std::call_once(type_resolver_init, []() {
     type_resolver.reset(google::protobuf::util::NewTypeResolverForDescriptorPool(
         /*url_prefix=*/"", google::protobuf::DescriptorPool::generated_pool()));
-  }
+  });
   return type_resolver.get();
 }
 
@@ -462,4 +467,18 @@ arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name,
     return Status::Invalid("BinaryToJsonStream returned ", status);
   }
   return out;
+}
+
+void MessageToJSONFile(const google::protobuf::Message& message,
+                       const std::string& file_path) {
+  google::protobuf::util::JsonPrintOptions options;
+  options.add_whitespace = true;
+  options.always_print_primitive_fields = true;
+  options.preserve_proto_field_names = true;
+  std::string json_string;
+  google::protobuf::util::MessageToJsonString(message, &json_string, options);
+  std::cin >> json_string;
+  std::ofstream out(file_path);
+  out << json_string;
+  out.close();
 }

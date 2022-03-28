@@ -18,7 +18,6 @@
 package com.intel.oap.execution
 
 import scala.collection.mutable.ListBuffer
-
 import com.google.common.collect.Lists
 import com.intel.oap.expression._
 import com.intel.oap.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
@@ -27,6 +26,7 @@ import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.GazelleJniConfig
 import java.util
 
+import com.intel.oap.substrait.`type`.TypeNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import scala.util.control.Breaks.{break, breakable}
 
 /**
  * Columnar Based HashAggregateExec.
@@ -54,6 +55,7 @@ case class HashAggregateExecTransformer(
   val sparkConf = sparkContext.getConf
 
   override def supportsColumnar: Boolean = GazelleJniConfig.getConf.enableColumnarIterator
+  val enableColumnarFinalAgg: Boolean = GazelleJniConfig.getConf.enableColumnarFinalAgg
 
   val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
@@ -89,14 +91,18 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-    var isPartial = true
-    aggregateExpressions.foreach(aggExpr => {
-      aggExpr.mode match {
-        case Partial =>
-        case _ => isPartial = false
-      }
-    })
-    isPartial
+    if (enableColumnarFinalAgg) {
+      true
+    } else {
+      var isPartial = true
+      aggregateExpressions.foreach(aggExpr => {
+        aggExpr.mode match {
+          case Partial =>
+          case _ => isPartial = false
+        }
+      })
+      isPartial
+    }
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -145,7 +151,18 @@ case class HashAggregateExecTransformer(
     val (relNode, inputAttributes) = if (childCtx != null) {
       (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes)
     } else {
-      (getAggRel(context.registeredFunction), child.output)
+      // This means the input is just an iterator, so an InputRel will be created as child.
+      // Prepare the input schema.
+      val typeList = new util.ArrayList[TypeNode]()
+      val nameList = new util.ArrayList[String]()
+      for (attr <- child.output) {
+        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        nameList.add(attr.name)
+      }
+      // TODO: The iter index should be dynamically generated.
+      val inputRel = RelBuilder
+        .makeInputRel(nameList, typeList, new java.lang.Long(0))
+      (getAggRel(context.registeredFunction, inputRel), child.output)
     }
     TransformContext(inputAttributes, output, relNode)
   }
@@ -166,16 +183,46 @@ case class HashAggregateExecTransformer(
     }
   }
 
+  private def needsPostProjection(aggOutAttributes: List[Attribute]): Boolean = {
+    // Check if Post-Projection is needed after the Aggregation.
+    var needsProjection = false
+    // If the result expressions has different size with output attribute,
+    // post-projection is needed.
+    if (resultExpressions.size != aggOutAttributes.size) {
+      needsProjection = true
+    } else {
+      // Compare each item in result expressions and output attributes.
+      breakable {
+        for (exprIdx <- resultExpressions.indices) {
+          resultExpressions(exprIdx) match {
+            case exprAttr: Attribute =>
+              val resAttr = aggOutAttributes(exprIdx)
+              // If the result attribute and result expression has different name or type,
+              // post-projection is needed.
+              if (exprAttr.name != resAttr.name ||
+                exprAttr.dataType != resAttr.dataType) {
+                needsProjection = true
+                break
+              }
+            case _ =>
+              // If result expression is not instance of Attribute,
+              // post-projection is needed.
+              needsProjection = true
+              break
+          }
+        }
+      }
+    }
+    needsProjection
+  }
+
   private def getAggRel(args: java.lang.Object, input: RelNode = null): RelNode = {
     // Get the grouping idx
     val originalInputAttributes = child.output
-    val groupingAttributes = groupingExpressions.map(expr => {
-      ConverterUtils.getAttrFromExpr(expr).toAttribute
-    })
     val groupingList = new util.ArrayList[ExpressionNode]()
-
     // Get the aggregate function nodes
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
+    // Get the grouping nodes.
     groupingExpressions.foreach(expr => {
       val groupingExpr: Expression = ExpressionConverter
         .replaceWithExpressionTransformer(expr, originalInputAttributes)
@@ -186,32 +233,59 @@ case class HashAggregateExecTransformer(
         Lists.newArrayList(exprNode), outputTypeNode)
       aggregateFunctionList.add(aggFunctionNode)
     })
+    // Get the aggregation nodes.
     aggregateExpressions.foreach(aggExpr => {
       val aggregatFunc = aggExpr.aggregateFunction
-      val functionId = AggregateFunctionsBuilder.create(args, aggregatFunc)
-      val mode = modeToKeyWord(aggExpr.mode)
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
-      aggExpr.mode match {
+      val childrenNodes = aggExpr.mode match {
         case Partial =>
-          val childrenNodes = aggregatFunc.children.toList.map(expr => {
+          aggregatFunc.children.toList.map(expr => {
             val aggExpr: Expression = ExpressionConverter
               .replaceWithExpressionTransformer(expr, originalInputAttributes)
             aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
           })
-          for (node <- childrenNodes) {
-            childrenNodeList.add(node)
-          }
+        case Final =>
+          aggregatFunc.inputAggBufferAttributes.toList.map(attr => {
+            val aggExpr: Expression = ExpressionConverter
+              .replaceWithExpressionTransformer(attr, originalInputAttributes)
+            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+          })
         case other =>
+          throw new UnsupportedOperationException(s"$other not supported.")
       }
-      // FIXME: return type of a aggregateFunciton
-      val outputTypeNode = ConverterUtils.getTypeNode(
-        aggregatFunc.dataType, aggregatFunc.nullable)
-      val aggFunctionNode = ExpressionBuilder
-        .makeAggregateFunction(functionId, childrenNodeList, mode, outputTypeNode)
+      for (node <- childrenNodes) {
+        childrenNodeList.add(node)
+      }
+      val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+        AggregateFunctionsBuilder.create(args, aggregatFunc),
+        childrenNodeList,
+        modeToKeyWord(aggExpr.mode),
+        ConverterUtils.getTypeNode(aggregatFunc.dataType, aggregatFunc.nullable))
       aggregateFunctionList.add(aggFunctionNode)
     })
-    // Get Aggregate Rel
-    RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
+    val aggRel = RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
+    // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
+    // AggregateRel.
+    val groupingAttributes = groupingExpressions.map(expr => {
+      ConverterUtils.getAttrFromExpr(expr).toAttribute
+    })
+    // This is the direct outputs of this Aggregation.
+    val allAggregateResultAttributes: List[Attribute] =
+      groupingAttributes.toList ::: getAttrForAggregateExpr(
+        aggregateExpressions,
+        aggregateAttributes)
+    if (!needsPostProjection(allAggregateResultAttributes)) {
+      aggRel
+    } else {
+      // Will add an projection after Agg.
+      val resExprNodes = new util.ArrayList[ExpressionNode]()
+      resultExpressions.foreach(expr => {
+        val aggExpr: Expression = ExpressionConverter
+          .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
+        resExprNodes.add(aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      })
+      RelBuilder.makeProjectRel(aggRel, resExprNodes)
+    }
   }
 
   private def modeToKeyWord(aggregateMode: AggregateMode): String = {

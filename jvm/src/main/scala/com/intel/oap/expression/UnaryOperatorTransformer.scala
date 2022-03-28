@@ -43,7 +43,8 @@ class IsNotNullTransformer(child: Expression, original: Expression)
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "IS_NOT_NULL")
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.IS_NOT_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = TypeBuiler.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
@@ -61,8 +62,8 @@ class IsNullTransformer(child: Expression, original: Expression)
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "IS_NULL")
-
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = TypeBuiler.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
@@ -142,7 +143,8 @@ class CastTransformer(
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, "CAST")
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.CAST, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(dataType, nullable = true)
 

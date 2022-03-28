@@ -88,11 +88,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
 
-  val clickhouseMergeTreeTablePath = GazelleJniConfig.getConf.clickhouseMergeTreeTablePath
-  val clickhouseMergeTreeEnabled = GazelleJniConfig.getConf.clickhouseMergeTreeEnabled
-  val clickhouseMergeTreeDatabase = GazelleJniConfig.getConf.clickhouseMergeTreeDatabase
-  val clickhouseMergeTreeTable = GazelleJniConfig.getConf.clickhouseMergeTreeTable
-
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_wholestagetransform"),
@@ -253,18 +248,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       new ArrowType.Int(32, true))
   }
 
-  def prepareLazyReadFunction(): TreeNode = {
-    val lazyReadFuncName = "LazyRead"
-    val lazy_read_func = TreeBuilder.makeFunction(
-      lazyReadFuncName,
-      Lists.newArrayList(),
-      new ArrowType.Int(32, true) /*dummy ret type, won't be used*/ )
-    TreeBuilder.makeFunction(
-      "standalone",
-      Lists.newArrayList(lazy_read_func),
-      new ArrowType.Int(32, true))
-  }
-
   /**
    * Return built cpp library's signature
    */
@@ -313,25 +296,26 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map {
+        case p: NativeMergeTreePartition =>
+          val extensionTableNode =
+            ExtensionTableBuilder.makeExtensionTable(p.minParts,
+              p.maxParts, p.database, p.table, p.tablePath)
+          wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
+          // logWarning(s"The substrait plan for partition " +
+          //   s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
+          p.copySubstraitPlan(wsCxt.root.toProtobuf.toByteArray)
         case FilePartition(index, files) =>
-          val substraitPlan = if (clickhouseMergeTreeEnabled) {
-            val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(index,
-              clickhouseMergeTreeDatabase, clickhouseMergeTreeTable, clickhouseMergeTreeTablePath)
-            wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
-            wsCxt.root.toProtobuf
-          } else {
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
-            files.foreach { f =>
-              paths.add(f.filePath)
-              starts.add(new java.lang.Long(f.start))
-              lengths.add(new java.lang.Long(f.length))
-            }
-            val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-            wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
-            wsCxt.root.toProtobuf
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(new java.lang.Long(f.start))
+            lengths.add(new java.lang.Long(f.length))
           }
+          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          val substraitPlan = wsCxt.root.toProtobuf
           /*
           val out = new DataOutputStream(new FileOutputStream("/tmp/SubStraitTest-Q6.dat",
                       false));
@@ -412,8 +396,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       logWarning(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
-      val wsRDD = new NativeWholeStageColumnarRDD(sparkContext, substraitPlanPartition, true,
-        wsCxt.inputAttributes, wsCxt.outputAttributes, jarList, dependentKernelIterators)
+      val wsRDD = new NativeWholeStageColumnarRDD(
+        sparkContext,
+        substraitPlanPartition,
+        true,
+        wsCxt.outputAttributes,
+        jarList,
+        dependentKernelIterators)
       wsRDD.map{ r =>
         numOutputBatches += 1
         r
@@ -422,7 +411,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val inputRDDs = columnarInputRDDs
       var curRDD = inputRDDs.head
       val resCtx = doWholestageTransform()
-      val inputAttributes = resCtx.inputAttributes
       val outputAttributes = resCtx.outputAttributes
       val rootNode = resCtx.root
 
@@ -439,19 +427,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             sparkConf)
           s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
         })
-        // FIXME: pass iter to native with Substrait
-        val lazyReadFunction = prepareLazyReadFunction()
-        val lazyReadExpr =
-          TreeBuilder.makeExpression(
-            lazyReadFunction,
-            Field.nullable("result", new ArrowType.Int(32, true)))
+
         val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
         val inBatchIter = new ColumnarNativeIterator(iter.asJava)
         val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
-        inBatchIters.add(inBatchIter);
+        inBatchIters.add(inBatchIter)
         // we need to complete dependency RDD's firstly
         val beforeBuild = System.nanoTime()
-        val inputSchema = ConverterUtils.toArrowSchema(inputAttributes)
         val outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
         val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
         build_elapse += System.nanoTime() - beforeBuild
@@ -493,8 +475,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
           dependentKernels.foreach(_.close)
           dependentKernelIterators.foreach(_.close)
-          // nativeKernel.close
-          nativeIterator.close
+          nativeIterator.close()
           relationHolder.clear()
         }
         SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {

@@ -34,10 +34,11 @@ public class ExpressionEvaluatorJniWrapper {
 
         /** Wrapper for native API. */
         public ExpressionEvaluatorJniWrapper(String tmp_dir, List<String> listJars, String libName,
-                                             String libPath, boolean loadArrowAndGandiva)
+                                             String libPath, String customBackendLib,
+                                             boolean loadArrowAndGandiva)
                         throws IOException, IllegalAccessException, IllegalStateException {
                 JniInstance jni = JniInstance
-                        .getInstance(tmp_dir, libName, libPath, loadArrowAndGandiva);
+                        .getInstance(tmp_dir, libName, libPath, customBackendLib, loadArrowAndGandiva);
                 jni.setTempDir();
                 jni.setJars(listJars);
                 tmp_dir_path = jni.getTempDir();
@@ -55,7 +56,7 @@ public class ExpressionEvaluatorJniWrapper {
          * @return iterator instance id
          */
         native long nativeCreateKernelWithIterator(long nativeHandler,
-                                                   byte[] wsExprListBuf,
+                                                   byte[] wsPlan,
                                                    ColumnarNativeIterator[] batchItr) throws RuntimeException;
 
         /**

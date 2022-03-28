@@ -1,0 +1,62 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.spark.sql.execution.datasources.v2.clickhouse
+
+import scala.collection.JavaConverters._
+
+import java.util
+
+object ClickHouseConfig {
+
+  val NAME = "clickhouse"
+  val ALT_NAME = "clickhouse"
+  val METADATA_DIR = "_metadata_log"
+  val DEFAULT_ENGINE = "MergeTree"
+
+  /**
+   * Validates specified configurations and returns the normalized key -> value map.
+   */
+  def validateConfigurations(allProperties: util.Map[String, String]): Map[String, String] = {
+    var configurations = scala.collection.mutable.Map[String, String]()
+    allProperties.asScala.foreach(configurations += _)
+    if (!configurations.contains("metadata_path")) {
+      configurations += ("metadata_path" -> METADATA_DIR)
+    }
+    if (!configurations.contains("engine")) {
+      configurations += ("engine" -> DEFAULT_ENGINE)
+    } else {
+      val engineValue = configurations.get("engine")
+      if (!engineValue.equals(DEFAULT_ENGINE) && !engineValue.equals("parquet")) {
+        configurations += ("engine" -> DEFAULT_ENGINE)
+      }
+    }
+    if (!configurations.contains("primary_key")) {
+      configurations += ("primary_key" -> "")
+    }
+    if (!configurations.contains("sampling_key")) {
+      configurations += ("sampling_key" -> "")
+    }
+    if (!configurations.contains("storage_policy")) {
+      configurations += ("storage_policy" -> "default")
+    }
+    if (!configurations.contains("is_distribute")) {
+      configurations += ("is_distribute" -> "true")
+    }
+    configurations.toMap
+  }
+}

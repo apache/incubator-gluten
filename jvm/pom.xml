@@ -78,6 +78,11 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-core_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>${arrow-memory.artifact}</artifactId>
       <version>${arrow.version}</version>
@@ -329,6 +334,9 @@
       <resource>
         <directory>${cpp.build.dir}</directory>
       </resource>
+      <resource>
+        <directory>${resource.dir}</directory>
+      </resource>
     </resources>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
@@ -381,6 +389,7 @@
                         <argument>${arrow_root}</argument>
                         <argument>${jvm.arrow.bfs.install.dir}</argument>
                         <argument>${build_jemalloc}</argument>
+                        <argument>${build_gazelle_cpp}</argument>
                     </arguments>
                 </configuration>
             </execution>

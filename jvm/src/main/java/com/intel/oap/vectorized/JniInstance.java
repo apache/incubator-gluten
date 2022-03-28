@@ -41,10 +41,10 @@ import java.util.jar.JarFile;
 public class JniInstance {
   /** Default names for native backend, Arrow and Gandiva libraries. */
   private static final String LIBRARY_NAME = "spark_columnar_jni";
-  private static final String ARROW_LIBRARY_NAME = "libarrow.so.400.0.0";
-  private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.400";
-  private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.400.0.0";
-  private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.400";
+  private static final String ARROW_LIBRARY_NAME = "libarrow.so.700.0.0";
+  private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.700";
+  private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.700.0.0";
+  private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.700";
   private static boolean isLoaded = false;
   private static boolean isCodegenDependencyLoaded = false;
   private static List<String> codegenJarsLoadedCache = new ArrayList<>();
@@ -57,16 +57,16 @@ public class JniInstance {
   }
 
   public static JniInstance getInstance(String tmp_dir) throws IOException {
-    return getInstance(tmp_dir, null, null, true);
+    return getInstance(tmp_dir, null, null, null, true);
   }
 
-  public static JniInstance getInstance(String tmp_dir, String lib_name, String libPath,
+  public static JniInstance getInstance(String tmp_dir, String lib_name, String libPath, String customBackendLib,
                                         boolean loadArrowAndGandiva) throws IOException {
     if (INSTANCE == null) {
       synchronized (JniInstance.class) {
         if (INSTANCE == null) {
           try {
-            INSTANCE = new JniInstance(tmp_dir, lib_name, libPath, loadArrowAndGandiva);
+            INSTANCE = new JniInstance(tmp_dir, lib_name, libPath, customBackendLib, loadArrowAndGandiva);
           } catch (IllegalAccessException ex) {
             throw new IOException("IllegalAccess", ex);
           }
@@ -76,7 +76,7 @@ public class JniInstance {
     return INSTANCE;
   }
 
-  private JniInstance(String _tmp_dir, String _lib_name, String libPath,
+  private JniInstance(String _tmp_dir, String _lib_name, String libPath, String customBackendLib,
                       boolean loadArrowAndGandiva)
           throws IOException, IllegalAccessException, IllegalStateException {
     if (!isLoaded) {
@@ -92,6 +92,9 @@ public class JniInstance {
           loadLibraryFromLibPath(tmp_dir, libPath, loadArrowAndGandiva);
         } else {
           loadLibraryFromJarWithLib(tmp_dir, _lib_name, loadArrowAndGandiva);
+          if (StringUtils.isNotBlank(customBackendLib)) {
+            loadLibraryFromJarWithLib(tmp_dir, customBackendLib, false);
+          }
         }
       } catch (IOException ex) {
         if (_lib_name != null) {

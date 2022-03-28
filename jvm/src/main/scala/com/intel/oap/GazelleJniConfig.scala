@@ -19,6 +19,8 @@ package com.intel.oap
 
 import java.util.Locale
 
+import com.intel.oap.GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -48,7 +50,10 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
 
   // for all operators
   val enableCpu: Boolean = getCpu
-  
+
+  val enableNativeEngine: Boolean =
+    conf.getConfString("spark.oap.sql.enable.native.engine", "true").toBoolean && enableCpu
+
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
     conf.getConfString("spark.oap.sql.columnar.batchscan", "true").toBoolean && enableCpu
@@ -57,6 +62,11 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val enableColumnarHashAgg: Boolean =
     conf.getConfString("spark.oap.sql.columnar.hashagg", "true").toBoolean && enableCpu
 
+  // A tmp config used to fallback Final Aggregation.
+  // Can be removed after Final Aggregation is fully supported.
+  val enableColumnarFinalAgg: Boolean = conf.getConfString(
+    "spark.oap.sql.columnar.hashagg.enablefinal", "true").toBoolean && enableCpu
+
   // enable or disable columnar project and filter
   val enableColumnarProjFilter: Boolean =
     conf.getConfString("spark.oap.sql.columnar.projfilter", "true").toBoolean && enableCpu
@@ -64,7 +74,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar sort
   val enableColumnarSort: Boolean =
     conf.getConfString("spark.oap.sql.columnar.sort", "true").toBoolean && enableCpu
-  
+
   // enable or disable codegen columnar sort
   val enableColumnarCodegenSort: Boolean = conf.getConfString(
     "spark.oap.sql.columnar.codegen.sort", "true").toBoolean && enableColumnarSort
@@ -72,7 +82,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar window
   val enableColumnarWindow: Boolean =
     conf.getConfString("spark.oap.sql.columnar.window", "true").toBoolean && enableCpu
-  
+
   // enable or disable columnar shuffledhashjoin
   val enableColumnarShuffledHashJoin: Boolean =
     conf.getConfString("spark.oap.sql.columnar.shuffledhashjoin", "true").toBoolean && enableCpu
@@ -107,7 +117,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable NAN check
   val enableColumnarNaNCheck: Boolean =
     conf.getConfString("spark.oap.sql.columnar.nanCheck", "true").toBoolean
-  
+
   // enable or disable hashcompare in hashjoins or hashagg
   val hashCompare: Boolean =
     conf.getConfString("spark.oap.sql.columnar.hashCompare", "true").toBoolean
@@ -123,7 +133,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar wholestagecodegen
   val enableColumnarWholeStageCodegen: Boolean = conf.getConfString(
     "spark.oap.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
-  
+
   // enable or disable columnar exchange
   val enableColumnarShuffle: Boolean = conf
     .getConfString("spark.shuffle.manager", "sort")
@@ -156,6 +166,10 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val nativeLibPath: String =
     conf.getConfString(GazelleJniConfig.OAP_LIB_PATH, "")
 
+  // customized backend library name
+  val gazelleJniBackendLib: String =
+    conf.getConfString(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, "")
+
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
     conf.getConfString("spark.oap.sql.columnar.joinOptimizationLevel", "12").toInt
@@ -168,7 +182,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
     conf.getConfString(
       "spark.oap.sql.columnar.wholestagecodegen.breakdownTime",
       "false").toBoolean
-  
+
   // a folder to store the codegen files
   val tmpFile: String =
     conf.getConfString("spark.oap.sql.columnar.tmp_dir", null)
@@ -213,17 +227,6 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
     }
   }
 
-  val clickhouseMergeTreeTablePath: String =
-    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.table.path", "")
-
-  val clickhouseMergeTreeEnabled: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.enabled", "false").toBoolean
-
-  val clickhouseMergeTreeDatabase: String =
-    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.database", "default")
-
-  val clickhouseMergeTreeTable: String =
-    conf.getConfString("spark.oap.sql.columnar.ch.mergetree.table", "test")
 }
 
 object GazelleJniConfig {
@@ -232,6 +235,8 @@ object GazelleJniConfig {
   val OAP_LIB_NAME = "spark.oap.sql.columnar.libname"
   val OAP_LIB_PATH = "spark.oap.sql.columnar.libpath"
   val OAP_LOAD_ARROW = "spark.oap.sql.columnar.loadarrow"
+
+  val GAZELLE_JNI_BACKEND_LIB = "spark.oap.sql.columnar.backend.lib"
 
   var ins: GazelleJniConfig = null
   var random_temp_dir_path: String = null

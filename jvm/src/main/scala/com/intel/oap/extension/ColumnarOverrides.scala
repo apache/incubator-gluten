@@ -20,15 +20,16 @@ package com.intel.oap.extension
 import com.intel.oap.{GazelleJniConfig, GazelleSparkExtensionsInjector}
 import com.intel.oap.execution._
 import com.intel.oap.extension.columnar.{RowGuard, TransformGuardRule}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, ArrowEvalPythonExecTransformer}
@@ -283,8 +284,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 }
 
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
-  def columnarEnabled: Boolean = session.sqlContext.getConf(
-    "org.apache.spark.example.columnar.enabled", "true").trim.toBoolean
+  def nativeEngineEnabled: Boolean = GazelleJniConfig.getSessionConf.enableNativeEngine
   def conf = session.sparkContext.getConf
 
   // Do not create rules in class initialization as we should access SQLConf while creating the rules.
@@ -316,7 +316,16 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
     plan.logicalLink.isDefined
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => {
-    if (columnarEnabled) {
+    // TODO: Currently there are some fallback issues when SparkPlan is
+    // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
+    // For example:
+    //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
+    //   import spark.implicits._
+    //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+    //   df.summary().show(100, false)
+    if (nativeEngineEnabled && !plan.isInstanceOf[SerializeFromObjectExec] &&
+      !plan.isInstanceOf[ObjectHashAggregateExec] &&
+      !plan.isInstanceOf[V2CommandExec]) {
       isSupportAdaptive = supportAdaptive(plan)
       val rule = preOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
@@ -327,7 +336,9 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    if (columnarEnabled) {
+    if (nativeEngineEnabled && !plan.isInstanceOf[SerializeFromObjectExec] &&
+      !plan.isInstanceOf[ObjectHashAggregateExec] &&
+      !plan.isInstanceOf[V2CommandExec]) {
       val rule = postOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
       val tmpPlan = rule(plan)

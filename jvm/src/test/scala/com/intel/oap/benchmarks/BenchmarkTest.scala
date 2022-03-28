@@ -122,7 +122,7 @@ object BenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    spark.conf.set("org.apache.spark.example.columnar.enabled", "false")
+    spark.conf.set("spark.oap.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)
