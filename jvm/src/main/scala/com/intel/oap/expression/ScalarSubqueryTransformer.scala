@@ -48,5 +48,7 @@ class ScalarSubqueryTransformer(
   override def canEqual(that: Any): Boolean = query.canEqual(that)
   override def productArity: Int = query.productArity
   override def productElement(n: Int): Any = query.productElement(n)
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }

@@ -17,8 +17,12 @@
 
 package org.apache.spark.sql.execution
 
+import java.util
+
 import com.google.common.collect.Lists
-import com.intel.oap.expression.{CodeGeneration, ConverterUtils}
+import com.intel.oap.expression.{CodeGeneration, ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import com.intel.oap.substrait.expression.ExpressionNode
+import com.intel.oap.substrait.rel.RelBuilder
 import com.intel.oap.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, NativePartitioning}
 import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
@@ -384,27 +388,25 @@ object ColumnarShuffleExchangeExec extends Logging {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, serializeSchema(arrowFields))
       case HashPartitioning(exprs, n) =>
-        val gandivaExprs = exprs.zipWithIndex.map {
-          case (expr, i) =>
-            // FIXME
-//            val columnarExpr = ColumnarExpressionConverter
-//              .replaceWithColumnarExpression(expr)
-//              .asInstanceOf[ColumnarExpression]
-//            val input: java.util.List[Field] = Lists.newArrayList()
-//            val (treeNode, resultType) = columnarExpr.doColumnarCodeGen(input)
-            val treeNode : TreeNode = null
-            val attr = ConverterUtils.getAttrFromExpr(expr)
-            val field = Field
-              .nullable(
-                s"${attr.name}#${attr.exprId.id}",
-                CodeGeneration.getResultType(attr.dataType))
-            TreeBuilder.makeExpression(treeNode, field)
-        }
+        // Function map is not expected to be used.
+        val functionMap = new java.util.HashMap[String, java.lang.Long]()
+        val exprNodeList = new util.ArrayList[ExpressionNode]()
+        exprs.foreach(expr => {
+          if (!expr.isInstanceOf[Attribute]) {
+            throw new UnsupportedOperationException(
+              "Expressions are not supported in HashPartitioning.")
+          }
+          exprNodeList.add(ExpressionConverter
+            .replaceWithExpressionTransformer(expr, outputAttributes)
+            .asInstanceOf[ExpressionTransformer]
+            .doTransform(functionMap))
+        })
+        val projectRel = RelBuilder.makeProjectRel(null, exprNodeList)
         new NativePartitioning(
           "hash",
           n,
           serializeSchema(arrowFields),
-          ConverterUtils.getExprListBytesBuf(gandivaExprs.toList))
+          projectRel.toProtobuf().toByteArray)
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
         val pidField = Field.nullable("pid", new ArrowType.Int(32, true))

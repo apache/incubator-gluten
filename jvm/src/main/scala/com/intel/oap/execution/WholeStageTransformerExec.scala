@@ -88,6 +88,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
 
+  var fakeArrowOutput = false
+
+  def setFakeOutput(): Unit = {
+    fakeArrowOutput = true
+  }
+
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_wholestagetransform"),
@@ -156,7 +162,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       mappingNodes.add(mappingNode)
     }
     val relNodes = Lists.newArrayList(childCtx.root)
-    val planNode = PlanBuilder.makePlan(mappingNodes, relNodes)
+    val outNames = new java.util.ArrayList[String]()
+    // Use the first item in output names to specify the output format of the WS computing.
+    // When the next operator is ArrowColumnarToRow, fake Arrow output will be returned.
+    // TODO: Use a more proper way.
+    if (fakeArrowOutput) {
+      outNames.add("fake_arrow_output")
+    } else {
+      outNames.add("real_arrow_output")
+    }
+    for (attr <- childCtx.outputAttributes) {
+      outNames.add(attr.name)
+    }
+    val planNode = PlanBuilder.makePlan(mappingNodes, relNodes, outNames)
 
     WholestageTransformContext(childCtx.inputAttributes,
       childCtx.outputAttributes, planNode, substraitContext)

@@ -417,9 +417,8 @@ SchemaPtr ProtoTypeToSchema(const exprs::Schema& schema) {
 // Common for both projector and filters.
 
 bool ParseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
-  google::protobuf::io::CodedInputStream cis(buf, bufLen);
-  cis.SetRecursionLimit(1000);
-  return msg->ParseFromCodedStream(&cis);
+  google::protobuf::io::ArrayInputStream buf_stream{buf, bufLen};
+  return msg->ParseFromZeroCopyStream(&buf_stream);
 }
 
 inline google::protobuf::util::TypeResolver* GetGeneratedTypeResolver() {

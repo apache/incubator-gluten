@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "compute/protobuf_utils.h"
 #include "operators/shuffle/utils.h"
 #include "utils/macros.h"
 
@@ -244,18 +245,25 @@ class Splitter::PartitionWriter {
 
 arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
     const std::string& short_name, std::shared_ptr<arrow::Schema> schema,
-    int num_partitions, const gandiva::ExpressionVector& expr_vector,
-    SplitOptions options) {
+    int num_partitions, const uint8_t* expr_data, int expr_size, SplitOptions options) {
   if (short_name == "hash") {
-    return HashSplitter::Create(num_partitions, std::move(schema), expr_vector,
+    if (expr_data == nullptr || expr_size == -1) {
+      return arrow::Status::Invalid("Invalid expression data or size.");
+    }
+    substrait::Rel subRel;
+    ParseProtobuf(expr_data, expr_size, &subRel);
+    return HashSplitter::Create(num_partitions, std::move(schema), subRel,
                                 std::move(options));
-  } else if (short_name == "rr") {
+  }
+  if (short_name == "rr") {
     return RoundRobinSplitter::Create(num_partitions, std::move(schema),
                                       std::move(options));
-  } else if (short_name == "range") {
+  }
+  if (short_name == "range") {
     return FallbackRangeSplitter::Create(num_partitions, std::move(schema),
                                          std::move(options));
-  } else if (short_name == "single") {
+  }
+  if (short_name == "single") {
     return RoundRobinSplitter::Create(1, std::move(schema), std::move(options));
   }
   return arrow::Status::NotImplemented("Partitioning " + short_name +
@@ -265,7 +273,8 @@ arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
 arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
     const std::string& short_name, std::shared_ptr<arrow::Schema> schema,
     int num_partitions, SplitOptions options) {
-  return Make(short_name, std::move(schema), num_partitions, {}, std::move(options));
+  return Make(short_name, std::move(schema), num_partitions, nullptr, -1,
+              std::move(options));
 }
 
 arrow::Status Splitter::Init() {
@@ -1317,19 +1326,63 @@ arrow::Status RoundRobinSplitter::ComputeAndCountPartitionId(
 
 arrow::Result<std::shared_ptr<HashSplitter>> HashSplitter::Create(
     int32_t num_partitions, std::shared_ptr<arrow::Schema> schema,
-    const gandiva::ExpressionVector& expr_vector, SplitOptions options) {
+    const substrait::Rel& subRel, SplitOptions options) {
   std::shared_ptr<HashSplitter> res(
       new HashSplitter(num_partitions, std::move(schema), std::move(options)));
   RETURN_NOT_OK(res->Init());
-  RETURN_NOT_OK(res->CreateProjector(expr_vector));
+  RETURN_NOT_OK(res->CreateGandivaExpr(subRel));
+  RETURN_NOT_OK(res->CreateProjector());
   return res;
 }
 
-arrow::Status HashSplitter::CreateProjector(
-    const gandiva::ExpressionVector& expr_vector) {
+arrow::Status HashSplitter::CreateGandivaExpr(const substrait::Rel& subRel) {
+  // Parse the ProjectRel to get hash expression.
+  // Currently, only filed is supported.
+  substrait::ProjectRel subProject;
+  if (subRel.has_project()) {
+    subProject = subRel.project();
+  }
+  for (auto& sexpr : subProject.expressions()) {
+    switch (sexpr.rex_type_case()) {
+      case substrait::Expression::RexTypeCase::kSelection: {
+        auto sfield = sexpr.selection();
+        switch (sfield.reference_type_case()) {
+          case substrait::Expression::FieldReference::ReferenceTypeCase::
+              kDirectReference: {
+            auto sref = sfield.direct_reference();
+            switch (sref.reference_type_case()) {
+              case substrait::Expression::ReferenceSegment::ReferenceTypeCase::
+                  kStructField: {
+                hashIndices_.push_back(sref.struct_field().field());
+                break;
+              }
+              default:
+                return arrow::Status::Invalid("Unrecognized reference.");
+            }
+            break;
+          }
+          default:
+            return arrow::Status::Invalid("Unrecognized expression.");
+        }
+        break;
+      }
+      default:
+        return arrow::Status::Invalid("Only Fields are supported as hash keys.");
+    }
+  }
+  for (auto idx : hashIndices_) {
+    const auto& field = schema_->field(idx);
+    auto node = gandiva::TreeExprBuilder::MakeField(field);
+    exprVector_.push_back(gandiva::TreeExprBuilder::MakeExpression(
+        std::move(node), arrow::field("res_" + field->name(), field->type())));
+  }
+  return arrow::Status::OK();
+}
+
+arrow::Status HashSplitter::CreateProjector() {
   // same seed as spark's
   auto hash = gandiva::TreeExprBuilder::MakeLiteral((int32_t)42);
-  for (const auto& expr : expr_vector) {
+  for (const auto& expr : exprVector_) {
     switch (expr->root()->return_type()->id()) {
       case arrow::NullType::type_id:
         break;

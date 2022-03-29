@@ -190,11 +190,11 @@ class JavaRecordBatchIterator {
 #ifdef DEBUG
       std::cout << "JNIEnv was not attached to current thread." << std::endl;
 #endif
-      if (vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL) != 0) {
+      if (vm_->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(&env), NULL) != 0) {
         return arrow::Status::Invalid("Failed to attach thread.");
       }
 #ifdef DEBUG
-        std::cout << "Succeeded attaching current thread." << std::endl;
+      std::cout << "Succeeded attaching current thread." << std::endl;
 #endif
     } else if (getEnvStat != JNI_OK) {
       return arrow::Status::Invalid("JNIEnv was not attached to current thread");
@@ -582,13 +582,6 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   // ValueOrDie in MakeSchema
   MakeSchema(env, schema_arr, &schema);
 
-  gandiva::ExpressionVector expr_vector = {};
-  if (expr_arr != NULL) {
-    gandiva::FieldVector ret_types;
-    JniAssertOkOrThrow(MakeExprVector(env, expr_arr, &expr_vector, &ret_types),
-                       "Failed to parse expressions protobuf");
-  }
-
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
@@ -613,9 +606,17 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   }
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
+  // Get the hash expressions.
+  const uint8_t* expr_data = nullptr;
+  int expr_size = 0;
+  if (expr_arr != NULL) {
+    expr_data = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(expr_arr, 0));
+    expr_size = env->GetArrayLength(expr_arr);
+  }
+
   auto splitter =
       JniGetOrThrow(Splitter::Make(partitioning_name, std::move(schema), num_partitions,
-                                   expr_vector, std::move(splitOptions)),
+                                   expr_data, expr_size, std::move(splitOptions)),
                     "Failed create native shuffle splitter");
 
   return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));

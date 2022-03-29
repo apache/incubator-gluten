@@ -224,87 +224,87 @@ macro(build_velox_exec)
   set_target_properties(facebook::velox::exec
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXEC_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::connector
                         PROPERTIES IMPORTED_LOCATION "${VELOX_CONNECTOR_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::connector::hive::part
                         PROPERTIES IMPORTED_LOCATION "${VELOX_HIVE_PART_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::dwio::common
                         PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_COMMON_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::dwio::dwrf::proto
                         PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_DWRF_PROTO_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(iberty
                         PROPERTIES IMPORTED_LOCATION "${IBERTY_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(folly
                         PROPERTIES IMPORTED_LOCATION "${FOLLY_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::core::config
                         PROPERTIES IMPORTED_LOCATION "${VELOX_CORE_CONFIG_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::core
                         PROPERTIES IMPORTED_LOCATION "${VELOX_CORE_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::vector
                         PROPERTIES IMPORTED_LOCATION "${VELOX_VECTOR_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::type
                         PROPERTIES IMPORTED_LOCATION "${VELOX_TYPE_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(glog
                         PROPERTIES IMPORTED_LOCATION "${GLOG_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(gtest
                         PROPERTIES IMPORTED_LOCATION "${GTEST_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::common::base
                         PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_BASE_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::exec::test::util
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXEC_TEST_UTIL_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::parse::expression
                         PROPERTIES IMPORTED_LOCATION "${VELOX_PARSE_EXP_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(doubleconversion
                         PROPERTIES IMPORTED_LOCATION "${DOUBLE_CONVERSION_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")                                              
+                                   "${BINARY_RELEASE_DIR}/include")                                              
   set_target_properties(fmt
                         PROPERTIES IMPORTED_LOCATION "${FMT_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(snappy
                         PROPERTIES IMPORTED_LOCATION "${SNAPPY_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::common::memory
                         PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_MEM_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::common::time
                         PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_TIME_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
-                                    "${BINARY_RELEASE_DIR}/include")
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::common::process
                         PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_PROCESS_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
@@ -367,98 +367,98 @@ macro(build_velox_exec)
                                    "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::functions::json
                         PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_JSON_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::functions::hyperloglog
                         PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_HYPERLOGLOG_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::functions::prestosql::agg
                         PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_AGG_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::functions::lib
                         PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::type::tz
                         PROPERTIES IMPORTED_LOCATION "${VELOX_TYPE_TZ_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::external::md5
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXTERNAL_MD5_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::expression
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXPRESSION_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::expression::function
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXPRESSION_FUNCTIONS_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::buffer
                         PROPERTIES IMPORTED_LOCATION "${VELOX_BUFFER_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::arrow::bridge
                         PROPERTIES IMPORTED_LOCATION "${VELOX_ARROW_BRIDGE_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::substrait
                         PROPERTIES IMPORTED_LOCATION "${VELOX_SUBSTRAIT_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
 
   target_link_libraries(velox
-                    LINK_PUBLIC spark_columnar_jni
-                    LINK_PUBLIC facebook::velox::functions::prestosql::agg
-                    LINK_PUBLIC facebook::velox::exec
-                    LINK_PUBLIC facebook::velox::substrait
-                    LINK_PUBLIC facebook::velox::connector
-                    LINK_PUBLIC facebook::velox::connector::hive::part
-                    LINK_PUBLIC facebook::velox::dwio::dwrf::proto
-                    LINK_PUBLIC facebook::velox::functions::prestosql
-                    LINK_PUBLIC facebook::velox::functions::prestosql::impl
-                    LINK_PUBLIC facebook::velox::functions::json
-                    LINK_PUBLIC facebook::velox::functions::hyperloglog
-                    LINK_PUBLIC facebook::velox::functions::lib
-                    LINK_PUBLIC facebook::velox::vector
-                    LINK_PUBLIC facebook::velox::exec::test::util
-                    LINK_PUBLIC facebook::velox::parse::parser
-                    LINK_PUBLIC facebook::velox::parse::expression
-                    LINK_PUBLIC facebook::velox::arrow::bridge
-                    LINK_PUBLIC facebook::velox::common::memory
-                    LINK_PUBLIC facebook::velox::common::time
-                    LINK_PUBLIC facebook::velox::common::process
-                    LINK_PUBLIC facebook::velox::common::base::exception
-                    LINK_PUBLIC facebook::velox::connector::hive
-                    LINK_PUBLIC facebook::velox::expression
-                    LINK_PUBLIC facebook::velox::expression::function
-                    LINK_PUBLIC facebook::velox::dwio::dwrf::writer
-                    LINK_PUBLIC facebook::velox::dwio::dwrf::reader
-                    LINK_PUBLIC facebook::velox::dwio::dwrf::common
-                    LINK_PUBLIC facebook::velox::common::caching
-                    LINK_PUBLIC facebook::velox::dwio::common
-                    LINK_PUBLIC facebook::velox::type
-                    LINK_PUBLIC facebook::velox::common::file
-                    LINK_PUBLIC facebook::velox::common::base
-                    LINK_PUBLIC facebook::velox::duckdb::parser
-                    LINK_PUBLIC facebook::velox::duckdb::conversion
-                    LINK_PUBLIC facebook::velox::external::duckdb
-                    LINK_PUBLIC facebook::velox::core
-                    LINK_PUBLIC facebook::velox::core::config
-                    LINK_PUBLIC facebook::velox::type::tz
-                    LINK_PUBLIC facebook::velox::external::md5
-                    LINK_PUBLIC facebook::velox::buffer
-                    LINK_PUBLIC facebook::velox::functions::prestosql::types
-                    LINK_PUBLIC gtest
-                    LINK_PUBLIC folly
-                    LINK_PUBLIC iberty
-                    LINK_PUBLIC doubleconversion
-                    LINK_PUBLIC snappy
-                    LINK_PUBLIC glog
-                    LINK_PUBLIC fmt)
+                        LINK_PUBLIC spark_columnar_jni
+                        LINK_PUBLIC facebook::velox::functions::prestosql::agg
+                        LINK_PUBLIC facebook::velox::exec
+                        LINK_PUBLIC facebook::velox::substrait
+                        LINK_PUBLIC facebook::velox::connector
+                        LINK_PUBLIC facebook::velox::connector::hive::part
+                        LINK_PUBLIC facebook::velox::dwio::dwrf::proto
+                        LINK_PUBLIC facebook::velox::functions::prestosql
+                        LINK_PUBLIC facebook::velox::functions::prestosql::impl
+                        LINK_PUBLIC facebook::velox::functions::json
+                        LINK_PUBLIC facebook::velox::functions::hyperloglog
+                        LINK_PUBLIC facebook::velox::functions::lib
+                        LINK_PUBLIC facebook::velox::vector
+                        LINK_PUBLIC facebook::velox::exec::test::util
+                        LINK_PUBLIC facebook::velox::parse::parser
+                        LINK_PUBLIC facebook::velox::parse::expression
+                        LINK_PUBLIC facebook::velox::arrow::bridge
+                        LINK_PUBLIC facebook::velox::common::memory
+                        LINK_PUBLIC facebook::velox::common::time
+                        LINK_PUBLIC facebook::velox::common::process
+                        LINK_PUBLIC facebook::velox::common::base::exception
+                        LINK_PUBLIC facebook::velox::connector::hive
+                        LINK_PUBLIC facebook::velox::expression
+                        LINK_PUBLIC facebook::velox::expression::function
+                        LINK_PUBLIC facebook::velox::dwio::dwrf::writer
+                        LINK_PUBLIC facebook::velox::dwio::dwrf::reader
+                        LINK_PUBLIC facebook::velox::dwio::dwrf::common
+                        LINK_PUBLIC facebook::velox::common::caching
+                        LINK_PUBLIC facebook::velox::dwio::common
+                        LINK_PUBLIC facebook::velox::type
+                        LINK_PUBLIC facebook::velox::common::file
+                        LINK_PUBLIC facebook::velox::common::base
+                        LINK_PUBLIC facebook::velox::duckdb::parser
+                        LINK_PUBLIC facebook::velox::duckdb::conversion
+                        LINK_PUBLIC facebook::velox::external::duckdb
+                        LINK_PUBLIC facebook::velox::core
+                        LINK_PUBLIC facebook::velox::core::config
+                        LINK_PUBLIC facebook::velox::type::tz
+                        LINK_PUBLIC facebook::velox::external::md5
+                        LINK_PUBLIC facebook::velox::buffer
+                        LINK_PUBLIC facebook::velox::functions::prestosql::types
+                        LINK_PUBLIC gtest
+                        LINK_PUBLIC folly
+                        LINK_PUBLIC iberty
+                        LINK_PUBLIC doubleconversion
+                        LINK_PUBLIC snappy
+                        LINK_PUBLIC glog
+                        LINK_PUBLIC fmt)
 endmacro()
 
 # Build Velox backend.

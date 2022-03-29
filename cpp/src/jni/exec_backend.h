@@ -112,8 +112,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       std::cout << "Error parsing substrait plan to json" << std::endl;
     }
 #endif
-    google::protobuf::io::ArrayInputStream buf_stream{data, size};
-    return plan_.ParseFromZeroCopyStream(&buf_stream);
+    return ParseProtobuf(data, size, &plan_);
   }
 
   /// Parse and get the input schema from the cached plan.
@@ -142,15 +141,16 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       const substrait::Type& stype) {
     // TODO: need to add more types here.
     switch (stype.kind_case()) {
-      case substrait::Type::KindCase::kBool: {
+      case substrait::Type::KindCase::kBool:
         return arrow::boolean();
-      }
-      case substrait::Type::KindCase::kFp64: {
+      case ::substrait::Type::KindCase::kI32:
+        return arrow::int32();
+      case ::substrait::Type::KindCase::kI64:
+        return arrow::int64();
+      case substrait::Type::KindCase::kFp64:
         return arrow::float64();
-      }
-      case substrait::Type::KindCase::kString: {
+      case substrait::Type::KindCase::kString:
         return arrow::utf8();
-      }
       default:
         return arrow::Result<std::shared_ptr<arrow::DataType>>(
             arrow::Status::Invalid("Type not supported: " + stype.kind_case()));
