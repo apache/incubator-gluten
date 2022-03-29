@@ -15,38 +15,20 @@
  * limitations under the License.
  */
 
-#include <jni.h>
+#pragma once
 
-#include "compute/substrait_arrow.h"
-#include "compute/substrait_utils.h"
+#include <arrow/type.h>
 
-static jint JNI_VERSION = JNI_VERSION_1_8;
+namespace gazellejni {
+namespace columnartorow {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+int64_t CalculateBitSetWidthInBytes(int32_t numFields);
 
-jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  JNIEnv* env;
-  if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
-    return JNI_ERR;
-  }
-  std::cout << "loaded gazelle_cpp" << std::endl;
-  return JNI_VERSION;
-}
+int64_t RoundNumberOfBytesToNearestWord(int64_t numBytes);
 
-void JNI_OnUnload(JavaVM* vm, void* reserved) {
-  JNIEnv* env;
-  vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
-}
+int64_t CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols);
 
-JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
-    JNIEnv* env, jobject obj) {
-  gazellejni::SetBackendFactory(
-      [] { return std::make_shared<velox::compute::ArrowSubstraitParser>(); });
-}
+int64_t GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace columnartorow
+}  // namespace gazellejni

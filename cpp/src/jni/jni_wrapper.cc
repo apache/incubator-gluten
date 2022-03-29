@@ -185,7 +185,18 @@ class JavaRecordBatchIterator {
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
     JNIEnv* env;
-    if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+    int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
+    if (getEnvStat == JNI_EDETACHED) {
+#ifdef DEBUG
+      std::cout << "JNIEnv was not attached to current thread." << std::endl;
+#endif
+      if (vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL) != 0) {
+        return arrow::Status::Invalid("Failed to attach thread.");
+      }
+#ifdef DEBUG
+        std::cout << "Succeeded attaching current thread." << std::endl;
+#endif
+    } else if (getEnvStat != JNI_OK) {
       return arrow::Status::Invalid("JNIEnv was not attached to current thread");
     }
 #ifdef DEBUG

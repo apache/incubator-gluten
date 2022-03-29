@@ -17,8 +17,7 @@
 
 #include <jni.h>
 
-#include "compute/substrait_arrow.h"
-#include "compute/substrait_utils.h"
+#include "compute/VeloxPlanConverter.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
@@ -31,7 +30,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
   }
-  std::cout << "loaded gazelle_cpp" << std::endl;
+  std::cout << "Loaded Velox backend." << std::endl;
   return JNI_VERSION;
 }
 
@@ -44,7 +43,9 @@ JNIEXPORT void JNICALL
 Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
   gazellejni::SetBackendFactory(
-      [] { return std::make_shared<velox::compute::ArrowSubstraitParser>(); });
+      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
+  auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
+  veloxInitializer->Init();
 }
 
 #ifdef __cplusplus
