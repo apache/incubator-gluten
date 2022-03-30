@@ -78,31 +78,41 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::FilterRel& sfilter)
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::InputRel& sinput) {
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
+  int32_t iterIdx = subVeloxPlanConverter_->iterAsInput(sread);
+  if (iterIdx == -1) {
+    return;
+  }
+  dsAsInput_ = false;
   if (arrowInputIters_.size() == 0) {
     throw std::runtime_error("Invalid input iterator.");
   }
-  dsAsInput_ = false;
-  auto iterIdx = sinput.iter_idx();
-  std::vector<std::string> colNameList;
+
+  // Get the input schema of this iterator.
+  uint64_t colNum = 0;
   std::vector<std::shared_ptr<facebook::velox::substrait::SubstraitParser::SubstraitType>>
       subTypeList;
-  if (sinput.has_input_schema()) {
-    const auto& inputSchema = sinput.input_schema();
-    for (const auto& name : inputSchema.names()) {
-      colNameList.push_back(name);
-    }
-    subTypeList = subParser_->parseNamedStruct(inputSchema);
+  if (sread.has_base_schema()) {
+    const auto& baseSchema = sread.base_schema();
+    // Input names is not used. Instead, new input/output names will be created
+    // because the Arrow Stream node in Velox does not support name change.
+    colNum = baseSchema.names().size();
+    subTypeList = subParser_->parseNamedStruct(baseSchema);
   }
+
+  // Get the Arrow fields and output names for this plan node.
   std::vector<std::shared_ptr<arrow::Field>> arrowFields;
+  arrowFields.reserve(colNum);
   std::vector<std::string> outNames;
-  for (int idx = 0; idx < colNameList.size(); idx++) {
+  outNames.reserve(colNum);
+  for (int idx = 0; idx < colNum; idx++) {
     auto colName = subParser_->makeNodeName(planNodeId_, idx);
-    auto subType = subTypeList[idx];
-    auto arrowField = arrow::field(colName, toArrowTypeFromName(subType->type));
-    arrowFields.push_back(arrowField);
-    outNames.push_back(colName);
+    arrowFields.emplace_back(
+        arrow::field(colName, toArrowTypeFromName(subTypeList[idx]->type)));
+    outNames.emplace_back(colName);
   }
+
+  // Create Arrow reader.
   std::shared_ptr<arrow::Schema> schema = arrow::schema(arrowFields);
   auto rbIter = std::move(arrowInputIters_[iterIdx]);
   // TODO: manage the iter well.
@@ -112,9 +122,13 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::InputRel& sinput) {
     throw std::runtime_error("Reader is not created.");
   }
   auto reader = maybeReader.ValueOrDie();
+
+  // Create ArrowArrayStream.
   struct ArrowArrayStream veloxArrayStream;
   arrow::ExportRecordBatchReader(reader, &veloxArrayStream);
   arrowStreamIter_ = std::make_shared<ArrowArrayStream>(veloxArrayStream);
+
+  // Create Velox ArrowStream node.
   std::vector<TypePtr> veloxTypeList;
   for (auto subType : subTypeList) {
     veloxTypeList.push_back(facebook::velox::substrait::toVeloxType(subType->type));
@@ -133,8 +147,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
   } else if (srel.has_filter()) {
     setInputPlanNode(srel.filter());
   } else if (srel.has_read()) {
-  } else if (srel.has_input()) {
-    setInputPlanNode(srel.input());
+    setInputPlanNode(srel.read());
   } else {
     throw std::runtime_error("Rel is not supported.");
   }

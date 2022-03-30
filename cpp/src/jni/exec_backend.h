@@ -158,7 +158,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   }
 
  private:
-  // This method is used to get the input schema in InputRel.
+  // This method is used to get the input schema in ReadRel.
   arrow::Status GetIterInputSchemaFromRel(
       const substrait::Rel& srel,
       std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>& schema_map) {
@@ -172,21 +172,21 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     if (srel.has_filter() && srel.filter().has_input()) {
       return GetIterInputSchemaFromRel(srel.filter().input(), schema_map);
     }
-    if (!srel.has_input()) {
-      return arrow::Status::Invalid("Input Rel expected.");
+    if (!srel.has_read()) {
+      return arrow::Status::Invalid("Read Rel expected.");
     }
-    const auto& sinput = srel.input();
-    std::vector<std::string> col_name_list;
-    if (!sinput.has_input_schema()) {
-      return arrow::Status::Invalid("Input schema expected.");
+    const auto& sread = srel.read();
+    if (!sread.has_base_schema()) {
+      return arrow::Status::Invalid("Base schema expected.");
     }
-    const auto& input_schema = sinput.input_schema();
+    const auto& base_schema = sread.base_schema();
     // Get column names from input schema.
-    for (const auto& name : input_schema.names()) {
+    std::vector<std::string> col_name_list;
+    for (const auto& name : base_schema.names()) {
       col_name_list.push_back(name);
     }
     // Get column types from input schema.
-    auto& stypes = input_schema.struct_().types();
+    auto& stypes = base_schema.struct_().types();
     std::vector<std::shared_ptr<arrow::DataType>> arrow_types;
     arrow_types.reserve(stypes.size());
     for (const auto& type : stypes) {
@@ -204,8 +204,26 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     for (int col_idx = 0; col_idx < col_name_list.size(); col_idx++) {
       input_fields.push_back(arrow::field(col_name_list[col_idx], arrow_types[col_idx]));
     }
+
+    // Get the iterator index.
+    int32_t iterIdx;
+    if (sread.has_local_files()) {
+      const auto& fileList = sread.local_files().items();
+      if (fileList.size() == 0) {
+        return arrow::Status::Invalid("At least one file path is expected.");
+      }
+      std::string filePath = fileList[0].uri_file();
+      std::string prefix = "iterator:";
+      std::size_t pos = filePath.find(prefix);
+      if (pos == std::string::npos) {
+        return arrow::Status::Invalid("Iterator index is not found.");
+      }
+      std::string idxStr = filePath.substr(pos + prefix.size(), filePath.size());
+      iterIdx = std::stoi(idxStr);
+    }
+
     // Set up the schema map.
-    schema_map[sinput.iter_idx()] = arrow::schema(input_fields);
+    schema_map[iterIdx] = arrow::schema(input_fields);
     return arrow::Status::OK();
   }
 };

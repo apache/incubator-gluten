@@ -22,6 +22,14 @@ public class ReadRelNode implements RelNode, Serializable {
         this.context = context;
     }
 
+    ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
+                SubstraitContext context) {
+        this.types.addAll(types);
+        this.names.addAll(names);
+        this.filterNode = null;
+        this.context = context;
+    }
+
     @Override
     public Rel toProtobuf() {
         RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();

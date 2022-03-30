@@ -23,8 +23,9 @@ class SubstraitContext extends Serializable {
 
   private val functionMap = new java.util.HashMap[String, java.lang.Long]()
 
-  private var localFilesNode: LocalFilesNode = null
-  private var extensionTableNode: ExtensionTableNode = null
+  private var localFilesNode: LocalFilesNode = _
+  private var extensionTableNode: ExtensionTableNode = _
+  private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
 
   def setLocalFilesNode(localFilesNode: LocalFilesNode): Unit = {
     this.localFilesNode = localFilesNode
@@ -49,5 +50,11 @@ class SubstraitContext extends Serializable {
     }
   }
 
-  def registeredFunction : java.util.HashMap[String, java.lang.Long] = functionMap
+  def registeredFunction: java.util.HashMap[String, java.lang.Long] = functionMap
+
+  def getIteratorIndex: java.lang.Long = {
+    val id = this.iteratorIndex
+    this.iteratorIndex += 1
+    id
+  }
 }

@@ -21,7 +21,7 @@ import scala.collection.mutable.ListBuffer
 import com.google.common.collect.Lists
 import com.intel.oap.expression._
 import com.intel.oap.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
-import com.intel.oap.substrait.rel.{RelBuilder, RelNode}
+import com.intel.oap.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import com.intel.oap.substrait.SubstraitContext
 import com.intel.oap.GazelleJniConfig
 import java.util
@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import scala.util.control.Breaks.{break, breakable}
 
 /**
@@ -151,7 +152,7 @@ case class HashAggregateExecTransformer(
     val (relNode, inputAttributes) = if (childCtx != null) {
       (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes)
     } else {
-      // This means the input is just an iterator, so an InputRel will be created as child.
+      // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
@@ -159,10 +160,13 @@ case class HashAggregateExecTransformer(
         typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         nameList.add(attr.name)
       }
-      // TODO: The iter index should be dynamically generated.
-      val inputRel = RelBuilder
-        .makeInputRel(nameList, typeList, new java.lang.Long(0))
-      (getAggRel(context.registeredFunction, inputRel), child.output)
+      // The iterator index will be added in the path of LocalFiles.
+      val inputIter = LocalFilesBuilder.makeLocalFiles(
+        ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
+      context.setLocalFilesNode(inputIter)
+      val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
+
+      (getAggRel(context.registeredFunction, readRel), child.output)
     }
     TransformContext(inputAttributes, output, relNode)
   }

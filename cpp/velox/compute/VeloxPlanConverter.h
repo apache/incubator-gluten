@@ -94,7 +94,7 @@ class VeloxPlanConverter : public gazellejni::ExecBackendBase {
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
   void setInputPlanNode(const ::substrait::ProjectRel& sproject);
   void setInputPlanNode(const ::substrait::FilterRel& sfilter);
-  void setInputPlanNode(const ::substrait::InputRel& sinput);
+  void setInputPlanNode(const ::substrait::ReadRel& sread);
   void setInputPlanNode(const ::substrait::Rel& srel);
   void setInputPlanNode(const ::substrait::RelRoot& sroot);
 

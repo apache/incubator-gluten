@@ -26,4 +26,8 @@ public class LocalFilesBuilder {
                                                 ArrayList<Long> starts, ArrayList<Long> lengths) {
         return new LocalFilesNode(index, paths, starts, lengths);
     }
+
+    public static LocalFilesNode makeLocalFiles(String iterPath) {
+        return new LocalFilesNode(iterPath);
+    }
 }
