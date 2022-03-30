@@ -247,7 +247,7 @@ arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
     const std::string& short_name, std::shared_ptr<arrow::Schema> schema,
     int num_partitions, const uint8_t* expr_data, int expr_size, SplitOptions options) {
   if (short_name == "hash") {
-    if (expr_data == nullptr || expr_size == -1) {
+    if (expr_data == nullptr || expr_size == 0) {
       return arrow::Status::Invalid("Invalid expression data or size.");
     }
     substrait::Rel subRel;
@@ -273,7 +273,7 @@ arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
 arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
     const std::string& short_name, std::shared_ptr<arrow::Schema> schema,
     int num_partitions, SplitOptions options) {
-  return Make(short_name, std::move(schema), num_partitions, nullptr, -1,
+  return Make(short_name, std::move(schema), num_partitions, nullptr, 0,
               std::move(options));
 }
 

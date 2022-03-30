@@ -30,7 +30,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
   }
+#ifdef DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
+#endif
   return JNI_VERSION;
 }
 

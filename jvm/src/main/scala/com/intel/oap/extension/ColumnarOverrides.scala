@@ -295,7 +295,9 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   val columnarWholeStageEnabled: Boolean = conf.getBoolean(
     "spark.oap.sql.columnar.wholestagetransform", defaultValue = true)
-  def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
+  val backend: String = conf.get(
+    GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, defaultValue = "")
+  def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled, backend)
 
   var isSupportAdaptive: Boolean = true
 

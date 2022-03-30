@@ -37,10 +37,10 @@ namespace compute {
 
 // The Init will be called per executor.
 void VeloxInitializer::Init() {
-  // Setup
+  // Setup and register.
   filesystems::registerLocalFileSystem();
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
-      std::make_unique<folly::IOThreadPoolExecutor>(3);
+      std::make_unique<folly::IOThreadPoolExecutor>(1);
   // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
   // registerConnectorFactory(hiveConnectorFactory);
   auto hiveConnector = getConnectorFactory("hive")->newConnector(
