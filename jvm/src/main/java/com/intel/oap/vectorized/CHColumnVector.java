@@ -25,7 +25,7 @@ import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.types.UTF8String;
 
 public class CHColumnVector extends ColumnVector {
-    private final long blockAddress;
+    private long blockAddress;
     private final int columnPosition;
 
     public CHColumnVector(DataType type, long blockAddress, int columnPosition) {
@@ -40,7 +40,7 @@ public class CHColumnVector extends ColumnVector {
 
     @Override
     public void close() {
-
+        blockAddress = 0;
     }
 
     private native boolean nativeHasNull(long blockAddress, int columnPosition);
@@ -57,59 +57,59 @@ public class CHColumnVector extends ColumnVector {
         return nativeNumNulls(blockAddress, columnPosition);
     }
 
-    private native boolean nativeIsNullAt(long blockAddress, int columnPosition);
+    private native boolean nativeIsNullAt(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public  boolean isNullAt(int rowId){
-        return nativeIsNullAt(blockAddress, columnPosition);
+        return nativeIsNullAt(rowId, blockAddress, columnPosition);
     }
 
-    private native boolean nativeGetBoolean(long blockAddress, int columnPosition);
+    private native boolean nativeGetBoolean(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public boolean getBoolean(int rowId){
-        return nativeGetBoolean(blockAddress, columnPosition);
+        return nativeGetBoolean(rowId, blockAddress, columnPosition);
     }
-    private native byte nativeGetByte(long blockAddress, int columnPosition);
+    private native byte nativeGetByte(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public byte getByte(int rowId){
-        return nativeGetByte(blockAddress, columnPosition);
+        return nativeGetByte(rowId, blockAddress, columnPosition);
     }
 
-    private native short nativeGetShort(long blockAddress, int columnPosition);
+    private native short nativeGetShort(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public short getShort(int rowId){
-        return nativeGetShort(blockAddress, columnPosition);
+        return nativeGetShort(rowId, blockAddress, columnPosition);
     }
 
-    private native int nativeGetInt(long blockAddress, int columnPosition);
+    private native int nativeGetInt(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public int getInt(int rowId){
-        return nativeGetInt(blockAddress, columnPosition);
+        return nativeGetInt(rowId, blockAddress, columnPosition);
     }
 
-    private native long nativeGetLong(long blockAddress, int columnPosition);
+    private native long nativeGetLong(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public long getLong(int rowId){
-        return nativeGetLong(blockAddress, columnPosition);
+        return nativeGetLong(rowId, blockAddress, columnPosition);
     }
 
-    private native float nativeGetFloat(long blockAddress, int columnPosition);
+    private native float nativeGetFloat(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public float getFloat(int rowId){
-        return nativeGetFloat(blockAddress, columnPosition);
+        return nativeGetFloat(rowId, blockAddress, columnPosition);
     }
 
-    private native double nativeGetDouble(long blockAddress, int columnPosition);
+    private native double nativeGetDouble(int rowId, long blockAddress, int columnPosition);
 
     @Override
     public double getDouble(int rowId){
-        return nativeGetDouble(blockAddress, columnPosition);
+        return nativeGetDouble(rowId, blockAddress, columnPosition);
     }
 
     @Override
@@ -127,9 +127,11 @@ public class CHColumnVector extends ColumnVector {
         return null;
     }
 
+    private native String nativeGetString(int rowId, long blockAddress, int columnPosition);
+
     @Override
     public UTF8String getUTF8String(int rowId) {
-        return null;
+        return UTF8String.fromString(nativeGetString(rowId, blockAddress, columnPosition));
     }
 
     @Override

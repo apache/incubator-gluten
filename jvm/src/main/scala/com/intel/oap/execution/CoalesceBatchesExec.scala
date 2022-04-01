@@ -72,93 +72,106 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
     val avgCoalescedNumRows = longMetric("avgCoalescedNumRows")
 
     child.executeColumnar().mapPartitions { iter =>
-      val beforeInput = System.nanoTime
-      val hasInput = iter.hasNext
-      collectTime += System.nanoTime - beforeInput
-      val res = if (hasInput) {
-        if (GazelleJniConfig.getConf.loadch) {
-          new Iterator[ColumnarBatch] {
-            override def hasNext: Boolean = {
-              iter.hasNext
-            }
-
-            override def next(): ColumnarBatch = {
-              iter.next()
-            }
-          }
-        } else {
-          new Iterator[ColumnarBatch] {
-            var numBatchesTotal: Long = _
-            var numRowsTotal: Long = _
-            SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ =>
-              if (numBatchesTotal > 0) {
-                avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
-              }
-            }
-
-            override def hasNext: Boolean = {
-              val beforeNext = System.nanoTime
-              val hasNext = iter.hasNext
-              collectTime += System.nanoTime - beforeNext
-              hasNext
-            }
-
-            override def next(): ColumnarBatch = {
-
-              if (!hasNext) {
-                throw new NoSuchElementException("End of ColumnarBatch iterator")
-              }
-
-              var rowCount = 0
-              val batchesToAppend = ListBuffer[ColumnarBatch]()
-
-              while (hasNext && rowCount < recordsPerBatch) {
-                val delta = iter.next()
-                //              delta.retain()
-                rowCount += delta.numRows
-                batchesToAppend += delta
-              }
-
-              // chendi: We need make sure target FieldTypes are exactly the same as src
-              val expected_output_arrow_fields = if (batchesToAppend.size > 0) {
-                (0 until batchesToAppend(0).numCols).map(i => {
-                  batchesToAppend(0).column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector.getField
-                })
-              } else {
-                Nil
-              }
-
-              val resultStructType = ArrowUtils.fromArrowSchema(new Schema(expected_output_arrow_fields.asJava))
-              val beforeConcat = System.nanoTime
-              val resultColumnVectors =
-                ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType).toArray
-              val target =
-                new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), rowCount)
-              coalesce(target, batchesToAppend.toList)
-              target.setNumRows(rowCount)
-
-              concatTime += System.nanoTime - beforeConcat
-              numOutputRows += rowCount
-              numInputBatches += batchesToAppend.length
-              numOutputBatches += 1
-
-              // used for calculating avgCoalescedNumRows
-              numRowsTotal += rowCount
-              numBatchesTotal += 1
-
-              batchesToAppend.foreach(cb => cb.close())
-
-              target
-            }
-          }
+//      val beforeInput = System.nanoTime
+//      val hasInput = iter.hasNext
+//      collectTime += System.nanoTime - beforeInput
+//      val res = if (hasInput) {
+//        if (GazelleJniConfig.getConf.loadch) {
+//          new Iterator[ColumnarBatch] {
+//            override def hasNext: Boolean = {
+//              iter.hasNext
+//            }
+//
+//            override def next(): ColumnarBatch = {
+//              iter.next()
+//            }
+//          }
+//        } else {
+//          new Iterator[ColumnarBatch] {
+//            var numBatchesTotal: Long = _
+//            var numRowsTotal: Long = _
+//            SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ =>
+//              if (numBatchesTotal > 0) {
+//                avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
+//              }
+//            }
+//
+//            override def hasNext: Boolean = {
+//              val beforeNext = System.nanoTime
+//              val hasNext = iter.hasNext
+//              collectTime += System.nanoTime - beforeNext
+//              hasNext
+//            }
+//
+//            override def next(): ColumnarBatch = {
+//
+//              if (!hasNext) {
+//                throw new NoSuchElementException("End of ColumnarBatch iterator")
+//              }
+//
+//              var rowCount = 0
+//              val batchesToAppend = ListBuffer[ColumnarBatch]()
+//
+//              while (hasNext && rowCount < recordsPerBatch) {
+//                val delta = iter.next()
+//                //              delta.retain()
+//                rowCount += delta.numRows
+//                batchesToAppend += delta
+//              }
+//
+//              // chendi: We need make sure target FieldTypes are exactly the same as src
+//              val expected_output_arrow_fields = if (batchesToAppend.size > 0) {
+//                (0 until batchesToAppend(0).numCols).map(i => {
+//                  batchesToAppend(0).column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector.getField
+//                })
+//              } else {
+//                Nil
+//              }
+//
+//              val resultStructType = ArrowUtils.fromArrowSchema(new Schema(expected_output_arrow_fields.asJava))
+//              val beforeConcat = System.nanoTime
+//              val resultColumnVectors =
+//                ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType).toArray
+//              val target =
+//                new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), rowCount)
+//              coalesce(target, batchesToAppend.toList)
+//              target.setNumRows(rowCount)
+//
+//              concatTime += System.nanoTime - beforeConcat
+//              numOutputRows += rowCount
+//              numInputBatches += batchesToAppend.length
+//              numOutputBatches += 1
+//
+//              // used for calculating avgCoalescedNumRows
+//              numRowsTotal += rowCount
+//              numBatchesTotal += 1
+//
+//              batchesToAppend.foreach(cb => cb.close())
+//
+//              target
+//            }
+//          }
+//        }
+//      } else {
+//        Iterator.empty
+//      }
+//      if (GazelleJniConfig.getConf.loadch) {
+//        res
+//      } else {
+//        new CloseableColumnBatchIterator(res)
+//      }
+      new Iterator[ColumnarBatch] {
+        override def hasNext: Boolean = {
+          iter.hasNext
         }
-      } else {
-        Iterator.empty
-      }
-      if (GazelleJniConfig.getConf.loadch) {
-        res
-      } else {
-        new CloseableColumnBatchIterator(res)
+
+        override def next(): ColumnarBatch = {
+          var batch = iter.next()
+          while ((batch.numRows() == 0 || batch.numCols() == 0) && iter.hasNext) {
+              batch = iter.next()
+          }
+          batch
+        }
       }
     }
   }

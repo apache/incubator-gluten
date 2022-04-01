@@ -59,6 +59,12 @@ public class CHNativeBlock {
         for (int i = 0; i < numColumns(); i++) {
             vectors[i] = new CHColumnVector(DataType.fromDDL(getTypeByPosition(i)), blockAddress, i);
         }
-        return new ColumnarBatch(vectors);
+        int numRows = 0;
+        if (numColumns() == 0) {
+            numRows = 0;
+        } else {
+            numRows = numRows();
+        }
+        return new ColumnarBatch(vectors, numRows);
     }
 }

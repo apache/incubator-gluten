@@ -69,7 +69,7 @@ object DSV2ColumnarBenchmarkTest {
 
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[3]")
+        .master("local[1]")
         .config("spark.driver.memory", "4G")
         .config("spark.driver.memoryOverhead", "6G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
