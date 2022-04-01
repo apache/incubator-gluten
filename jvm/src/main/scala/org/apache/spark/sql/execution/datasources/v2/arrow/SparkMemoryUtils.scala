@@ -17,12 +17,12 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
+import com.intel.oap.GazelleJniConfig
+
 import java.io.PrintWriter
 import java.util
 import java.util.UUID
-
 import scala.collection.JavaConverters._
-
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow._
 import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
 import org.apache.arrow.dataset.jni.NativeMemoryPool
@@ -31,7 +31,6 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.memory.MemoryChunkCleaner
 import org.apache.arrow.memory.MemoryChunkManager
 import org.apache.arrow.memory.RootAllocator
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
@@ -109,7 +108,9 @@ object SparkMemoryUtils extends Logging {
       .newChildAllocator("CHILD-ALLOC-BUFFER-IMPORT", allocListenerForBufferImport, 0L,
         Long.MaxValue)
 
-    val defaultMemoryPool: NativeMemoryPoolWrapper = {
+    val defaultMemoryPool: NativeMemoryPoolWrapper = if (GazelleJniConfig.getConf.loadch) {
+      null
+    } else {
       val rl = new SparkManagedReservationListener(
         new NativeSQLMemoryConsumer(getTaskMemoryManager(), Spiller.NO_OP),
         sharedMetrics)

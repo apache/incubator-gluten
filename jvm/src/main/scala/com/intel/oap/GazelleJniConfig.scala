@@ -18,9 +18,6 @@
 package com.intel.oap
 
 import java.util.Locale
-
-import com.intel.oap.GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -209,6 +206,9 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val shuffleSplitDefaultSize: Int =
     conf.getConfString("spark.oap.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
+  val loadch: Boolean =
+    conf.getConfString(GazelleJniConfig.OAP_LOAD_CH, "false").toBoolean
+
   val numaBindingInfo: GazelleNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.oap.sql.columnar.numaBinding", "false").toBoolean
@@ -235,6 +235,7 @@ object GazelleJniConfig {
   val OAP_LIB_NAME = "spark.oap.sql.columnar.libname"
   val OAP_LIB_PATH = "spark.oap.sql.columnar.libpath"
   val OAP_LOAD_ARROW = "spark.oap.sql.columnar.loadarrow"
+  val OAP_LOAD_CH = "spark.oap.sql.columnar.loadch"
 
   val GAZELLE_JNI_BACKEND_LIB = "spark.oap.sql.columnar.backend.lib"
 

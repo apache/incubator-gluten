@@ -17,6 +17,7 @@
 
 package com.intel.oap.vectorized;
 
+import com.intel.oap.GazelleJniConfig;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
@@ -199,9 +200,11 @@ public class JniInstance {
       System.load(file.getAbsolutePath());
       // To use columnar Shuffle, the shared library compiled by Gazelle-Jni native code
       // will be also loaded.
-      final String jniLibrary = System.mapLibraryName(LIBRARY_NAME);
-      final File jniLibraryFile = moveFileFromJarToTemp(tmp_dir, jniLibrary);
-      System.load(jniLibraryFile.getAbsolutePath());
+//      if (!GazelleJniConfig.getConf().loadch()) {
+//        final String jniLibrary = System.mapLibraryName(LIBRARY_NAME);
+//        final File jniLibraryFile = moveFileFromJarToTemp(tmp_dir, jniLibrary);
+//        System.load(jniLibraryFile.getAbsolutePath());
+//      }
       if (loadArrowAndGandiva) {
         loadArrowAndGandivaFromJarWithLib(tmp_dir);
       }

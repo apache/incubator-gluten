@@ -91,10 +91,14 @@ public class ExpressionEvaluator implements AutoCloseable {
   public BatchIterator createKernelWithBatchIterator(
           byte[] wsPlan, ArrayList<ColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
-    NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
+    long poolId = 0;
+    if (!GazelleJniConfig.getConf().loadch()) {
+      NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
+      poolId = memoryPool.getNativeInstanceId();
+    }
     ColumnarNativeIterator[] iterArray = new ColumnarNativeIterator[iterList.size()];
     long batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
-            memoryPool.getNativeInstanceId(), wsPlan, iterList.toArray(iterArray));
+            poolId, wsPlan, iterList.toArray(iterArray));
     return new BatchIterator(batchIteratorInstance);
   }
 
@@ -132,6 +136,7 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   byte[] getPlanBytesBuf(PlanNode planNode) {
+    System.out.println(planNode.toProtobuf().toString());
     return planNode.toProtobuf().toByteArray();
   }
 }

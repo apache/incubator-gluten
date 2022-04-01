@@ -18,8 +18,9 @@
 package org.apache.spark.sql.execution
 
 import com.google.common.collect.Lists
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.{CodeGeneration, ConverterUtils}
-import com.intel.oap.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, NativePartitioning}
+import com.intel.oap.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, CHColumnarBatchSerializer, NativePartitioning}
 import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.spark._
@@ -71,7 +72,9 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
 
   override def nodeName: String = "ColumnarExchange"
+
   override def output: Seq[Attribute] = child.output
+
   buildCheck()
 
   override def supportsColumnar: Boolean = true
@@ -81,6 +84,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
   def buildCheck(): Unit = {
+    if (GazelleJniConfig.getConf.loadch) return
     // check input datatype
     for (attr <- child.output) {
       try {
@@ -93,10 +97,17 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     }
   }
 
-  val serializer: Serializer = new ArrowColumnarBatchSerializer(
-    schema,
-    longMetric("avgReadBatchNumRows"),
-    longMetric("numOutputRows"))
+  private val loadch = GazelleJniConfig.getConf.loadch
+
+  val serializer: Serializer = if (loadch) {
+    new CHColumnarBatchSerializer(longMetric("avgReadBatchNumRows"),
+    longMetric("numOutputRows"))}
+  else {
+    new ArrowColumnarBatchSerializer(
+      schema,
+      longMetric("avgReadBatchNumRows"),
+      longMetric("numOutputRows"))
+  }
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -202,10 +213,18 @@ class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioni
     super.stringArgs ++ Iterator(s"[id=#$id]")
   //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
-  val serializer: Serializer = new ArrowColumnarBatchSerializer(
-    schema,
-    longMetric("avgReadBatchNumRows"),
-    longMetric("numOutputRows"))
+  private val loadch = GazelleJniConfig.getConf.loadch
+
+  val serializer: Serializer = if (loadch) {
+    new CHColumnarBatchSerializer(longMetric("avgReadBatchNumRows"),
+      longMetric("numOutputRows"))}
+  else {
+    new ArrowColumnarBatchSerializer(
+      schema,
+      longMetric("avgReadBatchNumRows"),
+      longMetric("numOutputRows"))
+  }
+
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -384,27 +403,42 @@ object ColumnarShuffleExchangeExec extends Logging {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, serializeSchema(arrowFields))
       case HashPartitioning(exprs, n) =>
-        val gandivaExprs = exprs.zipWithIndex.map {
-          case (expr, i) =>
-            // FIXME
-//            val columnarExpr = ColumnarExpressionConverter
-//              .replaceWithColumnarExpression(expr)
-//              .asInstanceOf[ColumnarExpression]
-//            val input: java.util.List[Field] = Lists.newArrayList()
-//            val (treeNode, resultType) = columnarExpr.doColumnarCodeGen(input)
-            val treeNode : TreeNode = null
-            val attr = ConverterUtils.getAttrFromExpr(expr)
-            val field = Field
-              .nullable(
-                s"${attr.name}#${attr.exprId.id}",
-                CodeGeneration.getResultType(attr.dataType))
-            TreeBuilder.makeExpression(treeNode, field)
+        val loadch = GazelleJniConfig.getConf.loadch
+        if (!loadch) {
+          val gandivaExprs = exprs.zipWithIndex.map {
+            case (expr, i) =>
+              // FIXME
+              //            val columnarExpr = ColumnarExpressionConverter
+              //              .replaceWithColumnarExpression(expr)
+              //              .asInstanceOf[ColumnarExpression]
+              //            val input: java.util.List[Field] = Lists.newArrayList()
+              //            val (treeNode, resultType) = columnarExpr.doColumnarCodeGen(input)
+              val treeNode: TreeNode = null
+              val attr = ConverterUtils.getAttrFromExpr(expr)
+              val field = Field
+                .nullable(
+                  s"${attr.name}#${attr.exprId.id}",
+                  CodeGeneration.getResultType(attr.dataType))
+              TreeBuilder.makeExpression(treeNode, field)
+          }
+          new NativePartitioning(
+            "hash",
+            n,
+            serializeSchema(arrowFields),
+            ConverterUtils.getExprListBytesBuf(gandivaExprs.toList))
+        } else {
+          val fields = exprs.zipWithIndex.map {
+            case (expr, i) =>
+              val treeNode: TreeNode = null
+              val attr = ConverterUtils.getAttrFromExpr(expr)
+              attr.name
+          }
+          new NativePartitioning(
+            "hash",
+            n,
+            null,
+            fields.mkString(",").getBytes("UTF-8"))
         }
-        new NativePartitioning(
-          "hash",
-          n,
-          serializeSchema(arrowFields),
-          ConverterUtils.getExprListBytesBuf(gandivaExprs.toList))
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
         val pidField = Field.nullable("pid", new ArrowType.Int(32, true))
@@ -439,11 +473,13 @@ object ColumnarShuffleExchangeExec extends Logging {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              (0 until cb.numCols).foreach(
-                cb.column(_)
-                  .asInstanceOf[ArrowWritableColumnVector]
-                  .getValueVector
-                  .setValueCount(cb.numRows))
+              if (!GazelleJniConfig.getConf.loadch) {
+                (0 until cb.numCols).foreach(
+                  cb.column(_)
+                    .asInstanceOf[ArrowWritableColumnVector]
+                    .getValueVector
+                    .setValueCount(cb.numRows))
+              }
               (0, cb)
             },
           isOrderSensitive = isOrderSensitive)

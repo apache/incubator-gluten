@@ -375,6 +375,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map {
+        case p: NativeMergeTreePartition =>
+          val extensionTableNode =
+            ExtensionTableBuilder.makeExtensionTable(p.minParts,
+              p.maxParts, p.database, p.table, p.tablePath)
+          wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
+           logWarning(s"The substrait plan for partition " +
+             s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
+          p.copySubstraitPlan(wsCxt.root.toProtobuf.toByteArray)
         case FilePartition(index, files) =>
           val paths = new java.util.ArrayList[String]()
           val starts = new java.util.ArrayList[java.lang.Long]()
@@ -414,74 +422,123 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val outputAttributes = resCtx.outputAttributes
       val rootNode = resCtx.root
 
-      curRDD.mapPartitions { iter =>
-        ExecutorManager.tryTaskSet(numaBindingInfo)
-        GazelleJniConfig.getConf
-        val execTempDir = GazelleJniConfig.getTempFile
-        val jarList = listJars.map(jarUrl => {
-          logWarning(s"Get Codegened library Jar ${jarUrl}")
-          UserAddedJarUtils.fetchJarFromSpark(
-            jarUrl,
-            execTempDir,
-            s"spark-columnar-plugin-codegen-precompile-${signature}.jar",
-            sparkConf)
-          s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
-        })
+      if (!GazelleJniConfig.getConf.loadch) {
+        curRDD.mapPartitions { iter =>
+          ExecutorManager.tryTaskSet(numaBindingInfo)
+          GazelleJniConfig.getConf
+          val execTempDir = GazelleJniConfig.getTempFile
+          val jarList = listJars.map(jarUrl => {
+            logWarning(s"Get Codegened library Jar ${jarUrl}")
+            UserAddedJarUtils.fetchJarFromSpark(
+              jarUrl,
+              execTempDir,
+              s"spark-columnar-plugin-codegen-precompile-${signature}.jar",
+              sparkConf)
+            s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
+          })
 
-        val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
-        val inBatchIter = new ColumnarNativeIterator(iter.asJava)
-        val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
-        inBatchIters.add(inBatchIter)
-        // we need to complete dependency RDD's firstly
-        val beforeBuild = System.nanoTime()
-        val outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
-        val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
-        build_elapse += System.nanoTime() - beforeBuild
-        val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
-        val resIter = streamedSortPlan match {
-          case t: TransformSupport =>
-            new Iterator[ColumnarBatch] {
-              override def hasNext: Boolean = {
-                val res = nativeIterator.hasNext
-                // if (res == false) updateMetrics(nativeIterator)
-                res
-              }
-
-              override def next(): ColumnarBatch = {
-                val beforeEval = System.nanoTime()
-                val output_rb = nativeIterator.next
-                if (output_rb == null) {
-                  eval_elapse += System.nanoTime() - beforeEval
-                  val resultColumnVectors =
-                    ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
-                  return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
+          val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
+          val inBatchIter = new ColumnarNativeIterator(iter.asJava)
+          val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
+          inBatchIters.add(inBatchIter)
+          // we need to complete dependency RDD's firstly
+          val beforeBuild = System.nanoTime()
+          val outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
+          val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
+          build_elapse += System.nanoTime() - beforeBuild
+          val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
+          val resIter = streamedSortPlan match {
+            case t: TransformSupport =>
+              new Iterator[ColumnarBatch] {
+                override def hasNext: Boolean = {
+                  val res = nativeIterator.hasNext
+                  // if (res == false) updateMetrics(nativeIterator)
+                  res
                 }
-                val outputNumRows = output_rb.getLength
-                val outSchema = ConverterUtils.toArrowSchema(resCtx.outputAttributes)
-                val output = ConverterUtils.fromArrowRecordBatch(outSchema, output_rb)
-                ConverterUtils.releaseArrowRecordBatch(output_rb)
-                eval_elapse += System.nanoTime() - beforeEval
-                new ColumnarBatch(output.map(v => v.asInstanceOf[ColumnVector]), outputNumRows)
+
+                override def next(): ColumnarBatch = {
+                  val beforeEval = System.nanoTime()
+                  val output_rb = nativeIterator.next
+                  if (output_rb == null) {
+                    eval_elapse += System.nanoTime() - beforeEval
+                    val resultColumnVectors =
+                      ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
+                    return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
+                  }
+                  val outputNumRows = output_rb.getLength
+                  val outSchema = ConverterUtils.toArrowSchema(resCtx.outputAttributes)
+                  val output = ConverterUtils.fromArrowRecordBatch(outSchema, output_rb)
+                  ConverterUtils.releaseArrowRecordBatch(output_rb)
+                  eval_elapse += System.nanoTime() - beforeEval
+                  new ColumnarBatch(output.map(v => v.asInstanceOf[ColumnVector]), outputNumRows)
+                }
               }
-            }
-          case _ =>
-            throw new UnsupportedOperationException(
-              s"streamedSortPlan should support transformation")
+            case _ =>
+              throw new UnsupportedOperationException(
+                s"streamedSortPlan should support transformation")
+          }
+          var closed = false
+
+          def close = {
+            closed = true
+            pipelineTime += (eval_elapse + build_elapse) / 1000000
+            buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
+            dependentKernels.foreach(_.close)
+            dependentKernelIterators.foreach(_.close)
+            nativeIterator.close()
+            relationHolder.clear()
+          }
+
+          SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
+            close
+          })
+          new CloseableColumnBatchIterator(resIter)
         }
-        var closed = false
-        def close = {
-          closed = true
-          pipelineTime += (eval_elapse + build_elapse) / 1000000
-          buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
-          dependentKernels.foreach(_.close)
-          dependentKernelIterators.foreach(_.close)
-          nativeIterator.close()
-          relationHolder.clear()
+      } else {
+        curRDD.mapPartitions { iter =>
+          GazelleJniConfig.getConf
+          val transKernel = new ExpressionEvaluator()
+          val inBatchIter = new CHColumnarNativeIterator(iter.asJava)
+          val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
+          inBatchIters.add(inBatchIter)
+          // we need to complete dependency RDD's firstly
+          val beforeBuild = System.nanoTime()
+          val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
+          build_elapse += System.nanoTime() - beforeBuild
+          val resIter = streamedSortPlan match {
+            case t: TransformSupport =>
+              new Iterator[ColumnarBatch] {
+                override def hasNext: Boolean = {
+                  val res = nativeIterator.hasNext
+                  res
+                }
+
+                override def next(): ColumnarBatch = {
+                  val beforeEval = System.nanoTime()
+                  nativeIterator.chNext()
+                }
+              }
+            case _ =>
+              throw new UnsupportedOperationException(
+                s"streamedSortPlan should support transformation")
+          }
+          var closed = false
+
+          def close = {
+            closed = true
+            pipelineTime += (eval_elapse + build_elapse) / 1000000
+            buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
+            dependentKernels.foreach(_.close)
+            dependentKernelIterators.foreach(_.close)
+            nativeIterator.close()
+            relationHolder.clear()
+          }
+
+          SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
+            close
+          })
+          new CloseableColumnBatchIterator(resIter)
         }
-        SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
-          close
-        })
-        new CloseableColumnBatchIterator(resIter)
       }
     }
   }

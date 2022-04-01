@@ -104,8 +104,11 @@ class NativeWholeStageColumnarRDD(
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
-  private def castNativePartition(split: Partition): NativeFilePartition = split match {
-    case NativeSubstraitPartition(_, p: NativeFilePartition) => p
+  private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
+    case NativeSubstraitPartition(_, p: NativeFilePartition) =>
+      p.asInstanceOf[BaseNativeFilePartition]
+    case NativeSubstraitPartition(_, p: NativeMergeTreePartition) =>
+      p.asInstanceOf[BaseNativeFilePartition]
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
@@ -137,10 +140,7 @@ class NativeWholeStageColumnarRDD(
         }
       }
 
-      override def next(): Any = {
-        if (!hasNext) {
-          throw new java.util.NoSuchElementException("End of stream")
-        }
+      def nextArrowColumnarBatch(): Any = {
         val rb = resIter.next()
         if (rb == null) {
           val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
@@ -166,6 +166,18 @@ class NativeWholeStageColumnarRDD(
         }
         inputMetrics.bridgeIncBytesRead(bytes)
         cb
+      }
+
+      override def next(): Any = {
+        if (!hasNext) {
+          throw new java.util.NoSuchElementException("End of stream")
+        }
+        if (!GazelleJniConfig.getConf.loadch) {
+          nextArrowColumnarBatch()
+        } else {
+          resIter.chNext()
+        }
+
       }
     }
     val closeableColumnarBatchIterator = new CloseableColumnBatchIterator(
