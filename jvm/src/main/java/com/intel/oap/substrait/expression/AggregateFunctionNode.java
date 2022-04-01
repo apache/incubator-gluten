@@ -38,14 +38,6 @@ public class AggregateFunctionNode implements Serializable {
         this.outputTypeNode = outputTypeNode;
     }
 
-    AggregateFunctionNode(ArrayList<ExpressionNode> expressionNodes,
-                          TypeNode outputTypeNode) {
-        this.functionId = null;
-        this.expressionNodes.addAll(expressionNodes);
-        this.phase = null;
-        this.outputTypeNode = outputTypeNode;
-    }
-
     public AggregateFunction toProtobuf() {
         AggregateFunction.Builder aggBuilder = AggregateFunction.newBuilder();
         aggBuilder.setFunctionReference(functionId.intValue());
