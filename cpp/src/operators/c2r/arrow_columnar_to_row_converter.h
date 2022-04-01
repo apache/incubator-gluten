@@ -17,22 +17,15 @@
 
 #pragma once
 
-#include <arrow/memory_pool.h>
-#include <arrow/record_batch.h>
-#include <arrow/type.h>
+#include "columnar_to_row_base.h"
 
-#include "operators/c2r/columnar_to_row_base.h"
-#include "velox/vector/ComplexVector.h"
+namespace gazellejni {
+namespace columnartorow {
 
-using namespace facebook::velox;
-
-namespace velox {
-namespace compute {
-
-class VeloxToRowConverter : public gazellejni::columnartorow::ColumnarToRowConverterBase {
+class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
  public:
-  VeloxToRowConverter(const std::shared_ptr<arrow::RecordBatch>& rb,
-                      arrow::MemoryPool* memory_pool)
+  ArrowColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb,
+                              arrow::MemoryPool* memory_pool)
       : ColumnarToRowConverterBase(rb, memory_pool) {}
 
   arrow::Status Init() override;
@@ -40,12 +33,11 @@ class VeloxToRowConverter : public gazellejni::columnartorow::ColumnarToRowConve
   arrow::Status Write() override;
 
  private:
-  std::vector<VectorPtr> vecs_;
-  std::shared_ptr<arrow::Schema> schema_;
-  std::unique_ptr<memory::MemoryPool> velox_pool_{memory::getDefaultScopedMemoryPool()};
-
-  void ResumeVeloxVector();
+  arrow::Status WriteValue(uint8_t* buffer_address, int64_t field_offset,
+                           std::shared_ptr<arrow::Array> array, int32_t col_index,
+                           int64_t num_rows, std::vector<int64_t>& offsets,
+                           std::vector<int64_t>& buffer_cursor);
 };
 
-}  // namespace compute
-}  // namespace velox
+}  // namespace columnartorow
+}  // namespace gazellejni

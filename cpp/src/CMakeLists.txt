@@ -457,8 +457,8 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/protobuf_utils.cc
         compute/substrait_utils.cc
         compute/kernels_ext.cc
-        operators/c2r/columnar_to_row_converter.cc
-        operators/c2r/conversion_utils.cc
+        operators/c2r/arrow_columnar_to_row_converter.cc
+        operators/c2r/columnar_to_row_base.cc
         operators/shuffle/splitter.cc
         )
 

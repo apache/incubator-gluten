@@ -21,6 +21,7 @@
 #include <arrow/record_batch.h>
 
 #include "compute/protobuf_utils.h"
+#include "operators/c2r/arrow_columnar_to_row_converter.h"
 #include "substrait/plan.pb.h"
 #include "utils/exception.h"
 
@@ -132,6 +133,15 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       }
     }
     return arrow::Status::OK();
+  }
+
+  /// This function is used to create certain converter from the format used by the
+  /// backend to Spark unsafe row. By default, Arrow-to-Row converter is used.
+  virtual std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>
+  getColumnarConverter(std::shared_ptr<arrow::RecordBatch> rb,
+                       arrow::MemoryPool* memory_pool) {
+    return std::make_shared<gazellejni::columnartorow::ArrowColumnarToRowConverter>(
+        rb, memory_pool);
   }
 
  protected:

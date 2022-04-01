@@ -215,6 +215,8 @@ VeloxPlanConverter::GetResultIterator(
 
 class VeloxPlanConverter::WholeStageResIter {
  public:
+  virtual ~WholeStageResIter() = default;
+
   arrow::Status CopyBuffer(const uint8_t* from, uint8_t* to, int64_t copy_bytes) {
     // ARROW_ASSIGN_OR_RAISE(*out, AllocateBuffer(size * length, memory_pool_));
     // uint8_t* buffer_data = (*out)->mutable_data();

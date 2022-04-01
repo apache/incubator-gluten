@@ -19,14 +19,16 @@ package com.intel.oap.vectorized;
 
 import java.io.IOException;
 
-public class ArrowColumnarToRowJniWrapper {
+public class NativeColumnarToRowJniWrapper {
 
-  public ArrowColumnarToRowJniWrapper() throws IOException {
+  public NativeColumnarToRowJniWrapper() throws IOException {
     JniInstance.getInstance();
   }
 
-  public native ArrowColumnarToRowInfo nativeConvertColumnarToRow(
+  public native NativeColumnarToRowInfo nativeConvertColumnarToRow(
           byte[] schema, int numRows, long[] bufAddrs,
           long[] bufSizes, long memoryPollID) throws RuntimeException;
+
   public native void nativeClose(long instanceID);
+
 }

@@ -23,7 +23,6 @@
 
 #include "ArrowTypeUtils.h"
 #include "arrow/c/Bridge.h"
-#include "operators/c2r/conversion_utils.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
 
@@ -38,10 +37,8 @@ arrow::Status VeloxToRowConverter::Init() {
   num_cols_ = rb_->num_columns();
   schema_ = rb_->schema();
   // Calculate the initial size
-  nullBitsetWidthInBytes_ =
-      gazellejni::columnartorow::CalculateBitSetWidthInBytes(num_cols_);
-  int64_t fixed_size_per_row =
-      gazellejni::columnartorow::CalculatedFixeSizePerRow(schema_, num_cols_);
+  nullBitsetWidthInBytes_ = CalculateBitSetWidthInBytes(num_cols_);
+  int64_t fixed_size_per_row = CalculatedFixeSizePerRow(schema_, num_cols_);
   // Initialize the offsets_ , lengths_, buffer_cursor_
   for (auto i = 0; i < num_rows_; i++) {
     lengths_.push_back(fixed_size_per_row);
@@ -57,8 +54,7 @@ arrow::Status VeloxToRowConverter::Init() {
       auto str_view = reinterpret_cast<const StringView*>(val);
       for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
         auto length = str_view[row_idx].size();
-        lengths_[row_idx] +=
-            gazellejni::columnartorow::RoundNumberOfBytesToNearestWord(length);
+        lengths_[row_idx] += RoundNumberOfBytesToNearestWord(length);
       }
     }
   }
@@ -70,7 +66,7 @@ arrow::Status VeloxToRowConverter::Init() {
   }
   ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, memory_pool_));
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
-  buffer_address_ = (char*)buffer_->mutable_data();
+  buffer_address_ = buffer_->mutable_data();
   // The input is Arrow batch. We need to resume Velox Vector here.
   ResumeVeloxVector();
   return arrow::Status::OK();
@@ -121,17 +117,17 @@ void VeloxToRowConverter::ResumeVeloxVector() {
 }
 
 // TODO: handle Null value
-void VeloxToRowConverter::Write() {
+arrow::Status VeloxToRowConverter::Write() {
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
-    int64_t field_offset =
-        gazellejni::columnartorow::GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
+    int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
     auto col_type_id = schema_->field(col_idx)->type()->id();
     switch (col_type_id) {
       case arrow::Int32Type::type_id: {
         // Will use Velox's conversion.
         auto vec = vecs_[col_idx];
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          auto write_address = buffer_address_ + offsets_[row_idx] + field_offset;
+          auto write_address =
+              (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
           auto serialized = row::UnsafeRowSerializer::serialize<IntegerType>(
               vec, write_address, row_idx);
         }
@@ -141,7 +137,8 @@ void VeloxToRowConverter::Write() {
         // Will use Velox's conversion.
         auto vec = vecs_[col_idx];
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          auto write_address = buffer_address_ + offsets_[row_idx] + field_offset;
+          auto write_address =
+              (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
           auto serialized = row::UnsafeRowSerializer::serialize<BigintType>(
               vec, write_address, row_idx);
         }
@@ -151,7 +148,8 @@ void VeloxToRowConverter::Write() {
         // Will use Velox's conversion.
         auto vec = vecs_[col_idx];
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          auto write_address = buffer_address_ + offsets_[row_idx] + field_offset;
+          auto write_address =
+              (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
           auto serialized = row::UnsafeRowSerializer::serialize<DoubleType>(
               vec, write_address, row_idx);
         }
@@ -165,11 +163,11 @@ void VeloxToRowConverter::Write() {
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           int32_t length = (int32_t)str_view[row_idx].size();
           auto value = str_view[row_idx].data();
-          // write the variable value
+          // Write the variable value.
           memcpy(buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx], value,
                  length);
           int64_t offset_and_size = (buffer_cursor_[row_idx] << 32) | length;
-          // write the offset and size
+          // Write the offset and size.
           memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offset_and_size,
                  sizeof(int64_t));
           buffer_cursor_[row_idx] += length;
@@ -177,9 +175,10 @@ void VeloxToRowConverter::Write() {
         break;
       }
       default:
-        throw std::runtime_error("Type is not supported in VeloxToRow conversion.");
+        return arrow::Status::Invalid("Type is not supported in VeloxToRow conversion.");
     }
   }
+  return arrow::Status::OK();
 }
 
 }  // namespace compute

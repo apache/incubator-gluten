@@ -15,20 +15,19 @@
  * limitations under the License.
  */
 
-#pragma once
+package com.intel.oap.vectorized;
 
-#include <arrow/type.h>
+public class NativeColumnarToRowInfo {
+    public long instanceID;
+    public long[] offsets;
+    public long[] lengths;
+    public long memoryAddress;
 
-namespace gazellejni {
-namespace columnartorow {
-
-int64_t CalculateBitSetWidthInBytes(int32_t numFields);
-
-int64_t RoundNumberOfBytesToNearestWord(int64_t numBytes);
-
-int64_t CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols);
-
-int64_t GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index);
-
-}  // namespace columnartorow
-}  // namespace gazellejni
+    public NativeColumnarToRowInfo(long instanceID,
+                                   long[] offsets, long[] lengths, long memoryAddress) {
+        this.instanceID = instanceID;
+        this.offsets = offsets;
+        this.lengths = lengths;
+        this.memoryAddress = memoryAddress;
+    }
+}

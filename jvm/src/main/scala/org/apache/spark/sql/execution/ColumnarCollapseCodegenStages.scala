@@ -139,10 +139,10 @@ case class ColumnarCollapseCodegenStages(
       case other =>
         val maybeWS = other.children.map(insertWholeStageTransformer)
         // Fake Arrow format will be returned for WS transformer if the next operator
-        // is ArrowColumnarToRowExec.
+        // is NativeColumnarToRowExec.
         // TODO: use a Velox layer on the top of the base layer.
         if (nativeBackend == "velox") {
-          if (other.isInstanceOf[ArrowColumnarToRowExec] &&
+          if (other.isInstanceOf[NativeColumnarToRowExec] &&
               maybeWS.head.isInstanceOf[WholeStageTransformerExec]) {
             maybeWS.head.asInstanceOf[WholeStageTransformerExec].setFakeOutput()
           }

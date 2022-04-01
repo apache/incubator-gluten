@@ -25,6 +25,7 @@
 #include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
+#include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
 #include "jni/exec_backend.h"
 #include "substrait/algebra.pb.h"
@@ -79,6 +80,12 @@ class VeloxPlanConverter : public gazellejni::ExecBackendBase {
   std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator(
       std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs)
       override;
+
+  std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>
+  getColumnarConverter(std::shared_ptr<arrow::RecordBatch> rb,
+                       arrow::MemoryPool* memory_pool) override {
+    return std::make_shared<VeloxToRowConverter>(rb, memory_pool);
+  }
 
  private:
   int planNodeId_ = 0;

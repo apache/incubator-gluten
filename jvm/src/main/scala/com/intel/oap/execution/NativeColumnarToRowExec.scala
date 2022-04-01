@@ -18,7 +18,7 @@
 package com.intel.oap.execution
 
 import com.intel.oap.expression.ConverterUtils
-import com.intel.oap.vectorized.{ArrowColumnarToRowJniWrapper, ArrowWritableColumnVector}
+import com.intel.oap.vectorized.{NativeColumnarToRowJniWrapper, ArrowWritableColumnVector}
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,8 +32,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
-class ArrowColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child = child) {
-  override def nodeName: String = "ArrowColumnarToRow"
+class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child = child) {
+  override def nodeName: String = "NativeColumnarToRow"
 
   override def supportCodegen: Boolean = false
 
@@ -56,7 +56,7 @@ class ArrowColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child =
         case d: TimestampType =>
         case d: BinaryType =>
         case _ =>
-          throw new UnsupportedOperationException(s"${field.dataType} is not supported in ArrowColumnarToRowExec.")
+          throw new UnsupportedOperationException(s"${field.dataType} is not supported in NativeColumnarToRowExec.")
       }
     }
   }
@@ -74,7 +74,7 @@ class ArrowColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child =
 
     child.executeColumnar().mapPartitions { batches =>
       // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
-      val jniWrapper = new ArrowColumnarToRowJniWrapper()
+      val jniWrapper = new NativeColumnarToRowJniWrapper()
       var arrowSchema: Array[Byte] = null
 
       def serializeSchema(fields: Seq[Field]): Array[Byte] = {
@@ -151,10 +151,10 @@ class ArrowColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child =
    }
   }
 
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[ArrowColumnarToRowExec]
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[NativeColumnarToRowExec]
 
   override def equals(other: Any): Boolean = other match {
-    case that: ArrowColumnarToRowExec =>
+    case that: NativeColumnarToRowExec =>
       (that canEqual this) && super.equals(that)
     case _ => false
   }

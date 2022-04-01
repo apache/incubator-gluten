@@ -30,14 +30,16 @@
 namespace gazellejni {
 namespace columnartorow {
 
-class ColumnarToRowConverter {
+class ColumnarToRowConverterBase {
  public:
-  ColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb,
-                         arrow::MemoryPool* memory_pool)
+  ColumnarToRowConverterBase(std::shared_ptr<arrow::RecordBatch> rb,
+                             arrow::MemoryPool* memory_pool)
       : rb_(rb), memory_pool_(memory_pool) {}
 
-  arrow::Status Init();
-  arrow::Status Write();
+  virtual ~ColumnarToRowConverterBase() = default;
+
+  virtual arrow::Status Init() = 0;
+  virtual arrow::Status Write() = 0;
 
   uint8_t* GetBufferAddress() { return buffer_address_; }
   const std::vector<int64_t>& GetOffsets() { return offsets_; }
@@ -54,6 +56,38 @@ class ColumnarToRowConverter {
   uint8_t* buffer_address_;
   std::vector<int64_t> offsets_;
   std::vector<int64_t> lengths_;
+
+  int64_t CalculateBitSetWidthInBytes(int32_t numFields);
+
+  int64_t RoundNumberOfBytesToNearestWord(int64_t numBytes);
+
+  int64_t CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema,
+                                   int64_t num_cols);
+
+  int64_t GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index);
+
+  void BitSet(uint8_t* buffer_address, int32_t index);
+
+  void SetNullAt(uint8_t* buffer_address, int64_t row_offset, int64_t field_offset,
+                 int32_t col_index);
+
+  int32_t FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length);
+
+  int32_t GetInt(int32_t n, int32_t sig, std::vector<int32_t> mag, int32_t length);
+
+  int32_t GetNumberOfLeadingZeros(uint32_t i);
+
+  int32_t GetBitLengthForInt(uint32_t n);
+
+  int32_t GetBitCount(uint32_t i);
+
+  int32_t GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len);
+
+  std::vector<uint32_t> ConvertMagArray(int64_t new_high, uint64_t new_low,
+                                        int32_t* size);
+
+  /// This method refer to the BigInterger#toByteArray() method in Java side.
+  std::array<uint8_t, 16> ToByteArray(arrow::Decimal128 value, int32_t* length);
 };
 
 }  // namespace columnartorow
