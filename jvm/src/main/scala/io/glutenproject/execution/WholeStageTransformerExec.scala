@@ -423,7 +423,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         case p => p
       }
       logWarning(
-        s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
       val wsRDD = new NativeWholeStageColumnarRDD(
         sparkContext,

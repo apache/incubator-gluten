@@ -32,7 +32,7 @@ public class DoubleLiteralNode implements ExpressionNode, Serializable {
     public Expression toProtobuf() {
         Expression.Literal.Builder doubleBuilder =
                 Expression.Literal.newBuilder();
-        doubleBuilder.setFp64(value.doubleValue());
+        doubleBuilder.setFp64(value);
 
         Expression.Builder builder = Expression.newBuilder();
         builder.setLiteral(doubleBuilder.build());

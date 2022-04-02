@@ -73,16 +73,15 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   override def nodeName: String = "ColumnarExchange"
   override def output: Seq[Attribute] = child.output
-  buildCheck()
 
   override def supportsColumnar: Boolean = true
 
   override def stringArgs =
     super.stringArgs ++ Iterator(s"[id=#$id]")
-  //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
+//  super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
-  def buildCheck(): Unit = {
-    if (GlutenConfig.getConf.isClickHouseBackend) return
+  def doValidate(): Boolean = {
+    if (GlutenConfig.getConf.isClickHouseBackend) return false
     // check input datatype
     for (attr <- child.output) {
       try {
@@ -93,6 +92,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
             s"${attr.dataType} is not supported in ColumnarShuffledExchangeExec.")
       }
     }
+    true
   }
 
   val serializer: Serializer = ColumnarFactory.createColumnarBatchSerializer(

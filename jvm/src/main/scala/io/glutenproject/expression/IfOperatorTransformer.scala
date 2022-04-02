@@ -20,11 +20,6 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 import com.google.common.collect.Sets
 import io.glutenproject.substrait.expression.ExpressionNode
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -34,6 +29,7 @@ class IfTransformer(predicate: Expression, trueValue: Expression,
     extends If(predicate: Expression, trueValue: Expression, falseValue: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }

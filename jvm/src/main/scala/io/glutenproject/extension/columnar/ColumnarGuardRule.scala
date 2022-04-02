@@ -36,47 +36,55 @@ import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExecTransformer
 import org.apache.spark.sql.execution.window.WindowExec
 
+// A guard to prevent a plan being converted into the plan transformer.
 case class RowGuard(child: SparkPlan) extends SparkPlan {
+
   def output: Seq[Attribute] = child.output
+
   protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException
   }
+
   def children: Seq[SparkPlan] = Seq(child)
 }
 
+// This rule will try to convert a plan into plan transformer.
+// The doValidate function will be called to check if the conversion is supported.
+// If false is returned or any unsupported exception is thrown, a row guard will
+// be added on the top of that plan to prevent actual conversion.
 case class TransformGuardRule() extends Rule[SparkPlan] {
-  val columnarConf = GlutenConfig.getSessionConf
-  val preferColumnar = columnarConf.enablePreferColumnar
-  val optimizeLevel = columnarConf.joinOptimizationThrottle
-  val enableColumnarShuffle = columnarConf.enableColumnarShuffle
-  val enableColumnarSort = columnarConf.enableColumnarSort
-  val enableColumnarWindow = columnarConf.enableColumnarWindow
-  val enableColumnarSortMergeJoin = columnarConf.enableColumnarSortMergeJoin
-  val enableColumnarBatchScan = columnarConf.enableColumnarBatchScan
-  val enableColumnarProjFilter = columnarConf.enableColumnarProjFilter
-  val enableColumnarHashAgg = columnarConf.enableColumnarHashAgg
-  val enableColumnarUnion = columnarConf.enableColumnarUnion
-  val enableColumnarExpand = columnarConf.enableColumnarExpand
-  val enableColumnarShuffledHashJoin = columnarConf.enableColumnarShuffledHashJoin
-  val enableColumnarBroadcastExchange = columnarConf.enableColumnarBroadcastExchange
-  val enableColumnarBroadcastJoin = columnarConf.enableColumnarBroadcastJoin
-  val enableColumnarArrowUDF = columnarConf.enableColumnarArrowUDF
+  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  val preferColumnar: Boolean = columnarConf.enablePreferColumnar
+  val optimizeLevel: Integer = columnarConf.joinOptimizationThrottle
+  val enableColumnarShuffle: Boolean = columnarConf.enableColumnarShuffle
+  val enableColumnarSort: Boolean = columnarConf.enableColumnarSort
+  val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow
+  val enableColumnarSortMergeJoin: Boolean = columnarConf.enableColumnarSortMergeJoin
+  val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
+  val enableColumnarProjFilter: Boolean = columnarConf.enableColumnarProjFilter
+  val enableColumnarHashAgg: Boolean = columnarConf.enableColumnarHashAgg
+  val enableColumnarUnion: Boolean = columnarConf.enableColumnarUnion
+  val enableColumnarExpand: Boolean = columnarConf.enableColumnarExpand
+  val enableColumnarShuffledHashJoin: Boolean = columnarConf.enableColumnarShuffledHashJoin
+  val enableColumnarBroadcastExchange: Boolean = columnarConf.enableColumnarBroadcastExchange
+  val enableColumnarBroadcastJoin: Boolean = columnarConf.enableColumnarBroadcastJoin
+  val enableColumnarArrowUDF: Boolean = columnarConf.enableColumnarArrowUDF
 
   private def tryConvertToTransformer(plan: SparkPlan): Boolean = {
     try {
-      val columnarPlan = plan match {
+      plan match {
         case plan: ArrowEvalPythonExec =>
           if (!enableColumnarArrowUDF) return false
           val transformer = ArrowEvalPythonExecTransformer(
             plan.udfs, plan.resultAttrs, plan.child, plan.evalType)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) return false
-          new BatchScanExecTransformer(plan.output, plan.scan)
+          val transformer = new BatchScanExecTransformer(plan.output, plan.scan)
+          transformer.doValidate()
         case plan: FileSourceScanExec =>
           if (!enableColumnarBatchScan) return false
-          new FileSourceScanExecTransformer(plan.relation,
+          val transformer = new FileSourceScanExecTransformer(plan.relation,
             plan.output,
             plan.requiredSchema,
             plan.partitionFilters,
@@ -85,23 +93,17 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.dataFilters,
             plan.tableIdentifier,
             plan.disableBucketedScan)
+          transformer.doValidate()
         case plan: InMemoryTableScanExec =>
-          if (plan.relation.cacheBuilder.serializer
-              .isInstanceOf[ArrowColumnarCachedBatchSerializer]) {
-            ColumnarInMemoryTableScanExec(plan.attributes, plan.predicates, plan.relation)
-          } else {
-            return false
-          }
+          false
         case plan: ProjectExec =>
           if (!enableColumnarProjFilter) return false
           val transformer = ConditionProjectExecTransformer(null, plan.projectList, plan.child)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: FilterExec =>
           if (!enableColumnarProjFilter) return false
           val transformer = ConditionProjectExecTransformer(plan.condition, null, plan.child)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: HashAggregateExec =>
           if (!enableColumnarHashAgg) return false
           val transformer = HashAggregateExecTransformer(
@@ -112,29 +114,26 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.initialInputBufferOffset,
             plan.resultExpressions,
             plan.child)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: UnionExec =>
           if (!enableColumnarUnion) return false
           val transformer = UnionExecTransformer(plan.children)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: ExpandExec =>
           if (!enableColumnarExpand) return false
           val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: SortExec =>
           if (!enableColumnarSort) return false
           val transformer = SortExecTransformer(
             plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: ShuffleExchangeExec =>
           if (!enableColumnarShuffle) return false
-          new ColumnarShuffleExchangeExec(
+          val exec = new ColumnarShuffleExchangeExec(
             plan.outputPartitioning,
             plan.child)
+          exec.doValidate()
         case plan: ShuffledHashJoinExec =>
           if (!enableColumnarShuffledHashJoin) return false
           val transformer = ShuffledHashJoinExecTransformer(
@@ -145,12 +144,11 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.condition,
             plan.left,
             plan.right)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: BroadcastExchangeExec =>
-          return false
+          false
         case plan: BroadcastHashJoinExec =>
-          return false
+          false
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) return false
           val transformer = SortMergeJoinExecTransformer(
@@ -161,8 +159,7 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.left,
             plan.right,
             plan.isSkewJoin)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: WindowExec =>
           if (!enableColumnarWindow) return false
           val transformer = WindowExecTransformer(
@@ -170,71 +167,19 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.partitionSpec,
             plan.orderSpec,
             plan.child)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case plan: CoalesceExec =>
           val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
-          if (!transformer.doValidate()) return false
-          transformer
+          transformer.doValidate()
         case p =>
-          p
+          true
       }
     } catch {
       case e: UnsupportedOperationException =>
-        plan match {
-          case plan: HashAggregateExec =>
-            val queryInfo =
-              s"HashAggr groupingExpressions is ${plan.groupingExpressions.toList.map(g =>
-                (g.dataType, g))}\naggregateExpressions is ${plan.aggregateExpressions.toList
-                .map(a => (a.dataType, a))}\nresultExpressions is ${plan.resultExpressions.toList
-                .map(e => (e.dataType, e))}"
-            System.out.println(queryInfo)
-          case other => {}
-        }
         System.out.println(
-          s"Fall back to use row-based operators, error is ${e.getMessage}, original sparkplan is ${plan.getClass}(${plan.children.toList
-            .map(_.getClass)})")
-        return false
-    }
-    true
-  }
-
-  private def existsMultiCodegens(plan: SparkPlan, count: Int = 0): Boolean =
-    plan match {
-      case plan: CodegenSupport if plan.supportCodegen =>
-        if ((count + 1) >= optimizeLevel) return true
-        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
-      case plan: ShuffledHashJoinExec =>
-        if ((count + 1) >= optimizeLevel) return true
-        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
-      case other => false
-    }
-
-  private def supportCodegen(plan: SparkPlan): Boolean = plan match {
-    case plan: CodegenSupport =>
-      plan.supportCodegen
-    case _ => false
-  }
-
-  /**
-   * Inserts an InputAdapter on top of those that do not support codegen.
-   */
-  private def insertRowGuardRecursive(plan: SparkPlan): SparkPlan = {
-    plan match {
-      case p: ShuffleExchangeExec =>
-        RowGuard(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
-      case p: BroadcastExchangeExec =>
-        RowGuard(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
-      case p: ShuffledHashJoinExec =>
-        RowGuard(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
-      case p if !supportCodegen(p) =>
-        // insert row guard them recursively
-        p.withNewChildren(p.children.map(insertRowGuardOrNot))
-      case p: CustomShuffleReaderExec =>
-        p.withNewChildren(p.children.map(insertRowGuardOrNot))
-      case p: BroadcastQueryStageExec =>
-        p
-      case p => RowGuard(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
+          s"Fall back to use row-based operators, error is ${e.getMessage}," +
+            s"original sparkplan is ${plan.getClass}(${plan.children.toList.map(_.getClass)})")
+        false
     }
   }
 
@@ -249,8 +194,6 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
     plan match {
       // For operators that will output domain object, do not insert WholeStageCodegen for it as
       // domain object can not be written into unsafe row.
-//      case plan if !preferColumnar && existsMultiCodegens(plan) =>
-//        insertRowGuardRecursive(plan)
       case plan if !tryConvertToTransformer(plan) =>
         insertRowGuard(plan)
       case p: BroadcastQueryStageExec =>

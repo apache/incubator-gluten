@@ -22,8 +22,8 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
+import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.SparkConf
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -53,7 +53,18 @@ case class ConditionProjectExecTransformer(
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_condproject"))
 
   override def doValidate(): Boolean = {
-    true
+    val substraitContext = new SubstraitContext
+    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
+    val relNode = try {
+      getRelNode(substraitContext.registeredFunction, null)
+    } catch {
+      case e: UnsupportedOperationException =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+    // Then, validate the generated plan in native engine.
+    val validator = new ExpressionEvaluator()
+    validator.doValidate(relNode.toProtobuf.toByteArray)
   }
 
   def isNullIntolerant(expr: Expression): Boolean = expr match {

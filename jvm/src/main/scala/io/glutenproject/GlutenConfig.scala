@@ -56,6 +56,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarBatchScan: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.batchscan", "true").toBoolean && enableCpu
 
+  // enable or disable columnar filescan
+  val enableColumnarFileScan: Boolean =
+    conf.getConfString("spark.oap.sql.columnar.filescan", "true").toBoolean && enableCpu
+
   // enable or disable columnar hashagg
   val enableColumnarHashAgg: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.hashagg", "true").toBoolean && enableCpu
@@ -239,7 +243,7 @@ object GlutenConfig {
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
   val GLUTEN_LOAD_ARROW = "spark.gluten.sql.columnar.loadarrow"
-
+  val TRANSFORM_ENABLED = "spark.oap.sql.columnar.wholestagetransform"
   val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
   val GLUTEN_VELOX_BACKEND = "velox"
   val GLUTEN_CLICKHOUSE_BACKEND = "clickhouse"

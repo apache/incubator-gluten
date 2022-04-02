@@ -104,6 +104,7 @@ case class HashAggregateExecTransformer(
       })
       isPartial
     }
+    false
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

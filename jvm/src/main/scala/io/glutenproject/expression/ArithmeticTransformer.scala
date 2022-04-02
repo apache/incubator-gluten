@@ -31,6 +31,7 @@ class AddTransformer(left: Expression, right: Expression, original: Expression)
     extends Add(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val left_node =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -59,6 +60,7 @@ class SubtractTransformer(left: Expression, right: Expression, original: Express
     extends Subtract(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val left_node =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -117,6 +119,7 @@ class DivideTransformer(left: Expression, right: Expression,
     extends Divide(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val left_node =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -145,6 +148,7 @@ class BitwiseAndTransformer(left: Expression, right: Expression, original: Expre
     extends BitwiseAnd(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("not supported.")
   }
@@ -154,6 +158,7 @@ class BitwiseOrTransformer(left: Expression, right: Expression, original: Expres
     extends BitwiseOr(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("not supported.")
   }
@@ -163,6 +168,7 @@ class BitwiseXorTransformer(left: Expression, right: Expression, original: Expre
     extends BitwiseXor(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("not supported.")
   }

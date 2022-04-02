@@ -83,11 +83,18 @@ public class ExpressionEvaluator implements AutoCloseable {
     return nativeHandler;
   }
 
+  // Used to initialize the native computing.
   public void initNative() {
     jniWrapper.nativeInitNative();
   }
 
-  /** Used by WholeStageTransfrom */
+  // Used to validate the Substrait plan in native compute engine.
+  public boolean doValidate(byte[] subPlan) {
+    return jniWrapper.nativeDoValidate(subPlan);
+  }
+
+  // Used by WholeStageTransfrom to create the native computing pipeline and
+  // return a columnar result iterator.
   public BatchIterator createKernelWithBatchIterator(
           byte[] wsPlan, ArrayList<ColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
@@ -102,12 +109,17 @@ public class ExpressionEvaluator implements AutoCloseable {
     return new BatchIterator(batchIteratorInstance);
   }
 
+
+  // Used by WholeStageTransfrom to create the native computing pipeline and
+  // return a columnar result iterator.
   public BatchIterator createKernelWithBatchIterator(
           PlanNode wsPlan, ArrayList<ColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
     return createKernelWithBatchIterator(getPlanBytesBuf(wsPlan), iterList);
   }
 
+  // Used by WholeStageTransfrom to create the native computing pipeline and
+  // return a row result iterator.
   public RowIterator createKernelWithRowIterator(
           byte[] wsPlan,
           ArrayList<ColumnarNativeIterator> iterList) throws RuntimeException, IOException {

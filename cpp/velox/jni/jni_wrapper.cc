@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include "compute/VeloxPlanConverter.h"
+#include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
@@ -48,6 +49,20 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
       [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
   auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
   veloxInitializer->Init();
+}
+
+JNIEXPORT bool JNICALL
+Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
+    JNIEnv* env, jobject obj, jbyteArray planArray) {
+  // auto planData =
+  //     reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  // auto planSize = env->GetArrayLength(planArray);
+  // ::substrait::Rel subRel;
+  // ParseProtobuf(planData, planSize, &subRel);
+  // auto planValidator =
+  //     std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>();
+  // return planValidator->validate(subRel);
+  return false;
 }
 
 #ifdef __cplusplus
