@@ -69,7 +69,7 @@ object DSV2ColumnarBenchmarkTest {
 
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[1]")
+        .master("local[3]")
         .config("spark.driver.memory", "4G")
         .config("spark.driver.memoryOverhead", "6G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
@@ -98,9 +98,8 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.oap.sql.columnar.columnartorow", "false")
         .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
         .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
-        .config(GazelleJniConfig.OAP_LOAD_CH, "true")
         .config(GazelleJniConfig.OAP_LIB_PATH,
-          "/home/saber/Documents/github/ClickHouse/cmake-build-debug/utils/local-engine/libchd.so")
+          "/home/saber/Documents/github/ClickHouse/cmake-build-relwithdebinfo/utils/local-engine/libch.so")
         .config("spark.oap.sql.columnar.iterator", "true")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
