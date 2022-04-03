@@ -15,19 +15,16 @@
  * limitations under the License.
  */
 
-package com.intel.oap.substrait.plan;
+#pragma once
 
-import com.intel.oap.substrait.extensions.MappingNode;
-import com.intel.oap.substrait.rel.RelNode;
+#include <arrow/type_fwd.h>
 
-import java.util.ArrayList;
+#include "velox/type/Type.h"
 
-public class PlanBuilder {
-    private PlanBuilder() {}
+using namespace facebook::velox;
 
-    public static PlanNode makePlan(ArrayList<MappingNode> mappingNodes,
-                                    ArrayList<RelNode> relNodes,
-                                    ArrayList<String> outNames) {
-        return new PlanNode(mappingNodes, relNodes, outNames);
-    }
-}
+std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name);
+
+std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type);
+
+const char* arrowTypeIdToFormatStr(arrow::Type::type typeId);

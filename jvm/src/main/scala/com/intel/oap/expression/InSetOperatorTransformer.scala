@@ -38,7 +38,9 @@ class InSetTransformer(value: Expression, hset: Set[Any], original: Expression)
     extends InSet(value: Expression, hset: Set[Any])
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 object InSetOperatorTransformer {

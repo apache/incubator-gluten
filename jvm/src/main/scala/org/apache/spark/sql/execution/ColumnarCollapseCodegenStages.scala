@@ -19,8 +19,8 @@ package org.apache.spark.sql.execution
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import com.intel.oap.GazelleJniConfig
 import com.intel.oap.execution._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
@@ -109,6 +109,7 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  */
 case class ColumnarCollapseCodegenStages(
     columnarWholeStageEnabled: Boolean,
+    nativeBackend: String,
     codegenStageCounter: AtomicInteger = new AtomicInteger(0))
     extends Rule[SparkPlan] {
 
@@ -136,7 +137,17 @@ case class ColumnarCollapseCodegenStages(
             t.withNewChildren(t.children.map(insertInputAdapter)))(
             codegenStageCounter.incrementAndGet())
       case other =>
-        other.withNewChildren(other.children.map(insertWholeStageTransformer))
+        val maybeWS = other.children.map(insertWholeStageTransformer)
+        // Fake Arrow format will be returned for WS transformer if the next operator
+        // is NativeColumnarToRowExec.
+        // TODO: use a Velox layer on the top of the base layer.
+        if (nativeBackend == "velox") {
+          if (other.isInstanceOf[NativeColumnarToRowExec] &&
+              maybeWS.head.isInstanceOf[WholeStageTransformerExec]) {
+            maybeWS.head.asInstanceOf[WholeStageTransformerExec].setFakeOutput()
+          }
+        }
+        other.withNewChildren(maybeWS)
     }
   }
 

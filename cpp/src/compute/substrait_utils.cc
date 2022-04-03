@@ -246,19 +246,6 @@ void SubstraitParser::ParseReadRel(const substrait::ReadRel& sread) {
   ParseExpression(sfilter);
 }
 
-void SubstraitParser::ParseInputRel(const substrait::InputRel& sinput) {
-  auto iter_idx = sinput.iter_idx();
-  std::cout << "input iter index: " << iter_idx << std::endl;
-  std::vector<std::string> col_name_list;
-  if (sinput.has_input_schema()) {
-    const auto& input_schema = sinput.input_schema();
-    for (const auto& name : input_schema.names()) {
-      col_name_list.push_back(name);
-    }
-    ParseNamedStruct(input_schema);
-  }
-}
-
 void SubstraitParser::ParseRel(const substrait::Rel& srel) {
   if (srel.has_aggregate()) {
     ParseAggregateRel(srel.aggregate());
@@ -268,8 +255,6 @@ void SubstraitParser::ParseRel(const substrait::Rel& srel) {
     ParseFilterRel(srel.filter());
   } else if (srel.has_read()) {
     ParseReadRel(srel.read());
-  } else if (srel.has_input()) {
-    ParseInputRel(srel.input());
   } else {
     std::cout << "not supported" << std::endl;
   }

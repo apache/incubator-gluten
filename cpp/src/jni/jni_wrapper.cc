@@ -39,7 +39,7 @@
 #include "jni/concurrent_map.h"
 #include "jni/exec_backend.h"
 #include "jni/jni_common.h"
-#include "operators/c2r/columnar_to_row_converter.h"
+#include "operators/c2r/columnar_to_row_base.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/exception.h"
 #include "utils/result_iterator.h"
@@ -114,15 +114,15 @@ static jmethodID metrics_builder_constructor;
 static jmethodID serialized_record_batch_iterator_hasNext;
 static jmethodID serialized_record_batch_iterator_next;
 
-static jclass arrow_columnar_to_row_info_class;
-static jmethodID arrow_columnar_to_row_info_constructor;
+static jclass native_columnar_to_row_info_class;
+static jmethodID native_columnar_to_row_info_constructor;
 
 using arrow::jni::ConcurrentMap;
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
-using ColumnarToRowConverter = gazellejni::columnartorow::ColumnarToRowConverter;
-static arrow::jni::ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>>
+static arrow::jni::ConcurrentMap<
+    std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>>
     columnar_to_row_converter_holder_;
 
 using gazellejni::RecordBatchResultIterator;
@@ -185,7 +185,18 @@ class JavaRecordBatchIterator {
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
     JNIEnv* env;
-    if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+    int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
+    if (getEnvStat == JNI_EDETACHED) {
+#ifdef DEBUG
+      std::cout << "JNIEnv was not attached to current thread." << std::endl;
+#endif
+      if (vm_->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(&env), NULL) != 0) {
+        return arrow::Status::Invalid("Failed to attach thread.");
+      }
+#ifdef DEBUG
+      std::cout << "Succeeded attaching current thread." << std::endl;
+#endif
+    } else if (getEnvStat != JNI_OK) {
       return arrow::Status::Invalid("JNIEnv was not attached to current thread");
     }
 #ifdef DEBUG
@@ -278,10 +289,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   serialized_record_batch_iterator_next =
       GetMethodID(env, serialized_record_batch_iterator_class, "next", "()[B");
 
-  arrow_columnar_to_row_info_class = CreateGlobalClassReference(
-      env, "Lcom/intel/oap/vectorized/ArrowColumnarToRowInfo;");
-  arrow_columnar_to_row_info_constructor =
-      GetMethodID(env, arrow_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
+  native_columnar_to_row_info_class = CreateGlobalClassReference(
+      env, "Lcom/intel/oap/vectorized/NativeColumnarToRowInfo;");
+  native_columnar_to_row_info_constructor =
+      GetMethodID(env, native_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
 
   return JNI_VERSION;
 }
@@ -300,7 +311,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(serializable_obj_builder_class);
   env->DeleteGlobalRef(split_result_class);
   env->DeleteGlobalRef(serialized_record_batch_iterator_class);
-  env->DeleteGlobalRef(arrow_columnar_to_row_info_class);
+  env->DeleteGlobalRef(native_columnar_to_row_info_class);
 
   env->DeleteGlobalRef(byte_array_class);
 
@@ -428,7 +439,7 @@ JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeClose(
 }
 
 JNIEXPORT jobject JNICALL
-Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnarToRow(
+Java_com_intel_oap_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow(
     JNIEnv* env, jobject, jbyteArray schema_arr, jint num_rows, jlongArray buf_addrs,
     jlongArray buf_sizes, jlong memory_pool_id) {
   JNI_METHOD_START
@@ -468,9 +479,9 @@ Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnar
   if (pool == nullptr) {
     JniThrow("Memory pool does not exist or has been closed");
   }
-
-  std::shared_ptr<ColumnarToRowConverter> columnar_to_row_converter =
-      std::make_shared<ColumnarToRowConverter>(rb, pool);
+  auto backend = gazellejni::CreateBackend();
+  std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>
+      columnar_to_row_converter = backend->getColumnarConverter(rb, pool);
   JniAssertOkOrThrow(columnar_to_row_converter->Init(),
                      "Native convert columnar to row: Init "
                      "ColumnarToRowConverter failed");
@@ -491,15 +502,15 @@ Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeConvertColumnar
   env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
   long address = reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
 
-  jobject arrow_columnar_to_row_info = env->NewObject(
-      arrow_columnar_to_row_info_class, arrow_columnar_to_row_info_constructor,
+  jobject native_columnar_to_row_info = env->NewObject(
+      native_columnar_to_row_info_class, native_columnar_to_row_info_constructor,
       instanceID, offsets_arr, lengths_arr, address);
-  return arrow_columnar_to_row_info;
+  return native_columnar_to_row_info;
   JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ArrowColumnarToRowJniWrapper_nativeClose(
+Java_com_intel_oap_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
     JNIEnv* env, jobject, jlong instance_id) {
   JNI_METHOD_START
   columnar_to_row_converter_holder_.Erase(instance_id);
@@ -571,13 +582,6 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   // ValueOrDie in MakeSchema
   MakeSchema(env, schema_arr, &schema);
 
-  gandiva::ExpressionVector expr_vector = {};
-  if (expr_arr != NULL) {
-    gandiva::FieldVector ret_types;
-    JniAssertOkOrThrow(MakeExprVector(env, expr_arr, &expr_vector, &ret_types),
-                       "Failed to parse expressions protobuf");
-  }
-
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
@@ -602,9 +606,17 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   }
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
+  // Get the hash expressions.
+  const uint8_t* expr_data = nullptr;
+  int expr_size = 0;
+  if (expr_arr != NULL) {
+    expr_data = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(expr_arr, 0));
+    expr_size = env->GetArrayLength(expr_arr);
+  }
+
   auto splitter =
       JniGetOrThrow(Splitter::Make(partitioning_name, std::move(schema), num_partitions,
-                                   expr_vector, std::move(splitOptions)),
+                                   expr_data, expr_size, std::move(splitOptions)),
                     "Failed create native shuffle splitter");
 
   return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));

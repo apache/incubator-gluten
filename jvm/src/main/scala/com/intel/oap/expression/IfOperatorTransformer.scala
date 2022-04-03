@@ -34,7 +34,9 @@ class IfTransformer(predicate: Expression, trueValue: Expression,
     extends If(predicate: Expression, trueValue: Expression, falseValue: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 object IfOperatorTransformer {

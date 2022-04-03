@@ -241,8 +241,8 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
     case plan: ColumnarToRowExec =>
       if (columnarConf.enableArrowColumnarToRow) {
         val child = replaceWithTransformerPlan(plan.child)
-        logDebug(s"ColumnarPostOverrides ArrowColumnarToRowExec(${child.getClass})")
-        new ArrowColumnarToRowExec(child)
+        logDebug(s"ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
+        new NativeColumnarToRowExec(child)
       } else {
         val children = plan.children.map(replaceWithTransformerPlan)
         plan.withNewChildren(children)
@@ -257,7 +257,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
           if (columnarConf.enableArrowColumnarToRow) {
             try {
               val child = replaceWithTransformerPlan(c.child)
-              new ArrowColumnarToRowExec(child)
+              new NativeColumnarToRowExec(child)
             } catch {
               case _: Throwable =>
                 logInfo("ArrowColumnarToRow : Falling back to ColumnarToRow...")
@@ -295,7 +295,9 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   val columnarWholeStageEnabled: Boolean = conf.getBoolean(
     "spark.oap.sql.columnar.wholestagetransform", defaultValue = true)
-  def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
+  val backend: String = conf.get(
+    GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, defaultValue = "")
+  def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled, backend)
 
   var isSupportAdaptive: Boolean = true
 

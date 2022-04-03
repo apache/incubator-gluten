@@ -30,6 +30,7 @@
 
 #include "operators/shuffle/type.h"
 #include "operators/shuffle/utils.h"
+#include "substrait/algebra.pb.h"
 
 namespace gazellejni {
 namespace shuffle {
@@ -38,7 +39,7 @@ class Splitter {
  public:
   static arrow::Result<std::shared_ptr<Splitter>> Make(
       const std::string& short_name, std::shared_ptr<arrow::Schema> schema,
-      int num_partitions, const gandiva::ExpressionVector& expr_vector,
+      int num_partitions, const uint8_t* expr_data, int expr_size,
       SplitOptions options = SplitOptions::Defaults());
 
   static arrow::Result<std::shared_ptr<Splitter>> Make(
@@ -250,17 +251,22 @@ class HashSplitter : public Splitter {
  public:
   static arrow::Result<std::shared_ptr<HashSplitter>> Create(
       int32_t num_partitions, std::shared_ptr<arrow::Schema> schema,
-      const gandiva::ExpressionVector& expr_vector, SplitOptions options);
+      const substrait::Rel& subRel, SplitOptions options);
 
  private:
   HashSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema,
                SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
+      : Splitter(num_partitions, schema, std::move(options)), schema_(schema) {}
 
-  arrow::Status CreateProjector(const gandiva::ExpressionVector& expr_vector);
+  arrow::Status CreateGandivaExpr(const substrait::Rel& subRel);
+
+  arrow::Status CreateProjector();
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
+  std::vector<u_int32_t> hashIndices_;
+  std::shared_ptr<arrow::Schema> schema_;
+  gandiva::ExpressionVector exprVector_;
   std::shared_ptr<gandiva::Projector> projector_;
 };
 
