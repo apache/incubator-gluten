@@ -24,8 +24,6 @@
 namespace gazellecpp {
 namespace compute {
 
-static const std::vector<std::string> no_inputs = {"scan", "source", "table_source"};
-
 class ArrowExecBackend : public gazellejni::ExecBackendBase {
  public:
   ArrowExecBackend() = default;
@@ -39,11 +37,13 @@ class ArrowExecBackend : public gazellejni::ExecBackendBase {
       override;
 
  private:
+  std::shared_ptr<arrow::compute::Declaration> decl_;
   std::shared_ptr<arrow::compute::ExecPlan> exec_plan_;
 
-  void AddSourceDecls(arrow::compute::Declaration& decl,
-                      std::deque<arrow::compute::Declaration>& source_decls);
+  void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
 };
+
+void Initialize();
 
 }  // namespace compute
 }  // namespace gazellecpp

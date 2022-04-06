@@ -43,6 +43,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 JNIEXPORT void JNICALL
 Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
+  gazellecpp::compute::Initialize();
   gazellejni::SetBackendFactory(
       [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
 }

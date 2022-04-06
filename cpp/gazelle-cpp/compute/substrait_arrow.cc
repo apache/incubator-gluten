@@ -17,6 +17,9 @@
 
 #include "substrait_arrow.h"
 
+#include <arrow/compute/exec/options.h>
+#include <arrow/compute/registry.h>
+
 #include "jni/exec_backend.h"
 
 namespace gazellecpp {
@@ -44,11 +47,11 @@ ArrowExecBackend::GetResultIterator(
     throw gazellejni::JniPendingException("Expected 1 decl, but got " +
                                           std::to_string(decls.size()));
   }
-  auto& decl = decls[0];
+  decl_ = std::make_shared<arrow::compute::Declaration>(std::move(decls[0]));
 
   // Prepare and add source decls
   if (!inputs.empty()) {
-    std::deque<arrow::compute::Declaration> source_decls;
+    std::vector<arrow::compute::Declaration> source_decls;
     for (auto i = 0; i < inputs.size(); ++i) {
       auto it = schema_map_.find(i);
       if (it == schema_map_.end()) {
@@ -66,12 +69,12 @@ ArrowExecBackend::GetResultIterator(
       source_decls.emplace_back(
           "source", arrow::compute::SourceNodeOptions{it->second, std::move(gen)});
     }
-    AddSourceDecls(decl, source_decls);
+    ReplaceSourceDecls(std::move(source_decls));
   }
 
   // Make plan
   GAZELLE_JNI_ASSIGN_OR_THROW(exec_plan_, arrow::compute::ExecPlan::Make());
-  GAZELLE_JNI_ASSIGN_OR_THROW(auto node, decl.AddToPlan(exec_plan_.get()));
+  GAZELLE_JNI_ASSIGN_OR_THROW(auto node, decl_->AddToPlan(exec_plan_.get()));
   auto output_schema = node->output_schema();
 
   // Add sink node. It's added after constructing plan from decls because sink node
@@ -86,6 +89,8 @@ ArrowExecBackend::GetResultIterator(
 #ifdef DEBUG
   std::cout << std::string(50, '#') << " produced arrow::ExecPlan:" << std::endl;
   std::cout << exec_plan_->ToString() << std::endl;
+  std::cout << "Execplan output schema:" << std::endl
+            << output_schema->ToString() << std::endl;
 #endif
 
   std::shared_ptr<arrow::RecordBatchReader> sink_reader =
@@ -95,23 +100,51 @@ ArrowExecBackend::GetResultIterator(
                                                                  shared_from_this());
 }
 
-void ArrowExecBackend::AddSourceDecls(
-    arrow::compute::Declaration& decl,
-    std::deque<arrow::compute::Declaration>& source_decls) {
-  if (decl.inputs.empty()) {
-    auto need_input = std::find(no_inputs.begin(), no_inputs.end(), decl.factory_name) ==
-                      no_inputs.end();
-    if (need_input && !source_decls.empty()) {
-      decl.inputs.emplace_back(std::move(source_decls.front()));
-      source_decls.pop_front();
+void ArrowExecBackend::ReplaceSourceDecls(
+    std::vector<arrow::compute::Declaration> source_decls) {
+  std::vector<arrow::compute::Declaration*> visited;
+  std::vector<arrow::compute::Declaration*> source_indexes;
+
+  visited.push_back(decl_.get());
+
+  while (!visited.empty()) {
+    auto top = visited.back();
+    visited.pop_back();
+    for (auto& input : top->inputs) {
+      auto& input_decl = arrow::util::get<arrow::compute::Declaration>(input);
+      if (input_decl.factory_name == "source_index") {
+        source_indexes.push_back(&input_decl);
+      } else {
+        visited.push_back(&input_decl);
+      }
     }
-    return;
   }
-  for (auto& input : decl.inputs) {
-    AddSourceDecls(arrow::util::get<arrow::compute::Declaration>(input), source_decls);
-    if (source_decls.empty()) {
-      return;
-    }
+
+  if (source_indexes.size() != source_decls.size()) {
+    throw gazellejni::JniPendingException(
+        "Wrong number of source declarations. " + std::to_string(source_indexes.size()) +
+        " source(s) needed by source declarations, but got " +
+        std::to_string(source_decls.size()) + " from input batches.");
+  }
+
+  for (auto& source_index : source_indexes) {
+    auto index =
+        arrow::internal::checked_pointer_cast<arrow::compute::SourceIndexOptions>(
+            source_index->options)
+            ->index;
+    *source_index = std::move(source_decls[index]);
+  }
+}
+
+void Initialize() {
+  static auto function_registry = arrow::compute::GetFunctionRegistry();
+  static auto extension_registry = arrow::engine::default_extension_id_registry();
+  if (function_registry && extension_registry) {
+    // TODO: Register customized functions to function_registry, and register the
+    // mapping from substrait function names to customized function names to
+    // extension_registry.
+    function_registry = nullptr;
+    extension_registry = nullptr;
   }
 }
 
