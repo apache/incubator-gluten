@@ -33,7 +33,7 @@ $ conda create -n oapenv -c conda-forge -c intel -y oap=1.2.0
 
 Dependencies below are required by OAP and all of them are included in OAP Conda package, they will be automatically installed in your cluster when you Conda install OAP. Ensure you have activated environment which you created in the previous steps.
 
-- [Arrow](https://github.com/oap-project/arrow/tree/v4.0.0-oap-1.2.0)
+- [Arrow](https://github.com/oap-project/arrow/tree/arrow-7.0.0-oap)
 - [Plasma](http://arrow.apache.org/blog/2017/08/08/plasma-in-memory-object-store/)
 - [Memkind](https://github.com/memkind/memkind/tree/v1.10.1)
 - [Vmemcache](https://github.com/pmem/vmemcache.git)

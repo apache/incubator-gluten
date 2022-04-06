@@ -1,12 +1,15 @@
 ## Velox
 
+Currently, Gluten requires Velox being pre-compiled.
 In general, please refer to [Velox Installation](https://github.com/facebookincubator/velox/blob/main/scripts/setup-ubuntu.sh) to install all the dependencies and compile Velox.
-In addition to that, there are several points worth attention when compiling Gazelle-Jni with Velox.
+Gluten depends on this [Velox branch](https://github.com/rui-mo/velox/tree/velox_for_gazelle_jni).
+The changes to Velox are planned to be upstreamed in the future.
+In addition to that, there are several points worth attention when compiling Gluten with Velox.
 
-Firstly, please note that all the Gazelle-Jni required libraries should be compiled as **position independent code**.
+Firstly, please note that all the Gluten required libraries should be compiled as **position independent code**.
 That means, for static libraries, "-fPIC" option should be added in their compiling processes.
 
-Currently, Gazelle-Jni with Velox depends on below libraries:
+Currently, Gluten with Velox depends on below libraries:
 
 Required static libraries are:
 
@@ -21,9 +24,9 @@ Required shared libraries are:
 - gtest
 - snappy
 
-Gazelle-Jni will try to find above libraries from system lib paths.
+Gluten will try to find above libraries from system lib paths.
 If they are not installed there, please copy them to system lib paths,
-or change the paths about where to find them specified in [CMakeLists.txt](https://github.com/oap-project/gazelle-jni/blob/velox_dev/cpp/src/CMakeLists.txt).
+or change the finding paths specified in [CMakeLists.txt](https://github.com/oap-project/gluten/blob/master/cpp/velox/CMakeLists.txt).
 
 ```shell script
 set(SYSTEM_LIB_PATH "/usr/lib" CACHE PATH "System Lib dir")
@@ -34,19 +37,24 @@ set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 di
 
 Secondly, when compiling Velox, please note that Velox generated static libraries should also be compiled as position independent code.
 Also, some OBJECT settings in CMakeLists are removed in order to acquire the static libraries.
-For these two changes, please refer to this commit [Velox Compiling](https://github.com/rui-mo/velox/commit/ce1dee8f776bc3afa36cd3fc033161fc062cbe98).
+These two changes have already been covered in the Velox branch Gluten depends on.
 
-Currently, we depends on this Velox commmit: **8d3e951 (Jan 18 2022)**
+After Velox being successfully compiled, please refer to [GlutenUsage](GlutenUsage.md) and
+use below command to compile Gluten with Velox backend.
 
-### An example for Velox computing in Spark based on Gazelle-Jni
+```shell script
+mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME}
+```
 
-TPC-H Q6 is supported in Gazelle-Jni base on Velox computing. Current support still has several limitations: 
+### An example for offloading Spark's computing to Velox with Gluten
 
-- Only Double type is supported.
-- Only first stage of TPC-H Q6 (which occupies the most time in this query) is supported.
+TPC-H Q1 and Q6 are supported in Gluten using Velox as backend. Current support has below limitations: 
+
+- Found Date and Long types in Velox's TableScan are not fully ready, 
+so converted related columns into Double type.
 - Metrics are missing.
 
-#### Test TPC-H Q6 on Gazelle-Jni with Velox computing
+#### Test TPC-H Q1 and Q6 on Gluten with Velox backend
 
 ##### Data preparation
 
@@ -77,6 +85,11 @@ The modified TPC-H Q6 query is:
 select sum(l_extendedprice * l_discount) as revenue from lineitem where l_shipdate_new >= 8766 and l_shipdate_new < 9131 and l_discount between .06 - 0.01 and .06 + 0.01 and l_quantity < 24
 ```
 
+The modified TPC-H Q6 query is:
+```shell script
+select l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order from lineitem where l_shipdate_new <= 10471 group by l_returnflag, l_linestatus order by l_returnflag, l_linestatus
+```
+
 Below script shows how to read the ORC data, and submit the modified TPC-H Q6 query.
 
 cat tpch_q6.scala
@@ -90,7 +103,7 @@ time{spark.sql("select sum(l_extendedprice * l_discount) as revenue from lineite
 Submit test script from spark-shell.
 
 ```shell script
-cat tpch_q6.scala | spark-shell --name tpch_velox_q6 --master yarn --deploy-mode client --conf spark.plugins=com.intel.oap.GazellePlugin --conf spark.driver.extraClassPath=${gazelle_jvm_jar} --conf spark.executor.extraClassPath=${gazelle_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
+cat tpch_q6.scala | spark-shell --name tpch_velox_q6 --master yarn --deploy-mode client --conf spark.plugins=com.intel.oap.GazellePlugin --conf --conf spark.oap.sql.columnar.backend.lib=velox --conf spark.driver.extraClassPath=${gazelle_jvm_jar} --conf spark.executor.extraClassPath=${gazelle_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
 ```
 
 ##### Result
@@ -99,20 +112,10 @@ cat tpch_q6.scala | spark-shell --name tpch_velox_q6 --master yarn --deploy-mode
 
 ##### Performance
 
-Below table shows the TPC-H Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
+Below table shows the TPC-H Q1 and Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
 Both Parquet and ORC datasets are sf1024.
 
-| TPC-H Q6 Performance | Velox (ORC) | Vanilla Spark (Parquet) | Vanilla Spark (ORC) |
-| ---------- | ----------- | ------------- | ------------- |
-| Time(s) | 13.6 | 21.6  | 34.9 |
-
-
-
-
-
-
-
-
-
-
-
+| Query Performance (s) | Velox (ORC) | Vanilla Spark (Parquet) | Vanilla Spark (ORC) |
+|---------------- | ----------- | ------------- | ------------- |
+| TPC-H Q6 | 13.6 | 21.6  | 34.9 |
+| TPC-H Q1 | 26.1 | 76.7 | 84.9 |

@@ -30,7 +30,7 @@ Please make sure your cmake version is qualified based on the prerequisite.
 # Arrow
 ``` shell
 git clone https://github.com/oap-project/arrow.git
-cd arrow && git checkout arrow-4.0.0-oap
+cd arrow && git checkout arrow-7.0.0-oap
 mkdir -p arrow/cpp/release-build
 cd arrow/cpp/release-build
 cmake -DARROW_DEPENDENCY_SOURCE=BUNDLED -DARROW_GANDIVA_JAVA=ON -DARROW_GANDIVA=ON -DARROW_PARQUET=ON -DARROW_CSV=ON -DARROW_HDFS=ON -DARROW_BOOST_USE_SHARED=ON -DARROW_JNI=ON -DARROW_DATASET=ON -DARROW_WITH_PROTOBUF=ON -DARROW_WITH_SNAPPY=ON -DARROW_WITH_LZ4=ON -DARROW_FILESYSTEM=ON -DARROW_JSON=ON ..
@@ -51,4 +51,4 @@ mvn test -pl adapter/parquet -P arrow-jni
 mvn test -pl gandiva -P arrow-jni
 ```
 
-After arrow installed in the specific directory, please make sure to set up -Dbuild_arrow=OFF -Darrow_root=/path/to/arrow when building Gazelle Plugin.
+After arrow installed in the specific directory, please make sure to set up -Dbuild_arrow=OFF -Darrow_root=/path/to/arrow when building Gluten.
