@@ -701,6 +701,9 @@ object ConverterUtils extends Logging {
     typedFuncName
   }
 
+  // A prefix used in the iterator path.
+  final val ITERATOR_PREFIX = "iterator:"
+
   // Function names used by Substrait plan.
   final val SUM = "sum"
   final val AVG = "avg"

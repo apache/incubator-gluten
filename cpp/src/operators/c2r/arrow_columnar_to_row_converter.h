@@ -15,19 +15,29 @@
  * limitations under the License.
  */
 
-package com.intel.oap.substrait.plan;
+#pragma once
 
-import com.intel.oap.substrait.extensions.MappingNode;
-import com.intel.oap.substrait.rel.RelNode;
+#include "columnar_to_row_base.h"
 
-import java.util.ArrayList;
+namespace gazellejni {
+namespace columnartorow {
 
-public class PlanBuilder {
-    private PlanBuilder() {}
+class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
+ public:
+  ArrowColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb,
+                              arrow::MemoryPool* memory_pool)
+      : ColumnarToRowConverterBase(rb, memory_pool) {}
 
-    public static PlanNode makePlan(ArrayList<MappingNode> mappingNodes,
-                                    ArrayList<RelNode> relNodes,
-                                    ArrayList<String> outNames) {
-        return new PlanNode(mappingNodes, relNodes, outNames);
-    }
-}
+  arrow::Status Init() override;
+
+  arrow::Status Write() override;
+
+ private:
+  arrow::Status WriteValue(uint8_t* buffer_address, int64_t field_offset,
+                           std::shared_ptr<arrow::Array> array, int32_t col_index,
+                           int64_t num_rows, std::vector<int64_t>& offsets,
+                           std::vector<int64_t>& buffer_cursor);
+};
+
+}  // namespace columnartorow
+}  // namespace gazellejni

@@ -51,8 +51,8 @@ public class RelBuilder {
     return new ReadRelNode(types, names, filter, context);
   }
 
-  public static RelNode makeInputRel(ArrayList<String> names, ArrayList<TypeNode> types,
-                                     Long iterIdx) {
-    return new InputRelNode(names, types, iterIdx);
+  public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
+                                    SubstraitContext context) {
+    return new ReadRelNode(types, names, context);
   }
 }

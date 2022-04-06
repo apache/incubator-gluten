@@ -34,7 +34,9 @@ class ConcatTransformer(exps: Seq[Expression], original: Expression)
     extends Concat(exps: Seq[Expression])
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 object ConcatOperatorTransformer {

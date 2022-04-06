@@ -41,7 +41,9 @@ class CaseWhenTransformer(
     extends CaseWhen(branches: Seq[(Expression, Expression)], elseValue: Option[Expression])
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 object CaseWhenOperatorTransformer {

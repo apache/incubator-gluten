@@ -27,6 +27,7 @@ public class LocalFilesNode implements Serializable {
     private final ArrayList<String> paths = new ArrayList<>();
     private final ArrayList<Long> starts = new ArrayList<>();
     private final ArrayList<Long> lengths = new ArrayList<>();
+    private Boolean iterAsInput = false;
 
     LocalFilesNode(Integer index, ArrayList<String> paths,
                    ArrayList<Long> starts, ArrayList<Long> lengths) {
@@ -36,13 +37,32 @@ public class LocalFilesNode implements Serializable {
         this.lengths.addAll(lengths);
     }
 
+    LocalFilesNode(String iterPath) {
+        this.index = null;
+        this.paths.add(iterPath);
+        this.iterAsInput = true;
+    }
+
     public ReadRel.LocalFiles toProtobuf() {
         ReadRel.LocalFiles.Builder localFilesBuilder = ReadRel.LocalFiles.newBuilder();
+        // The input is iterator, and the path is in the format of: Iterator:index.
+        if (iterAsInput && paths.size() > 0) {
+            ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder =
+                    ReadRel.LocalFiles.FileOrFiles.newBuilder();
+            fileBuilder.setUriFile(paths.get(0));
+            localFilesBuilder.addItems(fileBuilder.build());
+            return localFilesBuilder.build();
+        }
+        if (paths.size() != starts.size() || paths.size() != lengths.size()) {
+            throw new RuntimeException("Invalid parameters.");
+        }
         for (int i = 0; i < paths.size(); i++) {
             ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder =
                     ReadRel.LocalFiles.FileOrFiles.newBuilder();
             fileBuilder.setUriFile(paths.get(i));
-            fileBuilder.setPartitionIndex(index);
+            if (index != null) {
+                fileBuilder.setPartitionIndex(index);
+            }
             fileBuilder.setLength(lengths.get(i));
             fileBuilder.setStart(starts.get(i));
             // TODO: Support multiple file format

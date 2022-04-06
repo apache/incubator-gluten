@@ -390,6 +390,8 @@
                         <argument>${jvm.arrow.bfs.install.dir}</argument>
                         <argument>${build_jemalloc}</argument>
                         <argument>${build_gazelle_cpp}</argument>
+                        <argument>${build_velox}</argument>
+                        <argument>${velox_home}</argument>
                     </arguments>
                 </configuration>
             </execution>

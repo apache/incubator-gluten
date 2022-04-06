@@ -17,17 +17,18 @@
 
 package com.intel.oap.vectorized;
 
-public class ArrowColumnarToRowInfo {
-    public long instanceID;
-    public long[] offsets;
-    public long[] lengths;
-    public long memoryAddress;
+import java.io.IOException;
 
-    public ArrowColumnarToRowInfo(long instanceID,
-                                  long[] offsets, long[] lengths, long memoryAddress) {
-        this.instanceID = instanceID;
-        this.offsets = offsets;
-        this.lengths = lengths;
-        this.memoryAddress = memoryAddress;
-    }
+public class NativeColumnarToRowJniWrapper {
+
+  public NativeColumnarToRowJniWrapper() throws IOException {
+    JniInstance.getInstance();
+  }
+
+  public native NativeColumnarToRowInfo nativeConvertColumnarToRow(
+          byte[] schema, int numRows, long[] bufAddrs,
+          long[] bufSizes, long memoryPollID) throws RuntimeException;
+
+  public native void nativeClose(long instanceID);
+
 }

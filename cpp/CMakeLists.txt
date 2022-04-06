@@ -53,3 +53,7 @@ add_subdirectory(src)
 if (BUILD_GAZELLE_CPP)
   add_subdirectory(gazelle-cpp)
 endif ()
+
+if (BUILD_VELOX)
+  add_subdirectory(velox)
+endif()

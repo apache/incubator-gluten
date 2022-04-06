@@ -17,9 +17,13 @@
 
 package org.apache.spark.sql.execution
 
+import java.util
+
 import com.google.common.collect.Lists
 import com.intel.oap.GazelleJniConfig
-import com.intel.oap.expression.{CodeGeneration, ConverterUtils}
+import com.intel.oap.expression.{CodeGeneration, ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import com.intel.oap.substrait.expression.ExpressionNode
+import com.intel.oap.substrait.rel.RelBuilder
 import com.intel.oap.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, CHColumnarBatchSerializer, NativePartitioning}
 import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
@@ -72,9 +76,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
 
   override def nodeName: String = "ColumnarExchange"
-
   override def output: Seq[Attribute] = child.output
-
   buildCheck()
 
   override def supportsColumnar: Boolean = true
@@ -405,27 +407,25 @@ object ColumnarShuffleExchangeExec extends Logging {
       case HashPartitioning(exprs, n) =>
         val loadch = GazelleJniConfig.getConf.loadch
         if (!loadch) {
-          val gandivaExprs = exprs.zipWithIndex.map {
-            case (expr, i) =>
-              // FIXME
-              //            val columnarExpr = ColumnarExpressionConverter
-              //              .replaceWithColumnarExpression(expr)
-              //              .asInstanceOf[ColumnarExpression]
-              //            val input: java.util.List[Field] = Lists.newArrayList()
-              //            val (treeNode, resultType) = columnarExpr.doColumnarCodeGen(input)
-              val treeNode: TreeNode = null
-              val attr = ConverterUtils.getAttrFromExpr(expr)
-              val field = Field
-                .nullable(
-                  s"${attr.name}#${attr.exprId.id}",
-                  CodeGeneration.getResultType(attr.dataType))
-              TreeBuilder.makeExpression(treeNode, field)
-          }
+          // Function map is not expected to be used.
+          val functionMap = new java.util.HashMap[String, java.lang.Long]()
+          val exprNodeList = new util.ArrayList[ExpressionNode]()
+          exprs.foreach(expr => {
+            if (!expr.isInstanceOf[Attribute]) {
+              throw new UnsupportedOperationException(
+                "Expressions are not supported in HashPartitioning.")
+            }
+            exprNodeList.add(ExpressionConverter
+              .replaceWithExpressionTransformer(expr, outputAttributes)
+              .asInstanceOf[ExpressionTransformer]
+              .doTransform(functionMap))
+          })
+          val projectRel = RelBuilder.makeProjectRel(null, exprNodeList)
           new NativePartitioning(
             "hash",
             n,
             serializeSchema(arrowFields),
-            ConverterUtils.getExprListBytesBuf(gandivaExprs.toList))
+            projectRel.toProtobuf().toByteArray)
         } else {
           val fields = exprs.zipWithIndex.map {
             case (expr, i) =>

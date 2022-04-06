@@ -83,14 +83,18 @@ class EndsWithTransformer(left: Expression, right: Expression, original: Express
     extends EndsWith(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class StartsWithTransformer(left: Expression, right: Expression, original: Expression)
     extends StartsWith(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class LikeTransformer(left: Expression, right: Expression, original: Expression)
@@ -123,7 +127,9 @@ class ContainsTransformer(left: Expression, right: Expression, original: Express
     extends Contains(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class EqualToTransformer(left: Expression, right: Expression, original: Expression)
@@ -156,7 +162,9 @@ class EqualNullTransformer(left: Expression, right: Expression, original: Expres
     extends EqualNullSafe(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class LessThanTransformer(left: Expression, right: Expression, original: Expression)
@@ -267,14 +275,18 @@ class ShiftLeftTransformer(left: Expression, right: Expression, original: Expres
     extends ShiftLeft(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 class ShiftRightTransformer(left: Expression, right: Expression, original: Expression)
     extends ShiftRight(left: Expression, right: Expression)
         with ExpressionTransformer
         with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = null
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
 }
 
 object BinaryOperatorTransformer {
