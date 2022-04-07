@@ -99,7 +99,7 @@ object DSV2ColumnarBenchmarkTest {
         .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
         .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
         .config(GazelleJniConfig.OAP_LIB_PATH,
-          "/home/saber/Documents/github/ClickHouse/cmake-build-debug/utils/local-engine/libchd.so")
+          "/home/saber/Documents/github/ClickHouse/cmake-build-relwithdebinfo/utils/local-engine/libch.so")
         .config("spark.oap.sql.columnar.iterator", "true")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")

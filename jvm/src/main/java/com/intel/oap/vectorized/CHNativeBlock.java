@@ -21,6 +21,7 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 public class CHNativeBlock {
@@ -28,6 +29,14 @@ public class CHNativeBlock {
 
     public CHNativeBlock(long blockAddress) {
         this.blockAddress = blockAddress;
+    }
+
+    public static Optional<CHNativeBlock> fromColumnarBatch(ColumnarBatch batch) {
+        if (batch.numCols() == 0 || !(batch.column(0) instanceof CHColumnVector)) {
+            return Optional.empty();
+        }
+        CHColumnVector columnVector = (CHColumnVector) batch.column(0);
+        return Optional.of(new CHNativeBlock(columnVector.getBlockAddress()));
     }
 
     private native int nativeNumRows(long blockAddress);

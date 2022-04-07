@@ -19,7 +19,7 @@ package com.intel.oap.execution
 
 import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
-import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHCoalesceOperator, CloseableCHColumnBatchIterator, CloseableColumnBatchIterator, ColumnarFactory}
+import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHCoalesceOperator, CHNativeBlock, CloseableCHColumnBatchIterator, CloseableColumnBatchIterator, ColumnarFactory}
 import org.apache.arrow.vector.util.VectorBatchAppender
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.pojo.Schema
@@ -156,23 +156,42 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
   }
 
   def doCHInternalExecuteColumnar(): RDD[ColumnarBatch] = {
+    val recordsPerBatch = conf.arrowMaxRecordsPerBatch
+    val numOutputRows = longMetric("numOutputRows")
+    val numInputBatches = longMetric("numInputBatches")
+    val numOutputBatches = longMetric("numOutputBatches")
+    val collectTime = longMetric("collectTime")
+    val concatTime = longMetric("concatTime")
+    val avgCoalescedNumRows = longMetric("avgCoalescedNumRows")
     child.executeColumnar().mapPartitions(iter => {
-      val operator = new CHCoalesceOperator(conf.arrowMaxRecordsPerBatch)
-      val res =new Iterator[ColumnarBatch] {
+      val operator = new CHCoalesceOperator(recordsPerBatch)
+      val res = new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
-          iter.hasNext
+          val beforeNext = System.nanoTime
+          val hasNext = iter.hasNext
+          collectTime += System.nanoTime - beforeNext
+          hasNext
         }
         SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((tc: TaskContext) => {
           operator.close()
         })
         override def next(): ColumnarBatch = {
           val c = iter.next()
+          numInputBatches += 1
+          val beforeConcat = System.nanoTime
           operator.mergeBlock(c)
+
           while(!operator.isFull && iter.hasNext) {
             val cb = iter.next();
+            numInputBatches += 1;
             operator.mergeBlock(cb)
           }
-          operator.release().toColumnarBatch
+          val res = operator.release().toColumnarBatch
+          CHNativeBlock.fromColumnarBatch(res).ifPresent(block => {
+            numOutputRows += block.numRows();
+            numOutputBatches += 1;
+          })
+          res
         }
       }
 
