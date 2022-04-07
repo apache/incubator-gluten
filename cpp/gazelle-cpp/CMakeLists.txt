@@ -29,14 +29,37 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(JNI REQUIRED)
 
+set(ARROW_ENGINE_LIB_NAME "arrow_engine")
+set(ARROW_SHARED_LIBRARY_SUFFIX ".so.700")
+find_library(ARROW_ENGINE_LIB NAMES ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_ENGINE_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
+if (NOT ARROW_ENGINE_LIB)
+  message(FATAL_ERROR "Arrow Engine Library Not Found")
+else ()
+  message(STATUS "Arrow Engine Library Can Be Found in ${ARROW_ENGINE_LIB}")
+endif ()
+file(COPY ${ARROW_ENGINE_LIB} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
+
+# Set up Arrow Engine Shared Library Directory
+set(
+    ARROW_ENGINE_SHARED_LIB
+    "${root_directory}/releases/${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_ENGINE_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX}"
+)
+
+add_library(Arrow::arrow_engine SHARED IMPORTED)
+set_target_properties(Arrow::arrow_engine
+    PROPERTIES IMPORTED_LOCATION "${ARROW_ENGINE_SHARED_LIB}"
+    INTERFACE_INCLUDE_DIRECTORIES
+    "${root_directory}/releases/include")
+
 set(GAZELLE_CPP_JNI_SRCS
     jni/jni_wrapper.cc
+    compute/substrait_arrow.cc
     )
 
 add_library(gazelle_cpp SHARED ${GAZELLE_CPP_JNI_SRCS})
 
 target_include_directories(gazelle_cpp PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${root_directory}/src)
-target_link_libraries(gazelle_cpp spark_columnar_jni)
+target_link_libraries(gazelle_cpp spark_columnar_jni Arrow::arrow_engine)
 
 set_target_properties(gazelle_cpp PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
