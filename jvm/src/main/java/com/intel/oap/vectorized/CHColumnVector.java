@@ -40,7 +40,7 @@ public class CHColumnVector extends ColumnVector {
 
     @Override
     public void close() {
-        blockAddress = 0;
+//        blockAddress = 0;
     }
 
     private native boolean nativeHasNull(long blockAddress, int columnPosition);

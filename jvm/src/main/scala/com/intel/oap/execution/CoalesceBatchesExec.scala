@@ -19,8 +19,7 @@ package com.intel.oap.execution
 
 import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
-import com.intel.oap.vectorized.ArrowWritableColumnVector
-import com.intel.oap.vectorized.CloseableColumnBatchIterator
+import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHCoalesceOperator, CloseableCHColumnBatchIterator, CloseableColumnBatchIterator}
 import org.apache.arrow.vector.util.VectorBatchAppender
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.pojo.Schema
@@ -158,15 +157,26 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
 
   def doCHInternalExecuteColumnar(): RDD[ColumnarBatch] = {
     child.executeColumnar().mapPartitions(iter => {
-      new Iterator[ColumnarBatch] {
+      val operator = new CHCoalesceOperator(conf.arrowMaxRecordsPerBatch)
+      val res =new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
           iter.hasNext
         }
-
+        SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((tc: TaskContext) => {
+          operator.close()
+        })
         override def next(): ColumnarBatch = {
-          iter.next()
+          val c = iter.next()
+          operator.mergeBlock(c)
+          while(!operator.isFull && iter.hasNext) {
+            val cb = iter.next();
+            operator.mergeBlock(cb)
+          }
+          operator.release().toColumnarBatch
         }
       }
+
+      res
     })
   }
 }

@@ -24,7 +24,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 import java.util.stream.IntStream;
 
 public class CHNativeBlock {
-    private final long blockAddress;
+    private long blockAddress;
 
     public CHNativeBlock(long blockAddress) {
         this.blockAddress = blockAddress;
@@ -54,15 +54,22 @@ public class CHNativeBlock {
         return nativeTotalBytes(blockAddress);
     }
 
+    public native void nativeClose(long blockAddress);
+
+    public void close() {
+        if (blockAddress != 0) {
+            nativeClose(blockAddress);
+            blockAddress = 0;
+        }
+    }
+
     public ColumnarBatch toColumnarBatch() {
         ColumnVector[] vectors = new ColumnVector[numColumns()];
         for (int i = 0; i < numColumns(); i++) {
             vectors[i] = new CHColumnVector(DataType.fromDDL(getTypeByPosition(i)), blockAddress, i);
         }
         int numRows = 0;
-        if (numColumns() == 0) {
-            numRows = 0;
-        } else {
+        if (numColumns() != 0) {
             numRows = numRows();
         }
         return new ColumnarBatch(vectors, numRows);
