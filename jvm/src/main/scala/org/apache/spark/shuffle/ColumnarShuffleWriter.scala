@@ -22,7 +22,7 @@ import com.google.common.annotations.VisibleForTesting
 import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
 import com.intel.oap.spark.sql.execution.datasources.v2.arrow.Spiller
-import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHColumnVector, CHShuffleSplitterJniWrapper, ShuffleSplitterJniWrapper, SplitResult}
+import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHColumnVector, CHShuffleSplitterJniWrapper, ColumnarFactory, ShuffleSplitterJniWrapper, SplitResult}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -80,8 +80,7 @@ class ColumnarShuffleWriter[K, V](
 
   private val loadch = GazelleJniConfig.getConf.loadch
 
-  private val jniWrapper = if (loadch) {new CHShuffleSplitterJniWrapper()}
-                            else {new ShuffleSplitterJniWrapper()}
+  private val jniWrapper = ColumnarFactory.createShuffleSplitterJniWrapper();
 
   private var nativeSplitter: Long = 0
 

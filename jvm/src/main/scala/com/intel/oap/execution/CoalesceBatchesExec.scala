@@ -19,7 +19,7 @@ package com.intel.oap.execution
 
 import com.intel.oap.GazelleJniConfig
 import com.intel.oap.expression.ConverterUtils
-import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHCoalesceOperator, CloseableCHColumnBatchIterator, CloseableColumnBatchIterator}
+import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHCoalesceOperator, CloseableCHColumnBatchIterator, CloseableColumnBatchIterator, ColumnarFactory}
 import org.apache.arrow.vector.util.VectorBatchAppender
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.pojo.Schema
@@ -151,7 +151,7 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
       } else {
         Iterator.empty
       }
-      new CloseableColumnBatchIterator(res)
+      ColumnarFactory.createClosableIterator(res)
     }
   }
 
@@ -176,7 +176,7 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
         }
       }
 
-      res
+      ColumnarFactory.createClosableIterator(res)
     })
   }
 }

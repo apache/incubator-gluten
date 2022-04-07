@@ -180,17 +180,10 @@ class NativeWholeStageColumnarRDD(
 
       }
     }
-    if (!GazelleJniConfig.getConf.loadch) {
-      val closeableColumnarBatchIterator = new CloseableColumnBatchIterator(
-        iter.asInstanceOf[Iterator[ColumnarBatch]])
-      // TODO: SPARK-25083 remove the type erasure hack in data source scan
-      new InterruptibleIterator(context, closeableColumnarBatchIterator)
-    } else {
-      val closeableColumnarBatchIterator = new CloseableCHColumnBatchIterator(
-        iter.asInstanceOf[Iterator[ColumnarBatch]])
-      new InterruptibleIterator(context, closeableColumnarBatchIterator)
-    }
 
+    // TODO: SPARK-25083 remove the type erasure hack in data source scan
+    new InterruptibleIterator(context,
+      ColumnarFactory.createClosableIterator(iter.asInstanceOf[Iterator[ColumnarBatch]]))
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {

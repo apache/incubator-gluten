@@ -513,7 +513,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
             close
           })
-          new CloseableColumnBatchIterator(resIter)
+          ColumnarFactory.createClosableIterator(resIter)
         }
       } else {
         curRDD.mapPartitions { iter =>
@@ -558,7 +558,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
             close
           })
-          new CloseableCHColumnBatchIterator(resIter)
+          ColumnarFactory.createClosableIterator(resIter)
         }
       }
     }
