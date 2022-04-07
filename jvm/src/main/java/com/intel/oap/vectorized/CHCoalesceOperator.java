@@ -29,6 +29,8 @@ public class CHCoalesceOperator implements Serializable, Closeable {
         CHColumnVector col = (CHColumnVector) block.column(0);
         long blockAddress = col.getBlockAddress();
         nativeMergeBlock(nativeOperator, blockAddress);
+        CHNativeBlock nativeBlock = new CHNativeBlock(blockAddress);
+        nativeBlock.close();
     }
 
     public native long nativeRelease(long nativeOperator);

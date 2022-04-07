@@ -558,7 +558,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
             close
           })
-          new CloseableColumnBatchIterator(resIter)
+          new CloseableCHColumnBatchIterator(resIter)
         }
       }
     }
