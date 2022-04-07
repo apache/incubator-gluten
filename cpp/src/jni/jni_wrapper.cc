@@ -267,30 +267,30 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       CreateGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
 
   serializable_obj_builder_class = CreateGlobalClassReference(
-      env, "Lcom/intel/oap/vectorized/NativeSerializableObject;");
+      env, "Lio/glutenproject/vectorized/NativeSerializableObject;");
   serializable_obj_builder_constructor =
       GetMethodID(env, serializable_obj_builder_class, "<init>", "([J[I)V");
 
   byte_array_class = CreateGlobalClassReference(env, "[B");
   split_result_class =
-      CreateGlobalClassReference(env, "Lcom/intel/oap/vectorized/SplitResult;");
+      CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/SplitResult;");
   split_result_constructor =
       GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
   metrics_builder_class =
-      CreateGlobalClassReference(env, "Lcom/intel/oap/vectorized/MetricsObject;");
+      CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/MetricsObject;");
   metrics_builder_constructor =
       GetMethodID(env, metrics_builder_class, "<init>", "([J[J)V");
 
   serialized_record_batch_iterator_class =
-      CreateGlobalClassReference(env, "Lcom/intel/oap/execution/ColumnarNativeIterator;");
+      CreateGlobalClassReference(env, "Lio/glutenproject/execution/ColumnarNativeIterator;");
   serialized_record_batch_iterator_hasNext =
       GetMethodID(env, serialized_record_batch_iterator_class, "hasNext", "()Z");
   serialized_record_batch_iterator_next =
       GetMethodID(env, serialized_record_batch_iterator_class, "next", "()[B");
 
   native_columnar_to_row_info_class = CreateGlobalClassReference(
-      env, "Lcom/intel/oap/vectorized/NativeColumnarToRowInfo;");
+      env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
   native_columnar_to_row_info_constructor =
       GetMethodID(env, native_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
 
@@ -322,7 +322,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
+Java_io_glutenprojet_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
     JNIEnv* env, jobject obj, jstring pathObj) {
   JNI_METHOD_START
   jboolean ifCopy;
@@ -333,19 +333,19 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeSetBatchSize(
+Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetBatchSize(
     JNIEnv* env, jobject obj, jint batch_size) {
   setenv("NATIVESQL_BATCH_SIZE", std::to_string(batch_size).c_str(), 1);
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsTime(
+Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsTime(
     JNIEnv* env, jobject obj, jboolean is_enable) {
   setenv("NATIVESQL_METRICS_TIME", (is_enable ? "true" : "false"), 1);
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
+Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
     JNIEnv* env, jobject obj, jlong memory_pool_id, jbyteArray plan_arr,
     jobjectArray iter_arr) {
   JNI_METHOD_START
@@ -401,7 +401,7 @@ Java_com_intel_oap_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWi
   JNI_METHOD_END(-1)
 }
 
-JNIEXPORT jboolean JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeHasNext(
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeHasNext(
     JNIEnv* env, jobject obj, jlong id) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
@@ -413,7 +413,7 @@ JNIEXPORT jboolean JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeHas
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeNext(
+JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeNext(
     JNIEnv* env, jobject obj, jlong id) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
@@ -425,7 +425,7 @@ JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeNext
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeClose(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeClose(
     JNIEnv* env, jobject this_obj, jlong id) {
   JNI_METHOD_START
 #ifdef DEBUG
@@ -439,7 +439,7 @@ JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_BatchIterator_nativeClose(
 }
 
 JNIEXPORT jobject JNICALL
-Java_com_intel_oap_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow(
+Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow(
     JNIEnv* env, jobject, jbyteArray schema_arr, jint num_rows, jlongArray buf_addrs,
     jlongArray buf_sizes, jlong memory_pool_id) {
   JNI_METHOD_START
@@ -510,7 +510,7 @@ Java_com_intel_oap_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumna
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
+Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
     JNIEnv* env, jobject, jlong instance_id) {
   JNI_METHOD_START
   columnar_to_row_converter_holder_.Erase(instance_id);
@@ -519,7 +519,7 @@ Java_com_intel_oap_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
 
 // Shuffle
 JNIEXPORT jlong JNICALL
-Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
+Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
     JNIEnv* env, jobject, jstring partitioning_name_jstr, jint num_partitions,
     jbyteArray schema_arr, jbyteArray expr_arr, jlong offheap_per_task, jint buffer_size,
     jstring compression_type_jstr, jint batch_compress_threshold, jstring data_file_jstr,
@@ -625,7 +625,7 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_nativeMake(
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_setCompressType(
+Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
     JNIEnv* env, jobject, jlong splitter_id, jstring compression_type_jstr) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
@@ -644,7 +644,7 @@ Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_setCompressType(
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_split(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
     JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlongArray buf_addrs,
     jlongArray buf_sizes, jboolean first_record_batch) {
   JNI_METHOD_START
@@ -685,7 +685,7 @@ JNIEXPORT jlong JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_stop(
+JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(
     JNIEnv* env, jobject, jlong splitter_id) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
@@ -717,14 +717,14 @@ JNIEXPORT jobject JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrappe
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_ShuffleSplitterJniWrapper_close(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_close(
     JNIEnv* env, jobject, jlong splitter_id) {
   JNI_METHOD_START
   shuffle_splitter_holder_.Erase(splitter_id);
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_com_intel_oap_vectorized_ShuffleDecompressionJniWrapper_make(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
     JNIEnv* env, jobject, jbyteArray schema_arr) {
   JNI_METHOD_START
   std::shared_ptr<arrow::Schema> schema;
@@ -736,7 +736,7 @@ JNIEXPORT jlong JNICALL Java_com_intel_oap_vectorized_ShuffleDecompressionJniWra
 }
 
 JNIEXPORT jobject JNICALL
-Java_com_intel_oap_vectorized_ShuffleDecompressionJniWrapper_decompress(
+Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
     JNIEnv* env, jobject obj, jlong schema_holder_id, jstring compression_type_jstr,
     jint num_rows, jlongArray buf_addrs, jlongArray buf_sizes, jlongArray buf_mask) {
   JNI_METHOD_START
@@ -807,19 +807,19 @@ Java_com_intel_oap_vectorized_ShuffleDecompressionJniWrapper_decompress(
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL Java_com_intel_oap_vectorized_ShuffleDecompressionJniWrapper_close(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_close(
     JNIEnv* env, jobject, jlong schema_holder_id) {
   decompression_schema_holder_.Erase(schema_holder_id);
 }
 
-JNIEXPORT void JNICALL Java_com_intel_oap_tpc_MallocUtils_mallocTrim(JNIEnv* env,
+JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocTrim(JNIEnv* env,
                                                                      jobject obj) {
   //  malloc_stats_print(statsPrint, nullptr, nullptr);
   std::cout << "Calling malloc_trim... " << std::endl;
   malloc_trim(0);
 }
 
-JNIEXPORT void JNICALL Java_com_intel_oap_tpc_MallocUtils_mallocStats(JNIEnv* env,
+JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocStats(JNIEnv* env,
                                                                       jobject obj) {
   //  malloc_stats_print(statsPrint, nullptr, nullptr);
   std::cout << "Calling malloc_stats... " << std::endl;

@@ -20,9 +20,9 @@ package org.apache.spark.sql.execution
 import java.io._
 import org.apache.commons.lang3.StringUtils
 
-import com.intel.oap.expression._
-import com.intel.oap.vectorized.ArrowWritableColumnVector
-import com.intel.oap.vectorized.CloseableColumnBatchIterator
+import io.glutenproject.expression._
+import io.glutenproject.vectorized.ArrowWritableColumnVector
+import io.glutenproject.vectorized.CloseableColumnBatchIterator
 import org.apache.arrow.memory.ArrowBuf
 import org.apache.spark.TaskContext
 import org.apache.spark.network.util.JavaUtils

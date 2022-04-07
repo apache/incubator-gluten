@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2.arrow
 
 import scala.collection.JavaConverters._
 
-import com.intel.oap.vectorized.ArrowWritableColumnVector
+import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.memory.ArrowBuf
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch

@@ -18,7 +18,7 @@
     <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.intel.oap</groupId>
+    <groupId>io.glutenproject</groupId>
     <artifactId>spark-sql-columnar-shims</artifactId>
     <version>1.2.0-snapshot</version>
     <relativePath>../pom.xml</relativePath>
