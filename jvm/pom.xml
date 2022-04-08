@@ -16,15 +16,15 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.intel.oap</groupId>
-    <artifactId>gluten-parent</artifactId>
-    <version>1.0.0-snapshot</version>
+    <artifactId>gazelle-jni-parent</artifactId>
+    <version>1.2.0-snapshot</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>gluten</artifactId>
-  <version>1.0.0-snapshot</version>
+  <artifactId>gazelle-jni-jvm</artifactId>
+  <version>1.2.0-snapshot</version>
   <packaging>jar</packaging>
-  <name>Gluten</name>
+  <name>Gazelle Jni</name>
 
   <properties>
     <cpp.dir>../cpp/</cpp.dir>
