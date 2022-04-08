@@ -136,7 +136,6 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   byte[] getPlanBytesBuf(PlanNode planNode) {
-    System.out.println(planNode.toProtobuf().toString());
     return planNode.toProtobuf().toByteArray();
   }
 }
