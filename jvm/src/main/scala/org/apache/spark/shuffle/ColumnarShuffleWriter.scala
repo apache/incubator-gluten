@@ -22,7 +22,7 @@ import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, ShuffleSplitterJniWrapper, SplitResult}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, CHColumnVector, CHShuffleSplitterJniWrapper, ColumnarFactory, ShuffleSplitterJniWrapper, SplitResult}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark._
 import org.apache.spark.internal.Logging

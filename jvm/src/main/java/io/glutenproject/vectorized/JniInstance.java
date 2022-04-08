@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import com.intel.oap.GazelleJniConfig;
+import io.glutenproject.GazelleJniConfig;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;

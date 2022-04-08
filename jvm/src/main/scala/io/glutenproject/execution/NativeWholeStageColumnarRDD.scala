@@ -17,18 +17,17 @@
 
 package io.glutenproject.execution
 
-import java.io.Serializable
+import io.glutenproject.vectorized.ColumnarFactory
 
+import java.io.Serializable
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-
 import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -36,7 +35,7 @@ import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.util.OASPackageBridge._
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.util._
 
 trait BaseNativeFilePartition extends Partition with InputPartition {

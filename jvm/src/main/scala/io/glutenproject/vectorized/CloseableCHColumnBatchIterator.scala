@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.intel.oap.vectorized
+package io.glutenproject.vectorized
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging

@@ -1,8 +1,8 @@
-package com.intel.oap.execution;
+package io.glutenproject.execution;
 
-import com.intel.oap.expression.ConverterUtils;
-import com.intel.oap.vectorized.CHColumnVector;
-import com.intel.oap.vectorized.CHNativeBlock;
+import io.glutenproject.expression.ConverterUtils;
+import io.glutenproject.vectorized.CHColumnVector;
+import io.glutenproject.vectorized.CHNativeBlock;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 

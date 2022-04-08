@@ -1,6 +1,6 @@
-package com.intel.oap.vectorized;
+package io.glutenproject.vectorized;
 
-import com.intel.oap.GazelleJniConfig;
+import io.glutenproject.GazelleJniConfig;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.types.StructType;

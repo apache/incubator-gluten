@@ -18,13 +18,12 @@
 package org.apache.spark.sql.execution
 
 import java.util
-
 import com.google.common.collect.Lists
 import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression.{CodeGeneration, ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, NativePartitioning}
+import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, ColumnarFactory, NativePartitioning}
 import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.spark._

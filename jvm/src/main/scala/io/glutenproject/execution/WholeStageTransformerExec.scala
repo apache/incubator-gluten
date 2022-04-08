@@ -19,8 +19,8 @@ package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-
 import com.google.common.collect.Lists
+import io.glutenproject.vectorized.ColumnarFactory
 import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.extensions.{MappingBuilder, MappingNode}
@@ -30,7 +30,6 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.vectorized._
 import org.apache.arrow.gandiva.expression._
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -40,7 +39,7 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
 
 case class TransformContext(inputAttributes: Seq[Attribute],

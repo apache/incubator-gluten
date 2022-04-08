@@ -1,4 +1,4 @@
-package com.intel.oap.vectorized;
+package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 

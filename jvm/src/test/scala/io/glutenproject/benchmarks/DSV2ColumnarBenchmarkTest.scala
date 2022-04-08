@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package com.intel.oap.benchmarks
+package io.glutenproject.benchmarks
 
-import com.intel.oap.GazelleJniConfig
+import io.glutenproject.GazelleJniConfig
 import org.apache.spark.sql.SparkSession
 
 import java.io.File
@@ -86,7 +86,7 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
-        .config("spark.plugins", "com.intel.oap.GazellePlugin")
+        .config("spark.plugins", "io.glutenproject.GazellePlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)

@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.vectorized.{CHCoalesceOperator, CHNativeBlock, ColumnarFactory}
+import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.glutenproject.vectorized.CloseableColumnBatchIterator
