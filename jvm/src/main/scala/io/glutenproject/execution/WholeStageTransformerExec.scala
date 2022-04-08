@@ -402,8 +402,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             ExtensionTableBuilder.makeExtensionTable(p.minParts,
               p.maxParts, p.database, p.table, p.tablePath)
           wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
-           logWarning(s"The substrait plan for partition " +
-             s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
+//           logWarning(s"The substrait plan for partition " +
+//             s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
           p.copySubstraitPlan(wsCxt.root.toProtobuf.toByteArray)
         case FilePartition(index, files) =>
           val paths = new java.util.ArrayList[String]()
