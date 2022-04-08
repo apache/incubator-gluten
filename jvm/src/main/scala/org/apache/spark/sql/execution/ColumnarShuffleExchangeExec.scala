@@ -18,12 +18,13 @@
 package org.apache.spark.sql.execution
 
 import java.util
+
 import com.google.common.collect.Lists
-import com.intel.oap.GazelleJniConfig
-import com.intel.oap.expression.{CodeGeneration, ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import com.intel.oap.substrait.expression.ExpressionNode
-import com.intel.oap.substrait.rel.RelBuilder
-import com.intel.oap.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, CHColumnarBatchSerializer, ColumnarFactory, NativePartitioning}
+import io.glutenproject.GazelleJniConfig
+import io.glutenproject.expression.{CodeGeneration, ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, NativePartitioning}
 import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.spark._
@@ -104,7 +105,6 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       schema,
       longMetric("avgReadBatchNumRows"),
       longMetric("numOutputRows"))
-
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -216,7 +216,6 @@ class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioni
     schema,
     longMetric("avgReadBatchNumRows"),
     longMetric("numOutputRows"))
-
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 

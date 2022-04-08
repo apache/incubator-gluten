@@ -25,7 +25,7 @@ import java.nio.file.Paths
 import java.io.{InputStreamReader, BufferedReader}
 import scala.collection.mutable.ListBuffer
 import java.lang.management.ManagementFactory
-import com.intel.oap._
+import _root_.io.glutenproject._
 
 object ExecutorManager {
   def getExecutorIds(sc: SparkContext): Seq[String] = sc.getExecutorIds

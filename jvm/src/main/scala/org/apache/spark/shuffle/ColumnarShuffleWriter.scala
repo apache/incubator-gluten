@@ -19,10 +19,10 @@ package org.apache.spark.shuffle
 
 import java.io.IOException
 import com.google.common.annotations.VisibleForTesting
-import com.intel.oap.GazelleJniConfig
-import com.intel.oap.expression.ConverterUtils
-import com.intel.oap.spark.sql.execution.datasources.v2.arrow.Spiller
-import com.intel.oap.vectorized.{ArrowWritableColumnVector, CHColumnVector, CHShuffleSplitterJniWrapper, ColumnarFactory, ShuffleSplitterJniWrapper, SplitResult}
+import io.glutenproject.GazelleJniConfig
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, ShuffleSplitterJniWrapper, SplitResult}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -91,7 +91,6 @@ class ColumnarShuffleWriter[K, V](
   private var rawPartitionLengths: Array[Long] = _
 
   private var firstRecordBatch: Boolean = true
-
 
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {

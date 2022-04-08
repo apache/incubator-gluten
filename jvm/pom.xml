@@ -15,7 +15,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>com.intel.oap</groupId>
+    <groupId>io.glutenproject</groupId>
     <artifactId>gazelle-jni-parent</artifactId>
     <version>1.2.0-snapshot</version>
     <relativePath>../pom.xml</relativePath>
@@ -311,7 +311,7 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.intel.oap</groupId>
+      <groupId>io.glutenproject</groupId>
       <artifactId>spark-sql-columnar-shims-common</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>

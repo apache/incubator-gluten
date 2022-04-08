@@ -21,8 +21,8 @@ import java.io._
 import java.net._
 import java.util.concurrent.atomic.AtomicBoolean
 
-import com.intel.oap.expression._
-import com.intel.oap.vectorized._
+import io.glutenproject.expression._
+import io.glutenproject.vectorized._
 
 import org.apache.arrow.vector.{ValueVector, VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
