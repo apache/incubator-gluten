@@ -1,4 +1,4 @@
-# How to Build OAP: Gazelle-Jni
+# How to Build OAP: Gluten
 
 ## Prerequisite
 
@@ -12,13 +12,13 @@ Please make sure you have already installed the software in your system.
 5. Maven 3.6.3 or higher version
 6. Hadoop 2.7.5 or higher version
 7. Spark 3.1.1 or higher version
-8. Intel Optimized Arrow 4.0.0
+8. Intel Optimized Arrow 7.0.0
 
 ### GCC installation
 
 #### installing GCC 7.0 or higher version
 
-Please notes for better performance support, GCC 7.0 is a minimal requirement with Intel Microarchitecture such as SKYLAKE, CASCADELAKE, ICELAKE.
+Please note for better performance support, GCC 7.0 is a minimal requirement with Intel Microarchitecture such as SKYLAKE, CASCADELAKE, ICELAKE.
 https://gcc.gnu.org/install/index.html
 
 Follow the above website to download gcc.

@@ -54,29 +54,29 @@ UDF support. We need to create the interface which use columnar batch as inptu. 
 
 Ideally if all native library can return arrow record batch, we can share much features in Spark's JVM. Spark already have Apache arrow dependency, we can make arrow format as Spark's basic columnar format. The problem is that native library may not be 100% compitable with Arrow format, then there will be a transform between their native format and Arrow, usually it's not cheap.
 
-# How to use OAP: Gazelle-Jni
+# How to use OAP: Gluten
 
 ### Build the Environment
 
-There are two ways to build the env for compiling OAP: Gazelle-Jni
-1. Building by Conda Environment
-2. Building by Yourself
+There are two ways to build the env for compiling OAP: Gluten
+1. Build by Conda Environment
+2. Build by Yourself
 
-- ### Building by Conda (Recommended)
+- ### Build by Conda (Recommended)
 
 If you already have a working Hadoop Spark Cluster, we provide a Conda package which will automatically install dependencies needed by OAP, you can refer to [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md) for more information.
 
-- ### Building by yourself
+- ### Build by yourself
 
-If you prefer to build from the source code on your hand, please follow the steps in [Installation Guide](./docs/GazelleJniInstallation.md) to set up your environment.
+If you prefer to build from the source code on your hand, please follow the steps in [Installation Guide](./docs/GlutenInstallation.md) to set up your environment.
 
-### Compile and use Gazelle Jni
+### Compile and use Gluten
 
-Once your env being successfully deployed, please refer to [Gazelle Jni Usage](./docs/GazelleJniUsage.md) to compile and use Gazelle Jni in Spark.
+Once your env being successfully deployed, please refer to [Gluten Usage](./docs/GlutenUsage.md) to compile and use Gluten in Spark.
 
-### Notes for Building Gazelle-Jni with Velox
+### Build Gluten with Velox backend
 
-After Gazelle-Jni being successfully deployed in your environment, if you would like to build Gazelle-Jni with **Velox** computing, please checkout to branch [velox_dev](https://github.com/oap-project/gazelle-jni/tree/velox_dev) and follow the steps in [Build with Velox](./docs/Velox.md) to install the needed libraries, compile Velox and try out the TPC-H Q6 test.
+After Gluten being successfully deployed in your environment, if you would like to build Gluten with **Velox** computing, please follow the steps in [Build with Velox](./docs/Velox.md) to install the needed libraries, compile Velox and try out the TPC-H Q6 and Q1 test.
 
 # Contact
 
