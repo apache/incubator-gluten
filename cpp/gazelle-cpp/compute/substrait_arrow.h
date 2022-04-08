@@ -17,30 +17,33 @@
 
 #pragma once
 
+#include <arrow/engine/substrait/serde.h>
+
 #include "compute/substrait_utils.h"
 
 namespace gazellecpp {
 namespace compute {
 
-class ArrowSubstraitParser : public gazellejni::ExecBackendBase {
+class ArrowExecBackend : public gazellejni::ExecBackendBase {
  public:
-  ArrowSubstraitParser() {
-    delegate_ = std::make_unique<gazellejni::compute::SubstraitParser>();
-  }
+  ArrowExecBackend() = default;
 
-  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator() override {
-    return delegate_->GetResultIterator();
-  }
+  ~ArrowExecBackend() override;
+
+  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator() override;
 
   std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator(
       std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs)
-      override {
-    return delegate_->GetResultIterator(std::move(inputs));
-  }
+      override;
 
  private:
-  std::unique_ptr<gazellejni::compute::SubstraitParser> delegate_;
+  std::shared_ptr<arrow::compute::Declaration> decl_;
+  std::shared_ptr<arrow::compute::ExecPlan> exec_plan_;
+
+  void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
 };
+
+void Initialize();
 
 }  // namespace compute
 }  // namespace gazellecpp

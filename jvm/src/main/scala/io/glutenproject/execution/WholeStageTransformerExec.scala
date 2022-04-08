@@ -19,6 +19,7 @@ package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+
 import com.google.common.collect.Lists
 import io.glutenproject.vectorized.ColumnarFactory
 import io.glutenproject.GazelleJniConfig
@@ -30,6 +31,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.vectorized._
 import org.apache.arrow.gandiva.expression._
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}

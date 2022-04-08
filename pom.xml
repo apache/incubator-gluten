@@ -15,12 +15,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.glutenproject</groupId>
-  <artifactId>gazelle-jni-parent</artifactId>
-  <version>1.2.0-snapshot</version>
+  <artifactId>gluten-parent</artifactId>
+  <version>1.0.0-snapshot</version>
   <packaging>pom</packaging>
 
-  <name>Gazelle JNI Parent Pom</name>
-  <url>https://github.com/oap-project/gazelle-jni.git</url>
+  <name>Gluten Parent Pom</name>
+  <url>https://github.com/oap-project/gluten.git</url>
 
   <licenses>
     <license>
@@ -130,7 +130,7 @@
     <build_velox>OFF</build_velox>
     <velox_home>/root/velox</velox_home>
     <project.prefix>spark-sql-columnar</project.prefix>
-    <project.name.prefix>Gazelle Jni</project.name.prefix>
+    <project.name.prefix>Gluten</project.name.prefix>
     <spark311.version>3.1.1</spark311.version>
   </properties>
 

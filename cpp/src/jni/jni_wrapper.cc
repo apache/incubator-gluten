@@ -369,23 +369,21 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<RecordBatchResultIterator>> input_iters;
   if (iters_len > 0) {
-    // Construct a map between iter index and input schema.
-    std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>> schema_map;
     // Get input schema from Substrait plan.
-    backend->GetInputSchemaMap(schema_map);
+    const auto& schema_map = backend->GetInputSchemaMap();
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
       // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
       // TODO Release this in JNI Unload or dependent object's destructor
       jobject ref_iter = env->NewGlobalRef(iter);
-      std::shared_ptr<arrow::Schema> input_schema;
-      if (schema_map.find(idx) == schema_map.end()) {
-        ThrowPendingException("Not found the schema.");
-      } else {
-        input_schema = schema_map[idx];
+      auto it = schema_map.find(idx);
+      if (it == schema_map.end()) {
+        ThrowPendingException("Schema not found for input batch iterator " +
+                              std::to_string(idx));
       }
-      auto rb_iter = std::make_shared<JavaRecordBatchIterator>(vm, ref_iter,
-                                                               std::move(input_schema));
+
+      auto rb_iter = std::make_shared<JavaRecordBatchIterator>(
+          vm, ref_iter, it->second);
       input_iters.push_back(
           std::make_shared<RecordBatchResultIterator>(std::move(rb_iter)));
     }
@@ -431,8 +429,10 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeClos
 #ifdef DEBUG
   auto it = batch_iterator_holder_.Lookup(id);
   if (it.use_count() > 2) {
-    std::cout << "Id " << id << " use count is " << it.use_count() << std::endl;
+    std::cout << "RecordBatchResultIterator Id " << id << " use count is "
+              << it.use_count() << std::endl;
   }
+  std::cout << "BatchIterator nativeClose." << std::endl;
 #endif
   batch_iterator_holder_.Erase(id);
   JNI_METHOD_END()

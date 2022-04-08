@@ -19,8 +19,8 @@
 
   <parent>
     <groupId>io.glutenproject</groupId>
-    <artifactId>gazelle-jni-parent</artifactId>
-    <version>1.2.0-snapshot</version>
+    <artifactId>gluten-parent</artifactId>
+    <version>1.0.0-snapshot</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
