@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle
 
-import com.intel.oap.vectorized.NativePartitioning
+import io.glutenproject.vectorized.NativePartitioning
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer

@@ -21,10 +21,10 @@ import java.io._
 import java.net._
 import java.util.concurrent.atomic.AtomicBoolean
 
-import com.intel.oap.execution.{TransformContext, TransformSupport}
-import com.intel.oap.expression._
-import com.intel.oap.substrait.SubstraitContext
-import com.intel.oap.vectorized._
+import io.glutenproject.execution.{TransformContext, TransformSupport}
+import io.glutenproject.expression._
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.vectorized._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer

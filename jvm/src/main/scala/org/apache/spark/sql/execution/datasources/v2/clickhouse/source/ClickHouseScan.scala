@@ -20,7 +20,7 @@ import java.util.OptionalLong
 
 import scala.collection.mutable.ArrayBuffer
 
-import com.intel.oap.execution.NativeMergeTreePartition
+import io.glutenproject.execution.NativeMergeTreePartition
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.sql.connector.read._

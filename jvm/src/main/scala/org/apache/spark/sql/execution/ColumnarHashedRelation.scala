@@ -21,8 +21,8 @@ import java.io._
 
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
-import com.intel.oap.expression.ConverterUtils
-import com.intel.oap.vectorized.{ArrowWritableColumnVector, SerializableObject}
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, SerializableObject}
 import org.apache.spark.sql.execution.ColumnarHashedRelation.Deallocator
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.KnownSizeEstimation
