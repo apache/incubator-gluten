@@ -21,6 +21,7 @@
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 
+#include "operators/c2r/arrow_columnar_to_row_converter.h"
 #include "operators/c2r/columnar_to_row_base.h"
 #include "velox/vector/ComplexVector.h"
 

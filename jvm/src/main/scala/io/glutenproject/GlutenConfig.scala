@@ -89,7 +89,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarShuffledHashJoin: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffledhashjoin", "true").toBoolean && enableCpu
 
-  val enableArrowColumnarToRow: Boolean =
+  val enableNativeColumnarToRow: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.columnartorow", "true").toBoolean && enableCpu
 
   val forceShuffledHashJoin: Boolean =

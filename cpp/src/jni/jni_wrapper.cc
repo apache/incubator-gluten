@@ -440,7 +440,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeClos
 JNIEXPORT jobject JNICALL
 Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow(
     JNIEnv* env, jobject, jbyteArray schema_arr, jint num_rows, jlongArray buf_addrs,
-    jlongArray buf_sizes, jlong memory_pool_id) {
+    jlongArray buf_sizes, jlong memory_pool_id, jboolean wsChild) {
   JNI_METHOD_START
   if (schema_arr == NULL) {
     JniThrow("Native convert columnar to row schema can't be null");
@@ -480,7 +480,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   }
   auto backend = gluten::CreateBackend();
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
-      columnar_to_row_converter = backend->getColumnarConverter(rb, pool);
+      columnar_to_row_converter = backend->getColumnarConverter(rb, pool, wsChild);
   JniAssertOkOrThrow(columnar_to_row_converter->Init(),
                      "Native convert columnar to row: Init "
                      "ColumnarToRowConverter failed");

@@ -226,10 +226,16 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
     case plan: ColumnarToRowExec =>
-      if (columnarConf.enableArrowColumnarToRow) {
+      if (columnarConf.enableNativeColumnarToRow) {
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
-        new NativeColumnarToRowExec(child)
+          val nativeConversion = new NativeColumnarToRowExec(child)
+          if (nativeConversion.doValidate()) {
+            nativeConversion
+          } else {
+            logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
+            plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
+          }
       } else {
         val children = plan.children.map(replaceWithTransformerPlan)
         plan.withNewChildren(children)
@@ -241,14 +247,14 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       // ColumnarExchange maybe child as a Row SparkPlan
       val children = r.children.map {
         case c: ColumnarToRowExec =>
-          if (columnarConf.enableArrowColumnarToRow) {
-            try {
-              val child = replaceWithTransformerPlan(c.child)
-              new NativeColumnarToRowExec(child)
-            } catch {
-              case _: Throwable =>
-                logInfo("ArrowColumnarToRow : Falling back to ColumnarToRow...")
-                c.withNewChildren(c.children.map(replaceWithTransformerPlan))
+          if (columnarConf.enableNativeColumnarToRow) {
+            val child = replaceWithTransformerPlan(c.child)
+            val nativeConversion = new NativeColumnarToRowExec(child)
+            if (nativeConversion.doValidate()) {
+              nativeConversion
+            } else {
+              logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
+              c.withNewChildren(c.children.map(replaceWithTransformerPlan))
             }
           } else {
             c.withNewChildren(c.children.map(replaceWithTransformerPlan))

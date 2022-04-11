@@ -23,6 +23,7 @@ import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
@@ -37,7 +38,24 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
 
   override def supportCodegen: Boolean = false
 
-  buildCheck()
+  // A flag used to check whether child is wholestage transformer.
+  // Different backends may have different behaviours according to this flag.
+  val wsChild = child.isInstanceOf[WholeStageTransformerExec]
+  // A flag used to check whether child is Spark scan which supports columnar.
+  // In this case, the columnar format may be incompatible with the native columnar format.
+  val columnarSparkScan = child.isInstanceOf[BatchScanExec] &&
+    child.asInstanceOf[BatchScanExec].supportsColumnar
+
+  def doValidate(): Boolean = {
+    try {
+      buildCheck()
+    } catch {
+      case _: Throwable =>
+        logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
+        return false
+    }
+    !columnarSparkScan
+  }
 
   def buildCheck(): Unit = {
     val schema = child.schema
@@ -120,7 +138,7 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
 
           val info = jniWrapper.nativeConvertColumnarToRow(
             arrowSchema, batch.numRows, bufAddrs.toArray, bufSizes.toArray,
-            SparkMemoryUtils.contextMemoryPool().getNativeInstanceId)
+            SparkMemoryUtils.contextMemoryPool().getNativeInstanceId, wsChild)
 
           convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 
