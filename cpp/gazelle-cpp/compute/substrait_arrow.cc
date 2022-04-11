@@ -19,6 +19,7 @@
 
 #include <arrow/compute/exec/options.h>
 #include <arrow/compute/registry.h>
+#include <arrow/dataset/scanner.h>
 
 #include "jni/exec_backend.h"
 
@@ -72,6 +73,8 @@ ArrowExecBackend::GetResultIterator(
     ReplaceSourceDecls(std::move(source_decls));
   }
 
+  PushDownFilter();
+
   // Make plan
   GLUTEN_ASSIGN_OR_THROW(exec_plan_, arrow::compute::ExecPlan::Make());
   GLUTEN_ASSIGN_OR_THROW(auto node, decl_->AddToPlan(exec_plan_.get()));
@@ -98,6 +101,64 @@ ArrowExecBackend::GetResultIterator(
                                           arrow::default_memory_pool());
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(sink_reader),
                                                                  shared_from_this());
+}
+
+void ArrowExecBackend::PushDownFilter() {
+  std::vector<arrow::compute::Declaration*> visited;
+
+  visited.push_back(decl_.get());
+
+  while (!visited.empty()) {
+    auto top = visited.back();
+    visited.pop_back();
+    for (auto& input : top->inputs) {
+      auto& input_decl = arrow::util::get<arrow::compute::Declaration>(input);
+      if (input_decl.factory_name == "filter" && input_decl.inputs.size() == 1) {
+        auto scan_decl =
+            arrow::util::get<arrow::compute::Declaration>(input_decl.inputs[0]);
+        if (scan_decl.factory_name == "scan") {
+          auto expression =
+              arrow::internal::checked_pointer_cast<arrow::compute::FilterNodeOptions>(
+                  input_decl.options)
+                  ->filter_expression;
+          auto scan_options =
+              arrow::internal::checked_pointer_cast<arrow::dataset::ScanNodeOptions>(
+                  scan_decl.options);
+          const auto& schema = scan_options->dataset->schema();
+          FieldPathToName(&expression, schema);
+          scan_options->scan_options->filter = std::move(expression);
+        } else {
+          visited.push_back(&input_decl);
+        }
+      } else {
+        visited.push_back(&input_decl);
+      }
+    }
+  }
+}
+
+void ArrowExecBackend::FieldPathToName(arrow::compute::Expression* expression,
+                                       const std::shared_ptr<arrow::Schema>& schema) {
+  std::vector<arrow::compute::Expression*> visited;
+  visited.push_back(expression);
+  while (!visited.empty()) {
+    auto expr = visited.back();
+    visited.pop_back();
+    if (expr->call()) {
+      auto call = const_cast<arrow::compute::Expression::Call*>(expr->call());
+      std::transform(call->arguments.begin(), call->arguments.end(), std::back_inserter(visited),
+                     [](arrow::compute::Expression& arg) { return &arg; });
+    } else if (expr->field_ref()) {
+      auto field_ref = const_cast<arrow::FieldRef*>(expr->field_ref());
+      if (auto field_path = field_ref->field_path()) {
+        *expr = arrow::compute::field_ref(
+            schema->field((field_path->indices())[0])->name());
+      } else {
+        std::cerr << "Field Ref is not field path: " << field_ref->ToString()
+                  << std::endl;
+      }
+    }
+  }
 }
 
 void ArrowExecBackend::ReplaceSourceDecls(
