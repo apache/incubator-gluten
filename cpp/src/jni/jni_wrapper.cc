@@ -322,7 +322,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenprojet_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
+Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
     JNIEnv* env, jobject obj, jstring pathObj) {
   JNI_METHOD_START
   jboolean ifCopy;

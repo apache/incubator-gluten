@@ -30,7 +30,7 @@ It's recommended to use Conda environment to install packages and all requiremen
 
 ```bash
 $ git clone https://github.com/oap-project/arrow.git -b arrow-7.0.0-oap
-$ conda create -n oapenv -c conda-forge -c intel -y
+$ conda create -n oapenv -c conda-forge -c intel -y \
       --file arrow/ci/conda_env_unix.txt \
       --file arrow/ci/conda_env_cpp.txt \
       --file arrow/ci/conda_env_python.txt \
@@ -109,7 +109,7 @@ In addition to your cutomized Spark configurations, extra configurations for ena
 #### Common configurations for Gluten
 | Configuration | Value | Comment |
 | --- | --- | --- |
-| spark.plugins | com.intel.oap.GazellePlugin |  |
+| spark.plugins | io.glutenproject.GazellePlugin |  |
 | spark.oap.sql.columnar.backend.lib | gazelle_cpp |  |
 | spark.shuffle.manager | org.apache.spark.shuffle.sort.ColumnarShuffleManager |  |
 | spark.sql.sources.useV1SourceList | avro |  |
