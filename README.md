@@ -13,7 +13,7 @@ There are several native libraries we may offload. Currently we are working on t
 
 ##### Before we enable Gazelle's C++ code as backend, we will continue Gazelle's development.
 
-![Overview](./docs/image/Gazelle-jni.png)
+![Overview](./docs/image/gluten.png)
 
 One big issue we noted during our Gazelle-plugin development is that we can't easily and exactly reproduce a Spark stage. Once we meet some bugs during Spark run, Gazelle-plugin doesn't dump enough info to reproduce it natively. Mainly because we use very complex extended Gandiva tree to pass the query plan. With well defined substrait and some helper functions, we can easily reproduce the whole stage, which makes debug, profile and optimize the native code much more easier. It also make the accelerators enabling much more easier even without touching Spark code.
 
@@ -77,6 +77,10 @@ Once your env being successfully deployed, please refer to [Gluten Usage](./docs
 ### Build Gluten with Velox backend
 
 After Gluten being successfully deployed in your environment, if you would like to build Gluten with **Velox** computing, please follow the steps in [Build with Velox](./docs/Velox.md) to install the needed libraries, compile Velox and try out the TPC-H Q6 and Q1 test.
+
+### Build Gluten with Arrow backend
+
+If you would like to build Gluten with **Arrow** backend, please follow the steps in [Build with Arrow Backend](./docs/ArrowBackend.md).
 
 # Contact
 
