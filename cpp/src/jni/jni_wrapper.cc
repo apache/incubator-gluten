@@ -826,6 +826,9 @@ JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocStats(JNIEnv*
   malloc_stats();
 }
 
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv* env, jobject obj) {
+}
 #ifdef __cplusplus
 }
 #endif
