@@ -210,7 +210,7 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.oap.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
   val loadch: Boolean =
-    conf.getConfString(GazelleJniConfig.OAP_LIB_PATH).contains(GazelleJniConfig.LIBCH_NAME)
+    conf.getConfString(GazelleJniConfig.OAP_LIB_PATH, "").contains(GazelleJniConfig.LIBCH_NAME)
 
   val numaBindingInfo: GazelleNumaBindingInfo = {
     val enableNumaBinding: Boolean =
