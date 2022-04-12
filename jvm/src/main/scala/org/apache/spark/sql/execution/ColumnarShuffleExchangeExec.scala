@@ -17,39 +17,36 @@
 
 package org.apache.spark.sql.execution
 
-import java.util
-import com.google.common.collect.Lists
+import scala.collection.JavaConverters._
+import scala.concurrent.Future
+
 import io.glutenproject.GazelleJniConfig
-import io.glutenproject.expression.{CodeGeneration, ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, ColumnarFactory, NativePartitioning}
-import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, ColumnarFactory, NativePartitioning}
+import java.util
+import org.apache.arrow.gandiva.expression.TreeNode
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 import org.apache.spark._
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{ColumnarShuffleDependency, ShuffleHandle}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection}
+import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.CoalesceExec.EmptyPartition
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec.createShuffleWriteProcessor
 import org.apache.spark.sql.execution.exchange._
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec.createShuffleWriteProcessor
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics, SQLShuffleReadMetricsReporter, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{MutablePair, Utils}
-
-import scala.collection.JavaConverters._
-import scala.concurrent.Future
-import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.util.MutablePair
 
 case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitioning,
                                        child: SparkPlan,
@@ -85,7 +82,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
   def buildCheck(): Unit = {
-    if (GazelleJniConfig.getConf.loadch) return
+    if (GazelleJniConfig.getConf.isClickHouseBackend) return
     // check input datatype
     for (attr <- child.output) {
       try {
@@ -97,8 +94,6 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       }
     }
   }
-
-  private val loadch = GazelleJniConfig.getConf.loadch
 
   val serializer: Serializer = ColumnarFactory.createColumnarBatchSerializer(
       schema,
@@ -208,8 +203,6 @@ class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioni
   override def stringArgs =
     super.stringArgs ++ Iterator(s"[id=#$id]")
   //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
-
-  private val loadch = GazelleJniConfig.getConf.loadch
 
   val serializer: Serializer = ColumnarFactory.createColumnarBatchSerializer(
     schema,
@@ -393,8 +386,7 @@ object ColumnarShuffleExchangeExec extends Logging {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, serializeSchema(arrowFields))
       case HashPartitioning(exprs, n) =>
-        val loadch = GazelleJniConfig.getConf.loadch
-        if (!loadch) {
+        if (!GazelleJniConfig.getConf.isClickHouseBackend) {
           // Function map is not expected to be used.
           val functionMap = new java.util.HashMap[String, java.lang.Long]()
           val exprNodeList = new util.ArrayList[ExpressionNode]()
@@ -461,7 +453,7 @@ object ColumnarShuffleExchangeExec extends Logging {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              if (!GazelleJniConfig.getConf.loadch) {
+              if (!GazelleJniConfig.getConf.isClickHouseBackend) {
                 (0 until cb.numCols).foreach(
                   cb.column(_)
                     .asInstanceOf[ArrowWritableColumnVector]

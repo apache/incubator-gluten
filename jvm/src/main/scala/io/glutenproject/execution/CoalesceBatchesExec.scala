@@ -17,28 +17,24 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.vectorized.{CHCoalesceOperator, CHNativeBlock, ColumnarFactory}
+import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
+
 import io.glutenproject.GazelleJniConfig
-import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.ArrowWritableColumnVector
-import io.glutenproject.vectorized.CloseableColumnBatchIterator
-import org.apache.arrow.vector.util.VectorBatchAppender
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, CHCoalesceOperator, CHNativeBlock, ColumnarFactory}
 import org.apache.arrow.vector.types.pojo.Schema
+import org.apache.arrow.vector.util.VectorBatchAppender
 import org.apache.spark.TaskContext
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtils
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConverters._
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
 
@@ -62,7 +58,7 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
       .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    if (GazelleJniConfig.getConf.loadch) {
+    if (GazelleJniConfig.getConf.isClickHouseBackend) {
       doCHInternalExecuteColumnar()
     } else {
       doInternalExecuteColumnar()

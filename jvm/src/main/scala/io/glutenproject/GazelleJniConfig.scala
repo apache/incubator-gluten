@@ -19,8 +19,6 @@ package io.glutenproject
 
 import java.util.Locale
 
-import io.glutenproject.GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
@@ -170,6 +168,12 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val gazelleJniBackendLib: String =
     conf.getConfString(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, "")
 
+  val isVeloxBackend: Boolean =
+    gazelleJniBackendLib.equalsIgnoreCase(GazelleJniConfig.GLUTEN_JNI_VELOX_BACKEND)
+
+  val isClickHouseBackend: Boolean =
+    gazelleJniBackendLib.equalsIgnoreCase(GazelleJniConfig.GLUTEN_JNI_CLICKHOUSE_BACKEND)
+
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
     conf.getConfString("spark.oap.sql.columnar.joinOptimizationLevel", "12").toInt
@@ -209,9 +213,6 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val shuffleSplitDefaultSize: Int =
     conf.getConfString("spark.oap.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
-  val loadch: Boolean =
-    conf.getConfString(GazelleJniConfig.OAP_LIB_PATH, "").contains(GazelleJniConfig.LIBCH_NAME)
-
   val numaBindingInfo: GazelleNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.oap.sql.columnar.numaBinding", "false").toBoolean
@@ -238,9 +239,10 @@ object GazelleJniConfig {
   val OAP_LIB_NAME = "spark.oap.sql.columnar.libname"
   val OAP_LIB_PATH = "spark.oap.sql.columnar.libpath"
   val OAP_LOAD_ARROW = "spark.oap.sql.columnar.loadarrow"
-  val LIBCH_NAME = "libch"
 
   val GAZELLE_JNI_BACKEND_LIB = "spark.oap.sql.columnar.backend.lib"
+  val GLUTEN_JNI_VELOX_BACKEND = "velox"
+  val GLUTEN_JNI_CLICKHOUSE_BACKEND = "clickhouse"
 
   var ins: GazelleJniConfig = null
   var random_temp_dir_path: String = null
