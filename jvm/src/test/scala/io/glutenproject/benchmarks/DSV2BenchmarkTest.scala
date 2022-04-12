@@ -22,7 +22,7 @@ import java.io.File
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 
@@ -42,7 +42,7 @@ object DSV2BenchmarkTest {
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
       (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
-      "/data1/gazelle-jni-warehouse")
+      "/data1/gluten-warehouse")
     }
 
     val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
@@ -67,7 +67,7 @@ object DSV2BenchmarkTest {
 
     val sessionBuilderTmp = SparkSession
       .builder()
-      .appName("Gazelle-Jni-Benchmark")
+      .appName("Gluten-Benchmark")
 
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
@@ -88,7 +88,7 @@ object DSV2BenchmarkTest {
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
-        .config("spark.plugins", "io.glutenproject.GazellePlugin")
+        .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)
@@ -98,9 +98,9 @@ object DSV2BenchmarkTest {
         //.config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.oap.sql.columnar.columnartorow", "false")
-        .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
-        .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
-        .config(GazelleJniConfig.OAP_LIB_PATH,
+        .config(GlutenConfig.OAP_LOAD_NATIVE, "true")
+        .config(GlutenConfig.OAP_LOAD_ARROW, "false")
+        .config(GlutenConfig.OAP_LIB_PATH,
           "path_to_clickhouse_engine/libch.so")
         .config("spark.oap.sql.columnar.iterator", "false")
         //.config("spark.sql.planChangeLog.level", "info")
@@ -247,7 +247,7 @@ object DSV2BenchmarkTest {
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
-         | LOCATION '/data1/gazelle-jni-warehouse/ch_clickhouse'
+         | LOCATION '/data1/gluten-warehouse/ch_clickhouse'
          |""".stripMargin)
 
     spark.sql(

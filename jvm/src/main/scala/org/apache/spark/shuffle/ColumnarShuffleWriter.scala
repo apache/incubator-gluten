@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 import com.google.common.annotations.VisibleForTesting
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
 import io.glutenproject.vectorized._
@@ -64,21 +64,21 @@ class ColumnarShuffleWriter[K, V](
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum;
 
-  private val nativeBufferSize = GazelleJniConfig.getConf.shuffleSplitDefaultSize
+  private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
   private val customizedCompressCodec =
-    GazelleJniConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+    GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
   private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
     conf.get("spark.io.compression.codec", "lz4")
   } else {
     "uncompressed"
   }
   private val batchCompressThreshold =
-    GazelleJniConfig.getConf.columnarShuffleBatchCompressThreshold;
+    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
 
-  private val preferSpill = GazelleJniConfig.getConf.columnarShufflePreferSpill
+  private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
 
-  private val writeSchema = GazelleJniConfig.getConf.columnarShuffleWriteSchema
+  private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
 
   private val jniWrapper = ColumnarFactory.createShuffleSplitterJniWrapper();
 
@@ -296,7 +296,7 @@ class ColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   override def write(records: Iterator[Product2[K, V]]): Unit = {
-    if (GazelleJniConfig.getConf.isClickHouseBackend) {
+    if (GlutenConfig.getConf.isClickHouseBackend) {
       internalCHWrite(records)
     } else {
       internalWrite(records)
@@ -324,7 +324,7 @@ class ColumnarShuffleWriter[K, V](
       }
     } finally {
       if (nativeSplitter != 0) {
-        if (!GazelleJniConfig.getConf.isClickHouseBackend) {
+        if (!GlutenConfig.getConf.isClickHouseBackend) {
           closeSplitter()
         } else {
           closeCHSplitter()

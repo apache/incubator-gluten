@@ -31,7 +31,7 @@
 #include <sstream>
 #include <thread>
 
-namespace gazellejni {
+namespace gluten {
 namespace shuffle {
 
 #define EVAL_START(name, thread_id) \
@@ -164,4 +164,4 @@ static int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
 }
 
 }  // namespace shuffle
-}  // namespace gazellejni
+}  // namespace gluten

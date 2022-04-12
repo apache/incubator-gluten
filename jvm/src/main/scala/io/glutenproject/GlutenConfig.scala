@@ -22,12 +22,12 @@ import java.util.Locale
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-case class GazelleNumaBindingInfo(
+case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
     totalCoreRange: Array[String] = null,
     numCoresPerExecutor: Int = -1) {}
 
-class GazelleJniConfig(conf: SQLConf) extends Logging {
+class GlutenConfig(conf: SQLConf) extends Logging {
   def getCpu: Boolean = {
     // only for developing on mac
     if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac")) {
@@ -148,31 +148,31 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // This config is used for deciding whether to load the native library.
   // When false, only Java code will be executed for a quick test.
   val loadNative: Boolean =
-    conf.getConfString(GazelleJniConfig.OAP_LOAD_NATIVE, "true").toBoolean
+    conf.getConfString(GlutenConfig.OAP_LOAD_NATIVE, "true").toBoolean
 
   // This config is used for deciding whether to load Arrow and Gandiva libraries from
   // the native library. If the native library does not depend on Arrow and Gandiva,
   // this config should will set as false.
   val loadArrow: Boolean =
-    conf.getConfString(GazelleJniConfig.OAP_LOAD_ARROW, "true").toBoolean
+    conf.getConfString(GlutenConfig.OAP_LOAD_ARROW, "true").toBoolean
 
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
-    conf.getConfString(GazelleJniConfig.OAP_LIB_NAME, "spark_columnar_jni")
+    conf.getConfString(GlutenConfig.OAP_LIB_NAME, "spark_columnar_jni")
 
   // This config is used for specifying the absolute path of the native library.
   val nativeLibPath: String =
-    conf.getConfString(GazelleJniConfig.OAP_LIB_PATH, "")
+    conf.getConfString(GlutenConfig.OAP_LIB_PATH, "")
 
   // customized backend library name
-  val gazelleJniBackendLib: String =
-    conf.getConfString(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, "")
+  val glutenBackendLib: String =
+    conf.getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
 
   val isVeloxBackend: Boolean =
-    gazelleJniBackendLib.equalsIgnoreCase(GazelleJniConfig.GLUTEN_JNI_VELOX_BACKEND)
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
 
   val isClickHouseBackend: Boolean =
-    gazelleJniBackendLib.equalsIgnoreCase(GazelleJniConfig.GLUTEN_JNI_CLICKHOUSE_BACKEND)
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
 
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
@@ -213,19 +213,19 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val shuffleSplitDefaultSize: Int =
     conf.getConfString("spark.oap.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
-  val numaBindingInfo: GazelleNumaBindingInfo = {
+  val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.oap.sql.columnar.numaBinding", "false").toBoolean
     if (!enableNumaBinding) {
-      GazelleNumaBindingInfo(enableNumaBinding = false)
+      GlutenNumaBindingInfo(enableNumaBinding = false)
     } else {
       val tmp = conf.getConfString("spark.oap.sql.columnar.coreRange", null)
       if (tmp == null) {
-        GazelleNumaBindingInfo(enableNumaBinding = false)
+        GlutenNumaBindingInfo(enableNumaBinding = false)
       } else {
         val numCores = conf.getConfString("spark.executor.cores", "1").toInt
         val coreRangeList: Array[String] = tmp.split('|').map(_.trim)
-        GazelleNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
+        GlutenNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
       }
 
     }
@@ -233,33 +233,33 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
 
 }
 
-object GazelleJniConfig {
+object GlutenConfig {
 
   val OAP_LOAD_NATIVE = "spark.oap.sql.columnar.loadnative"
   val OAP_LIB_NAME = "spark.oap.sql.columnar.libname"
   val OAP_LIB_PATH = "spark.oap.sql.columnar.libpath"
   val OAP_LOAD_ARROW = "spark.oap.sql.columnar.loadarrow"
 
-  val GAZELLE_JNI_BACKEND_LIB = "spark.oap.sql.columnar.backend.lib"
-  val GLUTEN_JNI_VELOX_BACKEND = "velox"
-  val GLUTEN_JNI_CLICKHOUSE_BACKEND = "clickhouse"
+  val GLUTEN_BACKEND_LIB = "spark.oap.sql.columnar.backend.lib"
+  val GLUTEN_VELOX_BACKEND = "velox"
+  val GLUTEN_CLICKHOUSE_BACKEND = "clickhouse"
 
-  var ins: GazelleJniConfig = null
+  var ins: GlutenConfig = null
   var random_temp_dir_path: String = null
 
   /**
    * @deprecated We should avoid caching this value in entire JVM. us
    */
   @Deprecated
-  def getConf: GazelleJniConfig = synchronized {
+  def getConf: GlutenConfig = synchronized {
     if (ins == null) {
       ins = getSessionConf
     }
     ins
   }
 
-  def getSessionConf: GazelleJniConfig = {
-    new GazelleJniConfig(SQLConf.get)
+  def getSessionConf: GlutenConfig = {
+    new GlutenConfig(SQLConf.get)
   }
 
   def getBatchSize: Int = synchronized {

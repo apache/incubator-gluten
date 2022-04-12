@@ -1,6 +1,6 @@
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GazelleJniConfig;
+import io.glutenproject.GlutenConfig;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.types.StructType;
@@ -15,7 +15,7 @@ public class ColumnarFactory {
     }
 
     public static boolean isEnableCH() {
-        return GazelleJniConfig.getConf().isClickHouseBackend();
+        return GlutenConfig.getConf().isClickHouseBackend();
     }
 
     public static Iterator<ColumnarBatch> createClosableIterator(Iterator<ColumnarBatch> iter) {

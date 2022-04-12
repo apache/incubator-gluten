@@ -25,7 +25,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
 import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer
 import org.apache.arrow.memory.ArrowBuf
@@ -71,7 +71,7 @@ private class ArrowColumnarBatchSerializerInstance(
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
 
-      private val readSchema = GazelleJniConfig.getConf.columnarShuffleWriteSchema
+      private val readSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
 
       private val compressionEnabled =
         SparkEnv.get.conf.getBoolean("spark.shuffle.compress", true)

@@ -22,7 +22,7 @@
 
 #include "compute/substrait_utils.h"
 
-namespace gazellejni {
+namespace gluten {
 
 static std::function<std::shared_ptr<ExecBackendBase>()> backend_factory;
 
@@ -45,4 +45,4 @@ std::shared_ptr<ExecBackendBase> CreateBackend() {
   return backend_factory();
 }
 
-}  // namespace gazellejni
+}  // namespace gluten

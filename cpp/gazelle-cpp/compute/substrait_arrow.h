@@ -24,16 +24,16 @@
 namespace gazellecpp {
 namespace compute {
 
-class ArrowExecBackend : public gazellejni::ExecBackendBase {
+class ArrowExecBackend : public gluten::ExecBackendBase {
  public:
   ArrowExecBackend() = default;
 
   ~ArrowExecBackend() override;
 
-  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator() override;
+  std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator() override;
 
-  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs)
+  std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
+      std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs)
       override;
 
  private:

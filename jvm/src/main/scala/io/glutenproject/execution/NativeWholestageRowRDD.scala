@@ -19,7 +19,7 @@ package io.glutenproject.execution
 
 import java.io._
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.row.RowIterator
 import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
@@ -35,8 +35,8 @@ class NativeWholestageRowRDD(
     @transient private val inputPartitions: Seq[InputPartition],
     columnarReads: Boolean)
     extends RDD[InternalRow](sc, Nil) {
-  val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
-  val loadNative = GazelleJniConfig.getConf.loadNative
+  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val loadNative = GlutenConfig.getConf.loadNative
 
   override protected def getPartitions: Array[Partition] = {
     inputPartitions.zipWithIndex.map {

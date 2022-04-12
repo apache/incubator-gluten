@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelNode

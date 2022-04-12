@@ -17,9 +17,9 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.GazellePlugin
-import io.glutenproject.GazelleJniConfig
-import io.glutenproject.GazelleSparkExtensionsInjector
+import io.glutenproject.GlutenPlugin
+import io.glutenproject.GlutenConfig
+import io.glutenproject.GlutenSparkExtensionsInjector
 
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.Strategy
@@ -39,7 +39,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
         return Nil
       }
 
-      if (GazelleJniConfig.getSessionConf.forceShuffledHashJoin) {
+      if (GlutenConfig.getSessionConf.forceShuffledHashJoin) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
         return Option(getSmallerSide(left, right)).map {
@@ -60,7 +60,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
   }
 }
 
-object StrategyOverrides extends GazelleSparkExtensionsInjector {
+object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectPlannerStrategy(_ => JoinSelectionOverrides)
   }

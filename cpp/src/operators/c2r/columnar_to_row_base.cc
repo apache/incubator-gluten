@@ -17,7 +17,7 @@
 
 #include "columnar_to_row_base.h"
 
-namespace gazellejni {
+namespace gluten {
 namespace columnartorow {
 
 int64_t ColumnarToRowConverterBase::CalculateBitSetWidthInBytes(int32_t numFields) {
@@ -231,4 +231,4 @@ std::array<uint8_t, 16> ColumnarToRowConverterBase::ToByteArray(arrow::Decimal12
 }
 
 }  // namespace columnartorow
-}  // namespace gazellejni
+}  // namespace gluten

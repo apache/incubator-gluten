@@ -27,7 +27,7 @@
 
 #include "gandiva/decimal_type_util.h"
 
-namespace gazellejni {
+namespace gluten {
 namespace columnartorow {
 
 class ColumnarToRowConverterBase {
@@ -91,4 +91,4 @@ class ColumnarToRowConverterBase {
 };
 
 }  // namespace columnartorow
-}  // namespace gazellejni
+}  // namespace gluten

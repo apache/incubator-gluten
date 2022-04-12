@@ -25,7 +25,7 @@
 #include "substrait/plan.pb.h"
 #include "utils/exception.h"
 
-namespace gazellejni {
+namespace gluten {
 
 class ExecBackendBase;
 
@@ -100,7 +100,7 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
 
   inline void GetNext() {
     if (next_ == nullptr) {
-      GAZELLE_JNI_ASSIGN_OR_THROW(next_, iter_->Next());
+      GLUTEN_ASSIGN_OR_THROW(next_, iter_->Next());
     }
   }
 };
@@ -137,14 +137,14 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
           auto& sroot = srel.root();
           if (sroot.has_input()) {
             // TODO: remove arrow::Status
-            GAZELLE_JNI_THROW_NOT_OK(GetIterInputSchemaFromRel(sroot.input()));
+            GLUTEN_THROW_NOT_OK(GetIterInputSchemaFromRel(sroot.input()));
           } else {
             throw JniPendingException("Expect Rel as input.");
           }
         }
         if (srel.has_rel()) {
           // TODO: remove arrow::Status
-          GAZELLE_JNI_THROW_NOT_OK(GetIterInputSchemaFromRel(srel.rel()));
+          GLUTEN_THROW_NOT_OK(GetIterInputSchemaFromRel(srel.rel()));
         }
       }
     }
@@ -153,10 +153,10 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
 
   /// This function is used to create certain converter from the format used by the
   /// backend to Spark unsafe row. By default, Arrow-to-Row converter is used.
-  virtual std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>
+  virtual std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
   getColumnarConverter(std::shared_ptr<arrow::RecordBatch> rb,
                        arrow::MemoryPool* memory_pool) {
-    return std::make_shared<gazellejni::columnartorow::ArrowColumnarToRowConverter>(
+    return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
         rb, memory_pool);
   }
 
@@ -257,4 +257,4 @@ void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory
 
 std::shared_ptr<ExecBackendBase> CreateBackend();
 
-}  // namespace gazellejni
+}  // namespace gluten

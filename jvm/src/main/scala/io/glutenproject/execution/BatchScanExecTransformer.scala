@@ -17,7 +17,7 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,7 +41,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   override def getPartitions: Seq[InputPartition] = partitions
 
   override def supportsColumnar(): Boolean =
-    super.supportsColumnar && GazelleJniConfig.getConf.enableColumnarIterator
+    super.supportsColumnar && GlutenConfig.getConf.enableColumnarIterator
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

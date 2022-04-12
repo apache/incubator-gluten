@@ -19,7 +19,7 @@
 
 #include "columnar_to_row_base.h"
 
-namespace gazellejni {
+namespace gluten {
 namespace columnartorow {
 
 class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
@@ -40,4 +40,4 @@ class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
 };
 
 }  // namespace columnartorow
-}  // namespace gazellejni
+}  // namespace gluten

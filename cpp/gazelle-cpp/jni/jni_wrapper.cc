@@ -44,7 +44,7 @@ JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
   gazellecpp::compute::Initialize();
-  gazellejni::SetBackendFactory(
+  gluten::SetBackendFactory(
       [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
 }
 

@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.execution._
 
 import org.apache.spark.rdd.RDD
@@ -142,7 +142,7 @@ case class ColumnarCollapseCodegenStages(
         // Fake Arrow format will be returned for WS transformer if the next operator
         // is NativeColumnarToRowExec.
         // TODO: use a Velox layer on the top of the base layer.
-        if (nativeBackend.equalsIgnoreCase(GazelleJniConfig.GLUTEN_JNI_VELOX_BACKEND)) {
+        if (nativeBackend.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
           if (other.isInstanceOf[NativeColumnarToRowExec] &&
               maybeWS.head.isInstanceOf[WholeStageTransformerExec]) {
             maybeWS.head.asInstanceOf[WholeStageTransformerExec].setFakeOutput()

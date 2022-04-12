@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
@@ -92,8 +92,8 @@ class NativeWholeStageColumnarRDD(
     jarList: Seq[String],
     dependentKernelIterators: ListBuffer[BatchIterator])
     extends RDD[ColumnarBatch](sc, Nil) {
-  val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
-  val loadNative: Boolean = GazelleJniConfig.getConf.loadNative
+  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val loadNative: Boolean = GlutenConfig.getConf.loadNative
 
   override protected def getPartitions: Array[Partition] = {
     inputPartitions.zipWithIndex.map {
@@ -174,7 +174,7 @@ class NativeWholeStageColumnarRDD(
         if (!hasNext) {
           throw new java.util.NoSuchElementException("End of stream")
         }
-        if (!GazelleJniConfig.getConf.isClickHouseBackend) {
+        if (!GlutenConfig.getConf.isClickHouseBackend) {
           nextArrowColumnarBatch()
         } else {
           resIter.chNext()

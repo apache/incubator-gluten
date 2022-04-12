@@ -22,7 +22,7 @@ import java.io.File
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 
@@ -45,7 +45,7 @@ object BenchmarkTest {
 
     val sessionBuilderTmp = SparkSession
       .builder()
-      .appName("Gazelle-Jni-Benchmark")
+      .appName("Gluten-Benchmark")
 
     val sessionBuilder = if (!configed) {
       sessionBuilderTmp
@@ -66,12 +66,12 @@ object BenchmarkTest {
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
-        .config("spark.plugins", "io.glutenproject.GazellePlugin")
+        .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.oap.sql.columnar.columnartorow", "false")
-        .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
-        .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
-        .config(GazelleJniConfig.OAP_LIB_PATH,
+        .config(GlutenConfig.OAP_LOAD_NATIVE, "true")
+        .config(GlutenConfig.OAP_LOAD_ARROW, "false")
+        .config(GlutenConfig.OAP_LIB_PATH,
           "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
         .config("spark.oap.sql.columnar.iterator", "false")
         .config("spark.oap.sql.columnar.ch.mergetree.enabled", "true")

@@ -42,7 +42,7 @@ Dependencies below are required by OAP and all of them are included in OAP Conda
 - [OneAPI](https://software.intel.com/content/www/us/en/develop/tools/oneapi.html)
 
 Once above steps finish, you have completed OAP dependencies installation and OAP building.
-You can start to build Gazelle-Jni in this environment.
+You can start to build Gluten in this environment.
 
 #### Extra Steps for Shuffle Remote PMem Extension
 

@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
@@ -82,7 +82,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
   def buildCheck(): Unit = {
-    if (GazelleJniConfig.getConf.isClickHouseBackend) return
+    if (GlutenConfig.getConf.isClickHouseBackend) return
     // check input datatype
     for (attr <- child.output) {
       try {
@@ -386,7 +386,7 @@ object ColumnarShuffleExchangeExec extends Logging {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, serializeSchema(arrowFields))
       case HashPartitioning(exprs, n) =>
-        if (!GazelleJniConfig.getConf.isClickHouseBackend) {
+        if (!GlutenConfig.getConf.isClickHouseBackend) {
           // Function map is not expected to be used.
           val functionMap = new java.util.HashMap[String, java.lang.Long]()
           val exprNodeList = new util.ArrayList[ExpressionNode]()
@@ -453,7 +453,7 @@ object ColumnarShuffleExchangeExec extends Logging {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              if (!GazelleJniConfig.getConf.isClickHouseBackend) {
+              if (!GlutenConfig.getConf.isClickHouseBackend) {
                 (0 until cb.numCols).foreach(
                   cb.column(_)
                     .asInstanceOf[ArrowWritableColumnVector]

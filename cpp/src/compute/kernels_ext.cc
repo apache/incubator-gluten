@@ -24,7 +24,7 @@
 
 #include <iostream>
 
-namespace gazellejni {
+namespace gluten {
 namespace compute {
 
 bool LazyReadIterator::HasNext() {
@@ -63,4 +63,4 @@ arrow::Status LazyReadIterator::Next(std::shared_ptr<arrow::RecordBatch>* out) {
 }
 
 }  // namespace compute
-}  // namespace gazellejni
+}  // namespace gluten

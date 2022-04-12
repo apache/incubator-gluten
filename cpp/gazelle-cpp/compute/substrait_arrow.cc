@@ -34,17 +34,17 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gazellejni::RecordBatchResultIterator>
+std::shared_ptr<gluten::RecordBatchResultIterator>
 ArrowExecBackend::GetResultIterator() {
   return GetResultIterator({});
 }
 
-std::shared_ptr<gazellejni::RecordBatchResultIterator>
+std::shared_ptr<gluten::RecordBatchResultIterator>
 ArrowExecBackend::GetResultIterator(
-    std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs) {
-  GAZELLE_JNI_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
+    std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
+  GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
-    throw gazellejni::JniPendingException("Expected 1 decl, but got " +
+    throw gluten::JniPendingException("Expected 1 decl, but got " +
                                           std::to_string(decls.size()));
   }
   decl_ = std::make_shared<arrow::compute::Declaration>(std::move(decls[0]));
@@ -55,7 +55,7 @@ ArrowExecBackend::GetResultIterator(
     for (auto i = 0; i < inputs.size(); ++i) {
       auto it = schema_map_.find(i);
       if (it == schema_map_.end()) {
-        throw gazellejni::JniPendingException(
+        throw gluten::JniPendingException(
             "Schema not found for input batch iterator " + std::to_string(i));
       }
       auto batch_it = MakeMapIterator(
@@ -63,7 +63,7 @@ ArrowExecBackend::GetResultIterator(
             return arrow::util::make_optional(arrow::compute::ExecBatch(*batch));
           },
           std::move(*inputs[i]->ToArrowRecordBatchIterator()));
-      GAZELLE_JNI_ASSIGN_OR_THROW(
+      GLUTEN_ASSIGN_OR_THROW(
           auto gen, arrow::MakeBackgroundGenerator(std::move(batch_it),
                                                    arrow::internal::GetCpuThreadPool()));
       source_decls.emplace_back(
@@ -73,18 +73,18 @@ ArrowExecBackend::GetResultIterator(
   }
 
   // Make plan
-  GAZELLE_JNI_ASSIGN_OR_THROW(exec_plan_, arrow::compute::ExecPlan::Make());
-  GAZELLE_JNI_ASSIGN_OR_THROW(auto node, decl_->AddToPlan(exec_plan_.get()));
+  GLUTEN_ASSIGN_OR_THROW(exec_plan_, arrow::compute::ExecPlan::Make());
+  GLUTEN_ASSIGN_OR_THROW(auto node, decl_->AddToPlan(exec_plan_.get()));
   auto output_schema = node->output_schema();
 
   // Add sink node. It's added after constructing plan from decls because sink node
   // doesn't have output schema.
   arrow::AsyncGenerator<arrow::util::optional<arrow::compute::ExecBatch>> sink_gen;
-  GAZELLE_JNI_THROW_NOT_OK(arrow::compute::MakeExecNode(
+  GLUTEN_THROW_NOT_OK(arrow::compute::MakeExecNode(
       "sink", exec_plan_.get(), {node}, arrow::compute::SinkNodeOptions{&sink_gen}));
 
-  GAZELLE_JNI_THROW_NOT_OK(exec_plan_->Validate());
-  GAZELLE_JNI_THROW_NOT_OK(exec_plan_->StartProducing());
+  GLUTEN_THROW_NOT_OK(exec_plan_->Validate());
+  GLUTEN_THROW_NOT_OK(exec_plan_->StartProducing());
 
 #ifdef DEBUG
   std::cout << std::string(50, '#') << " produced arrow::ExecPlan:" << std::endl;
@@ -96,7 +96,7 @@ ArrowExecBackend::GetResultIterator(
   std::shared_ptr<arrow::RecordBatchReader> sink_reader =
       arrow::compute::MakeGeneratorReader(std::move(output_schema), std::move(sink_gen),
                                           arrow::default_memory_pool());
-  return std::make_shared<gazellejni::RecordBatchResultIterator>(std::move(sink_reader),
+  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(sink_reader),
                                                                  shared_from_this());
 }
 
@@ -121,7 +121,7 @@ void ArrowExecBackend::ReplaceSourceDecls(
   }
 
   if (source_indexes.size() != source_decls.size()) {
-    throw gazellejni::JniPendingException(
+    throw gluten::JniPendingException(
         "Wrong number of source declarations. " + std::to_string(source_indexes.size()) +
         " source(s) needed by source declarations, but got " +
         std::to_string(source_decls.size()) + " from input batches.");

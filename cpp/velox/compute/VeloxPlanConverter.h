@@ -73,15 +73,15 @@ class VeloxInitializer {
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
-class VeloxPlanConverter : public gazellejni::ExecBackendBase {
+class VeloxPlanConverter : public gluten::ExecBackendBase {
  public:
-  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator() override;
+  std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator() override;
 
-  std::shared_ptr<gazellejni::RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs)
+  std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
+      std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs)
       override;
 
-  std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>
+  std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
   getColumnarConverter(std::shared_ptr<arrow::RecordBatch> rb,
                        arrow::MemoryPool* memory_pool) override {
     return std::make_shared<VeloxToRowConverter>(rb, memory_pool);
@@ -95,7 +95,7 @@ class VeloxPlanConverter : public gazellejni::ExecBackendBase {
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
-  std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> arrowInputIters_;
+  std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> arrowInputIters_;
   std::shared_ptr<ArrowArrayStream> arrowStreamIter_;
 
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);

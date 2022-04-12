@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GazelleJniConfig;
+import io.glutenproject.GlutenConfig;
 import io.glutenproject.execution.ColumnarNativeIterator;
 import io.glutenproject.row.RowIterator;
 import io.glutenproject.substrait.plan.PlanNode;
@@ -48,35 +48,35 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   public ExpressionEvaluator(List<String> listJars) throws IOException, IllegalAccessException, IllegalStateException {
-    this(listJars, GazelleJniConfig.getConf().nativeLibName());
+    this(listJars, GlutenConfig.getConf().nativeLibName());
   }
 
   public ExpressionEvaluator(List<String> listJars, String libName) throws IOException, IllegalAccessException, IllegalStateException {
     this(listJars, libName,
-            GazelleJniConfig.getSessionConf().nativeLibPath(),
-            GazelleJniConfig.getConf().gazelleJniBackendLib(),
-            GazelleJniConfig.getConf().loadArrow());
+            GlutenConfig.getSessionConf().nativeLibPath(),
+            GlutenConfig.getConf().glutenBackendLib(),
+            GlutenConfig.getConf().loadArrow());
   }
 
   public ExpressionEvaluator(String libPath)
           throws IOException, IllegalAccessException, IllegalStateException {
-    this(java.util.Collections.emptyList(), null, libPath, null, GazelleJniConfig.getConf().loadArrow());
+    this(java.util.Collections.emptyList(), null, libPath, null, GlutenConfig.getConf().loadArrow());
   }
 
   public ExpressionEvaluator(List<String> listJars, String libName,
                              String libPath, String customBackendLib,
                              boolean loadArrowAndGandiva)
           throws IOException, IllegalAccessException, IllegalStateException {
-    String tmp_dir = GazelleJniConfig.getTempFile();
+    String tmp_dir = GlutenConfig.getTempFile();
     if (tmp_dir == null) {
       tmp_dir = System.getProperty("java.io.tmpdir");
     }
     jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName, libPath,
             customBackendLib, loadArrowAndGandiva);
     jniWrapper.nativeSetJavaTmpDir(jniWrapper.tmp_dir_path);
-    jniWrapper.nativeSetBatchSize(GazelleJniConfig.getBatchSize());
-    jniWrapper.nativeSetMetricsTime(GazelleJniConfig.getEnableMetricsTime());
-    GazelleJniConfig.setRandomTempDir(jniWrapper.tmp_dir_path);
+    jniWrapper.nativeSetBatchSize(GlutenConfig.getBatchSize());
+    jniWrapper.nativeSetMetricsTime(GlutenConfig.getEnableMetricsTime());
+    GlutenConfig.setRandomTempDir(jniWrapper.tmp_dir_path);
   }
 
   long getInstanceId() {
@@ -92,7 +92,7 @@ public class ExpressionEvaluator implements AutoCloseable {
           byte[] wsPlan, ArrayList<ColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
     long poolId = 0;
-    if (!GazelleJniConfig.getConf().isClickHouseBackend()) {
+    if (!GlutenConfig.getConf().isClickHouseBackend()) {
       NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
       poolId = memoryPool.getNativeInstanceId();
     }

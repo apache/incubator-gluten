@@ -21,7 +21,7 @@ import java.util.{Collections, Objects}
 
 import scala.language.implicitConversions
 
-import io.glutenproject.GazellePlugin.{GAZELLE_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
+import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.extension.{ColumnarOverrides, StrategyOverrides}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import java.util
@@ -31,17 +31,17 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
 
-class GazellePlugin extends SparkPlugin {
+class GlutenPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
-    new GazelleDriverPlugin()
+    new GlutenDriverPlugin()
   }
 
   override def executorPlugin(): ExecutorPlugin = {
-    new GazelleExecutorPlugin()
+    new GlutenExecutorPlugin()
   }
 }
 
-private[glutenproject] class GazelleDriverPlugin extends DriverPlugin {
+private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     setPredefinedConfigs(conf)
@@ -51,26 +51,26 @@ private[glutenproject] class GazelleDriverPlugin extends DriverPlugin {
   def setPredefinedConfigs(conf: SparkConf): Unit = {
     if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       throw new IllegalArgumentException("Spark extensions are already specified before " +
-          "enabling Gazelle plugin: " + conf.get(GazellePlugin.SPARK_SESSION_EXTS_KEY))
+          "enabling Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SESSION_EXTS_KEY))
     }
-    conf.set(SPARK_SESSION_EXTS_KEY, GAZELLE_SESSION_EXTENSION_NAME)
+    conf.set(SPARK_SESSION_EXTS_KEY, GLUTEN_SESSION_EXTENSION_NAME)
   }
 }
 
-private[glutenproject] class GazelleExecutorPlugin extends ExecutorPlugin {
+private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
   /**
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    // SQLConf is not initialed here, so it can not use 'GazelleJniConfig.getConf' to get conf.
-    if (ctx.conf().getBoolean(GazelleJniConfig.OAP_LOAD_NATIVE, defaultValue = true)) {
-      val customOAPLib = ctx.conf().get(GazelleJniConfig.OAP_LIB_PATH, "")
-      val customBackendLib = ctx.conf().get(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, "")
+    // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
+    if (ctx.conf().getBoolean(GlutenConfig.OAP_LOAD_NATIVE, defaultValue = true)) {
+      val customOAPLib = ctx.conf().get(GlutenConfig.OAP_LIB_PATH, "")
+      val customBackendLib = ctx.conf().get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
-        ctx.conf().get(GazelleJniConfig.OAP_LIB_NAME, "spark_columnar_jni"),
+        ctx.conf().get(GlutenConfig.OAP_LIB_NAME, "spark_columnar_jni"),
         customOAPLib,
         customBackendLib,
-        ctx.conf().getBoolean(GazelleJniConfig.OAP_LOAD_ARROW, defaultValue = true))
+        ctx.conf().getBoolean(GlutenConfig.OAP_LOAD_ARROW, defaultValue = true))
       if (customOAPLib.nonEmpty || customBackendLib.nonEmpty) {
         initKernel.initNative()
       }
@@ -86,39 +86,39 @@ private[glutenproject] class GazelleExecutorPlugin extends ExecutorPlugin {
   }
 }
 
-private[glutenproject] class GazelleSessionExtensions extends (SparkSessionExtensions => Unit) {
+private[glutenproject] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
   override def apply(exts: SparkSessionExtensions): Unit = {
-    GazellePlugin.DEFAULT_INJECTORS.foreach(injector => injector.inject(exts))
+    GlutenPlugin.DEFAULT_INJECTORS.foreach(injector => injector.inject(exts))
   }
 }
 
 private[glutenproject] class SparkConfImplicits(conf: SparkConf) {
-  def enableGazellePlugin(): SparkConf = {
-    if (conf.contains(GazellePlugin.SPARK_SQL_PLUGINS_KEY)) {
+  def enableGlutenPlugin(): SparkConf = {
+    if (conf.contains(GlutenPlugin.SPARK_SQL_PLUGINS_KEY)) {
       throw new IllegalArgumentException("A Spark plugin is already specified before enabling " +
-          "Gazelle plugin: " + conf.get(GazellePlugin.SPARK_SQL_PLUGINS_KEY))
+          "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
     }
-    conf.set(GazellePlugin.SPARK_SQL_PLUGINS_KEY, GazellePlugin.GAZELLE_PLUGIN_NAME)
+    conf.set(GlutenPlugin.SPARK_SQL_PLUGINS_KEY, GlutenPlugin.GLUTEN_PLUGIN_NAME)
   }
 }
 
-private[glutenproject] trait GazelleSparkExtensionsInjector {
+private[glutenproject] trait GlutenSparkExtensionsInjector {
   def inject(extensions: SparkSessionExtensions)
 }
 
-private[glutenproject] object GazellePlugin {
-  // To enable GazellePlugin in production, set "spark.plugins=com.intel.oap.GazellePlugin"
+private[glutenproject] object GlutenPlugin {
+  // To enable GlutenPlugin in production, set "spark.plugins=com.intel.oap.GlutenPlugin"
   val SPARK_SQL_PLUGINS_KEY: String = "spark.plugins"
-  val GAZELLE_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GazellePlugin]
+  val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin]
       .getCanonicalName)
   val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
-  val GAZELLE_SESSION_EXTENSION_NAME: String = Objects.requireNonNull(
-    classOf[GazelleSessionExtensions].getCanonicalName)
+  val GLUTEN_SESSION_EXTENSION_NAME: String = Objects.requireNonNull(
+    classOf[GlutenSessionExtensions].getCanonicalName)
 
   /**
-   * Specify all injectors that Gazelle is using in following list.
+   * Specify all injectors that Gluten is using in following list.
    */
-  val DEFAULT_INJECTORS: List[GazelleSparkExtensionsInjector] = List(
+  val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
     ColumnarOverrides,
     StrategyOverrides
   )

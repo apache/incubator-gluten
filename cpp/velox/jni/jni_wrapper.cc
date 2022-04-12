@@ -44,7 +44,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
-  gazellejni::SetBackendFactory(
+  gluten::SetBackendFactory(
       [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
   auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
   veloxInitializer->Init();
