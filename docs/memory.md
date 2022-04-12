@@ -8,7 +8,7 @@ Modern memory allocators like jemalloc will not return the just freed memory to 
 
 ## Turnings to reduce memory footprint
 
-- Gluten Plugin 1.2+
+- Gluten Plugin 1.0+
 - Using jemalloc in Arrow build
 ```
 -DARROW_USEJEMALLOC=True
