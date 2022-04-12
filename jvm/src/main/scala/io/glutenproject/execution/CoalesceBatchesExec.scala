@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.vectorized.{CHCoalesceOperator, CHNativeBlock, ColumnarFactory}
+import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.glutenproject.vectorized.CloseableColumnBatchIterator
@@ -60,6 +62,14 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
       .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    if (GazelleJniConfig.getConf.loadch) {
+      doCHInternalExecuteColumnar()
+    } else {
+      doInternalExecuteColumnar()
+    }
+  }
+
+  def doInternalExecuteColumnar(): RDD[ColumnarBatch] = {
     import CoalesceBatchesExec._
 
     val recordsPerBatch = conf.arrowMaxRecordsPerBatch
@@ -142,8 +152,52 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
       } else {
         Iterator.empty
       }
-      new CloseableColumnBatchIterator(res)
+      ColumnarFactory.createClosableIterator(res)
     }
+  }
+
+  def doCHInternalExecuteColumnar(): RDD[ColumnarBatch] = {
+    val recordsPerBatch = conf.arrowMaxRecordsPerBatch
+    val numOutputRows = longMetric("numOutputRows")
+    val numInputBatches = longMetric("numInputBatches")
+    val numOutputBatches = longMetric("numOutputBatches")
+    val collectTime = longMetric("collectTime")
+    val concatTime = longMetric("concatTime")
+    val avgCoalescedNumRows = longMetric("avgCoalescedNumRows")
+    child.executeColumnar().mapPartitions(iter => {
+      val operator = new CHCoalesceOperator(recordsPerBatch)
+      val res = new Iterator[ColumnarBatch] {
+        override def hasNext: Boolean = {
+          val beforeNext = System.nanoTime
+          val hasNext = iter.hasNext
+          collectTime += System.nanoTime - beforeNext
+          hasNext
+        }
+        SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((tc: TaskContext) => {
+          operator.close()
+        })
+        override def next(): ColumnarBatch = {
+          val c = iter.next()
+          numInputBatches += 1
+          val beforeConcat = System.nanoTime
+          operator.mergeBlock(c)
+
+          while(!operator.isFull && iter.hasNext) {
+            val cb = iter.next();
+            numInputBatches += 1;
+            operator.mergeBlock(cb)
+          }
+          val res = operator.release().toColumnarBatch
+          CHNativeBlock.fromColumnarBatch(res).ifPresent(block => {
+            numOutputRows += block.numRows();
+            numOutputBatches += 1;
+          })
+          res
+        }
+      }
+
+      ColumnarFactory.createClosableIterator(res)
+    })
   }
 }
 

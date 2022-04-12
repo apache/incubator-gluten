@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.vectorized.ColumnarFactory
+
 import java.io.Serializable
 
 import scala.collection.JavaConverters._
@@ -36,7 +38,7 @@ import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.util.OASPackageBridge._
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.util._
 
 trait BaseNativeFilePartition extends Partition with InputPartition {
@@ -104,8 +106,11 @@ class NativeWholeStageColumnarRDD(
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
-  private def castNativePartition(split: Partition): NativeFilePartition = split match {
-    case NativeSubstraitPartition(_, p: NativeFilePartition) => p
+  private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
+    case NativeSubstraitPartition(_, p: NativeFilePartition) =>
+      p.asInstanceOf[BaseNativeFilePartition]
+    case NativeSubstraitPartition(_, p: NativeMergeTreePartition) =>
+      p.asInstanceOf[BaseNativeFilePartition]
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
@@ -137,10 +142,7 @@ class NativeWholeStageColumnarRDD(
         }
       }
 
-      override def next(): Any = {
-        if (!hasNext) {
-          throw new java.util.NoSuchElementException("End of stream")
-        }
+      def nextArrowColumnarBatch(): Any = {
         val rb = resIter.next()
         if (rb == null) {
           val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
@@ -167,11 +169,23 @@ class NativeWholeStageColumnarRDD(
         inputMetrics.bridgeIncBytesRead(bytes)
         cb
       }
+
+      override def next(): Any = {
+        if (!hasNext) {
+          throw new java.util.NoSuchElementException("End of stream")
+        }
+        if (!GazelleJniConfig.getConf.loadch) {
+          nextArrowColumnarBatch()
+        } else {
+          resIter.chNext()
+        }
+
+      }
     }
-    val closeableColumnarBatchIterator = new CloseableColumnBatchIterator(
-      iter.asInstanceOf[Iterator[ColumnarBatch]])
+
     // TODO: SPARK-25083 remove the type erasure hack in data source scan
-    new InterruptibleIterator(context, closeableColumnarBatchIterator)
+    new InterruptibleIterator(context,
+      ColumnarFactory.createClosableIterator(iter.asInstanceOf[Iterator[ColumnarBatch]]))
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {

@@ -25,4 +25,8 @@ class ClickHousePartitionReaderFactory extends PartitionReaderFactory with Loggi
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
     null
   }
+
+  override def supportColumnarReads(partition: InputPartition): Boolean = {
+    true
+  }
 }

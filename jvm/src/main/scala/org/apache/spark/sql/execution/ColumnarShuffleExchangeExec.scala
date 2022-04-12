@@ -18,12 +18,12 @@
 package org.apache.spark.sql.execution
 
 import java.util
-
 import com.google.common.collect.Lists
+import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression.{CodeGeneration, ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, NativePartitioning}
+import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector, ColumnarFactory, NativePartitioning}
 import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.spark._
@@ -85,6 +85,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
   def buildCheck(): Unit = {
+    if (GazelleJniConfig.getConf.loadch) return
     // check input datatype
     for (attr <- child.output) {
       try {
@@ -97,10 +98,12 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     }
   }
 
-  val serializer: Serializer = new ArrowColumnarBatchSerializer(
-    schema,
-    longMetric("avgReadBatchNumRows"),
-    longMetric("numOutputRows"))
+  private val loadch = GazelleJniConfig.getConf.loadch
+
+  val serializer: Serializer = ColumnarFactory.createColumnarBatchSerializer(
+      schema,
+      longMetric("avgReadBatchNumRows"),
+      longMetric("numOutputRows"))
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -206,7 +209,9 @@ class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioni
     super.stringArgs ++ Iterator(s"[id=#$id]")
   //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
-  val serializer: Serializer = new ArrowColumnarBatchSerializer(
+  private val loadch = GazelleJniConfig.getConf.loadch
+
+  val serializer: Serializer = ColumnarFactory.createColumnarBatchSerializer(
     schema,
     longMetric("avgReadBatchNumRows"),
     longMetric("numOutputRows"))
@@ -388,25 +393,40 @@ object ColumnarShuffleExchangeExec extends Logging {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, serializeSchema(arrowFields))
       case HashPartitioning(exprs, n) =>
-        // Function map is not expected to be used.
-        val functionMap = new java.util.HashMap[String, java.lang.Long]()
-        val exprNodeList = new util.ArrayList[ExpressionNode]()
-        exprs.foreach(expr => {
-          if (!expr.isInstanceOf[Attribute]) {
-            throw new UnsupportedOperationException(
-              "Expressions are not supported in HashPartitioning.")
+        val loadch = GazelleJniConfig.getConf.loadch
+        if (!loadch) {
+          // Function map is not expected to be used.
+          val functionMap = new java.util.HashMap[String, java.lang.Long]()
+          val exprNodeList = new util.ArrayList[ExpressionNode]()
+          exprs.foreach(expr => {
+            if (!expr.isInstanceOf[Attribute]) {
+              throw new UnsupportedOperationException(
+                "Expressions are not supported in HashPartitioning.")
+            }
+            exprNodeList.add(ExpressionConverter
+              .replaceWithExpressionTransformer(expr, outputAttributes)
+              .asInstanceOf[ExpressionTransformer]
+              .doTransform(functionMap))
+          })
+          val projectRel = RelBuilder.makeProjectRel(null, exprNodeList)
+          new NativePartitioning(
+            "hash",
+            n,
+            serializeSchema(arrowFields),
+            projectRel.toProtobuf().toByteArray)
+        } else {
+          val fields = exprs.zipWithIndex.map {
+            case (expr, i) =>
+              val treeNode: TreeNode = null
+              val attr = ConverterUtils.getAttrFromExpr(expr)
+              attr.name
           }
-          exprNodeList.add(ExpressionConverter
-            .replaceWithExpressionTransformer(expr, outputAttributes)
-            .asInstanceOf[ExpressionTransformer]
-            .doTransform(functionMap))
-        })
-        val projectRel = RelBuilder.makeProjectRel(null, exprNodeList)
-        new NativePartitioning(
-          "hash",
-          n,
-          serializeSchema(arrowFields),
-          projectRel.toProtobuf().toByteArray)
+          new NativePartitioning(
+            "hash",
+            n,
+            null,
+            fields.mkString(",").getBytes("UTF-8"))
+        }
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
         val pidField = Field.nullable("pid", new ArrowType.Int(32, true))
@@ -441,11 +461,13 @@ object ColumnarShuffleExchangeExec extends Logging {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
-              (0 until cb.numCols).foreach(
-                cb.column(_)
-                  .asInstanceOf[ArrowWritableColumnVector]
-                  .getValueVector
-                  .setValueCount(cb.numRows))
+              if (!GazelleJniConfig.getConf.loadch) {
+                (0 until cb.numCols).foreach(
+                  cb.column(_)
+                    .asInstanceOf[ArrowWritableColumnVector]
+                    .getValueVector
+                    .setValueCount(cb.numRows))
+              }
               (0, cb)
             },
           isOrderSensitive = isOrderSensitive)

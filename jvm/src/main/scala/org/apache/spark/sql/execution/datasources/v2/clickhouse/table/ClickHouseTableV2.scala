@@ -16,11 +16,11 @@
 
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.table
 
-import java.util.concurrent.TimeUnit
+import org.apache.spark.internal.Logging
 
+import java.util.concurrent.TimeUnit
 import java.{util => ju}
 import org.sparkproject.guava.cache.{CacheBuilder, CacheLoader}
-
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.delta.actions.{AddFile, SingleAction}
@@ -200,7 +200,7 @@ case class ClickHouseTableV2(
   }
 }
 
-object ClickHouseTableV2 {
+object ClickHouseTableV2 extends Logging{
   protected var lastUpdateTimestamp: Long = -1L
   protected val stalenessLimit = SparkSession.active.sessionState.conf.getConf(
     DeltaSQLConf.DELTA_ASYNC_UPDATE_STALENESS_TIME_LIMIT)
@@ -232,7 +232,7 @@ object ClickHouseTableV2 {
       snapshot.allFiles.toDF(),
       Seq.empty).as[AddFile].collect().map(AddFileTags.partsMapToParts(_))
       .sortWith(_.minBlockNumber < _.minBlockNumber).toSeq
-    println(s"Get all parts from path ${tablePath.toString} " +
+    logInfo(s"Get ${allParts.size} parts from path ${tablePath.toString} " +
       (System.currentTimeMillis() - start))
     allParts
   }

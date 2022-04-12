@@ -40,8 +40,8 @@ interface NativeSerializedRecordBatchIterator extends Iterator<byte[]>, AutoClos
 }
 
 public class ColumnarNativeIterator implements NativeSerializedRecordBatchIterator {
-  private final Iterator<ColumnarBatch> delegated;
-  private ColumnarBatch nextBatch = null;
+  protected final Iterator<ColumnarBatch> delegated;
+  protected ColumnarBatch nextBatch = null;
 
   public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
     this.delegated = delegated;

@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
+import io.glutenproject.GazelleJniConfig
+
 import java.io.PrintWriter
 import java.util
 import java.util.UUID
@@ -109,7 +111,9 @@ object SparkMemoryUtils extends Logging {
       .newChildAllocator("CHILD-ALLOC-BUFFER-IMPORT", allocListenerForBufferImport, 0L,
         Long.MaxValue)
 
-    val defaultMemoryPool: NativeMemoryPoolWrapper = {
+    val defaultMemoryPool: NativeMemoryPoolWrapper = if (GazelleJniConfig.getConf.loadch) {
+      null
+    } else {
       val rl = new SparkManagedReservationListener(
         new NativeSQLMemoryConsumer(getTaskMemoryManager(), Spiller.NO_OP),
         sharedMetrics)

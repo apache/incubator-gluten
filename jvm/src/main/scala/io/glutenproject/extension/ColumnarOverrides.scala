@@ -233,7 +233,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
     case plan: RowToColumnarExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
-      RowToArrowColumnarExec(child)
+        RowToArrowColumnarExec(child)
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
