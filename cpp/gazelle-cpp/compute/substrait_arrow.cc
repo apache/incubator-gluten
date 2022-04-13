@@ -127,12 +127,10 @@ void ArrowExecBackend::PushDownFilter() {
           const auto& schema = scan_options->dataset->schema();
           FieldPathToName(&expression, schema);
           scan_options->scan_options->filter = std::move(expression);
-        } else {
-          visited.push_back(&input_decl);
-        }
-      } else {
-        visited.push_back(&input_decl);
+          continue;
+        } 
       }
+      visited.push_back(&input_decl);
     }
   }
 }
