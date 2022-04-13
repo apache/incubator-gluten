@@ -294,7 +294,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   def postOverrides = TransformPostOverrides()
 
   val columnarWholeStageEnabled: Boolean = conf.getBoolean(
-    "spark.oap.sql.columnar.wholestagetransform", defaultValue = true)
+    "spark.gluten.sql.columnar.wholestagetransform", defaultValue = true)
   val backend: String = conf.get(
     GlutenConfig.GLUTEN_BACKEND_LIB, defaultValue = "")
   def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled, backend)

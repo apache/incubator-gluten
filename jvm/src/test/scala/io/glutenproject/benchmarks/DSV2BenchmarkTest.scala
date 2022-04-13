@@ -97,12 +97,12 @@ object DSV2BenchmarkTest {
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
         //.config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
-        .config("spark.oap.sql.columnar.columnartorow", "false")
-        .config(GlutenConfig.OAP_LOAD_NATIVE, "true")
-        .config(GlutenConfig.OAP_LOAD_ARROW, "false")
-        .config(GlutenConfig.OAP_LIB_PATH,
+        .config("spark.gluten.sql.columnar.columnartorow", "false")
+        .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
+        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
+        .config(GlutenConfig.GLUTEN_LIB_PATH,
           "path_to_clickhouse_engine/libch.so")
-        .config("spark.oap.sql.columnar.iterator", "false")
+        .config("spark.gluten.sql.columnar.iterator", "false")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
@@ -299,7 +299,7 @@ object DSV2BenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.oap.sql.enable.native.engine", "false")
+    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)
@@ -329,7 +329,7 @@ object DSV2BenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.oap.sql.enable.native.engine", "false")
+    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)

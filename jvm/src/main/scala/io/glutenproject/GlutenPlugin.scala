@@ -63,15 +63,15 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
-    if (ctx.conf().getBoolean(GlutenConfig.OAP_LOAD_NATIVE, defaultValue = true)) {
-      val customOAPLib = ctx.conf().get(GlutenConfig.OAP_LIB_PATH, "")
+    if (ctx.conf().getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
+      val customGLUTENLib = ctx.conf().get(GlutenConfig.GLUTEN_LIB_PATH, "")
       val customBackendLib = ctx.conf().get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
-        ctx.conf().get(GlutenConfig.OAP_LIB_NAME, "spark_columnar_jni"),
-        customOAPLib,
+        ctx.conf().get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
+        customGLUTENLib,
         customBackendLib,
-        ctx.conf().getBoolean(GlutenConfig.OAP_LOAD_ARROW, defaultValue = true))
-      if (customOAPLib.nonEmpty || customBackendLib.nonEmpty) {
+        ctx.conf().getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
+      if (customGLUTENLib.nonEmpty || customBackendLib.nonEmpty) {
         initKernel.initNative()
       }
     }
@@ -107,7 +107,7 @@ private[glutenproject] trait GlutenSparkExtensionsInjector {
 }
 
 private[glutenproject] object GlutenPlugin {
-  // To enable GlutenPlugin in production, set "spark.plugins=com.intel.oap.GlutenPlugin"
+  // To enable GlutenPlugin in production, set "spark.plugins=io.glutenproject.GlutenPlugin"
   val SPARK_SQL_PLUGINS_KEY: String = "spark.plugins"
   val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin]
       .getCanonicalName)

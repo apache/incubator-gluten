@@ -56,8 +56,8 @@ Once finished steps above, make sure libraries installed by Conda can be linked 
 spark.executorEnv.LD_LIBRARY_PATH   $HOME/miniconda2/envs/oapenv/lib
 spark.executor.extraLibraryPath     $HOME/miniconda2/envs/oapenv/lib
 spark.driver.extraLibraryPath       $HOME/miniconda2/envs/oapenv/lib
-spark.executor.extraClassPath       $HOME/miniconda2/envs/oapenv/oap_jars/$OAP_FEATURE.jar
-spark.driver.extraClassPath         $HOME/miniconda2/envs/oapenv/oap_jars/$OAP_FEATURE.jar
+spark.executor.extraClassPath       $HOME/miniconda2/envs/oapenv/oap_jars/$GLUTEN_FEATURE.jar
+spark.driver.extraClassPath         $HOME/miniconda2/envs/oapenv/oap_jars/$GLUTEN_FEATURE.jar
 ```
 
 Then you can follow the corresponding feature documents for more details to use them.

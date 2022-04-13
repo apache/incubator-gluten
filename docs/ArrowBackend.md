@@ -110,7 +110,7 @@ In addition to your cutomized Spark configurations, extra configurations for ena
 | Configuration | Value | Comment |
 | --- | --- | --- |
 | spark.plugins | io.glutenproject.GlutenPlugin |  |
-| spark.oap.sql.columnar.backend.lib | gazelle_cpp |  |
+| spark.gluten.sql.columnar.backend.lib | gazelle_cpp |  |
 | spark.shuffle.manager | org.apache.spark.shuffle.sort.ColumnarShuffleManager |  |
 | spark.sql.sources.useV1SourceList | avro |  |
 | spark.memory.offHeap.size | 20g | 

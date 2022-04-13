@@ -55,7 +55,7 @@ object SparkMemoryUtils extends Logging {
 
     val isArrowAutoReleaseEnabled: Boolean = {
       SQLConf.get
-        .getConfString("spark.oap.sql.columnar.autorelease", "false").toBoolean
+        .getConfString("spark.gluten.sql.columnar.autorelease", "false").toBoolean
     }
 
     val memoryChunkManagerFactory: MemoryChunkManager.Factory = if (isArrowAutoReleaseEnabled) {
