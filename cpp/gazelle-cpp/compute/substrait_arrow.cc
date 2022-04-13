@@ -128,7 +128,7 @@ void ArrowExecBackend::PushDownFilter() {
           FieldPathToName(&expression, schema);
           scan_options->scan_options->filter = std::move(expression);
           continue;
-        } 
+        }
       }
       visited.push_back(&input_decl);
     }
@@ -138,22 +138,25 @@ void ArrowExecBackend::PushDownFilter() {
 void ArrowExecBackend::FieldPathToName(arrow::compute::Expression* expression,
                                        const std::shared_ptr<arrow::Schema>& schema) {
   std::vector<arrow::compute::Expression*> visited;
+
   visited.push_back(expression);
+
   while (!visited.empty()) {
     auto expr = visited.back();
     visited.pop_back();
     if (expr->call()) {
       auto call = const_cast<arrow::compute::Expression::Call*>(expr->call());
-      std::transform(call->arguments.begin(), call->arguments.end(), std::back_inserter(visited),
+      std::transform(call->arguments.begin(), call->arguments.end(),
+                     std::back_inserter(visited),
                      [](arrow::compute::Expression& arg) { return &arg; });
     } else if (expr->field_ref()) {
       auto field_ref = const_cast<arrow::FieldRef*>(expr->field_ref());
       if (auto field_path = field_ref->field_path()) {
-        *expr = arrow::compute::field_ref(
-            schema->field((field_path->indices())[0])->name());
+        *expr =
+            arrow::compute::field_ref(schema->field((field_path->indices())[0])->name());
       } else {
-        std::cerr << "Field Ref is not field path: " << field_ref->ToString()
-                  << std::endl;
+        throw gazellejni::JniPendingException("Field Ref is not field path: " +
+                                              field_ref->ToString());
       }
     }
   }
