@@ -318,9 +318,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
     //   import spark.implicits._
     //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     //   df.summary().show(100, false)
-    if (nativeEngineEnabled && !plan.isInstanceOf[SerializeFromObjectExec] &&
-        !plan.isInstanceOf[ObjectHashAggregateExec] &&
-        !plan.isInstanceOf[V2CommandExec]) {
+    if (nativeEngineEnabled) {
       isSupportAdaptive = supportAdaptive(plan)
       val rule = preOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
@@ -331,9 +329,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    if (nativeEngineEnabled && !plan.isInstanceOf[SerializeFromObjectExec] &&
-        !plan.isInstanceOf[ObjectHashAggregateExec] &&
-        !plan.isInstanceOf[V2CommandExec]) {
+    if (nativeEngineEnabled) {
       val rule = postOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
       val tmpPlan = rule(plan)

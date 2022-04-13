@@ -86,6 +86,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
     if (wsChild) {
       return std::make_shared<VeloxToRowConverter>(rb, memory_pool);
     } else {
+      // If the child is not Velox output, use Arrow-to-Row conversion instead.
       return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
           rb, memory_pool);
     }

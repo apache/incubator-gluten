@@ -54,13 +54,13 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
 JNIEXPORT bool JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env, jobject obj, jbyteArray planArray) {
-  // auto planData =
-  //     reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
-  // auto planSize = env->GetArrayLength(planArray);
-  // ::substrait::Rel subRel;
-  // ParseProtobuf(planData, planSize, &subRel);
-  // auto planValidator =
-  //     std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>();
+  auto planData =
+      reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planSize = env->GetArrayLength(planArray);
+  ::substrait::Rel subRel;
+  ParseProtobuf(planData, planSize, &subRel);
+  auto planValidator =
+      std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>();
   // return planValidator->validate(subRel);
   return false;
 }

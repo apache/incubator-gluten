@@ -40,8 +40,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def getPartitions: Seq[InputPartition] = partitions
 
-  override def supportsColumnar(): Boolean =
-    super.supportsColumnar && GlutenConfig.getConf.enableColumnarIterator
+  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

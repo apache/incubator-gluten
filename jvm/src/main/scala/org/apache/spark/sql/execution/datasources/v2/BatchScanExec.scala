@@ -23,6 +23,9 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory, Scan}
 
+// This file is copied from Spark with a little change to solve below issue:
+// The BatchScanExec can support columnar output, which is incompatible with
+// Arrow's columnar format. But there is no config to disable the columnar output.
 /**
  * Physical plan node for scanning a batch of data from a data source v2.
  */
@@ -39,6 +42,7 @@ case class BatchScanExec(output: Seq[AttributeReference],
 
   override def hashCode(): Int = batch.hashCode()
 
+  // Set to false to disable BatchScan's columnar output.
   override def supportsColumnar: Boolean = false
 
   @transient override lazy val partitions: Seq[InputPartition] = batch.planInputPartitions()
