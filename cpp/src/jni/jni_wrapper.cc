@@ -282,8 +282,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_constructor =
       GetMethodID(env, metrics_builder_class, "<init>", "([J[J)V");
 
-  serialized_record_batch_iterator_class =
-      CreateGlobalClassReference(env, "Lio/glutenproject/execution/ColumnarNativeIterator;");
+  serialized_record_batch_iterator_class = CreateGlobalClassReference(
+      env, "Lio/glutenproject/execution/ColumnarNativeIterator;");
   serialized_record_batch_iterator_hasNext =
       GetMethodID(env, serialized_record_batch_iterator_class, "hasNext", "()Z");
   serialized_record_batch_iterator_next =
@@ -382,8 +382,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
                               std::to_string(idx));
       }
 
-      auto rb_iter = std::make_shared<JavaRecordBatchIterator>(
-          vm, ref_iter, it->second);
+      auto rb_iter = std::make_shared<JavaRecordBatchIterator>(vm, ref_iter, it->second);
       input_iters.push_back(
           std::make_shared<RecordBatchResultIterator>(std::move(rb_iter)));
     }
@@ -724,7 +723,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrappe
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
     JNIEnv* env, jobject, jbyteArray schema_arr) {
   JNI_METHOD_START
   std::shared_ptr<arrow::Schema> schema;
@@ -807,28 +807,26 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_close(
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_close(
     JNIEnv* env, jobject, jlong schema_holder_id) {
   decompression_schema_holder_.Erase(schema_holder_id);
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocTrim(JNIEnv* env,
-                                                                     jobject obj) {
+                                                                        jobject obj) {
   //  malloc_stats_print(statsPrint, nullptr, nullptr);
   std::cout << "Calling malloc_trim... " << std::endl;
   malloc_trim(0);
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocStats(JNIEnv* env,
-                                                                      jobject obj) {
+                                                                         jobject obj) {
   //  malloc_stats_print(statsPrint, nullptr, nullptr);
   std::cout << "Calling malloc_stats... " << std::endl;
   malloc_stats();
 }
 
-JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv* env, jobject obj) {
-}
 #ifdef __cplusplus
 }
 #endif
