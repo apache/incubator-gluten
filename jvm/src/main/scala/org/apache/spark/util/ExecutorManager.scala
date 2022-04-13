@@ -30,7 +30,7 @@ import _root_.io.glutenproject._
 object ExecutorManager {
   def getExecutorIds(sc: SparkContext): Seq[String] = sc.getExecutorIds
   var isTaskSet: Boolean = false
-  def tryTaskSet(numaInfo: GazelleNumaBindingInfo) = synchronized {
+  def tryTaskSet(numaInfo: GlutenNumaBindingInfo) = synchronized {
     if (numaInfo.enableNumaBinding && !isTaskSet) {
       val cmd_output =
         Utils.executeAndGetOutput(

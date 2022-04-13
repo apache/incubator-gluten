@@ -17,7 +17,7 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -82,7 +82,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
 
   override lazy val supportsColumnar: Boolean = {
     relation.fileFormat.supportBatch(
-      relation.sparkSession, schema) && GazelleJniConfig.getConf.enableColumnarIterator
+      relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {

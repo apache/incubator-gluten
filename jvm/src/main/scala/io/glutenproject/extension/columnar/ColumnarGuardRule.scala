@@ -17,7 +17,7 @@
 
 package io.glutenproject.extension.columnar
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.execution._
 
 import org.apache.spark.rdd.RDD
@@ -45,7 +45,7 @@ case class RowGuard(child: SparkPlan) extends SparkPlan {
 }
 
 case class TransformGuardRule() extends Rule[SparkPlan] {
-  val columnarConf = GazelleJniConfig.getSessionConf
+  val columnarConf = GlutenConfig.getSessionConf
   val preferColumnar = columnarConf.enablePreferColumnar
   val optimizeLevel = columnarConf.joinOptimizationThrottle
   val enableColumnarShuffle = columnarConf.enableColumnarShuffle

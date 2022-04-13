@@ -24,7 +24,7 @@
 
 #include <deque>
 
-namespace gazellejni {
+namespace gluten {
 namespace shuffle {
 
 static constexpr int32_t kDefaultSplitterBufferSize = 4096;
@@ -88,4 +88,4 @@ static const typeId all[] = {
 
 }  // namespace Type
 }  // namespace shuffle
-}  // namespace gazellejni
+}  // namespace gluten

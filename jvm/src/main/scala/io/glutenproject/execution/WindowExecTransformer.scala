@@ -20,7 +20,7 @@ package io.glutenproject.execution
 import java.util.concurrent.TimeUnit
 
 import com.google.flatbuffers.FlatBufferBuilder
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{CodeGeneration, ConverterUtils}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, CloseableColumnBatchIterator, ExpressionEvaluator}

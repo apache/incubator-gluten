@@ -20,7 +20,7 @@ package io.glutenproject.execution
 import java.util.concurrent.TimeUnit._
 
 import io.glutenproject.vectorized._
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils, Utils}

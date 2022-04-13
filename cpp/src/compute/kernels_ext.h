@@ -26,7 +26,7 @@
 
 #include "utils/result_iterator.h"
 
-namespace gazellejni {
+namespace gluten {
 namespace compute {
 
 // This class is an example shows how to get input from the iter.
@@ -56,4 +56,4 @@ class LazyReadIterator {
 };
 
 }  // namespace compute
-}  // namespace gazellejni
+}  // namespace gluten

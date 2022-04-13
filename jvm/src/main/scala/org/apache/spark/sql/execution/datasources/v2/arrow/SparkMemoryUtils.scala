@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 
 import java.io.PrintWriter
 import java.util
@@ -55,7 +55,7 @@ object SparkMemoryUtils extends Logging {
 
     val isArrowAutoReleaseEnabled: Boolean = {
       SQLConf.get
-        .getConfString("spark.oap.sql.columnar.autorelease", "false").toBoolean
+        .getConfString("spark.gluten.sql.columnar.autorelease", "false").toBoolean
     }
 
     val memoryChunkManagerFactory: MemoryChunkManager.Factory = if (isArrowAutoReleaseEnabled) {
@@ -111,7 +111,7 @@ object SparkMemoryUtils extends Logging {
       .newChildAllocator("CHILD-ALLOC-BUFFER-IMPORT", allocListenerForBufferImport, 0L,
         Long.MaxValue)
 
-    val defaultMemoryPool: NativeMemoryPoolWrapper = if (GazelleJniConfig.getConf.isClickHouseBackend) {
+    val defaultMemoryPool: NativeMemoryPoolWrapper = if (GlutenConfig.getConf.isClickHouseBackend) {
       null
     } else {
       val rl = new SparkManagedReservationListener(

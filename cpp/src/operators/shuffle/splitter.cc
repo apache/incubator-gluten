@@ -38,7 +38,7 @@
 #include <xmmintrin.h>
 #endif
 
-namespace gazellejni {
+namespace gluten {
 namespace shuffle {
 using arrow::internal::checked_cast;
 
@@ -1494,4 +1494,4 @@ arrow::Status FallbackRangeSplitter::ComputeAndCountPartitionId(
 }
 
 }  // namespace shuffle
-}  // namespace gazellejni
+}  // namespace gluten

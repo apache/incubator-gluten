@@ -22,12 +22,12 @@ import java.util.Locale
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-case class GazelleNumaBindingInfo(
+case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
     totalCoreRange: Array[String] = null,
     numCoresPerExecutor: Int = -1) {}
 
-class GazelleJniConfig(conf: SQLConf) extends Logging {
+class GlutenConfig(conf: SQLConf) extends Logging {
   def getCpu: Boolean = {
     // only for developing on mac
     if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac")) {
@@ -50,87 +50,87 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   val enableCpu: Boolean = getCpu
 
   val enableNativeEngine: Boolean =
-    conf.getConfString("spark.oap.sql.enable.native.engine", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean && enableCpu
 
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.batchscan", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.batchscan", "true").toBoolean && enableCpu
 
   // enable or disable columnar hashagg
   val enableColumnarHashAgg: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.hashagg", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.hashagg", "true").toBoolean && enableCpu
 
   // A tmp config used to fallback Final Aggregation.
   // Can be removed after Final Aggregation is fully supported.
   val enableColumnarFinalAgg: Boolean = conf.getConfString(
-    "spark.oap.sql.columnar.hashagg.enablefinal", "true").toBoolean && enableCpu
+    "spark.gluten.sql.columnar.hashagg.enablefinal", "true").toBoolean && enableCpu
 
   // enable or disable columnar project and filter
   val enableColumnarProjFilter: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.projfilter", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.projfilter", "true").toBoolean && enableCpu
 
   // enable or disable columnar sort
   val enableColumnarSort: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.sort", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.sort", "true").toBoolean && enableCpu
 
   // enable or disable codegen columnar sort
   val enableColumnarCodegenSort: Boolean = conf.getConfString(
-    "spark.oap.sql.columnar.codegen.sort", "true").toBoolean && enableColumnarSort
+    "spark.gluten.sql.columnar.codegen.sort", "true").toBoolean && enableColumnarSort
 
   // enable or disable columnar window
   val enableColumnarWindow: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.window", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.window", "true").toBoolean && enableCpu
 
   // enable or disable columnar shuffledhashjoin
   val enableColumnarShuffledHashJoin: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.shuffledhashjoin", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.shuffledhashjoin", "true").toBoolean && enableCpu
 
   val enableArrowColumnarToRow: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.columnartorow", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.columnartorow", "true").toBoolean && enableCpu
 
   val forceShuffledHashJoin: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.forceshuffledhashjoin", "false").toBoolean &&
+    conf.getConfString("spark.gluten.sql.columnar.forceshuffledhashjoin", "false").toBoolean &&
         enableCpu
 
   // enable or disable columnar sortmergejoin
   // this should be set with preferSortMergeJoin=false
   val enableColumnarSortMergeJoin: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.sortmergejoin", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean && enableCpu
 
   val enableColumnarSortMergeJoinLazyRead: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.sortmergejoin.lazyread", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.sortmergejoin.lazyread", "false").toBoolean
 
   // enable or disable columnar union
   val enableColumnarUnion: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.union", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.union", "true").toBoolean && enableCpu
 
   // enable or disable columnar expand
   val enableColumnarExpand: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.expand", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.expand", "true").toBoolean && enableCpu
 
   // enable or disable columnar broadcastexchange
   val enableColumnarBroadcastExchange: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.broadcastexchange", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.broadcastexchange", "true").toBoolean && enableCpu
 
   // enable or disable NAN check
   val enableColumnarNaNCheck: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.nanCheck", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.nanCheck", "true").toBoolean
 
   // enable or disable hashcompare in hashjoins or hashagg
   val hashCompare: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.hashCompare", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.hashCompare", "true").toBoolean
 
   // enable or disable columnar BroadcastHashJoin
   val enableColumnarBroadcastJoin: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.broadcastJoin", "true").toBoolean && enableCpu
+    conf.getConfString("spark.gluten.sql.columnar.broadcastJoin", "true").toBoolean && enableCpu
 
   // enable or disable columnar columnar arrow udf
   val enableColumnarArrowUDF: Boolean = conf.getConfString(
-    "spark.oap.sql.columnar.arrowudf", "true").toBoolean && enableCpu
+    "spark.gluten.sql.columnar.arrowudf", "true").toBoolean && enableCpu
 
   // enable or disable columnar wholestagecodegen
   val enableColumnarWholeStageCodegen: Boolean = conf.getConfString(
-    "spark.oap.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
+    "spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
 
   // enable or disable columnar exchange
   val enableColumnarShuffle: Boolean = conf
@@ -139,44 +139,44 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
 
   // prefer to use columnar operators if set to true
   val enablePreferColumnar: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.preferColumnar", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.preferColumnar", "true").toBoolean
 
   // This config is used for specifying whether to use a columnar iterator in WS transformer.
   val enableColumnarIterator: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.iterator", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.iterator", "true").toBoolean
 
   // This config is used for deciding whether to load the native library.
   // When false, only Java code will be executed for a quick test.
   val loadNative: Boolean =
-    conf.getConfString(GazelleJniConfig.OAP_LOAD_NATIVE, "true").toBoolean
+    conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
 
   // This config is used for deciding whether to load Arrow and Gandiva libraries from
   // the native library. If the native library does not depend on Arrow and Gandiva,
   // this config should will set as false.
   val loadArrow: Boolean =
-    conf.getConfString(GazelleJniConfig.OAP_LOAD_ARROW, "true").toBoolean
+    conf.getConfString(GlutenConfig.GLUTEN_LOAD_ARROW, "true").toBoolean
 
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
-    conf.getConfString(GazelleJniConfig.OAP_LIB_NAME, "spark_columnar_jni")
+    conf.getConfString(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
 
   // This config is used for specifying the absolute path of the native library.
   val nativeLibPath: String =
-    conf.getConfString(GazelleJniConfig.OAP_LIB_PATH, "")
+    conf.getConfString(GlutenConfig.GLUTEN_LIB_PATH, "")
 
   // customized backend library name
-  val gazelleJniBackendLib: String =
-    conf.getConfString(GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, "")
+  val glutenBackendLib: String =
+    conf.getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
 
   val isVeloxBackend: Boolean =
-    gazelleJniBackendLib.equalsIgnoreCase(GazelleJniConfig.GLUTEN_JNI_VELOX_BACKEND)
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
 
   val isClickHouseBackend: Boolean =
-    gazelleJniBackendLib.equalsIgnoreCase(GazelleJniConfig.GLUTEN_JNI_CLICKHOUSE_BACKEND)
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
 
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
-    conf.getConfString("spark.oap.sql.columnar.joinOptimizationLevel", "12").toInt
+    conf.getConfString("spark.gluten.sql.columnar.joinOptimizationLevel", "12").toInt
 
   val batchSize: Int =
     conf.getConfString("spark.sql.execution.arrow.maxRecordsPerBatch", "10000").toInt
@@ -184,12 +184,12 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // enable or disable metrics in columnar wholestagecodegen operator
   val enableMetricsTime: Boolean =
     conf.getConfString(
-      "spark.oap.sql.columnar.wholestagecodegen.breakdownTime",
+      "spark.gluten.sql.columnar.wholestagecodegen.breakdownTime",
       "false").toBoolean
 
   // a folder to store the codegen files
   val tmpFile: String =
-    conf.getConfString("spark.oap.sql.columnar.tmp_dir", null)
+    conf.getConfString("spark.gluten.sql.columnar.tmp_dir", null)
 
   @deprecated val broadcastCacheTimeout: Int =
     conf.getConfString("spark.sql.columnar.sort.broadcast.cache.timeout", "-1").toInt
@@ -198,34 +198,34 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
   // If false, the partition buffers will be cached in memory first,
   // and the cached buffers will be spilled when reach maximum memory.
   val columnarShufflePreferSpill: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.shuffle.preferSpill", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.shuffle.preferSpill", "true").toBoolean
 
   val columnarShuffleWriteSchema: Boolean =
-    conf.getConfString("spark.oap.sql.columnar.shuffle.writeSchema", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
 
   // The supported customized compression codec is lz4 and fastpfor.
   val columnarShuffleUseCustomizedCompressionCodec: String =
-    conf.getConfString("spark.oap.sql.columnar.shuffle.customizedCompression.codec", "lz4")
+    conf.getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
 
   val columnarShuffleBatchCompressThreshold: Int =
-    conf.getConfString("spark.oap.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
+    conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
 
   val shuffleSplitDefaultSize: Int =
-    conf.getConfString("spark.oap.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
+    conf.getConfString("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
 
-  val numaBindingInfo: GazelleNumaBindingInfo = {
+  val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
-      conf.getConfString("spark.oap.sql.columnar.numaBinding", "false").toBoolean
+      conf.getConfString("spark.gluten.sql.columnar.numaBinding", "false").toBoolean
     if (!enableNumaBinding) {
-      GazelleNumaBindingInfo(enableNumaBinding = false)
+      GlutenNumaBindingInfo(enableNumaBinding = false)
     } else {
-      val tmp = conf.getConfString("spark.oap.sql.columnar.coreRange", null)
+      val tmp = conf.getConfString("spark.gluten.sql.columnar.coreRange", null)
       if (tmp == null) {
-        GazelleNumaBindingInfo(enableNumaBinding = false)
+        GlutenNumaBindingInfo(enableNumaBinding = false)
       } else {
         val numCores = conf.getConfString("spark.executor.cores", "1").toInt
         val coreRangeList: Array[String] = tmp.split('|').map(_.trim)
-        GazelleNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
+        GlutenNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
       }
 
     }
@@ -233,33 +233,33 @@ class GazelleJniConfig(conf: SQLConf) extends Logging {
 
 }
 
-object GazelleJniConfig {
+object GlutenConfig {
 
-  val OAP_LOAD_NATIVE = "spark.oap.sql.columnar.loadnative"
-  val OAP_LIB_NAME = "spark.oap.sql.columnar.libname"
-  val OAP_LIB_PATH = "spark.oap.sql.columnar.libpath"
-  val OAP_LOAD_ARROW = "spark.oap.sql.columnar.loadarrow"
+  val GLUTEN_LOAD_NATIVE = "spark.gluten.sql.columnar.loadnative"
+  val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
+  val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
+  val GLUTEN_LOAD_ARROW = "spark.gluten.sql.columnar.loadarrow"
 
-  val GAZELLE_JNI_BACKEND_LIB = "spark.oap.sql.columnar.backend.lib"
-  val GLUTEN_JNI_VELOX_BACKEND = "velox"
-  val GLUTEN_JNI_CLICKHOUSE_BACKEND = "clickhouse"
+  val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
+  val GLUTEN_VELOX_BACKEND = "velox"
+  val GLUTEN_CLICKHOUSE_BACKEND = "clickhouse"
 
-  var ins: GazelleJniConfig = null
+  var ins: GlutenConfig = null
   var random_temp_dir_path: String = null
 
   /**
    * @deprecated We should avoid caching this value in entire JVM. us
    */
   @Deprecated
-  def getConf: GazelleJniConfig = synchronized {
+  def getConf: GlutenConfig = synchronized {
     if (ins == null) {
       ins = getSessionConf
     }
     ins
   }
 
-  def getSessionConf: GazelleJniConfig = {
-    new GazelleJniConfig(SQLConf.get)
+  def getSessionConf: GlutenConfig = {
+    new GlutenConfig(SQLConf.get)
   }
 
   def getBatchSize: Int = synchronized {

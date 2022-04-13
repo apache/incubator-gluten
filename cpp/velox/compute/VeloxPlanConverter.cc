@@ -189,27 +189,27 @@ std::string VeloxPlanConverter::nextPlanNodeId() {
   return id;
 }
 
-std::shared_ptr<gazellejni::RecordBatchResultIterator>
+std::shared_ptr<gluten::RecordBatchResultIterator>
 VeloxPlanConverter::GetResultIterator() {
-  std::shared_ptr<gazellejni::RecordBatchResultIterator> resIter;
+  std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       planNode, subVeloxPlanConverter_->getPartitionIndex(),
       subVeloxPlanConverter_->getPaths(), subVeloxPlanConverter_->getStarts(),
       subVeloxPlanConverter_->getLengths(), fakeArrowOutput_);
-  return std::make_shared<gazellejni::RecordBatchResultIterator>(
+  return std::make_shared<gluten::RecordBatchResultIterator>(
       std::move(wholestageIter));
 }
 
-std::shared_ptr<gazellejni::RecordBatchResultIterator>
+std::shared_ptr<gluten::RecordBatchResultIterator>
 VeloxPlanConverter::GetResultIterator(
-    std::vector<std::shared_ptr<gazellejni::RecordBatchResultIterator>> inputs) {
-  std::shared_ptr<gazellejni::RecordBatchResultIterator> resIter;
+    std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
+  std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   arrowInputIters_ = std::move(inputs);
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
   auto wholestageIter =
       std::make_shared<WholeStageResIterMiddleStage>(planNode, fakeArrowOutput_);
-  return std::make_shared<gazellejni::RecordBatchResultIterator>(
+  return std::make_shared<gluten::RecordBatchResultIterator>(
       std::move(wholestageIter));
 }
 

@@ -19,7 +19,7 @@
 
 #include <gtest/gtest.h>
 
-namespace gazellejni {
+namespace gluten {
 
 class DummyBackend : public ExecBackendBase {
  public:
@@ -77,4 +77,4 @@ TEST(TestExecBackend, GetResultIterator) {
   ASSERT_EQ(next, nullptr);
 }
 
-}  // namespace gazellejni
+}  // namespace gluten

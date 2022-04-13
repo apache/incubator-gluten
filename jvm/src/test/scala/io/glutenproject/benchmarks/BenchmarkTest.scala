@@ -22,7 +22,7 @@ import java.io.File
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 
@@ -45,7 +45,7 @@ object BenchmarkTest {
 
     val sessionBuilderTmp = SparkSession
       .builder()
-      .appName("Gazelle-Jni-Benchmark")
+      .appName("Gluten-Benchmark")
 
     val sessionBuilder = if (!configed) {
       sessionBuilderTmp
@@ -66,19 +66,19 @@ object BenchmarkTest {
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
-        .config("spark.plugins", "io.glutenproject.GazellePlugin")
+        .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
-        .config("spark.oap.sql.columnar.columnartorow", "false")
-        .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
-        .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
-        .config(GazelleJniConfig.OAP_LIB_PATH,
+        .config("spark.gluten.sql.columnar.columnartorow", "false")
+        .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
+        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
+        .config(GlutenConfig.GLUTEN_LIB_PATH,
           "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
-        .config("spark.oap.sql.columnar.iterator", "false")
-        .config("spark.oap.sql.columnar.ch.mergetree.enabled", "true")
-        .config("spark.oap.sql.columnar.ch.mergetree.table.path",
+        .config("spark.gluten.sql.columnar.iterator", "false")
+        .config("spark.gluten.sql.columnar.ch.mergetree.enabled", "true")
+        .config("spark.gluten.sql.columnar.ch.mergetree.table.path",
           "data1/clickhouse-test/test-tpch10/")
-        .config("spark.oap.sql.columnar.ch.mergetree.database", "default")
-        .config("spark.oap.sql.columnar.ch.mergetree.table", "test")
+        .config("spark.gluten.sql.columnar.ch.mergetree.database", "default")
+        .config("spark.gluten.sql.columnar.ch.mergetree.table", "test")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
@@ -122,7 +122,7 @@ object BenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    spark.conf.set("spark.oap.sql.enable.native.engine", "false")
+    spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)

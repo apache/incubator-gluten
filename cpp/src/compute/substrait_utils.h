@@ -28,7 +28,7 @@
 #include "substrait/type_expressions.pb.h"
 #include "utils/result_iterator.h"
 
-namespace gazellejni {
+namespace gluten {
 namespace compute {
 
 class SubstraitParser : public ExecBackendBase {
@@ -60,4 +60,4 @@ class SubstraitParser : public ExecBackendBase {
 };
 
 }  // namespace compute
-}  // namespace gazellejni
+}  // namespace gluten

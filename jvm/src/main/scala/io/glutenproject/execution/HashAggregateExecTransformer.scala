@@ -23,7 +23,7 @@ import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import java.util
 
 import io.glutenproject.substrait.`type`.TypeNode
@@ -55,8 +55,8 @@ case class HashAggregateExecTransformer(
 
   val sparkConf = sparkContext.getConf
 
-  override def supportsColumnar: Boolean = GazelleJniConfig.getConf.enableColumnarIterator
-  val enableColumnarFinalAgg: Boolean = GazelleJniConfig.getConf.enableColumnarFinalAgg
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
+  val enableColumnarFinalAgg: Boolean = GlutenConfig.getConf.enableColumnarFinalAgg
 
   val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 

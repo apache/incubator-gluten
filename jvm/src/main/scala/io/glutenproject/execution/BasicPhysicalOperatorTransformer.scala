@@ -21,7 +21,7 @@ import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import org.apache.spark.SparkConf
 
 import org.apache.spark.internal.Logging
@@ -44,7 +44,7 @@ case class ConditionProjectExecTransformer(
 
   val sparkConf: SparkConf = sparkContext.getConf
 
-  override def supportsColumnar: Boolean = GazelleJniConfig.getConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

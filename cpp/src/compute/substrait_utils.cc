@@ -25,7 +25,7 @@
 #include "kernels_ext.h"
 #include "protobuf_utils.h"
 
-namespace gazellejni {
+namespace gluten {
 namespace compute {
 
 SubstraitParser::SubstraitParser() {
@@ -351,4 +351,4 @@ class SubstraitParser::MiddleStageResultIterator {
 };
 
 }  // namespace compute
-}  // namespace gazellejni
+}  // namespace gluten

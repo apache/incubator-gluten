@@ -17,7 +17,7 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.vectorized._
 import com.google.common.collect.Lists

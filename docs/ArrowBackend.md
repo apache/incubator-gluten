@@ -97,8 +97,8 @@ $ popd
 
 #### Building Gluten
 ```bash
-$ git clone https://github.com/oap-project/gazelle-jni.git
-$ pushd gazelle-jni
+$ git clone https://github.com/oap-project/gluten.git
+$ pushd gluten
 $ mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_protobuf=ON -Dbuild_gazelle_cpp=ON -Darrow_root=${ARROW_HOME}
 $ popd
 ```
@@ -109,8 +109,8 @@ In addition to your cutomized Spark configurations, extra configurations for ena
 #### Common configurations for Gluten
 | Configuration | Value | Comment |
 | --- | --- | --- |
-| spark.plugins | io.glutenproject.GazellePlugin |  |
-| spark.oap.sql.columnar.backend.lib | gazelle_cpp |  |
+| spark.plugins | io.glutenproject.GlutenPlugin |  |
+| spark.gluten.sql.columnar.backend.lib | gazelle_cpp |  |
 | spark.shuffle.manager | org.apache.spark.shuffle.sort.ColumnarShuffleManager |  |
 | spark.sql.sources.useV1SourceList | avro |  |
 | spark.memory.offHeap.size | 20g | 

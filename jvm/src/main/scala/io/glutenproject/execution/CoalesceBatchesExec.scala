@@ -20,7 +20,7 @@ package io.glutenproject.execution
 import scala.collection.mutable.ListBuffer
 import scala.collection.JavaConverters._
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, CHCoalesceOperator, CHNativeBlock, ColumnarFactory}
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.arrow.vector.util.VectorBatchAppender
@@ -58,7 +58,7 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
       .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    if (GazelleJniConfig.getConf.isClickHouseBackend) {
+    if (GlutenConfig.getConf.isClickHouseBackend) {
       doCHInternalExecuteColumnar()
     } else {
       doInternalExecuteColumnar()

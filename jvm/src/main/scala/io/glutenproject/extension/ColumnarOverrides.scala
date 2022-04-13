@@ -17,7 +17,7 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.{GazelleJniConfig, GazelleSparkExtensionsInjector}
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
 
@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
 
 case class TransformPreOverrides() extends Rule[SparkPlan] {
-  val columnarConf: GazelleJniConfig = GazelleJniConfig.getSessionConf
+  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
@@ -226,7 +226,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 }
 
 case class TransformPostOverrides() extends Rule[SparkPlan] {
-  val columnarConf = GazelleJniConfig.getSessionConf
+  val columnarConf = GlutenConfig.getSessionConf
   var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
@@ -284,7 +284,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 }
 
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
-  def nativeEngineEnabled: Boolean = GazelleJniConfig.getSessionConf.enableNativeEngine
+  def nativeEngineEnabled: Boolean = GlutenConfig.getSessionConf.enableNativeEngine
   def conf = session.sparkContext.getConf
 
   // Do not create rules in class initialization as we should access SQLConf while creating the rules.
@@ -294,9 +294,9 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   def postOverrides = TransformPostOverrides()
 
   val columnarWholeStageEnabled: Boolean = conf.getBoolean(
-    "spark.oap.sql.columnar.wholestagetransform", defaultValue = true)
+    "spark.gluten.sql.columnar.wholestagetransform", defaultValue = true)
   val backend: String = conf.get(
-    GazelleJniConfig.GAZELLE_JNI_BACKEND_LIB, defaultValue = "")
+    GlutenConfig.GLUTEN_BACKEND_LIB, defaultValue = "")
   def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled, backend)
 
   var isSupportAdaptive: Boolean = true
@@ -351,7 +351,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   }
 }
 
-object ColumnarOverrides extends GazelleSparkExtensionsInjector {
+object ColumnarOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectColumnar(ColumnarOverrideRules)
   }

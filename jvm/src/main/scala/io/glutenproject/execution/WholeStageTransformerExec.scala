@@ -22,7 +22,7 @@ import scala.collection.mutable.ListBuffer
 
 import com.google.common.collect.Lists
 import io.glutenproject.vectorized.ColumnarFactory
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.extensions.{MappingBuilder, MappingNode}
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
@@ -85,9 +85,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     with TransformSupport {
 
   val sparkConf = sparkContext.getConf
-  val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
+  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val enableColumnarSortMergeJoinLazyRead: Boolean =
-    GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
+    GlutenConfig.getConf.enableColumnarSortMergeJoinLazyRead
 
   var fakeArrowOutput = false
 
@@ -107,7 +107,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  override def supportsColumnar: Boolean = GazelleJniConfig.getConf.enableColumnarIterator
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(transformStageId.asInstanceOf[Integer])
   override def generateTreeString(
@@ -137,7 +137,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def uploadAndListJars(signature: String): Seq[String] =
     if (signature != "") {
       if (sparkContext.listJars.filter(path => path.contains(s"${signature}.jar")).isEmpty) {
-        val tempDir = GazelleJniConfig.getRandomTempDir
+        val tempDir = GlutenConfig.getRandomTempDir
         val jarFileName =
           s"${tempDir}/tmp/spark-columnar-plugin-codegen-precompile-${signature}.jar"
         sparkContext.addJar(jarFileName)
@@ -167,7 +167,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     // Use the first item in output names to specify the output format of the WS computing.
     // When the next operator is ArrowColumnarToRow, fake Arrow output will be returned.
     // TODO: Use a more proper way to send some self-assigned parameters to native.
-    if (GazelleJniConfig.getConf.isVeloxBackend) {
+    if (GlutenConfig.getConf.isVeloxBackend) {
       if (fakeArrowOutput) {
         outNames.add("fake_arrow_output")
       } else {
@@ -381,7 +381,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     if (current_op.isDefined) {
       // If containing scan exec transformer, a new RDD is created.
       // TODO: Remove ?
-      val execTempDir = GazelleJniConfig.getTempFile
+      val execTempDir = GlutenConfig.getTempFile
       val jarList = listJars.map(jarUrl => {
         logWarning(s"Get Codegened library Jar ${jarUrl}")
         UserAddedJarUtils.fetchJarFromSpark(
@@ -443,11 +443,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val outputAttributes = resCtx.outputAttributes
       val rootNode = resCtx.root
 
-      if (!GazelleJniConfig.getConf.isClickHouseBackend) {
+      if (!GlutenConfig.getConf.isClickHouseBackend) {
         curRDD.mapPartitions { iter =>
           ExecutorManager.tryTaskSet(numaBindingInfo)
-          GazelleJniConfig.getConf
-          val execTempDir = GazelleJniConfig.getTempFile
+          GlutenConfig.getConf
+          val execTempDir = GlutenConfig.getTempFile
           val jarList = listJars.map(jarUrl => {
             logWarning(s"Get Codegened library Jar ${jarUrl}")
             UserAddedJarUtils.fetchJarFromSpark(
@@ -517,7 +517,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         }
       } else {
         curRDD.mapPartitions { iter =>
-          GazelleJniConfig.getConf
+          GlutenConfig.getConf
           val transKernel = new ExpressionEvaluator()
           val inBatchIter = new CHColumnarNativeIterator(iter.asJava)
           val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()

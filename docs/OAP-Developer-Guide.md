@@ -9,7 +9,7 @@ You can get more detailed information from OAP each module below.
 * [PMem Shuffle](https://github.com/oap-project/pmem-shuffle/tree/v1.2.0#5-install-dependencies-for-pmem-shuffle)
 * [Remote Shuffle](https://github.com/oap-project/remote-shuffle/tree/v1.2.0)
 * [OAP MLlib](https://github.com/oap-project/oap-mllib/tree/v1.2.0)
-* [Gazelle Plugin](https://github.com/oap-project/gazelle_plugin/tree/v1.2.0)
+* [Gluten Plugin](https://github.com/oap-project/gluten/tree/v1.0.0)
 
 ## Building OAP
 

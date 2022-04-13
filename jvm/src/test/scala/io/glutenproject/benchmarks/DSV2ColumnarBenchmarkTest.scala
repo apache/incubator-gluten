@@ -17,7 +17,7 @@
 
 package io.glutenproject.benchmarks
 
-import io.glutenproject.GazelleJniConfig
+import io.glutenproject.GlutenConfig
 import org.apache.spark.sql.SparkSession
 
 import java.io.File
@@ -40,7 +40,7 @@ object DSV2ColumnarBenchmarkTest {
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
       (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
-      "/tmp/gazelle-jni-warehouse")
+      "/tmp/gluten-warehouse")
     }
 
     val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
@@ -65,7 +65,7 @@ object DSV2ColumnarBenchmarkTest {
 
     val sessionBuilderTmp = SparkSession
       .builder()
-      .appName("Gazelle-Jni-Benchmark")
+      .appName("Gluten-Benchmark")
 
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
@@ -86,7 +86,7 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
-        .config("spark.plugins", "io.glutenproject.GazellePlugin")
+        .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)
@@ -95,12 +95,12 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
-        .config("spark.oap.sql.columnar.columnartorow", "false")
-        .config(GazelleJniConfig.OAP_LOAD_NATIVE, "true")
-        .config(GazelleJniConfig.OAP_LOAD_ARROW, "false")
-        .config(GazelleJniConfig.OAP_LIB_PATH,
+        .config("spark.gluten.sql.columnar.columnartorow", "false")
+        .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
+        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
+        .config(GlutenConfig.GLUTEN_LIB_PATH,
           "/home/saber/Documents/github/ClickHouse/cmake-build-relwithdebinfo/utils/local-engine/libch.so")
-        .config("spark.oap.sql.columnar.iterator", "true")
+        .config("spark.gluten.sql.columnar.iterator", "true")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
@@ -298,7 +298,7 @@ object DSV2ColumnarBenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.oap.sql.enable.native.engine", "false")
+    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)
@@ -328,7 +328,7 @@ object DSV2ColumnarBenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.oap.sql.enable.native.engine", "false")
+    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)

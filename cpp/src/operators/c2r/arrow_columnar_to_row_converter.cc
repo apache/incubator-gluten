@@ -19,7 +19,7 @@
 
 #include <iostream>
 
-namespace gazellejni {
+namespace gluten {
 namespace columnartorow {
 
 arrow::Status ArrowColumnarToRowConverter::Init() {
@@ -299,4 +299,4 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
 }
 
 }  // namespace columnartorow
-}  // namespace gazellejni
+}  // namespace gluten

@@ -32,7 +32,7 @@
 #include "operators/shuffle/utils.h"
 #include "substrait/algebra.pb.h"
 
-namespace gazellejni {
+namespace gluten {
 namespace shuffle {
 
 class Splitter {
@@ -295,4 +295,4 @@ class FallbackRangeSplitter : public Splitter {
 };
 
 }  // namespace shuffle
-}  // namespace gazellejni
+}  // namespace gluten

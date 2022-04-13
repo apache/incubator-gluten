@@ -46,7 +46,7 @@
 
 namespace {
 
-using gazellejni::JniPendingException;
+using gluten::JniPendingException;
 
 #define JNI_METHOD_START try {
 // macro ended
@@ -122,15 +122,15 @@ using arrow::jni::ConcurrentMap;
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
 static arrow::jni::ConcurrentMap<
-    std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>>
+    std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
     columnar_to_row_converter_holder_;
 
-using gazellejni::RecordBatchResultIterator;
+using gluten::RecordBatchResultIterator;
 static arrow::jni::ConcurrentMap<std::shared_ptr<RecordBatchResultIterator>>
     batch_iterator_holder_;
 
-using gazellejni::shuffle::SplitOptions;
-using gazellejni::shuffle::Splitter;
+using gluten::shuffle::SplitOptions;
+using gluten::shuffle::Splitter;
 static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_holder_;
 static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
     decompression_schema_holder_;
@@ -360,7 +360,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
       reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(plan_arr, 0));
   auto plan_size = env->GetArrayLength(plan_arr);
 
-  auto backend = gazellejni::CreateBackend();
+  auto backend = gluten::CreateBackend();
   if (!backend->ParsePlan(plan_data, plan_size)) {
     ThrowPendingException("Failed to parse plan.");
   }
@@ -478,8 +478,8 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   if (pool == nullptr) {
     JniThrow("Memory pool does not exist or has been closed");
   }
-  auto backend = gazellejni::CreateBackend();
-  std::shared_ptr<gazellejni::columnartorow::ColumnarToRowConverterBase>
+  auto backend = gluten::CreateBackend();
+  std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
       columnar_to_row_converter = backend->getColumnarConverter(rb, pool);
   JniAssertOkOrThrow(columnar_to_row_converter->Init(),
                      "Native convert columnar to row: Init "

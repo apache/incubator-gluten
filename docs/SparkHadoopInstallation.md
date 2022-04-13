@@ -1,7 +1,7 @@
 ## Spark Installation
 ### Option 1: download Spark 3.1.1
 
-Currently Gazelle Jni works on the Spark 3.1.1 version.
+Currently Gluten works on the Spark 3.1.1 version.
 
 ```
 wget http://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
@@ -30,7 +30,7 @@ export SPARK_HOME=${HADOOP_PATH}
 
 ## Hadoop Installation
 
-Currently we test Gazelle Jni on the Hadoop 3.2.0 version.
+Currently we test Gluten on the Hadoop 3.2.0 version.
 
 
 ### Option 1: download Hadoop 
