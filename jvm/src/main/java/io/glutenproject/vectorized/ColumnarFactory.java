@@ -15,7 +15,7 @@ public class ColumnarFactory {
     }
 
     public static boolean isEnableCH() {
-        return GazelleJniConfig.getConf().loadch();
+        return GazelleJniConfig.getConf().isClickHouseBackend();
     }
 
     public static Iterator<ColumnarBatch> createClosableIterator(Iterator<ColumnarBatch> iter) {

@@ -18,22 +18,24 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+
 import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GazelleJniConfig
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, CHColumnVector, CHShuffleSplitterJniWrapper, ColumnarFactory, ShuffleSplitterJniWrapper, SplitResult}
+import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark._
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -77,8 +79,6 @@ class ColumnarShuffleWriter[K, V](
   private val preferSpill = GazelleJniConfig.getConf.columnarShufflePreferSpill
 
   private val writeSchema = GazelleJniConfig.getConf.columnarShuffleWriteSchema
-
-  private val loadch = GazelleJniConfig.getConf.loadch
 
   private val jniWrapper = ColumnarFactory.createShuffleSplitterJniWrapper();
 
@@ -296,7 +296,7 @@ class ColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   override def write(records: Iterator[Product2[K, V]]): Unit = {
-    if (GazelleJniConfig.getConf.loadch) {
+    if (GazelleJniConfig.getConf.isClickHouseBackend) {
       internalCHWrite(records)
     } else {
       internalWrite(records)
@@ -324,7 +324,7 @@ class ColumnarShuffleWriter[K, V](
       }
     } finally {
       if (nativeSplitter != 0) {
-        if (!loadch) {
+        if (!GazelleJniConfig.getConf.isClickHouseBackend) {
           closeSplitter()
         } else {
           closeCHSplitter()

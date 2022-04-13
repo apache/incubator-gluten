@@ -88,7 +88,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val numaBindingInfo = GazelleJniConfig.getConf.numaBindingInfo
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GazelleJniConfig.getConf.enableColumnarSortMergeJoinLazyRead
-  val backend: String = GazelleJniConfig.getConf.gazelleJniBackendLib
 
   var fakeArrowOutput = false
 
@@ -168,7 +167,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     // Use the first item in output names to specify the output format of the WS computing.
     // When the next operator is ArrowColumnarToRow, fake Arrow output will be returned.
     // TODO: Use a more proper way to send some self-assigned parameters to native.
-    if (backend == "velox") {
+    if (GazelleJniConfig.getConf.isVeloxBackend) {
       if (fakeArrowOutput) {
         outNames.add("fake_arrow_output")
       } else {
@@ -444,7 +443,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val outputAttributes = resCtx.outputAttributes
       val rootNode = resCtx.root
 
-      if (!GazelleJniConfig.getConf.loadch) {
+      if (!GazelleJniConfig.getConf.isClickHouseBackend) {
         curRDD.mapPartitions { iter =>
           ExecutorManager.tryTaskSet(numaBindingInfo)
           GazelleJniConfig.getConf

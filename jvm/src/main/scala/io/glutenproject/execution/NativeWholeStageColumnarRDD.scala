@@ -174,7 +174,7 @@ class NativeWholeStageColumnarRDD(
         if (!hasNext) {
           throw new java.util.NoSuchElementException("End of stream")
         }
-        if (!GazelleJniConfig.getConf.loadch) {
+        if (!GazelleJniConfig.getConf.isClickHouseBackend) {
           nextArrowColumnarBatch()
         } else {
           resIter.chNext()

@@ -111,7 +111,7 @@ object SparkMemoryUtils extends Logging {
       .newChildAllocator("CHILD-ALLOC-BUFFER-IMPORT", allocListenerForBufferImport, 0L,
         Long.MaxValue)
 
-    val defaultMemoryPool: NativeMemoryPoolWrapper = if (GazelleJniConfig.getConf.loadch) {
+    val defaultMemoryPool: NativeMemoryPoolWrapper = if (GazelleJniConfig.getConf.isClickHouseBackend) {
       null
     } else {
       val rl = new SparkManagedReservationListener(

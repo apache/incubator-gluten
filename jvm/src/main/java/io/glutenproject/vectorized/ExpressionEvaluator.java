@@ -92,7 +92,7 @@ public class ExpressionEvaluator implements AutoCloseable {
           byte[] wsPlan, ArrayList<ColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
     long poolId = 0;
-    if (!GazelleJniConfig.getConf().loadch()) {
+    if (!GazelleJniConfig.getConf().isClickHouseBackend()) {
       NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
       poolId = memoryPool.getNativeInstanceId();
     }
