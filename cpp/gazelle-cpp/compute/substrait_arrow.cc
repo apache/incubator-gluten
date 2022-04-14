@@ -155,7 +155,7 @@ void ArrowExecBackend::FieldPathToName(arrow::compute::Expression* expression,
         *expr =
             arrow::compute::field_ref(schema->field((field_path->indices())[0])->name());
       } else {
-        throw gazellejni::JniPendingException("Field Ref is not field path: " +
+        throw gluten::JniPendingException("Field Ref is not field path: " +
                                               field_ref->ToString());
       }
     }
