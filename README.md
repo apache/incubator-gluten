@@ -54,7 +54,7 @@ UDF support. We need to create the interface which use columnar batch as inptu. 
 
 Ideally if all native library can return arrow record batch, we can share much features in Spark's JVM. Spark already have Apache arrow dependency, we can make arrow format as Spark's basic columnar format. The problem is that native library may not be 100% compitable with Arrow format, then there will be a transform between their native format and Arrow, usually it's not cheap.
 
-# How to use OAP: Gluten
+# How to use Gluten
 
 ### Build the Environment
 
@@ -82,6 +82,10 @@ After Gluten being successfully deployed in your environment, if you would like 
 
 If you would like to build Gluten with **Arrow** backend, please follow the steps in [Build with Arrow Backend](./docs/ArrowBackend.md).
 
+### Build Gluten with ClickHouse backend
+
+If you would like to build Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md).
+
 # Contact
 
-rui.mo@intel.com; binwei.yang@intel.com
+rui.mo@intel.com; binwei.yang@intel.com; chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
