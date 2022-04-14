@@ -41,6 +41,9 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
   std::shared_ptr<arrow::compute::ExecPlan> exec_plan_;
 
   void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
+  void PushDownFilter();
+  static void FieldPathToName(arrow::compute::Expression* expression,
+                       const std::shared_ptr<arrow::Schema>& schema);
 };
 
 void Initialize();
