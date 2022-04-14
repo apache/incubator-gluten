@@ -78,6 +78,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 - Clone ClickHouse backend code
 ```
     git clone -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
+    git submodule update --init --recursive
 ```
 - Open ClickHouse backend code in CLion
 - Configure the ClickHouse backend project
@@ -101,7 +102,10 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
     - If it builds with Release mode successfully, there is a library file called 'libch.so' in path 'cmake-build-release/utils/local-engine/'.
 
 ### Compile ClickHouse backend
-
+First need to enter the root directory of the Gluten project.
+run`sudo ./tools/clickhouse/install_ubuntu.sh`,Install the software required for compilation.  
+Create a build directory, such as /tmp/build_clickhouse, run `./tools/clickhouse/build_clickhouse.sh --src = /path /to/clickhouse --build_dir=/tmp/build_clickhouse`.  
+Target file is `/tmp/build_clickhouse/utils/local-engine/libch.so`.   
 
 ### Compile Gluten with ClickHouse backend
 
