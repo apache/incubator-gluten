@@ -2,9 +2,14 @@
 
 Currently, Gluten requires Velox being pre-compiled.
 In general, please refer to [Velox Installation](https://github.com/facebookincubator/velox/blob/main/scripts/setup-ubuntu.sh) to install all the dependencies and compile Velox.
+
 Gluten depends on this [Velox branch](https://github.com/rui-mo/velox/tree/velox_for_gazelle_jni).
 The changes to Velox are planned to be upstreamed in the future.
-In addition to that, there are several points worth attention when compiling Gluten with Velox.
+
+Gluten depends on this [Arrow branch](https://github.com/oap-project/arrow/tree/arrow-7.0.0-oap) with this [pull request](https://github.com/oap-project/arrow/pull/94).
+In the future, Gluten with Velox backend will swift to use the upstream Arrow.
+
+In addition to above notes, there are several points worth attention when compiling Gluten with Velox.
 
 Firstly, please note that all the Gluten required libraries should be compiled as **position independent code**.
 That means, for static libraries, "-fPIC" option should be added in their compiling processes.
@@ -62,6 +67,13 @@ Considering only Hive LRE V1 is supported in Velox, below Spark option was adopt
 
 ```shell script
 --conf spark.hive.exec.orc.write.format=0.11
+```
+
+Spark SQL will try to use its own ORC support instead of Hive SerDe for better performance
+which is incompatible with Velox's String column. Add below option to disable this behavior.
+
+```shell script
+--conf spark.sql.hive.convertMetastoreOrc=false
 ```
 
 Considering Velox's support for Decimal, Date, Long types are not fully ready, the related columns of TPC-H Q6 were all transformed into Double type.
