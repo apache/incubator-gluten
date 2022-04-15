@@ -17,11 +17,14 @@
 
 package io.glutenproject.execution
 
+import java.util
+
 import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
+import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -138,18 +141,37 @@ case class ConditionProjectExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val (childCtx, currRel) = child match {
+    val childCtx = child match {
       case c: TransformSupport =>
-        val ctx = c.doTransform(context)
-        (ctx, getRelNode(context.registeredFunction, ctx.root))
+        c.doTransform(context)
       case _ =>
-        (null, getRelNode(context.registeredFunction, null))
+        null
     }
+    val currRel = if (childCtx != null) {
+      getRelNode(context.registeredFunction, childCtx.root)
+    } else {
+      // This means the input is just an iterator, so an ReadRel will be created as child.
+      // Prepare the input schema.
+      val typeList = new util.ArrayList[TypeNode]()
+      val nameList = new util.ArrayList[String]()
+      for (attr <- child.output) {
+        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        nameList.add(attr.name)
+      }
+      // The iterator index will be added in the path of LocalFiles.
+      val inputIter = LocalFilesBuilder.makeLocalFiles(
+        ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
+      context.setLocalFilesNode(inputIter)
+      val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
+
+      getRelNode(context.registeredFunction, readRel)
+    }
+
     if (currRel == null) {
       return childCtx
     }
     val inputAttributes = if (childCtx != null) {
-      // Use the outputAttributes of child context as inputAttributes
+      // Use the outputAttributes of child context as inputAttributes.
       childCtx.outputAttributes
     } else {
       child.output
