@@ -68,5 +68,5 @@ jobs:
       uses: jidicula/clang-format-action@v3.5.1
       with:
         clang-format-version: '10'
-        check-path: 'native-sql-engine/cpp/src'
+        check-path: 'gluten/cpp/src'
         fallback-style: 'Google' # optional

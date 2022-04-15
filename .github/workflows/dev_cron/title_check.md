@@ -21,7 +21,7 @@ Thanks for opening a pull request!
 
 Could you open an issue for this pull request on Github Issues?
 
-https://github.com/oap-project/native-sql-engine/issues
+https://github.com/oap-project/gluten/issues
 
 Then could you also rename ***commit message*** and ***pull request title*** in the following format?
 
@@ -29,5 +29,5 @@ Then could you also rename ***commit message*** and ***pull request title*** in 
 
 See also:
 
-  * [Other pull requests](https://github.com/oap-project/native-sql-engine/pulls/)
+  * [Other pull requests](https://github.com/oap-project/gluten/pulls/)
 
