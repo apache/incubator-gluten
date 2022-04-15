@@ -155,14 +155,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       throw new NullPointerException(
         s"ColumnarWholestageTransformer can't doTansform on ${child}")
     }
-    val mappingNodes = new java.util.ArrayList[MappingNode]()
-    val mapIter = substraitContext.registeredFunction.entrySet().iterator()
-    while(mapIter.hasNext) {
-      val entry = mapIter.next()
-      val mappingNode = MappingBuilder.makeFunctionMapping(entry.getKey, entry.getValue)
-      mappingNodes.add(mappingNode)
-    }
-    val relNodes = Lists.newArrayList(childCtx.root)
     val outNames = new java.util.ArrayList[String]()
     // Use the first item in output names to specify the output format of the WS computing.
     // When the next operator is ArrowColumnarToRow, fake Arrow output will be returned.
@@ -177,7 +169,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     for (attr <- childCtx.outputAttributes) {
       outNames.add(attr.name)
     }
-    val planNode = PlanBuilder.makePlan(mappingNodes, relNodes, outNames)
+    val planNode = PlanBuilder.makePlan(
+      substraitContext, Lists.newArrayList(childCtx.root), outNames)
 
     WholestageTransformContext(childCtx.inputAttributes,
       childCtx.outputAttributes, planNode, substraitContext)

@@ -78,7 +78,15 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       columnarChild match {
         case ch: ConditionProjectExecTransformer =>
           if (ch.projectList == null) {
-            ConditionProjectExecTransformer(ch.condition, plan.projectList, ch.child)
+            // This means the child is Filter.
+            ch.child match {
+              case _: BatchScanExecTransformer =>
+                // If the child of Filter is BatchScanTransformer, the filter can be omitted
+                // because all filters can be pushed down.
+                ConditionProjectExecTransformer(null, plan.projectList, ch.child)
+              case _ =>
+                ConditionProjectExecTransformer(ch.condition, plan.projectList, ch.child)
+            }
           } else {
             ConditionProjectExecTransformer(null, plan.projectList, columnarChild)
           }

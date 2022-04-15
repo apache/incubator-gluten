@@ -88,9 +88,20 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
         ConverterUtils.createArrowField(attr)
       } catch {
         case e: UnsupportedOperationException =>
-          throw new UnsupportedOperationException(
-            s"${attr.dataType} is not supported in ColumnarShuffledExchangeExec.")
+          logInfo(s"${attr.dataType} is not supported in ColumnarShuffledExchangeExec.")
+          return false
       }
+    }
+    outputPartitioning match {
+      case HashPartitioning(exprs, n) =>
+        if (!GlutenConfig.getConf.isClickHouseBackend) {
+          exprs.foreach(expr => {
+            if (!expr.isInstanceOf[Attribute]) {
+              logInfo("Expressions are not supported in HashPartitioning.")
+              return false
+            }})
+        }
+      case _ =>
     }
     true
   }
@@ -391,10 +402,6 @@ object ColumnarShuffleExchangeExec extends Logging {
           val functionMap = new java.util.HashMap[String, java.lang.Long]()
           val exprNodeList = new util.ArrayList[ExpressionNode]()
           exprs.foreach(expr => {
-            if (!expr.isInstanceOf[Attribute]) {
-              throw new UnsupportedOperationException(
-                "Expressions are not supported in HashPartitioning.")
-            }
             exprNodeList.add(ExpressionConverter
               .replaceWithExpressionTransformer(expr, outputAttributes)
               .asInstanceOf[ExpressionTransformer]

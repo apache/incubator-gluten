@@ -33,22 +33,21 @@ trait BasicScanExecTransformer extends TransformSupport {
   def getPartitions: Seq[InputPartition]
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val output = outputAttributes
+    val output = outputAttributes()
     val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
     val nameList = new java.util.ArrayList[String]()
     for (attr <- output) {
       nameList.add(attr.name)
     }
     // Will put all filter expressions into an AND expression
-    // val functionId = context.registerFunction("AND")
-    val transformer = filterExprs.reduceLeftOption(And).map(
+    val transformer = filterExprs().reduceLeftOption(And).map(
       ExpressionConverter.replaceWithExpressionTransformer(_, output)
     )
     val filterNodes = transformer.map(
       _.asInstanceOf[ExpressionTransformer].doTransform(context.registeredFunction))
+    val exprNode = filterNodes.orNull
 
-    // val partNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
-    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, filterNodes.getOrElse(null), context)
+    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, exprNode, context)
     TransformContext(output, output, relNode)
   }
 }

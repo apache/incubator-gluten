@@ -19,12 +19,14 @@ package io.glutenproject.execution
 
 import java.util
 
-import io.glutenproject.expression._
+import com.google.common.collect.Lists
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.`type`.TypeNode
+import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -65,9 +67,10 @@ case class ConditionProjectExecTransformer(
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
+    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     val validator = new ExpressionEvaluator()
-    validator.doValidate(relNode.toProtobuf.toByteArray)
+    validator.doValidate(planNode.toProtobuf.toByteArray)
   }
 
   def isNullIntolerant(expr: Expression): Boolean = expr match {

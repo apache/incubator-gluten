@@ -331,8 +331,9 @@ class VeloxPlanConverter::WholeStageResIter {
         outData.null_count = 0;
         outData.type = arrow::utf8();
         auto strValues = vec->asFlatVector<StringView>()->rawValues();
+        // A StringView in Velox is 16-byte.
         auto valBuffer = std::make_shared<arrow::Buffer>(
-            reinterpret_cast<const uint8_t*>(strValues), 8 * numRows);
+            reinterpret_cast<const uint8_t*>(strValues), 16 * numRows);
         outData.buffers[0] = nullptr;
         outData.buffers[1] = valBuffer;
         outData.buffers[2] = valBuffer;

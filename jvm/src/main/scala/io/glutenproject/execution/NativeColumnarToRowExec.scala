@@ -17,8 +17,9 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.{NativeColumnarToRowJniWrapper, ArrowWritableColumnVector}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowJniWrapper}
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -41,10 +42,6 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
   // A flag used to check whether child is wholestage transformer.
   // Different backends may have different behaviours according to this flag.
   val wsChild = child.isInstanceOf[WholeStageTransformerExec]
-  // A flag used to check whether child is Spark scan which supports columnar.
-  // In this case, the columnar format may be incompatible with the native columnar format.
-  val columnarSparkScan = child.isInstanceOf[BatchScanExec] &&
-    child.asInstanceOf[BatchScanExec].supportsColumnar
 
   def doValidate(): Boolean = {
     try {
@@ -54,7 +51,7 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
         logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
         return false
     }
-    !columnarSparkScan
+    true
   }
 
   def buildCheck(): Unit = {
@@ -107,7 +104,7 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
         if (batch.numRows == 0) {
           logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
           Iterator.empty
-        } else if (this.output.size == 0 || (batch.numCols() > 0 &&
+        } else if (this.output.isEmpty || (batch.numCols() > 0 &&
           !batch.column(0).isInstanceOf[ArrowWritableColumnVector])) {
           // Fallback to ColumnarToRow
           val localOutput = this.output
@@ -126,7 +123,20 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
             column.getValueVector.getBuffers(false)
               .foreach { buffer =>
                 bufAddrs += buffer.memoryAddress()
-                bufSizes += buffer.readableBytes()
+                try {
+                  bufSizes += buffer.readableBytes()
+                } catch {
+                  case e: Throwable =>
+                    // For Velox, the returned format is faked arrow format,
+                    // and the offset buffer is invalid. Only the buffer address is cared.
+                    if (GlutenConfig.getConf.isVeloxBackend &&
+                        child.output(idx).dataType == StringType) {
+                      // Add a fake value here for String column.
+                      bufSizes += 1
+                    } else {
+                      throw e
+                    }
+                }
               }
           }
 
