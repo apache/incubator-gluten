@@ -56,8 +56,6 @@ jobs:
           cd build
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make
-          cd src
-          ctest -R
 
   formatting-check:
     name: Formatting Check
