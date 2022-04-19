@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: Native SQL Engine Unit Tests Suite
+name: Gluten Unit Tests Suite
 
 on:
   pull_request
@@ -51,7 +51,7 @@ jobs:
           sudo make install
       - name: Run unit tests
         run: |
-          cd gluten/cpp/
+          cd cpp/
           mkdir -p build
           cd build
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
