@@ -84,7 +84,9 @@ If you would like to build Gluten with **Arrow** backend, please follow the step
 
 ### Build Gluten with ClickHouse backend
 
-If you would like to build Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md).
+![logo](./docs/image/ClickHouse/logo.png)
+
+If you would like to build Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is devleoped by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
 # Contact
 
