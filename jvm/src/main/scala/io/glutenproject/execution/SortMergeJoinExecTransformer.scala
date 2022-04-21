@@ -219,7 +219,9 @@ case class SortMergeJoinExecTransformer(
       left match {
         case p: SortMergeJoinExecTransformer =>
           (rightKeys, leftKeys, right, left)
-        case ConditionProjectExecTransformer(_, _, child: SortMergeJoinExecTransformer) =>
+        case FilterExecTransformer(_, child: SortMergeJoinExecTransformer) =>
+          (rightKeys, leftKeys, right, left)
+        case ProjectExecTransformer(_, child: SortMergeJoinExecTransformer) =>
           (rightKeys, leftKeys, right, left)
         case other =>
           (leftKeys, rightKeys, left, right)

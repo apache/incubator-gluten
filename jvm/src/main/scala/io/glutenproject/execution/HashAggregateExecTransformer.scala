@@ -155,17 +155,11 @@ case class HashAggregateExecTransformer(
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val typeList = new util.ArrayList[TypeNode]()
-      val nameList = new util.ArrayList[String]()
+      val attrList = new util.ArrayList[Attribute]()
       for (attr <- child.output) {
-        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        nameList.add(attr.name)
+        attrList.add(attr)
       }
-      // The iterator index will be added in the path of LocalFiles.
-      val inputIter = LocalFilesBuilder.makeLocalFiles(
-        ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
-      context.setLocalFilesNode(inputIter)
-      val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
+      val readRel = RelBuilder.makeReadRel(attrList, context)
 
       (getAggRel(context.registeredFunction, readRel), child.output)
     }

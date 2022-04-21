@@ -17,10 +17,13 @@
 
 package io.glutenproject.substrait.rel;
 
+import io.glutenproject.expression.ConverterUtils;
+import io.glutenproject.expression.ConverterUtils$;
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.type.TypeNode;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.util.ArrayList;
 
@@ -54,5 +57,21 @@ public class RelBuilder {
   public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
                                     SubstraitContext context) {
     return new ReadRelNode(types, names, context);
+  }
+
+  public static RelNode makeReadRel(ArrayList<Attribute> attributes,
+                                    SubstraitContext context) {
+    ArrayList<TypeNode> typeList = new ArrayList<>();
+    ArrayList<String> nameList = new ArrayList<>();
+    ConverterUtils$ converter = ConverterUtils$.MODULE$;
+    for (Attribute attr : attributes) {
+      typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
+      nameList.add(attr.name());
+    }
+
+    // The iterator index will be added in the path of LocalFiles.
+    context.setLocalFilesNode(LocalFilesBuilder.makeLocalFiles(
+            converter.ITERATOR_PREFIX().concat(context.getIteratorIndex().toString())));
+    return new ReadRelNode(typeList, nameList, context);
   }
 }

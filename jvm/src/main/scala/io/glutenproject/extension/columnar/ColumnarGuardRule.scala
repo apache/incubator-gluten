@@ -61,7 +61,8 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
   val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow
   val enableColumnarSortMergeJoin: Boolean = columnarConf.enableColumnarSortMergeJoin
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
-  val enableColumnarProjFilter: Boolean = columnarConf.enableColumnarProjFilter
+  val enableColumnarProject: Boolean = columnarConf.enableColumnarProject
+  val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
   val enableColumnarHashAgg: Boolean = columnarConf.enableColumnarHashAgg
   val enableColumnarUnion: Boolean = columnarConf.enableColumnarUnion
   val enableColumnarExpand: Boolean = columnarConf.enableColumnarExpand
@@ -97,12 +98,12 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
         case plan: InMemoryTableScanExec =>
           false
         case plan: ProjectExec =>
-          if (!enableColumnarProjFilter) return false
-          val transformer = ConditionProjectExecTransformer(null, plan.projectList, plan.child)
+          if (!enableColumnarProject) return false
+          val transformer = ProjectExecTransformer(plan.projectList, plan.child)
           transformer.doValidate()
         case plan: FilterExec =>
-          if (!enableColumnarProjFilter) return false
-          val transformer = ConditionProjectExecTransformer(plan.condition, null, plan.child)
+          if (!enableColumnarFilter) return false
+          val transformer = FilterExecTransformer(plan.condition, plan.child)
           transformer.doValidate()
         case plan: HashAggregateExec =>
           if (!enableColumnarHashAgg) return false
@@ -171,7 +172,7 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
         case plan: CoalesceExec =>
           val transformer = CoalesceExecTransformer(plan.numPartitions, plan.child)
           transformer.doValidate()
-        case p =>
+        case _ =>
           true
       }
     } catch {

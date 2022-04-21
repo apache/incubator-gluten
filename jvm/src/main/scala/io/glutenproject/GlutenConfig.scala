@@ -69,9 +69,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarFinalAgg: Boolean = conf.getConfString(
     "spark.gluten.sql.columnar.hashagg.enablefinal", "true").toBoolean && enableCpu
 
-  // enable or disable columnar project and filter
-  val enableColumnarProjFilter: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.projfilter", "true").toBoolean && enableCpu
+  // enable or disable columnar project
+  val enableColumnarProject: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.project", "true").toBoolean && enableCpu
+
+  // enable or disable columnar filter
+  val enableColumnarFilter: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.filter", "true").toBoolean && enableCpu
 
   // enable or disable columnar sort
   val enableColumnarSort: Boolean =

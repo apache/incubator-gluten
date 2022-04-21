@@ -37,11 +37,9 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ConditionProjectExecTransformer(
+case class FilterExecTransformer(
     condition: Expression,
-    projectList: Seq[NamedExpression],
-    child: SparkPlan)
-    extends UnaryExecNode
+    child: SparkPlan) extends UnaryExecNode
     with TransformSupport
     with PredicateHelper
     with AliasAwareOutputPartitioning
@@ -78,34 +76,26 @@ case class ConditionProjectExecTransformer(
     case _ => false
   }
 
-  override protected def outputExpressions: Seq[NamedExpression] =
-    if (projectList != null) projectList else output
-
-  val notNullAttributes = if (condition != null) {
-    val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
-      case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
-      case _ => false
-    }
-    notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-  } else {
-    null
+  // Split out all the IsNotNulls from condition.
+  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
+    case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
+    case _ => false
   }
-  override def output: Seq[Attribute] =
-    if (projectList != null) {
-      projectList.map(_.toAttribute)
-    } else if (condition != null) {
-      val res = child.output.map { a =>
-        if (a.nullable && notNullAttributes.contains(a.exprId)) {
-          a.withNullability(false)
-        } else {
-          a
-        }
+
+  // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
+  private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+
+  override def output: Seq[Attribute] = {
+    child.output.map { a =>
+      if (a.nullable && notNullAttributes.contains(a.exprId)) {
+        a.withNullability(false)
+      } else {
+        a
       }
-      res
-    } else {
-      val res = child.output.map { a => a }
-      res
     }
+  }
+
+  override protected def outputExpressions: Seq[NamedExpression] = output
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
@@ -140,7 +130,7 @@ case class ConditionProjectExecTransformer(
   // override def canEqual(that: Any): Boolean = false
 
   def getRelNode(args: java.lang.Object, childRel: RelNode): RelNode = {
-    prepareCondProjectRel(args, condition, projectList, child.output, childRel)
+    prepareFilterRel(args, condition, child.output, childRel)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -155,19 +145,13 @@ case class ConditionProjectExecTransformer(
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val typeList = new util.ArrayList[TypeNode]()
-      val nameList = new util.ArrayList[String]()
+      val attrList = new util.ArrayList[Attribute]()
       for (attr <- child.output) {
-        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        nameList.add(attr.name)
+        attrList.add(attr)
       }
-      // The iterator index will be added in the path of LocalFiles.
-      val inputIter = LocalFilesBuilder.makeLocalFiles(
-        ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
-      context.setLocalFilesNode(inputIter)
-      val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
-
-      getRelNode(context.registeredFunction, readRel)
+      getRelNode(
+        context.registeredFunction,
+        RelBuilder.makeReadRel(attrList, context))
     }
 
     if (currRel == null) {
@@ -191,20 +175,145 @@ case class ConditionProjectExecTransformer(
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
-  def prepareCondProjectRel(args: java.lang.Object,
-                            condExpr: Expression,
-                            projectList: Seq[NamedExpression],
-                            originalInputAttributes: Seq[Attribute],
-                            input: RelNode): RelNode = {
-    val filterNode = if (condExpr != null) {
+  def prepareFilterRel(args: java.lang.Object,
+                       condExpr: Expression,
+                       originalInputAttributes: Seq[Attribute],
+                       input: RelNode): RelNode = {
+    if (condExpr != null) {
       val columnarCondExpr: Expression = ExpressionConverter
         .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
       val condExprNode =
         columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
       RelBuilder.makeFilterRel(input, condExprNode)
     } else {
-      null
+      input
     }
+  }
+}
+
+case class ProjectExecTransformer(projectList: Seq[NamedExpression],
+                                  child: SparkPlan) extends UnaryExecNode
+    with TransformSupport
+    with PredicateHelper
+    with AliasAwareOutputPartitioning
+    with Logging {
+
+  val sparkConf: SparkConf = sparkContext.getConf
+
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
+
+  override lazy val metrics = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_condproject"))
+
+  override def doValidate(): Boolean = {
+    val substraitContext = new SubstraitContext
+    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
+    val relNode = try {
+      getRelNode(substraitContext.registeredFunction, null)
+    } catch {
+      case e: UnsupportedOperationException =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+    // Then, validate the generated plan in native engine.
+    val validator = new ExpressionEvaluator()
+    validator.doValidate(planNode.toProtobuf.toByteArray)
+  }
+
+  def isNullIntolerant(expr: Expression): Boolean = expr match {
+    case e: NullIntolerant => e.children.forall(isNullIntolerant)
+    case _ => false
+  }
+
+  override protected def outputExpressions: Seq[NamedExpression] = projectList
+
+  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
+
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
+    case c: TransformSupport =>
+      c.columnarInputRDDs
+    case _ =>
+      Seq(child.executeColumnar())
+  }
+
+  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
+    case c: TransformSupport =>
+      c.getBuildPlans
+    case _ =>
+      Seq()
+  }
+
+  override def getStreamedLeafPlan: SparkPlan = child match {
+    case c: TransformSupport =>
+      c.getStreamedLeafPlan
+    case _ =>
+      this
+  }
+
+  override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
+    val numOutputRows = longMetric("numOutputRows")
+    val procTime = longMetric("processTime")
+    procTime.set(process_time / 1000000)
+    numOutputRows += out_num_rows
+  }
+
+  override def getChild: SparkPlan = child
+
+  // override def canEqual(that: Any): Boolean = false
+
+  def getRelNode(args: java.lang.Object, childRel: RelNode): RelNode = {
+    prepareProjectRel(args, projectList, child.output, childRel)
+  }
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child match {
+      case c: TransformSupport =>
+        c.doTransform(context)
+      case _ =>
+        null
+    }
+    val currRel = if (childCtx != null) {
+      getRelNode(context.registeredFunction, childCtx.root)
+    } else {
+      // This means the input is just an iterator, so an ReadRel will be created as child.
+      // Prepare the input schema.
+      val attrList = new util.ArrayList[Attribute]()
+      for (attr <- child.output) {
+        attrList.add(attr)
+      }
+      val readRel = RelBuilder.makeReadRel(attrList, context)
+      getRelNode(context.registeredFunction, readRel)
+    }
+
+    if (currRel == null) {
+      return childCtx
+    }
+    val inputAttributes = if (childCtx != null) {
+      // Use the outputAttributes of child context as inputAttributes.
+      childCtx.outputAttributes
+    } else {
+      child.output
+    }
+    TransformContext(inputAttributes, output, currRel)
+  }
+
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
+  }
+
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  def prepareProjectRel(args: java.lang.Object,
+                        projectList: Seq[NamedExpression],
+                        originalInputAttributes: Seq[Attribute],
+                        input: RelNode): RelNode = {
     if (projectList != null && projectList.nonEmpty) {
       val columnarProjExprs: Seq[Expression] = projectList.map(expr => {
         ExpressionConverter
@@ -214,15 +323,10 @@ case class ConditionProjectExecTransformer(
       for (expr <- columnarProjExprs) {
         projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
       }
-      if (filterNode != null) {
-        // The result of Filter will be the input of Project.
-        RelBuilder.makeProjectRel(filterNode, projExprNodeList)
-      } else {
-        // The original input will be the input of Project.
-        RelBuilder.makeProjectRel(input, projExprNodeList)
-      }
+      // The original input will be the input of Project.
+      RelBuilder.makeProjectRel(input, projExprNodeList)
     } else {
-      filterNode
+      input
     }
   }
 }

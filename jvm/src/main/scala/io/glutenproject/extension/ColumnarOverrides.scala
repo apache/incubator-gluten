@@ -75,28 +75,22 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     case plan: ProjectExec =>
       val columnarChild = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      columnarChild match {
-        case ch: ConditionProjectExecTransformer =>
-          if (ch.projectList == null) {
-            // This means the child is Filter.
-            ch.child match {
-              case _: BatchScanExecTransformer =>
-                // If the child of Filter is BatchScanTransformer, the filter can be omitted
-                // because all filters can be pushed down.
-                ConditionProjectExecTransformer(null, plan.projectList, ch.child)
-              case _ =>
-                ConditionProjectExecTransformer(ch.condition, plan.projectList, ch.child)
-            }
-          } else {
-            ConditionProjectExecTransformer(null, plan.projectList, columnarChild)
-          }
-        case _ =>
-          ConditionProjectExecTransformer(null, plan.projectList, columnarChild)
-      }
+      ProjectExecTransformer(plan.projectList, columnarChild)
     case plan: FilterExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      ConditionProjectExecTransformer(plan.condition, null, child)
+      if (!GlutenConfig.getConf.isVeloxBackend) {
+        FilterExecTransformer(plan.condition, child)
+      } else {
+        child match {
+          case _: BatchScanExecTransformer =>
+            // If the child of Filter is BatchScanTransformer, the filter can be omitted
+            // because all filters can be pushed down.
+            child
+          case _ =>
+            FilterExecTransformer(plan.condition, child)
+        }
+      }
     case plan: HashAggregateExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

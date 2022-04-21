@@ -197,14 +197,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       var idx = metrics.output_length_list.length - 1
       var child_process_time: Long = 0
       while (idx >= 0 && curChild.isInstanceOf[TransformSupport]) {
-        if (curChild.isInstanceOf[ConditionProjectExecTransformer]) {
-          // see if this condition projector did filter, if so, we need to skip metrics
-          val condProj = curChild.asInstanceOf[ConditionProjectExecTransformer]
-          if (condProj.condition != null &&
-              (condProj.projectList != null && condProj.projectList.nonEmpty)) {
-            idx -= 1
-          }
-        }
         curChild
           .asInstanceOf[TransformSupport]
           .updateMetrics(
