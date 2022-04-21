@@ -43,12 +43,8 @@ jobs:
           sudo apt-get install google-mock
       - name: Install OAP optimized Arrow (C++ libs)
         run: |
-          cd /tmp
-          git clone https://github.com/oap-project/arrow.git
-          cd arrow && git checkout arrow-7.0.0-oap && cd cpp
-          mkdir build && cd build
-          cmake .. -DARROW_JNI=ON -DARROW_GANDIVA_JAVA=ON -DARROW_GANDIVA=ON -DARROW_PARQUET=ON -DARROW_ORC=ON -DARROW_CSV=ON -DARROW_HDFS=ON -DARROW_FILESYSTEM=ON -DARROW_WITH_SNAPPY=ON -DARROW_JSON=ON -DARROW_DATASET=ON -DARROW_WITH_LZ4=ON -DGTEST_ROOT=/usr/src/gtest && make -j2
-          sudo make install
+          bash tools/build_arrow.sh
+          mvn clean package -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Darrow_root=/tmp/arrow_install
       - name: Run unit tests
         run: |
           cd cpp/
@@ -82,7 +78,7 @@ jobs:
           cd /tmp
           git clone https://github.com/rui-mo/velox
           cd velox && git checkout velox_for_gazelle_jni
-          bash scripts/setup-ubuntu.sh
+          sudo bash scripts/setup-ubuntu.sh
           make
       - name: Run unit tests
         run: |
