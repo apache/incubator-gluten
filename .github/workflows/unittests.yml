@@ -33,7 +33,7 @@ jobs:
       - run: free
       - run: sudo apt-get update
       - run: sudo apt-get install cmake ccache
-      - run: sudo apt-get install libboost-all-dev
+      - run: sudo apt-get install libboost-all-dev libcurl4-openssl-dev
       - name: Install Googletest
         run: |
           sudo apt-get install libgtest-dev
@@ -79,7 +79,7 @@ jobs:
           git clone https://github.com/rui-mo/velox
           cd velox && git checkout velox_for_gazelle_jni
           sudo bash scripts/setup-ubuntu.sh
-          make
+          make -j2
       - name: Run unit tests
         run: |
           cd cpp/
