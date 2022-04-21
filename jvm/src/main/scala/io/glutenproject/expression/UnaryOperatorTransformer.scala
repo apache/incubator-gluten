@@ -19,7 +19,7 @@ package io.glutenproject.expression
 
 import com.google.common.collect.Lists
 import io.glutenproject.expression.DateTimeExpressionsTransformer._
-import io.glutenproject.substrait.`type`.TypeBuiler
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
@@ -42,7 +42,7 @@ class IsNotNullTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NOT_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
@@ -62,7 +62,7 @@ class IsNullTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }

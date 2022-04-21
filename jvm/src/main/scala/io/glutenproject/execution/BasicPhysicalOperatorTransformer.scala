@@ -20,12 +20,14 @@ package io.glutenproject.execution
 import java.util
 
 import com.google.common.collect.Lists
+import com.google.protobuf.Any
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import io.glutenproject.substrait.`type`.TypeNode
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.SparkConf
@@ -53,15 +55,15 @@ case class FilterExecTransformer(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_condproject"))
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_filter"))
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, null)
+      getRelNode(substraitContext.registeredFunction, null, validation = true)
     } catch {
-      case e: UnsupportedOperationException =>
+      case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
@@ -129,8 +131,9 @@ case class FilterExecTransformer(
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object, childRel: RelNode): RelNode = {
-    prepareFilterRel(args, condition, child.output, childRel)
+  def getRelNode(args: java.lang.Object, childRel: RelNode,
+                 validation: Boolean = false): RelNode = {
+    prepareFilterRel(args, condition, child.output, childRel, validation)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -178,15 +181,27 @@ case class FilterExecTransformer(
   def prepareFilterRel(args: java.lang.Object,
                        condExpr: Expression,
                        originalInputAttributes: Seq[Attribute],
-                       input: RelNode): RelNode = {
-    if (condExpr != null) {
+                       input: RelNode,
+                       validation: Boolean): RelNode = {
+    if (condExpr == null) {
+      input
+    } else {
       val columnarCondExpr: Expression = ExpressionConverter
         .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
       val condExprNode =
         columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      RelBuilder.makeFilterRel(input, condExprNode)
-    } else {
-      input
+      if (!validation) {
+        RelBuilder.makeFilterRel(input, condExprNode)
+      } else {
+        // Use a extension node to send the input types through Substrait plan for validation.
+        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+        for (attr <- originalInputAttributes) {
+          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        }
+        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+          Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        RelBuilder.makeFilterRel(input, condExprNode, extensionNode)
+      }
     }
   }
 }
@@ -206,15 +221,15 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_condproject"))
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_project"))
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, null)
+      getRelNode(substraitContext.registeredFunction, null, validation = true)
     } catch {
-      case e: UnsupportedOperationException =>
+      case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
@@ -265,8 +280,9 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object, childRel: RelNode): RelNode = {
-    prepareProjectRel(args, projectList, child.output, childRel)
+  def getRelNode(args: java.lang.Object, childRel: RelNode,
+                 validation: Boolean = false): RelNode = {
+    prepareProjectRel(args, projectList, child.output, childRel, validation)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -313,8 +329,11 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   def prepareProjectRel(args: java.lang.Object,
                         projectList: Seq[NamedExpression],
                         originalInputAttributes: Seq[Attribute],
-                        input: RelNode): RelNode = {
-    if (projectList != null && projectList.nonEmpty) {
+                        input: RelNode,
+                        validation: Boolean): RelNode = {
+    if (projectList == null || projectList.isEmpty) {
+      input
+    } else {
       val columnarProjExprs: Seq[Expression] = projectList.map(expr => {
         ExpressionConverter
           .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
@@ -323,10 +342,18 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       for (expr <- columnarProjExprs) {
         projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
       }
-      // The original input will be the input of Project.
-      RelBuilder.makeProjectRel(input, projExprNodeList)
-    } else {
-      input
+      if (!validation) {
+        RelBuilder.makeProjectRel(input, projExprNodeList)
+      } else {
+        // Use a extension node to send the input types through Substrait plan for validation.
+        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+        for (attr <- originalInputAttributes) {
+          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        }
+        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+          Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode)
+      }
     }
   }
 }

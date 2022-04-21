@@ -24,7 +24,6 @@ import com.google.common.collect.Lists
 import io.glutenproject.vectorized.ColumnarFactory
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
-import io.glutenproject.substrait.extensions.{MappingBuilder, MappingNode}
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext

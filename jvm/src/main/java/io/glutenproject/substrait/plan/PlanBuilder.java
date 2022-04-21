@@ -19,8 +19,7 @@ package io.glutenproject.substrait.plan;
 
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.extensions.FunctionMappingNode;
-import io.glutenproject.substrait.extensions.MappingBuilder;
-import io.glutenproject.substrait.extensions.MappingNode;
+import io.glutenproject.substrait.extensions.ExtensionBuilder;
 import io.glutenproject.substrait.rel.RelNode;
 
 import java.util.ArrayList;
@@ -29,7 +28,7 @@ import java.util.Map;
 public class PlanBuilder {
     private PlanBuilder() {}
 
-    public static PlanNode makePlan(ArrayList<MappingNode> mappingNodes,
+    public static PlanNode makePlan(ArrayList<FunctionMappingNode> mappingNodes,
                                     ArrayList<RelNode> relNodes,
                                     ArrayList<String> outNames) {
         return new PlanNode(mappingNodes, relNodes, outNames);
@@ -40,11 +39,11 @@ public class PlanBuilder {
         if (subCtx == null) {
             throw new NullPointerException("ColumnarWholestageTransformer cannot doTansform.");
         }
-        ArrayList<MappingNode> mappingNodes = new ArrayList<>();
+        ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
 
         for (Map.Entry<String, Long> entry : subCtx.registeredFunction().entrySet()) {
             FunctionMappingNode mappingNode =
-                    MappingBuilder.makeFunctionMapping(entry.getKey(), entry.getValue());
+                    ExtensionBuilder.makeFunctionMapping(entry.getKey(), entry.getValue());
             mappingNodes.add(mappingNode);
         }
         return makePlan(mappingNodes, relNodes, outNames);

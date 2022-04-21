@@ -24,7 +24,7 @@ import org.apache.spark.sql.types._
 
 import scala.collection.mutable.ListBuffer
 import io.glutenproject.expression.DateTimeExpressionsTransformer.{DateDiffTransformer, UnixTimestampTransformer}
-import io.glutenproject.substrait.`type`.TypeBuiler
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 class ShiftLeftTransformer(left: Expression, right: Expression, original: Expression)
@@ -88,7 +88,7 @@ class LikeTransformer(left: Expression, right: Expression, original: Expression)
     val expressNodes = Lists.newArrayList(
       left_node.asInstanceOf[ExpressionNode],
       right_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }

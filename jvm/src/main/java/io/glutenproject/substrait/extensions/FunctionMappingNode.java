@@ -21,7 +21,7 @@ import io.substrait.proto.SimpleExtensionDeclaration;
 
 import java.io.Serializable;
 
-public class FunctionMappingNode implements MappingNode, Serializable {
+public class FunctionMappingNode implements Serializable {
     private final String name;
     private final Long functionId;
 
@@ -30,7 +30,6 @@ public class FunctionMappingNode implements MappingNode, Serializable {
         this.functionId = functionId;
     }
 
-    @Override
     public SimpleExtensionDeclaration toProtobuf() {
         SimpleExtensionDeclaration.ExtensionFunction.Builder funcBuilder =
                 SimpleExtensionDeclaration.ExtensionFunction.newBuilder();

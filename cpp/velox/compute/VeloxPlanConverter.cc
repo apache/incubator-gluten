@@ -365,11 +365,11 @@ class VeloxPlanConverter::WholeStageResIter {
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
  public:
   WholeStageResIterFirstStage(const std::shared_ptr<const core::PlanNode>& planNode,
-                              const u_int32_t& index,
+                              const u_int32_t index,
                               const std::vector<std::string>& paths,
                               const std::vector<u_int64_t>& starts,
                               const std::vector<u_int64_t>& lengths,
-                              const bool& fakeArrowOutput)
+                              const bool fakeArrowOutput)
       : index_(index), paths_(paths), starts_(starts), lengths_(lengths) {
     planNode_ = planNode;
     fakeArrowOutput_ = fakeArrowOutput;
@@ -436,7 +436,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
 class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIter {
  public:
   WholeStageResIterMiddleStage(const std::shared_ptr<const core::PlanNode>& planNode,
-                               const bool& fakeArrowOutput) {
+                               const bool fakeArrowOutput) {
     planNode_ = planNode;
     fakeArrowOutput_ = fakeArrowOutput;
     params_.planNode = planNode;

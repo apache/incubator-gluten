@@ -138,17 +138,7 @@ case class ColumnarCollapseCodegenStages(
             t.withNewChildren(t.children.map(insertInputAdapter)))(
             codegenStageCounter.incrementAndGet())
       case other =>
-        val maybeWS = other.children.map(insertWholeStageTransformer)
-        // Fake Arrow format will be returned for WS transformer if the next operator
-        // is NativeColumnarToRowExec.
-        // TODO: use a Velox layer on the top of the base layer.
-        if (nativeBackend.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
-          if (other.isInstanceOf[NativeColumnarToRowExec] &&
-              maybeWS.head.isInstanceOf[WholeStageTransformerExec]) {
-            maybeWS.head.asInstanceOf[WholeStageTransformerExec].setFakeOutput()
-          }
-        }
-        other.withNewChildren(maybeWS)
+        other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }
   }
 

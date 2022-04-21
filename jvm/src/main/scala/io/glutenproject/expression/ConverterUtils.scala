@@ -382,17 +382,17 @@ object ConverterUtils extends Logging {
   def getTypeNode(datatye: DataType, nullable: Boolean): TypeNode = {
     datatye match {
       case BooleanType =>
-        TypeBuiler.makeBoolean(nullable)
+        TypeBuilder.makeBoolean(nullable)
       case DoubleType =>
-        TypeBuiler.makeFP64(nullable)
+        TypeBuilder.makeFP64(nullable)
       case StringType =>
-        TypeBuiler.makeString(nullable)
+        TypeBuilder.makeString(nullable)
       case LongType =>
-        TypeBuiler.makeI64(nullable)
+        TypeBuilder.makeI64(nullable)
       case IntegerType =>
-        TypeBuiler.makeI32(nullable)
+        TypeBuilder.makeI32(nullable)
       case DateType =>
-        TypeBuiler.makeDate(nullable)
+        TypeBuilder.makeDate(nullable)
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }

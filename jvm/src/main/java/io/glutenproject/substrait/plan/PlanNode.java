@@ -17,7 +17,7 @@
 
 package io.glutenproject.substrait.plan;
 
-import io.glutenproject.substrait.extensions.MappingNode;
+import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.rel.RelNode;
 import io.substrait.proto.Plan;
 import io.substrait.proto.PlanRel;
@@ -27,11 +27,11 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class PlanNode implements Serializable {
-    private final ArrayList<MappingNode> mappingNodes = new ArrayList<>();
+    private final ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
     private final ArrayList<RelNode> relNodes = new ArrayList<>();
     private final ArrayList<String> outNames = new ArrayList<>();
 
-    PlanNode(ArrayList<MappingNode> mappingNodes,
+    PlanNode(ArrayList<FunctionMappingNode> mappingNodes,
              ArrayList<RelNode> relNodes,
              ArrayList<String> outNames) {
         this.mappingNodes.addAll(mappingNodes);
@@ -42,7 +42,7 @@ public class PlanNode implements Serializable {
     public Plan toProtobuf() {
         Plan.Builder planBuilder = Plan.newBuilder();
         // add the extension functions
-        for (MappingNode mappingNode : mappingNodes) {
+        for (FunctionMappingNode mappingNode : mappingNodes) {
             planBuilder.addExtensions(mappingNode.toProtobuf());
         }
 

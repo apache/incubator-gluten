@@ -87,6 +87,14 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
     val numInputBatches = longMetric("numInputBatches")
     val convertTime = longMetric("convertTime")
 
+    // Fake Arrow format will be returned for WS transformer.
+    // TODO: use a Velox layer on the top of the base layer.
+    if (GlutenConfig.getConf.isVeloxBackend) {
+      if (child.isInstanceOf[WholeStageTransformerExec]) {
+        child.asInstanceOf[WholeStageTransformerExec].setFakeOutput()
+      }
+    }
+
     child.executeColumnar().mapPartitions { batches =>
       // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
       val jniWrapper = new NativeColumnarToRowJniWrapper()

@@ -45,6 +45,21 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case RowGuard(child: CustomShuffleReaderExec) =>
       replaceWithTransformerPlan(child)
+    case RowGuard(filter: FilterExec) =>
+      val childTransformer = replaceWithTransformerPlan(filter.child)
+      logDebug(s"Columnar Processing for ${filter.getClass} is under RowGuard.")
+      if (!GlutenConfig.getConf.isVeloxBackend) {
+        filter.withNewChildren(Seq(childTransformer))
+      } else {
+        childTransformer match {
+          case _: BatchScanExecTransformer =>
+          // If the child of Filter is BatchScanTransformer, the filter can be omitted
+          // because all filters can be pushed down.
+            childTransformer
+          case _ =>
+            filter.withNewChildren(Seq(childTransformer))
+        }
+      }
     case plan: RowGuard =>
       val actualPlan = plan.child
       logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")

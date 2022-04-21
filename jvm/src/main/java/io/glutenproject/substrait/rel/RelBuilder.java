@@ -22,6 +22,7 @@ import io.glutenproject.expression.ConverterUtils$;
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.TypeNode;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
@@ -38,9 +39,21 @@ public class RelBuilder {
     return new FilterRelNode(input, condition);
   }
 
+  public static RelNode makeFilterRel(RelNode input,
+                                      ExpressionNode condition,
+                                      AdvancedExtensionNode extensionNode) {
+    return new FilterRelNode(input, condition, extensionNode);
+  }
+
   public static RelNode makeProjectRel(RelNode input,
                                        ArrayList<ExpressionNode> expressionNodes) {
     return new ProjectRelNode(input, expressionNodes);
+  }
+
+  public static RelNode makeProjectRel(RelNode input,
+                                       ArrayList<ExpressionNode> expressionNodes,
+                                       AdvancedExtensionNode extensionNode) {
+    return new ProjectRelNode(input, expressionNodes, extensionNode);
   }
 
   public static RelNode makeAggregateRel(RelNode input,
