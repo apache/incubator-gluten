@@ -39,7 +39,7 @@ cmake -DARROW_BUILD_STATIC=OFF \
         -DCMAKE_INSTALL_LIBDIR=lib \
         cpp
 
-make -j
+make -j$NPROC
 
 make install
 
