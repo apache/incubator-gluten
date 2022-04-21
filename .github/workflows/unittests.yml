@@ -1,0 +1,106 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Gluten Unit Tests Suite
+
+on:
+  pull_request
+
+jobs:
+  arrow-backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - run: sudo swapoff -a
+      - run: free
+      - run: sudo apt-get update
+      - run: sudo apt-get install cmake ccache
+      - run: sudo apt-get install libboost-all-dev
+      - name: Install Googletest
+        run: |
+          sudo apt-get install libgtest-dev
+          cd /usr/src/gtest
+          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+          sudo make
+          sudo apt-get install google-mock
+      - name: Install OAP optimized Arrow (C++ libs)
+        run: |
+          cd /tmp
+          git clone https://github.com/oap-project/arrow.git
+          cd arrow && git checkout arrow-7.0.0-oap && cd cpp
+          mkdir build && cd build
+          cmake .. -DARROW_JNI=ON -DARROW_GANDIVA_JAVA=ON -DARROW_GANDIVA=ON -DARROW_PARQUET=ON -DARROW_ORC=ON -DARROW_CSV=ON -DARROW_HDFS=ON -DARROW_FILESYSTEM=ON -DARROW_WITH_SNAPPY=ON -DARROW_JSON=ON -DARROW_DATASET=ON -DARROW_WITH_LZ4=ON -DGTEST_ROOT=/usr/src/gtest && make -j2
+          sudo make install
+      - name: Run unit tests
+        run: |
+          cd cpp/
+          mkdir -p build
+          cd build
+          cmake .. -DBUILD_ARROW=0 -DTESTS=1
+          make
+
+  velox-backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - run: sudo swapoff -a
+      - run: free
+      - run: sudo apt-get update
+      - run: sudo apt-get install cmake ccache
+      - run: sudo apt-get install libboost-all-dev
+      - name: Install Googletest
+        run: |
+          sudo apt-get install libgtest-dev
+          cd /usr/src/gtest
+          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+          sudo make
+          sudo apt-get install google-mock
+      - name: Install Velox
+        run: |
+          cd /tmp
+          git clone https://github.com/rui-mo/velox
+          cd velox && git checkout velox_for_gazelle_jni
+          bash scripts/setup-ubuntu.sh
+          make
+      - name: Run unit tests
+        run: |
+          cd cpp/
+          mkdir -p build
+          cd build
+          cmake .. -DBUILD_ARROW=0 -DTESTS=1
+          make
+
+
+  formatting-check:
+    name: Formatting Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run clang-format style check for C/C++ programs.
+      uses: jidicula/clang-format-action@v3.5.1
+      with:
+        clang-format-version: '10'
+        check-path: 'gluten/cpp/src'
+        fallback-style: 'Google' # optional
