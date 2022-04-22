@@ -17,19 +17,26 @@
 
 package io.glutenproject.execution
 
+import java.util
+
+import scala.collection.JavaConverters._
+
+import io.glutenproject.expression._
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.metric.SQLMetrics
-
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import io.glutenproject.substrait.SubstraitContext
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin, ShuffledJoin}
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
@@ -73,23 +80,11 @@ case class ShuffledHashJoinExecTransformer(
     }
   }
 
-  override def output: Seq[Attribute] =
-    if (projectList == null || projectList.isEmpty) super.output
-    else projectList.map(_.toAttribute)
-
-
-  def getBuildPlan: SparkPlan = buildPlan
-
   override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
     val numOutputRows = longMetric("numOutputRows")
     val procTime = longMetric("processTime")
     procTime.set(process_time / 1000000)
     numOutputRows += out_num_rows
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(
-      s"ColumnarShuffledHashJoinExec doesn't support doExecute")
   }
 
   override def outputPartitioning: Partitioning = buildSide match {
@@ -112,14 +107,19 @@ case class ShuffledHashJoinExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = streamedPlan match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(streamedPlan.executeColumnar())
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    val getInputRDDs = (plan: SparkPlan) => {
+      plan match {
+        case c: TransformSupport =>
+          c.columnarInputRDDs
+        case _ =>
+          Seq(plan.executeColumnar())
+      }
+    }
+    getInputRDDs(streamedPlan) ++ getInputRDDs(buildPlan)
   }
 
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = streamedPlan match {
+  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = buildPlan match {
     case c: TransformSupport =>
       val childPlans = c.getBuildPlans
       childPlans :+ (this, null)
@@ -136,11 +136,109 @@ case class ShuffledHashJoinExecTransformer(
 
   override def getChild: SparkPlan = streamedPlan
 
+  // TODO: enable doValidate
+  override def doValidate(): Boolean = false
+
   override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+    val (joinRel: RelNode, buildOutputs: Seq[Attribute], streamedOutputs: Seq[Attribute]) =
+      (buildPlan, streamedPlan) match {
+        case (build: TransformSupport, streamed: TransformSupport) =>
+          val streamedContext = streamed.doTransform(context)
+          val buildContext = build.doTransform(context)
+          (
+            getJoinRel(streamedContext.root, buildContext.root, context),
+            buildContext.outputAttributes,
+            streamedContext.outputAttributes)
+
+        case (build: TransformSupport, _) =>
+          val streamedReadRel =
+            RelBuilder.makeReadRel(
+              new util.ArrayList[Attribute](streamedPlan.output.asJava),
+              context)
+          val buildContext = build.doTransform(context)
+          (
+            getJoinRel(streamedReadRel, buildContext.root, context),
+            buildContext.outputAttributes,
+            streamedPlan.output)
+
+        case (_, streamed: TransformSupport) =>
+          val streamedContext = streamed.doTransform(context)
+          val buildReadRel = RelBuilder.makeReadRel(
+            new util.ArrayList[Attribute](buildPlan.output.asJava),
+            context)
+          (
+            getJoinRel(streamedContext.root, buildReadRel, context),
+            buildPlan.output,
+            streamedContext.outputAttributes)
+
+        case (_, _) =>
+          val streamedReadRel =
+            RelBuilder.makeReadRel(
+              new util.ArrayList[Attribute](streamedPlan.output.asJava),
+              context)
+          val buildReadRel = RelBuilder.makeReadRel(
+            new util.ArrayList[Attribute](buildPlan.output.asJava),
+            context)
+          (
+            getJoinRel(streamedReadRel, buildReadRel, context),
+            buildPlan.output,
+            streamedPlan.output)
+      }
+
+    val (rel, inputAttributes) = buildSide match {
+      case BuildLeft =>
+        val reorderedOutput = buildPlan.output.indices.map(idx =>
+          ExpressionBuilder.makeSelection(idx + streamedPlan.output.size)) ++
+          streamedPlan.output.indices
+            .map(ExpressionBuilder.makeSelection(_))
+        (
+          RelBuilder.makeProjectRel(
+            joinRel,
+            new java.util.ArrayList[ExpressionNode](reorderedOutput.asJava)),
+          buildOutputs ++ streamedOutputs)
+      case BuildRight => (joinRel, streamedOutputs ++ buildOutputs)
+    }
+
+    TransformContext(inputAttributes, output, rel)
   }
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  override def output: Seq[Attribute] =
+    if (projectList == null || projectList.isEmpty) super.output
+    else projectList.map(_.toAttribute)
+
+  private def getJoinRel(left: RelNode, right: RelNode, context: SubstraitContext): RelNode = {
+    val substraitJoinType = joinType match {
+      case Inner =>
+        JoinRel.JoinType.JOIN_TYPE_INNER
+      case _ =>
+        JoinRel.JoinType.UNRECOGNIZED
+    }
+
+    val joinExpression = (streamedKeyExprs zip buildKeyExprs)
+      .map { case (l, r) => EqualTo(l, r) }
+      .reduce(And)
+    val joinExpressionNode = ExpressionConverter
+      .replaceWithExpressionTransformer(joinExpression, output)
+      .asInstanceOf[ExpressionTransformer]
+      .doTransform(context.registeredFunction)
+
+    val postJoinFilter = condition.map { expr =>
+      ExpressionConverter
+        .replaceWithExpressionTransformer(expr, output)
+        .asInstanceOf[ExpressionTransformer]
+        .doTransform(context.registeredFunction)
+    }
+
+    RelBuilder.makeJoinRel(
+      left,
+      right,
+      substraitJoinType,
+      joinExpressionNode,
+      postJoinFilter.orNull)
+  }
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException(
+      s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 }

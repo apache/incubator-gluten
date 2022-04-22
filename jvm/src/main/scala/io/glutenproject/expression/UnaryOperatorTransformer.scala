@@ -39,7 +39,8 @@ class IsNotNullTransformer(child: Expression, original: Expression)
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NOT_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = TypeBuilder.makeBoolean(true)
@@ -59,7 +60,8 @@ class IsNullTransformer(child: Expression, original: Expression)
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = TypeBuilder.makeBoolean(true)
@@ -78,7 +80,7 @@ class MonthTransformer(child: Expression, original: Expression)
 }
 
 class DayOfMonthTransformer(child: Expression, original: Expression)
-  extends DayOfMonth(child: Expression)
+    extends DayOfMonth(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -88,7 +90,7 @@ class DayOfMonthTransformer(child: Expression, original: Expression)
 }
 
 class YearTransformer(child: Expression, original: Expression)
-  extends Year(child: Expression)
+    extends Year(child: Expression)
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -135,12 +137,15 @@ class BitwiseNotTransformer(child: Expression, original: Expression)
   }
 }
 
-class KnownFloatingPointNormalizedTransformer(child: Expression,
-                                              original: KnownFloatingPointNormalized)
-  extends KnownFloatingPointNormalized(child: Expression) with ExpressionTransformer with Logging {
+class KnownFloatingPointNormalizedTransformer(
+    child: Expression,
+    original: KnownFloatingPointNormalized)
+    extends KnownFloatingPointNormalized(child: Expression)
+    with ExpressionTransformer
+    with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    child.asInstanceOf[ExpressionTransformer].doTransform(args)
   }
 }
 
@@ -172,7 +177,8 @@ class CastTransformer(
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.CAST, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(dataType, nullable = true)
@@ -212,12 +218,17 @@ class NormalizeNaNAndZeroTransformer(child: Expression, original: NormalizeNaNAn
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    // TODO: A Temporary workaround to make shuffle repartition expression
+    // pass with double/float type.
+    // We need to support converting substrait to gandiva expressions in native.
+    child.asInstanceOf[ExpressionTransformer].doTransform(args)
   }
 }
 
 class PromotePrecisionTransformer(child: Expression, original: PromotePrecision)
-  extends PromotePrecision(child: Expression) with ExpressionTransformer with Logging {
+    extends PromotePrecision(child: Expression)
+    with ExpressionTransformer
+    with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
@@ -287,24 +298,26 @@ object UnaryOperatorTransformer {
       new MicrosToTimestampTransformer(child)
     case other =>
       child.dataType match {
-        case _: DateType => other match {
-          case a: DayOfYear =>
-            new DayOfYearTransformer(new CastTransformer(child, TimestampType, None, null))
-          case a: DayOfWeek =>
-            new DayOfWeekTransformer(new CastTransformer(child, TimestampType, None, null))
-          case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
-        }
-        case _: TimestampType => other match {
-          case a: Hour =>
-            new HourTransformer(child)
-          case a: Minute =>
-            new MinuteTransformer(child)
-          case a: Second =>
-            new SecondTransformer(child)
-          case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
-        }
+        case _: DateType =>
+          other match {
+            case a: DayOfYear =>
+              new DayOfYearTransformer(new CastTransformer(child, TimestampType, None, null))
+            case a: DayOfWeek =>
+              new DayOfWeekTransformer(new CastTransformer(child, TimestampType, None, null))
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
+        case _: TimestampType =>
+          other match {
+            case a: Hour =>
+              new HourTransformer(child)
+            case a: Minute =>
+              new MinuteTransformer(child)
+            case a: Second =>
+              new SecondTransformer(child)
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
         case _ =>
           throw new UnsupportedOperationException(s"not currently supported: $other.")
       }
