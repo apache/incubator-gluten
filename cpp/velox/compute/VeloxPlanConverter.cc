@@ -78,6 +78,20 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::FilterRel& sfilter)
   }
 }
 
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
+  if (sjoin.has_left()) {
+    setInputPlanNode(sjoin.left());
+  } else {
+    throw std::runtime_error("Left child expected");
+  }
+
+  if (sjoin.has_right()) {
+    setInputPlanNode(sjoin.right());
+  } else {
+    throw std::runtime_error("Right child expected");
+  }
+}
+
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
   if (iterIdx == -1) {
@@ -148,8 +162,10 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.filter());
   } else if (srel.has_read()) {
     setInputPlanNode(srel.read());
+  } else if (srel.has_join()) {
+    setInputPlanNode(srel.join());
   } else {
-    throw std::runtime_error("Rel is not supported.");
+    throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
 }
 
@@ -180,7 +196,11 @@ std::shared_ptr<const core::PlanNode> VeloxPlanConverter::getVeloxPlanNode(
       setInputPlanNode(srel.rel());
     }
   }
-  return subVeloxPlanConverter_->toVeloxPlan(splan);
+  auto planNode = subVeloxPlanConverter_->toVeloxPlan(splan);
+#ifdef DEBUG
+  std::cout << "Plan Node: " << std::endl << planNode->toString(true, true) << std::endl;
+#endif
+  return planNode;
 }
 
 std::string VeloxPlanConverter::nextPlanNodeId() {

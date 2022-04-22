@@ -77,7 +77,7 @@ class IteratorApiImplSuite extends IIteratorApi {
    *
    * @return
    */
-  override def genFinalStageIterator(iter: Iterator[ColumnarBatch],
+  override def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                                      numaBindingInfo: GlutenNumaBindingInfo,
                                      listJars: Seq[String], signature: String,
                                      sparkConf: SparkConf, outputAttributes: Seq[Attribute],

@@ -24,6 +24,7 @@ class SubstraitContext extends Serializable {
   private val functionMap = new java.util.HashMap[String, java.lang.Long]()
 
   private var localFilesNode: LocalFilesNode = _
+  private val iteratorNodes = new java.util.HashMap[java.lang.Long, LocalFilesNode]()
   private var extensionTableNode: ExtensionTableNode = _
   private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
 
@@ -31,7 +32,18 @@ class SubstraitContext extends Serializable {
     this.localFilesNode = localFilesNode
   }
 
+  def setIteratorNode(index: java.lang.Long, localFilesNode: LocalFilesNode): Unit = {
+    if (iteratorNodes.containsKey(index)) {
+      throw new IllegalStateException(s"Iterator index ${index} has been used.")
+    }
+    iteratorNodes.put(index, localFilesNode)
+  }
+
   def getLocalFilesNode: LocalFilesNode = this.localFilesNode
+
+  def getInputIteratorNode(index: java.lang.Long): LocalFilesNode = {
+    iteratorNodes.get(index)
+  }
 
   def setExtensionTableNode(extensionTableNode: ExtensionTableNode): Unit = {
     this.extensionTableNode = extensionTableNode
@@ -52,7 +64,7 @@ class SubstraitContext extends Serializable {
 
   def registeredFunction: java.util.HashMap[String, java.lang.Long] = functionMap
 
-  def getIteratorIndex: java.lang.Long = {
+  def nextIteratorIndex: java.lang.Long = {
     val id = this.iteratorIndex
     this.iteratorIndex += 1
     id

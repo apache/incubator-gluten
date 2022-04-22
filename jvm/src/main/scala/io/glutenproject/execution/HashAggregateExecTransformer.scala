@@ -17,21 +17,27 @@
 
 package io.glutenproject.execution
 
+import java.util
+
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.expression._
-import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
+import io.glutenproject.expression._
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.expression.{
+  AggregateFunctionNode,
+  ExpressionBuilder,
+  ExpressionNode
+}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
-import java.util
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -105,13 +111,14 @@ case class HashAggregateExecTransformer(
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
-    val relNode = try {
-      getAggRel(substraitContext.registeredFunction, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-        return false
-    }
+    val relNode =
+      try {
+        getAggRel(substraitContext.registeredFunction, null, validation = true)
+      } catch {
+        case e: Throwable =>
+          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          return false
+      }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
@@ -178,11 +185,12 @@ case class HashAggregateExecTransformer(
     }
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       if (!GlutenConfig.getConf.isClickHouseBackend) {
-        (getAggRel(context.registeredFunction, childCtx.root),
-          childCtx.outputAttributes, output)
+        (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes, output)
       } else {
-        (getAggRel(context.registeredFunction, childCtx.root),
-          childCtx.outputAttributes, aggregateResultAttributes)
+        (
+          getAggRel(context.registeredFunction, childCtx.root),
+          childCtx.outputAttributes,
+          aggregateResultAttributes)
       }
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
@@ -195,17 +203,13 @@ case class HashAggregateExecTransformer(
         val readRel = RelBuilder.makeReadRel(attrList, context)
         (getAggRel(context.registeredFunction, readRel), child.output, output)
       } else {
-        val typeList = new util.ArrayList[TypeNode]()
-        val nameList = new util.ArrayList[String]()
-        for (attr <- aggregateResultAttributes) {
-          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-          nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
-        }
         // The iterator index will be added in the path of LocalFiles.
         val inputIter = LocalFilesBuilder.makeLocalFiles(
-          ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
+          ConverterUtils.ITERATOR_PREFIX.concat(context.nextIteratorIndex.toString))
         context.setLocalFilesNode(inputIter)
-        val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
+        val readRel = RelBuilder.makeReadRel(
+          new util.ArrayList[Attribute](aggregateResultAttributes.asJava),
+          context)
 
         (getAggRel(context.registeredFunction, readRel), aggregateResultAttributes, output)
       }
@@ -229,7 +233,7 @@ case class HashAggregateExecTransformer(
     }
   }
 
-  private def needsPreProjection : Boolean = {
+  private def needsPreProjection: Boolean = {
     var needsProjection = false
     breakable {
       for (expr <- groupingExpressions) {
@@ -242,7 +246,7 @@ case class HashAggregateExecTransformer(
     breakable {
       for (expr <- aggregateExpressions) {
         expr.mode match {
-          case Partial  | PartialMerge =>
+          case Partial | PartialMerge =>
             for (aggChild <- expr.aggregateFunction.children) {
               if (!aggChild.isInstanceOf[Attribute] && !aggChild.isInstanceOf[Literal]) {
                 needsProjection = true
@@ -274,7 +278,7 @@ case class HashAggregateExecTransformer(
               // If the result attribute and result expression has different name or type,
               // post-projection is needed.
               if (exprAttr.name != resAttr.name ||
-                exprAttr.dataType != resAttr.dataType) {
+                  exprAttr.dataType != resAttr.dataType) {
                 needsProjection = true
                 break
               }
@@ -290,10 +294,11 @@ case class HashAggregateExecTransformer(
     needsProjection
   }
 
-  private def getAggRelWithPreProjection(args: java.lang.Object,
-                                         originalInputAttributes: Seq[Attribute],
-                                         input: RelNode = null,
-                                         validation: Boolean): RelNode = {
+  private def getAggRelWithPreProjection(
+      args: java.lang.Object,
+      originalInputAttributes: Seq[Attribute],
+      input: RelNode = null,
+      validation: Boolean): RelNode = {
     // Will add a Projection before Aggregate.
     // Logic was added to prevent selecting the same column for more than one times,
     // so the expression in preExpressions will be unique.
@@ -388,10 +393,11 @@ case class HashAggregateExecTransformer(
     RelBuilder.makeAggregateRel(inputRel, groupingList, aggregateFunctionList)
   }
 
-  private def getAggRelWithoutPreProjection(args: java.lang.Object,
-                                            originalInputAttributes: Seq[Attribute],
-                                            input: RelNode = null,
-                                            validation: Boolean): RelNode = {
+  private def getAggRelWithoutPreProjection(
+      args: java.lang.Object,
+      originalInputAttributes: Seq[Attribute],
+      input: RelNode = null,
+      validation: Boolean): RelNode = {
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(expr => {
@@ -451,8 +457,10 @@ case class HashAggregateExecTransformer(
     }
   }
 
-  private def getAggRel(args: java.lang.Object, input: RelNode = null,
-                        validation: Boolean = false): RelNode = {
+  private def getAggRel(
+      args: java.lang.Object,
+      input: RelNode = null,
+      validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val aggRel = if (needsPreProjection) {
       getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
@@ -510,9 +518,10 @@ case class HashAggregateExecTransformer(
 
   /**
    * This method calculates the output attributes of Aggregation.
-  */
-  def getAttrForAggregateExpr(aggregateExpressions: Seq[AggregateExpression],
-                              aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
+   */
+  def getAttrForAggregateExpr(
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
     var aggregateAttr = new ListBuffer[Attribute]()
     val size = aggregateExpressions.size
     var res_index = 0
