@@ -33,8 +33,7 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator() override;
 
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs)
-      override;
+      std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) override;
 
  private:
   std::shared_ptr<arrow::compute::Declaration> decl_;
@@ -43,7 +42,7 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
   void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
   void PushDownFilter();
   static void FieldPathToName(arrow::compute::Expression* expression,
-                       const std::shared_ptr<arrow::Schema>& schema);
+                              const std::shared_ptr<arrow::Schema>& schema);
 };
 
 void Initialize();

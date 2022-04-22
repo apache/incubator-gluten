@@ -33,7 +33,21 @@ jobs:
       - run: free
       - run: sudo apt-get update
       - run: sudo apt-get install cmake ccache
-      - run: sudo apt-get install libboost-all-dev
+      - run: sudo apt-get install libboost-all-dev libcurl4-openssl-dev
+      - name: ccache cache files
+        uses: actions/cache@v2
+        with:
+          path: ~/.ccache
+          key: ${{ github.job }}-ccache
+          restore-keys: |
+            ${{ github.job }}-ccache
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
       - name: Install Googletest
         run: |
           sudo apt-get install libgtest-dev
@@ -43,12 +57,8 @@ jobs:
           sudo apt-get install google-mock
       - name: Install OAP optimized Arrow (C++ libs)
         run: |
-          cd /tmp
-          git clone https://github.com/oap-project/arrow.git
-          cd arrow && git checkout arrow-7.0.0-oap && cd cpp
-          mkdir build && cd build
-          cmake .. -DARROW_JNI=ON -DARROW_GANDIVA_JAVA=ON -DARROW_GANDIVA=ON -DARROW_PARQUET=ON -DARROW_ORC=ON -DARROW_CSV=ON -DARROW_HDFS=ON -DARROW_FILESYSTEM=ON -DARROW_WITH_SNAPPY=ON -DARROW_JSON=ON -DARROW_DATASET=ON -DARROW_WITH_LZ4=ON -DGTEST_ROOT=/usr/src/gtest && make -j2
-          sudo make install
+          bash tools/build_arrow.sh
+          mvn clean package -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=OFF -Darrow_root=/tmp/arrow_install.7
       - name: Run unit tests
         run: |
           cd cpp/
@@ -57,40 +67,40 @@ jobs:
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make
 
-  velox-backend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
-      - run: sudo swapoff -a
-      - run: free
-      - run: sudo apt-get update
-      - run: sudo apt-get install cmake ccache
-      - run: sudo apt-get install libboost-all-dev
-      - name: Install Googletest
-        run: |
-          sudo apt-get install libgtest-dev
-          cd /usr/src/gtest
-          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
-          sudo make
-          sudo apt-get install google-mock
-      - name: Install Velox
-        run: |
-          cd /tmp
-          git clone https://github.com/rui-mo/velox
-          cd velox && git checkout velox_for_gazelle_jni
-          bash scripts/setup-ubuntu.sh
-          make
-      - name: Run unit tests
-        run: |
-          cd cpp/
-          mkdir -p build
-          cd build
-          cmake .. -DBUILD_ARROW=0 -DTESTS=1
-          make
+#  velox-backend-test:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#      - name: Set up JDK 1.8
+#        uses: actions/setup-java@v1
+#        with:
+#          java-version: 1.8
+#      - run: sudo swapoff -a
+#      - run: free
+#      - run: sudo apt-get update
+#      - run: sudo apt-get install cmake ccache
+#      - run: sudo apt-get install libboost-all-dev
+#      - name: Install Googletest
+#        run: |
+#          sudo apt-get install libgtest-dev
+#          cd /usr/src/gtest
+#          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+#          sudo make
+#          sudo apt-get install google-mock
+#      - name: Install Velox
+#        run: |
+#          cd /tmp
+#          git clone https://github.com/oap-project/velox
+#          cd velox
+#          sudo bash scripts/setup-ubuntu.sh
+#          make VELOX_BUILD_MINIMAL=1  MAX_HIGH_MEM_JOBS=8 TREAT_WARNINGS_AS_ERRORS=0 MAX_LINK_JOBS=8
+#      - name: Run unit tests
+#        run: |
+#          cd cpp/
+#          mkdir -p build
+#          cd build
+#          cmake .. -DBUILD_ARROW=0 -DTESTS=1
+#          make
 
 
   formatting-check:

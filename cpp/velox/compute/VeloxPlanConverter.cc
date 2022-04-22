@@ -197,20 +197,17 @@ VeloxPlanConverter::GetResultIterator() {
       planNode, subVeloxPlanConverter_->getPartitionIndex(),
       subVeloxPlanConverter_->getPaths(), subVeloxPlanConverter_->getStarts(),
       subVeloxPlanConverter_->getLengths(), fakeArrowOutput_);
-  return std::make_shared<gluten::RecordBatchResultIterator>(
-      std::move(wholestageIter));
+  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator>
-VeloxPlanConverter::GetResultIterator(
+std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
     std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   arrowInputIters_ = std::move(inputs);
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
   auto wholestageIter =
       std::make_shared<WholeStageResIterMiddleStage>(planNode, fakeArrowOutput_);
-  return std::make_shared<gluten::RecordBatchResultIterator>(
-      std::move(wholestageIter));
+  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
 class VeloxPlanConverter::WholeStageResIter {
