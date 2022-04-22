@@ -34,6 +34,13 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get install cmake ccache
       - run: sudo apt-get install libboost-all-dev libcurl4-openssl-dev
+      - name: ccache cache files
+        uses: actions/cache@v2
+        with:
+          path: ~/.ccache
+          key: ${{ github.job }}-ccache
+          restore-keys: |
+            ${{ github.job }}-ccache
       - name: Install Googletest
         run: |
           sudo apt-get install libgtest-dev
@@ -44,7 +51,7 @@ jobs:
       - name: Install OAP optimized Arrow (C++ libs)
         run: |
           bash tools/build_arrow.sh
-          mvn clean package -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Darrow_root=/tmp/arrow_install.7
+          mvn clean package -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=OFF -Darrow_root=/tmp/arrow_install.7
       - name: Run unit tests
         run: |
           cd cpp/
@@ -76,10 +83,10 @@ jobs:
       - name: Install Velox
         run: |
           cd /tmp
-          git clone https://github.com/rui-mo/velox
-          cd velox && git checkout velox_for_gazelle_jni
+          git clone https://github.com/oap-project/velox
+          cd velox
           sudo bash scripts/setup-ubuntu.sh
-          make release EXTRA_CMAKE_FLAGS=" -DVELOX_ENABLE_PARQUET=OFF "
+          make VELOX_BUILD_MINIMAL=1  MAX_HIGH_MEM_JOBS=8 TREAT_WARNINGS_AS_ERRORS=0 MAX_LINK_JOBS=8
       - name: Run unit tests
         run: |
           cd cpp/
