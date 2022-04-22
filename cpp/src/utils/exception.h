@@ -21,22 +21,22 @@
 
 #include <stdexcept>
 
-#define GLUTEN_THROW_NOT_OK(s)                             \
+#define GLUTEN_THROW_NOT_OK(s)                                  \
   do {                                                          \
     ::arrow::Status _s = ::arrow::internal::GenericToStatus(s); \
     if (!_s.ok()) {                                             \
-      throw ::gluten::JniPendingException(_s.ToString());   \
+      throw ::gluten::JniPendingException(_s.ToString());       \
     }                                                           \
   } while (0)
 
 #define GLUTEN_ASSIGN_OR_THROW_IMPL(status_name, lhs, rexpr) \
-  auto status_name = (rexpr);                                     \
+  auto status_name = (rexpr);                                \
   GLUTEN_THROW_NOT_OK(status_name.status());                 \
   lhs = std::move(status_name).ValueOrDie();
 
-#define GLUTEN_ASSIGN_OR_THROW(lhs, rexpr) \
-  GLUTEN_ASSIGN_OR_THROW_IMPL(             \
-      ARROW_ASSIGN_OR_RAISE_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
+#define GLUTEN_ASSIGN_OR_THROW(lhs, rexpr)                                              \
+  GLUTEN_ASSIGN_OR_THROW_IMPL(ARROW_ASSIGN_OR_RAISE_NAME(_error_or_value, __COUNTER__), \
+                              lhs, rexpr);
 
 namespace gluten {
 
