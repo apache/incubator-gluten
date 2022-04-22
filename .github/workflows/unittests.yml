@@ -60,40 +60,40 @@ jobs:
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make
 
-  velox-backend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
-      - run: sudo swapoff -a
-      - run: free
-      - run: sudo apt-get update
-      - run: sudo apt-get install cmake ccache
-      - run: sudo apt-get install libboost-all-dev
-      - name: Install Googletest
-        run: |
-          sudo apt-get install libgtest-dev
-          cd /usr/src/gtest
-          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
-          sudo make
-          sudo apt-get install google-mock
-      - name: Install Velox
-        run: |
-          cd /tmp
-          git clone https://github.com/oap-project/velox
-          cd velox
-          sudo bash scripts/setup-ubuntu.sh
-          make VELOX_BUILD_MINIMAL=1  MAX_HIGH_MEM_JOBS=8 TREAT_WARNINGS_AS_ERRORS=0 MAX_LINK_JOBS=8
-      - name: Run unit tests
-        run: |
-          cd cpp/
-          mkdir -p build
-          cd build
-          cmake .. -DBUILD_ARROW=0 -DTESTS=1
-          make
+#  velox-backend-test:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#      - name: Set up JDK 1.8
+#        uses: actions/setup-java@v1
+#        with:
+#          java-version: 1.8
+#      - run: sudo swapoff -a
+#      - run: free
+#      - run: sudo apt-get update
+#      - run: sudo apt-get install cmake ccache
+#      - run: sudo apt-get install libboost-all-dev
+#      - name: Install Googletest
+#        run: |
+#          sudo apt-get install libgtest-dev
+#          cd /usr/src/gtest
+#          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
+#          sudo make
+#          sudo apt-get install google-mock
+#      - name: Install Velox
+#        run: |
+#          cd /tmp
+#          git clone https://github.com/oap-project/velox
+#          cd velox
+#          sudo bash scripts/setup-ubuntu.sh
+#          make VELOX_BUILD_MINIMAL=1  MAX_HIGH_MEM_JOBS=8 TREAT_WARNINGS_AS_ERRORS=0 MAX_LINK_JOBS=8
+#      - name: Run unit tests
+#        run: |
+#          cd cpp/
+#          mkdir -p build
+#          cd build
+#          cmake .. -DBUILD_ARROW=0 -DTESTS=1
+#          make
 
 
   formatting-check:
