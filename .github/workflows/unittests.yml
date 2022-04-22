@@ -41,6 +41,13 @@ jobs:
           key: ${{ github.job }}-ccache
           restore-keys: |
             ${{ github.job }}-ccache
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
       - name: Install Googletest
         run: |
           sudo apt-get install libgtest-dev
