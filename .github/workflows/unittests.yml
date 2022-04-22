@@ -79,7 +79,7 @@ jobs:
           git clone https://github.com/rui-mo/velox
           cd velox && git checkout velox_for_gazelle_jni
           sudo bash scripts/setup-ubuntu.sh
-          make -j2
+          make release EXTRA_CMAKE_FLAGS=" -DVELOX_ENABLE_PARQUET=OFF "
       - name: Run unit tests
         run: |
           cd cpp/
