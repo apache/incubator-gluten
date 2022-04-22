@@ -17,16 +17,18 @@
 
 package io.glutenproject.execution
 
+import java.util
+import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 import com.google.common.collect.Lists
-import io.glutenproject.vectorized.ColumnarFactory
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, RelNode}
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.vectorized._
 import org.apache.arrow.gandiva.expression._
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
@@ -36,21 +38,26 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
 
-case class TransformContext(inputAttributes: Seq[Attribute],
-                            outputAttributes: Seq[Attribute], root: RelNode)
+case class TransformContext(
+    inputAttributes: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
+    root: RelNode)
 
-case class WholestageTransformContext(inputAttributes: Seq[Attribute],
-                                      outputAttributes: Seq[Attribute], root: PlanNode,
-                                      substraitContext: SubstraitContext = null)
+case class WholestageTransformContext(
+    inputAttributes: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
+    root: PlanNode,
+    substraitContext: SubstraitContext = null)
 
 trait TransformSupport extends SparkPlan {
+
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
@@ -148,7 +155,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   def doWholestageTransform(): WholestageTransformContext = {
     val substraitContext = new SubstraitContext
-    val childCtx = child.asInstanceOf[TransformSupport]
+    val childCtx = child
+      .asInstanceOf[TransformSupport]
       .doTransform(substraitContext)
     if (childCtx == null) {
       throw new NullPointerException(
@@ -168,11 +176,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     for (attr <- childCtx.outputAttributes) {
       outNames.add(attr.name)
     }
-    val planNode = PlanBuilder.makePlan(
-      substraitContext, Lists.newArrayList(childCtx.root), outNames)
+    val planNode =
+      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
 
-    WholestageTransformContext(childCtx.inputAttributes,
-      childCtx.outputAttributes, planNode, substraitContext)
+    WholestageTransformContext(
+      childCtx.inputAttributes,
+      childCtx.outputAttributes,
+      planNode,
+      substraitContext)
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
@@ -217,17 +228,20 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       outputAttributes: Seq[Attribute]): TreeNode = {
     val outputFieldList: List[Field] = outputAttributes.toList.map(attr => {
       Field
-        .nullable(s"${attr.name.toUpperCase()}#${attr.exprId.id}",
-        CodeGeneration.getResultType(attr.dataType))
+        .nullable(
+          s"${attr.name.toUpperCase()}#${attr.exprId.id}",
+          CodeGeneration.getResultType(attr.dataType))
     })
 
     val keyFieldList: List[Field] = keyAttributes.toList.map(attr => {
       val field = Field
-        .nullable(s"${attr.name.toUpperCase()}#${attr.exprId.id}",
+        .nullable(
+          s"${attr.name.toUpperCase()}#${attr.exprId.id}",
           CodeGeneration.getResultType(attr.dataType))
       if (outputFieldList.indexOf(field) == -1) {
-        throw new UnsupportedOperationException(s"CachedRelation not found" +
-          s"${attr.name.toUpperCase()}#${attr.exprId.id} in ${outputAttributes}")
+        throw new UnsupportedOperationException(
+          s"CachedRelation not found" +
+            s"${attr.name.toUpperCase()}#${attr.exprId.id} in ${outputAttributes}")
       }
       field
     })
@@ -270,12 +284,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
     var current_op = child
     while (current_op.isInstanceOf[TransformSupport] &&
-      !current_op.isInstanceOf[BasicScanExecTransformer] &&
-      current_op.asInstanceOf[TransformSupport].getChild != null) {
+           !current_op.isInstanceOf[BasicScanExecTransformer] &&
+           current_op.asInstanceOf[TransformSupport].getChild != null) {
       current_op = current_op.asInstanceOf[TransformSupport].getChild
     }
     if (current_op != null &&
-      current_op.isInstanceOf[BasicScanExecTransformer]) {
+        current_op.isInstanceOf[BasicScanExecTransformer]) {
       current_op match {
         case op: BatchScanExecTransformer =>
           op.partitions
@@ -303,8 +317,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val substraitPlanPartition = fileScan.getPartitions.map {
         case p: NativeMergeTreePartition =>
           val extensionTableNode =
-            ExtensionTableBuilder.makeExtensionTable(p.minParts,
-              p.maxParts, p.database, p.table, p.tablePath)
+            ExtensionTableBuilder.makeExtensionTable(
+              p.minParts,
+              p.maxParts,
+              p.database,
+              p.table,
+              p.tablePath)
           wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
           // logWarning(s"The substrait plan for partition " +
           //   s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
@@ -345,14 +363,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val signature = doBuild()
     val listJars = uploadAndListJars(signature)
 
-    val numOutputBatches = child.longMetric("numOutputBatches")
+    val numOutputBatches = child.metrics.get("numOutputBatches")
     val pipelineTime = longMetric("pipelineTime")
 
     var build_elapse: Long = 0
     var eval_elapse: Long = 0
     // we should zip all dependent RDDs to current main RDD
     // TODO: Does it still need these parameters?
-    val buildPlans = getBuildPlans
     val streamedSortPlan = getStreamedLeafPlan
     val dependentKernels: ListBuffer[ExpressionEvaluator] = ListBuffer()
     val dependentKernelIterators: ListBuffer[BatchIterator] = ListBuffer()
@@ -382,8 +399,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val substraitPlanPartition = fileScan.getPartitions.map {
         case p: NativeMergeTreePartition =>
           val extensionTableNode =
-            ExtensionTableBuilder.makeExtensionTable(p.minParts,
-              p.maxParts, p.database, p.table, p.tablePath)
+            ExtensionTableBuilder.makeExtensionTable(
+              p.minParts,
+              p.maxParts,
+              p.database,
+              p.table,
+              p.tablePath)
           wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
 //           logWarning(s"The substrait plan for partition " +
 //             s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
@@ -416,23 +437,22 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         wsCxt.outputAttributes,
         jarList,
         dependentKernelIterators)
-      wsRDD.map{ r =>
-        numOutputBatches += 1
-        r
+      numOutputBatches match {
+        case Some(batches) => wsRDD.foreach { _ => batches += 1 }
+        case None =>
       }
+      wsRDD
     } else {
       val inputRDDs = columnarInputRDDs
-      var curRDD = inputRDDs.head
       val resCtx = doWholestageTransform()
-      val outputAttributes = resCtx.outputAttributes
-      val rootNode = resCtx.root
+      logInfo(s"Generated substrait plan:\n${resCtx.root.toProtobuf.toString}")
 
       if (!GlutenConfig.getConf.isClickHouseBackend) {
-        curRDD.mapPartitions { iter =>
+        val createNativeIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
           ExecutorManager.tryTaskSet(numaBindingInfo)
-          GlutenConfig.getConf
+
           val execTempDir = GlutenConfig.getTempFile
-          val jarList = listJars.map(jarUrl => {
+          val fetchedJars = listJars.map(jarUrl => {
             logWarning(s"Get Codegened library Jar ${jarUrl}")
             UserAddedJarUtils.fetchJarFromSpark(
               jarUrl,
@@ -442,65 +462,57 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
           })
 
-          val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
-          val inBatchIter = new ColumnarNativeIterator(iter.asJava)
-          val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
-          inBatchIters.add(inBatchIter)
-          // we need to complete dependency RDD's firstly
           val beforeBuild = System.nanoTime()
-          val outputSchema = ConverterUtils.toArrowSchema(outputAttributes)
-          val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
-          build_elapse += System.nanoTime() - beforeBuild
-          val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
-          val resIter = streamedSortPlan match {
-            case t: TransformSupport =>
-              new Iterator[ColumnarBatch] {
-                override def hasNext: Boolean = {
-                  val res = nativeIterator.hasNext
-                  // if (res == false) updateMetrics(nativeIterator)
-                  res
-                }
+          val transKernel = new ExpressionEvaluator(fetchedJars.asJava)
+          val columnarNativeIterator =
+            new util.ArrayList[ColumnarNativeIterator](inputIterators.map { iter =>
+              new ColumnarNativeIterator(iter.asJava)
+            }.asJava)
+          val nativeResultIterator =
+            transKernel.createKernelWithBatchIterator(resCtx.root, columnarNativeIterator)
+          val buildElapse = System.nanoTime() - beforeBuild
 
-                override def next(): ColumnarBatch = {
-                  val beforeEval = System.nanoTime()
-                  val output_rb = nativeIterator.next
-                  if (output_rb == null) {
-                    eval_elapse += System.nanoTime() - beforeEval
-                    val resultColumnVectors =
-                      ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
-                    return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
-                  }
-                  val outputNumRows = output_rb.getLength
-                  val outSchema = ConverterUtils.toArrowSchema(resCtx.outputAttributes)
-                  val output = ConverterUtils.fromArrowRecordBatch(outSchema, output_rb)
-                  ConverterUtils.releaseArrowRecordBatch(output_rb)
-                  eval_elapse += System.nanoTime() - beforeEval
-                  new ColumnarBatch(output.map(v => v.asInstanceOf[ColumnVector]), outputNumRows)
-                }
+          var evalElapse: Long = 0
+          val schema = ArrowUtils.fromAttributes(resCtx.outputAttributes)
+          val resIter = new Iterator[ColumnarBatch] {
+            override def hasNext: Boolean = {
+              val nativeHasNext = nativeResultIterator.hasNext
+              if (!nativeHasNext) {
+                // TODO: update metrics when reach to the end
               }
-            case _ =>
-              throw new UnsupportedOperationException(
-                s"streamedSortPlan should support transformation")
-          }
-          var closed = false
+              nativeHasNext
+            }
 
-          def close = {
-            closed = true
-            pipelineTime += (eval_elapse + build_elapse) / 1000000
-            buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
-            dependentKernels.foreach(_.close)
-            dependentKernelIterators.foreach(_.close)
-            nativeIterator.close()
-            relationHolder.clear()
+            override def next(): ColumnarBatch = {
+              val beforeEval = System.nanoTime()
+              val recordBatch = nativeResultIterator.next
+              if (recordBatch == null) {
+                evalElapse += System.nanoTime() - beforeEval
+                val resultColumnVectors =
+                  ArrowWritableColumnVector.allocateColumns(0, schema)
+                return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
+              }
+              val recordBatchSchema = ConverterUtils.toArrowSchema(resCtx.outputAttributes)
+              val columns = ConverterUtils.fromArrowRecordBatch(recordBatchSchema, recordBatch)
+              ConverterUtils.releaseArrowRecordBatch(recordBatch)
+              evalElapse += System.nanoTime() - beforeEval
+              new ColumnarBatch(
+                columns.map(v => v.asInstanceOf[ColumnVector]),
+                recordBatch.getLength)
+            }
           }
 
           SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
-            close
+            nativeResultIterator.close()
+            pipelineTime += TimeUnit.NANOSECONDS.toMillis(evalElapse + buildElapse)
           })
+
           ColumnarFactory.createClosableIterator(resIter)
         }
+        new WholeStageZippedPartitionsRDD(sparkContext, inputRDDs, createNativeIterator)
+
       } else {
-        curRDD.mapPartitions { iter =>
+        inputRDDs.head.mapPartitions { iter =>
           GlutenConfig.getConf
           val transKernel = new ExpressionEvaluator()
           val inBatchIter = new CHColumnarNativeIterator(iter.asJava)
@@ -508,7 +520,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           inBatchIters.add(inBatchIter)
           // we need to complete dependency RDD's firstly
           val beforeBuild = System.nanoTime()
-          val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
+          val nativeIterator =
+            transKernel.createKernelWithBatchIterator(resCtx.root, inBatchIters)
           build_elapse += System.nanoTime() - beforeBuild
           val resIter = streamedSortPlan match {
             case t: TransformSupport =>

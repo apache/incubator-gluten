@@ -17,16 +17,12 @@
 
 package org.apache.spark.sql.execution
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution._
+import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
@@ -133,9 +129,8 @@ case class ColumnarCollapseCodegenStages(
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case t: TransformSupport =>
-          WholeStageTransformerExec(
-            t.withNewChildren(t.children.map(insertInputAdapter)))(
-            codegenStageCounter.incrementAndGet())
+        WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
+          codegenStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }

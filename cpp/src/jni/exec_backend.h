@@ -197,6 +197,14 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     if (srel.has_filter() && srel.filter().has_input()) {
       return GetIterInputSchemaFromRel(srel.filter().input());
     }
+    if (srel.has_join()) {
+      if (srel.join().has_left() && srel.join().has_right()) {
+        RETURN_NOT_OK(GetIterInputSchemaFromRel(srel.join().left()));
+        RETURN_NOT_OK(GetIterInputSchemaFromRel(srel.join().right()));
+        return arrow::Status::OK();
+      }
+      return arrow::Status::Invalid("Incomplete Join Rel.");
+    }
     if (!srel.has_read()) {
       return arrow::Status::Invalid("Read Rel expected.");
     }

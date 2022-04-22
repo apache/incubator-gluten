@@ -78,6 +78,20 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::FilterRel& sfilter)
   }
 }
 
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
+  if (sjoin.has_left()) {
+    setInputPlanNode(sjoin.left());
+  } else {
+    throw std::runtime_error("Left child expected");
+  }
+
+  if (sjoin.has_right()) {
+    setInputPlanNode(sjoin.right());
+  } else {
+    throw std::runtime_error("Right child expected");
+  }
+}
+
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   int32_t iterIdx = subVeloxPlanConverter_->iterAsInput(sread);
   if (iterIdx == -1) {
@@ -148,8 +162,10 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.filter());
   } else if (srel.has_read()) {
     setInputPlanNode(srel.read());
+  } else if (srel.has_join()) {
+    setInputPlanNode(srel.join());
   } else {
-    throw std::runtime_error("Rel is not supported.");
+    throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
 }
 
@@ -193,6 +209,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator>
 VeloxPlanConverter::GetResultIterator() {
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
+  std::cout << "Plan Node: " << std::endl << planNode->toString(true, true) << std::endl;
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       planNode, subVeloxPlanConverter_->getPartitionIndex(),
       subVeloxPlanConverter_->getPaths(), subVeloxPlanConverter_->getStarts(),
@@ -205,6 +222,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   arrowInputIters_ = std::move(inputs);
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
+  std::cout << "Plan Node: " << std::endl << planNode->toString(true, true) << std::endl;
   auto wholestageIter =
       std::make_shared<WholeStageResIterMiddleStage>(planNode, fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));

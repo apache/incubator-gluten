@@ -76,6 +76,22 @@ std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIt
   // Make plan
   GLUTEN_ASSIGN_OR_THROW(exec_plan_, arrow::compute::ExecPlan::Make());
   GLUTEN_ASSIGN_OR_THROW(auto node, decl_->AddToPlan(exec_plan_.get()));
+
+  auto include_aug_fields =
+      arrow::FieldRef("__fragment_index").FindOne(*node->output_schema());
+  if (include_aug_fields.ok()) {
+    std::vector<arrow::compute::Expression> fields;
+    auto num_fields = node->output_schema()->num_fields() - 3;
+    fields.reserve(num_fields);
+    for (int i = 0; i < num_fields; ++i) {
+      fields.push_back(arrow::compute::field_ref(i));
+    }
+    GLUTEN_ASSIGN_OR_THROW(node,
+                           arrow::compute::MakeExecNode(
+                               "project", exec_plan_.get(), {node},
+                               arrow::compute::ProjectNodeOptions(std::move(fields))));
+  }
+
   auto output_schema = node->output_schema();
 
   // Add sink node. It's added after constructing plan from decls because sink node
