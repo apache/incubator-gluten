@@ -12,7 +12,7 @@ Please make sure you have already installed the software in your system.
 5. Maven 3.6.3 or higher version
 6. Hadoop 2.7.5 or higher version
 7. Spark 3.1.1 or higher version
-8. Intel Optimized Arrow 7.0.0
+8. Intel Optimized Arrow 8.0.0
 
 ### GCC installation
 

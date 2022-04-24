@@ -62,7 +62,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 - Java 8
 - Maven 3.6.3 or higher version
 - Spark 3.1.1
-- Intel Optimized Arrow 7.0.0 ( Please refer to [Intel-Optimized-Arrow-Installation](./ArrowInstallation.md) )
+- Intel Optimized Arrow 8.0.0 ( Please refer to [Intel-Optimized-Arrow-Installation](./ArrowInstallation.md) )
 
 
 #### Setup Gluten development environment

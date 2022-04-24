@@ -62,7 +62,7 @@ echo "ARROW_SOURCE_DIR=${ARROW_SOURCE_DIR}"
 echo "ARROW_INSTALL_DIR=${ARROW_INSTALL_DIR}"
 mkdir -p $ARROW_SOURCE_DIR
 mkdir -p $ARROW_INSTALL_DIR
-git clone https://github.com/oap-project/arrow.git -b arrow-7.0.0-oap $ARROW_SOURCE_DIR
+git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten $ARROW_SOURCE_DIR
 pushd $ARROW_SOURCE_DIR
 
 cmake -DARROW_BUILD_STATIC=OFF \
@@ -93,7 +93,7 @@ cmake -DARROW_BUILD_STATIC=OFF \
         -DARROW_SIMD_LEVEL=AVX2 \
         -DARROW_RUNTIME_SIMD_LEVEL=MAX \
         -DARROW_DEPENDENCY_SOURCE=BUNDLED \
-        -DCMAKE_INSTALL_PREFIX=/tmp/arrow_install.7 \
+        -DCMAKE_INSTALL_PREFIX=/tmp/arrow_install.8 \
         -DCMAKE_INSTALL_LIBDIR=lib \
         cpp
 
@@ -102,7 +102,7 @@ make -j$NPROC
 make install
 
 cd java
-mvn clean install -P arrow-jni -pl dataset,gandiva -am -Darrow.cpp.build.dir=/tmp/arrow_install.7/lib -DskipTests -Dcheckstyle.skip
+mvn clean install -P arrow-jni -pl dataset,gandiva -am -Darrow.cpp.build.dir=/tmp/arrow_install.8/lib -DskipTests -Dcheckstyle.skip
 echo "Finish to build Arrow from Source !!!"
 else
 echo "Use ARROW_ROOT as Arrow Library Path"

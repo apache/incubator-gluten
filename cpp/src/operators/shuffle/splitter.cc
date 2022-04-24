@@ -442,7 +442,7 @@ arrow::Status Splitter::Stop() {
   ARROW_ASSIGN_OR_RAISE(fout,
                         arrow::io::FileOutputStream::Open(options_.data_file, true));
   if (options_.buffered_write) {
-    ARROW_ASSIGN_OR_RAISE(data_file_os_, arrow::io::UnlockedBufferedOutputStream::Create(
+    ARROW_ASSIGN_OR_RAISE(data_file_os_, arrow::io::BufferedOutputStream::Create(
                                              16384, options_.memory_pool, fout));
   } else {
     data_file_os_ = fout;
