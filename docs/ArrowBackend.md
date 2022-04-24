@@ -99,7 +99,7 @@ $ popd
 ```bash
 $ git clone https://github.com/oap-project/gluten.git
 $ pushd gluten
-$ mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_protobuf=ON -Dbuild_gazelle_cpp=ON -Darrow_root=${ARROW_HOME}
+$ mvn clean package -Pbackends-gazelle -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_protobuf=ON -Dbuild_gazelle_cpp=ON -Darrow_root=${ARROW_HOME}
 $ popd
 ```
 

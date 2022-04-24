@@ -22,6 +22,7 @@ import java.util.{Collections, Objects}
 import scala.language.implicitConversions
 
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, StrategyOverrides}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import java.util
@@ -45,6 +46,9 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     setPredefinedConfigs(conf)
+    // Initialize Backends API
+    BackendsApiManager.initialize(pluginContext.conf()
+      .get(GlutenConfig.GLUTEN_BACKEND_LIB, ""))
     Collections.emptyMap()
   }
 

@@ -188,6 +188,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val isClickHouseBackend: Boolean =
     glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
 
+  val isGazelleBackend: Boolean =
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND)
+
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
     conf.getConfString("spark.gluten.sql.columnar.joinOptimizationLevel", "12").toInt
@@ -255,7 +258,8 @@ object GlutenConfig {
   val GLUTEN_LOAD_ARROW = "spark.gluten.sql.columnar.loadarrow"
   val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
   val GLUTEN_VELOX_BACKEND = "velox"
-  val GLUTEN_CLICKHOUSE_BACKEND = "clickhouse"
+  val GLUTEN_CLICKHOUSE_BACKEND = "ch"
+  val GLUTEN_GAZELLE_BACKEND = "gazelle_cpp"
 
   var ins: GlutenConfig = null
   var random_temp_dir_path: String = null

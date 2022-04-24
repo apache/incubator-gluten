@@ -114,7 +114,7 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
     git clone https://github.com/oap-project/gluten.git
     cd gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
-    mvn clean install -Phadoop-2.7.4 -Pspark-3.1.1 -Dhadoop.version=2.8.5 -DskipTests -Dbuild_cpp=OFF -Dcpp_tests=OFF -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_jemalloc=ON -Dcheckstyle.skip
+    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.1.1 -Dhadoop.version=2.8.5 -DskipTests -Dbuild_cpp=OFF -Dcpp_tests=OFF -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_jemalloc=ON -Dcheckstyle.skip
     ls -al jvm/target/gluten-jvm-XXXXX-jar-with-dependencies.jar
 ```
 

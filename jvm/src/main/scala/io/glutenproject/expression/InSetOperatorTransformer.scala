@@ -17,17 +17,9 @@
 
 package io.glutenproject.expression
 
-import java.lang
-
-import com.google.common.collect.Lists
-import com.google.common.collect.Sets
 import io.glutenproject.substrait.expression.ExpressionNode
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types._
-import org.apache.spark.unsafe.types.UTF8String
-
-import scala.collection.mutable.ListBuffer
 
 class InSetTransformer(value: Expression, hset: Set[Any], original: Expression)
     extends InSet(value: Expression, hset: Set[Any])

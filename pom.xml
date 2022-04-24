@@ -34,6 +34,34 @@
     <module>shims</module>
   </modules>
 
+  <properties>
+    <scala.version>2.12.10</scala.version>
+    <scala.binary.version>2.12</scala.binary.version>
+    <spark.version>3.1.1</spark.version>
+    <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
+    <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
+    <hadoop.version>${hadoop.version}</hadoop.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <arrow.script.dir>${project.basedir}/../tools</arrow.script.dir>
+    <velox.script.dir>${project.basedir}/../tools</velox.script.dir>
+    <build_cpp>OFF</build_cpp>
+    <cpp_tests>OFF</cpp_tests>
+    <build_arrow>OFF</build_arrow>
+    <static_arrow>OFF</static_arrow>
+    <arrow_root>/usr/local</arrow_root>
+    <build_protobuf>ON</build_protobuf>
+    <build_jemalloc>ON</build_jemalloc>
+    <build_gazelle_cpp>OFF</build_gazelle_cpp>
+    <build_velox>OFF</build_velox>
+    <build_velox_from_source>OFF</build_velox_from_source>
+    <velox_home>${project.basedir}/../tools/build_velox/velox_ep</velox_home>
+    <project.prefix>spark-sql-columnar</project.prefix>
+    <project.name.prefix>Gluten</project.name.prefix>
+    <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
+    <spark311.version>3.1.1</spark311.version>
+  </properties>
+
   <profiles>
     <profile>
       <id>spark</id>
@@ -107,34 +135,35 @@
         <arrow-memory.artifact>arrow-memory-netty</arrow-memory.artifact>
       </properties>
     </profile>
-  </profiles>
 
-  <properties>
-    <scala.version>2.12.10</scala.version>
-    <scala.binary.version>2.12</scala.binary.version>
-    <spark.version>3.1.1</spark.version>
-    <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
-    <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
-    <hadoop.version>${hadoop.version}</hadoop.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <arrow.script.dir>${project.basedir}/../tools</arrow.script.dir>
-    <velox.script.dir>${project.basedir}/../tools</velox.script.dir>
-    <build_cpp>OFF</build_cpp>
-    <cpp_tests>OFF</cpp_tests>
-    <build_arrow>OFF</build_arrow>
-    <static_arrow>OFF</static_arrow>
-    <arrow_root>/usr/local</arrow_root>
-    <build_protobuf>ON</build_protobuf>
-    <build_jemalloc>ON</build_jemalloc>
-    <build_gazelle_cpp>OFF</build_gazelle_cpp>
-    <build_velox>OFF</build_velox>
-    <build_velox_from_source>OFF</build_velox_from_source>
-    <velox_home>${project.basedir}/../tools/build_velox/velox_ep</velox_home>
-    <project.prefix>spark-sql-columnar</project.prefix>
-    <project.name.prefix>Gluten</project.name.prefix>
-    <spark311.version>3.1.1</spark311.version>
-  </properties>
+    <profile>
+      <id>backends-clickhouse</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>backends-clickhouse</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>backends-velox</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>backends-velox</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>backends-gazelle</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>backends-velox</module>
+      </modules>
+    </profile>
+  </profiles>
 
   <dependencyManagement>
     <dependencies>

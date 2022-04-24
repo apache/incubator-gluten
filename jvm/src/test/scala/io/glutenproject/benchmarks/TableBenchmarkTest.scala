@@ -93,7 +93,7 @@ object TableBenchmarkTest {
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH,
-          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-MergeTree/cmake-build-release/utils/local-engine/liblocal_engine_jni.so")
+          "/usr/local/clickhouse/lib/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "false")
         .config("spark.gluten.sql.columnar.ch.mergetree.enabled", "true")
         .config("spark.gluten.sql.columnar.ch.mergetree.table.path",

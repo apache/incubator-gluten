@@ -17,38 +17,16 @@
 
 package io.glutenproject.execution
 
-import java.util.concurrent.TimeUnit
-
-import com.google.flatbuffers.FlatBufferBuilder
-import io.glutenproject.GlutenConfig
-import io.glutenproject.expression.{CodeGeneration, ConverterUtils}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, CloseableColumnBatchIterator, ExpressionEvaluator}
-import org.apache.arrow.gandiva.expression.TreeBuilder
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
-import org.apache.spark.internal.Logging
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.{Alias, Ascending, Attribute, AttributeReference, Cast, Descending, Expression, Literal, MakeDecimal, NamedExpression, PredicateHelper, Rank, SortOrder, UnscaledValue, WindowExpression, WindowFunction, WindowSpecDefinition}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
-import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
-import org.apache.spark.sql.catalyst.util.DateTimeUtils
-import org.apache.spark.sql.execution.{SortExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.window.WindowExecBase
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DataType, DateType, DecimalType, DoubleType, IntegerType, LongType, StringType, TimestampType}
-import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.ExecutorManager
-
-import scala.collection.JavaConverters._
-import scala.collection.immutable.Stream.Empty
-import scala.collection.mutable.ListBuffer
-import scala.util.Random
-import util.control.Breaks._
 
 case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     partitionSpec: Seq[Expression],
@@ -103,7 +81,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def hashCode(): Int = System.identityHashCode(this)
 
-  private object NoneType {
+  /* private object NoneType {
     val NONE_TYPE = new NoneType
   }
 
@@ -125,7 +103,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     }
 
     override def isComplex: Boolean = false
-  }
+  } */
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()

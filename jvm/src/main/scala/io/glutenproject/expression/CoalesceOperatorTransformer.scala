@@ -17,14 +17,9 @@
 
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
-import com.google.common.collect.Sets
 import io.glutenproject.substrait.expression.ExpressionNode
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types._
-
-import scala.collection.mutable.ListBuffer
 
 /**
  * An expression that is evaluated to the first non-null input.
