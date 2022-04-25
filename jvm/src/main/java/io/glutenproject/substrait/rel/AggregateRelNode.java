@@ -19,6 +19,7 @@ package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.substrait.proto.AggregateRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
@@ -30,6 +31,7 @@ public class AggregateRelNode implements RelNode, Serializable {
     private final RelNode input;
     private final ArrayList<ExpressionNode> groupings = new ArrayList<>();
     private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes = new ArrayList<>();
+    private final AdvancedExtensionNode extensionNode;
 
     AggregateRelNode(RelNode input,
                      ArrayList<ExpressionNode> groupings,
@@ -37,6 +39,17 @@ public class AggregateRelNode implements RelNode, Serializable {
         this.input = input;
         this.groupings.addAll(groupings);
         this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
+        this.extensionNode = null;
+    }
+
+    AggregateRelNode(RelNode input,
+                     ArrayList<ExpressionNode> groupings,
+                     ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+                     AdvancedExtensionNode extensionNode) {
+        this.input = input;
+        this.groupings.addAll(groupings);
+        this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
+        this.extensionNode = extensionNode;
     }
 
     @Override
@@ -62,7 +75,9 @@ public class AggregateRelNode implements RelNode, Serializable {
         if (input != null) {
             aggBuilder.setInput(input.toProtobuf());
         }
-
+        if (extensionNode != null) {
+            aggBuilder.setAdvancedExtension(extensionNode.toProtobuf());
+        }
         Rel.Builder builder = Rel.newBuilder();
         builder.setAggregate(aggBuilder.build());
         return builder.build();

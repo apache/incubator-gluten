@@ -236,6 +236,9 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
+    if (relNode == null) {
+      return false
+    }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     val validator = new ExpressionEvaluator()
