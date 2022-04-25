@@ -57,7 +57,7 @@ jobs:
           sudo apt-get install google-mock
       - name: Install OAP optimized Arrow (C++ libs)
         run: |
-          bash tools/build_arrow.sh build_arrow=ON
+          bash tools/build_arrow.sh --build_arrow=ON
           mvn clean package -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON
       - name: Run unit tests
         run: |
