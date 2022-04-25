@@ -45,21 +45,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case RowGuard(child: CustomShuffleReaderExec) =>
       replaceWithTransformerPlan(child)
-    case RowGuard(filter: FilterExec) =>
-      val childTransformer = replaceWithTransformerPlan(filter.child)
-      logDebug(s"Columnar Processing for ${filter.getClass} is under RowGuard.")
-      if (!GlutenConfig.getConf.isVeloxBackend) {
-        filter.withNewChildren(Seq(childTransformer))
-      } else {
-        childTransformer match {
-          case _: BatchScanExecTransformer =>
-          // If the child of Filter is BatchScanTransformer, the filter can be omitted
-          // because all filters can be pushed down.
-            childTransformer
-          case _ =>
-            filter.withNewChildren(Seq(childTransformer))
-        }
-      }
     case plan: RowGuard =>
       val actualPlan = plan.child
       logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")
@@ -94,18 +79,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     case plan: FilterExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      if (!GlutenConfig.getConf.isVeloxBackend) {
-        FilterExecTransformer(plan.condition, child)
-      } else {
-        child match {
-          case _: BatchScanExecTransformer =>
-            // If the child of Filter is BatchScanTransformer, the filter can be omitted
-            // because all filters can be pushed down.
-            child
-          case _ =>
-            FilterExecTransformer(plan.condition, child)
-        }
-      }
+      FilterExecTransformer(plan.condition, child)
     case plan: HashAggregateExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -159,16 +133,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         plan.condition,
         left,
         right)
-    case plan: BroadcastQueryStageExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently not supported," +
-        s"actual plan is ${plan.plan.getClass}.")
-      plan
-    case plan: BroadcastExchangeExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently not supported.")
-      plan
-    case plan: BroadcastHashJoinExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently not supported.")
-      plan
     case plan: SortMergeJoinExec =>
       val left = replaceWithTransformerPlan(plan.left)
       val right = replaceWithTransformerPlan(plan.right)
@@ -214,6 +178,11 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         plan.partitionSpec,
         plan.orderSpec,
         replaceWithTransformerPlan(plan.child))
+    case plan: BroadcastQueryStageExec =>
+      plan
+    case plan: BroadcastExchangeExec =>
+      val child = replaceWithTransformerPlan(plan.child)
+      plan.withNewChildren(Seq(child))
     case p =>
       val children = plan.children.map(replaceWithTransformerPlan)
       logDebug(s"Transformation for ${p.getClass} is currently not supported.")
@@ -224,7 +193,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan)
   }
-
 }
 
 // This rule will try to convert the row-to-columnar and columnar-to-row

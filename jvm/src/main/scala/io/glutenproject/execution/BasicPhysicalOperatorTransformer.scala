@@ -143,6 +143,9 @@ case class FilterExecTransformer(
       case _ =>
         null
     }
+    if (GlutenConfig.getConf.isVeloxBackend && child.isInstanceOf[BatchScanExecTransformer]) {
+      return childCtx
+    }
     val currRel = if (childCtx != null) {
       getRelNode(context.registeredFunction, childCtx.root)
     } else {

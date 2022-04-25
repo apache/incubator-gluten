@@ -61,6 +61,7 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
   val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow
   val enableColumnarSortMergeJoin: Boolean = columnarConf.enableColumnarSortMergeJoin
   val enableColumnarBatchScan: Boolean = columnarConf.enableColumnarBatchScan
+  val enableColumnarFileScan: Boolean = columnarConf.enableColumnarFileScan
   val enableColumnarProject: Boolean = columnarConf.enableColumnarProject
   val enableColumnarFilter: Boolean = columnarConf.enableColumnarFilter
   val enableColumnarHashAgg: Boolean = columnarConf.enableColumnarHashAgg
@@ -84,7 +85,7 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           val transformer = new BatchScanExecTransformer(plan.output, plan.scan)
           transformer.doValidate()
         case plan: FileSourceScanExec =>
-          if (!enableColumnarBatchScan) return false
+          if (!enableColumnarFileScan) return false
           val transformer = new FileSourceScanExecTransformer(plan.relation,
             plan.output,
             plan.requiredSchema,
@@ -103,6 +104,14 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           transformer.doValidate()
         case plan: FilterExec =>
           if (!enableColumnarFilter) return false
+          plan.child match {
+            case batchScan: BatchScanExec =>
+              val childTransformer = new BatchScanExecTransformer(batchScan.output, batchScan.scan)
+              if (childTransformer.doValidate()) {
+                return true
+              }
+            case _ =>
+          }
           val transformer = FilterExecTransformer(plan.condition, plan.child)
           transformer.doValidate()
         case plan: HashAggregateExec =>
@@ -146,10 +155,6 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.left,
             plan.right)
           transformer.doValidate()
-        case plan: BroadcastExchangeExec =>
-          false
-        case plan: BroadcastHashJoinExec =>
-          false
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) return false
           val transformer = SortMergeJoinExecTransformer(

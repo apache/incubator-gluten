@@ -350,6 +350,31 @@ class VeloxPlanConverter::WholeStageResIter {
     *out = arrow::RecordBatch::Make(arrow::schema(retTypes), numRows, outArrays);
   }
 
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+    std::shared_ptr<arrow::RecordBatch> out = nullptr;
+    if (!mayHaveNext_) {
+      return out;
+    }
+    addSplits_(cursor_->task().get());
+    if (cursor_->moveNext()) {
+      RowVectorPtr result = cursor_->current();
+      uint64_t numRows = result->size();
+      if (numRows == 0) {
+        return out;
+      }
+      auto outTypes = planNode_->outputType();
+      if (fakeArrowOutput_) {
+        toFakedArrowBatch(result, numRows, outTypes, &out);
+      } else {
+        toRealArrowBatch(result, numRows, outTypes, &out);
+      }
+      // arrow::PrettyPrint(*out->get(), 2, &std::cout);
+      return out;
+    }
+    mayHaveNext_ = false;
+    return out;
+  }
+
   arrow::MemoryPool* memoryPool_ = arrow::default_memory_pool();
   std::unique_ptr<memory::MemoryPool> veloxPool_{memory::getDefaultScopedMemoryPool()};
   std::shared_ptr<const core::PlanNode> planNode_;
@@ -357,7 +382,7 @@ class VeloxPlanConverter::WholeStageResIter {
   std::unique_ptr<test::TaskCursor> cursor_;
   std::function<void(exec::Task*)> addSplits_;
   bool fakeArrowOutput_;
-  bool mayHasNext_ = true;
+  bool mayHaveNext_ = true;
   // FIXME: use the setted one
   uint64_t batchSize_ = 10000;
 };
@@ -400,30 +425,6 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
     };
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
-    std::shared_ptr<arrow::RecordBatch> out = nullptr;
-    if (!mayHasNext_) {
-      return out;
-    }
-    addSplits_(cursor_->task().get());
-    if (cursor_->moveNext()) {
-      RowVectorPtr result = cursor_->current();
-      uint64_t numRows = result->size();
-      if (numRows == 0) {
-        return out;
-      }
-      auto outTypes = planNode_->outputType();
-      if (fakeArrowOutput_) {
-        toFakedArrowBatch(result, numRows, outTypes, &out);
-      } else {
-        toRealArrowBatch(result, numRows, outTypes, &out);
-      }
-      return out;
-    }
-    mayHasNext_ = false;
-    return out;
-  }
-
  private:
   u_int32_t index_;
   std::vector<std::string> paths_;
@@ -448,31 +449,6 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
       task->noMoreSplits("0");
       noMoreSplits_ = true;
     };
-  }
-
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
-    std::shared_ptr<arrow::RecordBatch> out = nullptr;
-    if (!mayHasNext_) {
-      return out;
-    }
-    addSplits_(cursor_->task().get());
-    if (cursor_->moveNext()) {
-      RowVectorPtr result = cursor_->current();
-      uint64_t numRows = result->size();
-      if (numRows == 0) {
-        return out;
-      }
-      auto outTypes = planNode_->outputType();
-      if (fakeArrowOutput_) {
-        toFakedArrowBatch(result, numRows, outTypes, &out);
-      } else {
-        toRealArrowBatch(result, numRows, outTypes, &out);
-      }
-      // arrow::PrettyPrint(*out->get(), 2, &std::cout);
-      return out;
-    }
-    mayHasNext_ = false;
-    return out;
   }
 
  private:
