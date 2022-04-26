@@ -52,6 +52,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean && enableCpu
 
+  // This is tmp config to specify whether to enable the native validation based on
+  // Substrait plan. After the validations in all backends are correctly implemented,
+  // this config should be removed.
+  val enableNativeValidation: Boolean =
+    conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
+
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.batchscan", "true").toBoolean && enableCpu

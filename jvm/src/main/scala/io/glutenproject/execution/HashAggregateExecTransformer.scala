@@ -60,7 +60,6 @@ case class HashAggregateExecTransformer(
   val sparkConf = sparkContext.getConf
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-  val enableColumnarFinalAgg: Boolean = GlutenConfig.getConf.enableColumnarFinalAgg
 
   val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
@@ -96,16 +95,6 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-//    if (!enableColumnarFinalAgg) {
-//      var isPartial = true
-//      aggregateExpressions.foreach(aggExpr => {
-//        aggExpr.mode match {
-//          case Partial =>
-//          case _ => isPartial = false
-//        }
-//      })
-//      isPartial
-//    }
     val substraitContext = new SubstraitContext
     val relNode = try {
       getAggRel(substraitContext.registeredFunction, null, validation = true)
@@ -116,8 +105,23 @@ case class HashAggregateExecTransformer(
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
-    val validator = new ExpressionEvaluator()
-    validator.doValidate(planNode.toProtobuf.toByteArray)
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      if (GlutenConfig.getConf.enableColumnarFinalAgg) {
+        true
+      } else {
+        var isPartial = true
+        aggregateExpressions.foreach(aggExpr => {
+          aggExpr.mode match {
+            case Partial =>
+            case _ => isPartial = false
+          }
+        })
+        isPartial
+      }
+    }
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

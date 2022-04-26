@@ -91,7 +91,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
 
-    val validator = new ExpressionEvaluator()
-    validator.doValidate(planNode.toProtobuf.toByteArray)
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
   }
 }

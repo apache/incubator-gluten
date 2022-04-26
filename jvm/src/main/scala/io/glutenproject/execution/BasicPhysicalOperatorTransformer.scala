@@ -69,8 +69,12 @@ case class FilterExecTransformer(
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
-    val validator = new ExpressionEvaluator()
-    validator.doValidate(planNode.toProtobuf.toByteArray)
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
   }
 
   def isNullIntolerant(expr: Expression): Boolean = expr match {
@@ -241,8 +245,12 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
-    val validator = new ExpressionEvaluator()
-    validator.doValidate(planNode.toProtobuf.toByteArray)
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
   }
 
   def isNullIntolerant(expr: Expression): Boolean = expr match {
