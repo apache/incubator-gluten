@@ -117,7 +117,6 @@ jobs:
 
   java-checkstyle-check:
     runs-on: ubuntu-latest
-    name: Checkstyle job
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -152,7 +151,7 @@ jobs:
     - name: Build with Maven
       run: |
         bash tools/build_arrow.sh --build_arrow=ON
-        mvn -B verify checkstyle:checkstyle
+        mvn -B verify checkstyle:checkstyle -DskipTests
     - uses: jwgmeligmeyling/checkstyle-github-action@master
       with:
         path: '**/checkstyle-result.xml'
