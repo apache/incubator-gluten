@@ -103,7 +103,7 @@ jobs:
 #          make
 
 
-  formatting-check:
+  cpp-formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest
     steps:
@@ -114,3 +114,16 @@ jobs:
         clang-format-version: '10'
         check-path: 'gluten/cpp/src'
         fallback-style: 'Google' # optional
+
+  java-checkstyle-check:
+    runs-on: ubuntu-latest
+    name: Checkstyle job
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Run check style
+      uses: nikitasavinov/checkstyle-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        reporter: 'github-pr-check'
+        tool_name: 'testtool'
