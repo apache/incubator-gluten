@@ -46,6 +46,7 @@ public class JniInstance {
   private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.800";
   private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.800.0.0";
   private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.800";
+  private static final String ARROW_ENGINE_PARENT_LIBRARY_NAME = "libarrow_engine.so.800";
   private static boolean isLoaded = false;
   private static boolean isCodegenDependencyLoaded = false;
   private static List<String> codegenJarsLoadedCache = new ArrayList<>();
@@ -175,6 +176,15 @@ public class JniInstance {
     }
     Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
     System.load(arrowlibraryFile.getAbsolutePath());
+
+    final File arrowEnginelibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_ENGINE_LIBRARY_NAME);
+    Path arrow_engine_target = Paths.get(arrowEnginelibraryFile.getPath());
+    Path arrow_engine_link = Paths.get(tmp_dir, ARROW_ENGINE_PARENT_LIBRARY_NAME);
+    if (Files.exists(arrow_engine_link)) {
+      Files.delete(arrow_engine_link);
+    }
+    Files.createSymbolicLink(arrow_engine_link, arrow_engine_target);
+    System.load(arrowEnginelibraryFile.getAbsolutePath());
 
     final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
     Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
