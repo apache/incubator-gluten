@@ -26,6 +26,8 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFacto
 // This file is copied from Spark with a little change to solve below issue:
 // The BatchScanExec can support columnar output, which is incompatible with
 // Arrow's columnar format. But there is no config to disable the columnar output.
+// In this file, the supportsColumnar was set as false to prevent Spark's columnar
+// output.
 /**
  * Physical plan node for scanning a batch of data from a data source v2.
  */

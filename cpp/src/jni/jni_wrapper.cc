@@ -44,8 +44,6 @@
 #include "utils/exception.h"
 #include "utils/result_iterator.h"
 
-#include <mutex>
-
 namespace {
 
 using gluten::JniPendingException;
@@ -174,28 +172,27 @@ class JavaRecordBatchIterator {
   JavaRecordBatchIterator(JavaRecordBatchIterator&& itr) = delete;
 
   virtual ~JavaRecordBatchIterator() {
-    m_.lock();
     JNIEnv* env;
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
       if (vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL) != 0) {
-        std::cout << "failed to attach" << std::endl;
+        std::cout << "Failed to deconstruct due to thread not being attached."
+                  << std::endl;
+        return;
       }
-      env->DeleteGlobalRef(java_serialized_record_batch_iterator_);
 #ifdef DEBUG
       std::cout << "DELETING GLOBAL ITERATOR REF "
                 << reinterpret_cast<long>(java_serialized_record_batch_iterator_) << "..."
                 << std::endl;
 #endif
+      env->DeleteGlobalRef(java_serialized_record_batch_iterator_);
       vm_->DetachCurrentThread();
     } else if (getEnvStat != JNI_OK) {
-      std::cout << "not ok" << std::endl;
+      std::cout << "Failed to deconstruct due to thread not being attached." << std::endl;
     }
-    m_.unlock();
   }
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
-    m_.lock();
     JNIEnv* env;
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
@@ -224,7 +221,6 @@ class JavaRecordBatchIterator {
                                                    serialized_record_batch_iterator_next);
     RETURN_NOT_OK(arrow::jniutil::CheckException(env));
     ARROW_ASSIGN_OR_RAISE(auto batch, FromBytes(env, schema_, bytes));
-    m_.unlock();
     return batch;
   }
 
@@ -232,7 +228,6 @@ class JavaRecordBatchIterator {
   JavaVM* vm_;
   jobject java_serialized_record_batch_iterator_;
   std::shared_ptr<arrow::Schema> schema_;
-  std::mutex m_;
 };
 
 class JavaRecordBatchIteratorWrapper {
@@ -314,31 +309,21 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   std::cerr << "JNI_OnUnload" << std::endl;
   JNIEnv* env;
-  
-  int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
-  if (getEnvStat == JNI_EDETACHED) {
-    if (vm->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL) != 0) {
-      std::cout << "failed to attach" << std::endl;
-    }
-    env->DeleteGlobalRef(io_exception_class);
-    env->DeleteGlobalRef(runtime_exception_class);
-    env->DeleteGlobalRef(unsupportedoperation_exception_class);
-    env->DeleteGlobalRef(illegal_access_exception_class);
-    env->DeleteGlobalRef(illegal_argument_exception_class);
+  vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
 
-    env->DeleteGlobalRef(serializable_obj_builder_class);
-    env->DeleteGlobalRef(split_result_class);
-    env->DeleteGlobalRef(serialized_record_batch_iterator_class);
-    env->DeleteGlobalRef(native_columnar_to_row_info_class);
+  env->DeleteGlobalRef(io_exception_class);
+  env->DeleteGlobalRef(runtime_exception_class);
+  env->DeleteGlobalRef(unsupportedoperation_exception_class);
+  env->DeleteGlobalRef(illegal_access_exception_class);
+  env->DeleteGlobalRef(illegal_argument_exception_class);
 
-    env->DeleteGlobalRef(byte_array_class);
-#ifdef DEBUG
-    std::cout << "DELETING GLOBAL ITERATOR REF." << std::endl;
-#endif
-    vm->DetachCurrentThread();
-  } else if (getEnvStat != JNI_OK) {
-    std::cout << "not ok" << std::endl;
-  }
+  env->DeleteGlobalRef(serializable_obj_builder_class);
+  env->DeleteGlobalRef(split_result_class);
+  env->DeleteGlobalRef(serialized_record_batch_iterator_class);
+  env->DeleteGlobalRef(native_columnar_to_row_info_class);
+
+  env->DeleteGlobalRef(byte_array_class);
+
   batch_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
   shuffle_splitter_holder_.Clear();
