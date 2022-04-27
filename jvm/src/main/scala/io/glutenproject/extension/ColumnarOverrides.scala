@@ -20,7 +20,7 @@ package io.glutenproject.extension
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
-
+import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
@@ -263,7 +263,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
   def nativeEngineEnabled: Boolean = GlutenConfig.getSessionConf.enableNativeEngine
-  def conf = session.sparkContext.getConf
+  def conf: SparkConf = session.sparkContext.getConf
 
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -273,9 +273,10 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   val columnarWholeStageEnabled: Boolean = conf.getBoolean(
     "spark.gluten.sql.columnar.wholestagetransform", defaultValue = true)
-  val backend: String = conf.get(
-    GlutenConfig.GLUTEN_BACKEND_LIB, defaultValue = "")
-  def collapseOverrides = ColumnarCollapseCodegenStages(columnarWholeStageEnabled, backend)
+  val isCH: Boolean = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
+    .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+  def collapseOverrides: ColumnarCollapseCodegenStages =
+    ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
 
   var isSupportAdaptive: Boolean = true
 
@@ -295,15 +296,22 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   private def sanityCheck(plan: SparkPlan): Boolean =
     plan.logicalLink.isDefined
 
+
+
   override def preColumnarTransitions: Rule[SparkPlan] = plan => {
-    // TODO: Currently there are some fallback issues when SparkPlan is
+    // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
     // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
     // For example:
     //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
     //   import spark.implicits._
     //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     //   df.summary().show(100, false)
-    if (nativeEngineEnabled) {
+    val chSupported = isCH && nativeEngineEnabled &&
+      !plan.isInstanceOf[SerializeFromObjectExec] &&
+      !plan.isInstanceOf[ObjectHashAggregateExec] &&
+      !plan.isInstanceOf[V2CommandExec]
+    val otherSupported = !isCH && nativeEngineEnabled
+    if (chSupported || otherSupported) {
       isSupportAdaptive = supportAdaptive(plan)
       val rule = preOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
@@ -314,7 +322,13 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    if (nativeEngineEnabled) {
+    // TODO: same as above.
+    val chSupported = isCH && nativeEngineEnabled &&
+      !plan.isInstanceOf[SerializeFromObjectExec] &&
+      !plan.isInstanceOf[ObjectHashAggregateExec] &&
+      !plan.isInstanceOf[V2CommandExec]
+    val otherSupported = !isCH && nativeEngineEnabled
+    if (chSupported || otherSupported) {
       val rule = postOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
       val tmpPlan = rule(plan)

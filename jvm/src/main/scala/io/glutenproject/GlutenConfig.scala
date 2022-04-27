@@ -142,8 +142,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarArrowUDF: Boolean = conf.getConfString(
     "spark.gluten.sql.columnar.arrowudf", "true").toBoolean && enableCpu
 
-  // enable or disable columnar wholestagecodegen
-  val enableColumnarWholeStageCodegen: Boolean = conf.getConfString(
+  // enable or disable columnar wholestage transform
+  val enableColumnarWholeStageTransform: Boolean = conf.getConfString(
     "spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
 
   // enable or disable columnar exchange

@@ -110,7 +110,6 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  */
 case class ColumnarCollapseCodegenStages(
     columnarWholeStageEnabled: Boolean,
-    nativeBackend: String,
     codegenStageCounter: AtomicInteger = new AtomicInteger(0))
     extends Rule[SparkPlan] {
 

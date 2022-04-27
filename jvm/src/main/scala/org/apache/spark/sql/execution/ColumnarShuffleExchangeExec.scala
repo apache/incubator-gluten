@@ -81,7 +81,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 //  super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
   def doValidate(): Boolean = {
-    if (GlutenConfig.getConf.isClickHouseBackend) return false
+    if (GlutenConfig.getConf.isClickHouseBackend) return true
     // check input datatype
     for (attr <- child.output) {
       try {
