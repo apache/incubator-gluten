@@ -39,7 +39,7 @@ Based on the different environment, there are some parameters can be set via -D 
 | build_velox | Enable or Disable building Velox as a backend. | OFF |
 | velox_home (only valid when build_velox is ON) | When building Gluten with Velox, the location of Velox should be set. | /root/velox |
 
-When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-7.0.0-oap)
+When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten)
 If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.
 
 #### How to submit Spark Job

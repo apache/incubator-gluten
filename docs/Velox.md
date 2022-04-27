@@ -6,7 +6,7 @@ In general, please refer to [Velox Installation](https://github.com/facebookincu
 Gluten depends on this [Velox branch](https://github.com/rui-mo/velox/tree/velox_for_gazelle_jni).
 The changes to Velox are planned to be upstreamed in the future.
 
-Gluten depends on this [Arrow branch](https://github.com/oap-project/arrow/tree/arrow-7.0.0-oap) with this [pull request](https://github.com/oap-project/arrow/pull/94).
+Gluten depends on this [Arrow branch](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten) with this [pull request](https://github.com/oap-project/arrow/pull/94).
 In the future, Gluten with Velox backend will swift to use the upstream Arrow.
 
 In addition to above notes, there are several points worth attention when compiling Gluten with Velox.

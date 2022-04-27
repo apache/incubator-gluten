@@ -42,10 +42,10 @@ import java.util.jar.JarFile;
 public class JniInstance {
   /** Default names for native backend, Arrow and Gandiva libraries. */
   private static final String LIBRARY_NAME = "spark_columnar_jni";
-  private static final String ARROW_LIBRARY_NAME = "libarrow.so.700.0.0";
-  private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.700";
-  private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.700.0.0";
-  private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.700";
+  private static final String ARROW_LIBRARY_NAME = "libarrow.so.800.0.0";
+  private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.800";
+  private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.800.0.0";
+  private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.800";
   private static boolean isLoaded = false;
   private static boolean isCodegenDependencyLoaded = false;
   private static List<String> codegenJarsLoadedCache = new ArrayList<>();
