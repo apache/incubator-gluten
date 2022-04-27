@@ -50,7 +50,15 @@ public class ExpressionEvaluatorJniWrapper {
         native void nativeInitNative();
 
         /**
-         * Create a whole_stage_transform kernel, and return a result iterator.
+         * Validate the Substrait plan in native compute engine.
+         *
+         * @param subPlan the Substrait plan in binary format.
+         * @return whether the computing of this plan is supported in native.
+         */
+        native boolean nativeDoValidate(byte[] subPlan);
+
+        /**
+         * Create a native compute kernel and return a columnar result iterator.
          *
          * @param nativeHandler nativeHandler of this expression
          * @return iterator instance id
@@ -60,7 +68,7 @@ public class ExpressionEvaluatorJniWrapper {
                                                    ColumnarNativeIterator[] batchItr) throws RuntimeException;
 
         /**
-         * Create a whole stage transform kernel and return a row iterator.
+         * Create a native compute kernel and return a row iterator.
          */
         native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
 

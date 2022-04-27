@@ -19,23 +19,19 @@ package io.glutenproject.expression
 
 import com.google.common.collect.Lists
 import io.glutenproject.expression.DateTimeExpressionsTransformer._
-import io.glutenproject.substrait.`type`.TypeBuiler
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.expression._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.types._
 
-/**
- * A version of add that supports columnar processing for longs.
- */
 class IsNotNullTransformer(child: Expression, original: Expression)
     extends IsNotNull(child: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val child_node: ExpressionNode =
       child.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -46,7 +42,7 @@ class IsNotNullTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NOT_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
@@ -55,6 +51,7 @@ class IsNullTransformer(child: Expression, original: Expression)
     extends IsNotNull(child: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val child_node: ExpressionNode =
       child.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -65,7 +62,7 @@ class IsNullTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(child.dataType)))
     val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuiler.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(true)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
@@ -74,6 +71,7 @@ class MonthTransformer(child: Expression, original: Expression)
     extends Month(child: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -83,6 +81,7 @@ class DayOfMonthTransformer(child: Expression, original: Expression)
   extends DayOfMonth(child: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -101,6 +100,7 @@ class NotTransformer(child: Expression, original: Expression)
     extends Not(child: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -119,6 +119,7 @@ class UpperTransformer(child: Expression, original: Expression)
     extends Upper(child: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -128,6 +129,16 @@ class BitwiseNotTransformer(child: Expression, original: Expression)
     extends BitwiseNot(child: Expression)
     with ExpressionTransformer
     with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
+}
+
+class KnownFloatingPointNormalizedTransformer(child: Expression,
+                                              original: KnownFloatingPointNormalized)
+  extends KnownFloatingPointNormalized(child: Expression) with ExpressionTransformer with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -140,6 +151,7 @@ class CheckOverflowTransformer(child: Expression, original: CheckOverflow)
       original.nullOnOverflow: Boolean)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -153,6 +165,7 @@ class CastTransformer(
     extends Cast(child: Expression, datatype: DataType, timeZoneId: Option[String])
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!child_node.isInstanceOf[ExpressionNode]) {
@@ -172,6 +185,7 @@ class UnscaledValueTransformer(child: Expression, original: Expression)
     extends UnscaledValue(child: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -186,6 +200,7 @@ class MakeDecimalTransformer(
     extends MakeDecimal(child: Expression, precision: Int, scale: Int, nullOnOverflow: Boolean)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -195,6 +210,15 @@ class NormalizeNaNAndZeroTransformer(child: Expression, original: NormalizeNaNAn
     extends NormalizeNaNAndZero(child: Expression)
     with ExpressionTransformer
     with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
+}
+
+class PromotePrecisionTransformer(child: Expression, original: PromotePrecision)
+  extends PromotePrecision(child: Expression) with ExpressionTransformer with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }
@@ -239,12 +263,12 @@ object UnaryOperatorTransformer {
       new MakeDecimalTransformer(child, u.precision, u.scale, u.nullOnOverflow, u)
     case n: BitwiseNot =>
       new BitwiseNotTransformer(child, n)
-    case a: KnownFloatingPointNormalized =>
-      child
+    case k: KnownFloatingPointNormalized =>
+      new KnownFloatingPointNormalizedTransformer(child, k)
     case n: NormalizeNaNAndZero =>
       new NormalizeNaNAndZeroTransformer(child, n)
-    case a: PromotePrecision =>
-      child
+    case p: PromotePrecision =>
+      new PromotePrecisionTransformer(child, p)
     case a: CheckOverflow =>
       new CheckOverflowTransformer(child, a)
     case a: UnixDate =>

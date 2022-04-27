@@ -19,8 +19,6 @@ package io.glutenproject.expression
 
 import com.google.common.collect.Lists
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -31,6 +29,7 @@ class AliasTransformer(child: Expression, name: String)(
     override val explicitMetadata: Option[Metadata])
     extends Alias(child, name)(exprId, qualifier, explicitMetadata)
     with ExpressionTransformer {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!child_node.isInstanceOf[ExpressionNode]) {
@@ -56,6 +55,7 @@ class AttributeReferenceTransformer(
     override val qualifier: Seq[String])
     extends AttributeReference(name, dataType, nullable, metadata)(exprId, qualifier)
     with ExpressionTransformer {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     ExpressionBuilder.makeSelection(ordinal.asInstanceOf[java.lang.Integer])
   }

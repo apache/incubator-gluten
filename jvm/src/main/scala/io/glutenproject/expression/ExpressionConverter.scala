@@ -42,24 +42,24 @@ object ExpressionConverter extends Logging {
         val bindReference =
           BindReferences.bindReference(expr, attributeSeq, allowFailures = true)
         if (bindReference == expr) {
-          // bind failure
+          // This means bind failure.
           throw new UnsupportedOperationException(s"attribute binding failed.")
         } else {
           val b = bindReference.asInstanceOf[BoundReference]
           new AttributeReferenceTransformer(
             a.name, b.ordinal, a.dataType, a.nullable, a.metadata)(a.exprId, a.qualifier)
         }
-      case lit: Literal =>
+      case l: Literal =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        new LiteralTransformer(lit)
-      case binArith: BinaryArithmetic =>
+        new LiteralTransformer(l)
+      case b: BinaryArithmetic =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         BinaryArithmeticTransformer.create(
           replaceWithExpressionTransformer(
-            binArith.left,
+            b.left,
             attributeSeq),
           replaceWithExpressionTransformer(
-            binArith.right,
+            b.right,
             attributeSeq),
           expr)
       case b: BoundReference =>
@@ -75,44 +75,14 @@ object ExpressionConverter extends Logging {
             b.right,
             attributeSeq),
           expr)
-      case b: ShiftLeft =>
+      case b: BinaryExpression =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryOperatorTransformer.create(
+        BinaryExpressionTransformer.create(
           replaceWithExpressionTransformer(
             b.left,
             attributeSeq),
           replaceWithExpressionTransformer(
             b.right,
-            attributeSeq),
-          expr)
-      case b: ShiftRight =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            b.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            b.right,
-            attributeSeq),
-          expr)
-      case sp: StringPredicate =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            sp.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            sp.right,
-            attributeSeq),
-          expr)
-      case sr: StringRegexExpression =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            sr.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            sr.right,
             attributeSeq),
           expr)
       case i: If =>
@@ -145,17 +115,17 @@ object ExpressionConverter extends Logging {
               attributeSeq)
           }
         }
-        logInfo(s"col_branches: $colBranches")
-        logInfo(s"col_else: $colElseValue")
+        logDebug(s"colBanches: $colBranches")
+        logDebug(s"colElseValue: $colElseValue")
         CaseWhenOperatorTransformer.create(colBranches, colElseValue, expr)
       case c: Coalesce =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        val exps = c.children.map { expr =>
+        val exprs = c.children.map { expr =>
           replaceWithExpressionTransformer(
             expr,
             attributeSeq)
         }
-        CoalesceOperatorTransformer.create(exps, expr)
+        CoalesceOperatorTransformer.create(exprs, expr)
       case i: In =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         InOperatorTransformer.create(
@@ -186,7 +156,7 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           expr)
       case u: UnaryExpression =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
+        logInfo(s"${expr.getClass} $expr is supported")
         if (!u.isInstanceOf[CheckOverflow] || !u.child.isInstanceOf[Divide]) {
           UnaryOperatorTransformer.create(
             replaceWithExpressionTransformer(
@@ -194,7 +164,7 @@ object ExpressionConverter extends Logging {
               attributeSeq),
             expr)
         } else {
-          // CheckOverflow[Divide]: pass resType to Divide to avoid precision loss
+          // CheckOverflow[Divide]: pass resType to Divide to avoid precision loss.
           val divide = u.child.asInstanceOf[Divide]
           val columnarDivide = BinaryArithmeticTransformer.createDivide(
             replaceWithExpressionTransformer(
@@ -216,12 +186,12 @@ object ExpressionConverter extends Logging {
         new ScalarSubqueryTransformer(s)
       case c: Concat =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        val exps = c.children.map { expr =>
+        val exprs = c.children.map { expr =>
           replaceWithExpressionTransformer(
             expr,
             attributeSeq)
         }
-        ConcatOperatorTransformer.create(exps, expr)
+        ConcatOperatorTransformer.create(exprs, expr)
       case r: Round =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         RoundOperatorTransformer.create(
@@ -232,19 +202,9 @@ object ExpressionConverter extends Logging {
             r.scale,
             attributeSeq),
           expr)
-      case b: BinaryExpression =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryExpressionTransformer.create(
-          replaceWithExpressionTransformer(
-            b.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            b.right,
-            attributeSeq),
-          expr)
       case expr =>
         throw new UnsupportedOperationException(
-          s" --> ${expr.getClass} | ${expr} is not currently supported.")
+          s"${expr.getClass} or ${expr} is not currently supported.")
     }
 
   def containsSubquery(expr: Expression): Boolean =

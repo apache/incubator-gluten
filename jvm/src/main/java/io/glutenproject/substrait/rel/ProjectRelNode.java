@@ -18,6 +18,7 @@
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.substrait.proto.ProjectRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
@@ -29,11 +30,21 @@ public class ProjectRelNode implements RelNode, Serializable {
     private final RelNode input;
     private final ArrayList<ExpressionNode> expressionNodes =
             new ArrayList<>();
+    private final AdvancedExtensionNode extensionNode;
 
     ProjectRelNode(RelNode input,
                    ArrayList<ExpressionNode> expressionNodes) {
         this.input = input;
         this.expressionNodes.addAll(expressionNodes);
+        this.extensionNode = null;
+    }
+
+    ProjectRelNode(RelNode input,
+                   ArrayList<ExpressionNode> expressionNodes,
+                   AdvancedExtensionNode extensionNode) {
+        this.input = input;
+        this.expressionNodes.addAll(expressionNodes);
+        this.extensionNode = extensionNode;
     }
 
     @Override
@@ -48,6 +59,9 @@ public class ProjectRelNode implements RelNode, Serializable {
         }
         for (ExpressionNode expressionNode : expressionNodes) {
             projectBuilder.addExpressions(expressionNode.toProtobuf());
+        }
+        if (extensionNode != null) {
+            projectBuilder.setAdvancedExtension(extensionNode.toProtobuf());
         }
         Rel.Builder builder = Rel.newBuilder();
         builder.setProject(projectBuilder.build());

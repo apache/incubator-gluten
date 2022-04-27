@@ -48,6 +48,7 @@ set(VELOX_CORE_CONFIG_LIB_PATH "${VELOX_BUILD_PATH}/core/libvelox_config.a")
 set(VELOX_TYPE_LIB_PATH "${VELOX_BUILD_PATH}/type/libvelox_type.a")
 set(VELOX_COMMON_BASE_LIB_PATH "${VELOX_BUILD_PATH}/common/base/libvelox_common_base.a")
 set(VELOX_COMMON_BASE_EXCEPTION_LIB_PATH "${VELOX_BUILD_PATH}/common/base/libvelox_exception.a")
+set(VELOX_DWIO_COMMON_EXCEPTION_LIB_PATH "${VELOX_BUILD_PATH}/dwio/common/exception/libvelox_dwio_common_exception.a")
 set(VELOX_EXEC_TEST_UTIL_LIB_PATH "${VELOX_BUILD_PATH}/exec/tests/utils/libvelox_exec_test_util.a")
 set(VELOX_PARSE_EXP_LIB_PATH "${VELOX_BUILD_PATH}/parse/libvelox_parse_expression.a")
 set(VELOX_PARSE_PARSER_LIB_PATH "${VELOX_BUILD_PATH}/parse/libvelox_parse_parser.a")
@@ -213,6 +214,7 @@ macro(build_velox_exec)
   add_library(facebook::velox::buffer STATIC IMPORTED)
   add_library(facebook::velox::arrow::bridge STATIC IMPORTED)
   add_library(facebook::velox::substrait STATIC IMPORTED)
+  add_library(facebook::velox::dwio::common::exception STATIC IMPORTED)
   add_library(folly STATIC IMPORTED)
   add_library(iberty STATIC IMPORTED)
   add_library(doubleconversion SHARED IMPORTED)
@@ -315,6 +317,10 @@ macro(build_velox_exec)
                                    "${BINARY_RELEASE_DIR}/include")                   
   set_target_properties(facebook::velox::common::base::exception
                         PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_BASE_EXCEPTION_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::dwio::common::exception
+                                   PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_COMMON_EXCEPTION_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
                                    "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::dwio::dwrf::writer
@@ -430,8 +436,8 @@ macro(build_velox_exec)
                         LINK_PUBLIC facebook::velox::arrow::bridge
                         LINK_PUBLIC facebook::velox::common::memory
                         LINK_PUBLIC facebook::velox::common::time
-                        LINK_PUBLIC facebook::velox::common::process
                         LINK_PUBLIC facebook::velox::common::base::exception
+                        LINK_PUBLIC facebook::velox::common::process
                         LINK_PUBLIC facebook::velox::connector::hive
                         LINK_PUBLIC facebook::velox::expression
                         LINK_PUBLIC facebook::velox::expression::function
@@ -452,6 +458,7 @@ macro(build_velox_exec)
                         LINK_PUBLIC facebook::velox::external::md5
                         LINK_PUBLIC facebook::velox::buffer
                         LINK_PUBLIC facebook::velox::functions::prestosql::types
+                        LINK_PUBLIC facebook::velox::dwio::common::exception
                         LINK_PUBLIC gtest
                         LINK_PUBLIC folly
                         LINK_PUBLIC iberty

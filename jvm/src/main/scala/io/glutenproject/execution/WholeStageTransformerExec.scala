@@ -24,7 +24,6 @@ import com.google.common.collect.Lists
 import io.glutenproject.vectorized.ColumnarFactory
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
-import io.glutenproject.substrait.extensions.{MappingBuilder, MappingNode}
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
@@ -155,14 +154,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       throw new NullPointerException(
         s"ColumnarWholestageTransformer can't doTansform on ${child}")
     }
-    val mappingNodes = new java.util.ArrayList[MappingNode]()
-    val mapIter = substraitContext.registeredFunction.entrySet().iterator()
-    while(mapIter.hasNext) {
-      val entry = mapIter.next()
-      val mappingNode = MappingBuilder.makeFunctionMapping(entry.getKey, entry.getValue)
-      mappingNodes.add(mappingNode)
-    }
-    val relNodes = Lists.newArrayList(childCtx.root)
     val outNames = new java.util.ArrayList[String]()
     // Use the first item in output names to specify the output format of the WS computing.
     // When the next operator is ArrowColumnarToRow, fake Arrow output will be returned.
@@ -177,7 +168,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     for (attr <- childCtx.outputAttributes) {
       outNames.add(attr.name)
     }
-    val planNode = PlanBuilder.makePlan(mappingNodes, relNodes, outNames)
+    val planNode = PlanBuilder.makePlan(
+      substraitContext, Lists.newArrayList(childCtx.root), outNames)
 
     WholestageTransformContext(childCtx.inputAttributes,
       childCtx.outputAttributes, planNode, substraitContext)
@@ -204,14 +196,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       var idx = metrics.output_length_list.length - 1
       var child_process_time: Long = 0
       while (idx >= 0 && curChild.isInstanceOf[TransformSupport]) {
-        if (curChild.isInstanceOf[ConditionProjectExecTransformer]) {
-          // see if this condition projector did filter, if so, we need to skip metrics
-          val condProj = curChild.asInstanceOf[ConditionProjectExecTransformer]
-          if (condProj.condition != null &&
-              (condProj.projectList != null && condProj.projectList.nonEmpty)) {
-            idx -= 1
-          }
-        }
         curChild
           .asInstanceOf[TransformSupport]
           .updateMetrics(
@@ -423,7 +407,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         case p => p
       }
       logWarning(
-        s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
       val wsRDD = new NativeWholeStageColumnarRDD(
         sparkContext,

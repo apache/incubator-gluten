@@ -19,8 +19,8 @@ package io.glutenproject.substrait.type;
 
 import java.util.ArrayList;
 
-public class TypeBuiler {
-    private TypeBuiler() {}
+public class TypeBuilder {
+    private TypeBuilder() {}
 
     public static TypeNode makeFP64(Boolean nullable) {
         return new FP64TypeNode(nullable);

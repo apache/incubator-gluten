@@ -26,7 +26,11 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import java.util
 
-import io.glutenproject.substrait.`type`.TypeNode
+import com.google.protobuf.Any
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -56,7 +60,6 @@ case class HashAggregateExecTransformer(
   val sparkConf = sparkContext.getConf
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-  val enableColumnarFinalAgg: Boolean = GlutenConfig.getConf.enableColumnarFinalAgg
 
   val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
@@ -92,17 +95,32 @@ case class HashAggregateExecTransformer(
   numInputBatches.set(0)
 
   override def doValidate(): Boolean = {
-    if (enableColumnarFinalAgg) {
-      true
+    val substraitContext = new SubstraitContext
+    val relNode = try {
+      getAggRel(substraitContext.registeredFunction, null, validation = true)
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+    // Then, validate the generated plan in native engine.
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
     } else {
-      var isPartial = true
-      aggregateExpressions.foreach(aggExpr => {
-        aggExpr.mode match {
-          case Partial =>
-          case _ => isPartial = false
-        }
-      })
-      isPartial
+      if (GlutenConfig.getConf.enableColumnarFinalAgg) {
+        true
+      } else {
+        var isPartial = true
+        aggregateExpressions.foreach(aggExpr => {
+          aggExpr.mode match {
+            case Partial =>
+            case _ => isPartial = false
+          }
+        })
+        isPartial
+      }
     }
   }
 
@@ -154,17 +172,11 @@ case class HashAggregateExecTransformer(
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val typeList = new util.ArrayList[TypeNode]()
-      val nameList = new util.ArrayList[String]()
+      val attrList = new util.ArrayList[Attribute]()
       for (attr <- child.output) {
-        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        nameList.add(attr.name)
+        attrList.add(attr)
       }
-      // The iterator index will be added in the path of LocalFiles.
-      val inputIter = LocalFilesBuilder.makeLocalFiles(
-        ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
-      context.setLocalFilesNode(inputIter)
-      val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
+      val readRel = RelBuilder.makeReadRel(attrList, context)
 
       (getAggRel(context.registeredFunction, readRel), child.output)
     }
@@ -250,7 +262,8 @@ case class HashAggregateExecTransformer(
 
   private def getAggRelWithPreProjection(args: java.lang.Object,
                                          originalInputAttributes: Seq[Attribute],
-                                         input: RelNode = null): RelNode = {
+                                         input: RelNode = null,
+                                         validation: Boolean): RelNode = {
     // Will add a Projection before Aggregate.
     val preExprNodes = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(expr => {
@@ -271,7 +284,18 @@ case class HashAggregateExecTransformer(
           throw new UnsupportedOperationException(s"$other not supported.")
       }
     })
-    val inputRel = RelBuilder.makeProjectRel(input, preExprNodes)
+    val inputRel = if (!validation) {
+      RelBuilder.makeProjectRel(input, preExprNodes)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+      RelBuilder.makeProjectRel(input, preExprNodes, extensionNode)
+    }
     // Handle pure Aggregate.
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
@@ -315,7 +339,8 @@ case class HashAggregateExecTransformer(
 
   private def getAggRelWithoutPreProjection(args: java.lang.Object,
                                             originalInputAttributes: Seq[Attribute],
-                                            input: RelNode = null): RelNode = {
+                                            input: RelNode = null,
+                                            validation: Boolean): RelNode = {
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(expr => {
@@ -355,15 +380,27 @@ case class HashAggregateExecTransformer(
         ConverterUtils.getTypeNode(aggregatFunc.dataType, aggregatFunc.nullable))
       aggregateFunctionList.add(aggFunctionNode)
     })
-    RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
+    if (!validation) {
+      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, extensionNode)
+    }
   }
 
-  private def getAggRel(args: java.lang.Object, input: RelNode = null): RelNode = {
+  private def getAggRel(args: java.lang.Object, input: RelNode = null,
+                        validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val aggRel = if (needsPreProjection) {
-      getAggRelWithPreProjection(args, originalInputAttributes, input)
+      getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
     } else {
-      getAggRelWithoutPreProjection(args, originalInputAttributes, input)
+      getAggRelWithoutPreProjection(args, originalInputAttributes, input, validation)
     }
     // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
     // AggregateRel.
@@ -385,7 +422,18 @@ case class HashAggregateExecTransformer(
           .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
         resExprNodes.add(aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
       })
-      RelBuilder.makeProjectRel(aggRel, resExprNodes)
+      if (!validation) {
+        RelBuilder.makeProjectRel(aggRel, resExprNodes)
+      } else {
+        // Use a extension node to send the input types through Substrait plan for validation.
+        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+        for (attr <- allAggregateResultAttributes) {
+          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        }
+        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+          Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        RelBuilder.makeProjectRel(aggRel, resExprNodes, extensionNode)
+      }
     }
   }
 

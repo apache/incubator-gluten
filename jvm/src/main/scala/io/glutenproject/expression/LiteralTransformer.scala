@@ -18,55 +18,33 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-import org.apache.spark.unsafe.types.UTF8String
 
 class LiteralTransformer(lit: Literal)
-    extends Literal(lit.value, lit.dataType)
-    with ExpressionTransformer {
+  extends Literal(lit.value, lit.dataType) with ExpressionTransformer {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
+    value match {
+      // TODO: how to handle null literal in Substrait?
+      case null =>
+        throw new UnsupportedOperationException(s"$value is not supported.")
+      case _ =>
+    }
     dataType match {
-      case doubleType: DoubleType =>
-        value match {
-          case null =>
-            throw new UnsupportedOperationException(s"null is not supported")
-          case v: java.lang.Double =>
-            ExpressionBuilder.makeDoubleLiteral(v)
-        }
-      case dateType: DateType =>
-        value match {
-          case null =>
-            throw new UnsupportedOperationException(s"null is not supported")
-          case v: java.lang.Integer =>
-            ExpressionBuilder.makeDateLiteral(v)
-        }
-      case stringType: StringType =>
-        value match {
-          case null =>
-            throw new UnsupportedOperationException(s"null is not supported")
-          case v: UTF8String =>
-            ExpressionBuilder.makeStringLiteral(v.toString)
-        }
-      case intType: IntegerType =>
-        value match {
-          case null =>
-            throw new UnsupportedOperationException(s"null is not supported")
-          case v: java.lang.Integer =>
-            ExpressionBuilder.makeIntLiteral(v)
-        }
-      case longType: LongType =>
-        value match {
-          case null =>
-            throw new UnsupportedOperationException(s"null is not supported")
-          case v: java.lang.Long =>
-            ExpressionBuilder.makeLongLiteral(v)
-        }
+      case _: IntegerType =>
+        ExpressionBuilder.makeIntLiteral(value.asInstanceOf[java.lang.Integer])
+      case _: LongType =>
+        ExpressionBuilder.makeLongLiteral(value.asInstanceOf[java.lang.Long])
+      case _: DoubleType =>
+        ExpressionBuilder.makeDoubleLiteral(value.asInstanceOf[java.lang.Double])
+      case _: DateType =>
+        ExpressionBuilder.makeDateLiteral(value.asInstanceOf[java.lang.Integer])
+      case _: StringType =>
+        ExpressionBuilder.makeStringLiteral(value.toString)
       case other =>
-        throw new UnsupportedOperationException(s"$other is not supported")
+        throw new UnsupportedOperationException(s"$other is not supported.")
     }
   }
 }

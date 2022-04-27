@@ -18,25 +18,92 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
-import org.apache.arrow.vector.types.IntervalUnit
-import org.apache.arrow.vector.types.DateUnit
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 import scala.collection.mutable.ListBuffer
 import io.glutenproject.expression.DateTimeExpressionsTransformer.{DateDiffTransformer, UnixTimestampTransformer}
-import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-/**
- * A version of add that supports columnar processing for longs.
- */
+class ShiftLeftTransformer(left: Expression, right: Expression, original: Expression)
+  extends ShiftLeft(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
+}
+
+class ShiftRightTransformer(left: Expression, right: Expression, original: Expression)
+  extends ShiftRight(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
+}
+
+class EndsWithTransformer(left: Expression, right: Expression, original: Expression)
+  extends EndsWith(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
+}
+
+class StartsWithTransformer(left: Expression, right: Expression, original: Expression)
+  extends StartsWith(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
+}
+
+class LikeTransformer(left: Expression, right: Expression, original: Expression)
+  extends Like(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val left_node =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val right_node =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!left_node.isInstanceOf[ExpressionNode] ||
+        !right_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.LIKE, Seq(left.dataType, right.dataType)))
+
+    val expressNodes = Lists.newArrayList(
+      left_node.asInstanceOf[ExpressionNode],
+      right_node.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeBoolean(true)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+  }
+}
+
+class ContainsTransformer(left: Expression, right: Expression, original: Expression)
+  extends Contains(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported.")
+  }
+}
+
 class DateAddIntervalTransformer(start: Expression, interval: Expression, original: DateAddInterval)
     extends DateAddInterval(start, interval, original.timeZoneId, original.ansiEnabled)
     with ExpressionTransformer
@@ -50,6 +117,18 @@ object BinaryExpressionTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression =
     original match {
+      case e: EndsWith =>
+        new EndsWithTransformer(left, right, e)
+      case s: StartsWith =>
+        new StartsWithTransformer(left, right, s)
+      case c: Contains =>
+        new ContainsTransformer(left, right, c)
+      case l: Like =>
+        new LikeTransformer(left, right, l)
+      case s: ShiftLeft =>
+        new ShiftLeftTransformer(left, right, s)
+      case s: ShiftRight =>
+        new ShiftRightTransformer(left, right, s)
       case s: DateAddInterval =>
         new DateAddIntervalTransformer(left, right, s)
       case s: DateDiff =>

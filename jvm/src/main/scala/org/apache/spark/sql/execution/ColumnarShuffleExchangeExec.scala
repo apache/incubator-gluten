@@ -73,26 +73,37 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   override def nodeName: String = "ColumnarExchange"
   override def output: Seq[Attribute] = child.output
-  buildCheck()
 
   override def supportsColumnar: Boolean = true
 
   override def stringArgs =
     super.stringArgs ++ Iterator(s"[id=#$id]")
-  //super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
+//  super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
 
-  def buildCheck(): Unit = {
-    if (GlutenConfig.getConf.isClickHouseBackend) return
+  def doValidate(): Boolean = {
+    if (GlutenConfig.getConf.isClickHouseBackend) return true
     // check input datatype
     for (attr <- child.output) {
       try {
         ConverterUtils.createArrowField(attr)
       } catch {
         case e: UnsupportedOperationException =>
-          throw new UnsupportedOperationException(
-            s"${attr.dataType} is not supported in ColumnarShuffledExchangeExec.")
+          logInfo(s"${attr.dataType} is not supported in ColumnarShuffledExchangeExec.")
+          return false
       }
     }
+    outputPartitioning match {
+      case HashPartitioning(exprs, n) =>
+        if (!GlutenConfig.getConf.isClickHouseBackend) {
+          exprs.foreach(expr => {
+            if (!expr.isInstanceOf[Attribute]) {
+              logInfo("Expressions are not supported in HashPartitioning.")
+              return false
+            }})
+        }
+      case _ =>
+    }
+    true
   }
 
   val serializer: Serializer = ColumnarFactory.createColumnarBatchSerializer(
@@ -391,10 +402,6 @@ object ColumnarShuffleExchangeExec extends Logging {
           val functionMap = new java.util.HashMap[String, java.lang.Long]()
           val exprNodeList = new util.ArrayList[ExpressionNode]()
           exprs.foreach(expr => {
-            if (!expr.isInstanceOf[Attribute]) {
-              throw new UnsupportedOperationException(
-                "Expressions are not supported in HashPartitioning.")
-            }
             exprNodeList.add(ExpressionConverter
               .replaceWithExpressionTransformer(expr, outputAttributes)
               .asInstanceOf[ExpressionTransformer]

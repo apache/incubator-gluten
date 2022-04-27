@@ -17,12 +17,14 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.{NativeColumnarToRowJniWrapper, ArrowWritableColumnVector}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowJniWrapper}
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
@@ -37,7 +39,20 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
 
   override def supportCodegen: Boolean = false
 
-  buildCheck()
+  // A flag used to check whether child is wholestage transformer.
+  // Different backends may have different behaviours according to this flag.
+  val wsChild = child.isInstanceOf[WholeStageTransformerExec]
+
+  def doValidate(): Boolean = {
+    try {
+      buildCheck()
+    } catch {
+      case _: Throwable =>
+        logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
+        return false
+    }
+    true
+  }
 
   def buildCheck(): Unit = {
     val schema = child.schema
@@ -72,6 +87,14 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
     val numInputBatches = longMetric("numInputBatches")
     val convertTime = longMetric("convertTime")
 
+    // Fake Arrow format will be returned for WS transformer.
+    // TODO: use a Velox layer on the top of the base layer.
+    if (GlutenConfig.getConf.isVeloxBackend) {
+      if (child.isInstanceOf[WholeStageTransformerExec]) {
+        child.asInstanceOf[WholeStageTransformerExec].setFakeOutput()
+      }
+    }
+
     child.executeColumnar().mapPartitions { batches =>
       // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
       val jniWrapper = new NativeColumnarToRowJniWrapper()
@@ -89,7 +112,7 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
         if (batch.numRows == 0) {
           logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
           Iterator.empty
-        } else if (this.output.size == 0 || (batch.numCols() > 0 &&
+        } else if (this.output.isEmpty || (batch.numCols() > 0 &&
           !batch.column(0).isInstanceOf[ArrowWritableColumnVector])) {
           // Fallback to ColumnarToRow
           val localOutput = this.output
@@ -108,7 +131,20 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
             column.getValueVector.getBuffers(false)
               .foreach { buffer =>
                 bufAddrs += buffer.memoryAddress()
-                bufSizes += buffer.readableBytes()
+                try {
+                  bufSizes += buffer.readableBytes()
+                } catch {
+                  case e: Throwable =>
+                    // For Velox, the returned format is faked arrow format,
+                    // and the offset buffer is invalid. Only the buffer address is cared.
+                    if (GlutenConfig.getConf.isVeloxBackend &&
+                        child.output(idx).dataType == StringType) {
+                      // Add a fake value here for String column.
+                      bufSizes += 1
+                    } else {
+                      throw e
+                    }
+                }
               }
           }
 
@@ -120,7 +156,7 @@ class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child 
 
           val info = jniWrapper.nativeConvertColumnarToRow(
             arrowSchema, batch.numRows, bufAddrs.toArray, bufSizes.toArray,
-            SparkMemoryUtils.contextMemoryPool().getNativeInstanceId)
+            SparkMemoryUtils.contextMemoryPool().getNativeInstanceId, wsChild)
 
           convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 

@@ -19,22 +19,15 @@ package io.glutenproject.expression
 
 import com.google.common.collect.Lists
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
-import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-
-import scala.collection.mutable.ListBuffer
 
 class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
     extends BoundReference(ordinal, dataType, nullable)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     ExpressionBuilder.makeSelection(ordinal.asInstanceOf[java.lang.Integer])
   }

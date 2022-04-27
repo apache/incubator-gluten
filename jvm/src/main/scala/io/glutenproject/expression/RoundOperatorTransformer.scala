@@ -19,13 +19,6 @@ package io.glutenproject.expression
 
 import com.google.common.collect.Lists
 import io.glutenproject.substrait.expression.ExpressionNode
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.pojo.Field
-import org.apache.arrow.vector.types.DateUnit
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
@@ -37,6 +30,7 @@ class RoundExpression(child: Expression, scale: Expression, original: Expression
   extends Round(child: Expression, scale: Expression)
     with ExpressionTransformer
     with Logging {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported.")
   }

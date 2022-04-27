@@ -46,7 +46,7 @@ arrow::Status VeloxToRowConverter::Init() {
     buffer_cursor_.push_back(nullBitsetWidthInBytes_ + 8 * num_cols_);
   }
   // Calculated the lengths_
-  for (auto col_idx = 0; col_idx < num_cols_; col_idx++) {
+  for (int64_t col_idx = 0; col_idx < num_cols_; col_idx++) {
     auto array = rb_->column(col_idx);
     if (arrow::is_binary_like(array->type_id())) {
       auto array_data = array->data();
@@ -54,15 +54,16 @@ arrow::Status VeloxToRowConverter::Init() {
       auto str_view = reinterpret_cast<const StringView*>(val);
       for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
         auto length = str_view[row_idx].size();
-        lengths_[row_idx] += RoundNumberOfBytesToNearestWord(length);
+        int64_t bytes = RoundNumberOfBytesToNearestWord(length);
+        lengths_[row_idx] += bytes;
       }
     }
   }
   // Calculated the offsets_  and total memory size based on lengths_
   int64_t total_memory_size = lengths_[0];
-  for (auto i = 1; i < num_rows_; i++) {
-    offsets_[i] = offsets_[i - 1] + lengths_[i - 1];
-    total_memory_size += lengths_[i];
+  for (int64_t rowIdx = 1; rowIdx < num_rows_; rowIdx++) {
+    offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
+    total_memory_size += lengths_[rowIdx];
   }
   ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, memory_pool_));
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);

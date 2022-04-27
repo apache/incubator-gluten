@@ -52,9 +52,19 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean && enableCpu
 
+  // This is tmp config to specify whether to enable the native validation based on
+  // Substrait plan. After the validations in all backends are correctly implemented,
+  // this config should be removed.
+  val enableNativeValidation: Boolean =
+    conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
+
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.batchscan", "true").toBoolean && enableCpu
+
+  // enable or disable columnar filescan
+  val enableColumnarFileScan: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.filescan", "true").toBoolean && enableCpu
 
   // enable or disable columnar hashagg
   val enableColumnarHashAgg: Boolean =
@@ -65,9 +75,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarFinalAgg: Boolean = conf.getConfString(
     "spark.gluten.sql.columnar.hashagg.enablefinal", "true").toBoolean && enableCpu
 
-  // enable or disable columnar project and filter
-  val enableColumnarProjFilter: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.projfilter", "true").toBoolean && enableCpu
+  // enable or disable columnar project
+  val enableColumnarProject: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.project", "true").toBoolean && enableCpu
+
+  // enable or disable columnar filter
+  val enableColumnarFilter: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.filter", "true").toBoolean && enableCpu
 
   // enable or disable columnar sort
   val enableColumnarSort: Boolean =
@@ -85,7 +99,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarShuffledHashJoin: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffledhashjoin", "true").toBoolean && enableCpu
 
-  val enableArrowColumnarToRow: Boolean =
+  val enableNativeColumnarToRow: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.columnartorow", "true").toBoolean && enableCpu
 
   val forceShuffledHashJoin: Boolean =
@@ -128,8 +142,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarArrowUDF: Boolean = conf.getConfString(
     "spark.gluten.sql.columnar.arrowudf", "true").toBoolean && enableCpu
 
-  // enable or disable columnar wholestagecodegen
-  val enableColumnarWholeStageCodegen: Boolean = conf.getConfString(
+  // enable or disable columnar wholestage transform
+  val enableColumnarWholeStageTransform: Boolean = conf.getConfString(
     "spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
 
   // enable or disable columnar exchange
@@ -239,7 +253,6 @@ object GlutenConfig {
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
   val GLUTEN_LOAD_ARROW = "spark.gluten.sql.columnar.loadarrow"
-
   val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
   val GLUTEN_VELOX_BACKEND = "velox"
   val GLUTEN_CLICKHOUSE_BACKEND = "clickhouse"

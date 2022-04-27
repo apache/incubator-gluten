@@ -18,6 +18,7 @@
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.substrait.proto.FilterRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
@@ -27,11 +28,21 @@ import java.io.Serializable;
 public class FilterRelNode implements RelNode, Serializable {
     private final RelNode input;
     private final ExpressionNode condition;
+    private final AdvancedExtensionNode extensionNode;
 
     FilterRelNode(RelNode input,
                   ExpressionNode condition) {
         this.input = input;
         this.condition = condition;
+        this.extensionNode = null;
+    }
+
+    FilterRelNode(RelNode input,
+                  ExpressionNode condition,
+                  AdvancedExtensionNode extensionNode) {
+        this.input = input;
+        this.condition = condition;
+        this.extensionNode = extensionNode;
     }
 
     @Override
@@ -45,6 +56,9 @@ public class FilterRelNode implements RelNode, Serializable {
             filterBuilder.setInput(input.toProtobuf());
         }
         filterBuilder.setCondition(condition.toProtobuf());
+        if (extensionNode != null) {
+            filterBuilder.setAdvancedExtension(extensionNode.toProtobuf());
+        }
         Rel.Builder builder = Rel.newBuilder();
         builder.setFilter(filterBuilder.build());
         return builder.build();
