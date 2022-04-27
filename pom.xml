@@ -119,6 +119,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <arrow.script.dir>${project.basedir}/../tools</arrow.script.dir>
+    <velox.script.dir>${project.basedir}/../tools</velox.script.dir>
     <build_cpp>OFF</build_cpp>
     <cpp_tests>OFF</cpp_tests>
     <build_arrow>OFF</build_arrow>
@@ -128,7 +129,8 @@
     <build_jemalloc>ON</build_jemalloc>
     <build_gazelle_cpp>OFF</build_gazelle_cpp>
     <build_velox>OFF</build_velox>
-    <velox_home>/root/velox</velox_home>
+    <build_velox_from_source>OFF</build_velox_from_source>
+    <velox_home>${project.basedir}/../tools/build_velox/velox_ep</velox_home>
     <project.prefix>spark-sql-columnar</project.prefix>
     <project.name.prefix>Gluten</project.name.prefix>
     <spark311.version>3.1.1</spark311.version>
