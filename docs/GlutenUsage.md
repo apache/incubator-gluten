@@ -10,6 +10,14 @@ cd gluten
 When compiling Gluten, a backend should be enabled for execution.
 For example, add below options to enable Velox backend:
 
+If you wish to automatically build velox from source. The default velox installation path will be in "/PATH_TO_GLUTEN/tools/build_velox/velox_ep".
+
+```shell script
+-Dbuild_velox=ON -Dbuild_velox_from_source=ON
+```
+
+If you wish to enable Velox backend and you have an existing compiled Velox, please use velox_home to set the path.
+
 ```shell script
 -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME}
 ```
@@ -17,7 +25,7 @@ For example, add below options to enable Velox backend:
 The full compiling command would be like:
 
 ```shell script
-mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME}
+mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON
 ```
 
 If Arrow has once been installed successfully on your env, and there is no change to Arrow, you can
@@ -37,7 +45,8 @@ Based on the different environment, there are some parameters can be set via -D 
 | arrow_root | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library. | /usr/local |
 | build_protobuf | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library. |ON |
 | build_velox | Enable or Disable building Velox as a backend. | OFF |
-| velox_home (only valid when build_velox is ON) | When building Gluten with Velox, the location of Velox should be set. | /root/velox |
+| build_velox_from_source | Enable or Disable building Velox from a specific velox github repository. A default installed path will be in velox_home | OFF |
+| velox_home (only valid when build_velox is ON) | When building Gluten with Velox, if you have an existing Velox, please set it. | /PATH_TO_GLUTEN/tools/build_velox/velox_ep |
 
 When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten)
 If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.

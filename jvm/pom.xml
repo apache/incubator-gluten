@@ -395,6 +395,21 @@
                     </arguments>
                 </configuration>
             </execution>
+            <execution>
+              <id>Build velox</id>
+              <phase>generate-resources</phase>
+              <goals>
+                <goal>exec</goal>
+              </goals>
+              <configuration>
+                <executable>bash</executable>
+                <arguments>
+                  <argument>${velox.script.dir}/build_velox.sh</argument>
+                  <argument>--build_velox_from_source=${build_velox_from_source}</argument>
+                </arguments>
+              </configuration>
+            </execution>
+
           </executions>
       </plugin>
       <!-- copy protoc binary into build directory -->
