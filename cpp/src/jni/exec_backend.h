@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <arrow/jniutil/jni_util.h>
 #include <arrow/record_batch.h>
+#include <arrow/util/iterator.h>
 
 #include "compute/protobuf_utils.h"
 #include "operators/c2r/arrow_columnar_to_row_converter.h"

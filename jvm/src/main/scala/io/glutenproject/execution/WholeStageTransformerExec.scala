@@ -196,7 +196,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   var metricsUpdated: Boolean = false
 
-  def updateMetrics(nativeIterator: AbstractBatchIterator): Unit = {
+  def updateMetrics(nativeIterator: GeneralOutIterator): Unit = {
     if (metricsUpdated) return
     try {
       val metrics = nativeIterator.getMetrics
@@ -291,7 +291,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     // TODO: Does it still need these parameters?
     val streamedSortPlan = getStreamedLeafPlan
     val dependentKernels: ListBuffer[ExpressionEvaluator] = ListBuffer()
-    val dependentKernelIterators: ListBuffer[AbstractBatchIterator] = ListBuffer()
+    val dependentKernelIterators: ListBuffer[GeneralOutIterator] = ListBuffer()
     val buildRelationBatchHolder: ListBuffer[ColumnarBatch] = ListBuffer()
     // val serializableObjectHolder: ListBuffer[SerializableObject] = ListBuffer()
     // val relationHolder: ListBuffer[ColumnarHashedRelation] = ListBuffer()

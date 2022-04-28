@@ -15,34 +15,26 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution;
+package io.glutenproject.vectorized;
 
+import io.glutenproject.utils.ArrowAbiUtil;
+import org.apache.arrow.c.ArrowArray;
+import org.apache.arrow.c.ArrowSchema;
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-abstract public class AbstractColumnarNativeIterator implements Iterator<byte[]>, AutoCloseable {
-  protected final Iterator<ColumnarBatch> delegated;
-  protected ColumnarBatch nextBatch = null;
+public class VeloxInIterator extends GeneralInIterator {
 
-  public AbstractColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
-    this.delegated = delegated;
+  public VeloxInIterator(Iterator<ColumnarBatch> delegated) {
+    super(delegated);
   }
 
-  @Override
-  public boolean hasNext() {
-    while (delegated.hasNext()) {
-      nextBatch = delegated.next();
-      if (nextBatch.numRows() > 0) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public abstract byte[] next();
-
-  @Override
-  public void close() throws Exception {
+  public void next(long cSchemaAddress, long cArrayAddress) {
+    final ColumnarBatch batch = nextColumnarBatch();
+    final ArrowSchema cSchema = ArrowSchema.wrap(cSchemaAddress);
+    final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
+    ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray);
   }
 }

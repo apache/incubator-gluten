@@ -26,7 +26,7 @@ namespace compute {
 
 class ArrowExecBackend : public gluten::ExecBackendBase {
  public:
-  ArrowExecBackend() = default;
+  ArrowExecBackend();
 
   ~ArrowExecBackend() override;
 

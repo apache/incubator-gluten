@@ -17,50 +17,47 @@
 
 package io.glutenproject.vectorized;
 
+import org.apache.spark.sql.vectorized.ColumnarBatch;
+
 import java.io.IOException;
 
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-abstract public class AbstractBatchIterator implements AutoCloseable, Serializable {
+public abstract class GeneralOutIterator implements AutoCloseable, Serializable {
+  protected final long handle;
+  protected final AtomicBoolean closed = new AtomicBoolean(false);
 
-  protected long nativeHandler = 0;
-  protected boolean closed = false;
-
-  public AbstractBatchIterator() throws IOException {}
-
-  public AbstractBatchIterator(long instance_id) throws IOException {
-    nativeHandler = instance_id;
+  public GeneralOutIterator(long handle) throws IOException {
+    this.handle = handle;
   }
 
-  public abstract boolean hasNextInternal() throws IOException;
-
-  public boolean hasNext() throws IOException {
+  public final boolean hasNext() throws Exception {
     return hasNextInternal();
   }
 
-  public abstract <T> T nextInternal() throws IOException;
-
-  public <T> T next() throws IOException {
+  public final ColumnarBatch next() throws Exception {
     return nextInternal();
   }
 
-  public abstract MetricsObject getMetricsInternal() throws IOException, ClassNotFoundException;
-
-  public MetricsObject getMetrics() throws IOException, ClassNotFoundException {
-    if (nativeHandler == 0) {
-      return null;
-    }
+  public final MetricsObject getMetrics() throws Exception {
     return getMetricsInternal();
   }
-
-  public abstract void closeInternal();
-
+  
   @Override
-  public void close() {
-    closeInternal();
+  public final void close() {
+    if (closed.compareAndSet(false, true)) {
+      closeInternal();
+    }
   }
 
-  long getInstanceId() {
-    return nativeHandler;
+  public long getHandle() {
+    return handle;
   }
+
+  protected abstract void closeInternal();
+  protected abstract boolean hasNextInternal() throws Exception;
+  protected abstract ColumnarBatch nextInternal() throws Exception;
+  protected abstract MetricsObject getMetricsInternal() throws Exception;
+  
 }

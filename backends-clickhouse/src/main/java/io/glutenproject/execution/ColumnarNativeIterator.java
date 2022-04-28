@@ -18,11 +18,12 @@
 package io.glutenproject.execution;
 
 import io.glutenproject.vectorized.CHColumnVector;
+import io.glutenproject.vectorized.GeneralInIterator;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class ColumnarNativeIterator extends AbstractColumnarNativeIterator {
+public class ColumnarNativeIterator extends GeneralInIterator implements Iterator<byte[]> {
 
   public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
     super(delegated);
@@ -30,9 +31,9 @@ public class ColumnarNativeIterator extends AbstractColumnarNativeIterator {
 
   @Override
   public byte[] next() {
-    ColumnarBatch dep_cb = nextBatch;
-    if (dep_cb.numRows() > 0) {
-      CHColumnVector col = (CHColumnVector) dep_cb.column(0);
+    ColumnarBatch nextBatch = nextColumnarBatch();
+    if (nextBatch.numRows() > 0) {
+      CHColumnVector col = (CHColumnVector) nextBatch.column(0);
       return longtoBytes(col.getBlockAddress());
     } else {
       throw new IllegalStateException();

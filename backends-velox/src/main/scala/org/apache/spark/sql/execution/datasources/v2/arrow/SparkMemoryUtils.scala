@@ -17,18 +17,15 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
-import java.io.PrintWriter
+import java.io.{ByteArrayOutputStream, PrintWriter}
 import java.util.UUID
-
 import scala.collection.JavaConverters._
-
-import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow._
+
 import java.util
 import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.{AllocationListener, BufferAllocator, MemoryChunkCleaner, MemoryChunkManager, RootAllocator}
 import org.apache.spark.{SparkEnv, TaskContext}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.memory.TaskMemoryManager
@@ -75,7 +72,7 @@ object SparkMemoryUtils extends Logging {
 
     private def collectStackForDebug = {
       if (DEBUG) {
-        val out = new ByteOutputStream()
+        val out = new ByteArrayOutputStream()
         val writer = new PrintWriter(out)
         new Exception().printStackTrace(writer)
         writer.close()
