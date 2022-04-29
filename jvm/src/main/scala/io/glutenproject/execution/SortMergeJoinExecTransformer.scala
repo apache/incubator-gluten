@@ -17,43 +17,16 @@
 
 package io.glutenproject.execution
 
-import java.util.concurrent.TimeUnit._
+import io.glutenproject.substrait.SubstraitContext
 
-import io.glutenproject.vectorized._
-import io.glutenproject.GlutenConfig
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.util.{UserAddedJarUtils, Utils}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
-
-import scala.collection.JavaConverters._
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.BoundReference
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReference
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-
-import scala.collection.mutable.ListBuffer
-import org.apache.arrow.vector.ipc.message.ArrowFieldNode
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
-import org.apache.arrow.vector.types.pojo.Schema
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.memory.ArrowBuf
-import com.google.common.collect.Lists
-import io.glutenproject.expression._
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.vectorized.ExpressionEvaluator
-import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.

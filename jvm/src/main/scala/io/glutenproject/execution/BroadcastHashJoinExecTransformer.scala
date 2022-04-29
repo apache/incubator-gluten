@@ -17,33 +17,20 @@
 
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
-import io.glutenproject.expression._
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.rel.RelNode
-import io.glutenproject.vectorized.{ExpressionEvaluator, _}
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin, ShuffledJoin}
-import org.apache.spark.sql.execution.joins.HashedRelationInfo
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, PartitioningCollection}
 import org.apache.spark.sql.execution.metric.SQLMetrics
-import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
-import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.

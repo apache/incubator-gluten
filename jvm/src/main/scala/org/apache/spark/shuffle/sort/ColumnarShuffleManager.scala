@@ -20,7 +20,10 @@ package org.apache.spark.shuffle.sort
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 
-import org.apache.spark._
+import scala.collection.JavaConverters._
+
+import org.apache.spark.{ShuffleDependency, SparkConf, SparkEnv, TaskContext}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle._
@@ -28,8 +31,6 @@ import org.apache.spark.shuffle.api.ShuffleExecutorComponents
 import org.apache.spark.shuffle.sort.SortShuffleManager.canUseBatchFetch
 import org.apache.spark.storage.BlockId
 import org.apache.spark.util.collection.OpenHashSet
-
-import scala.collection.JavaConverters._
 
 class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
@@ -48,8 +49,8 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
    * Obtains a [[ShuffleHandle]] to pass to tasks.
    */
   override def registerShuffle[K, V, C](
-      shuffleId: Int,
-      dependency: ShuffleDependency[K, V, C]): ShuffleHandle = {
+                                         shuffleId: Int,
+                                         dependency: ShuffleDependency[K, V, C]): ShuffleHandle = {
     if (dependency.isInstanceOf[ColumnarShuffleDependency[_, _, _]]) {
       logInfo(s"Registering ColumnarShuffle shuffleId: ${shuffleId}")
       new ColumnarShuffleHandle[K, V](
@@ -77,17 +78,18 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
 
   /** Get a writer for a given partition. Called on executors by map tasks. */
   override def getWriter[K, V](
-      handle: ShuffleHandle,
-      mapId: Long,
-      context: TaskContext,
-      metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
+                                handle: ShuffleHandle,
+                                mapId: Long,
+                                context: TaskContext,
+                                metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     val mapTaskIds =
       taskIdMapsForShuffle.computeIfAbsent(handle.shuffleId, _ => new OpenHashSet[Long](16))
     mapTaskIds.synchronized { mapTaskIds.add(context.taskAttemptId()) }
     val env = SparkEnv.get
     handle match {
       case columnarShuffleHandle: ColumnarShuffleHandle[K @unchecked, V @unchecked] =>
-        new ColumnarShuffleWriter(shuffleBlockResolver, columnarShuffleHandle, mapId, metrics)
+        GlutenShuffleWriterWrapper.genColumnarShuffleWriter(
+          shuffleBlockResolver, columnarShuffleHandle, mapId, metrics)
       case unsafeShuffleHandle: SerializedShuffleHandle[K @unchecked, V @unchecked] =>
         new UnsafeShuffleWriter(
           env.blockManager,
@@ -121,13 +123,13 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
    * Called on executors by reduce tasks.
    */
   override def getReader[K, C](
-      handle: ShuffleHandle,
-      startMapIndex: Int,
-      endMapIndex: Int,
-      startPartition: Int,
-      endPartition: Int,
-      context: TaskContext,
-      metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+                                handle: ShuffleHandle,
+                                startMapIndex: Int,
+                                endMapIndex: Int,
+                                startPartition: Int,
+                                endPartition: Int,
+                                context: TaskContext,
+                                metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
     val blocksByAddress = SparkEnv.get.mapOutputTracker
       .getMapSizesByExecutorId(handle.shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
     if (handle.isInstanceOf[ColumnarShuffleHandle[K, _]]) {
@@ -189,6 +191,6 @@ object ColumnarShuffleManager extends Logging {
 }
 
 private[spark] class ColumnarShuffleHandle[K, V](
-    shuffleId: Int,
-    dependency: ShuffleDependency[K, V, V])
-    extends BaseShuffleHandle(shuffleId, dependency) {}
+                                                  shuffleId: Int,
+                                                  dependency: ShuffleDependency[K, V, V])
+  extends BaseShuffleHandle(shuffleId, dependency) {}

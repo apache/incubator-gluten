@@ -22,6 +22,7 @@ import java.util.{Collections, Objects}
 import scala.language.implicitConversions
 
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, StrategyOverrides}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import java.util
@@ -45,6 +46,9 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     setPredefinedConfigs(conf)
+    // Initialize Backends API
+    BackendsApiManager.initialize(pluginContext.conf()
+      .get(GlutenConfig.GLUTEN_BACKEND_LIB, ""))
     Collections.emptyMap()
   }
 
@@ -64,17 +68,18 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
     if (ctx.conf().getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val customGLUTENLib = ctx.conf().get(GlutenConfig.GLUTEN_LIB_PATH, "")
+      val customGlutenLib = ctx.conf().get(GlutenConfig.GLUTEN_LIB_PATH, "")
       val customBackendLib = ctx.conf().get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
         ctx.conf().get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
-        customGLUTENLib,
+        customGlutenLib,
         customBackendLib,
         ctx.conf().getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
-      if (customGLUTENLib.nonEmpty || customBackendLib.nonEmpty) {
+      if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
         initKernel.initNative()
       }
     }
+    BackendsApiManager.initialize(ctx.conf().get(GlutenConfig.GLUTEN_BACKEND_LIB, ""))
   }
 
   /**

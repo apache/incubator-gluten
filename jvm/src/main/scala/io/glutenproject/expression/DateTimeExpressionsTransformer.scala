@@ -17,42 +17,11 @@
 
 package io.glutenproject.expression
 
-import java.util.Collections
-
-import com.google.common.collect.Lists
-import io.glutenproject.expression.DateTimeExpressionsTransformer.castDateFromTimestamp
 import io.glutenproject.substrait.expression.ExpressionNode
-import org.apache.arrow.gandiva.expression.TreeBuilder
-import org.apache.arrow.gandiva.expression.TreeNode
-import org.apache.arrow.vector.types.DateUnit
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.spark.sql.catalyst.expressions.CheckOverflow
-import org.apache.spark.sql.catalyst.expressions.CurrentDate
-import org.apache.spark.sql.catalyst.expressions.CurrentTimestamp
-import org.apache.spark.sql.catalyst.expressions.DateDiff
-import org.apache.spark.sql.catalyst.expressions.DayOfMonth
-import org.apache.spark.sql.catalyst.expressions.DayOfWeek
-import org.apache.spark.sql.catalyst.expressions.DayOfYear
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.Hour
-import org.apache.spark.sql.catalyst.expressions.MakeDate
-import org.apache.spark.sql.catalyst.expressions.MakeTimestamp
-import org.apache.spark.sql.catalyst.expressions.MicrosToTimestamp
-import org.apache.spark.sql.catalyst.expressions.MillisToTimestamp
-import org.apache.spark.sql.catalyst.expressions.Minute
-import org.apache.spark.sql.catalyst.expressions.Month
-import org.apache.spark.sql.catalyst.expressions.Now
-import org.apache.spark.sql.catalyst.expressions.Second
-import org.apache.spark.sql.catalyst.expressions.SecondsToTimestamp
-import org.apache.spark.sql.catalyst.expressions.UnixDate
-import org.apache.spark.sql.catalyst.expressions.UnixMicros
-import org.apache.spark.sql.catalyst.expressions.UnixMillis
-import org.apache.spark.sql.catalyst.expressions.UnixSeconds
-import org.apache.spark.sql.catalyst.expressions.UnixTimestamp
-import org.apache.spark.sql.catalyst.expressions.Year
+
+import org.apache.spark.sql.catalyst.expressions.{CurrentDate, CurrentTimestamp, DateDiff, DayOfMonth, DayOfWeek, DayOfYear, Expression, Hour, MakeDate, MakeTimestamp, MicrosToTimestamp, MillisToTimestamp, Minute, Month, Now, Second, SecondsToTimestamp, UnixDate, UnixMicros, UnixMillis, UnixSeconds, UnixTimestamp, Year}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, IntegerType, LongType, StringType, TimestampType}
-import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.sql.types.{DateType, TimestampType}
 
 object DateTimeExpressionsTransformer {
   class CurrentTimestampTransformer() extends CurrentTimestamp with ExpressionTransformer {

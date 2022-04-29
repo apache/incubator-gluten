@@ -18,19 +18,21 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks.{break, breakable}
+
 import com.google.common.collect.Lists
+import com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
-import java.util
-
-import com.google.protobuf.Any
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.vectorized.ExpressionEvaluator
+import java.util
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -40,8 +42,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import scala.util.control.Breaks.{break, breakable}
 
 /**
  * Columnar Based HashAggregateExec.
@@ -93,6 +93,15 @@ case class HashAggregateExecTransformer(
   numOutputRows.set(0)
   numOutputBatches.set(0)
   numInputBatches.set(0)
+
+  lazy val aggregateResultAttributes = {
+    val groupingAttributes = groupingExpressions.map(expr => {
+      ConverterUtils.getAttrFromExpr(expr).toAttribute
+    })
+    groupingAttributes ++ aggregateExpressions.map(expr => {
+      expr.resultAttribute
+    })
+  }
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
@@ -167,20 +176,41 @@ case class HashAggregateExecTransformer(
       case _ =>
         null
     }
-    val (relNode, inputAttributes) = if (childCtx != null) {
-      (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes)
+    val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
+      if (!GlutenConfig.getConf.isClickHouseBackend) {
+        (getAggRel(context.registeredFunction, childCtx.root),
+          childCtx.outputAttributes, output)
+      } else {
+        (getAggRel(context.registeredFunction, childCtx.root),
+          childCtx.outputAttributes, aggregateResultAttributes)
+      }
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context)
+      if (!GlutenConfig.getConf.isClickHouseBackend) {
+        val attrList = new util.ArrayList[Attribute]()
+        for (attr <- child.output) {
+          attrList.add(attr)
+        }
+        val readRel = RelBuilder.makeReadRel(attrList, context)
+        (getAggRel(context.registeredFunction, readRel), child.output, output)
+      } else {
+        val typeList = new util.ArrayList[TypeNode]()
+        val nameList = new util.ArrayList[String]()
+        for (attr <- aggregateResultAttributes) {
+          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+          nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
+        }
+        // The iterator index will be added in the path of LocalFiles.
+        val inputIter = LocalFilesBuilder.makeLocalFiles(
+          ConverterUtils.ITERATOR_PREFIX.concat(context.getIteratorIndex.toString))
+        context.setLocalFilesNode(inputIter)
+        val readRel = RelBuilder.makeReadRel(typeList, nameList, context)
 
-      (getAggRel(context.registeredFunction, readRel), child.output)
+        (getAggRel(context.registeredFunction, readRel), aggregateResultAttributes, output)
+      }
     }
-    TransformContext(inputAttributes, output, relNode)
+    TransformContext(inputAttributes, outputAttributes, relNode)
   }
 
   override def verboseString(maxFields: Int): String = toString(verbose = true, maxFields)
@@ -362,11 +392,17 @@ case class HashAggregateExecTransformer(
             aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
           })
         case Final =>
-          aggregatFunc.inputAggBufferAttributes.toList.map(attr => {
-            val aggExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(attr, originalInputAttributes)
-            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-          })
+          if (!GlutenConfig.getConf.isClickHouseBackend) {
+            aggregatFunc.inputAggBufferAttributes.toList.map(attr => {
+              val aggExpr: Expression = ExpressionConverter
+                .replaceWithExpressionTransformer(attr, originalInputAttributes)
+              aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+            })
+          } else {
+            val aggTypesExpr: Expression = ExpressionConverter
+              .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
+            Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+          }
         case other =>
           throw new UnsupportedOperationException(s"$other not supported.")
       }
@@ -400,7 +436,11 @@ case class HashAggregateExecTransformer(
     val aggRel = if (needsPreProjection) {
       getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
     } else {
-      getAggRelWithoutPreProjection(args, originalInputAttributes, input, validation)
+      if (!GlutenConfig.getConf.isClickHouseBackend) {
+        getAggRelWithoutPreProjection(args, originalInputAttributes, input, validation)
+      } else {
+        getAggRelWithoutPreProjection(args, aggregateResultAttributes, input, validation)
+      }
     }
     // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
     // AggregateRel.

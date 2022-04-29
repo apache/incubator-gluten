@@ -18,23 +18,14 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
-import io.glutenproject.execution.ColumnarNativeIterator;
+import io.glutenproject.backendsapi.BackendsApiManager;
+import io.glutenproject.execution.AbstractColumnarNativeIterator;
 import io.glutenproject.row.RowIterator;
 import io.glutenproject.substrait.plan.PlanNode;
-import org.apache.arrow.dataset.jni.NativeMemoryPool;
-import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.apache.arrow.gandiva.expression.ExpressionTree;
-import org.apache.arrow.gandiva.ipc.GandivaTypes;
-import org.apache.arrow.vector.ipc.WriteChannel;
-import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.spark.memory.MemoryConsumer;
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 
-import java.io.ByteArrayOutputStream;
+import scala.collection.JavaConverters;
+
 import java.io.IOException;
-import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -95,25 +86,27 @@ public class ExpressionEvaluator implements AutoCloseable {
 
   // Used by WholeStageTransfrom to create the native computing pipeline and
   // return a columnar result iterator.
-  public BatchIterator createKernelWithBatchIterator(
-          byte[] wsPlan, ArrayList<ColumnarNativeIterator> iterList)
+  public AbstractBatchIterator createKernelWithBatchIterator(
+          byte[] wsPlan, ArrayList<AbstractColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
-    long poolId = 0;
+    /* long poolId = 0;
     if (!GlutenConfig.getConf().isClickHouseBackend()) {
-      NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-      poolId = memoryPool.getNativeInstanceId();
+      // NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
+      // poolId = memoryPool.getNativeInstanceId();
     }
     ColumnarNativeIterator[] iterArray = new ColumnarNativeIterator[iterList.size()];
     long batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
-            poolId, wsPlan, iterList.toArray(iterArray));
-    return new BatchIterator(batchIteratorInstance);
+            poolId, wsPlan, iterList.toArray(iterArray)); */
+    return BackendsApiManager.getIteratorApiInstance()
+        .genBatchIterator(wsPlan,
+            JavaConverters.asScalaIteratorConverter(iterList.iterator()).asScala().toSeq(),
+            jniWrapper);
   }
-
 
   // Used by WholeStageTransfrom to create the native computing pipeline and
   // return a columnar result iterator.
-  public BatchIterator createKernelWithBatchIterator(
-          PlanNode wsPlan, ArrayList<ColumnarNativeIterator> iterList)
+  public AbstractBatchIterator createKernelWithBatchIterator(
+          PlanNode wsPlan, ArrayList<AbstractColumnarNativeIterator> iterList)
           throws RuntimeException, IOException {
     return createKernelWithBatchIterator(getPlanBytesBuf(wsPlan), iterList);
   }
@@ -122,7 +115,7 @@ public class ExpressionEvaluator implements AutoCloseable {
   // return a row result iterator.
   public RowIterator createKernelWithRowIterator(
           byte[] wsPlan,
-          ArrayList<ColumnarNativeIterator> iterList) throws RuntimeException, IOException {
+          ArrayList<AbstractColumnarNativeIterator> iterList) throws RuntimeException, IOException {
       long rowIteratorInstance = jniWrapper.nativeCreateKernelWithRowIterator(wsPlan);
       return new RowIterator(rowIteratorInstance);
   }
@@ -130,21 +123,6 @@ public class ExpressionEvaluator implements AutoCloseable {
   @Override
   public void close() {
     jniWrapper.nativeClose(nativeHandler);
-  }
-
-  byte[] getSchemaBytesBuf(Schema schema) throws IOException {
-    if (schema == null) return null;
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema);
-    return out.toByteArray();
-  }
-
-  byte[] getExprListBytesBuf(List<ExpressionTree> exprs) throws GandivaException {
-    GandivaTypes.ExpressionList.Builder builder = GandivaTypes.ExpressionList.newBuilder();
-    for (ExpressionTree expr : exprs) {
-      builder.addExprs(expr.toProtobuf());
-    }
-    return builder.build().toByteArray();
   }
 
   byte[] getPlanBytesBuf(PlanNode planNode) {

@@ -17,22 +17,15 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.expression._
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.vectorized._
-import org.apache.arrow.vector.ValueVector
-import org.apache.spark.internal.Logging
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
-import org.apache.spark.sql.types.{StructField, StructType}
-import org.apache.spark.TaskContext
-import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ExpandExecTransformer(
     projections: Seq[Seq[Expression]],

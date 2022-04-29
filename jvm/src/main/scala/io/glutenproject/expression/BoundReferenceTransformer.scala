@@ -17,10 +17,9 @@
 
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.types._
 
 class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)

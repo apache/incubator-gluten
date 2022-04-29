@@ -18,9 +18,11 @@
 package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
 import org.apache.spark.SparkConf
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
@@ -32,7 +34,6 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, ArrowEvalPythonExecTransformer}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
 
@@ -49,9 +50,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       val actualPlan = plan.child
       logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")
       actualPlan.withNewChildren(actualPlan.children.map(replaceWithTransformerPlan))
-    case plan: ArrowEvalPythonExec =>
+    /* case plan: ArrowEvalPythonExec =>
       val columnarChild = replaceWithTransformerPlan(plan.child)
-      ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType)
+      ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
     case plan: BatchScanExec =>
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
       new BatchScanExecTransformer(plan.output, plan.scan)
@@ -205,7 +206,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
     case plan: RowToColumnarExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
-        RowToArrowColumnarExec(child)
+        BackendsApiManager.getSparkPlanExecApiInstance.genRowToArrowColumnarExec(child)
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
@@ -214,8 +215,9 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       if (columnarConf.enableNativeColumnarToRow) {
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
-          val nativeConversion = new NativeColumnarToRowExec(child)
-          if (nativeConversion.doValidate()) {
+        val nativeConversion =
+          BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
+        if (nativeConversion.doValidate()) {
             nativeConversion
           } else {
             logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
@@ -234,7 +236,8 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
         case c: ColumnarToRowExec =>
           if (columnarConf.enableNativeColumnarToRow) {
             val child = replaceWithTransformerPlan(c.child)
-            val nativeConversion = new NativeColumnarToRowExec(child)
+            val nativeConversion =
+              BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
             if (nativeConversion.doValidate()) {
               nativeConversion
             } else {

@@ -32,8 +32,6 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
-import org.apache.spark.sql.execution.python.ArrowEvalPythonExecTransformer
 import org.apache.spark.sql.execution.window.WindowExec
 
 // A guard to prevent a plan being converted into the plan transformer.
@@ -75,11 +73,12 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
   private def tryConvertToTransformer(plan: SparkPlan): Boolean = {
     try {
       plan match {
-        case plan: ArrowEvalPythonExec =>
+        /* case plan: ArrowEvalPythonExec =>
           if (!enableColumnarArrowUDF) return false
           val transformer = ArrowEvalPythonExecTransformer(
             plan.udfs, plan.resultAttrs, plan.child, plan.evalType)
-          transformer.doValidate()
+          if (!transformer.doValidate()) return false
+          transformer */
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) return false
           val transformer = new BatchScanExecTransformer(plan.output, plan.scan)

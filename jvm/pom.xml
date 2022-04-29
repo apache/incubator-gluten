@@ -24,7 +24,7 @@
   <artifactId>gluten-jvm</artifactId>
   <version>1.0.0-snapshot</version>
   <packaging>jar</packaging>
-  <name>Gluten</name>
+  <name>Gluten-JVM</name>
 
   <properties>
     <cpp.dir>../cpp/</cpp.dir>
@@ -76,97 +76,6 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.delta</groupId>
-      <artifactId>delta-core_${scala.binary.version}</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>${arrow-memory.artifact}</artifactId>
-      <version>${arrow.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>arrow-memory-core</artifactId>
-      <version>${arrow.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-buffer</artifactId>
-        </exclusion>
-      </exclusions>
-      <!--scope>provided</scope-->
-    </dependency>
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>arrow-vector</artifactId>
-      <version>${arrow.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-buffer</artifactId>
-        </exclusion>
-      </exclusions>
-      <!--scope>provided</scope-->
-    </dependency>
-    <dependency>
-      <groupId>org.apache.arrow.gandiva</groupId>
-      <artifactId>arrow-gandiva</artifactId>
-      <version>${arrow.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-buffer</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>protobuf-java</artifactId>
-          <groupId>com.google.protobuf</groupId>
-        </exclusion>
-      </exclusions>
-      <!--scope>provided</scope-->
-    </dependency>
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>arrow-dataset</artifactId>
-      <version>${arrow.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-buffer</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>protobuf-java</artifactId>
-          <groupId>com.google.protobuf</groupId>
-        </exclusion>
-      </exclusions>
-      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.scalacheck</groupId>
@@ -332,9 +241,6 @@
   <build>
     <resources>
       <resource>
-        <directory>${cpp.build.dir}</directory>
-      </resource>
-      <resource>
         <directory>${resource.dir}</directory>
       </resource>
     </resources>
@@ -349,69 +255,6 @@
       </extension>
     </extensions>
     <plugins>
-      <plugin>
-          <artifactId>exec-maven-plugin</artifactId>
-          <groupId>org.codehaus.mojo</groupId>
-          <version>1.6.0</version>
-          <executions>
-            <execution>
-              <id>Build arrow</id>
-              <phase>generate-resources</phase>
-              <goals>
-                <goal>exec</goal>
-              </goals>
-              <configuration>
-                <executable>bash</executable>
-                <arguments>
-                  <argument>${arrow.script.dir}/build_arrow.sh</argument>
-                  <argument>--tests=${cpp_tests}</argument>
-                  <argument>--build_arrow=${build_arrow}</argument>
-                  <argument>--static_arrow=${static_arrow}</argument>
-                  <argument>--arrow_root=${arrow_root}</argument>
-                </arguments>
-              </configuration>
-            </execution>
-            <execution>
-                <id>Build cpp</id>
-                <phase>generate-resources</phase>
-                <goals>
-                    <goal>exec</goal>
-                </goals>
-                <configuration>
-                    <executable>bash</executable>
-                    <arguments>
-                        <argument>${cpp.dir}/compile.sh</argument>
-                        <argument>${build_cpp}</argument>
-                        <argument>${cpp_tests}</argument>
-                        <argument>${jvm.build_arrow}</argument>
-                        <argument>${static_arrow}</argument>
-                        <argument>${build_protobuf}</argument>
-                        <argument>${arrow_root}</argument>
-                        <argument>${jvm.arrow.bfs.install.dir}</argument>
-                        <argument>${build_jemalloc}</argument>
-                        <argument>${build_gazelle_cpp}</argument>
-                        <argument>${build_velox}</argument>
-                        <argument>${velox_home}</argument>
-                    </arguments>
-                </configuration>
-            </execution>
-            <execution>
-              <id>Build velox</id>
-              <phase>generate-resources</phase>
-              <goals>
-                <goal>exec</goal>
-              </goals>
-              <configuration>
-                <executable>bash</executable>
-                <arguments>
-                  <argument>${velox.script.dir}/build_velox.sh</argument>
-                  <argument>--build_velox_from_source=${build_velox_from_source}</argument>
-                </arguments>
-              </configuration>
-            </execution>
-
-          </executions>
-      </plugin>
       <!-- copy protoc binary into build directory -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -545,24 +388,6 @@
             <phase>compile</phase>
             <goals>
               <goal>compile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
-        <configuration>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
             </goals>
           </execution>
         </executions>

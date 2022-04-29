@@ -48,7 +48,7 @@ After Velox being successfully compiled, please refer to [GlutenUsage](GlutenUsa
 use below command to compile Gluten with Velox backend.
 
 ```shell script
-mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME}
+mvn clean package -Pbackends-velox -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME}
 ```
 
 ### An example for offloading Spark's computing to Velox with Gluten

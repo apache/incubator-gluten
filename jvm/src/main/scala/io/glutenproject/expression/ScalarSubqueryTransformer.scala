@@ -17,24 +17,12 @@
 
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.substrait.expression.ExpressionNode
-import org.apache.arrow.gandiva.evaluator._
-import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression._
-import org.apache.arrow.vector.types.DateUnit
-import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.arrow.vector.types.pojo.Field
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.{InternalRow, expressions}
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
-import org.apache.spark.sql.execution.BaseSubqueryExec
-import org.apache.spark.sql.execution.ExecSubqueryExpression
 import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.types._
-
-import scala.collection.mutable.ListBuffer
 
 class ScalarSubqueryTransformer(
   query: ScalarSubquery)

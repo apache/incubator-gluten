@@ -17,8 +17,6 @@
 
 package io.glutenproject.execution
 
-import java.io._
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.row.RowIterator
 import io.glutenproject.vectorized.ExpressionEvaluator
@@ -50,8 +48,7 @@ class NativeWholestageRowRDD(
   }
 
   private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
-    case NativeSubstraitPartition(_, p: NativeFilePartition) => p
-    case NativeSubstraitPartition(_, m: NativeMergeTreePartition) => m
+    case NativeSubstraitPartition(_, p: BaseNativeFilePartition) => p
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
@@ -63,7 +60,7 @@ class NativeWholestageRowRDD(
     var resIter : RowIterator = null
     if (loadNative) {
       val transKernel = new ExpressionEvaluator()
-      val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator]()
+      val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
       var startTime = System.nanoTime()
       resIter = transKernel.createKernelWithRowIterator(inputPartition.substraitPlan, inBatchIters)
       logWarning(s"===========create ${System.nanoTime() - startTime}")

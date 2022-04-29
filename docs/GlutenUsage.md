@@ -25,7 +25,7 @@ If you wish to enable Velox backend and you have an existing compiled Velox, ple
 The full compiling command would be like:
 
 ```shell script
-mvn clean package -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON
+mvn clean package -Pbackends-velox -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON
 ```
 
 If Arrow has once been installed successfully on your env, and there is no change to Arrow, you can
