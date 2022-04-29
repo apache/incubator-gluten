@@ -16,6 +16,7 @@
  */
 
 #include <arrow/buffer.h>
+#include <arrow/c/bridge.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/path_util.h>
 #include <arrow/io/memory.h>
@@ -405,16 +406,18 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_BatchIterator_native
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeNext(
-    JNIEnv* env, jobject obj, jlong id) {
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeNext(
+    JNIEnv* env, jobject obj, jlong id, jlong c_schema, jlong c_array) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
-  if (!iter->HasNext()) return nullptr;
+  if (!iter->HasNext()) {
+    return false;
+  }
   auto batch = std::move(iter->Next());
-  auto maybe_bytes = arrow::dataset::jni::ExportRecordBatch(env, batch);
-  JniAssertOkOrThrow(maybe_bytes.status());
-  return maybe_bytes.ValueOrDie();
-  JNI_METHOD_END(nullptr)
+  JniAssertOkOrThrow(arrow::ExportRecordBatch(*batch, reinterpret_cast<struct ArrowArray*>(c_array),
+      reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  return true;
+  JNI_METHOD_END(false)
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeClose(
@@ -730,10 +733,11 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jobject JNICALL
+JNIEXPORT jboolean JNICALL
 Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
     JNIEnv* env, jobject obj, jlong schema_holder_id, jstring compression_type_jstr,
-    jint num_rows, jlongArray buf_addrs, jlongArray buf_sizes, jlongArray buf_mask) {
+    jint num_rows, jlongArray buf_addrs, jlongArray buf_sizes, jlongArray buf_mask,
+    jlong c_schema, jlong c_array) {
   JNI_METHOD_START
   auto schema = decompression_schema_holder_.Lookup(schema_holder_id);
   if (!schema) {
@@ -795,11 +799,11 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
       MakeRecordBatch(schema, num_rows, input_buffers, input_buffers.size(), &rb),
       "ShuffleDecompressionJniWrapper_decompress, failed to MakeRecordBatch upon "
       "buffers");
-  jbyteArray serialized_record_batch =
-      JniGetOrThrow(ToBytes(env, rb), "Error deserializing message");
 
-  return serialized_record_batch;
-  JNI_METHOD_END(nullptr)
+  JniAssertOkOrThrow(arrow::ExportRecordBatch(*rb, reinterpret_cast<struct ArrowArray*>(c_array),
+                                              reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  return true;
+  JNI_METHOD_END(false)
 }
 
 JNIEXPORT void JNICALL

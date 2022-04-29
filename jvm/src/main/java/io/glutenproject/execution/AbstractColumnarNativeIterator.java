@@ -21,7 +21,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-abstract public class AbstractColumnarNativeIterator implements Iterator<byte[]>, AutoCloseable {
+abstract public class AbstractColumnarNativeIterator<T> implements Iterator<T>, AutoCloseable {
   protected final Iterator<ColumnarBatch> delegated;
   protected ColumnarBatch nextBatch = null;
 
@@ -40,7 +40,7 @@ abstract public class AbstractColumnarNativeIterator implements Iterator<byte[]>
     return false;
   }
 
-  public abstract byte[] next();
+  public abstract T next();
 
   @Override
   public void close() throws Exception {

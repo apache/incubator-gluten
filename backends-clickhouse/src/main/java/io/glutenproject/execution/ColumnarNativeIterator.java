@@ -22,7 +22,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class ColumnarNativeIterator extends AbstractColumnarNativeIterator {
+public class ColumnarNativeIterator extends AbstractColumnarNativeIterator<byte[]> {
 
   public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
     super(delegated);

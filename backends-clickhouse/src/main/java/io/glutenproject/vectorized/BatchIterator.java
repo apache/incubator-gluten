@@ -23,14 +23,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class BatchIterator extends AbstractBatchIterator {
-  private native boolean nativeHasNext(long nativeHandler);
-  private native byte[] nativeNext(long nativeHandler);
-  private native long nativeCHNext(long nativeHandler);
-  private native void nativeClose(long nativeHandler);
-  private native MetricsObject nativeFetchMetrics(long nativeHandler);
-
-  public BatchIterator() throws IOException {}
+public class BatchIterator extends AbstractBatchIterator<ColumnarBatch> {
+  private native boolean nativeHasNext(long nativeHandle);
+  private native byte[] nativeNext(long nativeHandle);
+  private native long nativeCHNext(long nativeHandle);
+  private native void nativeClose(long nativeHandle);
+  private native MetricsObject nativeFetchMetrics(long nativeHandle);
 
   public BatchIterator(long instance_id) throws IOException {
     super(instance_id);
@@ -38,12 +36,12 @@ public class BatchIterator extends AbstractBatchIterator {
 
   @Override
   public boolean hasNextInternal() throws IOException {
-    return nativeHasNext(nativeHandler);
+    return nativeHasNext(handle);
   }
 
   @Override
   public ColumnarBatch nextInternal() throws IOException {
-    long block = nativeCHNext(nativeHandler);
+    long block = nativeCHNext(handle);
     CHNativeBlock nativeBlock = new CHNativeBlock(block);
     int cols = nativeBlock.numColumns();
     ColumnVector[] columnVectors = new ColumnVector[cols];
@@ -55,14 +53,11 @@ public class BatchIterator extends AbstractBatchIterator {
 
   @Override
   public MetricsObject getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(nativeHandler);
+    return nativeFetchMetrics(handle);
   }
 
   @Override
   public void closeInternal() {
-    if (!closed) {
-      nativeClose(nativeHandler);
-      closed = true;
-    }
+    nativeClose(handle);
   }
 }

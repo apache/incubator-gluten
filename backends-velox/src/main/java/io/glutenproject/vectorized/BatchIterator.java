@@ -17,25 +17,22 @@
 
 package io.glutenproject.vectorized;
 
-import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer;
+import io.glutenproject.utils.ArrowAbiUtil;
+import org.apache.arrow.c.ArrowArray;
+import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
-import java.io.Serializable;
 
-public class BatchIterator extends AbstractBatchIterator {
-  private native boolean nativeHasNext(long nativeHandler);
-  private native long nativeNext(long nativeHandler);
-  private native long nativeCHNext(long nativeHandler);
-  private native void nativeClose(long nativeHandler);
-  private native MetricsObject nativeFetchMetrics(long nativeHandler);
+public class BatchIterator extends AbstractBatchIterator<ColumnarBatch> {
 
-  public BatchIterator() throws IOException {}
+  private native boolean nativeHasNext(long nativeHandle);
+  private native boolean nativeNext(long nativeHandle, long cSchema, long cArray);
+  private native long nativeCHNext(long nativeHandle);
+  private native void nativeClose(long nativeHandle);
+  private native MetricsObject nativeFetchMetrics(long nativeHandle);
 
   public BatchIterator(long instance_id) throws IOException {
     super(instance_id);
@@ -43,33 +40,27 @@ public class BatchIterator extends AbstractBatchIterator {
 
   @Override
   public boolean hasNextInternal() throws IOException {
-    return nativeHasNext(nativeHandler);
+    return nativeHasNext(handle);
   }
 
   @Override
-  public ArrowRecordBatch nextInternal() throws IOException {
-    BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
-    if (nativeHandler == 0) {
-      return null;
+  public ColumnarBatch nextInternal() throws IOException {
+    final BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
+    final ArrowArray cArray = ArrowArray.allocateNew(allocator);
+    final ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
+    if (!nativeNext(handle, cSchema.memoryAddress(), cArray.memoryAddress())) {
+      return null; // stream ended
     }
-    byte[] serializedRecordBatch = nativeNext(nativeHandler);
-    if (serializedRecordBatch == null) {
-      return null;
-    }
-    return UnsafeRecordBatchSerializer.deserializeUnsafe(allocator,
-        serializedRecordBatch);
+    return ArrowAbiUtil.importToSparkColumnarBatch(allocator, cSchema, cArray);
   }
 
   @Override
   public MetricsObject getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(nativeHandler);
+    return nativeFetchMetrics(handle);
   }
 
   @Override
   public void closeInternal() {
-    if (!closed) {
-      nativeClose(nativeHandler);
-      closed = true;
-    }
+    nativeClose(handle);
   }
 }

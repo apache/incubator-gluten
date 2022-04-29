@@ -19,21 +19,20 @@ package io.glutenproject.vectorized
 
 import java.io._
 import java.nio.ByteBuffer
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.utils.ArrowAbiUtil
+import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator}
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowStreamReader
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.SparkEnv
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkVectorUtils}
@@ -41,7 +40,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 
 class ArrowColumnarBatchSerializer(
     schema: StructType, readBatchNumRows: SQLMetric, numOutputRows: SQLMetric)
@@ -223,16 +222,27 @@ private class ArrowColumnarBatchSerializerInstance(
               bufIdx += 1
           }
         }
+        val cArray = ArrowArray.allocateNew(allocator)
+        val cSchema = ArrowSchema.allocateNew(allocator)
 
-        val serializedBatch = jniWrapper.decompress(
+        val open = jniWrapper.decompress(
           schemaHolderId,
           reader.asInstanceOf[SchemaAwareArrowCompressedStreamReader].getCompressType,
           root.getRowCount,
           bufAddrs.toArray,
           bufSizes.toArray,
-          bufBS.toBitMask)
+          bufBS.toBitMask,
+          cSchema.memoryAddress(),
+          cArray.memoryAddress())
+
+        if (!open) {
+          // expected an error before reaching this line
+          throw new IllegalStateException()
+        }
+        ArrowAbiUtil.importToSparkColumnarBatch(allocator, cSchema, cArray)
+
         val decompressedRecordBatch =
-          UnsafeRecordBatchSerializer.deserializeUnsafe(allocator, serializedBatch);
+          ArrowAbiUtil.importToArrowRecordBatch(allocator, cSchema, cArray)
 
         root.clear()
         if (decompressedRecordBatch != null) {

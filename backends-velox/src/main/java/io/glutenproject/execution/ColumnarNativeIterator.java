@@ -24,14 +24,14 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class ColumnarNativeIterator extends AbstractColumnarNativeIterator {
+public class ColumnarNativeIterator extends AbstractColumnarNativeIterator<long[]> {
 
   public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
     super(delegated);
   }
 
   @Override
-  public byte[] next() {
+  public long[] next() {
     ColumnarBatch dep_cb = nextBatch;
     if (dep_cb.numRows() > 0) {
       ArrowRecordBatch dep_rb = ArrowConverterUtils.createArrowRecordBatch(dep_cb);
