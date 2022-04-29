@@ -30,7 +30,7 @@ import java.io.Serializable;
 
 public class BatchIterator extends AbstractBatchIterator {
   private native boolean nativeHasNext(long nativeHandler);
-  private native byte[] nativeNext(long nativeHandler);
+  private native long nativeNext(long nativeHandler);
   private native long nativeCHNext(long nativeHandler);
   private native void nativeClose(long nativeHandler);
   private native MetricsObject nativeFetchMetrics(long nativeHandler);

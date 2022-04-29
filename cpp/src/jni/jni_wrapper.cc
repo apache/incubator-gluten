@@ -21,12 +21,12 @@
 #include <arrow/io/memory.h>
 #include <arrow/ipc/api.h>
 #include <arrow/ipc/dictionary.h>
-#include <arrow/jniutil/jni_util.h>
 #include <arrow/memory_pool.h>
 #include <arrow/pretty_print.h>
 #include <arrow/record_batch.h>
 #include <arrow/util/compression.h>
 #include <arrow/util/iterator.h>
+#include <jni/dataset/jni_util.h>
 #include <jni.h>
 #include <malloc.h>
 
@@ -144,20 +144,6 @@ std::shared_ptr<RecordBatchResultIterator> GetBatchIterator(JNIEnv* env, jlong i
   return handler;
 }
 
-arrow::Result<std::shared_ptr<arrow::RecordBatch>> FromBytes(
-    JNIEnv* env, std::shared_ptr<arrow::Schema> schema, jbyteArray bytes) {
-  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::RecordBatch> batch,
-                        arrow::jniutil::DeserializeUnsafeFromJava(env, schema, bytes))
-  return batch;
-}
-
-arrow::Result<jbyteArray> ToBytes(JNIEnv* env,
-                                  std::shared_ptr<arrow::RecordBatch> batch) {
-  ARROW_ASSIGN_OR_RAISE(jbyteArray bytes,
-                        arrow::jniutil::SerializeUnsafeFromNative(env, batch))
-  return bytes;
-}
-
 class JavaRecordBatchIterator {
  public:
   explicit JavaRecordBatchIterator(JavaVM* vm,
@@ -219,7 +205,7 @@ class JavaRecordBatchIterator {
     }
     auto bytes = (jbyteArray)env->CallObjectMethod(java_serialized_record_batch_iterator_,
                                                    serialized_record_batch_iterator_next);
-    RETURN_NOT_OK(arrow::jniutil::CheckException(env));
+    RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
     ARROW_ASSIGN_OR_RAISE(auto batch, FromBytes(env, schema_, bytes));
     return batch;
   }
@@ -425,7 +411,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeN
   auto iter = GetBatchIterator(env, id);
   if (!iter->HasNext()) return nullptr;
   auto batch = std::move(iter->Next());
-  auto maybe_bytes = arrow::jniutil::SerializeUnsafeFromNative(env, batch);
+  auto maybe_bytes = arrow::dataset::jni::ExportRecordBatch(env, batch);
   JniAssertOkOrThrow(maybe_bytes.status());
   return maybe_bytes.ValueOrDie();
   JNI_METHOD_END(nullptr)

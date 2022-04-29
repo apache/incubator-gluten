@@ -318,11 +318,13 @@ macro(find_arrow)
     file(COPY ${ARROW_BFS_INCLUDE_DIR}/arrow DESTINATION ${root_directory}/releases/include)
     file(COPY ${ARROW_BFS_INCLUDE_DIR}/gandiva DESTINATION ${root_directory}/releases/include)
     file(COPY ${ARROW_BFS_INCLUDE_DIR}/parquet DESTINATION ${root_directory}/releases/include)
+    file(COPY ${ARROW_BFS_INCLUDE_DIR}/jni DESTINATION ${root_directory}/releases/include)
   else()
     message(STATUS "COPY and Set Arrow Header to: ${ARROW_INCLUDE_DIR}")
     file(COPY ${ARROW_INCLUDE_DIR}/arrow DESTINATION ${root_directory}/releases/include)
     file(COPY ${ARROW_INCLUDE_DIR}/gandiva DESTINATION ${root_directory}/releases/include)
     file(COPY ${ARROW_INCLUDE_DIR}/parquet DESTINATION ${root_directory}/releases/include)
+    file(COPY ${ARROW_INCLUDE_DIR}/jni DESTINATION ${root_directory}/releases/include)
   endif()
 
   # Set up Arrow Shared Library Directory
