@@ -295,25 +295,40 @@ case class HashAggregateExecTransformer(
                                          input: RelNode = null,
                                          validation: Boolean): RelNode = {
     // Will add a Projection before Aggregate.
-    val preExprNodes = new util.ArrayList[ExpressionNode]()
+    var preExpressions: Seq[Expression] = Seq()
+    var selections: Seq[Int] = Seq()
     groupingExpressions.foreach(expr => {
-      val preExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(expr, originalInputAttributes)
-      preExprNodes.add(preExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      val foundExpr = preExpressions.find(e => e.semanticEquals(expr)).orNull
+      if (foundExpr != null) {
+        selections = selections :+ preExpressions.indexOf(foundExpr)
+      } else {
+        preExpressions = preExpressions :+ expr.clone()
+        selections = selections :+ (preExpressions.size - 1)
+      }
     })
     aggregateExpressions.foreach(aggExpr => {
       val aggregatFunc = aggExpr.aggregateFunction
       aggExpr.mode match {
         case Partial =>
           aggregatFunc.children.toList.map(childExpr => {
-            val preExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(childExpr, originalInputAttributes)
-            preExprNodes.add(preExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+            val foundExpr = preExpressions.find(e => e.semanticEquals(childExpr)).orNull
+            if (foundExpr != null) {
+              selections = selections :+ preExpressions.indexOf(foundExpr)
+            } else {
+              preExpressions = preExpressions :+ childExpr.clone()
+              selections = selections :+ (preExpressions.size - 1)
+            }
           })
         case other =>
           throw new UnsupportedOperationException(s"$other not supported.")
       }
     })
+    val preExprNodes = new util.ArrayList[ExpressionNode]()
+    for (expr <- preExpressions) {
+      val preExpr: Expression = ExpressionConverter
+        .replaceWithExpressionTransformer(expr, originalInputAttributes)
+      preExprNodes.add(preExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+    }
     val inputRel = if (!validation) {
       RelBuilder.makeProjectRel(input, preExprNodes)
     } else {
@@ -330,7 +345,7 @@ case class HashAggregateExecTransformer(
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
-      val groupingExpr: ExpressionNode = ExpressionBuilder.makeSelection(colIdx)
+      val groupingExpr: ExpressionNode = ExpressionBuilder.makeSelection(selections(colIdx))
       groupingList.add(groupingExpr)
       colIdx += 1
     }
@@ -338,22 +353,11 @@ case class HashAggregateExecTransformer(
     aggregateExpressions.foreach(aggExpr => {
       val aggregatFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
-      val childrenNodes = aggExpr.mode match {
-        case Partial =>
-          aggregatFunc.children.toList.map(_ => {
-            val aggExpr = ExpressionBuilder.makeSelection(colIdx)
-            colIdx += 1
-            aggExpr
-          })
-        case Final =>
-          aggregatFunc.inputAggBufferAttributes.toList.map(_ => {
-            val aggExpr = ExpressionBuilder.makeSelection(colIdx)
-            colIdx += 1
-            aggExpr
-          })
-        case other =>
-          throw new UnsupportedOperationException(s"$other not supported.")
-      }
+      val childrenNodes = aggregatFunc.children.toList.map(_ => {
+        val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
+        colIdx += 1
+        aggExpr
+      })
       for (node <- childrenNodes) {
         childrenNodeList.add(node)
       }
