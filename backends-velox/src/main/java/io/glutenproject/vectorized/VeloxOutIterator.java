@@ -26,7 +26,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class VeloxOutIterator extends GeneralOutIterator<ColumnarBatch> {
+public class VeloxOutIterator extends GeneralOutIterator {
 
   private native boolean nativeHasNext(long nativeHandle);
   private native boolean nativeNext(long nativeHandle, long cSchema, long cArray);

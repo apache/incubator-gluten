@@ -23,7 +23,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class BatchIterator extends GeneralOutIterator<ColumnarBatch> {
+public class BatchIterator extends GeneralOutIterator {
   private native boolean nativeHasNext(long nativeHandle);
   private native byte[] nativeNext(long nativeHandle);
   private native long nativeCHNext(long nativeHandle);
