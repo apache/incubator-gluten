@@ -281,5 +281,4 @@ object ConverterUtils extends Logging {
   final val ALIAS = "alias"
   final val IS_NOT_NULL = "is_not_null"
   final val IS_NULL = "is_null"
-  final val CAST = "cast"
 }
