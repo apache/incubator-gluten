@@ -23,22 +23,25 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation}
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
+import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
-class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
-                                    output: Seq[Attribute],
-                                    requiredSchema: StructType,
-                                    partitionFilters: Seq[Expression],
-                                    optionalBucketSet: Option[BitSet],
-                                    optionalNumCoalescedBuckets: Option[Int],
-                                    dataFilters: Seq[Expression],
-                                    tableIdentifier: Option[TableIdentifier],
-                                    disableBucketedScan: Boolean = false)
-    extends FileSourceScanExec(relation,
+class FileSourceScanExecTransformer(
+    @transient relation: HadoopFsRelation,
+    output: Seq[Attribute],
+    requiredSchema: StructType,
+    partitionFilters: Seq[Expression],
+    optionalBucketSet: Option[BitSet],
+    optionalNumCoalescedBuckets: Option[Int],
+    dataFilters: Seq[Expression],
+    tableIdentifier: Option[TableIdentifier],
+    disableBucketedScan: Boolean = false)
+    extends FileSourceScanExec(
+      relation,
       output,
       requiredSchema,
       partitionFilters,
@@ -46,7 +49,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       optionalNumCoalescedBuckets,
       dataFilters,
       tableIdentifier,
-      disableBucketedScan) with BasicScanExecTransformer {
+      disableBucketedScan)
+    with BasicScanExecTransformer {
 
   override def filterExprs(): Seq[Expression] = dataFilters
 
@@ -57,32 +61,34 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
-    logInfo(s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
-      s"open cost is considered as scanning $openCostInBytes bytes.")
+    logInfo(
+      s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
+        s"open cost is considered as scanning $openCostInBytes bytes.")
 
-    val splitFiles = selectedPartitions.flatMap { partition =>
-      partition.files.flatMap { file =>
-        // getPath() is very expensive so we only want to call it once in this block:
-        val filePath = file.getPath
-        val isSplitable = relation.fileFormat.isSplitable(
-          relation.sparkSession, relation.options, filePath)
-        PartitionedFileUtil.splitFiles(
-          sparkSession = relation.sparkSession,
-          file = file,
-          filePath = filePath,
-          isSplitable = isSplitable,
-          maxSplitBytes = maxSplitBytes,
-          partitionValues = partition.values
-        )
+    val splitFiles = selectedPartitions
+      .flatMap { partition =>
+        partition.files.flatMap { file =>
+          // getPath() is very expensive so we only want to call it once in this block:
+          val filePath = file.getPath
+          val isSplitable =
+            relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+          PartitionedFileUtil.splitFiles(
+            sparkSession = relation.sparkSession,
+            file = file,
+            filePath = filePath,
+            isSplitable = isSplitable,
+            maxSplitBytes = maxSplitBytes,
+            partitionValues = partition.values)
+        }
       }
-    }.sortBy(_.length)(implicitly[Ordering[Long]].reverse)
+      .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
     FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
   }
 
   override lazy val supportsColumnar: Boolean = {
-    relation.fileFormat.supportBatch(
-      relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
+    relation.fileFormat
+      .supportBatch(relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -96,6 +102,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       (that canEqual this) && super.equals(that)
     case _ => false
   }
+
+  override def hashCode(): Int = super.hashCode()
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     null
@@ -113,5 +121,12 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     null
   }
 
-  override def doValidate(): Boolean = false
+  override def doValidate(): Boolean = {
+    if (GlutenConfig.getConf.isGazelleBackend && relation.fileFormat
+          .isInstanceOf[ParquetFileFormat]) {
+      true
+    } else {
+      false
+    }
+  }
 }

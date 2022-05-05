@@ -18,6 +18,7 @@
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.substrait.proto.Expression;
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.Rel;
@@ -26,37 +27,52 @@ import io.substrait.proto.RelCommon;
 import java.io.Serializable;
 
 public class JoinRelNode implements RelNode, Serializable {
-    private final RelNode left;
-    private final RelNode right;
-    private final JoinRel.JoinType joinType;
-    private final ExpressionNode expression;
-    private final ExpressionNode postJoinFilter;
+  private final RelNode left;
+  private final RelNode right;
+  private final JoinRel.JoinType joinType;
+  private final ExpressionNode expression;
+  private final ExpressionNode postJoinFilter;
+  private final AdvancedExtensionNode extensionNode;
 
-    JoinRelNode(RelNode left, RelNode right, JoinRel.JoinType joinType, ExpressionNode expression, ExpressionNode postJoinFilter) {
-        this.left = left;
-        this.right = right;
-        this.joinType = joinType;
-        this.expression = expression;
-        this.postJoinFilter = postJoinFilter;
+  JoinRelNode(
+      RelNode left,
+      RelNode right,
+      JoinRel.JoinType joinType,
+      ExpressionNode expression,
+      ExpressionNode postJoinFilter,
+      AdvancedExtensionNode extensionNode) {
+    this.left = left;
+    this.right = right;
+    this.joinType = joinType;
+    this.expression = expression;
+    this.postJoinFilter = postJoinFilter;
+    this.extensionNode = extensionNode;
+  }
+
+  @Override
+  public Rel toProtobuf() {
+    RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
+    relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
+    JoinRel.Builder joinBuilder = JoinRel.newBuilder();
+
+    joinBuilder.setType(joinType);
+
+    if (left != null) {
+      joinBuilder.setLeft(left.toProtobuf());
+    }
+    if (right != null) {
+      joinBuilder.setRight(right.toProtobuf());
+    }
+    if (expression != null) {
+      joinBuilder.setExpression(expression.toProtobuf());
+    }
+    if (postJoinFilter != null) {
+      joinBuilder.setPostJoinFilter(postJoinFilter.toProtobuf());
+    }
+    if (extensionNode != null) {
+      joinBuilder.setAdvancedExtension(extensionNode.toProtobuf());
     }
 
-    @Override
-    public Rel toProtobuf() {
-        RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
-        relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
-        JoinRel.Builder joinBuilder = JoinRel.newBuilder();
-
-        joinBuilder.setLeft(left.toProtobuf());
-        joinBuilder.setRight(right.toProtobuf());
-        joinBuilder.setType(joinType);
-
-        if (this.expression != null) {
-            joinBuilder.setExpression(expression.toProtobuf());
-        }
-        if (this.postJoinFilter != null) {
-            joinBuilder.setPostJoinFilter(postJoinFilter.toProtobuf());
-        }
-
-        return Rel.newBuilder().setJoin(joinBuilder.build()).build();
-    }
+    return Rel.newBuilder().setJoin(joinBuilder.build()).build();
+  }
 }

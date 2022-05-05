@@ -178,6 +178,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
         return arrow::float64();
       case substrait::Type::KindCase::kString:
         return arrow::utf8();
+      case substrait::Type::KindCase::kDate:
+        return arrow::date32();
       default:
         return arrow::Status::Invalid("Type not supported: " +
                                       std::to_string(stype.kind_case()));

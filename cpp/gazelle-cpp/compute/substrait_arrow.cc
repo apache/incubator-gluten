@@ -26,6 +26,13 @@
 namespace gazellecpp {
 namespace compute {
 
+const FieldVector kAugmentedFields{
+    field("__fragment_index", arrow::int32()),
+    field("__batch_index", arrow::int32()),
+    field("__last_in_fragment", arrow::boolean()),
+    field("__filename", arrow::utf8()),
+};
+
 ArrowExecBackend::~ArrowExecBackend() {
   if (exec_plan_ != nullptr) {
     exec_plan_->finished().Wait();
@@ -81,7 +88,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIt
       arrow::FieldRef("__fragment_index").FindOne(*node->output_schema());
   if (include_aug_fields.ok()) {
     std::vector<arrow::compute::Expression> fields;
-    auto num_fields = node->output_schema()->num_fields() - 3;
+    auto num_fields = node->output_schema()->num_fields() - kAugmentedFields.size();
     fields.reserve(num_fields);
     for (int i = 0; i < num_fields; ++i) {
       fields.push_back(arrow::compute::field_ref(i));

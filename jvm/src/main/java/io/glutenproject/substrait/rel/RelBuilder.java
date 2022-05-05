@@ -100,6 +100,16 @@ public class RelBuilder {
       JoinRel.JoinType joinType,
       ExpressionNode expression,
       ExpressionNode postJoinFilter) {
-    return new JoinRelNode(left, right, joinType, expression, postJoinFilter);
+    return makeJoinRel(left, right, joinType, expression, postJoinFilter, null);
+  }
+
+  public static RelNode makeJoinRel(
+      RelNode left,
+      RelNode right,
+      JoinRel.JoinType joinType,
+      ExpressionNode expression,
+      ExpressionNode postJoinFilter,
+      AdvancedExtensionNode extensionNode) {
+    return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
   }
 }
