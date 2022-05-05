@@ -15,34 +15,36 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution;
+package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-abstract public class AbstractColumnarNativeIterator<T> implements Iterator<T>, AutoCloseable {
+abstract public class GeneralInIterator implements AutoCloseable {
   protected final Iterator<ColumnarBatch> delegated;
-  protected ColumnarBatch nextBatch = null;
+  private transient ColumnarBatch nextBatch = null;
 
-  public AbstractColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
+  public GeneralInIterator(Iterator<ColumnarBatch> delegated) {
     this.delegated = delegated;
   }
 
-  @Override
   public boolean hasNext() {
     while (delegated.hasNext()) {
       nextBatch = delegated.next();
       if (nextBatch.numRows() > 0) {
+        // any problem using delegated.hasNext() instead?
         return true;
       }
     }
     return false;
   }
 
-  public abstract T next();
-
   @Override
   public void close() throws Exception {
+  }
+
+  public ColumnarBatch nextColumnarBatch() {
+    return nextBatch;
   }
 }

@@ -19,7 +19,6 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.execution.AbstractColumnarNativeIterator;
 import io.glutenproject.row.RowIterator;
 import io.glutenproject.substrait.plan.PlanNode;
 
@@ -86,8 +85,8 @@ public class ExpressionEvaluator implements AutoCloseable {
 
   // Used by WholeStageTransfrom to create the native computing pipeline and
   // return a columnar result iterator.
-  public AbstractBatchIterator createKernelWithBatchIterator(
-          byte[] wsPlan, ArrayList<AbstractColumnarNativeIterator> iterList)
+  public GeneralOutIterator createKernelWithBatchIterator(
+          byte[] wsPlan, ArrayList<GeneralInIterator> iterList)
           throws RuntimeException, IOException {
     /* long poolId = 0;
     if (!GlutenConfig.getConf().isClickHouseBackend()) {
@@ -105,8 +104,8 @@ public class ExpressionEvaluator implements AutoCloseable {
 
   // Used by WholeStageTransfrom to create the native computing pipeline and
   // return a columnar result iterator.
-  public AbstractBatchIterator createKernelWithBatchIterator(
-          PlanNode wsPlan, ArrayList<AbstractColumnarNativeIterator> iterList)
+  public GeneralOutIterator createKernelWithBatchIterator(
+          PlanNode wsPlan, ArrayList<GeneralInIterator> iterList)
           throws RuntimeException, IOException {
     return createKernelWithBatchIterator(getPlanBytesBuf(wsPlan), iterList);
   }
@@ -115,7 +114,7 @@ public class ExpressionEvaluator implements AutoCloseable {
   // return a row result iterator.
   public RowIterator createKernelWithRowIterator(
           byte[] wsPlan,
-          ArrayList<AbstractColumnarNativeIterator> iterList) throws RuntimeException, IOException {
+          ArrayList<GeneralInIterator> iterList) throws RuntimeException, IOException {
       long rowIteratorInstance = jniWrapper.nativeCreateKernelWithRowIterator(wsPlan);
       return new RowIterator(rowIteratorInstance);
   }

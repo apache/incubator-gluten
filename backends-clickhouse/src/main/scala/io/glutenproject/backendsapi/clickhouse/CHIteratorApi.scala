@@ -156,11 +156,11 @@ class CHIteratorApi extends IIteratorApi {
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
                                      jarList: Seq[String]): Iterator[ColumnarBatch] = {
-    var resIter : AbstractBatchIterator = null
+    var resIter : GeneralOutIterator = null
     if (loadNative) {
       // TODO: 'jarList' is kept for codegen
       val transKernel = new ExpressionEvaluator(jarList.asJava)
-      val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
+      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
@@ -205,14 +205,14 @@ class CHIteratorApi extends IIteratorApi {
                                      pipelineTime: SQLMetric,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
-                                     dependentKernelIterators: Seq[AbstractBatchIterator]
+                                     dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = {
     var build_elapse: Long = 0
     var eval_elapse: Long = 0
     GlutenConfig.getConf
     val transKernel = new ExpressionEvaluator()
     val inBatchIter = new ColumnarNativeIterator(iter.asJava)
-    val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
+    val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
     inBatchIters.add(inBatchIter)
     // we need to complete dependency RDD's firstly
     val beforeBuild = System.nanoTime()
@@ -269,9 +269,9 @@ class CHIteratorApi extends IIteratorApi {
    * @return
    */
   override def genBatchIterator(wsPlan: Array[Byte],
-                                iterList: Seq[AbstractColumnarNativeIterator],
+                                iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper
-                               ): AbstractBatchIterator = {
+                               ): GeneralOutIterator = {
     val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
       0L, wsPlan, iterList.toArray);
     new BatchIterator(batchIteratorInstance)

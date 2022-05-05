@@ -69,7 +69,7 @@ class NativeWholeStageColumnarRDD(
     columnarReads: Boolean,
     outputAttributes: Seq[Attribute],
     jarList: Seq[String],
-    dependentKernelIterators: ListBuffer[AbstractBatchIterator])
+    dependentKernelIterators: ListBuffer[GeneralOutIterator])
     extends RDD[ColumnarBatch](sc, Nil) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val loadNative: Boolean = GlutenConfig.getConf.loadNative

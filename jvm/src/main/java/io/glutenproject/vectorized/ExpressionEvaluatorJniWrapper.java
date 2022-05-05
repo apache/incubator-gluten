@@ -17,9 +17,6 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.execution.AbstractColumnarNativeIterator;
-import org.apache.spark.memory.MemoryConsumer;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -64,7 +61,7 @@ public class ExpressionEvaluatorJniWrapper {
          */
         public native long nativeCreateKernelWithIterator(long nativeHandler,
                                                    byte[] wsPlan,
-                                                   AbstractColumnarNativeIterator[] batchItr
+                                                   GeneralInIterator[] batchItr
         ) throws RuntimeException;
 
         /**

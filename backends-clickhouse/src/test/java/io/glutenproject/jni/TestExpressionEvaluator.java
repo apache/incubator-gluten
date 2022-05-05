@@ -1,6 +1,6 @@
 package io.glutenproject.jni;
 
-import io.glutenproject.execution.AbstractColumnarNativeIterator;
+import io.glutenproject.vectorized.GeneralInIterator;
 import io.glutenproject.row.RowIterator;
 import io.glutenproject.row.SparkRowInfo;
 import io.glutenproject.vectorized.ExpressionEvaluator;
@@ -37,7 +37,7 @@ public class TestExpressionEvaluator {
 
         Plan substraitPlan = Plan.parseFrom(dis);
 
-        ArrayList<AbstractColumnarNativeIterator> inBatchIters = new ArrayList<AbstractColumnarNativeIterator>();
+        ArrayList<GeneralInIterator> inBatchIters = new ArrayList<GeneralInIterator>();
         RowIterator resIter = transKernel.createKernelWithRowIterator(substraitPlan.toByteArray(),
                 inBatchIters);
         while (resIter.hasNext()) {

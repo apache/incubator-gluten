@@ -18,13 +18,9 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.AbstractColumnarNativeIterator
-import io.glutenproject.execution.BaseNativeFilePartition
-import io.glutenproject.execution.WholestageTransformContext
+import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.vectorized.AbstractBatchIterator
-import io.glutenproject.vectorized.ExpressionEvaluator
-import io.glutenproject.vectorized.ExpressionEvaluatorJniWrapper
+import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
 import org.apache.spark.SparkConf
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -84,7 +80,7 @@ class IteratorApiImplSuite extends IIteratorApi {
                                      rootNode: PlanNode, streamedSortPlan: SparkPlan,
                                      pipelineTime: SQLMetric, buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
-                                     dependentKernelIterators: Seq[AbstractBatchIterator]
+                                     dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = null
 
   /**
@@ -93,7 +89,7 @@ class IteratorApiImplSuite extends IIteratorApi {
    * @return
    */
   override def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]
-                                        ): AbstractColumnarNativeIterator = null
+                                        ): GeneralInIterator = null
 
   /**
    * Generate BatchIterator for ExpressionEvaluator.
@@ -101,9 +97,9 @@ class IteratorApiImplSuite extends IIteratorApi {
    * @return
    */
   override def genBatchIterator(wsPlan: Array[Byte],
-                                iterList: Seq[AbstractColumnarNativeIterator],
+                                iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper
-                               ): AbstractBatchIterator = null
+                               ): GeneralOutIterator = null
 
   /**
    * Get the backend api name.

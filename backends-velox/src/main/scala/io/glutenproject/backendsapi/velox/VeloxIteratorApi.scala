@@ -197,11 +197,11 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     import org.apache.spark.sql.util.OASPackageBridge._
     var inputSchema : Schema = null
     var outputSchema : Schema = null
-    var resIter : AbstractBatchIterator = null
+    var resIter : GeneralOutIterator = null
     if (loadNative) {
       // TODO: 'jarList' is kept for codegen
       val transKernel = new ExpressionEvaluator(jarList.asJava)
-      val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
+      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
       outputSchema = ArrowConverterUtils.toArrowSchema(outputAttributes)
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
@@ -271,7 +271,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                      pipelineTime: SQLMetric,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
-                                     dependentKernelIterators: Seq[AbstractBatchIterator]
+                                     dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = {
     ExecutorManager.tryTaskSet(numaBindingInfo)
     GlutenConfig.getConf
@@ -289,8 +289,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     })
 
     val transKernel = new ExpressionEvaluator(jarList.toList.asJava)
-    val inBatchIter = new ColumnarNativeIterator(iter.asJava)
-    val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
+    val inBatchIter = new VeloxInIterator(iter.asJava)
+    val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
     inBatchIters.add(inBatchIter)
     // we need to complete dependency RDD's firstly
     val beforeBuild = System.nanoTime()
@@ -352,8 +352,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @return
    */
   override def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]
-                                        ): ColumnarNativeIterator = {
-    new ColumnarNativeIterator(delegated.asJava)
+                                        ): VeloxInIterator = {
+    new VeloxInIterator(delegated.asJava)
   }
 
   /**
@@ -362,14 +362,14 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @return
    */
   override def genBatchIterator(wsPlan: Array[Byte],
-                                iterList: Seq[AbstractColumnarNativeIterator],
+                                iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper
-                               ): AbstractBatchIterator = {
+                               ): GeneralOutIterator = {
     val memoryPool = SparkMemoryUtils.contextMemoryPool();
     val poolId = memoryPool.getNativeInstanceId();
     val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
       poolId, wsPlan, iterList.toArray);
-    new BatchIterator(batchIteratorInstance)
+    new VeloxOutIterator(batchIteratorInstance)
   }
 
   /**

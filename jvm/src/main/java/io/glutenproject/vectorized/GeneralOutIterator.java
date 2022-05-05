@@ -22,11 +22,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-abstract public class AbstractBatchIterator<T> implements AutoCloseable, Serializable {
+public abstract class GeneralOutIterator<T> implements AutoCloseable, Serializable {
   protected final long handle;
   protected final AtomicBoolean closed = new AtomicBoolean(false);
 
-  public AbstractBatchIterator(long handle) throws IOException {
+  public GeneralOutIterator(long handle) throws IOException {
     this.handle = handle;
   }
 

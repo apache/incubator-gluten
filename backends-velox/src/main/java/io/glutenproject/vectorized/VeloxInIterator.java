@@ -15,33 +15,26 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution;
+package io.glutenproject.vectorized;
 
-import io.glutenproject.expression.ArrowConverterUtils;
-import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import io.glutenproject.utils.ArrowAbiUtil;
+import org.apache.arrow.c.ArrowArray;
+import org.apache.arrow.c.ArrowSchema;
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class ColumnarNativeIterator extends AbstractColumnarNativeIterator<long[]> {
+public class VeloxInIterator extends GeneralInIterator {
 
-  public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
+  public VeloxInIterator(Iterator<ColumnarBatch> delegated) {
     super(delegated);
   }
 
-  @Override
-  public long[] next() {
-    ColumnarBatch dep_cb = nextBatch;
-    if (dep_cb.numRows() > 0) {
-      ArrowRecordBatch dep_rb = ArrowConverterUtils.createArrowRecordBatch(dep_cb);
-      return serialize(dep_rb);
-    } else {
-      throw new IllegalStateException();
-    }
-  }
-
-  private byte[] serialize(ArrowRecordBatch batch) {
-    return UnsafeRecordBatchSerializer.serializeUnsafe(batch);
+  public void next(long cSchemaAddress, long cArrayAddress) {
+    final ColumnarBatch batch = nextColumnarBatch();
+    final ArrowSchema cSchema = ArrowSchema.wrap(cSchemaAddress);
+    final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
+    ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray);
   }
 }

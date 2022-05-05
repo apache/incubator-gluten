@@ -17,11 +17,10 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{AbstractColumnarNativeIterator, BaseNativeFilePartition, WholestageTransformContext}
+import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.vectorized.{AbstractBatchIterator, ExpressionEvaluator, ExpressionEvaluatorJniWrapper}
+import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
 import org.apache.spark.{SparkConf, TaskContext}
-
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -77,7 +76,7 @@ trait IIteratorApi extends IBackendsApi {
                             streamedSortPlan: SparkPlan, pipelineTime: SQLMetric,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
                             dependentKernels: Seq[ExpressionEvaluator],
-                            dependentKernelIterators: Seq[AbstractBatchIterator]
+                            dependentKernelIterators: Seq[GeneralOutIterator]
                            ): Iterator[ColumnarBatch]
 
   /**
@@ -85,13 +84,13 @@ trait IIteratorApi extends IBackendsApi {
    *
    * @return
    */
-  def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]): AbstractColumnarNativeIterator
+  def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]): GeneralInIterator
 
   /**
    * Generate BatchIterator for ExpressionEvaluator.
    *
    * @return
    */
-  def genBatchIterator(wsPlan: Array[Byte], iterList: Seq[AbstractColumnarNativeIterator],
-                       jniWrapper: ExpressionEvaluatorJniWrapper): AbstractBatchIterator
+  def genBatchIterator(wsPlan: Array[Byte], iterList: Seq[GeneralInIterator],
+                       jniWrapper: ExpressionEvaluatorJniWrapper): GeneralOutIterator
 }
