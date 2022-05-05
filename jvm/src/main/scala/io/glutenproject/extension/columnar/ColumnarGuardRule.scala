@@ -107,6 +107,8 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             case batchScan: BatchScanExec =>
               val childTransformer = new BatchScanExecTransformer(batchScan.output, batchScan.scan)
               if (childTransformer.doValidate()) {
+                // If the BatchScan passes validation, all the filters can be pushed down and
+                // the computing of this Filter is not needed.
                 return true
               }
             case _ =>

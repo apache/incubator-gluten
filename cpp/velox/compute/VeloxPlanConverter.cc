@@ -79,7 +79,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::FilterRel& sfilter)
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
-  int32_t iterIdx = subVeloxPlanConverter_->iterAsInput(sread);
+  int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
   if (iterIdx == -1) {
     return;
   }

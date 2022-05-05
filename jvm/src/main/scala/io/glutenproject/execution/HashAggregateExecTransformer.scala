@@ -295,17 +295,27 @@ case class HashAggregateExecTransformer(
                                          input: RelNode = null,
                                          validation: Boolean): RelNode = {
     // Will add a Projection before Aggregate.
+    // Logic was added to prevent selecting the same column for more than one times,
+    // so the expression in preExpressions will be unique.
     var preExpressions: Seq[Expression] = Seq()
     var selections: Seq[Int] = Seq()
+
+    // Get the needed expressions from grouping expressions.
     groupingExpressions.foreach(expr => {
       val foundExpr = preExpressions.find(e => e.semanticEquals(expr)).orNull
       if (foundExpr != null) {
+        // If found, no need to add it to preExpressions again.
+        // The selecting index will be found.
         selections = selections :+ preExpressions.indexOf(foundExpr)
       } else {
+        // If not found, add this expression into preExpressions.
+        // A new selecting index will be created.
         preExpressions = preExpressions :+ expr.clone()
         selections = selections :+ (preExpressions.size - 1)
       }
     })
+
+    // Get the needed expressions from aggregation expressions.
     aggregateExpressions.foreach(aggExpr => {
       val aggregatFunc = aggExpr.aggregateFunction
       aggExpr.mode match {
@@ -323,6 +333,8 @@ case class HashAggregateExecTransformer(
           throw new UnsupportedOperationException(s"$other not supported.")
       }
     })
+
+    // Create the expression nodes needed by Project node.
     val preExprNodes = new util.ArrayList[ExpressionNode]()
     for (expr <- preExpressions) {
       val preExpr: Expression = ExpressionConverter
@@ -332,7 +344,7 @@ case class HashAggregateExecTransformer(
     val inputRel = if (!validation) {
       RelBuilder.makeProjectRel(input, preExprNodes)
     } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
+      // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
       for (attr <- originalInputAttributes) {
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
@@ -341,7 +353,9 @@ case class HashAggregateExecTransformer(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(input, preExprNodes, extensionNode)
     }
-    // Handle pure Aggregate.
+
+    // Handle the pure Aggregate after Projection. Both grouping and Aggregate expressions are
+    // selections.
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
@@ -349,6 +363,8 @@ case class HashAggregateExecTransformer(
       groupingList.add(groupingExpr)
       colIdx += 1
     }
+
+    // Create Aggregation functions.
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
       val aggregatFunc = aggExpr.aggregateFunction
@@ -368,6 +384,7 @@ case class HashAggregateExecTransformer(
         ConverterUtils.getTypeNode(aggregatFunc.dataType, aggregatFunc.nullable))
       aggregateFunctionList.add(aggFunctionNode)
     })
+
     RelBuilder.makeAggregateRel(inputRel, groupingList, aggregateFunctionList)
   }
 
