@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
@@ -25,10 +26,10 @@ import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.vectorized._
-import org.apache.arrow.dataset.jni.JniLoader
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -37,12 +38,10 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
-
-  JniLoader.get().ensureLoaded()
 
   /**
    * Generate native row partition.

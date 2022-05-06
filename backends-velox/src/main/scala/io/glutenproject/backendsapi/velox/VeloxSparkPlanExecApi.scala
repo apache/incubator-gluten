@@ -17,12 +17,13 @@
 package io.glutenproject.backendsapi.velox
 
 import scala.collection.JavaConverters._
+
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.vectorized.ArrowColumnarBatchSerializer
-import org.apache.arrow.dataset.jni.JniLoader
 import org.apache.spark.ShuffleDependency
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -36,8 +37,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
-
-  JniLoader.get().ensureLoaded()
 
   /**
    * Generate NativeColumnarToRowExec.
