@@ -44,7 +44,7 @@ echo "VELOX_SOURCE_DIR=${VELOX_SOURCE_DIR}"
 echo "VELOX_INSTALL_DIR=${VELOX_INSTALL_DIR}"
 mkdir -p $VELOX_SOURCE_DIR
 mkdir -p $VELOX_INSTALL_DIR
-git clone https://github.com/rui-mo/velox.git -b velox_for_gazelle_jni $VELOX_SOURCE_DIR
+git clone https://github.com/oap-project/velox.git -b main $VELOX_SOURCE_DIR
 pushd $VELOX_SOURCE_DIR
 
 scripts/setup-ubuntu.sh

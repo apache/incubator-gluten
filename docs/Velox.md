@@ -3,10 +3,10 @@
 Currently, Gluten requires Velox being pre-compiled.
 In general, please refer to [Velox Installation](https://github.com/facebookincubator/velox/blob/main/scripts/setup-ubuntu.sh) to install all the dependencies and compile Velox.
 
-Gluten depends on this [Velox branch](https://github.com/rui-mo/velox/tree/velox_for_gazelle_jni).
-The changes to Velox are planned to be upstreamed in the future.
+Gluten depends on this [Velox branch](https://github.com/oap-project/velox/commits/main) under oap-project.
+The changes to Velox are planned to be upstreamed in the future. Some of them have already been raised to Velox in pull requests.
 
-Gluten depends on this [Arrow branch](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten) with this [pull request](https://github.com/oap-project/arrow/pull/94).
+Gluten depends on this [Arrow branch](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten).
 In the future, Gluten with Velox backend will swift to use the upstream Arrow.
 
 In addition to above notes, there are several points worth attention when compiling Gluten with Velox.
@@ -53,11 +53,9 @@ mvn clean package -Pbackends-velox -P full-scala-compiler -DskipTests -Dchecksty
 
 ### An example for offloading Spark's computing to Velox with Gluten
 
-TPC-H Q1 and Q6 are supported in Gluten using Velox as backend. Current support has below limitations: 
-
-- Found Date and Long types in Velox's TableScan are not fully ready, 
-so converted related columns into Double type.
-- Metrics are missing.
+In Gluten, TPC-H Q1 and Q6 can be fully offloaded into Velox for computing. Part of the operators
+in other TPC-H queires can be offloaded into Velox. The unsupported operators will fallback
+into Spark for execution.
 
 #### Test TPC-H Q1 and Q6 on Gluten with Velox backend
 
@@ -76,16 +74,21 @@ which is incompatible with Velox's String column. Add below option to disable th
 --conf spark.sql.hive.convertMetastoreOrc=false
 ```
 
-Considering Velox's support for Decimal, Date, Long types are not fully ready, the related columns of TPC-H Q6 were all transformed into Double type.
-Below script shows how to convert Parquet into ORC format, and transforming TPC-H Q6 related columns into Double type.
-To align with this data type change, the TPC-H Q6 query was changed accordingly.  
+Considering Velox's support for Decimal and Date are not fully ready,
+and there are also some compatibility issues for Bigint and Int in Velox's TableScan
+when reading Spark generated ORC files (see [issue](https://github.com/facebookincubator/velox/issues/1436)),
+the related columns in TPC-H Q1 and Q6 were all transformed into Double type.
+
+Below script shows how to convert Parquet into ORC format, and transforming all the columns into Double type.
+To align with this data type change, the TPC-H Q1 and Q6 queries need to be changed accordingly.  
 
 ```shell script
+val secondsInADay = 86400.0
 for (filePath <- fileLists) {
   val parquet = spark.read.parquet(filePath)
-  val df = parquet.select(parquet.col("l_orderkey"), parquet.col("l_partkey"), parquet.col("l_suppkey"), parquet.col("l_linenumber"), parquet.col("l_quantity"), parquet.col("l_extendedprice"), parquet.col("l_discount"), parquet.col("l_tax"), parquet.col("l_returnflag"), parquet.col("l_linestatus"), parquet.col("l_shipdate").cast(TimestampType).cast(LongType).cast(DoubleType).divide(seconds_in_a_day).alias("l_shipdate_new"), parquet.col("l_commitdate").cast(TimestampType).cast(LongType).cast(DoubleType).divide(seconds_in_a_day).alias("l_commitdate_new"), parquet.col("l_receiptdate").cast(TimestampType).cast(LongType).cast(DoubleType).divide(seconds_in_a_day).alias("l_receiptdate_new"), parquet.col("l_shipinstruct"), parquet.col("l_shipmode"), parquet.col("l_comment"))
+  val df = parquet.select(parquet.col("l_orderkey").cast(DoubleType), parquet.col("l_partkey").cast(DoubleType), parquet.col("l_suppkey").cast(DoubleType), parquet.col("l_linenumber").cast(DoubleType), parquet.col("l_quantity"), parquet.col("l_extendedprice"), parquet.col("l_discount"), parquet.col("l_tax"), parquet.col("l_returnflag"), parquet.col("l_linestatus"), parquet.col("l_shipdate").cast(TimestampType).cast(LongType).cast(DoubleType).divide(secondsInADay).alias("l_shipdate"), parquet.col("l_commitdate").cast(TimestampType).cast(LongType).cast(DoubleType).divide(secondsInADay).alias("l_commitdate"), parquet.col("l_receiptdate").cast(TimestampType).cast(LongType).cast(DoubleType).divide(secondsInADay).alias("l_receiptdate"), parquet.col("l_shipinstruct"), parquet.col("l_shipmode"), parquet.col("l_comment"))
   val part_df = df.repartition(1)
-  part_df.write.mode("append").format("orc").save(ORC_path)
+  part_df.write.mode("append").format("orc").save(orcPath)
 }
 ```
 
@@ -94,12 +97,12 @@ for (filePath <- fileLists) {
 The modified TPC-H Q6 query is:
 
 ```shell script
-select sum(l_extendedprice * l_discount) as revenue from lineitem where l_shipdate_new >= 8766 and l_shipdate_new < 9131 and l_discount between .06 - 0.01 and .06 + 0.01 and l_quantity < 24
+select sum(l_extendedprice * l_discount) as revenue from lineitem where l_shipdate >= 8766 and l_shipdate < 9131 and l_discount between .06 - 0.01 and .06 + 0.01 and l_quantity < 24
 ```
 
-The modified TPC-H Q6 query is:
+The modified TPC-H Q1 query is:
 ```shell script
-select l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order from lineitem where l_shipdate_new <= 10471 group by l_returnflag, l_linestatus order by l_returnflag, l_linestatus
+select l_returnflag, l_linestatus, sum(l_quantity) as sum_qty, sum(l_extendedprice) as sum_base_price, sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge, avg(l_quantity) as avg_qty, avg(l_extendedprice) as avg_price, avg(l_discount) as avg_disc, count(*) as count_order from lineitem where l_shipdate <= 10471 group by l_returnflag, l_linestatus order by l_returnflag, l_linestatus
 ```
 
 Below script shows how to read the ORC data, and submit the modified TPC-H Q6 query.
@@ -108,8 +111,8 @@ cat tpch_q6.scala
 ```shell script
 val lineitem = spark.read.format("orc").load("file:///mnt/lineitem_orcs")
 lineitem.createOrReplaceTempView("lineitem")
-// The modified TPC-H Q6 query
-time{spark.sql("select sum(l_extendedprice * l_discount) as revenue from lineitem where l_shipdate_new >= 8766 and l_shipdate_new < 9131 and l_discount between .06 - 0.01 and .06 + 0.01 and l_quantity < 24").show}
+// Submit the modified TPC-H Q6 query
+time{spark.sql("select sum(l_extendedprice * l_discount) as revenue from lineitem where l_shipdate >= 8766 and l_shipdate < 9131 and l_discount between .06 - 0.01 and .06 + 0.01 and l_quantity < 24").show}
 ```
 
 Submit test script from spark-shell.
