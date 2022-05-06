@@ -44,8 +44,6 @@ public class JniInstance {
   private static final String LIBRARY_NAME = "spark_columnar_jni";
   private static final String ARROW_LIBRARY_NAME = "libarrow.so.800.0.0";
   private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.800";
-  private static final String ARROW_DATASET_JNI_LIBRARY_NAME = "libarrow_dataset_jni.so.800.0.0";
-  private static final String ARROW_DATASET_JNI_PARENT_LIBRARY_NAME = "libarrow_dataset_jni.so.800";
   private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.800.0.0";
   private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.800";
   private static boolean isLoaded = false;
@@ -106,7 +104,7 @@ public class JniInstance {
           System.loadLibrary(LIBRARY_NAME);
         }
         if (loadArrowAndGandiva) {
-          System.load(ARROW_DATASET_JNI_LIBRARY_NAME);
+          System.load(ARROW_LIBRARY_NAME);
           System.load(GANDIVA_LIBRARY_NAME);
         }
       }
@@ -169,9 +167,9 @@ public class JniInstance {
    * A function used to load arrow and gandiva lib from jars
    */
   static void loadArrowAndGandivaFromJarWithLib(String tmp_dir) throws IOException, IllegalAccessException {
-    final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_DATASET_JNI_LIBRARY_NAME);
+    final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
     Path arrow_target = Paths.get(arrowlibraryFile.getPath());
-    Path arrow_link = Paths.get(tmp_dir, ARROW_DATASET_JNI_PARENT_LIBRARY_NAME);
+    Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
     if (Files.exists(arrow_link)) {
       Files.delete(arrow_link);
     }
