@@ -17,16 +17,17 @@
 package io.glutenproject.backendsapi.velox
 
 import scala.collection.JavaConverters._
-
 import io.glutenproject.backendsapi.ITransformerApi
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
-
+import org.apache.arrow.dataset.jni.JniLoader
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 
 class VeloxTransformerApi extends ITransformerApi with Logging {
+
+  JniLoader.get().ensureLoaded()
 
   /**
    * Do validate for ColumnarShuffleExchangeExec.
