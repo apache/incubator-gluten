@@ -292,8 +292,8 @@ macro(build_arrow STATIC_ARROW)
 
     # Set up Arrow Dataset JNI Shared Library Directory
     set(
-            ARROW_DATASET_JNI_SHARED_LIB
-            "${root_directory}/releases/${ARROW_DATASET_JNI_SHARED_LIB_NAME}"
+      ARROW_DATASET_JNI_SHARED_LIB
+      "${root_directory}/releases/${ARROW_DATASET_JNI_SHARED_LIB_NAME}"
     )
     add_library(Arrow::arrow_dataset_jni SHARED IMPORTED)
     set_target_properties(Arrow::arrow_dataset_jni
@@ -380,6 +380,18 @@ macro(find_arrow)
                                    INTERFACE_INCLUDE_DIRECTORIES
                                     "${root_directory}/releases/include")
 
+  # Set up Arrow Dataset JNI Shared Library Directory
+  set(
+      ARROW_DATASET_JNI_SHARED_LIB
+      "${root_directory}/releases/${ARROW_DATASET_JNI_SHARED_LIB_NAME}"
+  )
+
+  add_library(Arrow::arrow_dataset_jni SHARED IMPORTED)
+  set_target_properties(Arrow::arrow_dataset_jni
+          PROPERTIES IMPORTED_LOCATION "${ARROW_DATASET_JNI_SHARED_LIB}"
+          INTERFACE_INCLUDE_DIRECTORIES
+          "${root_directory}/releases/include")
+
   # Set up Gandiva Shared Library Directory
   set(
     GANDIVA_SHARED_LIB
@@ -392,7 +404,7 @@ macro(find_arrow)
                                     "${root_directory}/releases/include")
 
   target_link_libraries(spark_columnar_jni
-                    LINK_PUBLIC Arrow::arrow Arrow::gandiva)
+                    LINK_PUBLIC Arrow::arrow Arrow::arrow_dataset_jni Arrow::gandiva)
 
 endmacro()
 
