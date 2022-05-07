@@ -351,6 +351,7 @@ macro(find_arrow)
   endif()
 
   file(COPY ${ARROW_LIB} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
+  file(COPY ${ARROW_DATASET_JNI_LIB} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
   file(COPY ${GANDIVA_LIB} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
 
   if(EXISTS ${ARROW_BFS_INCLUDE_DIR})
