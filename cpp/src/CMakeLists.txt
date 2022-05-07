@@ -336,6 +336,13 @@ macro(find_arrow)
     message(STATUS "Arrow Library Can Be Found in ${ARROW_LIB}")
   endif()
 
+  find_library(ARROW_DATASET_JNI_LIB NAMES ${ARROW_DATASET_JNI_SHARED_LIB_NAME} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
+  if(NOT ARROW_DATASET_JNI_LIB)
+    message(FATAL_ERROR "Arrow Dataset JNI Library Not Found")
+  else()
+    message(STATUS "Arrow Dataset JNI Library Can Be Found in ${ARROW_DATASET_JNI_LIB}")
+  endif()
+
   find_library(GANDIVA_LIB NAMES ${GANDIVA_SHARED_LIB_NAME} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
   if(NOT GANDIVA_LIB)
     message(FATAL_ERROR "Gandiva Library Not Found")
