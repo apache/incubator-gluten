@@ -30,10 +30,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(ARROW_ROOT "/usr/local" CACHE PATH "Arrow Root dir")
 set(ARROW_BFS_INSTALL_DIR "/usr/local" CACHE PATH "Arrow Build from Source dir")
-set(ARROW_LIB_NAME arrow_dataset_jni) # some jni utils were imported from dataset module.
+set(ARROW_LIB_NAME arrow)
+set(ARROW_DATASET_JNI_LIB_NAME arrow_dataset_jni) # some jni utils were imported from dataset module.
 set(GANDIVA_LIB_NAME gandiva)
 set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
 set(ARROW_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
+set(ARROW_DATASET_JNI_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_DATASET_JNI_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
 set(GANDIVA_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
 
 option(BUILD_ARROW "Build Arrow from Source" ON)
@@ -208,6 +210,7 @@ macro(build_arrow STATIC_ARROW)
     find_package(Threads REQUIRED)
 
     set(ARROW_LIB_NAME arrow_bundled_dependencies)
+
     set(
       ARROW_STATIC_LIB
       "${ARROW_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
@@ -218,6 +221,17 @@ macro(build_arrow STATIC_ARROW)
                                      INTERFACE_INCLUDE_DIRECTORIES
                                       "${ARROW_PREFIX}/include")
     add_dependencies(Arrow::arrow arrow_ep)
+
+    set(
+      ARROW_DATASET_JNI_STATIC_LIB
+      "${ARROW_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${ARROW_DATASET_JNI_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    )
+    add_library(Arrow::arrow_dataset_jni STATIC IMPORTED)
+    set_target_properties(Arrow::arrow_dataset_jni
+            PROPERTIES IMPORTED_LOCATION "${ARROW_DATASET_JNI_STATIC_LIB}"
+            INTERFACE_INCLUDE_DIRECTORIES
+            "${ARROW_PREFIX}/include")
+    add_dependencies(Arrow::arrow_dataset_jni arrow_ep)
 
     # Load Static Gandiva Library
     set(
@@ -230,7 +244,7 @@ macro(build_arrow STATIC_ARROW)
                                      INTERFACE_INCLUDE_DIRECTORIES
                                       "${ARROW_PREFIX}/include")
     add_dependencies(Arrow::gandiva arrow_ep)
-    target_link_libraries(spark_columnar_jni PRIVATE Arrow::arrow Arrow::gandiva Threads::Threads)
+    target_link_libraries(spark_columnar_jni PRIVATE Arrow::arrow Arrow::arrow_dataset_jni Arrow::gandiva Threads::Threads)
 
   else()
 
@@ -240,6 +254,13 @@ macro(build_arrow STATIC_ARROW)
                       DEPENDEES mkdir download update patch configure build install java_install
                       WORKING_DIRECTORY "${ARROW_PREFIX}/"
     )
+
+    ExternalProject_Add_Step(arrow_ep copy_arrow_dataset_jni_binary
+            COMMAND cp -a ${ARROW_PREFIX}/lib/${ARROW_DATASET_JNI_SHARED_LIB_NAME} ${root_directory}/releases/
+            COMMENT "Copy ${ARROW_DATASET_JNI_SHARED_LIB_NAME} to releases/"
+            DEPENDEES mkdir download update patch configure build install java_install
+            WORKING_DIRECTORY "${ARROW_PREFIX}/"
+            )
 
     ExternalProject_Add_Step(arrow_ep copy_gandiva_binary
                       COMMAND cp -a ${ARROW_PREFIX}/lib/${GANDIVA_SHARED_LIB_NAME} ${root_directory}/releases/
@@ -269,6 +290,18 @@ macro(build_arrow STATIC_ARROW)
                                       "${root_directory}/releases/include")
     add_dependencies(Arrow::arrow arrow_ep)
 
+    # Set up Arrow Dataset JNI Shared Library Directory
+    set(
+            ARROW_DATASET_JNI_SHARED_LIB
+            "${root_directory}/releases/${ARROW_DATASET_JNI_SHARED_LIB_NAME}"
+    )
+    add_library(Arrow::arrow_dataset_jni SHARED IMPORTED)
+    set_target_properties(Arrow::arrow_dataset_jni
+            PROPERTIES IMPORTED_LOCATION "${ARROW_DATASET_JNI_SHARED_LIB}"
+            INTERFACE_INCLUDE_DIRECTORIES
+            "${root_directory}/releases/include")
+    add_dependencies(Arrow::arrow_dataset_jni arrow_ep)
+
     # Set up Gandiva Shared Library Directory
     set(
       GANDIVA_SHARED_LIB
@@ -282,7 +315,7 @@ macro(build_arrow STATIC_ARROW)
     add_dependencies(Arrow::gandiva arrow_ep)
 
     target_link_libraries(spark_columnar_jni
-                      LINK_PUBLIC Arrow::arrow Arrow::gandiva)
+                      LINK_PUBLIC Arrow::arrow Arrow::arrow_dataset_jni Arrow::gandiva)
   endif()
 endmacro()
 
