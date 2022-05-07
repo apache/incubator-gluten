@@ -30,7 +30,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(ARROW_ROOT "/usr/local" CACHE PATH "Arrow Root dir")
 set(ARROW_BFS_INSTALL_DIR "/usr/local" CACHE PATH "Arrow Build from Source dir")
-set(ARROW_LIB_NAME arrow)
+set(ARROW_LIB_NAME arrow_dataset_jni) # some jni utils were imported from dataset module.
 set(GANDIVA_LIB_NAME gandiva)
 set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
 set(ARROW_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
