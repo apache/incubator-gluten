@@ -44,6 +44,8 @@ public class JniInstance {
   private static final String LIBRARY_NAME = "spark_columnar_jni";
   private static final String ARROW_LIBRARY_NAME = "libarrow.so.800.0.0";
   private static final String ARROW_PARENT_LIBRARY_NAME = "libarrow.so.800";
+  private static final String ARROW_DATASET_JNI_LIBRARY_NAME = "libarrow_dataset_jni.so.800.0.0";
+  private static final String ARROW_DATASET_JNI_PARENT_LIBRARY_NAME = "libarrow_dataset_jni.so.800";
   private static final String GANDIVA_LIBRARY_NAME = "libgandiva.so.800.0.0";
   private static final String GANDIVA_PARENT_LIBRARY_NAME = "libgandiva.so.800";
   private static boolean isLoaded = false;
@@ -105,6 +107,7 @@ public class JniInstance {
         }
         if (loadArrowAndGandiva) {
           System.load(ARROW_LIBRARY_NAME);
+          System.load(ARROW_DATASET_JNI_LIBRARY_NAME);
           System.load(GANDIVA_LIBRARY_NAME);
         }
       }
@@ -167,23 +170,20 @@ public class JniInstance {
    * A function used to load arrow and gandiva lib from jars
    */
   static void loadArrowAndGandivaFromJarWithLib(String tmp_dir) throws IOException, IllegalAccessException {
-    final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
+    loadWithLink(tmp_dir, ARROW_LIBRARY_NAME, ARROW_PARENT_LIBRARY_NAME);
+    loadWithLink(tmp_dir, ARROW_DATASET_JNI_LIBRARY_NAME, ARROW_DATASET_JNI_PARENT_LIBRARY_NAME);
+    loadWithLink(tmp_dir, GANDIVA_LIBRARY_NAME, GANDIVA_PARENT_LIBRARY_NAME);
+  }
+
+  private static void loadWithLink(String tmp_dir, String arrowLibraryName, String arrowParentLibraryName) throws IOException {
+    final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, arrowLibraryName);
     Path arrow_target = Paths.get(arrowlibraryFile.getPath());
-    Path arrow_link = Paths.get(tmp_dir, ARROW_PARENT_LIBRARY_NAME);
+    Path arrow_link = Paths.get(tmp_dir, arrowParentLibraryName);
     if (Files.exists(arrow_link)) {
       Files.delete(arrow_link);
     }
-    Path symLink = Files.createSymbolicLink(arrow_link, arrow_target);
+    Files.createSymbolicLink(arrow_link, arrow_target);
     System.load(arrowlibraryFile.getAbsolutePath());
-
-    final File gandivalibraryFile = moveFileFromJarToTemp(tmp_dir, GANDIVA_LIBRARY_NAME);
-    Path gandiva_target = Paths.get(gandivalibraryFile.getPath());
-    Path gandiva_link = Paths.get(tmp_dir, GANDIVA_PARENT_LIBRARY_NAME);
-    if (Files.exists(gandiva_link)) {
-      Files.delete(gandiva_link);
-    }
-    Files.createSymbolicLink(gandiva_link, gandiva_target);
-    System.load(gandivalibraryFile.getAbsolutePath());
   }
 
   /**
