@@ -164,7 +164,10 @@ public class JniInstance {
   }
 
   /**
-   * A function used to load arrow and gandiva lib from jars
+   * A function used to load arrow and gandiva lib from jar.
+   * This function will change the soft links of gandiva and arrow shared libraries from
+   * those in release directory to those extracted to tmp dir. In this way, other library
+   * depending on them will not depend on the release directory any more.
    */
   static void loadArrowAndGandivaFromJarWithLib(String tmp_dir) throws IOException, IllegalAccessException {
     final File arrowlibraryFile = moveFileFromJarToTemp(tmp_dir, ARROW_LIBRARY_NAME);
@@ -193,24 +196,33 @@ public class JniInstance {
                                      boolean loadArrowAndGandiva)
           throws IOException, IllegalAccessException {
     synchronized (JniInstance.class) {
+      if (loadArrowAndGandiva) {
+        // Load arrow and gandiva firstly for this function will change the soft links
+        // of arrow and gandiva shared libraries.
+        loadArrowAndGandivaFromJarWithLib(tmp_dir);
+      }
       File file = new File(libPath);
       if (!file.isFile() || !file.exists()) {
         throw new IOException("Library path: " + libPath + " is not a file or does not exist.");
       }
       System.load(file.getAbsolutePath());
-      if (loadArrowAndGandiva) {
-        loadArrowAndGandivaFromJarWithLib(tmp_dir);
-      }
     }
   }
 
+  /**
+   * A function used to load certain library from jar.
+   * **/
   static void loadLibraryFromJarWithLib(String tmp_dir, String lib_name,
                                         boolean loadArrowAndGandiva) throws IOException, IllegalAccessException {
     synchronized (JniInstance.class) {
       if (tmp_dir == null) {
         tmp_dir = System.getProperty("java.io.tmpdir");
       }
-
+      if (loadArrowAndGandiva) {
+        // Load arrow and gandiva firstly for this function will change the soft links
+        // of arrow and gandiva shared libraries.
+        loadArrowAndGandivaFromJarWithLib(tmp_dir);
+      }
       final String libraryToLoad;
       if (lib_name != null) {
         libraryToLoad = System.mapLibraryName(lib_name);
@@ -219,10 +231,6 @@ public class JniInstance {
       }
       final File libraryFile = moveFileFromJarToTemp(tmp_dir, libraryToLoad);
       System.load(libraryFile.getAbsolutePath());
-
-      if (loadArrowAndGandiva) {
-        loadArrowAndGandivaFromJarWithLib(tmp_dir);
-      }
     }
   }
 
