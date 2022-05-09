@@ -60,8 +60,8 @@ spark.plugins io.glutenproject.GlutenPlugin
 spark.gluten.sql.columnar.backend.lib ${BACKEND}
 spark.sql.sources.useV1SourceList avro
 spark.memory.offHeap.size 20g
-spark.driver.extraClassPath ${GLUTEN_HOME}/jvm/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GLUTEN_HOME}/jvm/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
+spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
 ```
 
 Below is an example of the script to submit Spark SQL query.

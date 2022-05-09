@@ -40,9 +40,9 @@ make install
 # build java
 cd ../../java
 # change property 'arrow.cpp.build.dir' to the relative path of cpp build dir in gandiva/pom.xml
-mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=../cpp/release-build/release/ -DskipTests -Dcheckstyle.skip
+mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=${ARROW_HOME}/cpp/release-build/release/ -DskipTests -Dcheckstyle.skip
 # if you are behine proxy, please also add proxy for socks
-mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=../cpp/release-build/release/ -DskipTests -Dcheckstyle.skip -DsocksProxyHost=${proxyHost} -DsocksProxyPort=1080 
+mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=${ARROW_HOME}/cpp/release-build/release/ -DskipTests -Dcheckstyle.skip -DsocksProxyHost=${proxyHost} -DsocksProxyPort=1080 
 ```
 
 run test
