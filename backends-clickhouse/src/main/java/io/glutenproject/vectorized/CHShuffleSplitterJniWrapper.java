@@ -21,7 +21,7 @@ import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
     public CHShuffleSplitterJniWrapper() throws IOException {
-        JniInstance.getInstance();
+        JniWorkspace.getDefault().libLoader().loadEssentials();
     }
 
     public long make(
