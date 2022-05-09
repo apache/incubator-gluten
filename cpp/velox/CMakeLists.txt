@@ -478,7 +478,7 @@ set(VELOX_SRCS
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
-target_include_directories(velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${root_directory}/src ${VELOX_HOME} ${VELOX_HOME}/velox/vector ${VELOX_REALEASE_PATH})
+target_include_directories(velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${root_directory}/src ${VELOX_HOME} ${VELOX_HOME}/velox/vector ${VELOX_REALEASE_PATH} ${VELOX_HOME}/third_party/xsimd/include/)
 
 set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases

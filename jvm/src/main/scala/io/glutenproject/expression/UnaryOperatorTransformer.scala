@@ -171,13 +171,9 @@ class CastTransformer(
     if (!child_node.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.CAST, Seq(child.dataType)))
-    val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable = true)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    val typeNode = ConverterUtils.getTypeNode(dataType, nullable = true)
+    ExpressionBuilder.makeCast(typeNode, child_node.asInstanceOf[ExpressionNode])
   }
 }
 
