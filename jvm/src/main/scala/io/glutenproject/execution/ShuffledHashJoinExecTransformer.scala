@@ -171,9 +171,7 @@ case class ShuffledHashJoinExecTransformer(
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val supportedJoinType =
-      JoinRel.JoinType.JOIN_TYPE_INNER :: JoinRel.JoinType.JOIN_TYPE_OUTER :: Nil
-    if (!supportedJoinType.contains(substraitJoinType)) {
+    if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
       return false
     }
     val relNode =

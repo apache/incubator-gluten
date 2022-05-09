@@ -135,12 +135,15 @@ class BitwiseNotTransformer(child: Expression, original: Expression)
   }
 }
 
-class KnownFloatingPointNormalizedTransformer(child: Expression,
-                                              original: KnownFloatingPointNormalized)
-  extends KnownFloatingPointNormalized(child: Expression) with ExpressionTransformer with Logging {
+class KnownFloatingPointNormalizedTransformer(
+    child: Expression,
+    original: KnownFloatingPointNormalized)
+    extends KnownFloatingPointNormalized(child: Expression)
+    with ExpressionTransformer
+    with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    child.asInstanceOf[ExpressionTransformer].doTransform(args)
   }
 }
 
@@ -208,7 +211,10 @@ class NormalizeNaNAndZeroTransformer(child: Expression, original: NormalizeNaNAn
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    // TODO: A Temporary workaround to make shuffle repartition expression
+    // pass with double/float type.
+    // We need to support converting substrait to gandiva expressions in native.
+    child.asInstanceOf[ExpressionTransformer].doTransform(args)
   }
 }
 
