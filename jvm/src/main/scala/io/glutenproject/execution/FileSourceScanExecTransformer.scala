@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -25,8 +26,6 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation}
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
@@ -52,13 +51,6 @@ class FileSourceScanExecTransformer(
       tableIdentifier,
       disableBucketedScan)
     with BasicScanExecTransformer {
-
-  lazy val isFileFormatSupported: Boolean = {
-    GlutenConfig.getConf.isGazelleBackend &&
-    relation.fileFormat.isInstanceOf[ParquetFileFormat] ||
-    GlutenConfig.getConf.isVeloxBackend &&
-    relation.fileFormat.isInstanceOf[OrcFileFormat]
-  }
 
   override def filterExprs(): Seq[Expression] = dataFilters
 
@@ -130,7 +122,7 @@ class FileSourceScanExecTransformer(
   }
 
   override def doValidate(): Boolean = {
-    if (isFileFormatSupported) {
+    if (BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(relation.fileFormat)) {
       super.doValidate()
     } else {
       false
