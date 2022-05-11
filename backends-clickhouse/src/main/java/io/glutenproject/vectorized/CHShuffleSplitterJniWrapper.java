@@ -20,8 +20,7 @@ package io.glutenproject.vectorized;
 import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
-    public CHShuffleSplitterJniWrapper() throws IOException {
-        JniInstance.getInstance();
+    public CHShuffleSplitterJniWrapper() {
     }
 
     public long make(

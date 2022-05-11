@@ -64,10 +64,10 @@ public class ExpressionEvaluator implements AutoCloseable {
     }
     jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName, libPath,
             customBackendLib, loadArrowAndGandiva);
-    jniWrapper.nativeSetJavaTmpDir(jniWrapper.tmp_dir_path);
+    jniWrapper.nativeSetJavaTmpDir(jniWrapper.tmpDirPath);
     jniWrapper.nativeSetBatchSize(GlutenConfig.getBatchSize());
     jniWrapper.nativeSetMetricsTime(GlutenConfig.getEnableMetricsTime());
-    GlutenConfig.setRandomTempDir(jniWrapper.tmp_dir_path);
+    GlutenConfig.setRandomTempDir(jniWrapper.tmpDirPath);
   }
 
   long getInstanceId() {

@@ -18,9 +18,8 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.execution.AbstractColumnarNativeIterator;
-import org.apache.spark.memory.MemoryConsumer;
+import org.apache.commons.lang3.StringUtils;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -29,73 +28,93 @@ import java.util.List;
  * jni. Avoid all external dependencies in this file.
  */
 public class ExpressionEvaluatorJniWrapper {
-        public String tmp_dir_path;
+  public String tmpDirPath;
 
-        /** Wrapper for native API. */
-        public ExpressionEvaluatorJniWrapper(String tmp_dir, List<String> listJars, String libName,
-                                             String libPath, String customBackendLib,
-                                             boolean loadArrowAndGandiva)
-                        throws IOException, IllegalAccessException, IllegalStateException {
-                JniInstance jni = JniInstance
-                        .getInstance(tmp_dir, libName, libPath, customBackendLib, loadArrowAndGandiva);
-                jni.setTempDir();
-                jni.setJars(listJars);
-                tmp_dir_path = jni.getTempDir();
-        }
+  /** Wrapper for native API. */
+  public ExpressionEvaluatorJniWrapper(String tmpDir, List<String> listJars, String libName,
+      String libPath, String customBackendLib,
+      boolean loadArrowAndGandiva)
+      throws IllegalStateException {
+    final JniWorkspace workspace = JniWorkspace.createOrGet(tmpDir);
+    final JniLibLoader loader = workspace.libLoader();
 
-        /**
-         * Call initNative to initialize native computing.
-         */
-        native void nativeInitNative();
+    // some complex if-else conditions from the original JniInstance.java
+    if (loadArrowAndGandiva) {
+      loader.loadArrowLibs();
+    }
+    if (StringUtils.isNotBlank(libPath)) {
+      // Path based load. Ignore all other loadees.
+      JniLibLoader.loadFromPath(libPath);
+    } else {
+      if (StringUtils.isNotBlank(libName)) {
+        loader.mapAndLoad(libName);
+      } else {
+        loader.loadGlutenLib();
+      }
+      if (StringUtils.isNotBlank(customBackendLib)) {
+        loader.mapAndLoad(customBackendLib);
+      }
+    }
+    final JniResourceHelper resourceHelper = workspace.resourceHelper();
 
-        /**
-         * Validate the Substrait plan in native compute engine.
-         *
-         * @param subPlan the Substrait plan in binary format.
-         * @return whether the computing of this plan is supported in native.
-         */
-        native boolean nativeDoValidate(byte[] subPlan);
+    resourceHelper.extractHeaders();
+    resourceHelper.extractJars(listJars);
+    tmpDirPath = workspace.getWorkDir();
+  }
 
-        /**
-         * Create a native compute kernel and return a columnar result iterator.
-         *
-         * @param nativeHandler nativeHandler of this expression
-         * @return iterator instance id
-         */
-        public native long nativeCreateKernelWithIterator(long nativeHandler,
-                                                   byte[] wsPlan,
-                                                   AbstractColumnarNativeIterator[] batchItr
-        ) throws RuntimeException;
+  /**
+   * Call initNative to initialize native computing.
+   */
+  native void nativeInitNative();
 
-        /**
-         * Create a native compute kernel and return a row iterator.
-         */
-        native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
+  /**
+   * Validate the Substrait plan in native compute engine.
+   *
+   * @param subPlan the Substrait plan in binary format.
+   * @return whether the computing of this plan is supported in native.
+   */
+  native boolean nativeDoValidate(byte[] subPlan);
 
-        /**
-         * Set native env variables NATIVE_TMP_DIR
-         *
-         * @param path tmp path for native codes, use java.io.tmpdir
-         */
-        native void nativeSetJavaTmpDir(String path);
+  /**
+   * Create a native compute kernel and return a columnar result iterator.
+   *
+   * @param nativeHandler nativeHandler of this expression
+   * @return iterator instance id
+   */
+  public native long nativeCreateKernelWithIterator(long nativeHandler,
+      byte[] wsPlan,
+      AbstractColumnarNativeIterator[] batchItr
+  ) throws RuntimeException;
 
-        /**
-         * Set native env variables NATIVE_BATCH_SIZE
-         *
-         * @param batch_size numRows of one batch, use
-         *                   spark.sql.execution.arrow.maxRecordsPerBatch
-         */
-        native void nativeSetBatchSize(int batch_size);
+  /**
+   * Create a native compute kernel and return a row iterator.
+   */
+  native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
 
-        /**
-         * Set native env variables NATIVESQL_METRICS_TIME
-         */
-        native void nativeSetMetricsTime(boolean is_enable);
+  /**
+   * Set native env variables NATIVE_TMP_DIR
+   *
+   * @param path tmp path for native codes, use java.io.tmpdir
+   */
+  native void nativeSetJavaTmpDir(String path);
 
-        /**
-         * Closes the projector referenced by nativeHandler.
-         *
-         * @param nativeHandler nativeHandler that needs to be closed
-         */
-        native void nativeClose(long nativeHandler);
+  /**
+   * Set native env variables NATIVE_BATCH_SIZE
+   *
+   * @param batch_size numRows of one batch, use
+   *                   spark.sql.execution.arrow.maxRecordsPerBatch
+   */
+  native void nativeSetBatchSize(int batch_size);
+
+  /**
+   * Set native env variables NATIVESQL_METRICS_TIME
+   */
+  native void nativeSetMetricsTime(boolean is_enable);
+
+  /**
+   * Closes the projector referenced by nativeHandler.
+   *
+   * @param nativeHandler nativeHandler that needs to be closed
+   */
+  native void nativeClose(long nativeHandler);
 }

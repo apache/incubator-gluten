@@ -48,6 +48,12 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
       [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
 }
 
+JNIEXPORT jboolean JNICALL
+Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
+    JNIEnv* env, jobject obj, jbyteArray planArray) {
+  return true;
+}
+
 #ifdef __cplusplus
 }
 #endif
