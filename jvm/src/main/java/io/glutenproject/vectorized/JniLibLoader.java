@@ -34,6 +34,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * LoadXXX methods in the utility prevents reloading of a library internally. It's not necessary for caller
+ * to manage a loaded library list.
+ */
 public class JniLibLoader {
   private static final Logger LOG =
       LoggerFactory.getLogger(JniLibLoader.class);
