@@ -17,8 +17,6 @@
 
 package io.glutenproject.execution
 
-import java.util
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
@@ -34,6 +32,7 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
+import java.util
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -199,6 +198,9 @@ case class HashAggregateExecTransformer(
         val readRel = RelBuilder.makeReadRel(attrList, context)
         (getAggRel(context.registeredFunction, readRel), child.output, output)
       } else {
+        // Notes: Currently, ClickHouse backend uses the output attributes of
+        // aggregateResultAttributes as Shuffle output,
+        // which is different from the Velox and Gazelle.
         val typeList = new util.ArrayList[TypeNode]()
         val nameList = new util.ArrayList[String]()
         for (attr <- aggregateResultAttributes) {
