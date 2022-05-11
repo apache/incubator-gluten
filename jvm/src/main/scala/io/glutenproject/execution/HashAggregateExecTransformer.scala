@@ -17,8 +17,6 @@
 
 package io.glutenproject.execution
 
-import java.util
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
@@ -29,15 +27,12 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
-import io.glutenproject.substrait.expression.{
-  AggregateFunctionNode,
-  ExpressionBuilder,
-  ExpressionNode
-}
+import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
+import java.util
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -203,13 +198,20 @@ case class HashAggregateExecTransformer(
         val readRel = RelBuilder.makeReadRel(attrList, context)
         (getAggRel(context.registeredFunction, readRel), child.output, output)
       } else {
+        // Notes: Currently, ClickHouse backend uses the output attributes of
+        // aggregateResultAttributes as Shuffle output,
+        // which is different from the Velox and Gazelle.
+        val typeList = new util.ArrayList[TypeNode]()
+        val nameList = new util.ArrayList[String]()
+        for (attr <- aggregateResultAttributes) {
+          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+          nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
+        }
         // The iterator index will be added in the path of LocalFiles.
         val inputIter = LocalFilesBuilder.makeLocalFiles(
           ConverterUtils.ITERATOR_PREFIX.concat(context.nextIteratorIndex.toString))
         context.setLocalFilesNode(inputIter)
-        val readRel = RelBuilder.makeReadRel(
-          new util.ArrayList[Attribute](aggregateResultAttributes.asJava),
-          context)
+        val readRel = RelBuilder.makeReadRel(typeList, nameList, null, context)
 
         (getAggRel(context.registeredFunction, readRel), aggregateResultAttributes, output)
       }
