@@ -24,6 +24,7 @@ import io.glutenproject.execution._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.vectorized.{ExpressionEvaluatorJniWrapper, _}
+import java.util
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -194,7 +195,7 @@ class CHIteratorApi extends IIteratorApi {
    *
    * @return
    */
-  override def genFinalStageIterator(iter: Iterator[ColumnarBatch],
+  override def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                                      numaBindingInfo: GlutenNumaBindingInfo,
                                      listJars: Seq[String],
                                      signature: String,
@@ -211,12 +212,13 @@ class CHIteratorApi extends IIteratorApi {
     var eval_elapse: Long = 0
     GlutenConfig.getConf
     val transKernel = new ExpressionEvaluator()
-    val inBatchIter = new ColumnarNativeIterator(iter.asJava)
-    val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
-    inBatchIters.add(inBatchIter)
+    val columnarNativeIterator =
+      new util.ArrayList[AbstractColumnarNativeIterator](inputIterators.map { iter =>
+        new ColumnarNativeIterator(iter.asJava)
+      }.asJava)
     // we need to complete dependency RDD's firstly
     val beforeBuild = System.nanoTime()
-    val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, inBatchIters)
+    val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator)
     build_elapse += System.nanoTime() - beforeBuild
     val resIter = streamedSortPlan match {
       case t: TransformSupport =>

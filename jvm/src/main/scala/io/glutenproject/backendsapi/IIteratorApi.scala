@@ -70,7 +70,7 @@ trait IIteratorApi extends IBackendsApi {
    *
    * @return
    */
-  def genFinalStageIterator(iter: Iterator[ColumnarBatch],
+  def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                             numaBindingInfo: GlutenNumaBindingInfo, listJars: Seq[String],
                             signature: String, sparkConf: SparkConf,
                             outputAttributes: Seq[Attribute], rootNode: PlanNode,

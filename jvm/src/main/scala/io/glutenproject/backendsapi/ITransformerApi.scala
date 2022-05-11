@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.datasources.FileFormat
 
 trait ITransformerApi extends IBackendsApi {
 
@@ -28,4 +29,11 @@ trait ITransformerApi extends IBackendsApi {
    */
   def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
                                           outputAttributes: Seq[Attribute]): Boolean
+
+  /**
+   * Used for table scan validation.
+   *
+   * @return true if backend supports reading the file format.
+   */
+  def supportsReadFileFormat(fileFormat: FileFormat): Boolean
 }

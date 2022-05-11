@@ -178,6 +178,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
         return arrow::float64();
       case substrait::Type::KindCase::kString:
         return arrow::utf8();
+      case substrait::Type::KindCase::kDate:
+        return arrow::date32();
       default:
         return arrow::Status::Invalid("Type not supported: " +
                                       std::to_string(stype.kind_case()));
@@ -196,6 +198,14 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     }
     if (srel.has_filter() && srel.filter().has_input()) {
       return GetIterInputSchemaFromRel(srel.filter().input());
+    }
+    if (srel.has_join()) {
+      if (srel.join().has_left() && srel.join().has_right()) {
+        RETURN_NOT_OK(GetIterInputSchemaFromRel(srel.join().left()));
+        RETURN_NOT_OK(GetIterInputSchemaFromRel(srel.join().right()));
+        return arrow::Status::OK();
+      }
+      return arrow::Status::Invalid("Incomplete Join Rel.");
     }
     if (!srel.has_read()) {
       return arrow::Status::Invalid("Read Rel expected.");

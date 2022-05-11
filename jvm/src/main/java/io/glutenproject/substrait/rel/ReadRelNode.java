@@ -11,23 +11,17 @@ import java.util.ArrayList;
 public class ReadRelNode implements RelNode, Serializable {
     private final ArrayList<TypeNode> types = new ArrayList<>();
     private final ArrayList<String> names = new ArrayList<>();
-    private final ExpressionNode filterNode;
     private final SubstraitContext context;
+    private final ExpressionNode filterNode;
+    private final Long iteratorIndex;
 
     ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-                ExpressionNode filterNode, SubstraitContext context) {
+                SubstraitContext context, ExpressionNode filterNode, Long iteratorIndex) {
         this.types.addAll(types);
         this.names.addAll(names);
+        this.context = context;
         this.filterNode = filterNode;
-        this.context = context;
-    }
-
-    ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-                SubstraitContext context) {
-        this.types.addAll(types);
-        this.names.addAll(names);
-        this.filterNode = null;
-        this.context = context;
+        this.iteratorIndex = iteratorIndex;
     }
 
     @Override
@@ -50,7 +44,9 @@ public class ReadRelNode implements RelNode, Serializable {
         if (filterNode != null) {
             readBuilder.setFilter(filterNode.toProtobuf());
         }
-        if (context.getLocalFilesNode() != null) {
+        if (this.iteratorIndex != null) {
+            readBuilder.setLocalFiles(context.getInputIteratorNode(iteratorIndex).toProtobuf());
+        } else if (context.getLocalFilesNode() != null) {
             readBuilder.setLocalFiles(context.getLocalFilesNode().toProtobuf());
         } else if (context.getExtensionTableNode() != null) {
             readBuilder.setExtensionTable(context.getExtensionTableNode().toProtobuf());

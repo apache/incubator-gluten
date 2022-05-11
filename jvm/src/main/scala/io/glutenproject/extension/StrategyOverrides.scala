@@ -17,14 +17,13 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.GlutenPlugin
 import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenSparkExtensionsInjector
 
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.optimizer.JoinSelectionHelper
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
@@ -42,7 +41,20 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
       if (GlutenConfig.getSessionConf.forceShuffledHashJoin) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
-        return Option(getSmallerSide(left, right)).map {
+        val leftBuildable = canBuildShuffledHashJoinLeft(joinType)
+        val rightBuildable = canBuildShuffledHashJoinRight(joinType)
+        if (!leftBuildable && !rightBuildable) {
+          return Nil
+        }
+        val buildSide = if (!leftBuildable) {
+          BuildRight
+        } else if (!rightBuildable) {
+          BuildLeft
+        } else {
+          getSmallerSide(left, right)
+        }
+
+        return Option(buildSide).map {
           buildSide =>
             Seq(joins.ShuffledHashJoinExec(
               leftKeys,

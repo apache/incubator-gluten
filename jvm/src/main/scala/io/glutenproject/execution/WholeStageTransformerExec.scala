@@ -17,16 +17,15 @@
 
 package io.glutenproject.execution
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.vectorized._
 
 import org.apache.spark.rdd.RDD
@@ -38,14 +37,19 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.UserAddedJarUtils
 
-case class TransformContext(inputAttributes: Seq[Attribute],
-                            outputAttributes: Seq[Attribute], root: RelNode)
+case class TransformContext(
+    inputAttributes: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
+    root: RelNode)
 
-case class WholestageTransformContext(inputAttributes: Seq[Attribute],
-                                      outputAttributes: Seq[Attribute], root: PlanNode,
-                                      substraitContext: SubstraitContext = null)
+case class WholestageTransformContext(
+    inputAttributes: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
+    root: PlanNode,
+    substraitContext: SubstraitContext = null)
 
 trait TransformSupport extends SparkPlan {
+
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
@@ -145,7 +149,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   def doWholestageTransform(): WholestageTransformContext = {
     val substraitContext = new SubstraitContext
-    val childCtx = child.asInstanceOf[TransformSupport]
+    val childCtx = child
+      .asInstanceOf[TransformSupport]
       .doTransform(substraitContext)
     if (childCtx == null) {
       throw new NullPointerException(
@@ -167,11 +172,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       // outNames.add(attr.name)
       outNames.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
     }
-    val planNode = PlanBuilder.makePlan(
-      substraitContext, Lists.newArrayList(childCtx.root), outNames)
+    val planNode =
+      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
 
-    WholestageTransformContext(childCtx.inputAttributes,
-      childCtx.outputAttributes, planNode, substraitContext)
+    WholestageTransformContext(
+      childCtx.inputAttributes,
+      childCtx.outputAttributes,
+      planNode,
+      substraitContext)
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
@@ -229,12 +237,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
     var current_op = child
     while (current_op.isInstanceOf[TransformSupport] &&
-      !current_op.isInstanceOf[BasicScanExecTransformer] &&
-      current_op.asInstanceOf[TransformSupport].getChild != null) {
+           !current_op.isInstanceOf[BasicScanExecTransformer] &&
+           current_op.asInstanceOf[TransformSupport].getChild != null) {
       current_op = current_op.asInstanceOf[TransformSupport].getChild
     }
     if (current_op != null &&
-      current_op.isInstanceOf[BasicScanExecTransformer]) {
+        current_op.isInstanceOf[BasicScanExecTransformer]) {
       current_op match {
         case op: BatchScanExecTransformer =>
           op.partitions
@@ -276,12 +284,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val signature = doBuild()
     val listJars = uploadAndListJars(signature)
 
-    val numOutputBatches = child.longMetric("numOutputBatches")
+    val numOutputBatches = child.metrics.get("numOutputBatches")
     val pipelineTime = longMetric("pipelineTime")
 
     // we should zip all dependent RDDs to current main RDD
     // TODO: Does it still need these parameters?
-    val buildPlans = getBuildPlans
     val streamedSortPlan = getStreamedLeafPlan
     val dependentKernels: ListBuffer[ExpressionEvaluator] = ListBuffer()
     val dependentKernelIterators: ListBuffer[AbstractBatchIterator] = ListBuffer()
@@ -321,26 +328,25 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         wsCxt.outputAttributes,
         jarList,
         dependentKernelIterators)
-      wsRDD.map{ r =>
-        numOutputBatches += 1
-        r
+      numOutputBatches match {
+        case Some(batches) => wsRDD.foreach { _ => batches += 1 }
+        case None =>
       }
+      wsRDD
     } else {
       val inputRDDs = columnarInputRDDs
-      var curRDD = inputRDDs.head
       val resCtx = doWholestageTransform()
-      val outputAttributes = resCtx.outputAttributes
-      val rootNode = resCtx.root
-      // logInfo(s"The substrait plan for final agg " +
-      //   s"\n${rootNode.toProtobuf.toString}")
+      logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
 
-      curRDD.mapPartitions { iter =>
-        BackendsApiManager.getIteratorApiInstance.genFinalStageIterator(iter, numaBindingInfo,
-          listJars, signature, sparkConf, outputAttributes,
-          rootNode, streamedSortPlan,
+      val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
+        BackendsApiManager.getIteratorApiInstance
+          .genFinalStageIterator(inputIterators, numaBindingInfo,
+          listJars, signature, sparkConf, resCtx.outputAttributes,
+          resCtx.root, streamedSortPlan,
           pipelineTime, buildRelationBatchHolder,
           dependentKernels, dependentKernelIterators)
       }
+      new WholeStageZippedPartitionsRDD(sparkContext, inputRDDs, genFinalStageIterator)
     }
   }
 }

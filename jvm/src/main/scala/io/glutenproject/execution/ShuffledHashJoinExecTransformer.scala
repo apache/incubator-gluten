@@ -17,19 +17,33 @@
 
 package io.glutenproject.execution
 
+import java.util
+
+import scala.collection.JavaConverters._
+
+import com.google.common.collect.Lists
+import com.google.protobuf.Any
+import io.glutenproject.GlutenConfig
+import io.glutenproject.expression._
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.vectorized.ExpressionEvaluator
+import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.metric.SQLMetrics
-
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import io.glutenproject.substrait.SubstraitContext
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin, ShuffledJoin}
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
@@ -46,8 +60,6 @@ case class ShuffledHashJoinExecTransformer(
     extends BaseJoinExec
     with TransformSupport
     with ShuffledJoin {
-
-  val sparkConf = sparkContext.getConf
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -73,23 +85,38 @@ case class ShuffledHashJoinExecTransformer(
     }
   }
 
+  private val joinExpression = (streamedKeyExprs zip buildKeyExprs)
+    .map { case (l, r) => EqualTo(l, r) }
+    .reduce(And)
+
+  // Direct output order of substrait join operation
+  private val joinOutput = streamedPlan.output ++ buildPlan.output
+
+  private val substraitJoinType = joinType match {
+    case Inner =>
+      JoinRel.JoinType.JOIN_TYPE_INNER
+    case FullOuter =>
+      JoinRel.JoinType.JOIN_TYPE_OUTER
+    case LeftOuter | RightOuter =>
+      JoinRel.JoinType.JOIN_TYPE_LEFT
+    case LeftSemi =>
+      JoinRel.JoinType.JOIN_TYPE_SEMI
+    case LeftAnti =>
+      JoinRel.JoinType.JOIN_TYPE_ANTI
+    case _ =>
+      // TODO: Support cross join with Cross Rel
+      JoinRel.JoinType.UNRECOGNIZED
+  }
+
   override def output: Seq[Attribute] =
     if (projectList == null || projectList.isEmpty) super.output
     else projectList.map(_.toAttribute)
-
-
-  def getBuildPlan: SparkPlan = buildPlan
 
   override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
     val numOutputRows = longMetric("numOutputRows")
     val procTime = longMetric("processTime")
     procTime.set(process_time / 1000000)
     numOutputRows += out_num_rows
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(
-      s"ColumnarShuffledHashJoinExec doesn't support doExecute")
   }
 
   override def outputPartitioning: Partitioning = buildSide match {
@@ -112,14 +139,19 @@ case class ShuffledHashJoinExecTransformer(
 
   override def supportsColumnar: Boolean = true
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = streamedPlan match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(streamedPlan.executeColumnar())
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    val getInputRDDs = (plan: SparkPlan) => {
+      plan match {
+        case c: TransformSupport =>
+          c.columnarInputRDDs
+        case _ =>
+          Seq(plan.executeColumnar())
+      }
+    }
+    getInputRDDs(streamedPlan) ++ getInputRDDs(buildPlan)
   }
 
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = streamedPlan match {
+  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = buildPlan match {
     case c: TransformSupport =>
       val childPlans = c.getBuildPlans
       childPlans :+ (this, null)
@@ -136,11 +168,140 @@ case class ShuffledHashJoinExecTransformer(
 
   override def getChild: SparkPlan = streamedPlan
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+  override def doValidate(): Boolean = {
+    val substraitContext = new SubstraitContext
+    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
+    if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
+      return false
+    }
+    val relNode =
+      try {
+        getJoinRel(null, null, substraitContext, validation = true)
+      } catch {
+        case e: Throwable =>
+          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          return false
+      }
+    // Then, validate the generated plan in native engine.
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
   }
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  override def doTransform(substraitContext: SubstraitContext): TransformContext = {
+    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute]) = {
+      plan match {
+        case p: TransformSupport =>
+          val transformContext = p.doTransform(substraitContext)
+          (transformContext.root, transformContext.outputAttributes)
+        case _ =>
+          val readRel =
+            RelBuilder.makeReadRel(
+              new util.ArrayList[Attribute](plan.output.asJava),
+              substraitContext)
+          (readRel, plan.output)
+      }
+    }
+
+    val (streamedRelNode, streamedOutput) = transformAndGetOutput(streamedPlan)
+    val (buildRelNode, buildOutput) = transformAndGetOutput(buildPlan)
+    val joinRel = getJoinRel(streamedRelNode, buildRelNode, substraitContext)
+
+    val (inputAttributes, outputAttributes, resultProjection) = buildSide match {
+      case BuildLeft =>
+        val (leftOutput, rightOutput) = getNewOutput(buildOutput, streamedOutput)
+        val resultOutput = leftOutput ++ rightOutput
+        val resultProjection = leftOutput.indices.map(idx =>
+          ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
+          rightOutput.indices
+            .map(ExpressionBuilder.makeSelection(_))
+        (buildOutput ++ streamedOutput, resultOutput, resultProjection)
+      case BuildRight =>
+        val (leftOutput, rightOutput) = getNewOutput(streamedOutput, buildOutput)
+        val resultOutput = leftOutput ++ rightOutput
+        val resultProjection =
+          resultOutput.indices.map(ExpressionBuilder.makeSelection(_))
+        (streamedOutput ++ buildOutput, resultOutput, resultProjection)
+    }
+
+    val resultProjectRel =
+      RelBuilder.makeProjectRel(
+        joinRel,
+        new java.util.ArrayList[ExpressionNode](resultProjection.asJava))
+
+    TransformContext(inputAttributes, outputAttributes, resultProjectRel)
+  }
+
+  private def getJoinRel(
+      streamedRelNode: RelNode,
+      buildRelNode: RelNode,
+      substraitContext: SubstraitContext,
+      validation: Boolean = false): RelNode = {
+    val joinExpressionNode = ExpressionConverter
+      .replaceWithExpressionTransformer(joinExpression, joinOutput)
+      .asInstanceOf[ExpressionTransformer]
+      .doTransform(substraitContext.registeredFunction)
+
+    val postJoinFilter = condition.map { expr =>
+      ExpressionConverter
+        .replaceWithExpressionTransformer(expr, joinOutput)
+        .asInstanceOf[ExpressionTransformer]
+        .doTransform(substraitContext.registeredFunction)
+    }
+
+    if (!validation) {
+      RelBuilder.makeJoinRel(
+        streamedRelNode,
+        buildRelNode,
+        substraitJoinType,
+        joinExpressionNode,
+        postJoinFilter.orNull)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodes = joinOutput.map { attr =>
+        ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(
+          TypeBuilder.makeStruct(new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf))
+      RelBuilder.makeJoinRel(
+        streamedRelNode,
+        buildRelNode,
+        substraitJoinType,
+        joinExpressionNode,
+        postJoinFilter.orNull,
+        extensionNode)
+    }
+  }
+
+  private def getNewOutput(
+      leftOutput: Seq[Attribute],
+      rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
+    joinType match {
+      case _: InnerLike =>
+        (leftOutput, rightOutput)
+      case LeftOuter =>
+        (leftOutput, rightOutput.map(_.withNullability(true)))
+      case RightOuter =>
+        (leftOutput.map(_.withNullability(true)), rightOutput)
+      case FullOuter =>
+        (leftOutput.map(_.withNullability(true)), rightOutput.map(_.withNullability(true)))
+      case j: ExistenceJoin =>
+        (leftOutput :+ j.exists, Nil)
+      case LeftExistence(_) =>
+        (leftOutput, Nil)
+      case x =>
+        throw new IllegalArgumentException(
+          s"${getClass.getSimpleName} not take $x as the JoinType")
+    }
+  }
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException(
+      s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 }

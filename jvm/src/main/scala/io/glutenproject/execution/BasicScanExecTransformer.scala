@@ -17,9 +17,13 @@
 
 package io.glutenproject.execution
 
+import com.google.common.collect.Lists
+import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.vectorized.ExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
@@ -40,14 +44,34 @@ trait BasicScanExecTransformer extends TransformSupport {
       nameList.add(attr.name)
     }
     // Will put all filter expressions into an AND expression
-    val transformer = filterExprs().reduceLeftOption(And).map(
-      ExpressionConverter.replaceWithExpressionTransformer(_, output)
-    )
+    val transformer = filterExprs()
+      .reduceLeftOption(And)
+      .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
     val filterNodes = transformer.map(
       _.asInstanceOf[ExpressionTransformer].doTransform(context.registeredFunction))
     val exprNode = filterNodes.orNull
 
     val relNode = RelBuilder.makeReadRel(typeNodes, nameList, exprNode, context)
     TransformContext(output, output, relNode)
+  }
+
+  override def doValidate(): Boolean = {
+    val substraitContext = new SubstraitContext
+    val relNode =
+      try {
+        doTransform(substraitContext).root
+      } catch {
+        case e: Throwable =>
+          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          return false
+      }
+
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
   }
 }

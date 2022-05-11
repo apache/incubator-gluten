@@ -16,15 +16,16 @@
 
 package io.glutenproject.backendsapi.velox
 
-import scala.collection.JavaConverters._
-
-import io.glutenproject.backendsapi.ITransformerApi
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.ITransformerApi
 import io.glutenproject.expression.ArrowConverterUtils
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
+import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
 class VeloxTransformerApi extends ITransformerApi with Logging {
 
@@ -33,12 +34,13 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    *
    * @return
    */
-  override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
-                                                   outputAttributes: Seq[Attribute]
-                                                  ): Boolean = {
+  override def validateColumnarShuffleExchangeExec(
+      outputPartitioning: Partitioning,
+      outputAttributes: Seq[Attribute]): Boolean = {
     // check input datatype
     for (attr <- outputAttributes) {
-      try ArrowConverterUtils.createArrowField(attr) catch {
+      try ArrowConverterUtils.createArrowField(attr)
+      catch {
         case e: UnsupportedOperationException =>
           logInfo(s"${attr.dataType} is not supported in VeloxColumnarShuffledExchangeExec.")
           return false
@@ -50,10 +52,21 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
           if (!expr.isInstanceOf[Attribute]) {
             logInfo("Expressions are not supported in HashPartitioning.")
             return false
-          }})
+          }
+        })
       case _ =>
     }
     true
+  }
+
+  /**
+   * Used for table scan validation.
+   *
+   * @return true if backend supports reading the file format.
+   */
+  override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
+    GlutenConfig.getConf.isGazelleBackend && fileFormat.isInstanceOf[ParquetFileFormat] ||
+    GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat]
   }
 
   /**

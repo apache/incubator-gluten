@@ -17,70 +17,66 @@
 
 package io.glutenproject.substrait.rel;
 
-import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.expression.ConverterUtils$;
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.TypeNode;
+import io.substrait.proto.JoinRel;
+
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.util.ArrayList;
 
-/**
- * Contains helper functions for constructing substrait relations.
- */
+/** Contains helper functions for constructing substrait relations. */
 public class RelBuilder {
   private RelBuilder() {}
 
-  public static RelNode makeFilterRel(RelNode input,
-                                      ExpressionNode condition) {
+  public static RelNode makeFilterRel(RelNode input, ExpressionNode condition) {
     return new FilterRelNode(input, condition);
   }
 
-  public static RelNode makeFilterRel(RelNode input,
-                                      ExpressionNode condition,
-                                      AdvancedExtensionNode extensionNode) {
+  public static RelNode makeFilterRel(
+      RelNode input, ExpressionNode condition, AdvancedExtensionNode extensionNode) {
     return new FilterRelNode(input, condition, extensionNode);
   }
 
-  public static RelNode makeProjectRel(RelNode input,
-                                       ArrayList<ExpressionNode> expressionNodes) {
+  public static RelNode makeProjectRel(RelNode input, ArrayList<ExpressionNode> expressionNodes) {
     return new ProjectRelNode(input, expressionNodes);
   }
 
-  public static RelNode makeProjectRel(RelNode input,
-                                       ArrayList<ExpressionNode> expressionNodes,
-                                       AdvancedExtensionNode extensionNode) {
+  public static RelNode makeProjectRel(
+      RelNode input,
+      ArrayList<ExpressionNode> expressionNodes,
+      AdvancedExtensionNode extensionNode) {
     return new ProjectRelNode(input, expressionNodes, extensionNode);
   }
 
-  public static RelNode makeAggregateRel(RelNode input,
-                                         ArrayList<ExpressionNode> groupings,
-                                         ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
+  public static RelNode makeAggregateRel(
+      RelNode input,
+      ArrayList<ExpressionNode> groupings,
+      ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes);
   }
 
-  public static RelNode makeAggregateRel(RelNode input,
-                                         ArrayList<ExpressionNode> groupings,
-                                         ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                                         AdvancedExtensionNode extensionNode) {
+  public static RelNode makeAggregateRel(
+      RelNode input,
+      ArrayList<ExpressionNode> groupings,
+      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+      AdvancedExtensionNode extensionNode) {
     return new AggregateRelNode(input, groupings, aggregateFunctionNodes, extensionNode);
   }
 
-  public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
-                                    ExpressionNode filter, SubstraitContext context) {
-    return new ReadRelNode(types, names, filter, context);
+  public static RelNode makeReadRel(
+      ArrayList<TypeNode> types,
+      ArrayList<String> names,
+      ExpressionNode filter,
+      SubstraitContext context) {
+    return new ReadRelNode(types, names, context, filter, null);
   }
 
-  public static RelNode makeReadRel(ArrayList<TypeNode> types, ArrayList<String> names,
-                                    SubstraitContext context) {
-    return new ReadRelNode(types, names, context);
-  }
-
-  public static RelNode makeReadRel(ArrayList<Attribute> attributes,
-                                    SubstraitContext context) {
+  public static RelNode makeReadRel(ArrayList<Attribute> attributes, SubstraitContext context) {
     ArrayList<TypeNode> typeList = new ArrayList<>();
     ArrayList<String> nameList = new ArrayList<>();
     ConverterUtils$ converter = ConverterUtils$.MODULE$;
@@ -90,8 +86,30 @@ public class RelBuilder {
     }
 
     // The iterator index will be added in the path of LocalFiles.
-    context.setLocalFilesNode(LocalFilesBuilder.makeLocalFiles(
-            converter.ITERATOR_PREFIX().concat(context.getIteratorIndex().toString())));
-    return new ReadRelNode(typeList, nameList, context);
+    Long iteratorIndex = context.nextIteratorIndex();
+    context.setIteratorNode(
+        iteratorIndex,
+        LocalFilesBuilder.makeLocalFiles(
+            converter.ITERATOR_PREFIX().concat(iteratorIndex.toString())));
+    return new ReadRelNode(typeList, nameList, context, null, iteratorIndex);
+  }
+
+  public static RelNode makeJoinRel(
+      RelNode left,
+      RelNode right,
+      JoinRel.JoinType joinType,
+      ExpressionNode expression,
+      ExpressionNode postJoinFilter) {
+    return makeJoinRel(left, right, joinType, expression, postJoinFilter, null);
+  }
+
+  public static RelNode makeJoinRel(
+      RelNode left,
+      RelNode right,
+      JoinRel.JoinType joinType,
+      ExpressionNode expression,
+      ExpressionNode postJoinFilter,
+      AdvancedExtensionNode extensionNode) {
+    return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
   }
 }
