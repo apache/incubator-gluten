@@ -311,18 +311,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
 
       override def next(): ColumnarBatch = {
         val beforeEval = System.nanoTime()
-        val recordBatch = nativeResultIterator.next.asInstanceOf[ArrowRecordBatch]
-        if (recordBatch == null) {
-          evalElapse += System.nanoTime() - beforeEval
-          val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(0, schema)
-          return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
-        }
-        val recordBatchSchema = ArrowConverterUtils.toArrowSchema(outputAttributes)
-        val columns = ArrowConverterUtils.fromArrowRecordBatch(recordBatchSchema, recordBatch)
-        ArrowConverterUtils.releaseArrowRecordBatch(recordBatch)
-        evalElapse += System.nanoTime() - beforeEval
-        new ColumnarBatch(columns.map(v => v.asInstanceOf[ColumnVector]), recordBatch.getLength)
+        val cb = nativeResultIterator.next
+        cb
       }
     }
 
