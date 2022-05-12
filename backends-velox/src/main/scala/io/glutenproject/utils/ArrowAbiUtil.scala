@@ -62,6 +62,10 @@ object ArrowAbiUtil {
     val vsr = toVectorSchemaRoot(columnarBatch)
     try {
       Data.exportVectorSchemaRoot(allocator, vsr, new CDataDictionaryProvider(), cArray, cSchema)
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(
+          String.format("error exporting columnar batch with schema: %s", vsr.getSchema), e)
     } finally {
       vsr.close()
     }
