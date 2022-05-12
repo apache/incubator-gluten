@@ -230,17 +230,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
         if (!hasNext) {
           throw new java.util.NoSuchElementException("End of stream")
         }
-        val rb = resIter.next().asInstanceOf[ArrowRecordBatch]
-        if (rb == null) {
-          val resultStructType = ArrowUtils.fromArrowSchema(outputSchema)
-          val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
-          return new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
-        }
-        val outputNumRows = rb.getLength
-        val output = ArrowConverterUtils.fromArrowRecordBatch(outputSchema, rb)
-        ArrowConverterUtils.releaseArrowRecordBatch(rb)
-        val cb = new ColumnarBatch(output.map(v => v.asInstanceOf[ColumnVector]), outputNumRows)
+        val cb = resIter.next()
         val bytes: Long = cb match {
           case batch: ColumnarBatch =>
             (0 until batch.numCols()).map { i =>
