@@ -65,7 +65,8 @@ object ArrowAbiUtil {
     } catch {
       case e: Exception =>
         throw new RuntimeException(
-          String.format("error exporting columnar batch with schema: %s", vsr.getSchema), e)
+          String.format("error exporting columnar batch with schema: %s, vectors: %s",
+            vsr.getSchema, vsr.getFieldVectors), e)
     } finally {
       vsr.close()
     }
