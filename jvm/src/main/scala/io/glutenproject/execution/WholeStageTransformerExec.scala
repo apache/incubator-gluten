@@ -268,8 +268,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map(p =>
-        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt)
-      )
+        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt))
       logWarning(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
@@ -316,8 +315,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map(p =>
-        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt)
-      )
+        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt))
       logWarning(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
@@ -329,10 +327,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         jarList,
         dependentKernelIterators)
       numOutputBatches match {
-        case Some(batches) => wsRDD.foreach { _ => batches += 1 }
-        case None =>
+        case Some(batches) =>
+          wsRDD.map { iter =>
+            batches += 1
+            iter
+          }
+        case None => wsRDD
       }
-      wsRDD
     } else {
       val inputRDDs = columnarInputRDDs
       val resCtx = doWholestageTransform()
@@ -340,11 +341,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
         BackendsApiManager.getIteratorApiInstance
-          .genFinalStageIterator(inputIterators, numaBindingInfo,
-          listJars, signature, sparkConf, resCtx.outputAttributes,
-          resCtx.root, streamedSortPlan,
-          pipelineTime, buildRelationBatchHolder,
-          dependentKernels, dependentKernelIterators)
+          .genFinalStageIterator(
+            inputIterators,
+            numaBindingInfo,
+            listJars,
+            signature,
+            sparkConf,
+            resCtx.outputAttributes,
+            resCtx.root,
+            streamedSortPlan,
+            pipelineTime,
+            buildRelationBatchHolder,
+            dependentKernels,
+            dependentKernelIterators)
       }
       new WholeStageZippedPartitionsRDD(sparkContext, inputRDDs, genFinalStageIterator)
     }
