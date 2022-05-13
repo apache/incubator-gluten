@@ -19,8 +19,8 @@
 
 #include <arrow/compute/exec/options.h>
 #include <arrow/compute/registry.h>
-#include <arrow/dataset/scanner.h>
 #include <arrow/dataset/plan.h>
+#include <arrow/dataset/scanner.h>
 
 #include "jni/exec_backend.h"
 
@@ -34,9 +34,7 @@ const FieldVector kAugmentedFields{
     field("__filename", arrow::utf8()),
 };
 
-ArrowExecBackend::ArrowExecBackend() {
-  arrow::dataset::internal::Initialize();
-}
+ArrowExecBackend::ArrowExecBackend() { arrow::dataset::internal::Initialize(); }
 
 ArrowExecBackend::~ArrowExecBackend() {
   if (exec_plan_ != nullptr) {

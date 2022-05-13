@@ -27,8 +27,8 @@
 #include <arrow/record_batch.h>
 #include <arrow/util/compression.h>
 #include <arrow/util/iterator.h>
-#include <jni/dataset/jni_util.h>
 #include <jni.h>
+#include <jni/dataset/jni_util.h>
 #include <malloc.h>
 
 #include <iostream>
@@ -281,8 +281,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_constructor =
       GetMethodID(env, metrics_builder_class, "<init>", "([J[J)V");
 
-  serialized_record_batch_iterator_class = CreateGlobalClassReference(
-      env, "Lio/glutenproject/vectorized/VeloxInIterator;");
+  serialized_record_batch_iterator_class =
+      CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/VeloxInIterator;");
   serialized_record_batch_iterator_hasNext =
       GetMethodID(env, serialized_record_batch_iterator_class, "hasNext", "()Z");
   serialized_record_batch_iterator_next =
@@ -397,8 +397,9 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
   JNI_METHOD_END(-1)
 }
 
-JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nativeHasNext(
-    JNIEnv* env, jobject obj, jlong id) {
+JNIEXPORT jboolean JNICALL
+Java_io_glutenproject_vectorized_VeloxOutIterator_nativeHasNext(JNIEnv* env, jobject obj,
+                                                                jlong id) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
   if (iter == nullptr) {
@@ -417,8 +418,9 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nat
     return false;
   }
   auto batch = std::move(iter->Next());
-  JniAssertOkOrThrow(arrow::ExportRecordBatch(*batch, reinterpret_cast<struct ArrowArray*>(c_array),
-      reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  JniAssertOkOrThrow(
+      arrow::ExportRecordBatch(*batch, reinterpret_cast<struct ArrowArray*>(c_array),
+                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
   return true;
   JNI_METHOD_END(false)
 }
@@ -803,8 +805,9 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
       "ShuffleDecompressionJniWrapper_decompress, failed to MakeRecordBatch upon "
       "buffers");
 
-  JniAssertOkOrThrow(arrow::ExportRecordBatch(*rb, reinterpret_cast<struct ArrowArray*>(c_array),
-                                              reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  JniAssertOkOrThrow(
+      arrow::ExportRecordBatch(*rb, reinterpret_cast<struct ArrowArray*>(c_array),
+                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
   return true;
   JNI_METHOD_END(false)
 }
