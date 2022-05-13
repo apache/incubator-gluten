@@ -33,13 +33,13 @@ class AddTransformer(left: Expression, right: Expression, original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val left_node =
+    val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
-    val right_node =
+    val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
-    if (!left_node.isInstanceOf[ExpressionNode] ||
-        !right_node.isInstanceOf[ExpressionNode]) {
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+        !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -47,12 +47,12 @@ class AddTransformer(left: Expression, right: Expression, original: Expression)
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.ADD, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressNodes = Lists.newArrayList(
-      left_node.asInstanceOf[ExpressionNode],
-      right_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -62,13 +62,13 @@ class SubtractTransformer(left: Expression, right: Expression, original: Express
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val left_node =
+    val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
-    val right_node =
+    val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
-    if (!left_node.isInstanceOf[ExpressionNode] ||
-        !right_node.isInstanceOf[ExpressionNode]) {
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+        !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -76,12 +76,12 @@ class SubtractTransformer(left: Expression, right: Expression, original: Express
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.SUBTRACT, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressNodes = Lists.newArrayList(
-      left_node.asInstanceOf[ExpressionNode],
-      right_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -91,13 +91,13 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val left_node =
+    val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
-    val right_node =
+    val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
-    if (!left_node.isInstanceOf[ExpressionNode] ||
-        !right_node.isInstanceOf[ExpressionNode]) {
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+        !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -105,12 +105,12 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.MULTIPLY, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressNodes = Lists.newArrayList(
-      left_node.asInstanceOf[ExpressionNode],
-      right_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -121,13 +121,13 @@ class DivideTransformer(left: Expression, right: Expression,
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val left_node =
+    val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
-    val right_node =
+    val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
-    if (!left_node.isInstanceOf[ExpressionNode] ||
-        !right_node.isInstanceOf[ExpressionNode]) {
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+        !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -135,12 +135,12 @@ class DivideTransformer(left: Expression, right: Expression,
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.DIVIDE, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressNodes = Lists.newArrayList(
-      left_node.asInstanceOf[ExpressionNode],
-      right_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 

@@ -18,10 +18,10 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.expression.DateTimeExpressionsTransformer._
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
@@ -41,9 +41,9 @@ class IsNotNullTransformer(child: Expression, original: Expression)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NOT_NULL, Seq(child.dataType)))
-    val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = TypeBuilder.makeBoolean(true)
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -61,9 +61,9 @@ class IsNullTransformer(child: Expression, original: Expression)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(child.dataType)))
-    val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = TypeBuilder.makeBoolean(true)
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -102,7 +102,19 @@ class NotTransformer(child: Expression, original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.NOT, Seq(child.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeBoolean(false)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
 

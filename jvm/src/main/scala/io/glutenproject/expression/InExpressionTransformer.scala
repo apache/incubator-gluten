@@ -17,7 +17,10 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
+import com.google.common.collect.Lists
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -27,11 +30,36 @@ class InTransformer(value: Expression, list: Seq[Expression], original: Expressi
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    val leftNode = value.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val expressionNodes = Lists.newArrayList(leftNode.asInstanceOf[ExpressionNode])
+
+    for (expression <- list) {
+      // Only Literal is supported currently.
+      if (!expression.isInstanceOf[Literal]) {
+        throw new UnsupportedOperationException(s"not supported yet.")
+      }
+      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
+      if (!expressionNode.isInstanceOf[ExpressionNode]) {
+        throw new UnsupportedOperationException(s"not supported yet.")
+      }
+      expressionNodes.add(expressionNode)
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.IN, Seq(value.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+
+    val typeNode = TypeBuilder.makeBoolean(false)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
-object InOperatorTransformer {
+object InExpressionTransformer {
 
   def create(value: Expression, list: Seq[Expression], original: Expression): Expression =
     original match {

@@ -128,11 +128,12 @@ object ExpressionConverter extends Logging {
         CoalesceOperatorTransformer.create(exprs, expr)
       case i: In =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        InOperatorTransformer.create(
+        InExpressionTransformer.create(
           replaceWithExpressionTransformer(
             i.value,
             attributeSeq),
-          i.list,
+          i.list.map(value => {
+            replaceWithExpressionTransformer(value, attributeSeq)}),
           expr)
       case i: InSet =>
         logInfo(s"${expr.getClass} ${expr} is supported")

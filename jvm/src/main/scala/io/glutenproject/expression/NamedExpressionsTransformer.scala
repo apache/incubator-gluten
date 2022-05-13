@@ -38,10 +38,10 @@ class AliasTransformer(child: Expression, name: String)(
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.ALIAS, Seq(child.dataType)))
-    val expressNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(child.dataType, child.nullable)
 
-    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
