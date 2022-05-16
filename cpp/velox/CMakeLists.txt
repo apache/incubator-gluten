@@ -118,7 +118,9 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::time "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
   add_velox_dependency(common::file "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
   add_velox_dependency(common::process "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
+  add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_parquet_reader.a")
 endmacro()
+
 
 # Build Velox backend.
 set(VELOX_SRCS
