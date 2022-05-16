@@ -212,7 +212,7 @@ class CHIteratorApi extends IIteratorApi {
     GlutenConfig.getConf
     val transKernel = new ExpressionEvaluator()
     val columnarNativeIterator =
-      new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
+      new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
         new ColumnarNativeIterator(iter.asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
