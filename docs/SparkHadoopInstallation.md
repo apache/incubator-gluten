@@ -6,7 +6,7 @@ Currently Gluten works on the Spark 3.1.1 version.
 ```
 wget http://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
 sudo mkdir -p /opt/spark && sudo mv spark-3.1.1-bin-hadoop3.2.tgz /opt/spark
-sudo cd /opt/spark && sudo tar -xf spark-3.1.1-bin-hadoop3.2.tgz
+cd /opt/spark && sudo tar -xf spark-3.1.1-bin-hadoop3.2.tgz
 export SPARK_HOME=/opt/spark/spark-3.1.1-bin-hadoop3.2/
 ```
 
@@ -38,7 +38,7 @@ Currently we test Gluten on the Hadoop 3.2.0 version.
 ``` shell
 wget https://archive.apache.org/dist/hadoop/common/hadoop-3.2.0/hadoop-3.2.0.tar.gz
 sudo mkdir -p /opt/hadoop && sudo mv hadoop-3.2.0.tar.gz /opt/hadoop
-sudo cd /opt/hadoop && sudo tar -xf hadoop-3.2.0.tar.gz
+cd /opt/hadoop && sudo tar -xf hadoop-3.2.0.tar.gz
 export HADOOP_HOME=/opt/hadoop/hadoop-3.2.0/
 ```
 
