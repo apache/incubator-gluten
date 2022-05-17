@@ -34,13 +34,15 @@ public class ShuffleDecompressionJniWrapper {
    */
   public native long make(byte[] schemaBuf) throws RuntimeException;
 
-  public native byte[] decompress(
+  public native boolean decompress(
       long schemaHolderId,
       String compressionCodec,
       int numRows,
       long[] bufAddrs,
       long[] bufSizes,
-      long[] bufMask)
+      long[] bufMask,
+      long cSchema,
+      long cArray)
       throws RuntimeException;
 
   /**

@@ -19,9 +19,8 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.row.RowIterator
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, GeneralInIterator}
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
@@ -60,7 +59,7 @@ class NativeWholestageRowRDD(
     var resIter : RowIterator = null
     if (loadNative) {
       val transKernel = new ExpressionEvaluator()
-      val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
+      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
       var startTime = System.nanoTime()
       resIter = transKernel.createKernelWithRowIterator(inputPartition.substraitPlan, inBatchIters)
       logWarning(s"===========create ${System.nanoTime() - startTime}")

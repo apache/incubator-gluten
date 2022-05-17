@@ -24,7 +24,6 @@ import io.glutenproject.execution._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.vectorized.{ExpressionEvaluatorJniWrapper, _}
-import java.util
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -157,11 +156,11 @@ class CHIteratorApi extends IIteratorApi {
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
                                      jarList: Seq[String]): Iterator[ColumnarBatch] = {
-    var resIter : AbstractBatchIterator = null
+    var resIter : GeneralOutIterator = null
     if (loadNative) {
       // TODO: 'jarList' is kept for codegen
       val transKernel = new ExpressionEvaluator(jarList.asJava)
-      val inBatchIters = new java.util.ArrayList[AbstractColumnarNativeIterator]()
+      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
@@ -206,14 +205,14 @@ class CHIteratorApi extends IIteratorApi {
                                      pipelineTime: SQLMetric,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
-                                     dependentKernelIterators: Seq[AbstractBatchIterator]
+                                     dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = {
     var build_elapse: Long = 0
     var eval_elapse: Long = 0
     GlutenConfig.getConf
     val transKernel = new ExpressionEvaluator()
     val columnarNativeIterator =
-      new util.ArrayList[AbstractColumnarNativeIterator](inputIterators.map { iter =>
+      new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
         new ColumnarNativeIterator(iter.asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
@@ -271,9 +270,9 @@ class CHIteratorApi extends IIteratorApi {
    * @return
    */
   override def genBatchIterator(wsPlan: Array[Byte],
-                                iterList: Seq[AbstractColumnarNativeIterator],
+                                iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper
-                               ): AbstractBatchIterator = {
+                               ): GeneralOutIterator = {
     val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
       0L, wsPlan, iterList.toArray);
     new BatchIterator(batchIteratorInstance)

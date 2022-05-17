@@ -16,18 +16,19 @@
  */
 
 #include <arrow/buffer.h>
+#include <arrow/c/bridge.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/path_util.h>
 #include <arrow/io/memory.h>
 #include <arrow/ipc/api.h>
 #include <arrow/ipc/dictionary.h>
-#include <arrow/jniutil/jni_util.h>
 #include <arrow/memory_pool.h>
 #include <arrow/pretty_print.h>
 #include <arrow/record_batch.h>
 #include <arrow/util/compression.h>
 #include <arrow/util/iterator.h>
 #include <jni.h>
+#include <jni/dataset/jni_util.h>
 #include <malloc.h>
 
 #include <iostream>
@@ -144,20 +145,6 @@ std::shared_ptr<RecordBatchResultIterator> GetBatchIterator(JNIEnv* env, jlong i
   return handler;
 }
 
-arrow::Result<std::shared_ptr<arrow::RecordBatch>> FromBytes(
-    JNIEnv* env, std::shared_ptr<arrow::Schema> schema, jbyteArray bytes) {
-  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::RecordBatch> batch,
-                        arrow::jniutil::DeserializeUnsafeFromJava(env, schema, bytes))
-  return batch;
-}
-
-arrow::Result<jbyteArray> ToBytes(JNIEnv* env,
-                                  std::shared_ptr<arrow::RecordBatch> batch) {
-  ARROW_ASSIGN_OR_RAISE(jbyteArray bytes,
-                        arrow::jniutil::SerializeUnsafeFromNative(env, batch))
-  return bytes;
-}
-
 class JavaRecordBatchIterator {
  public:
   explicit JavaRecordBatchIterator(JavaVM* vm,
@@ -217,10 +204,13 @@ class JavaRecordBatchIterator {
                                 serialized_record_batch_iterator_hasNext)) {
       return nullptr;  // stream ended
     }
-    auto bytes = (jbyteArray)env->CallObjectMethod(java_serialized_record_batch_iterator_,
-                                                   serialized_record_batch_iterator_next);
-    RETURN_NOT_OK(arrow::jniutil::CheckException(env));
-    ARROW_ASSIGN_OR_RAISE(auto batch, FromBytes(env, schema_, bytes));
+    ArrowSchema c_schema{};
+    ArrowArray c_array{};
+    env->CallObjectMethod(
+        java_serialized_record_batch_iterator_, serialized_record_batch_iterator_next,
+        reinterpret_cast<jlong>(&c_schema), reinterpret_cast<jlong>(&c_array));
+    RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
+    ARROW_ASSIGN_OR_RAISE(auto batch, arrow::ImportRecordBatch(&c_array, &c_schema))
     return batch;
   }
 
@@ -291,12 +281,12 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_constructor =
       GetMethodID(env, metrics_builder_class, "<init>", "([J[J)V");
 
-  serialized_record_batch_iterator_class = CreateGlobalClassReference(
-      env, "Lio/glutenproject/execution/ColumnarNativeIterator;");
+  serialized_record_batch_iterator_class =
+      CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/VeloxInIterator;");
   serialized_record_batch_iterator_hasNext =
       GetMethodID(env, serialized_record_batch_iterator_class, "hasNext", "()Z");
   serialized_record_batch_iterator_next =
-      GetMethodID(env, serialized_record_batch_iterator_class, "next", "()[B");
+      GetMethodID(env, serialized_record_batch_iterator_class, "next", "(JJ)V");
 
   native_columnar_to_row_info_class = CreateGlobalClassReference(
       env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
@@ -407,8 +397,9 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
   JNI_METHOD_END(-1)
 }
 
-JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeHasNext(
-    JNIEnv* env, jobject obj, jlong id) {
+JNIEXPORT jboolean JNICALL
+Java_io_glutenproject_vectorized_VeloxOutIterator_nativeHasNext(JNIEnv* env, jobject obj,
+                                                                jlong id) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
   if (iter == nullptr) {
@@ -419,19 +410,22 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_BatchIterator_native
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeNext(
-    JNIEnv* env, jobject obj, jlong id) {
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nativeNext(
+    JNIEnv* env, jobject obj, jlong id, jlong c_schema, jlong c_array) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
-  if (!iter->HasNext()) return nullptr;
+  if (!iter->HasNext()) {
+    return false;
+  }
   auto batch = std::move(iter->Next());
-  auto maybe_bytes = arrow::jniutil::SerializeUnsafeFromNative(env, batch);
-  JniAssertOkOrThrow(maybe_bytes.status());
-  return maybe_bytes.ValueOrDie();
-  JNI_METHOD_END(nullptr)
+  JniAssertOkOrThrow(
+      arrow::ExportRecordBatch(*batch, reinterpret_cast<struct ArrowArray*>(c_array),
+                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  return true;
+  JNI_METHOD_END(false)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_BatchIterator_nativeClose(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nativeClose(
     JNIEnv* env, jobject this_obj, jlong id) {
   JNI_METHOD_START
 #ifdef DEBUG
@@ -744,10 +738,11 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jobject JNICALL
+JNIEXPORT jboolean JNICALL
 Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
     JNIEnv* env, jobject obj, jlong schema_holder_id, jstring compression_type_jstr,
-    jint num_rows, jlongArray buf_addrs, jlongArray buf_sizes, jlongArray buf_mask) {
+    jint num_rows, jlongArray buf_addrs, jlongArray buf_sizes, jlongArray buf_mask,
+    jlong c_schema, jlong c_array) {
   JNI_METHOD_START
   auto schema = decompression_schema_holder_.Lookup(schema_holder_id);
   if (!schema) {
@@ -809,11 +804,12 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
       MakeRecordBatch(schema, num_rows, input_buffers, input_buffers.size(), &rb),
       "ShuffleDecompressionJniWrapper_decompress, failed to MakeRecordBatch upon "
       "buffers");
-  jbyteArray serialized_record_batch =
-      JniGetOrThrow(ToBytes(env, rb), "Error deserializing message");
 
-  return serialized_record_batch;
-  JNI_METHOD_END(nullptr)
+  JniAssertOkOrThrow(
+      arrow::ExportRecordBatch(*rb, reinterpret_cast<struct ArrowArray*>(c_array),
+                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  return true;
+  JNI_METHOD_END(false)
 }
 
 JNIEXPORT void JNICALL

@@ -15,33 +15,36 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution;
+package io.glutenproject.vectorized;
 
-import io.glutenproject.expression.ArrowConverterUtils;
-import org.apache.arrow.dataset.jni.UnsafeRecordBatchSerializer;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class ColumnarNativeIterator extends AbstractColumnarNativeIterator {
+abstract public class GeneralInIterator implements AutoCloseable {
+  protected final Iterator<ColumnarBatch> delegated;
+  private transient ColumnarBatch nextBatch = null;
 
-  public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
+  public GeneralInIterator(Iterator<ColumnarBatch> delegated) {
+    this.delegated = delegated;
+  }
+
+  public boolean hasNext() {
+    while (delegated.hasNext()) {
+      nextBatch = delegated.next();
+      if (nextBatch.numRows() > 0) {
+        // any problem using delegated.hasNext() instead?
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
-  public byte[] next() {
-    ColumnarBatch dep_cb = nextBatch;
-    if (dep_cb.numRows() > 0) {
-      ArrowRecordBatch dep_rb = ArrowConverterUtils.createArrowRecordBatch(dep_cb);
-      return serialize(dep_rb);
-    } else {
-      throw new IllegalStateException();
-    }
+  public void close() throws Exception {
   }
 
-  private byte[] serialize(ArrowRecordBatch batch) {
-    return UnsafeRecordBatchSerializer.serializeUnsafe(batch);
+  public ColumnarBatch nextColumnarBatch() {
+    return nextBatch;
   }
 }

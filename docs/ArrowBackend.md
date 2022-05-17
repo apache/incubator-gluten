@@ -54,7 +54,7 @@ $ pushd arrow/cpp/build
 $ cmake -DARROW_BUILD_STATIC=OFF \
         -DARROW_BUILD_SHARED=ON \
         -DARROW_COMPUTE=ON \
-        -DARROW_ENGINE=ON \
+        -DARROW_SUBSTRAIT=ON \
         -DARROW_S3=ON \
         -DARROW_GANDIVA_JAVA=ON \
         -DARROW_GANDIVA=ON \

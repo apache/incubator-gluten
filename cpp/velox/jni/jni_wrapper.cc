@@ -51,7 +51,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
   veloxInitializer->Init();
 }
 
-JNIEXPORT bool JNICALL
+JNIEXPORT jboolean JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env, jobject obj, jbyteArray planArray) {
   auto planData =
