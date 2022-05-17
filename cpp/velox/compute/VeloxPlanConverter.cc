@@ -356,12 +356,14 @@ class VeloxPlanConverter::WholeStageResIter {
             reinterpret_cast<const uint8_t*>(strValues), 16 * numRows);
         outData.buffers[0] = nullptr;
         auto offset_buffer_size = static_cast<int64_t>(sizeof(int32_t) * numRows + 1);
-        arrow::Result<std::unique_ptr<arrow::Buffer>> r = arrow::AllocateBuffer(offset_buffer_size);
+        arrow::Result<std::unique_ptr<arrow::Buffer>> r =
+            arrow::AllocateBuffer(offset_buffer_size);
         if (!r.ok()) {
-          throw std::runtime_error("Failed to create offset buffer: " + r.status().message());
+          throw std::runtime_error("Failed to create offset buffer: " +
+                                   r.status().message());
         }
         std::shared_ptr<arrow::Buffer> offsetBuffer = r.MoveValueUnsafe();
-        auto *offsets = reinterpret_cast<int32_t *>(offsetBuffer->mutable_data());
+        auto* offsets = reinterpret_cast<int32_t*>(offsetBuffer->mutable_data());
         offsets[0] = 0;
         for (int i = 1; i < numRows + 1; ++i) {
           offsets[i] = 16 * i;
