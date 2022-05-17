@@ -251,8 +251,8 @@ private class ArrowColumnarBatchSerializerInstance(
             decompressedRecordBatch.close()
           }
         } finally {
-          cArray.release()
-          cSchema.release()
+          cArray.close()
+          cSchema.close()
         }
       }
     }
