@@ -352,11 +352,22 @@ class VeloxPlanConverter::WholeStageResIter {
         outData.type = arrow::utf8();
         auto strValues = vec->asFlatVector<StringView>()->rawValues();
         // A StringView in Velox is 16-byte.
-        auto valBuffer = std::make_shared<arrow::Buffer>(
+        auto valueBuffer = std::make_shared<arrow::Buffer>(
             reinterpret_cast<const uint8_t*>(strValues), 16 * numRows);
         outData.buffers[0] = nullptr;
-        outData.buffers[1] = valBuffer;
-        outData.buffers[2] = valBuffer;
+        auto offset_buffer_size = static_cast<int64_t>(sizeof(int32_t) * numRows + 1);
+        arrow::Result<std::unique_ptr<arrow::Buffer>> r = arrow::AllocateBuffer(offset_buffer_size);
+        if (!r.ok()) {
+          throw std::runtime_error("Failed to create offset buffer: " + r.status().message());
+        }
+        std::shared_ptr<arrow::Buffer> offsetBuffer = r.MoveValueUnsafe();
+        auto *offsets = reinterpret_cast<int32_t *>(offsetBuffer->mutable_data());
+        offsets[0] = 0;
+        for (int i = 1; i < numRows + 1; ++i) {
+          offsets[i] = 16 * i;
+        }
+        outData.buffers[1] = offsetBuffer;
+        outData.buffers[2] = valueBuffer;
       }
       std::shared_ptr<arrow::Array> outArray =
           MakeArray(std::make_shared<arrow::ArrayData>(std::move(outData)));
