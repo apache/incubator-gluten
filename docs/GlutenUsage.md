@@ -3,7 +3,7 @@
 #### How to compile Gluten jar
 
 ``` shell
-git clone -b master https://github.com/oap-project/gluten.git
+git clone -b main https://github.com/oap-project/gluten.git
 cd gluten
 ```
 

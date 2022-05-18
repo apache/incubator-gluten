@@ -101,7 +101,6 @@ If you are facing some trouble when installing maven, please follow below steps 
 
 - Below command use maven 3.6.3 as an example
 ```
-wget htps://ftp.wayne.edu/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
 wget https://ftp.wayne.edu/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
 tar xzf apache-maven-3.6.3-bin.tar.gz
 mkdir /usr/local/maven
@@ -110,13 +109,13 @@ mv apache-maven-3.6.3/ /usr/local/maven/
 
 - Set maven 3.6.3 as an option within alternatives command
 ```
-sudo alternatives --install /usr/bin/mvn mvn /usr/local/maven/apache-maven-3.6.3/bin/mvn 1
+sudo update-alternatives --install /usr/bin/mvn mvn /usr/local/maven/apache-maven-3.6.3/bin/mvn 1
 ```
 
 - Use alternatives to choose mvn version
 
 ```
-sudo alternatives --config mvn
+sudo update-alternatives --config mvn
 ```
 
 ### Hadoop/Spark Installation
@@ -177,4 +176,4 @@ Please notes: If you choose to use libhdfs3.so, there are some other dependency 
 ### Intel Optimized Apache Arrow Installation
 
 During the mvn compile command, it will launch a script [build_arrow.sh](../tools/build_arrow.sh) to help install and compile a Intel custom Arrow library.
-If you wish to build Apache Arrow by yourself, please follow [ArrowInstallation](./ArrowInstallation.md) to build and install Apache Arrow.
+If you wish to build Apache Arrow by yourself, please follow [Arrow Installation](./ArrowInstallation.md) to build and install Apache Arrow.

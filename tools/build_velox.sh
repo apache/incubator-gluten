@@ -32,24 +32,28 @@ if [ -d build_velox ]; then
 fi
 
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
-echo "Building Velox from Source ..."
-mkdir build_velox
-cd build_velox
-VELOX_PREFIX="${CURRENT_DIR}/build_velox" # Use build directory as VELOX_PREFIX
-VELOX_SOURCE_DIR="${VELOX_PREFIX}/velox_ep"
-VELOX_INSTALL_DIR="${VELOX_PREFIX}/velox_install"
+    echo "Building Velox from Source ..."
+    mkdir build_velox
+    cd build_velox
+    VELOX_PREFIX="${CURRENT_DIR}/build_velox" # Use build directory as VELOX_PREFIX
+    VELOX_SOURCE_DIR="${VELOX_PREFIX}/velox_ep"
+    VELOX_INSTALL_DIR="${VELOX_PREFIX}/velox_install"
 
-echo "VELOX_PREFIX=${VELOX_PREFIX}"
-echo "VELOX_SOURCE_DIR=${VELOX_SOURCE_DIR}"
-echo "VELOX_INSTALL_DIR=${VELOX_INSTALL_DIR}"
-mkdir -p $VELOX_SOURCE_DIR
-mkdir -p $VELOX_INSTALL_DIR
-git clone https://github.com/oap-project/velox.git -b main $VELOX_SOURCE_DIR
-pushd $VELOX_SOURCE_DIR
+    echo "VELOX_PREFIX=${VELOX_PREFIX}"
+    echo "VELOX_SOURCE_DIR=${VELOX_SOURCE_DIR}"
+    echo "VELOX_INSTALL_DIR=${VELOX_INSTALL_DIR}"
+    mkdir -p $VELOX_SOURCE_DIR
+    mkdir -p $VELOX_INSTALL_DIR
+    git clone https://github.com/oap-project/velox.git -b main $VELOX_SOURCE_DIR
+    pushd $VELOX_SOURCE_DIR
 
-scripts/setup-ubuntu.sh
-make release
-echo "Finish to build Velox from Source !!!"
+    #sync submodules
+    git submodule sync --recursive
+    git submodule update --init --recursive
+
+    scripts/setup-ubuntu.sh
+    make release
+    echo "Finish to build Velox from Source !!!"
 else
-echo "Use existing Velox."
+    echo "Use existing Velox."
 fi
