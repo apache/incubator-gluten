@@ -34,6 +34,8 @@ arrow::Status VeloxToRowConverter::Init() {
   num_rows_ = rb_->num_rows();
   num_cols_ = rb_->num_columns();
   schema_ = rb_->schema();
+  // The input is Arrow batch. We need to resume Velox Vector here.
+  ResumeVeloxVector();
   // Calculate the initial size
   nullBitsetWidthInBytes_ = CalculateBitSetWidthInBytes(num_cols_);
   int64_t fixed_size_per_row = CalculatedFixeSizePerRow(schema_, num_cols_);
@@ -64,8 +66,6 @@ arrow::Status VeloxToRowConverter::Init() {
   ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, memory_pool_));
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = buffer_->mutable_data();
-  // The input is Arrow batch. We need to resume Velox Vector here.
-  ResumeVeloxVector();
   return arrow::Status::OK();
 }
 
