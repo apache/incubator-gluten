@@ -256,7 +256,8 @@ class VeloxPlanConverter::WholeStageResIter {
     ArrowSchema cSchema{};
     exportToArrow(rv, cArray, veloxPool_.get());
     exportToArrow(outTypes, cSchema);
-    arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch = arrow::ImportRecordBatch(&cArray, &cSchema);
+    arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
+        arrow::ImportRecordBatch(&cArray, &cSchema);
 
     if (!batch.status().ok()) {
       throw std::runtime_error("Failed to import to Arrow record batch");
