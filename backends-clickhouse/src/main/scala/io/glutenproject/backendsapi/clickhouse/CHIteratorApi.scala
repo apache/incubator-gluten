@@ -26,6 +26,7 @@ import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.vectorized.{ExpressionEvaluatorJniWrapper, _}
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -33,7 +34,7 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class CHIteratorApi extends IIteratorApi {
+class CHIteratorApi extends IIteratorApi with Logging {
 
   /**
    * Generate native row partition.
@@ -49,8 +50,8 @@ class CHIteratorApi extends IIteratorApi {
           ExtensionTableBuilder.makeExtensionTable(p.minParts,
             p.maxParts, p.database, p.table, p.tablePath)
         wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
-        // logWarning(s"The substrait plan for partition " +
-        //   s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
+        logDebug(s"The substrait plan for partition " +
+          s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
         p.copySubstraitPlan(wsCxt.root.toProtobuf.toByteArray)
       case FilePartition(index, files) =>
         val paths = new java.util.ArrayList[String]()
@@ -64,13 +65,7 @@ class CHIteratorApi extends IIteratorApi {
         val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
         wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
         val substraitPlan = wsCxt.root.toProtobuf
-        /*
-        val out = new DataOutputStream(new FileOutputStream("/tmp/SubStraitTest-Q6.dat",
-                    false));
-        out.write(substraitPlan.toByteArray());
-        out.flush();
-         */
-        // logWarning(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+        logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
         NativeFilePartition(index, files, substraitPlan.toByteArray)
     }
   }

@@ -115,7 +115,11 @@ case class ClickHouseScan(
 
   override def estimateStatistics(): Statistics = {
     new Statistics {
-      override def sizeInBytes(): OptionalLong = OptionalLong.empty()
+      override def sizeInBytes(): OptionalLong = {
+        val compressionFactor = sparkSession.sessionState.conf.fileCompressionFactor
+        val size = (compressionFactor * table.listFiles().map(_.bytesOnDisk).sum).toLong
+        OptionalLong.of(size)
+      }
 
       override def numRows(): OptionalLong = OptionalLong.empty()
     }

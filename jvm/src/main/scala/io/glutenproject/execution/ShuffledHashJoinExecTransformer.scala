@@ -142,7 +142,7 @@ case class ShuffledHashJoinExecTransformer(
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val getInputRDDs = (plan: SparkPlan) => {
       plan match {
-        case c: TransformSupport =>
+        case c: TransformSupport if !c.isInstanceOf[WholeStageTransformerExec] =>
           c.columnarInputRDDs
         case _ =>
           Seq(plan.executeColumnar())
@@ -195,7 +195,7 @@ case class ShuffledHashJoinExecTransformer(
   override def doTransform(substraitContext: SubstraitContext): TransformContext = {
     def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute]) = {
       plan match {
-        case p: TransformSupport =>
+        case p: TransformSupport if !p.isInstanceOf[WholeStageTransformerExec] =>
           val transformContext = p.doTransform(substraitContext)
           (transformContext.root, transformContext.outputAttributes)
         case _ =>
