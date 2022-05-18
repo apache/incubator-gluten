@@ -23,6 +23,7 @@
 
 #include "ArrowTypeUtils.h"
 #include "arrow/c/Bridge.h"
+#include "arrow/c/bridge.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
 
@@ -49,11 +50,9 @@ arrow::Status VeloxToRowConverter::Init() {
   for (int64_t col_idx = 0; col_idx < num_cols_; col_idx++) {
     auto array = rb_->column(col_idx);
     if (arrow::is_binary_like(array->type_id())) {
-      auto array_data = array->data();
-      const uint8_t* val = array_data->buffers[2]->data();
-      auto str_view = reinterpret_cast<const StringView*>(val);
+      auto str_views = vecs_[col_idx]->asFlatVector<StringView>()->rawValues();
       for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-        auto length = str_view[row_idx].size();
+        auto length = str_views[row_idx].size();
         int64_t bytes = RoundNumberOfBytesToNearestWord(length);
         lengths_[row_idx] += bytes;
       }
@@ -76,42 +75,13 @@ arrow::Status VeloxToRowConverter::Init() {
 void VeloxToRowConverter::ResumeVeloxVector() {
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
     auto array = rb_->column(col_idx);
-    if (arrow::is_binary_like(array->type_id())) {
-      VectorPtr vec;
-      // push an invalid vec for position occupation
-      vecs_.push_back(vec);
-      continue;
+    ArrowArray c_array{};
+    ArrowSchema c_schema{};
+    arrow::Status status = arrow::ExportArray(*array, &c_array, &c_schema);
+    if (!status.ok()) {
+      throw std::runtime_error("Failed to export from Arrow record batch");
     }
-    // Construct Velox's Arrow Schema and Array
-    auto array_data = array->data();
-    const void* data_addr = array_data->buffers[1]->data();
-    const void* buffers[] = {nullptr, data_addr};
-    const char* format = arrowTypeIdToFormatStr(array->type_id());
-    auto arrow_schema = ArrowSchema{
-        .format = format,
-        .name = nullptr,
-        .metadata = nullptr,
-        .flags = 0,
-        .n_children = 0,
-        .children = nullptr,
-        .dictionary = nullptr,
-        .release = mockSchemaRelease,
-        .private_data = nullptr,
-    };
-    // auto null_count = array->null_count();
-    auto arrow_array = ArrowArray{
-        .length = num_rows_,
-        .null_count = 0,
-        .offset = 0,
-        .n_buffers = 2,
-        .n_children = 0,
-        .buffers = buffers,
-        .children = nullptr,
-        .dictionary = nullptr,
-        .release = mockArrayRelease,
-        .private_data = nullptr,
-    };
-    VectorPtr vec = importFromArrowAsViewer(arrow_schema, arrow_array);
+    VectorPtr vec = importFromArrowAsViewer(c_schema, c_array);
     // auto& pool = *velox_pool_;
     vecs_.push_back(vec);
   }
@@ -158,12 +128,10 @@ arrow::Status VeloxToRowConverter::Write() {
       }
       case arrow::StringType::type_id: {
         // Will convert the faked String column into Row through memcopy.
-        auto array_data = rb_->column(col_idx)->data();
-        const uint8_t* val = array_data->buffers[2]->data();
-        auto str_view = reinterpret_cast<const StringView*>(val);
+        auto str_views = vecs_[col_idx]->asFlatVector<StringView>()->rawValues();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          int32_t length = (int32_t)str_view[row_idx].size();
-          auto value = str_view[row_idx].data();
+          int32_t length = (int32_t)str_views[row_idx].size();
+          auto value = str_views[row_idx].data();
           // Write the variable value.
           memcpy(buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx], value,
                  length);
