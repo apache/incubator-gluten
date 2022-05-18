@@ -132,8 +132,7 @@ object ExpressionConverter extends Logging {
           replaceWithExpressionTransformer(
             i.value,
             attributeSeq),
-          i.list.map(value => {
-            replaceWithExpressionTransformer(value, attributeSeq)}),
+          i.list,
           expr)
       case i: InSet =>
         logInfo(s"${expr.getClass} ${expr} is supported")

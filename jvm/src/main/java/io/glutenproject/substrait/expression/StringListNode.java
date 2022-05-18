@@ -19,14 +19,29 @@ package io.glutenproject.substrait.expression;
 
 import io.substrait.proto.Expression;
 
-/**
- * Contains helper functions for constructing Substrait expressions.
- */
-public interface ExpressionNode {
-    /**
-     * Converts a Expression into a protobuf.
-     *
-     * @return A rel protobuf
-     */
-    Expression toProtobuf();
+import java.io.Serializable;
+import java.util.ArrayList;
+
+public class StringListNode implements ExpressionNode, Serializable {
+    private final ArrayList<String> values = new ArrayList<>();
+
+    public StringListNode(ArrayList<String> values) {
+        this.values.addAll(values);
+    }
+
+    @Override
+    public Expression toProtobuf() {
+        Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
+        Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
+        for (String value : values) {
+            literalBuilder.setString(value);
+            listBuilder.addValues(literalBuilder.build());
+        }
+        literalBuilder.setList(listBuilder.build());
+
+        Expression.Builder builder =  Expression.newBuilder();
+        builder.setLiteral(literalBuilder.build());
+
+        return builder.build();
+    }
 }
