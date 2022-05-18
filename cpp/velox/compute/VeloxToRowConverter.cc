@@ -30,9 +30,6 @@
 namespace velox {
 namespace compute {
 
-void mockSchemaRelease(ArrowSchema*) {}
-void mockArrayRelease(ArrowArray*) {}
-
 arrow::Status VeloxToRowConverter::Init() {
   num_rows_ = rb_->num_rows();
   num_cols_ = rb_->num_columns();
