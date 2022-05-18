@@ -49,6 +49,7 @@ void VeloxInitializer::Init() {
   auto hiveConnector = getConnectorFactory("hive")->newConnector(
       "hive-connector", nullptr, nullptr, executor.get());
   registerConnector(hiveConnector);
+  parquet::registerParquetReaderFactory();
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   functions::prestosql::registerAllScalarFunctions();
@@ -225,7 +226,8 @@ VeloxPlanConverter::GetResultIterator() {
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       pool_, planNode, subVeloxPlanConverter_->getPartitionIndex(),
       subVeloxPlanConverter_->getPaths(), subVeloxPlanConverter_->getStarts(),
-      subVeloxPlanConverter_->getLengths(), fakeArrowOutput_);
+      subVeloxPlanConverter_->getLengths(), subVeloxPlanConverter_->getFileFormat(),
+       fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -337,6 +339,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
                               const std::vector<std::string>& paths,
                               const std::vector<u_int64_t>& starts,
                               const std::vector<u_int64_t>& lengths,
+                              const int fileFormat,
                               const bool fakeArrowOutput)
       : WholeStageResIter(pool, planNode),
         index_(index),
@@ -344,12 +347,20 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
         starts_(starts),
         lengths_(lengths) {
     std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
+    auto format = FileFormat::UNKNOWN;
+    if (fileFormat == 2) {
+      format = FileFormat::ORC;
+    } else if (fileFormat == 1)  {
+      format = FileFormat::PARQUET;
+    }
+
     for (int idx = 0; idx < paths.size(); idx++) {
       auto path = paths[idx];
       auto start = starts[idx];
       auto length = lengths[idx];
+    
       auto split = std::make_shared<hive::HiveConnectorSplit>(
-          "hive-connector", path, FileFormat::ORC, start, length);
+          "hive-connector", path, format, start, length);
       connectorSplits.push_back(split);
     }
     splits_.reserve(connectorSplits.size());

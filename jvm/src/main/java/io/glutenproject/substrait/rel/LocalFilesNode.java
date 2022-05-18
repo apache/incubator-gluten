@@ -27,14 +27,18 @@ public class LocalFilesNode implements Serializable {
     private final ArrayList<String> paths = new ArrayList<>();
     private final ArrayList<Long> starts = new ArrayList<>();
     private final ArrayList<Long> lengths = new ArrayList<>();
+
+    private int fileFormat = -1;
     private Boolean iterAsInput = false;
 
     LocalFilesNode(Integer index, ArrayList<String> paths,
-                   ArrayList<Long> starts, ArrayList<Long> lengths) {
+                   ArrayList<Long> starts, ArrayList<Long> lengths,
+                   int fileFormat) {
         this.index = index;
         this.paths.addAll(paths);
         this.starts.addAll(starts);
         this.lengths.addAll(lengths);
+        this.fileFormat = fileFormat;
     }
 
     LocalFilesNode(String iterPath) {
@@ -65,8 +69,7 @@ public class LocalFilesNode implements Serializable {
             }
             fileBuilder.setLength(lengths.get(i));
             fileBuilder.setStart(starts.get(i));
-            // TODO: Support multiple file format
-            fileBuilder.setFormat(ReadRel.LocalFiles.FileOrFiles.FileFormat.FILE_FORMAT_PARQUET);
+            fileBuilder.setFormat(ReadRel.LocalFiles.FileOrFiles.FileFormat.forNumber(fileFormat));
             localFilesBuilder.addItems(fileBuilder.build());
         }
         return localFilesBuilder.build();

@@ -60,6 +60,7 @@
 #include "velox/substrait/TypeUtils.h"
 #include "velox/type/Filter.h"
 #include "velox/type/Subfield.h"
+#include "velox/dwio/parquet/reader/ParquetReader.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;

@@ -28,6 +28,13 @@ class SubstraitContext extends Serializable {
   private val iteratorNodes = new java.util.HashMap[java.lang.Long, LocalFilesNode]()
   private var extensionTableNode: ExtensionTableNode = _
   private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
+  private var fileFormat: java.lang.Integer = new Integer(-1)
+
+  def setFileFormat(format: java.lang.Integer): Unit = {
+    this.fileFormat = format
+  }
+
+  def getFileFormat(): java.lang.Integer = this.fileFormat
 
   private var insertOutputNode: InsertOutputNode = _
 

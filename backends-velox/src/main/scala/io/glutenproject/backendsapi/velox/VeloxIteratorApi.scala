@@ -59,12 +59,13 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
         val paths = new java.util.ArrayList[String]()
         val starts = new java.util.ArrayList[java.lang.Long]()
         val lengths = new java.util.ArrayList[java.lang.Long]()
+        val fileFormat = wsCxt.substraitContext.getFileFormat()
         files.foreach { f =>
           paths.add(f.filePath)
           starts.add(new java.lang.Long(f.start))
           lengths.add(new java.lang.Long(f.length))
         }
-        val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+        val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths, fileFormat)
         wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
         val substraitPlan = wsCxt.root.toProtobuf
         /*
