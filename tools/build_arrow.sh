@@ -45,13 +45,17 @@ CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 echo $CURRENT_DIR
 
 cd ${CURRENT_DIR}
-if [ -d build ]; then
-    rm -r build
+if [ -d build/arrow_ep ]; then
+    rm -r build/arrow_ep
+fi
+
+if [ -d build/arrow_install ]; then
+    rm -r build/arrow_install
 fi
 
 if [ $BUILD_ARROW == "ON" ]; then
 echo "Building Arrow from Source ..."
-mkdir build
+mkdir -p build
 cd build
 ARROW_PREFIX="${CURRENT_DIR}/build" # Use build directory as ARROW_PREFIX
 ARROW_SOURCE_DIR="${ARROW_PREFIX}/arrow_ep"
@@ -59,9 +63,8 @@ ARROW_INSTALL_DIR="${ARROW_PREFIX}/arrow_install"
 
 echo "ARROW_PREFIX=${ARROW_PREFIX}"
 echo "ARROW_SOURCE_DIR=${ARROW_SOURCE_DIR}"
-echo "ARROW_INSTALL_DIR=${ARROW_INSTALL_DIR}"
 mkdir -p $ARROW_SOURCE_DIR
-mkdir -p $ARROW_INSTALL_DIR
+mkdir -p $ARROW_ROOT
 git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
 pushd $ARROW_SOURCE_DIR
 
@@ -99,7 +102,7 @@ cmake -DARROW_BUILD_STATIC=OFF \
         -DARROW_SIMD_LEVEL=AVX2 \
         -DARROW_RUNTIME_SIMD_LEVEL=MAX \
         -DARROW_DEPENDENCY_SOURCE=BUNDLED \
-        -DCMAKE_INSTALL_PREFIX=/tmp/arrow_install.8 \
+        -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
         -DCMAKE_INSTALL_LIBDIR=lib \
         cpp
 
@@ -108,7 +111,7 @@ make -j$NPROC
 make install
 
 cd java
-mvn clean install -P arrow-jni -pl dataset,gandiva -am -Darrow.cpp.build.dir=/tmp/arrow_install.8/lib -DskipTests -Dcheckstyle.skip
+mvn clean install -P arrow-jni -pl dataset,gandiva -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip
 echo "Finish to build Arrow from Source !!!"
 else
 echo "Use ARROW_ROOT as Arrow Library Path"

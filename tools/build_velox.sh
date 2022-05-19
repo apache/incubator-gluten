@@ -27,15 +27,19 @@ CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 echo $CURRENT_DIR
 
 cd ${CURRENT_DIR}
-if [ -d build_velox ]; then
-    rm -r build_velox
+if [ -d build/velox_ep ]; then
+    rm -r build/velox_ep
+fi
+
+if [ -d build/velox_install ]; then
+    rm -r build/velox_install
 fi
 
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     echo "Building Velox from Source ..."
-    mkdir build_velox
-    cd build_velox
-    VELOX_PREFIX="${CURRENT_DIR}/build_velox" # Use build directory as VELOX_PREFIX
+    mkdir -p build
+    cd build
+    VELOX_PREFIX="${CURRENT_DIR}/build" # Use build directory as VELOX_PREFIX
     VELOX_SOURCE_DIR="${VELOX_PREFIX}/velox_ep"
     VELOX_INSTALL_DIR="${VELOX_PREFIX}/velox_install"
 
