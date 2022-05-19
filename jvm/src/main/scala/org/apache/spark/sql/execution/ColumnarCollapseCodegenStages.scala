@@ -134,8 +134,7 @@ case class ColumnarCollapseCodegenStages(
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case t: TransformSupport =>
-        WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
-          codegenStageCounter.incrementAndGet())
+        WholeStageTransformerExec(insertInputAdapter(t))(codegenStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }
