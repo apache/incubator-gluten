@@ -10,7 +10,7 @@ cd gluten
 When compiling Gluten, a backend should be enabled for execution.
 For example, add below options to enable Velox backend:
 
-If you wish to automatically build velox from source. The default velox installation path will be in "/PATH_TO_GLUTEN/tools/build_velox/velox_ep".
+If you wish to automatically build velox from source. The default velox installation path will be in "/PATH_TO_GLUTEN/tools/build/velox-ep/velox_ep".
 
 ```shell script
 -Dbuild_velox=ON -Dbuild_velox_from_source=ON
@@ -22,10 +22,11 @@ If you wish to enable Velox backend and you have an existing compiled Velox, ple
 -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME}
 ```
 
+We provide a single command to help build arrow as well as velox under Ubuntu20.04 environment.
 The full compiling command would be like:
 
 ```shell script
-mvn clean package -Pbackends-velox -P full-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON
+mvn clean package -Pbackends-velox -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
 
 If Arrow has once been installed successfully on your env, and there is no change to Arrow, you can

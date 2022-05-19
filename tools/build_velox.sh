@@ -55,6 +55,12 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     git submodule sync --recursive
     git submodule update --init --recursive
 
+    sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
+    sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
+    sed -i 's/^  liblzo2-dev.*/  liblzo2-dev/g' scripts/setup-ubuntu.sh
+    sed -i '/^function install_folly.*/i function install_pb {\n  github_checkout protocolbuffers/protobuf v3.13.0\n  git submodule update --init --recursive\n  ./autogen.sh\n  ./configure\n  make\n  make check\n  sudo make install\n sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_folly/i \ \ run_and_time install_pb' scripts/setup-ubuntu.sh
+
     scripts/setup-ubuntu.sh
     make release
     echo "Finish to build Velox from Source !!!"

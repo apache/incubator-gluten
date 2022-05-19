@@ -52,7 +52,7 @@
     <arrow.bfs.dir>${project.basedir}/../tools/build/arrow_install</arrow.bfs.dir>
     <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
-    <build_jemalloc>ON</build_jemalloc>
+    <build_jemalloc>OFF</build_jemalloc>
     <build_gazelle_cpp>OFF</build_gazelle_cpp>
     <build_velox>OFF</build_velox>
     <build_velox_from_source>OFF</build_velox_from_source>
