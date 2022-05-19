@@ -53,7 +53,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIt
     std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
-    throw gluten::JniPendingException("Expected 1 decl, but got " +
+    throw gluten::GlutenException("Expected 1 decl, but got " +
                                       std::to_string(decls.size()));
   }
   decl_ = std::make_shared<arrow::compute::Declaration>(std::move(decls[0]));
@@ -64,7 +64,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIt
     for (auto i = 0; i < inputs.size(); ++i) {
       auto it = schema_map_.find(i);
       if (it == schema_map_.end()) {
-        throw gluten::JniPendingException("Schema not found for input batch iterator " +
+        throw gluten::GlutenException("Schema not found for input batch iterator " +
                                           std::to_string(i));
       }
       auto batch_it = MakeMapIterator(
@@ -179,7 +179,7 @@ void ArrowExecBackend::FieldPathToName(arrow::compute::Expression* expression,
         *expr =
             arrow::compute::field_ref(schema->field((field_path->indices())[0])->name());
       } else {
-        throw gluten::JniPendingException("Field Ref is not field path: " +
+        throw gluten::GlutenException("Field Ref is not field path: " +
                                           field_ref->ToString());
       }
     }
@@ -207,7 +207,7 @@ void ArrowExecBackend::ReplaceSourceDecls(
   }
 
   if (source_indexes.size() != source_decls.size()) {
-    throw gluten::JniPendingException(
+    throw gluten::GlutenException(
         "Wrong number of source declarations. " + std::to_string(source_indexes.size()) +
         " source(s) needed by source declarations, but got " +
         std::to_string(source_decls.size()) + " from input batches.");

@@ -38,7 +38,7 @@ object TableBenchmarkTest {
       val rootPath = this.getClass.getResource("/").getPath
       val resourcePath = rootPath + "../../../src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
-      val queryPath = resourcePath + "/queries/"
+      val queryPath = resourcePath + "/tpch-queries/"
       (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       "")
     }

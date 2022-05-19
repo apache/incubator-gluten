@@ -20,6 +20,8 @@
 #include "compute/substrait_arrow.h"
 #include "compute/substrait_utils.h"
 
+#include "jni/jni_errors.h"
+
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
 #ifdef __cplusplus
@@ -31,6 +33,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
   }
+  gluten::GetJniErrorsState()->Initialize(env);
   std::cout << "loaded gazelle_cpp" << std::endl;
   return JNI_VERSION;
 }
@@ -43,15 +46,19 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
+  JNI_METHOD_START
   gazellecpp::compute::Initialize();
   gluten::SetBackendFactory(
       [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jboolean JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env, jobject obj, jbyteArray planArray) {
+  JNI_METHOD_START
   return true;
+  JNI_METHOD_END(false)
 }
 
 #ifdef __cplusplus

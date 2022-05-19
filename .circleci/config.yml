@@ -1,0 +1,38 @@
+version: 2.1
+
+jobs:
+  tpch:
+    machine:
+      image: ubuntu-2004:202104-01
+      docker_layer_caching: true # Only supported in circleci performance plan
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Pull docker cache image
+          command: |
+            docker pull hongzezhang/gluten-test:latest || echo "Cache image doesn't exist"
+            docker history hongzezhang/gluten-test:latest || echo "Cache image doesn't exist"
+      - run:
+          name: Build
+          command: |
+            if [ -z "${CIRCLE_PULL_REQUEST##*/}" ]; then echo "Not a PR!"; exit 0; fi
+            source tools/build_context.sh
+            export TARGET_VELOX_REPO=$VELOX_BUILD_REPO
+            export TARGET_VELOX_BRANCH=$VELOX_BUILD_BRANCH
+            export TARGET_ARROW_REPO=$ARROW_BUILD_REPO
+            export TARGET_ARROW_BRANCH=$ARROW_BUILD_BRANCH
+            export TARGET_GLUTEN_REPO=$(echo $CIRCLE_REPOSITORY_URL | sed 's%git@github.com:%https://github.com/%g')
+            export TARGET_GLUTEN_BRANCH=refs/pull/${CIRCLE_PULL_REQUEST##*/}/merge
+            export USE_ALI_MAVEN_MIRROR=OFF
+            export VELOX_SUITE=ON
+            export GLUTEN_SUITE=OFF
+            export DOCKER_CACHE_IMAGE=hongzezhang/gluten-test:latest
+            env
+            git clone https://github.com/zhztheplayer/gluten-build.git -b main gluten-build/
+            bash gluten-build/test.sh
+
+workflows:
+  gluten-circleci-workflow:
+    jobs:
+      - tpch
