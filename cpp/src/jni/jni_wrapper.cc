@@ -436,7 +436,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nativeC
   }
   std::cout << "BatchIterator nativeClose." << std::endl;
 #endif
-  batch_iterator_holder_.Erase(id);
+  // batch_iterator_holder_.Erase(id);
   JNI_METHOD_END()
 }
 

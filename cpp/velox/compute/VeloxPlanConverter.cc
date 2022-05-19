@@ -228,8 +228,8 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   arrowInputIters_ = std::move(inputs);
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
-  auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(
-      planNode, fakeArrowOutput_);
+  auto wholestageIter =
+      std::make_shared<WholeStageResIterMiddleStage>(planNode, fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -304,7 +304,7 @@ class VeloxPlanConverter::WholeStageResIter {
   }
 
   arrow::MemoryPool* memoryPool_ = arrow::default_memory_pool();
-  std::unique_ptr<memory::MemoryPool> pool_{memory::getDefaultScopedMemoryPool()};
+  std::unique_ptr<memory::MemoryPool> veloxPool_{memory::getDefaultScopedMemoryPool()};
   std::shared_ptr<const core::PlanNode> planNode_;
   test::CursorParameters params_;
   std::unique_ptr<test::TaskCursor> cursor_;
