@@ -50,6 +50,7 @@
 #include "velox/dwio/dwrf/common/CachedBufferedInput.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
+#include "velox/dwio/parquet/reader/ParquetReader.h"
 #include "velox/exec/Operator.h"
 #include "velox/exec/OperatorUtils.h"
 #include "velox/exec/tests/utils/Cursor.h"
@@ -60,7 +61,6 @@
 #include "velox/substrait/TypeUtils.h"
 #include "velox/type/Filter.h"
 #include "velox/type/Subfield.h"
-#include "velox/dwio/parquet/reader/ParquetReader.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;

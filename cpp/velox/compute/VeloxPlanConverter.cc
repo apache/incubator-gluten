@@ -227,7 +227,7 @@ VeloxPlanConverter::GetResultIterator() {
       pool_, planNode, subVeloxPlanConverter_->getPartitionIndex(),
       subVeloxPlanConverter_->getPaths(), subVeloxPlanConverter_->getStarts(),
       subVeloxPlanConverter_->getLengths(), subVeloxPlanConverter_->getFileFormat(),
-       fakeArrowOutput_);
+      fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -338,8 +338,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
                               const u_int32_t index,
                               const std::vector<std::string>& paths,
                               const std::vector<u_int64_t>& starts,
-                              const std::vector<u_int64_t>& lengths,
-                              const int fileFormat,
+                              const std::vector<u_int64_t>& lengths, const int fileFormat,
                               const bool fakeArrowOutput)
       : WholeStageResIter(pool, planNode),
         index_(index),
@@ -350,7 +349,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
     auto format = FileFormat::UNKNOWN;
     if (fileFormat == 2) {
       format = FileFormat::ORC;
-    } else if (fileFormat == 1)  {
+    } else if (fileFormat == 1) {
       format = FileFormat::PARQUET;
     }
 
@@ -358,9 +357,9 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       auto path = paths[idx];
       auto start = starts[idx];
       auto length = lengths[idx];
-    
-      auto split = std::make_shared<hive::HiveConnectorSplit>(
-          "hive-connector", path, format, start, length);
+
+      auto split = std::make_shared<hive::HiveConnectorSplit>("hive-connector", path,
+                                                              format, start, length);
       connectorSplits.push_back(split);
     }
     splits_.reserve(connectorSplits.size());
