@@ -20,14 +20,16 @@ package io.glutenproject.utils
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, CDataDictionaryProvider, Data}
-import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator}
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
-import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot, VectorUnloader}
+import org.apache.arrow.vector.{FieldVector, VectorLoader, VectorSchemaRoot, VectorUnloader}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 
 import java.util
+
+import scala.collection.JavaConverters._
 
 object ArrowAbiUtil {
 
@@ -48,6 +50,10 @@ object ArrowAbiUtil {
     cSchema: ArrowSchema, cArray: ArrowArray): VectorSchemaRoot = {
     val dictProvider = new CDataDictionaryProvider
     val vsr = Data.importVectorSchemaRoot(allocator, cArray, cSchema, dictProvider)
+    vsr.getFieldVectors
+      .asScala
+      .flatMap(f => f.getFieldBuffers.asScala)
+      .foreach(_.getReferenceManager.retain())
     try {
       vsr
     } finally {
@@ -60,6 +66,10 @@ object ArrowAbiUtil {
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
     cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
     val vsr = toVectorSchemaRoot(columnarBatch)
+    vsr.getFieldVectors
+      .asScala
+      .flatMap(f => f.getFieldBuffers.asScala)
+      .foreach(_.getReferenceManager.retain())
     try {
       Data.exportVectorSchemaRoot(allocator, vsr, new CDataDictionaryProvider(), cArray, cSchema)
     } catch {
