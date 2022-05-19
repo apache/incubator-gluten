@@ -1,7 +1,7 @@
 ## Velox
 
 Currently, Gluten requires Velox being pre-compiled.
-In general, please refer to [Velox Installation](https://github.com/facebookincubator/velox/blob/main/scripts/setup-ubuntu.sh) to install all the dependencies and compile Velox.
+In general, please refer to [Velox Installation](https://github.com/facebookincubator/velox/blob/main/scripts/setup-ubuntu.sh) to install all the dependencies and compile Velox. When compiling velox, it should be noted that the version of protobuf needs to be 3.13, otherwise there will be an inconsistent protobuf version when compiling Gluten with velox. 
 
 Gluten depends on this [Velox branch](https://github.com/oap-project/velox/commits/main) under oap-project.
 The changes to Velox are planned to be upstreamed in the future. Some of them have already been raised to Velox in pull requests.
