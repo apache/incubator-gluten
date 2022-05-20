@@ -28,18 +28,6 @@ set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(ARROW_ROOT "/usr/local" CACHE PATH "Arrow Root dir")
-set(ARROW_BFS_INSTALL_DIR "/usr/local" CACHE PATH "Arrow Build from Source dir")
-set(ARROW_LIB_NAME arrow)
-set(ARROW_DATASET_JNI_LIB_NAME arrow_dataset_jni) # some jni utils were imported from dataset module.
-set(GANDIVA_LIB_NAME gandiva)
-set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
-set(ARROW_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
-set(ARROW_DATASET_JNI_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${ARROW_DATASET_JNI_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
-set(GANDIVA_SHARED_LIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
-
-option(BUILD_ARROW "Build Arrow from Source" ON)
-option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(TESTS "Build the tests" OFF)
@@ -52,7 +40,6 @@ INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
 set(JEMALLOC_BUILD_VERSION "5.2.1")
 
-find_package(JNI REQUIRED)
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
 set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../jvm/src/main/resources/substrait/proto)
 set(substrait_proto_directory ${proto_directory}/substrait)
@@ -63,9 +50,6 @@ if(CCACHE_FOUND)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 endif(CCACHE_FOUND)
-
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
 
 # Building Protobuf
 macro(build_protobuf)
@@ -106,6 +90,7 @@ macro(build_protobuf)
   ExternalProject_Add(protobuf_ep
                       PREFIX protobuf_ep
                       CONFIGURE_COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
+                      BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
                       URL_MD5 cafa623d51361228c83c874d95f51992
@@ -144,269 +129,6 @@ if(USE_AVX512)
     add_definitions(-DCOLUMNAR_PLUGIN_USE_AVX512)
   endif ()
 endif()
-
-# Build Arrow macro
-macro(build_arrow STATIC_ARROW)
-  set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep-install")
-  message(STATUS "ARROW_PREFIX: ${ARROW_PREFIX}")
-  set(ARROW_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
-  message(STATUS "ARROW_SOURCE_DIR: ${ARROW_SOURCE_DIR}")
-  set(ARROW_INCLUDE_DIR "${ARROW_PREFIX}/include")
-  set(BINARY_RELEASE_DIR "${root_directory}/releases")
-
-  ExternalProject_Add(arrow_ep
-                      GIT_REPOSITORY https://github.com/oap-project/arrow.git
-                      SOURCE_DIR ${ARROW_SOURCE_DIR}
-                      GIT_TAG arrow-8.0.0-gluten-20220427a
-                      BUILD_IN_SOURCE 1
-                      INSTALL_DIR ${ARROW_PREFIX}
-                      INSTALL_COMMAND make install
-                      SOURCE_SUBDIR cpp
-                      CMAKE_ARGS
-                      -DARROW_BUILD_STATIC=OFF
-                      -DARROW_BUILD_SHARED=ON
-                      -DARROW_COMPUTE=ON
-                      -DARROW_S3=ON
-                      -DARROW_GANDIVA_JAVA=ON
-                      -DARROW_GANDIVA=ON
-                      -DARROW_PARQUET=ON
-                      -DARROW_CSV=ON
-                      -DARROW_HDFS=ON
-                      -DARROW_BOOST_USE_SHARED=OFF
-                      -DARROW_JNI=ON
-                      -DARROW_DATASET=ON
-                      -DARROW_WITH_PROTOBUF=ON
-                      -DARROW_WITH_SNAPPY=ON
-                      -DARROW_WITH_LZ4=ON
-                      -DARROW_WITH_ZSTD=OFF
-                      -DARROW_WITH_BROTLI=OFF
-                      -DARROW_WITH_ZLIB=OFF
-                      -DARROW_WITH_FASTPFOR=ON
-                      -DARROW_FILESYSTEM=ON
-                      -DARROW_JSON=ON
-                      -DARROW_FLIGHT=OFF
-                      -DARROW_JEMALLOC=ON
-                      -DARROW_SIMD_LEVEL=AVX2
-                      -DARROW_RUNTIME_SIMD_LEVEL=MAX
-                      -DARROW_DEPENDENCY_SOURCE=BUNDLED
-                      -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}
-                      -DCMAKE_INSTALL_LIBDIR=lib)
-
-  ExternalProject_Add_Step(arrow_ep java_install
-                      COMMAND mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=${ARROW_PREFIX}/lib -DskipTests -Dcheckstyle.skip
-                      COMMENT "Arrow Java maven install after CPP make install"
-                      DEPENDEES mkdir download update patch configure build install
-                      WORKING_DIRECTORY "${ARROW_SOURCE_DIR}/java"
-  )
-  add_dependencies(arrow_ep jni_proto)
-
-  file(MAKE_DIRECTORY "${ARROW_PREFIX}/include")
-
-  if(STATIC_ARROW)
-    # Load Static Arrow Library
-    message(FATAL_ERROR "Not Support Static Arrow")
-
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-    find_package(Threads REQUIRED)
-
-    set(ARROW_LIB_NAME arrow_bundled_dependencies)
-
-    set(
-      ARROW_STATIC_LIB
-      "${ARROW_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${ARROW_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
-      )
-    add_library(Arrow::arrow STATIC IMPORTED)
-    set_target_properties(Arrow::arrow
-                          PROPERTIES IMPORTED_LOCATION "${ARROW_STATIC_LIB}"
-                                     INTERFACE_INCLUDE_DIRECTORIES
-                                      "${ARROW_PREFIX}/include")
-    add_dependencies(Arrow::arrow arrow_ep)
-
-    set(
-      ARROW_DATASET_JNI_STATIC_LIB
-      "${ARROW_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${ARROW_DATASET_JNI_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    )
-    add_library(Arrow::arrow_dataset_jni STATIC IMPORTED)
-    set_target_properties(Arrow::arrow_dataset_jni
-            PROPERTIES IMPORTED_LOCATION "${ARROW_DATASET_JNI_STATIC_LIB}"
-            INTERFACE_INCLUDE_DIRECTORIES
-            "${ARROW_PREFIX}/include")
-    add_dependencies(Arrow::arrow_dataset_jni arrow_ep)
-
-    # Load Static Gandiva Library
-    set(
-      GANDIVA_STATIC_LIB
-      "${ARROW_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
-      )
-    add_library(Arrow::gandiva STATIC IMPORTED)
-    set_target_properties(Arrow::gandiva
-                          PROPERTIES IMPORTED_LOCATION "${GANDIVA_STATIC_LIB}"
-                                     INTERFACE_INCLUDE_DIRECTORIES
-                                      "${ARROW_PREFIX}/include")
-    add_dependencies(Arrow::gandiva arrow_ep)
-    target_link_libraries(spark_columnar_jni PRIVATE Arrow::arrow Arrow::arrow_dataset_jni Arrow::gandiva Threads::Threads)
-
-  else()
-
-    ExternalProject_Add_Step(arrow_ep copy_arrow_binary
-                      COMMAND cp -a ${ARROW_PREFIX}/lib/${ARROW_SHARED_LIB_NAME} ${root_directory}/releases/
-                      COMMENT "Copy ${ARROW_SHARED_LIB_NAME} to releases/"
-                      DEPENDEES mkdir download update patch configure build install java_install
-                      WORKING_DIRECTORY "${ARROW_PREFIX}/"
-    )
-
-    ExternalProject_Add_Step(arrow_ep copy_arrow_dataset_jni_binary
-            COMMAND cp -a ${ARROW_PREFIX}/lib/${ARROW_DATASET_JNI_SHARED_LIB_NAME} ${root_directory}/releases/
-            COMMENT "Copy ${ARROW_DATASET_JNI_SHARED_LIB_NAME} to releases/"
-            DEPENDEES mkdir download update patch configure build install java_install
-            WORKING_DIRECTORY "${ARROW_PREFIX}/"
-            )
-
-    ExternalProject_Add_Step(arrow_ep copy_gandiva_binary
-                      COMMAND cp -a ${ARROW_PREFIX}/lib/${GANDIVA_SHARED_LIB_NAME} ${root_directory}/releases/
-                      COMMENT "Copy ${GANDIVA_SHARED_LIB_NAME} to releases/"
-                      DEPENDEES mkdir download update patch configure build install java_install
-                      WORKING_DIRECTORY "${ARROW_PREFIX}/"
-    )
-
-
-    # Copy Arrow Headers to releases/include
-    ExternalProject_Add_Step(arrow_ep copy_arrow_header
-                      COMMAND cp -rf ${ARROW_PREFIX}/include/ ${root_directory}/releases/
-                      COMMENT "Arrow Header to releases/include"
-                      DEPENDEES mkdir download update patch configure build install java_install
-                      WORKING_DIRECTORY "${ARROW_PREFIX}/"
-    )
-
-    # Set up Arrow Shared Library Directory
-    set(
-      ARROW_SHARED_LIB
-      "${root_directory}/releases/${ARROW_SHARED_LIB_NAME}"
-      )
-    add_library(Arrow::arrow SHARED IMPORTED)
-    set_target_properties(Arrow::arrow
-                          PROPERTIES IMPORTED_LOCATION "${ARROW_SHARED_LIB}"
-                                     INTERFACE_INCLUDE_DIRECTORIES
-                                      "${root_directory}/releases/include")
-    add_dependencies(Arrow::arrow arrow_ep)
-
-    # Set up Arrow Dataset JNI Shared Library Directory
-    set(
-      ARROW_DATASET_JNI_SHARED_LIB
-      "${root_directory}/releases/${ARROW_DATASET_JNI_SHARED_LIB_NAME}"
-    )
-    add_library(Arrow::arrow_dataset_jni SHARED IMPORTED)
-    set_target_properties(Arrow::arrow_dataset_jni
-            PROPERTIES IMPORTED_LOCATION "${ARROW_DATASET_JNI_SHARED_LIB}"
-            INTERFACE_INCLUDE_DIRECTORIES
-            "${root_directory}/releases/include")
-    add_dependencies(Arrow::arrow_dataset_jni arrow_ep)
-
-    # Set up Gandiva Shared Library Directory
-    set(
-      GANDIVA_SHARED_LIB
-      "${root_directory}/releases/${GANDIVA_SHARED_LIB_NAME}"
-      )
-    add_library(Arrow::gandiva SHARED IMPORTED)
-    set_target_properties(Arrow::gandiva
-                          PROPERTIES IMPORTED_LOCATION "${GANDIVA_SHARED_LIB}"
-                                     INTERFACE_INCLUDE_DIRECTORIES
-                                      "${root_directory}/releases/include")
-    add_dependencies(Arrow::gandiva arrow_ep)
-
-    target_link_libraries(spark_columnar_jni
-                      LINK_PUBLIC Arrow::arrow Arrow::arrow_dataset_jni Arrow::gandiva)
-  endif()
-endmacro()
-
-# Find the existing Arrow library by using ARROW_RROT path
-macro(find_arrow)
-  set(ARROW_BFS_LIB_DIR "${ARROW_BFS_INSTALL_DIR}/lib")
-  set(ARROW_LIB_DIR "${ARROW_ROOT}/lib")
-  set(ARROW_LIB64_DIR "${ARROW_ROOT}/lib64")
-  message(STATUS "Set Arrow Library Directory in ${ARROW_BFS_LIB_DIR} or ${ARROW_LIB_DIR} or ${ARROW_LIB64_DIR}")
-  set(ARROW_BFS_INCLUDE_DIR "${ARROW_BFS_INSTALL_DIR}/include")
-  set(ARROW_INCLUDE_DIR "${ARROW_ROOT}/include")
-  message(STATUS "Set Arrow Include Directory in ${ARROW_BFS_INCLUDE_DIR} or ${ARROW_INCLUDE_DIR}")
-
-  find_library(ARROW_LIB NAMES ${ARROW_SHARED_LIB_NAME} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
-  if(NOT ARROW_LIB)
-    message(FATAL_ERROR "Arrow Library Not Found")
-  else()
-    message(STATUS "Arrow Library Can Be Found in ${ARROW_LIB}")
-  endif()
-
-  find_library(ARROW_DATASET_JNI_LIB NAMES ${ARROW_DATASET_JNI_SHARED_LIB_NAME} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
-  if(NOT ARROW_DATASET_JNI_LIB)
-    message(FATAL_ERROR "Arrow Dataset JNI Library Not Found")
-  else()
-    message(STATUS "Arrow Dataset JNI Library Can Be Found in ${ARROW_DATASET_JNI_LIB}")
-  endif()
-
-  find_library(GANDIVA_LIB NAMES ${GANDIVA_SHARED_LIB_NAME} PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR} NO_DEFAULT_PATH)
-  if(NOT GANDIVA_LIB)
-    message(FATAL_ERROR "Gandiva Library Not Found")
-  else()
-    message(STATUS "Gandiva Library Can Be Found in ${GANDIVA_LIB}")
-  endif()
-
-  file(COPY ${ARROW_LIB} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
-  file(COPY ${ARROW_DATASET_JNI_LIB} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
-  file(COPY ${GANDIVA_LIB} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
-
-  if(EXISTS ${ARROW_BFS_INCLUDE_DIR})
-    message(STATUS "COPY and Set Arrow Header to: ${ARROW_BFS_INCLUDE_DIR}")
-    file(COPY ${ARROW_BFS_INCLUDE_DIR}/arrow DESTINATION ${root_directory}/releases/include)
-    file(COPY ${ARROW_BFS_INCLUDE_DIR}/gandiva DESTINATION ${root_directory}/releases/include)
-    file(COPY ${ARROW_BFS_INCLUDE_DIR}/parquet DESTINATION ${root_directory}/releases/include)
-    file(COPY ${ARROW_BFS_INCLUDE_DIR}/jni DESTINATION ${root_directory}/releases/include)
-  else()
-    message(STATUS "COPY and Set Arrow Header to: ${ARROW_INCLUDE_DIR}")
-    file(COPY ${ARROW_INCLUDE_DIR}/arrow DESTINATION ${root_directory}/releases/include)
-    file(COPY ${ARROW_INCLUDE_DIR}/gandiva DESTINATION ${root_directory}/releases/include)
-    file(COPY ${ARROW_INCLUDE_DIR}/parquet DESTINATION ${root_directory}/releases/include)
-    file(COPY ${ARROW_INCLUDE_DIR}/jni DESTINATION ${root_directory}/releases/include)
-  endif()
-
-  # Set up Arrow Shared Library Directory
-  set(
-    ARROW_SHARED_LIB
-    "${root_directory}/releases/${ARROW_SHARED_LIB_NAME}"
-    )
-
-  add_library(Arrow::arrow SHARED IMPORTED)
-  set_target_properties(Arrow::arrow
-                        PROPERTIES IMPORTED_LOCATION "${ARROW_SHARED_LIB}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                    "${root_directory}/releases/include")
-
-  # Set up Arrow Dataset JNI Shared Library Directory
-  set(
-      ARROW_DATASET_JNI_SHARED_LIB
-      "${root_directory}/releases/${ARROW_DATASET_JNI_SHARED_LIB_NAME}"
-  )
-
-  add_library(Arrow::arrow_dataset_jni SHARED IMPORTED)
-  set_target_properties(Arrow::arrow_dataset_jni
-          PROPERTIES IMPORTED_LOCATION "${ARROW_DATASET_JNI_SHARED_LIB}"
-          INTERFACE_INCLUDE_DIRECTORIES
-          "${root_directory}/releases/include")
-
-  # Set up Gandiva Shared Library Directory
-  set(
-    GANDIVA_SHARED_LIB
-    "${root_directory}/releases/${GANDIVA_SHARED_LIB_NAME}"
-    )
-  add_library(Arrow::gandiva SHARED IMPORTED)
-  set_target_properties(Arrow::gandiva
-                        PROPERTIES IMPORTED_LOCATION "${GANDIVA_SHARED_LIB}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                    "${root_directory}/releases/include")
-
-  target_link_libraries(spark_columnar_jni
-                    LINK_PUBLIC Arrow::arrow Arrow::arrow_dataset_jni Arrow::gandiva)
-
-endmacro()
 
 # Building Jemalloc
 macro(build_jemalloc)
@@ -521,6 +243,10 @@ file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(spark_columnar_jni jni_proto)
 
+find_arrow_lib(${ARROW_LIB_NAME})
+find_arrow_lib(${ARROW_DATASET_JNI_LIB_NAME}) # some jni utils were imported from dataset module.
+find_arrow_lib(${GANDIVA_LIB_NAME})
+
 if(BUILD_PROTOBUF)
   build_protobuf()
   message(STATUS "Building ProtoBuf from Source: ${BUILD_PROTOBUF}")
@@ -550,16 +276,6 @@ set_target_properties(spark_columnar_jni PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
 )
 
-# Build Arrow
-#message(STATUS "Building ARROW from Source: ${BUILD_ARROW}")
-if(BUILD_ARROW)
-  build_arrow(${STATIC_ARROW})
-  message(STATUS "Building Static ARROW: ${STATIC_ARROW}")
-else() #
-  find_arrow()
-  message(STATUS "Use existing ARROW libraries")
-endif()
-
 # Build Jemalloc
 if(BUILD_JEMALLOC)
   build_jemalloc(${STATIC_JEMALLOC})
@@ -570,33 +286,6 @@ else() #
 endif()
 
 if(BUILD_TESTS)
-  enable_testing()
-  include(GoogleTest)
-  find_package(GTest REQUIRED)
-
-  function(ADD_TEST_CASE TEST_NAME)
-    set(options)
-    set(one_value_args)
-    set(multi_value_args
-        SOURCES)
-
-    cmake_parse_arguments(ARG
-                          "${options}"
-                          "${one_value_args}"
-                          "${multi_value_args}"
-                          ${ARGN})
-
-    if(ARG_SOURCES)
-      set(SOURCES ${ARG_SOURCES})
-    else()
-      message(FATAL_ERROR "No sources specified for test ${TEST_NAME}")
-    endif()
-
-    add_executable(${TEST_NAME} ${SOURCES})
-    target_link_libraries(${TEST_NAME} gtest gtest_main spark_columnar_jni)
-    gtest_discover_tests(${TEST_NAME})
-  endfunction()
-
   add_test_case(exec_backend_test SOURCES jni/exec_backend_test.cc)
 endif()
 
@@ -605,6 +294,9 @@ if(DEFINED ENV{HADOOP_HOME})
 else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
+
+target_link_libraries(spark_columnar_jni
+    PUBLIC Arrow::arrow Arrow::arrow_dataset_jni Arrow::gandiva)
 
 install(TARGETS spark_columnar_jni
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
