@@ -41,8 +41,8 @@ make install
 cd ../../java
 
 # build java c data interface
-mkdir -p java/c/build
-pushd java/c/build
+mkdir -p c/build
+pushd c/build
 cmake ..
 cmake --build .
 popd
