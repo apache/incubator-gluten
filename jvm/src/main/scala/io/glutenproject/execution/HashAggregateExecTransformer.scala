@@ -415,11 +415,19 @@ case class HashAggregateExecTransformer(
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggExpr.mode match {
         case Partial =>
-          aggregatFunc.children.toList.map(expr => {
-            val aggExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(expr, originalInputAttributes)
-            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-          })
+          if (!GlutenConfig.getConf.isClickHouseBackend) {
+            aggregatFunc.children.toList.map(expr => {
+              val aggExpr: Expression = ExpressionConverter
+                .replaceWithExpressionTransformer(expr, originalInputAttributes)
+              aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+            })
+          } else {
+            aggregatFunc.children.toList.map(expr => {
+              val aggExpr: Expression = ExpressionConverter
+                .replaceWithExpressionTransformer(expr, child.output)
+              aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+            })
+          }
         case Final =>
           if (!GlutenConfig.getConf.isClickHouseBackend) {
             aggregatFunc.inputAggBufferAttributes.toList.map(attr => {
