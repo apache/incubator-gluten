@@ -18,7 +18,13 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ITransformerApi
-import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.expression.{
+  ArrowConverterUtils,
+  ExpressionConverter,
+  ExpressionTransformer
+}
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.SelectionNode
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -46,10 +52,16 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
           return false
       }
     }
+    // check repartition expression
+    val substraitContext = new SubstraitContext
     outputPartitioning match {
-      case HashPartitioning(exprs, n) =>
+      case HashPartitioning(exprs, _) =>
         exprs.foreach(expr => {
-          if (!expr.isInstanceOf[Attribute]) {
+          val node = ExpressionConverter
+            .replaceWithExpressionTransformer(expr, outputAttributes)
+            .asInstanceOf[ExpressionTransformer]
+            .doTransform(substraitContext.registeredFunction)
+          if (!node.isInstanceOf[SelectionNode]) {
             logInfo("Expressions are not supported in HashPartitioning.")
             return false
           }
