@@ -38,24 +38,44 @@ public class ExpressionBuilder {
         }
     }
 
+    public static IntLiteralNode makeIntLiteral(Integer intConstant) {
+        return new IntLiteralNode(intConstant);
+    }
+
+    public static IntListNode makeIntList(ArrayList<Integer> intConstants) {
+        return new IntListNode(intConstants);
+    }
+
+    public static LongLiteralNode makeLongLiteral(Long longConstant) {
+        return new LongLiteralNode(longConstant);
+    }
+
+    public static LongListNode makeLongList(ArrayList<Long> longConstants) {
+        return new LongListNode(longConstants);
+    }
+
     public static DoubleLiteralNode makeDoubleLiteral(Double doubleConstant) {
         return new DoubleLiteralNode(doubleConstant);
+    }
+
+    public static DoubleListNode makeDoubleList(ArrayList<Double> doubleConstants) {
+        return new DoubleListNode(doubleConstants);
     }
 
     public static DateLiteralNode makeDateLiteral(Integer dateConstant) {
         return new DateLiteralNode(dateConstant);
     }
 
+    public static DateListNode makeDateList(ArrayList<Integer> dateConstants) {
+        return new DateListNode(dateConstants);
+    }
+
     public static StringLiteralNode makeStringLiteral(String strConstant) {
         return new StringLiteralNode(strConstant);
     }
 
-    public static IntLiteralNode makeIntLiteral(Integer intConstant) {
-        return new IntLiteralNode(intConstant);
-    }
-
-    public static LongLiteralNode makeLongLiteral(Long longConstant) {
-        return new LongLiteralNode(longConstant);
+    public static StringListNode makeStringList(ArrayList<String> strConstants) {
+        return new StringListNode(strConstants);
     }
 
     public static ScalarFunctionNode makeScalarFunction(

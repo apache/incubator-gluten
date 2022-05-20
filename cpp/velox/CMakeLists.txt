@@ -71,6 +71,7 @@ set(VELOX_FUNCTIONS_PRESTOSQL_JSON_LIB_PATH "${VELOX_BUILD_PATH}/functions/prest
 set(VELOX_FUNCTIONS_PRESTOSQL_HYPERLOGLOG_LIB_PATH "${VELOX_BUILD_PATH}/functions/prestosql/hyperloglog/libvelox_functions_hyperloglog.a")
 set(VELOX_FUNCTIONS_PRESTOSQL_AGG_LIB_PATH "${VELOX_BUILD_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
 set(VELOX_FUNCTIONS_LIB_PATH "${VELOX_BUILD_PATH}/functions/lib/libvelox_functions_lib.a")
+set(VELOX_FUNCTIONS_SPARKSQL_LIB_PATH  "${VELOX_BUILD_PATH}/functions/sparksql/libvelox_functions_spark.a")
 set(VELOX_TYPE_TZ_LIB_PATH "${VELOX_BUILD_PATH}/type/tz/libvelox_type_tz.a")
 set(VELOX_EXTERNAL_MD5_LIB_PATH "${VELOX_BUILD_PATH}/external/md5/libmd5.a")
 set(VELOX_EXPRESSION_LIB_PATH "${VELOX_BUILD_PATH}/expression/libvelox_expression.a")
@@ -208,6 +209,7 @@ macro(build_velox_exec)
   add_library(facebook::velox::functions::hyperloglog STATIC IMPORTED)
   add_library(facebook::velox::functions::prestosql::agg STATIC IMPORTED)
   add_library(facebook::velox::functions::lib STATIC IMPORTED)
+  add_library(facebook::velox::functions::sparksql::lib STATIC IMPORTED)
   add_library(facebook::velox::type::tz STATIC IMPORTED)
   add_library(facebook::velox::external::md5 STATIC IMPORTED)
   add_library(facebook::velox::expression STATIC IMPORTED)
@@ -388,6 +390,10 @@ macro(build_velox_exec)
                         PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
                                    "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::functions::sparksql::lib
+                                   PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_SPARKSQL_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::type::tz
                         PROPERTIES IMPORTED_LOCATION "${VELOX_TYPE_TZ_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
@@ -429,6 +435,7 @@ macro(build_velox_exec)
                         LINK_PUBLIC facebook::velox::functions::prestosql::impl
                         LINK_PUBLIC facebook::velox::functions::json
                         LINK_PUBLIC facebook::velox::functions::hyperloglog
+                        LINK_PUBLIC facebook::velox::functions::sparksql::lib
                         LINK_PUBLIC facebook::velox::functions::lib
                         LINK_PUBLIC facebook::velox::vector
                         LINK_PUBLIC facebook::velox::exec::test::util

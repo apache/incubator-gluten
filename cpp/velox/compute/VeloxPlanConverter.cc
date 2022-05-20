@@ -27,6 +27,7 @@
 #include "velox/buffer/Buffer.h"
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
+#include "velox/functions/sparksql/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -50,6 +51,7 @@ void VeloxInitializer::Init() {
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   functions::prestosql::registerAllScalarFunctions();
+  functions::sparksql::registerFunctions("");
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   aggregate::registerAverageAggregate("avg");
   aggregate::registerCountAggregate("count");

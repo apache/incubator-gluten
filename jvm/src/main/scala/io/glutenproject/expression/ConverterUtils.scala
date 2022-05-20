@@ -281,4 +281,11 @@ object ConverterUtils extends Logging {
   final val ALIAS = "alias"
   final val IS_NOT_NULL = "is_not_null"
   final val IS_NULL = "is_null"
+  // Below names are not in Substrait yaml.
+  final val ENDS_WITH = "ends_with"
+  final val CONTAINS = "contains"
+  final val IN = "in"
+  final val NOT = "not"
+  final val STARTS_WITH = "starts_with"
+  final val SUBSTRING = "substring"
 }

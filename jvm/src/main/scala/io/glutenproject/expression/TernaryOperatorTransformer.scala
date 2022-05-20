@@ -17,7 +17,10 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
+import com.google.common.collect.Lists
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -27,7 +30,30 @@ class SubStringTransformer(str: Expression, pos: Expression, len: Expression, or
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    val strNode =
+      str.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val posNode =
+      pos.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val lenNode =
+      len.asInstanceOf[ExpressionTransformer].doTransform(args)
+
+    if (!strNode.isInstanceOf[ExpressionNode] ||
+        !posNode.isInstanceOf[ExpressionNode] ||
+        !lenNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.SUBSTRING, Seq(str.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(
+      strNode.asInstanceOf[ExpressionNode],
+      posNode.asInstanceOf[ExpressionNode],
+      lenNode.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeString(false)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
