@@ -392,8 +392,8 @@ macro(build_velox_exec)
                                    "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::functions::sparksql::lib
                                    PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_SPARKSQL_LIB_PATH}"
-                                              INTERFACE_INCLUDE_DIRECTORIES
-                                              "${BINARY_RELEASE_DIR}/include")
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::type::tz
                         PROPERTIES IMPORTED_LOCATION "${VELOX_TYPE_TZ_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
