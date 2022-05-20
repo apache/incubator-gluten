@@ -37,8 +37,10 @@
     <hive.parquet.group>com.twitter</hive.parquet.group>
     <parquet.deps.scope>provided</parquet.deps.scope>
     <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
-    <jvm.build_arrow>OFF</jvm.build_arrow>
-    <jvm.arrow.bfs.install.dir>${project.basedir}/../tools/build/arrow_install</jvm.arrow.bfs.install.dir>
+    <jvm.build_arrow>${build_arrow}</jvm.build_arrow>
+    <jvm.cpp_tests>${cpp_tests}</jvm.cpp_tests>
+    <jvm.static_arrow>${static_arrow}</jvm.static_arrow>
+    <jvm.arrow_root>${arrow_root}</jvm.arrow_root>
     <protobuf.version>3.13.0</protobuf.version>
     <!-- protobuf paths -->
     <protobuf.input.directory>${resource.dir}/substrait/proto</protobuf.input.directory>
@@ -349,6 +351,30 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
           <version>3.0.1</version>
+      </plugin>
+      <plugin>
+	  <artifactId>exec-maven-plugin</artifactId>
+          <groupId>org.codehaus.mojo</groupId>
+          <version>1.6.0</version>
+          <executions>
+              <execution>
+                  <id>Build arrow</id>
+                  <phase>generate-resources</phase>
+                  <goals>
+                      <goal>exec</goal>
+                  </goals>
+                  <configuration>
+                      <executable>bash</executable>
+                      <arguments>
+                          <argument>${arrow.script.dir}/build_arrow.sh</argument>
+                          <argument>--tests=${jvm.cpp_tests}</argument>
+                          <argument>--build_arrow=${jvm.build_arrow}</argument>
+                          <argument>--static_arrow=${jvm.static_arrow}</argument>
+                          <argument>--arrow_root=${jvm.arrow_root}</argument>
+                      </arguments>
+                  </configuration>
+              </execution>
+          </executions>
       </plugin>
       <plugin>
         <groupId>net.alchim31.maven</groupId>

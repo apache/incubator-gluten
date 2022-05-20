@@ -48,14 +48,15 @@
     <build_cpp>OFF</build_cpp>
     <cpp_tests>OFF</cpp_tests>
     <build_arrow>OFF</build_arrow>
-    <static_arrow>OFF</static_arrow>
     <arrow_root>/usr/local</arrow_root>
+    <arrow.bfs.dir>${project.basedir}/../tools/build/arrow_install</arrow.bfs.dir>
+    <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
-    <build_jemalloc>ON</build_jemalloc>
+    <build_jemalloc>OFF</build_jemalloc>
     <build_gazelle_cpp>OFF</build_gazelle_cpp>
     <build_velox>OFF</build_velox>
     <build_velox_from_source>OFF</build_velox_from_source>
-    <velox_home>${project.basedir}/../tools/build_velox/velox_ep</velox_home>
+    <velox_home>${project.basedir}/../tools/build/velox_ep</velox_home>
     <project.prefix>spark-sql-columnar</project.prefix>
     <project.name.prefix>Gluten</project.name.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>

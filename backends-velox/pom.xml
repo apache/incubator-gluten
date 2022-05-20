@@ -18,9 +18,19 @@
         <maven.compiler.target>8</maven.compiler.target>
         <cpp.dir>../cpp/</cpp.dir>
         <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
-        <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-        <jvm.build_arrow>OFF</jvm.build_arrow>
-        <jvm.arrow.bfs.install.dir>${project.basedir}/../tools/build/arrow_install</jvm.arrow.bfs.install.dir>
+	<resource.dir>${project.basedir}/src/main/resources</resource.dir>
+        <velox.build_cpp>${build_cpp}</velox.build_cpp>
+        <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
+        <velox.build_arrow>OFF</velox.build_arrow>
+        <velox.static_arrow>${static_arrow}</velox.static_arrow>
+        <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
+	<velox.arrow_root>${arrow_root}</velox.arrow_root>
+	<velox.arrow.bfs.dir>${arrow.bfs.dir}</velox.arrow.bfs.dir>
+        <velox.build_jemalloc>${build_jemalloc}</velox.build_jemalloc>
+        <velox.build_gazelle_cpp>${build_gazelle_cpp}</velox.build_gazelle_cpp>
+	<velox.build_velox>${build_velox}</velox.build_velox>
+	<velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
+        <velox.velox_home>${velox_home}</velox.velox_home>
     </properties>
 
     <dependencies>
@@ -141,7 +151,8 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-core</artifactId>
-            <version>${arrow.version}</version>
+	    <version>${arrow.version}</version>
+            <scope>compile</scope>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
@@ -237,8 +248,8 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <version>1.6.0</version>
                 <executions>
-                    <execution>
-                        <id>Build arrow</id>
+	            <execution>
+                        <id>Build velox</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>exec</goal>
@@ -246,11 +257,8 @@
                         <configuration>
                             <executable>bash</executable>
                             <arguments>
-                                <argument>${arrow.script.dir}/build_arrow.sh</argument>
-                                <argument>--tests=${cpp_tests}</argument>
-                                <argument>--build_arrow=${build_arrow}</argument>
-                                <argument>--static_arrow=${static_arrow}</argument>
-                                <argument>--arrow_root=${arrow_root}</argument>
+                                <argument>${velox.script.dir}/build_velox.sh</argument>
+                                <argument>--build_velox_from_source=${velox.build_velox_from_source}</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -264,35 +272,20 @@
                             <executable>bash</executable>
                             <arguments>
                                 <argument>${cpp.dir}/compile.sh</argument>
-                                <argument>${build_cpp}</argument>
-                                <argument>${cpp_tests}</argument>
-                                <argument>${jvm.build_arrow}</argument>
-                                <argument>${static_arrow}</argument>
-                                <argument>${build_protobuf}</argument>
-                                <argument>${arrow_root}</argument>
-                                <argument>${jvm.arrow.bfs.install.dir}</argument>
-                                <argument>${build_jemalloc}</argument>
-                                <argument>${build_gazelle_cpp}</argument>
-                                <argument>${build_velox}</argument>
-                                <argument>${velox_home}</argument>
+                                <argument>${velox.build_cpp}</argument>
+                                <argument>${velox.cpp_tests}</argument>
+				<argument>${velox.build_arrow}</argument>
+                                <argument>${velox.static_arrow}</argument>
+                                <argument>${velox.build_protobuf}</argument>
+                                <argument>${velox.arrow_root}</argument>
+                                <argument>${velox.arrow.bfs.dir}</argument>
+                                <argument>${velox.build_jemalloc}</argument>
+                                <argument>${velox.build_gazelle_cpp}</argument>
+                                <argument>${velox.build_velox}</argument>
+                                <argument>${velox.velox_home}</argument>
                             </arguments>
                         </configuration>
                     </execution>
-                    <execution>
-                        <id>Build velox</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>bash</executable>
-                            <arguments>
-                                <argument>${velox.script.dir}/build_velox.sh</argument>
-                                <argument>--build_velox_from_source=${build_velox_from_source}</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-
                 </executions>
             </plugin>
             <plugin>
