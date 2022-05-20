@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.UserAddedJarUtils
@@ -237,6 +238,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
     var current_op = child
     while (current_op.isInstanceOf[TransformSupport] &&
+           !current_op.isInstanceOf[BaseJoinExec] &&
            !current_op.isInstanceOf[BasicScanExecTransformer] &&
            current_op.asInstanceOf[TransformSupport].getChild != null) {
       current_op = current_op.asInstanceOf[TransformSupport].getChild
@@ -269,7 +271,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map(p =>
         BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt))
-      logWarning(
+      logDebug(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
       val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition, false)
@@ -316,7 +318,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map(p =>
         BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt))
-      logWarning(
+      logInfo(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
       val wsRDD = new NativeWholeStageColumnarRDD(

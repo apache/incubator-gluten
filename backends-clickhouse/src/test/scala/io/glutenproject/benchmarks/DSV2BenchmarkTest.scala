@@ -101,13 +101,19 @@ object DSV2BenchmarkTest {
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", "false")
         .config("spark.gluten.sql.columnar.backend.lib", "ch")
+        .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH,
-          "/usr/local/clickhouse/lib/libch.so")
+          "/data1/clickhouse-compile/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
+        //.config("spark.gluten.sql.columnar.sort", "false")
+        .config("spark.sql.autoBroadcastJoinThreshold", "-1")
+        .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
+        //.config("spark.sql.optimizeNullAwareAntiJoin", "false")
+        //.config("spark.sql.join.preferSortMergeJoin", "false")
         //.config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
@@ -132,23 +138,33 @@ object DSV2BenchmarkTest {
 
     val createTbl = false
     if (createTbl) {
-      createClickHouseTables(spark, parquetFilesPath, fileFormat)
-      createLocationClickHouseTable(spark)
+      // createClickHouseTable(spark, parquetFilesPath, fileFormat)
+      // createLocationClickHouseTable(spark)
       // createTables(spark, parquetFilesPath, fileFormat)
+      // createClickHouseTables(spark)
     }
     val refreshTable = false
     if (refreshTable) {
       refreshClickHouseTable(spark)
     }
-    selectClickHouseTable(spark, executedCnt, sqlStr.mkString)
-    //selectLocationClickHouseTable(spark, executedCnt, sqlStr.mkString)
-    //testSerializeFromObjectExec(spark)
 
-    selectQ1ClickHouseTable(spark, executedCnt, sqlStr.mkString)
-    //selectQ1LocationClickHouseTable(spark, executedCnt, sqlStr.mkString)
+    // createClickHouseTablesAsSelect(spark)
+    // createClickHouseTablesAndInsert(spark)
 
-    //testSparkTPCH(spark)
-    //testSQL(spark, parquetFilesPath, fileFormat, executedCnt, sqlStr.mkString)
+    // selectClickHouseTable(spark, executedCnt, sqlStr.mkString, "ch_clickhouse")
+    // selectLocationClickHouseTable(spark, executedCnt, sqlStr.mkString)
+    // testSerializeFromObjectExec(spark)
+
+    // selectQ1ClickHouseTable(spark, executedCnt, sqlStr.mkString, "ch_clickhouse")
+    // selectStarClickHouseTable(spark)
+    // selectQ1LocationClickHouseTable(spark, executedCnt, sqlStr.mkString)
+
+    // testSparkTPCH(spark)
+    // testSQL(spark, parquetFilesPath, fileFormat, executedCnt, sqlStr.mkString)
+
+    // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
+    // testJoinIssue(spark)
+    testTPCHAll(spark)
 
     System.out.println("waiting for finishing")
     if (stopFlagFile.isEmpty) {
@@ -162,6 +178,166 @@ object DSV2BenchmarkTest {
     System.out.println("finished")
   }
 
+  def testTPCHAll(spark: SparkSession): Unit = {
+    val result = spark.sql(
+      s"""
+         |SELECT
+         |    n_name,
+         |    sum(l_extendedprice * (1 - l_discount)) AS revenue
+         |FROM
+         |    ch_customer,
+         |    ch_orders,
+         |    ch_lineitem,
+         |    ch_supplier,
+         |    ch_nation,
+         |    ch_region
+         |WHERE
+         |    c_custkey = o_custkey
+         |    AND l_orderkey = o_orderkey
+         |    AND l_suppkey = s_suppkey
+         |    AND c_nationkey = s_nationkey
+         |    AND s_nationkey = n_nationkey
+         |    AND n_regionkey = r_regionkey
+         |    AND r_name = 'ASIA'
+         |    AND o_orderdate >= date'1994-01-01'
+         |    AND o_orderdate < date'1994-01-01' + interval 1 year
+         |GROUP BY
+         |    n_name
+         |
+         |""".stripMargin).show(30, false) //.show(30, false)
+    // println(result.size)
+    // .show(30, false)
+    // .explain(false)
+    // .collect()
+  }
+
+  def testJoinIssue(spark: SparkSession): Unit = {
+    spark.sql(
+      s"""
+         |select
+         |	l_returnflag, l_extendedprice, p_name
+         |from
+         |	ch_lineitem,
+         |	ch_part
+         |where
+         |	l_partkey = p_partkey
+         |""".stripMargin).show(10, false)      // .show(10, false) .explain("extended")
+    spark.sql(
+      s"""
+         |select
+         |	l_returnflag, sum(l_extendedprice * l_discount)
+         |from
+         |	ch_lineitem01,
+         |	ch_part01
+         |where
+         |	l_partkey = p_partkey
+         |group by l_returnflag
+         |""".stripMargin).show(10, false)       // .show(10, false) .explain("extended")
+    spark.sql(
+      s"""
+         |select
+         |	l_orderkey,
+         |  l_tax,
+         |  l_returnflag
+         |from
+         |	ch_lineitem01,
+         |  ch_customer01,
+         |	ch_orders01
+         |where
+         |	c_custkey = o_custkey
+         |	and l_orderkey = o_orderkey
+         |""".stripMargin).show(10, false) // .show(10, false) .explain("extended")
+    /* spark.sql(
+      s"""
+         |SELECT
+         |    sum(l_extendedprice * l_discount)
+         |FROM
+         |    ch_orders01,
+         |    ch_lineitem01
+         |WHERE
+         |    l_orderkey = o_orderkey
+         |""".stripMargin).explain("extended") // .show(10, false) .explain("extended") */
+
+    spark.sql(
+      s"""
+         |-- Q4
+         |SELECT
+         |    o_orderpriority,
+         |    count(*) AS order_count
+         |FROM
+         |    ch_orders
+         |WHERE
+         |    o_orderdate >= date'1993-07-01'
+         |    AND o_orderdate < date'1993-07-01' + interval 3 month
+         |    AND EXISTS (
+         |        SELECT
+         |            *
+         |        FROM
+         |            ch_lineitem
+         |        WHERE
+         |            l_orderkey = o_orderkey
+         |            AND l_commitdate < l_receiptdate)
+         |GROUP BY
+         |    o_orderpriority
+         |
+         |""".stripMargin).show(30, false)
+    spark.sql(
+      s"""
+         |-- Q3
+         |SELECT
+         |    l_orderkey,
+         |    sum(l_extendedprice * (1 - l_discount)) AS revenue,
+         |    o_orderdate,
+         |    o_shippriority
+         |FROM
+         |    ch_customer,
+         |    ch_orders,
+         |    ch_lineitem
+         |WHERE
+         |    c_mktsegment = 'BUILDING'
+         |    AND c_custkey = o_custkey
+         |    AND l_orderkey = o_orderkey
+         |    AND o_orderdate < date'1995-03-15'
+         |    AND l_shipdate > date'1995-03-15'
+         |GROUP BY
+         |    l_orderkey,
+         |    o_orderdate,
+         |    o_shippriority
+         |ORDER BY
+         |    revenue DESC,
+         |    o_orderdate
+         |-- LIMIT 10;
+         |""".stripMargin).show(100, false)
+    /* spark.sql(
+      s"""
+         |SELECT
+         |    p_brand,
+         |    p_type,
+         |    p_size,
+         |    count(DISTINCT ps_suppkey) AS supplier_cnt
+         |FROM
+         |    ch_partsupp,
+         |    ch_part
+         |WHERE
+         |    p_partkey = ps_partkey
+         |    AND p_brand <> 'Brand#45'
+         |    AND p_type NOT LIKE 'MEDIUM POLISHED%'
+         |    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
+         |    AND ps_suppkey IN (
+         |        SELECT
+         |            s_suppkey
+         |        FROM
+         |            ch_supplier
+         |        WHERE
+         |            s_comment = '%Customer%Complaints%')
+         |GROUP BY
+         |    p_brand,
+         |    p_type,
+         |    p_size
+         |
+         |""".stripMargin).explain(true) // .show(30, false) // .explain(true) */
+  }
+
   def testSerializeFromObjectExec(spark: SparkSession): Unit = {
     //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
@@ -170,7 +346,7 @@ object DSV2BenchmarkTest {
     df.summary().show(100, false)
   }
 
-  def createClickHouseTables(spark: SparkSession,
+  def createClickHouseTable(spark: SparkSession,
                              parquetFilesPath: String, fileFormat: String): Unit = {
     spark.sql(
       """
@@ -276,6 +452,133 @@ object DSV2BenchmarkTest {
       """
         | show tables
         |""".stripMargin).show(100, false)
+    spark.sql(
+      s"""
+         | desc formatted ch_clickhouse
+         |""".stripMargin).show(100, false)
+  }
+
+  def createClickHouseTablesAsSelect(spark: SparkSession): Unit = {
+    val targetTable = "table_as_select"
+    spark.sql(
+      s"""
+         | USE default
+         |""".stripMargin).show(10, false)
+
+    // Clear up old session
+    spark.sql(s"DROP TABLE IF EXISTS $targetTable")
+
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS $targetTable USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | AS SELECT
+         | l_orderkey,
+         | l_partkey,
+         | l_suppkey,
+         | l_linenumber,
+         | l_quantity,
+         | l_extendedprice,
+         | l_discount,
+         | l_tax,
+         | l_returnflag,
+         | l_linestatus,
+         | l_shipdate,
+         | l_commitdate,
+         | l_receiptdate,
+         | l_shipinstruct,
+         | l_shipmode,
+         | l_comment
+         | FROM lineitem;
+         |""".stripMargin)
+
+    spark.sql(
+      """
+        | show tables
+        |""".stripMargin).show(100, false)
+
+    spark.sql(
+      s"""
+         | desc formatted ${targetTable}
+         |""".stripMargin).show(100, false)
+    spark.sql(
+      s"""
+         | select * from ${targetTable}
+         |""".stripMargin).show(10, false)
+  }
+
+  def createClickHouseTablesAndInsert(spark: SparkSession): Unit = {
+    val targetTable = "table_insert"
+    spark.sql(
+      s"""
+         | USE default
+         |""".stripMargin).show(10, false)
+
+    // Clear up old session
+    spark.sql(s"DROP TABLE IF EXISTS $targetTable")
+
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS $targetTable (
+         | l_orderkey      bigint,
+         | l_partkey       bigint,
+         | l_suppkey       bigint,
+         | l_linenumber    bigint,
+         | l_quantity      double,
+         | l_extendedprice double,
+         | l_discount      double,
+         | l_tax           double,
+         | l_returnflag    string,
+         | l_linestatus    string,
+         | l_shipdate      date,
+         | l_commitdate    date,
+         | l_receiptdate   date,
+         | l_shipinstruct  string,
+         | l_shipmode      string,
+         | l_comment       string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         |""".stripMargin)
+
+    spark.sql(
+      """
+        | show tables
+        |""".stripMargin).show(100, false)
+
+    spark.sql(
+      s"""
+         | desc formatted ${targetTable}
+         |""".stripMargin).show(100, false)
+    spark.sql(
+      s"""
+         | INSERT INTO ${targetTable}
+         | SELECT
+         | l_orderkey,
+         | l_partkey,
+         | l_suppkey,
+         | l_linenumber,
+         | l_quantity,
+         | l_extendedprice,
+         | l_discount,
+         | l_tax,
+         | l_returnflag,
+         | l_linestatus,
+         | l_shipdate,
+         | l_commitdate,
+         | l_receiptdate,
+         | l_shipinstruct,
+         | l_shipmode,
+         | l_comment
+         | FROM lineitem;
+         |""".stripMargin).show()
+
+    spark.sql(
+      s"""
+         | select * from ${targetTable}
+         |""".stripMargin).show(10, false)
+
   }
 
   def refreshClickHouseTable(spark: SparkSession): Unit = {
@@ -298,7 +601,7 @@ object DSV2BenchmarkTest {
   }
 
   def selectClickHouseTable(spark: SparkSession, executedCnt: Int,
-                            sql: String): Unit = {
+                            sql: String, targetTable: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
@@ -307,13 +610,13 @@ object DSV2BenchmarkTest {
           |SELECT
           |    sum(l_extendedprice * l_discount) AS revenue
           |FROM
-          |    ${tableName}
+          |    ch_lineitem
           |WHERE
           |    l_shipdate >= date'1994-01-01'
           |    AND l_shipdate < date'1994-01-01' + interval 1 year
           |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
           |    AND l_quantity < 24;
-          |""".stripMargin).show(200, false)
+          |""".stripMargin).show(200, false) // .explain("extended")
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute ${i} time, time: ${tookTime}")
       tookTimeArr += tookTime
@@ -358,7 +661,7 @@ object DSV2BenchmarkTest {
   }
 
   def selectQ1ClickHouseTable(spark: SparkSession, executedCnt: Int,
-                            sql: String): Unit = {
+                            sql: String, targetTable: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
@@ -376,16 +679,16 @@ object DSV2BenchmarkTest {
            |    avg(l_discount) AS avg_disc,
            |    count(*) AS count_order
            |FROM
-           |    ${tableName}
+           |    ch_lineitem
            |WHERE
            |    l_shipdate <= date'1998-09-02' - interval 1 day
            |GROUP BY
            |    l_returnflag,
-           |    l_linestatus
-           |ORDER BY
-           |    l_returnflag,
            |    l_linestatus;
-           |""".stripMargin).show(200, false)
+           |-- ORDER BY
+           |--     l_returnflag,
+           |--     l_linestatus;
+           |""".stripMargin).show(200, false)  // .explain("extended")
       // can not use .collect(), will lead to error.
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute ${i} time, time: ${tookTime}")
@@ -398,6 +701,25 @@ object DSV2BenchmarkTest {
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)
+  }
+
+  def selectStarClickHouseTable(spark: SparkSession): Unit = {
+    spark.sql(
+      """
+        | SELECT
+        |    l_returnflag,
+        |    l_linestatus,
+        |    l_quantity,
+        |    l_extendedprice,
+        |    l_discount,
+        |    l_tax
+        | FROM lineitem
+        |""".stripMargin).show(20, false)  // .explain("extended")
+    spark.sql(
+      """
+        | SELECT * FROM lineitem
+        |""".stripMargin).show(20, false)  // .explain("extended")
+    // can not use .collect(), will lead to error.
   }
 
   def selectQ1LocationClickHouseTable(spark: SparkSession, executedCnt: Int,
@@ -470,14 +792,17 @@ object DSV2BenchmarkTest {
   def testSparkTPCH(spark: SparkSession): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     val rootPath = this.getClass.getResource("/").getPath
-    val resourcePath = rootPath + "../../../src/test/resources/"
+    val resourcePath = rootPath + "../../../../jvm/src/test/resources/"
     val queryPath = resourcePath + "/queries/"
     for (i <- 1 to 22) {
       val startTime = System.nanoTime()
       val sqlFile = queryPath + "q" + "%02d".format(i) + ".sql"
       println(sqlFile)
       val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8")
-      spark.sql(sqlStr.mkString).collect()
+      // spark.sql(sqlStr.mkString).collect()
+      val sql = sqlStr.mkString
+      spark.sql(sql).explain(false)
+      spark.sql(sql).show(10, false)
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute ${i} time, time: ${tookTime}")
       tookTimeArr += tookTime
@@ -504,9 +829,10 @@ object DSV2BenchmarkTest {
       "supplier" -> spark.read.format(fileFormat).load(parquetFilesPath + "/supplier"))
 
     val customerData = parquetFilesPath + "/customer"
+    spark.sql(s"DROP TABLE IF EXISTS customer01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS customer01 (
          | c_custkey    bigint,
          | c_name       string,
          | c_address    string,
@@ -519,9 +845,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val lineitemData = parquetFilesPath + "/lineitem"
+    spark.sql(s"DROP TABLE IF EXISTS lineitem01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem01 (
          | l_orderkey      bigint,
          | l_partkey       bigint,
          | l_suppkey       bigint,
@@ -542,9 +869,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val nationData = parquetFilesPath + "/nation"
+    spark.sql(s"DROP TABLE IF EXISTS nation01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS nation (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS nation01 (
          | n_nationkey bigint,
          | n_name      string,
          | n_regionkey bigint,
@@ -553,9 +881,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val regionData = parquetFilesPath + "/region"
+    spark.sql(s"DROP TABLE IF EXISTS region01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS region (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS region01 (
          | r_regionkey bigint,
          | r_name      string,
          | r_comment   string)
@@ -563,9 +892,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val ordersData = parquetFilesPath + "/order"
+    spark.sql(s"DROP TABLE IF EXISTS orders01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS orders01 (
          | o_orderkey      bigint,
          | o_custkey       bigint,
          | o_orderstatus   string,
@@ -579,9 +909,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val partData = parquetFilesPath + "/part"
+    spark.sql(s"DROP TABLE IF EXISTS part01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS part (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS part01 (
          | p_partkey     bigint,
          | p_name        string,
          | p_mfgr        string,
@@ -595,9 +926,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val partsuppData = parquetFilesPath + "/partsupp"
+    spark.sql(s"DROP TABLE IF EXISTS partsupp01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp01 (
          | ps_partkey    bigint,
          | ps_suppkey    bigint,
          | ps_availqty   bigint,
@@ -607,9 +939,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val supplierData = parquetFilesPath + "/supplier"
+    spark.sql(s"DROP TABLE IF EXISTS supplier01")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS supplier01 (
          | s_suppkey   bigint,
          | s_name      string,
          | s_address   string,
@@ -620,7 +953,7 @@ object DSV2BenchmarkTest {
          | STORED AS PARQUET LOCATION '${supplierData}'
          |""".stripMargin).show(1, false)
 
-    /*spark.sql(
+    spark.sql(
       s"""
          | show databases;
          |""".stripMargin).show(100, false)
@@ -628,7 +961,7 @@ object DSV2BenchmarkTest {
       s"""
          | show tables;
          |""".stripMargin).show(100, false)
-    dataSourceMap.foreach {
+    /*dataSourceMap.foreach {
       case (key, value) => {
         println(s"----------------create table $key")
         spark.sql(
@@ -641,5 +974,186 @@ object DSV2BenchmarkTest {
              |""".stripMargin).show(10, false)
       }
     }*/
+  }
+
+  def createClickHouseTables(spark: SparkSession): Unit = {
+    val dataFilesPath = "/data1/gazelle-jni-warehouse/tpch01_ch_data"
+
+    val customerData = dataFilesPath + "/customer"
+    spark.sql(s"DROP TABLE IF EXISTS ch_customer01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_customer01 (
+         | c_custkey    bigint,
+         | c_name       string,
+         | c_address    string,
+         | c_nationkey  bigint,
+         | c_phone      string,
+         | c_acctbal    double,
+         | c_mktsegment string,
+         | c_comment    string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${customerData}'
+         |""".stripMargin).show(1, false)
+
+    val lineitemData = dataFilesPath + "/lineitem"
+    spark.sql(s"DROP TABLE IF EXISTS ch_lineitem01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_lineitem01 (
+         | l_orderkey      bigint,
+         | l_partkey       bigint,
+         | l_suppkey       bigint,
+         | l_linenumber    bigint,
+         | l_quantity      double,
+         | l_extendedprice double,
+         | l_discount      double,
+         | l_tax           double,
+         | l_returnflag    string,
+         | l_linestatus    string,
+         | l_shipdate      date,
+         | l_commitdate    date,
+         | l_receiptdate   date,
+         | l_shipinstruct  string,
+         | l_shipmode      string,
+         | l_comment       string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${lineitemData}'
+         |""".stripMargin).show(1, false)
+
+    val nationData = dataFilesPath + "/nation"
+    spark.sql(s"DROP TABLE IF EXISTS ch_nation01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_nation01 (
+         | n_nationkey bigint,
+         | n_name      string,
+         | n_regionkey bigint,
+         | n_comment   string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${nationData}'
+         |""".stripMargin).show(1, false)
+
+    val regionData = dataFilesPath + "/region"
+    spark.sql(s"DROP TABLE IF EXISTS ch_region01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_region01 (
+         | r_regionkey bigint,
+         | r_name      string,
+         | r_comment   string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${regionData}'
+         |""".stripMargin).show(1, false)
+
+    val ordersData = dataFilesPath + "/order"
+    spark.sql(s"DROP TABLE IF EXISTS ch_orders01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_orders01 (
+         | o_orderkey      bigint,
+         | o_custkey       bigint,
+         | o_orderstatus   string,
+         | o_totalprice    double,
+         | o_orderdate     date,
+         | o_orderpriority string,
+         | o_clerk         string,
+         | o_shippriority  bigint,
+         | o_comment       string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${ordersData}'
+         |""".stripMargin).show(1, false)
+
+    val partData = dataFilesPath + "/part"
+    spark.sql(s"DROP TABLE IF EXISTS ch_part01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_part01 (
+         | p_partkey     bigint,
+         | p_name        string,
+         | p_mfgr        string,
+         | p_brand       string,
+         | p_type        string,
+         | p_size        bigint,
+         | p_container   string,
+         | p_retailprice double,
+         | p_comment     string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${partData}'
+         |""".stripMargin).show(1, false)
+
+    val partsuppData = dataFilesPath + "/partsupp"
+    spark.sql(s"DROP TABLE IF EXISTS ch_partsupp01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_partsupp01 (
+         | ps_partkey    bigint,
+         | ps_suppkey    bigint,
+         | ps_availqty   bigint,
+         | ps_supplycost double,
+         | ps_comment    string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${partsuppData}'
+         |""".stripMargin).show(1, false)
+
+    val supplierData = dataFilesPath + "/supplier"
+    spark.sql(s"DROP TABLE IF EXISTS ch_supplier01")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_supplier01 (
+         | s_suppkey   bigint,
+         | s_name      string,
+         | s_address   string,
+         | s_nationkey bigint,
+         | s_phone     string,
+         | s_acctbal   double,
+         | s_comment   string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${supplierData}'
+         |""".stripMargin).show(1, false)
+
+    spark.sql(
+      s"""
+         | show tables;
+         |""".stripMargin).show(100, false)
+  }
+
+  def createTempView(spark: SparkSession, parquetFilesPath: String, fileFormat: String): Unit = {
+    val dataSourceMap = Map(
+      "customer_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/customer"),
+
+      "lineitem_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/lineitem"),
+
+      "nation_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/nation"),
+
+      "region_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/region"),
+
+      "orders_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/order"),
+
+      "part_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/part"),
+
+      "partsupp_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/partsupp"),
+
+      "supplier_tmp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/supplier"))
+
+    dataSourceMap.foreach {
+      case (key, value) => value.createOrReplaceTempView(key)
+    }
   }
 }

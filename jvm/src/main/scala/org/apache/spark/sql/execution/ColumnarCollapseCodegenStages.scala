@@ -17,12 +17,13 @@
 
 package org.apache.spark.sql.execution
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.execution._
 import java.util.concurrent.atomic.AtomicInteger
+
+import io.glutenproject.execution._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
@@ -121,6 +122,10 @@ case class ColumnarCollapseCodegenStages(
     plan match {
       case p if !supportTransform(p) =>
         new ColumnarInputAdapter(insertWholeStageTransformer(p))
+      // The children of BaseJoinExec should do transformer separately.
+      case j if j.isInstanceOf[BaseJoinExec] =>
+        j.withNewChildren(j.children.map(c =>
+          new ColumnarInputAdapter(insertWholeStageTransformer(c))))
       case p =>
         p.withNewChildren(p.children.map(insertInputAdapter))
     }
@@ -129,8 +134,7 @@ case class ColumnarCollapseCodegenStages(
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case t: TransformSupport =>
-        WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
-          codegenStageCounter.incrementAndGet())
+        WholeStageTransformerExec(insertInputAdapter(t))(codegenStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }
