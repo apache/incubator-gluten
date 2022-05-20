@@ -18,11 +18,16 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ITransformerApi
 import io.glutenproject.GlutenConfig
+import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.SelectionNode
+
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.execution.datasources.FileFormat
 
-class CHTransformerApi extends ITransformerApi {
+class CHTransformerApi extends ITransformerApi with Logging {
 
   /**
    * Do validate for ColumnarShuffleExchangeExec.
@@ -31,7 +36,29 @@ class CHTransformerApi extends ITransformerApi {
    */
   override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
                                                    outputAttributes: Seq[Attribute]
-                                                  ) = true
+                                                  ) = {
+    !outputPartitioning.isInstanceOf[RangePartitioning]
+
+    // check repartition expression
+    val substraitContext = new SubstraitContext
+    outputPartitioning match {
+      case HashPartitioning(exprs, _) =>
+        !(exprs.map(expr => {
+          val node = ExpressionConverter
+            .replaceWithExpressionTransformer(expr, outputAttributes)
+            .asInstanceOf[ExpressionTransformer]
+            .doTransform(substraitContext.registeredFunction)
+          if (!node.isInstanceOf[SelectionNode]) {
+            logInfo("Expressions are not supported in HashPartitioning.")
+            false
+          } else {
+            true
+          }
+        }).exists(_ == false))
+      case RangePartitioning(_, _) => false
+      case _ => true
+    }
+  }
 
   /**
    * Used for table scan validation.
