@@ -23,6 +23,7 @@
 
 #include "ArrowTypeUtils.h"
 #include "arrow/c/Bridge.h"
+#include "arrow/c/bridge.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
@@ -251,59 +252,17 @@ class VeloxPlanConverter::WholeStageResIter {
   void toRealArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
                         const RowTypePtr& outTypes,
                         std::shared_ptr<arrow::RecordBatch>* out) {
-    uint32_t colNum = outTypes->size();
-    std::vector<std::shared_ptr<arrow::Array>> outArrays;
-    outArrays.reserve(colNum);
-    std::vector<std::shared_ptr<arrow::Field>> retTypes;
-    retTypes.reserve(colNum);
-    for (uint32_t idx = 0; idx < colNum; idx++) {
-      arrow::ArrayData outData;
-      outData.length = numRows;
-      auto vec = rv->childAt(idx);
-      // FIXME: need to release this.
-      ArrowArray arrowArray;
-      exportToArrow(vec, arrowArray, veloxPool_.get());
-      outData.buffers.resize(arrowArray.n_buffers);
-      outData.null_count = arrowArray.null_count;
-      // Validity buffer
-      std::shared_ptr<arrow::Buffer> valBuffer = nullptr;
-      if (arrowArray.null_count > 0) {
-        arrowArray.buffers[0];
-        // FIXME: set BitMap
-      }
-      outData.buffers[0] = valBuffer;
-      auto colType = outTypes->childAt(idx);
-      auto colArrowType = toArrowType(colType);
-      // TODO: use the names in RelRoot.
-      auto colName = "res_" + std::to_string(idx);
-      retTypes.emplace_back(arrow::field(colName, colArrowType));
-      outData.type = colArrowType;
-      if (colType->isPrimitiveType() && !facebook::velox::substrait::isString(colType)) {
-        auto dataBuffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[1]),
-            facebook::velox::substrait::bytesOfType(colType) * numRows);
-        outData.buffers[1] = dataBuffer;
-      } else if (facebook::velox::substrait::isString(colType)) {
-        auto offsets = static_cast<const int32_t*>(arrowArray.buffers[1]);
-        int32_t stringDataSize = offsets[numRows];
-        auto valueBuffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[2]), stringDataSize);
-        auto offsetBuffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[1]),
-            sizeof(int32_t) * (numRows + 1));
-        outData.buffers[1] = offsetBuffer;
-        outData.buffers[2] = valueBuffer;
-      }
-      std::shared_ptr<arrow::Array> outArray =
-          MakeArray(std::make_shared<arrow::ArrayData>(std::move(outData)));
-      outArrays.emplace_back(outArray);
-      // int ref_count = vec->mutableValues(0)->refCount();
+    ArrowArray cArray{};
+    ArrowSchema cSchema{};
+    exportToArrow(rv, cArray, veloxPool_.get());
+    exportToArrow(outTypes, cSchema);
+    arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
+        arrow::ImportRecordBatch(&cArray, &cSchema);
+
+    if (!batch.status().ok()) {
+      throw std::runtime_error("Failed to import to Arrow record batch");
     }
-    // auto typed_array = std::dynamic_pointer_cast<arrow::StringArray>(out_arrays[0]);
-    // for (int i = 0; i < typed_array->length(); i++) {
-    //   std::cout << "array val: " << typed_array->GetString(i) << std::endl;
-    // }
-    *out = arrow::RecordBatch::Make(arrow::schema(retTypes), numRows, outArrays);
+    *out = batch.ValueOrDie();
   }
 
   /* This method converts Velox RowVector into Faked Arrow RecordBatch. Velox's impl is
@@ -313,74 +272,8 @@ class VeloxPlanConverter::WholeStageResIter {
   void toFakedArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
                          const RowTypePtr& outTypes,
                          std::shared_ptr<arrow::RecordBatch>* out) {
-    uint32_t colNum = outTypes->size();
-    std::vector<std::shared_ptr<arrow::Array>> outArrays;
-    outArrays.reserve(colNum);
-    std::vector<std::shared_ptr<arrow::Field>> retTypes;
-    retTypes.reserve(colNum);
-    for (uint32_t idx = 0; idx < colNum; idx++) {
-      arrow::ArrayData outData;
-      outData.length = numRows;
-      auto vec = rv->childAt(idx);
-      auto colType = outTypes->childAt(idx);
-      auto colArrowType = toArrowType(colType);
-      // TODO: use the names in RelRoot.
-      auto colName = "res_" + std::to_string(idx);
-      retTypes.emplace_back(arrow::field(colName, colArrowType));
-      if (colType->isPrimitiveType() && !facebook::velox::substrait::isString(colType)) {
-        outData.type = colArrowType;
-        // FIXME: need to release this.
-        ArrowArray arrowArray;
-        exportToArrow(vec, arrowArray, veloxPool_.get());
-        outData.buffers.resize(arrowArray.n_buffers);
-        outData.null_count = arrowArray.null_count;
-        auto dataBuffer = std::make_shared<arrow::Buffer>(
-            static_cast<const uint8_t*>(arrowArray.buffers[1]),
-            facebook::velox::substrait::bytesOfType(colType) * numRows);
-        // Validity buffer
-        std::shared_ptr<arrow::Buffer> valBuffer = nullptr;
-        if (arrowArray.null_count > 0) {
-          arrowArray.buffers[0];
-          // FIXME: set BitMap
-        }
-        outData.buffers[0] = valBuffer;
-        outData.buffers[1] = dataBuffer;
-      } else if (facebook::velox::substrait::isString(colType)) {
-        // Will construct a faked String Array.
-        outData.buffers.resize(3);
-        outData.null_count = 0;
-        outData.type = arrow::utf8();
-        auto strValues = vec->asFlatVector<StringView>()->rawValues();
-        // A StringView in Velox is 16-byte.
-        auto valueBuffer = std::make_shared<arrow::Buffer>(
-            reinterpret_cast<const uint8_t*>(strValues), 16 * numRows);
-        outData.buffers[0] = nullptr;
-        auto offset_buffer_size = static_cast<int64_t>(sizeof(int32_t) * numRows + 1);
-        arrow::Result<std::unique_ptr<arrow::Buffer>> r =
-            arrow::AllocateBuffer(offset_buffer_size);
-        if (!r.ok()) {
-          throw std::runtime_error("Failed to create offset buffer: " +
-                                   r.status().message());
-        }
-        std::shared_ptr<arrow::Buffer> offsetBuffer = r.MoveValueUnsafe();
-        auto* offsets = reinterpret_cast<int32_t*>(offsetBuffer->mutable_data());
-        offsets[0] = 0;
-        for (int i = 1; i < numRows + 1; ++i) {
-          offsets[i] = 16 * i;
-        }
-        outData.buffers[1] = offsetBuffer;
-        outData.buffers[2] = valueBuffer;
-      }
-      std::shared_ptr<arrow::Array> outArray =
-          MakeArray(std::make_shared<arrow::ArrayData>(std::move(outData)));
-      outArrays.emplace_back(outArray);
-      // int ref_count = vec->mutableValues(0)->refCount();
-    }
-    // auto typed_array = std::dynamic_pointer_cast<arrow::StringArray>(out_arrays[0]);
-    // for (int i = 0; i < typed_array->length(); i++) {
-    //   std::cout << "array val: " << typed_array->GetString(i) << std::endl;
-    // }
-    *out = arrow::RecordBatch::Make(arrow::schema(retTypes), numRows, outArrays);
+    // not to make fake batches as of now
+    toRealArrowBatch(rv, numRows, outTypes, out);
   }
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
