@@ -150,7 +150,7 @@ class BitwiseAndTransformer(left: Expression, right: Expression, original: Expre
         with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("not supported.")
+    throw new UnsupportedOperationException("Not supported: BitwiseAnd.")
   }
 }
 
@@ -160,7 +160,7 @@ class BitwiseOrTransformer(left: Expression, right: Expression, original: Expres
         with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("not supported.")
+    throw new UnsupportedOperationException("Not supported: BitwiseOr.")
   }
 }
 
@@ -170,7 +170,7 @@ class BitwiseXorTransformer(left: Expression, right: Expression, original: Expre
         with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("not supported.")
+    throw new UnsupportedOperationException("Not supported: BitwiseXor.")
   }
 }
 

@@ -26,7 +26,7 @@ class ConcatTransformer(exps: Seq[Expression], original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: Concat.")
   }
 }
 

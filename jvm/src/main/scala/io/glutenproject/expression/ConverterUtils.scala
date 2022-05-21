@@ -266,6 +266,8 @@ object ConverterUtils extends Logging {
   final val SUM = "sum"
   final val AVG = "avg"
   final val COUNT = "count"
+  final val MIN = "min"
+  final val MAX = "max"
   final val ADD = "add"
   final val SUBTRACT = "subtract"
   final val MULTIPLY = "multiply"
@@ -281,6 +283,8 @@ object ConverterUtils extends Logging {
   final val ALIAS = "alias"
   final val IS_NOT_NULL = "is_not_null"
   final val IS_NULL = "is_null"
+  // Datetime
+  final val EXTRACT = "extract"
   // Below names are not in Substrait yaml.
   final val ENDS_WITH = "ends_with"
   final val CONTAINS = "contains"

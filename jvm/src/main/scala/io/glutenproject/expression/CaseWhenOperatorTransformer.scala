@@ -17,7 +17,10 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
+import java.util.ArrayList
+
+import io.glutenproject.substrait.expression.{ExpressionNode, IfThenNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -33,7 +36,22 @@ class CaseWhenTransformer(
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    // generate branches nodes
+    val ifNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
+    val thenNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
+    branches.foreach(branch => {
+      val branchCondNode = branch._1.asInstanceOf[ExpressionTransformer].doTransform(args)
+      val branchThenNode = branch._2.asInstanceOf[ExpressionTransformer].doTransform(args)
+      if (!branchCondNode.isInstanceOf[ExpressionNode] ||
+        !branchThenNode.isInstanceOf[ExpressionNode]) {
+        throw new UnsupportedOperationException(s"not supported yet.")
+      }
+      ifNodes.add(branchCondNode)
+      thenNodes.add(branchThenNode)
+    })
+    // generate else value node, maybe null
+    val elseValueNode = elseValue.map(_.asInstanceOf[ExpressionTransformer].doTransform(args))
+    new IfThenNode(ifNodes, thenNodes, elseValueNode.getOrElse(null))
   }
 }
 

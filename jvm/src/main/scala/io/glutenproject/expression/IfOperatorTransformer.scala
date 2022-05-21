@@ -28,7 +28,7 @@ class IfTransformer(predicate: Expression, trueValue: Expression,
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: If.")
   }
 }
 
