@@ -30,7 +30,7 @@ Please make sure your cmake version is qualified based on the prerequisite.
 # Arrow
 ``` shell
 git clone https://github.com/oap-project/arrow.git
-cd arrow && git checkout arrow-8.0.0-gluten
+cd arrow && git checkout arrow-8.0.0-gluten-20220427a
 mkdir -p cpp/release-build
 cd arrow/cpp/release-build
 cmake -DARROW_DEPENDENCY_SOURCE=BUNDLED -DARROW_GANDIVA_JAVA=ON -DARROW_GANDIVA=ON -DARROW_PARQUET=ON -DARROW_CSV=ON -DARROW_HDFS=ON -DARROW_BOOST_USE_SHARED=ON -DARROW_JNI=ON -DARROW_DATASET=ON -DARROW_WITH_PROTOBUF=ON -DARROW_WITH_SNAPPY=ON -DARROW_WITH_LZ4=ON -DARROW_FILESYSTEM=ON -DARROW_JSON=ON ..

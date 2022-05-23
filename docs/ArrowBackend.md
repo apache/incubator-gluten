@@ -29,7 +29,7 @@ To test your installation,  run the command `conda list` in your terminal windo
 It's recommended to use Conda environment to install packages and all requirements in one go, including OAP Conda package and dependencies for building Arrow.
 
 ```bash
-$ git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten
+$ git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten-20220427a
 $ conda create -n oapenv -c conda-forge -c intel -y \
       --file arrow/ci/conda_env_unix.txt \
       --file arrow/ci/conda_env_cpp.txt \
