@@ -78,7 +78,7 @@ object DSV2BenchmarkTest {
         .config("spark.driver.memoryOverhead", "6G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions", 1)
+        .config("spark.sql.shuffle.partitions", 3)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.minPartitionNum", "1")
@@ -89,15 +89,16 @@ object DSV2BenchmarkTest {
         //.config("spark.sql.sources.useV1SourceList", "avro")
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
-        //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+        .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+        .config("spark.io.compression.codec", "LZ4")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)
         .config("spark.databricks.delta.snapshotPartitions", 1)
         .config("spark.databricks.delta.properties.defaults.checkpointInterval", 5)
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
-        .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+        //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", "false")
         .config("spark.gluten.sql.columnar.backend.lib", "ch")
@@ -115,10 +116,10 @@ object DSV2BenchmarkTest {
         //.config("spark.sql.optimizeNullAwareAntiJoin", "false")
         //.config("spark.sql.join.preferSortMergeJoin", "false")
         //.config("spark.sql.planChangeLog.level", "info")
+        .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "6442450944")
-        .config("spark.io.compression.codec", "LZ4")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -179,33 +180,62 @@ object DSV2BenchmarkTest {
   }
 
   def testTPCHAll(spark: SparkSession): Unit = {
-    val result = spark.sql(
+    val df = spark.sql(
       s"""
          |SELECT
-         |    n_name,
-         |    sum(l_extendedprice * (1 - l_discount)) AS revenue
+         |    l_shipmode,
+         |    extract(year FROM o_orderdate) as o_year,
+         |    extract(month FROM o_orderdate) as o_month,
+         |    100.00 * sum(
+         |        CASE WHEN p_type LIKE 'PROMO%' THEN
+         |            l_extendedprice * (1 - l_discount)
+         |        ELSE
+         |            0
+         |        END) / sum(l_extendedprice * (1 - l_discount)) AS promo_revenue,
+         |    sum(
+         |        CASE WHEN o_orderpriority = '1-URGENT'
+         |            OR o_orderpriority = '2-HIGH' THEN
+         |            1
+         |        ELSE
+         |            0
+         |        END) AS high_line_count,
+         |    sum(
+         |        CASE WHEN o_orderpriority <> '1-URGENT'
+         |            AND o_orderpriority <> '2-HIGH' THEN
+         |            1
+         |        ELSE
+         |            0
+         |        END) AS low_line_count,
+         |    sum(
+         |        CASE WHEN o_orderpriority = '1-URGENT' THEN
+         |            1
+         |        ELSE
+         |            0
+         |        END) AS mkt_share,
+         |    min(l_extendedprice), max(l_extendedprice)
          |FROM
-         |    ch_customer,
-         |    ch_orders,
          |    ch_lineitem,
-         |    ch_supplier,
-         |    ch_nation,
-         |    ch_region
+         |    ch_part,
+         |    ch_orders
          |WHERE
-         |    c_custkey = o_custkey
-         |    AND l_orderkey = o_orderkey
-         |    AND l_suppkey = s_suppkey
-         |    AND c_nationkey = s_nationkey
-         |    AND s_nationkey = n_nationkey
-         |    AND n_regionkey = r_regionkey
-         |    AND r_name = 'ASIA'
-         |    AND o_orderdate >= date'1994-01-01'
-         |    AND o_orderdate < date'1994-01-01' + interval 1 year
+         |    l_partkey = p_partkey
+         |    AND o_orderkey = l_orderkey
+         |    AND l_shipdate >= date'1995-09-01'
+         |    AND l_shipmode IN ('MAIL', 'SHIP', 'AIR', 'AIR REG', 'B', 'A', 'C', 'R', 'E')
+         |    AND o_comment NOT LIKE '%special%requests%'
+         |    AND l_shipdate < date'1995-09-01' + interval 1 month
          |GROUP BY
-         |    n_name
+         |    l_shipmode,
+         |    o_year,
+         |    o_month
+         |ORDER BY
+         |    l_shipmode;
          |
-         |""".stripMargin).show(30, false) //.show(30, false)
-    // println(result.size)
+         |""".stripMargin) //.show(30, false)
+    df.explain(false)
+    val result = df.collect()  // .show(100, false)  //.collect()
+    println(result.size)
+    result.foreach(r => println(r.mkString(",")))
     // .show(30, false)
     // .explain(false)
     // .collect()
@@ -222,7 +252,7 @@ object DSV2BenchmarkTest {
          |where
          |	l_partkey = p_partkey
          |""".stripMargin).show(10, false)      // .show(10, false) .explain("extended")
-    spark.sql(
+    /* spark.sql(
       s"""
          |select
          |	l_returnflag, sum(l_extendedprice * l_discount)
@@ -246,7 +276,7 @@ object DSV2BenchmarkTest {
          |where
          |	c_custkey = o_custkey
          |	and l_orderkey = o_orderkey
-         |""".stripMargin).show(10, false) // .show(10, false) .explain("extended")
+         |""".stripMargin).show(10, false) // .show(10, false) .explain("extended") */
     /* spark.sql(
       s"""
          |SELECT
@@ -258,7 +288,7 @@ object DSV2BenchmarkTest {
          |    l_orderkey = o_orderkey
          |""".stripMargin).explain("extended") // .show(10, false) .explain("extended") */
 
-    spark.sql(
+    /* spark.sql(
       s"""
          |-- Q4
          |SELECT
@@ -279,8 +309,10 @@ object DSV2BenchmarkTest {
          |            AND l_commitdate < l_receiptdate)
          |GROUP BY
          |    o_orderpriority
+         |ORDER BY
+         |    o_orderpriority;
          |
-         |""".stripMargin).show(30, false)
+         |""".stripMargin).collect() //.show(30, false)
     spark.sql(
       s"""
          |-- Q3
@@ -306,8 +338,8 @@ object DSV2BenchmarkTest {
          |ORDER BY
          |    revenue DESC,
          |    o_orderdate
-         |-- LIMIT 10;
-         |""".stripMargin).show(100, false)
+         |LIMIT 10;
+         |""".stripMargin).collect() // .show(100, false) */
     /* spark.sql(
       s"""
          |SELECT

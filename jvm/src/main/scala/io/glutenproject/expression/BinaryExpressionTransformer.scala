@@ -19,11 +19,11 @@ package io.glutenproject.expression
 
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions._
-import io.glutenproject.expression.DateTimeExpressionsTransformer.{DateDiffTransformer, UnixTimestampTransformer}
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions._
 
 class ShiftLeftTransformer(left: Expression, right: Expression, original: Expression)
   extends ShiftLeft(left: Expression, right: Expression)
@@ -31,7 +31,7 @@ class ShiftLeftTransformer(left: Expression, right: Expression, original: Expres
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: ShiftLeft.")
   }
 }
 
@@ -41,7 +41,7 @@ class ShiftRightTransformer(left: Expression, right: Expression, original: Expre
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: ShiftRight.")
   }
 }
 
@@ -167,7 +167,7 @@ class DateAddIntervalTransformer(start: Expression, interval: Expression, origin
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: DateAddInterval.")
   }
 }
 

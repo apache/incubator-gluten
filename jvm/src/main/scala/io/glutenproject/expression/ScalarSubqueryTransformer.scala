@@ -38,6 +38,6 @@ class ScalarSubqueryTransformer(
   override def productElement(n: Int): Any = query.productElement(n)
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: ScalarSubquery.")
   }
 }

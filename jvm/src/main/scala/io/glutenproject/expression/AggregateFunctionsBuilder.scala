@@ -36,6 +36,12 @@ object AggregateFunctionsBuilder {
         val childrenTypes = count.children.map(child => child.dataType)
         ConverterUtils.makeFuncName(
           ConverterUtils.COUNT, childrenTypes, FunctionConfig.OPT)
+      case min: Min =>
+        ConverterUtils.makeFuncName(
+          ConverterUtils.MIN, Seq(min.child.dataType), FunctionConfig.OPT)
+      case max: Max =>
+        ConverterUtils.makeFuncName(
+          ConverterUtils.MAX, Seq(max.child.dataType), FunctionConfig.OPT)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }

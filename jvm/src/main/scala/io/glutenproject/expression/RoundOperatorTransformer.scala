@@ -27,7 +27,7 @@ class RoundExpression(child: Expression, scale: Expression, original: Expression
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: Round.")
   }
 }
 

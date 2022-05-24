@@ -22,6 +22,7 @@ import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.expression.DateTimeExpressionsTransformer._
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
@@ -67,35 +68,6 @@ class IsNullTransformer(child: Expression, original: Expression)
   }
 }
 
-class MonthTransformer(child: Expression, original: Expression)
-    extends Month(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
-  }
-}
-
-class DayOfMonthTransformer(child: Expression, original: Expression)
-  extends DayOfMonth(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
-  }
-}
-
-class YearTransformer(child: Expression, original: Expression)
-  extends Year(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
-  }
-}
-
 class NotTransformer(child: Expression, original: Expression)
     extends Not(child: Expression)
     with ExpressionTransformer
@@ -123,7 +95,7 @@ class AbsTransformer(child: Expression, original: Expression)
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: Abs.")
   }
 }
 
@@ -133,7 +105,7 @@ class UpperTransformer(child: Expression, original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: Upper.")
   }
 }
 
@@ -143,7 +115,7 @@ class BitwiseNotTransformer(child: Expression, original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: BitwiseNot.")
   }
 }
 
@@ -168,7 +140,7 @@ class CheckOverflowTransformer(child: Expression, original: CheckOverflow)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: CheckOverflow.")
   }
 }
 
@@ -198,7 +170,7 @@ class UnscaledValueTransformer(child: Expression, original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: UnscaledValue.")
   }
 }
 
@@ -213,7 +185,7 @@ class MakeDecimalTransformer(
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: MakeDecimal.")
   }
 }
 
@@ -234,7 +206,7 @@ class PromotePrecisionTransformer(child: Expression, original: PromotePrecision)
   extends PromotePrecision(child: Expression) with ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported.")
+    throw new UnsupportedOperationException("Not supported: PromotePrecision.")
   }
 }
 
@@ -246,23 +218,15 @@ object UnaryOperatorTransformer {
     case i: IsNotNull =>
       new IsNotNullTransformer(child, i)
     case y: Year =>
-      if (child.dataType.isInstanceOf[TimestampType]) {
-        new DateTimeExpressionsTransformer.YearTransformer(child)
-      } else {
-        new YearTransformer(child, y)
-      }
+      new YearTransformer(child)
     case m: Month =>
-      if (child.dataType.isInstanceOf[TimestampType]) {
-        new DateTimeExpressionsTransformer.MonthTransformer(child)
-      } else {
-        new MonthTransformer(child, m)
-      }
+      new MonthTransformer(child)
     case d: DayOfMonth =>
-      if (child.dataType.isInstanceOf[TimestampType]) {
-        new DateTimeExpressionsTransformer.DayOfMonthTransformer(child)
-      } else {
-        new DayOfMonthTransformer(child, d)
-      }
+      new DayOfMonthTransformer(child)
+    case doy: DayOfYear =>
+      new DayOfYearTransformer(child)
+    case dow: DayOfWeek =>
+      new DayOfWeekTransformer(child)
     case n: Not =>
       new NotTransformer(child, n)
     case a: Abs =>
@@ -300,27 +264,6 @@ object UnaryOperatorTransformer {
     case a: MicrosToTimestamp =>
       new MicrosToTimestampTransformer(child)
     case other =>
-      child.dataType match {
-        case _: DateType => other match {
-          case a: DayOfYear =>
-            new DayOfYearTransformer(new CastTransformer(child, TimestampType, None, null))
-          case a: DayOfWeek =>
-            new DayOfWeekTransformer(new CastTransformer(child, TimestampType, None, null))
-          case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
-        }
-        case _: TimestampType => other match {
-          case a: Hour =>
-            new HourTransformer(child)
-          case a: Minute =>
-            new MinuteTransformer(child)
-          case a: Second =>
-            new SecondTransformer(child)
-          case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
-        }
-        case _ =>
-          throw new UnsupportedOperationException(s"not currently supported: $other.")
-      }
+      throw new UnsupportedOperationException(s"not currently supported: $other.")
   }
 }
