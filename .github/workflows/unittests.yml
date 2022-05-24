@@ -63,7 +63,7 @@ jobs:
           cd cpp/
           mkdir -p build
           cd build
-          cmake .. -DBUILD_ARROW=0 -DTESTS=1
+          cmake .. -DBUILD_ARROW=0 -DBUILD_TESTS=1
           make
 
 #  velox-backend-test:
