@@ -35,450 +35,89 @@ set(SYSTEM_LIB_MULTIARCH_PATH "/usr/lib/x86_64-linux-gnu" CACHE PATH "System Lib
 set(SYSTEM_LOCAL_LIB_PATH "/usr/local/lib" CACHE PATH "System Local Lib dir")
 set(SYSTEM_LOCAL_LIB64_PATH "/usr/local/lib64" CACHE PATH "System Local Lib64 dir")
 
-if (NOT DEFINED VELOX_HOME)
+if(NOT DEFINED VELOX_HOME)
   message(FATAL_ERROR "VELOX_HOME must be set to the source directory of Velox")
+else()
+  message(STATUS "VELOX_HOME: ${VELOX_HOME}")
 endif()
-option(VELOX_BUILD_TYPE "The build type specified when the Velox binary was built" release)
 
-set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/${VELOX_BUILD_TYPE}")
+if(NOT DEFINED VELOX_BUILD_TYPE)
+  set(VELOX_BUILD_TYPE release
+      CACHE STRING "The build type specified when the Velox binary was built.")
+endif()
+string(TOLOWER "${VELOX_BUILD_TYPE}" LOWERCASE_VELOX_BUILD_TYPE)
+
+# User can specify VELOX_BUILD_PATH, if Velox are built elsewhere.
+if(NOT DEFINED VELOX_BUILD_PATH)
+  set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/${LOWERCASE_VELOX_BUILD_TYPE}"
+      CACHE PATH "Velox build directory.")
+endif()
+
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
-set(VELOX_EXEC_LIB_PATH "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
-set(VELOX_CONNECTOR_LIB_PATH "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
-set(VELOX_HIVE_PART_LIB_PATH "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_partition_function.a")
-set(VELOX_HIVE_CONNECTOR_LIB_PATH "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
-set(VELOX_DWIO_COMMON_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
-set(VELOX_DWIO_DWRF_PROTO_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/dwrf/proto/libvelox_dwio_dwrf_proto.a")
-set(VELOX_CORE_LIB_PATH "${VELOX_COMPONENTS_PATH}/core/libvelox_core.a")
-set(VELOX_VECTOR_LIB_PATH "${VELOX_COMPONENTS_PATH}/vector/libvelox_vector.a")
-set(VELOX_CORE_CONFIG_LIB_PATH "${VELOX_COMPONENTS_PATH}/core/libvelox_config.a")
-set(VELOX_TYPE_LIB_PATH "${VELOX_COMPONENTS_PATH}/type/libvelox_type.a")
-set(VELOX_COMMON_BASE_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/base/libvelox_common_base.a")
-set(VELOX_COMMON_BASE_EXCEPTION_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/base/libvelox_exception.a")
-set(VELOX_DWIO_COMMON_EXCEPTION_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/common/exception/libvelox_dwio_common_exception.a")
-set(VELOX_EXEC_TEST_UTIL_LIB_PATH "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_util.a")
-set(VELOX_PARSE_EXP_LIB_PATH "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_expression.a")
-set(VELOX_PARSE_PARSER_LIB_PATH "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
-set(VELOX_COMMON_MEM_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/memory/libvelox_memory.a")
-set(VELOX_COMMON_TIME_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
-set(VELOX_COMMON_PROCESS_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
-set(VELOX_DWIO_DWRF_WRITER_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
-set(VELOX_DWIO_DWRF_COMMON_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/dwrf/common/libvelox_dwio_dwrf_common.a")
-set(VELOX_COMMON_CACHE_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/caching/libvelox_caching.a")
-set(VELOX_COMMON_FILE_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
-set(VELOX_DWIO_DWRF_READER_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
-set(VELOX_EXTERNAL_DUCKDB_LIB_PATH "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
-set(VELOX_DUCKDB_PARSER_LIB_PATH "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
-set(VELOX_DUCKDB_CONVERSION_LIB_PATH "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
-set(VELOX_FUNCTIONS_PRESTOSQL_TYPES_LIB_PATH "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
-set(VELOX_FUNCTIONS_PRESTOSQL_LIB_PATH "${VELOX_COMPONENTS_PATH}/functions/prestosql/registration/libvelox_functions_prestosql.a")
-set(VELOX_FUNCTIONS_PRESTOSQL_IMPL_LIB_PATH "${VELOX_COMPONENTS_PATH}/functions/prestosql/libvelox_functions_prestosql_impl.a")
-set(VELOX_FUNCTIONS_PRESTOSQL_JSON_LIB_PATH "${VELOX_COMPONENTS_PATH}/functions/prestosql/json/libvelox_functions_json.a")
-set(VELOX_FUNCTIONS_PRESTOSQL_HYPERLOGLOG_LIB_PATH "${VELOX_COMPONENTS_PATH}/functions/prestosql/hyperloglog/libvelox_functions_hyperloglog.a")
-set(VELOX_FUNCTIONS_PRESTOSQL_AGG_LIB_PATH "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
-set(VELOX_FUNCTIONS_LIB_PATH "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_functions_lib.a")
-set(VELOX_FUNCTIONS_SPARKSQL_LIB_PATH  "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
-set(VELOX_TYPE_TZ_LIB_PATH "${VELOX_COMPONENTS_PATH}/type/tz/libvelox_type_tz.a")
-set(VELOX_EXTERNAL_MD5_LIB_PATH "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
-set(VELOX_EXPRESSION_LIB_PATH "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression.a")
-set(VELOX_EXPRESSION_FUNCTIONS_LIB_PATH "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression_functions.a")
-set(VELOX_BUFFER_LIB_PATH "${VELOX_COMPONENTS_PATH}/buffer/libvelox_buffer.a")
-set(VELOX_ARROW_BRIDGE_LIB_PATH "${VELOX_COMPONENTS_PATH}/vector/arrow/c/libvelox_arrow_bridge.a")
-set(VELOX_SUBSTRAIT_LIB_PATH "${VELOX_COMPONENTS_PATH}/substrait/libvelox_substrait_plan_converter.a")
 
-# Find Folly
-macro(find_folly)
-  # Find the folly library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  find_library(FOLLY_LIBRARY NAMES folly PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
-  if (NOT FOLLY_LIBRARY)
-    message(FATAL_ERROR "Folly Library Not Found")
-  else()
-    message(STATUS "Folly Library Can Be Found in ${FOLLY_LIBRARY}")
+function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
+  if(NOT EXISTS ${VELOX_DEP_LIB_PATH})
+    message(FATAL_ERROR "Velox library not exists: ${VELOX_DEP_LIB_PATH}")
   endif()
-  set(FOLLY_LIB_PATH "${FOLLY_LIBRARY}")
-endmacro()
+  set(VELOX_DEP_LIB facebook::velox::${VELOX_DEP_LIB_NAME})
+  add_library(${VELOX_DEP_LIB} STATIC IMPORTED)
+  set_target_properties(${VELOX_DEP_LIB} PROPERTIES
+      IMPORTED_LOCATION ${VELOX_DEP_LIB_PATH})
+  target_link_libraries(velox PUBLIC ${VELOX_DEP_LIB})
+endfunction()
 
-# Find Iberty
-macro(find_iberty)
-  # Find the iberty library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  find_library(IBERTY_LIBRARY NAMES iberty PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
-  if (NOT IBERTY_LIBRARY)
-    message(FATAL_ERROR "Iberty Library Not Found")
-  else()
-    message(STATUS "Iberty Library Can Be Found in ${IBERTY_LIBRARY}")
-  endif()
-  set(IBERTY_LIB_PATH "${IBERTY_LIBRARY}")
-endmacro()
+macro(ADD_VELOX_DEPENDENCIES)
+  add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
+  add_velox_dependency(functions::prestosql::agg "${VELOX_COMPONENTS_PATH}/functions/prestosql/aggregates/libvelox_aggregates.a")
+  add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
+  add_velox_dependency(substrait "${VELOX_COMPONENTS_PATH}/substrait/libvelox_substrait_plan_converter.a")
+  add_velox_dependency(functions::prestosql "${VELOX_COMPONENTS_PATH}/functions/prestosql/registration/libvelox_functions_prestosql.a")
+  add_velox_dependency(functions::prestosql::impl "${VELOX_COMPONENTS_PATH}/functions/prestosql/libvelox_functions_prestosql_impl.a")
+  add_velox_dependency(functions::json "${VELOX_COMPONENTS_PATH}/functions/prestosql/json/libvelox_functions_json.a")
+  add_velox_dependency(functions::hyperloglog "${VELOX_COMPONENTS_PATH}/functions/prestosql/hyperloglog/libvelox_functions_hyperloglog.a")
+  add_velox_dependency(functions::lib "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_functions_lib.a")
+  add_velox_dependency(exec::test::util "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_util.a")
+  add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
+  add_velox_dependency(parse::expression "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_expression.a")
+  add_velox_dependency(vector::arrow::bridge "${VELOX_COMPONENTS_PATH}/vector/arrow/c/libvelox_arrow_bridge.a")
 
-# Find Glog
-macro(find_glog)
-  # Find the glog library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-  find_library(GLOG_LIBRARY NAMES glog PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
-  if (NOT GLOG_LIBRARY)
-    message(FATAL_ERROR "Glog Library Not Found")
-  else()
-    message(STATUS "Glog Library Can Be Found in ${GLOG_LIBRARY}")
-  endif()
-  set(GLOG_LIB_PATH "${GLOG_LIBRARY}")
-endmacro()
+  add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
+  add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
 
-# Find DOUBLE-CONVERSION
-macro(find_double_conversion)
-  # Find the double_conversion library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-  find_library(DOUBLE_CONVERSION_LIBRARY NAMES double-conversion PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
-  if (NOT DOUBLE_CONVERSION_LIBRARY)
-    message(FATAL_ERROR "Double-Conversion Library Not Found")
-  else()
-    message(STATUS "Double-Conversion Library Can Be Found in ${DOUBLE_CONVERSION_LIBRARY}")
-  endif()
-  set(DOUBLE_CONVERSION_LIB_PATH "${DOUBLE_CONVERSION_LIBRARY}")
-endmacro()
+  add_velox_dependency(dwio::dwrf::test_utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/test/utils/libvelox_dwrf_test_utils.a")
+  add_velox_dependency(dwio::dwrf::writer "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
+  add_velox_dependency(dwio::dwrf::reader "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
+  add_velox_dependency(dwio::dwrf::utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/utils/libvelox_dwio_dwrf_utils.a")
+  add_velox_dependency(dwio::dwrf::common "${VELOX_COMPONENTS_PATH}/dwio/dwrf/common/libvelox_dwio_dwrf_common.a")
+  add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
 
-# Find Fmt
-macro(find_fmt)
-  # Find the fmt library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  find_library(FMT_LIBRARY NAMES fmt PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
-  if (NOT FMT_LIBRARY)
-    message(FATAL_ERROR "Fmt Library Not Found")
-  else()
-    message(STATUS "Fmt Library Can Be Found in ${FMT_LIBRARY}")
-  endif()
-  set(FMT_LIB_PATH "${FMT_LIBRARY}")
-endmacro()
+  add_velox_dependency(expression "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression.a")
+  add_velox_dependency(core "${VELOX_COMPONENTS_PATH}/core/libvelox_core.a")
 
-# Find GTEST
-macro(find_gtest)
-  # Find the gtest library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  find_library(GTEST_LIBRARY NAMES gtest PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
-  if (NOT GTEST_LIBRARY)
-    message(FATAL_ERROR "Gtest Library Not Found")
-  else()
-    message(STATUS "Gtest Library Can Be Found in ${GTEST_LIBRARY}")
-  endif()
-  set(GTEST_LIB_PATH "${GTEST_LIBRARY}")
-endmacro()
+  add_velox_dependency(type "${VELOX_COMPONENTS_PATH}/type/libvelox_type.a")
+  add_velox_dependency(vector "${VELOX_COMPONENTS_PATH}/vector/libvelox_vector.a")
+  add_velox_dependency(expression::function "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression_functions.a")
 
-# Find Snappy
-macro(find_snappy)
-  # Find the snappy library
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-  find_library(SNAPPY_LIBRARY NAMES snappy PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
-  if (NOT SNAPPY_LIBRARY)
-    message(FATAL_ERROR "Snappy Library Not Found")
-  else()
-    message(STATUS "Snappy Library Can Be Found in ${SNAPPY_LIBRARY}")
-  endif()
-  set(SNAPPY_LIB_PATH "${SNAPPY_LIBRARY}")
-endmacro()
+  add_velox_dependency(common::caching "${VELOX_COMPONENTS_PATH}/common/caching/libvelox_caching.a")
+  add_velox_dependency(common::base "${VELOX_COMPONENTS_PATH}/common/base/libvelox_common_base.a")
+  add_velox_dependency(common::memory "${VELOX_COMPONENTS_PATH}/common/memory/libvelox_memory.a")
+  add_velox_dependency(common::serialization "${VELOX_COMPONENTS_PATH}/common/serialization/libvelox_serialization.a")
+  add_velox_dependency(common::base::exception "${VELOX_COMPONENTS_PATH}/common/base/libvelox_exception.a")
 
-find_package(JNI REQUIRED)
+  add_velox_dependency(type::tz "${VELOX_COMPONENTS_PATH}/type/tz/libvelox_type_tz.a")
+  add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
+  add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
+  add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
+  add_velox_dependency(dwio::dwrf::proto "${VELOX_COMPONENTS_PATH}/dwio/dwrf/proto/libvelox_dwio_dwrf_proto.a")
+  add_velox_dependency(dwio::common::exception "${VELOX_COMPONENTS_PATH}/dwio/common/exception/libvelox_dwio_common_exception.a")
+  add_velox_dependency(dwio::common::encryption "${VELOX_COMPONENTS_PATH}/dwio/common/encryption/libvelox_dwio_common_encryption.a")
+  add_velox_dependency(dwio::common::compression "${VELOX_COMPONENTS_PATH}/dwio/common/compression/libvelox_dwio_common_compression.a")
 
-macro(build_velox_exec)
-  message(STATUS "Velox can be found in ${VELOX_HOME}")
-  set(BINARY_RELEASE_DIR "${root_directory}/releases")
-  add_library(facebook::velox::exec STATIC IMPORTED)
-  add_library(facebook::velox::connector STATIC IMPORTED)
-  add_library(facebook::velox::connector::hive::part STATIC IMPORTED)
-  add_library(facebook::velox::dwio::common STATIC IMPORTED)
-  add_library(facebook::velox::dwio::dwrf::proto STATIC IMPORTED)
-  add_library(facebook::velox::core::config STATIC IMPORTED)
-  add_library(facebook::velox::core STATIC IMPORTED)
-  add_library(facebook::velox::vector STATIC IMPORTED)
-  add_library(facebook::velox::type STATIC IMPORTED)
-  add_library(facebook::velox::common::base STATIC IMPORTED)
-  add_library(facebook::velox::common::base::exception STATIC IMPORTED)
-  add_library(facebook::velox::exec::test::util STATIC IMPORTED)
-  add_library(facebook::velox::parse::expression STATIC IMPORTED)
-  add_library(facebook::velox::common::memory STATIC IMPORTED)
-  add_library(facebook::velox::common::time STATIC IMPORTED)
-  add_library(facebook::velox::common::process STATIC IMPORTED)
-  add_library(facebook::velox::connector::hive STATIC IMPORTED)
-  add_library(facebook::velox::dwio::dwrf::writer STATIC IMPORTED)
-  add_library(facebook::velox::dwio::dwrf::common STATIC IMPORTED)
-  add_library(facebook::velox::common::caching STATIC IMPORTED)
-  add_library(facebook::velox::common::file STATIC IMPORTED)
-  add_library(facebook::velox::dwio::dwrf::reader STATIC IMPORTED)
-  add_library(facebook::velox::external::duckdb STATIC IMPORTED)
-  add_library(facebook::velox::parse::parser STATIC IMPORTED)
-  add_library(facebook::velox::duckdb::parser STATIC IMPORTED)
-  add_library(facebook::velox::duckdb::conversion STATIC IMPORTED)
-  add_library(facebook::velox::functions::prestosql STATIC IMPORTED)
-  add_library(facebook::velox::functions::prestosql::types STATIC IMPORTED)
-  add_library(facebook::velox::functions::prestosql::impl STATIC IMPORTED)
-  add_library(facebook::velox::functions::json STATIC IMPORTED)
-  add_library(facebook::velox::functions::hyperloglog STATIC IMPORTED)
-  add_library(facebook::velox::functions::prestosql::agg STATIC IMPORTED)
-  add_library(facebook::velox::functions::lib STATIC IMPORTED)
-  add_library(facebook::velox::functions::sparksql::lib STATIC IMPORTED)
-  add_library(facebook::velox::type::tz STATIC IMPORTED)
-  add_library(facebook::velox::external::md5 STATIC IMPORTED)
-  add_library(facebook::velox::expression STATIC IMPORTED)
-  add_library(facebook::velox::expression::function STATIC IMPORTED)
-  add_library(facebook::velox::buffer STATIC IMPORTED)
-  add_library(facebook::velox::arrow::bridge STATIC IMPORTED)
-  add_library(facebook::velox::substrait STATIC IMPORTED)
-  add_library(facebook::velox::dwio::common::exception STATIC IMPORTED)
-  add_library(folly STATIC IMPORTED)
-  add_library(iberty STATIC IMPORTED)
-  add_library(doubleconversion SHARED IMPORTED)
-  add_library(snappy SHARED IMPORTED)
-  add_library(glog SHARED IMPORTED)
-  add_library(fmt STATIC IMPORTED)
-  add_library(gtest SHARED IMPORTED)
-
-  set_target_properties(facebook::velox::exec
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_EXEC_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::connector
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_CONNECTOR_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::connector::hive::part
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_HIVE_PART_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::dwio::common
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_COMMON_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::dwio::dwrf::proto
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_DWRF_PROTO_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(iberty
-                        PROPERTIES IMPORTED_LOCATION "${IBERTY_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(folly
-                        PROPERTIES IMPORTED_LOCATION "${FOLLY_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::core::config
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_CORE_CONFIG_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::core
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_CORE_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::vector
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_VECTOR_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::type
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_TYPE_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(glog
-                        PROPERTIES IMPORTED_LOCATION "${GLOG_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(gtest
-                        PROPERTIES IMPORTED_LOCATION "${GTEST_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::common::base
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_BASE_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::exec::test::util
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_EXEC_TEST_UTIL_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::parse::expression
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_PARSE_EXP_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(doubleconversion
-                        PROPERTIES IMPORTED_LOCATION "${DOUBLE_CONVERSION_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")                                              
-  set_target_properties(fmt
-                        PROPERTIES IMPORTED_LOCATION "${FMT_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(snappy
-                        PROPERTIES IMPORTED_LOCATION "${SNAPPY_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::common::memory
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_MEM_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::common::time
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_TIME_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::common::process
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_PROCESS_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::connector::hive
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_HIVE_CONNECTOR_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")                   
-  set_target_properties(facebook::velox::common::base::exception
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_BASE_EXCEPTION_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::dwio::common::exception
-                                   PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_COMMON_EXCEPTION_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::dwio::dwrf::writer
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_DWRF_WRITER_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::dwio::dwrf::common
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_DWRF_COMMON_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::common::caching
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_CACHE_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::common::file
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_FILE_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::dwio::dwrf::reader
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_DWRF_READER_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::external::duckdb
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_EXTERNAL_DUCKDB_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::parse::parser
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_PARSE_PARSER_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::duckdb::parser
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_DUCKDB_PARSER_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::duckdb::conversion
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_DUCKDB_CONVERSION_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::prestosql
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::prestosql::types
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_TYPES_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::prestosql::impl
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_IMPL_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::json
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_JSON_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::hyperloglog
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_HYPERLOGLOG_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::prestosql::agg
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_PRESTOSQL_AGG_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::lib
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::functions::sparksql::lib
-                                   PROPERTIES IMPORTED_LOCATION "${VELOX_FUNCTIONS_SPARKSQL_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::type::tz
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_TYPE_TZ_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::external::md5
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_EXTERNAL_MD5_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::expression
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_EXPRESSION_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::expression::function
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_EXPRESSION_FUNCTIONS_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::buffer
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_BUFFER_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::arrow::bridge
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_ARROW_BRIDGE_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-  set_target_properties(facebook::velox::substrait
-                        PROPERTIES IMPORTED_LOCATION "${VELOX_SUBSTRAIT_LIB_PATH}"
-                                   INTERFACE_INCLUDE_DIRECTORIES
-                                   "${BINARY_RELEASE_DIR}/include")
-
-  target_link_libraries(velox
-                        LINK_PUBLIC spark_columnar_jni
-                        LINK_PUBLIC facebook::velox::functions::prestosql::agg
-                        LINK_PUBLIC facebook::velox::exec
-                        LINK_PUBLIC facebook::velox::substrait
-                        LINK_PUBLIC facebook::velox::connector
-                        LINK_PUBLIC facebook::velox::connector::hive::part
-                        LINK_PUBLIC facebook::velox::dwio::dwrf::proto
-                        LINK_PUBLIC facebook::velox::functions::prestosql
-                        LINK_PUBLIC facebook::velox::functions::prestosql::impl
-                        LINK_PUBLIC facebook::velox::functions::json
-                        LINK_PUBLIC facebook::velox::functions::hyperloglog
-                        LINK_PUBLIC facebook::velox::functions::sparksql::lib
-                        LINK_PUBLIC facebook::velox::functions::lib
-                        LINK_PUBLIC facebook::velox::vector
-                        LINK_PUBLIC facebook::velox::exec::test::util
-                        LINK_PUBLIC facebook::velox::parse::parser
-                        LINK_PUBLIC facebook::velox::parse::expression
-                        LINK_PUBLIC facebook::velox::arrow::bridge
-                        LINK_PUBLIC facebook::velox::common::memory
-                        LINK_PUBLIC facebook::velox::common::time
-                        LINK_PUBLIC facebook::velox::common::base::exception
-                        LINK_PUBLIC facebook::velox::common::process
-                        LINK_PUBLIC facebook::velox::connector::hive
-                        LINK_PUBLIC facebook::velox::expression
-                        LINK_PUBLIC facebook::velox::expression::function
-                        LINK_PUBLIC facebook::velox::dwio::dwrf::writer
-                        LINK_PUBLIC facebook::velox::dwio::dwrf::reader
-                        LINK_PUBLIC facebook::velox::dwio::dwrf::common
-                        LINK_PUBLIC facebook::velox::common::caching
-                        LINK_PUBLIC facebook::velox::dwio::common
-                        LINK_PUBLIC facebook::velox::type
-                        LINK_PUBLIC facebook::velox::common::file
-                        LINK_PUBLIC facebook::velox::common::base
-                        LINK_PUBLIC facebook::velox::duckdb::parser
-                        LINK_PUBLIC facebook::velox::duckdb::conversion
-                        LINK_PUBLIC facebook::velox::external::duckdb
-                        LINK_PUBLIC facebook::velox::core
-                        LINK_PUBLIC facebook::velox::core::config
-                        LINK_PUBLIC facebook::velox::type::tz
-                        LINK_PUBLIC facebook::velox::external::md5
-                        LINK_PUBLIC facebook::velox::buffer
-                        LINK_PUBLIC facebook::velox::functions::prestosql::types
-                        LINK_PUBLIC facebook::velox::dwio::common::exception
-                        LINK_PUBLIC gtest
-                        LINK_PUBLIC folly
-                        LINK_PUBLIC iberty
-                        LINK_PUBLIC doubleconversion
-                        LINK_PUBLIC snappy
-                        LINK_PUBLIC glog
-                        LINK_PUBLIC fmt)
+  add_velox_dependency(core::config "${VELOX_COMPONENTS_PATH}/core/libvelox_config.a")
+  add_velox_dependency(common::encode "${VELOX_COMPONENTS_PATH}/common/encode/libvelox_encode.a")
+  add_velox_dependency(common::time "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
+  add_velox_dependency(common::file "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
+  add_velox_dependency(common::process "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
 endmacro()
 
 # Build Velox backend.
@@ -490,17 +129,27 @@ set(VELOX_SRCS
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
-target_include_directories(velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${root_directory}/src ${VELOX_HOME} ${VELOX_HOME}/velox/vector ${VELOX_BUILD_PATH} ${VELOX_HOME}/third_party/xsimd/include/)
+target_include_directories(velox PUBLIC
+    ${CMAKE_SYSTEM_INCLUDE_PATH}
+    ${JNI_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${root_directory}/src
+    ${VELOX_HOME}
+    ${VELOX_BUILD_PATH}
+    ${VELOX_HOME}/velox/vector
+    ${VELOX_HOME}/third_party/xsimd/include/)
 
 set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
-find_folly()
-find_iberty()
-find_glog()
-find_double_conversion()
-find_fmt()
-find_gtest()
-find_snappy()
-build_velox_exec()
+find_package(Folly REQUIRED CONFIG)
+find_package(gflags REQUIRED COMPONENTS shared CONFIG)
+
+target_link_libraries(velox PUBLIC spark_columnar_jni)
+add_velox_dependencies()
+target_link_libraries(velox PUBLIC Folly::folly)
+
+if(BUILD_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()

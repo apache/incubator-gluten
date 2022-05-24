@@ -109,7 +109,11 @@ function(ADD_TEST_CASE TEST_NAME)
 endfunction()
 
 if(BUILD_BENCHMARKS)
-  find_package(benchmark CONFIG REQUIRED)
+  set(GLUTEN_GBENCHMARKS_MIN_VERSION "1.6.0")
+  find_package(benchmark ${GLUTEN_GBENCHMARK_MIN_VERSION} CONFIG)
+  if(NOT benchmark_FOUND)
+    include(BuildGoogleBenchmark)
+  endif()
 endif()
 
 #
