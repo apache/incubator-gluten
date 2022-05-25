@@ -69,6 +69,9 @@ namespace compute {
 
 class VeloxInitializer {
  public:
+  VeloxInitializer() {
+    Init();
+  }
   void Init();
 };
 
