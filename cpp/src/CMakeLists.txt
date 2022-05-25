@@ -108,7 +108,7 @@ endmacro()
 
 macro(find_protobuf)
   # Find the existing Protobuf
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(Protobuf)
   if ("${Protobuf_LIBRARY}" STREQUAL "Protobuf_LIBRARY-NOTFOUND")
     message(FATAL_ERROR "Protobuf Library Not Found")
