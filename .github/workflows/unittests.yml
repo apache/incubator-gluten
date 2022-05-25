@@ -66,11 +66,13 @@ jobs:
           mvn clean package -Pbackends-gazelle -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
       - name: Run unit tests
         run: |
+          mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox
           cd cpp/
           mkdir -p build
           cd build
           cmake .. -DBUILD_ARROW=0 -DBUILD_TESTS=1
           make -j$(nproc)
+          ctest
 
   velox-backend-test:
     runs-on: sr404-self-hosted
