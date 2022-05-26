@@ -19,17 +19,17 @@
 
 #include <stdexcept>
 
-#include "utils/exception.h"
 #include "jni_common.h"
+#include "utils/exception.h"
 
 #define JNI_METHOD_START try {
 // macro ended
 
-#define JNI_METHOD_END(fallback_expr)                                               \
-  }                                                                                 \
-  catch (std::exception & e) {                                                      \
-    env->ThrowNew(gluten::GetJniErrorsState()->RuntimeExceptionClass(), e.what());  \
-    return fallback_expr;                                                           \
+#define JNI_METHOD_END(fallback_expr)                                              \
+  }                                                                                \
+  catch (std::exception & e) {                                                     \
+    env->ThrowNew(gluten::GetJniErrorsState()->RuntimeExceptionClass(), e.what()); \
+    return fallback_expr;                                                          \
   }
 // macro ended
 
@@ -94,7 +94,9 @@ static struct JniErrorsGlobalState {
   jclass RuntimeExceptionClass() {
     std::lock_guard<std::mutex> lock_guard(mtx_);
     if (runtime_exception_class_ == nullptr) {
-      throw gluten::GlutenException("Fatal: JniGlobalState::Initialize(...) was not called before using the utility");
+      throw gluten::GlutenException(
+          "Fatal: JniGlobalState::Initialize(...) was not called before using the "
+          "utility");
     }
     return runtime_exception_class_;
   }
@@ -102,7 +104,9 @@ static struct JniErrorsGlobalState {
   jclass IllegalAccessExceptionClass() {
     std::lock_guard<std::mutex> lock_guard(mtx_);
     if (illegal_access_exception_class_ == nullptr) {
-      throw gluten::GlutenException("Fatal: JniGlobalState::Initialize(...) was not called before using the utility");
+      throw gluten::GlutenException(
+          "Fatal: JniGlobalState::Initialize(...) was not called before using the "
+          "utility");
     }
     return illegal_access_exception_class_;
   }
@@ -117,9 +121,6 @@ static struct JniErrorsGlobalState {
 
 } jni_errors_state;
 
-static JniErrorsGlobalState* GetJniErrorsState() {
-  return &jni_errors_state;
-}
+static JniErrorsGlobalState* GetJniErrorsState() { return &jni_errors_state; }
 
 }  // namespace gluten
-

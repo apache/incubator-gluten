@@ -18,9 +18,8 @@
 #include <jni.h>
 
 #include "compute/VeloxPlanConverter.h"
-#include "velox/substrait/SubstraitToVeloxPlanValidator.h"
-
 #include "jni/jni_errors.h"
+#include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 

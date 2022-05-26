@@ -54,7 +54,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIt
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
     throw gluten::GlutenException("Expected 1 decl, but got " +
-                                      std::to_string(decls.size()));
+                                  std::to_string(decls.size()));
   }
   decl_ = std::make_shared<arrow::compute::Declaration>(std::move(decls[0]));
 
@@ -65,7 +65,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIt
       auto it = schema_map_.find(i);
       if (it == schema_map_.end()) {
         throw gluten::GlutenException("Schema not found for input batch iterator " +
-                                          std::to_string(i));
+                                      std::to_string(i));
       }
       auto batch_it = MakeMapIterator(
           [](const std::shared_ptr<arrow::RecordBatch>& batch) {
@@ -180,7 +180,7 @@ void ArrowExecBackend::FieldPathToName(arrow::compute::Expression* expression,
             arrow::compute::field_ref(schema->field((field_path->indices())[0])->name());
       } else {
         throw gluten::GlutenException("Field Ref is not field path: " +
-                                          field_ref->ToString());
+                                      field_ref->ToString());
       }
     }
   }

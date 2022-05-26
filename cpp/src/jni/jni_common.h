@@ -18,13 +18,13 @@
 #pragma once
 
 #include <arrow/builder.h>
+#include <arrow/io/memory.h>
+#include <arrow/ipc/reader.h>
+#include <arrow/ipc/writer.h>
 #include <arrow/pretty_print.h>
 #include <arrow/record_batch.h>
 #include <arrow/status.h>
 #include <arrow/type.h>
-#include <arrow/ipc/reader.h>
-#include <arrow/ipc/writer.h>
-#include <arrow/io/memory.h>
 #include <arrow/util/parallel.h>
 #include <gandiva/arrow.h>
 #include <gandiva/gandiva_aliases.h>

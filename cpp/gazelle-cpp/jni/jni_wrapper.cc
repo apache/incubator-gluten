@@ -19,7 +19,6 @@
 
 #include "compute/substrait_arrow.h"
 #include "compute/substrait_utils.h"
-
 #include "jni/jni_errors.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;

@@ -193,11 +193,12 @@ std::shared_ptr<JavaRecordBatchIterator> MakeJavaRecordBatchIterator(
       vm, java_serialized_record_batch_iterator, schema_moved);
 }
 
-jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
+jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name,
+                             const char* sig) {
   jmethodID ret = GetMethodID(env, this_class, name, sig);
   if (ret == nullptr) {
     std::string error_message = "Unable to find method " + std::string(name) +
-        " within signature" + std::string(sig);
+                                " within signature" + std::string(sig);
     throw gluten::GlutenException(error_message);
   }
   return ret;
@@ -237,13 +238,13 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   split_result_constructor =
       GetMethodIDOrError(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
-  metrics_builder_class =
-      CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/MetricsObject;");
+  metrics_builder_class = CreateGlobalClassReferenceOrError(
+      env, "Lio/glutenproject/vectorized/MetricsObject;");
   metrics_builder_constructor =
       GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J)V");
 
-  serialized_record_batch_iterator_class =
-      CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/VeloxInIterator;");
+  serialized_record_batch_iterator_class = CreateGlobalClassReferenceOrError(
+      env, "Lio/glutenproject/vectorized/VeloxInIterator;");
   serialized_record_batch_iterator_hasNext =
       GetMethodIDOrError(env, serialized_record_batch_iterator_class, "hasNext", "()Z");
   serialized_record_batch_iterator_next =
@@ -333,7 +334,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
       auto it = schema_map.find(idx);
       if (it == schema_map.end()) {
         gluten::JniThrow("Schema not found for input batch iterator " +
-                              std::to_string(idx));
+                         std::to_string(idx));
       }
 
       auto rb_iter = std::make_shared<JavaRecordBatchIterator>(vm, ref_iter, it->second);
@@ -425,8 +426,8 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
 
   std::shared_ptr<arrow::RecordBatch> rb;
   gluten::JniAssertOkOrThrow(MakeRecordBatch(schema, num_rows, (int64_t*)in_buf_addrs,
-                                     (int64_t*)in_buf_sizes, in_bufs_len, &rb),
-                     "Native convert columnar to row: make record batch failed");
+                                             (int64_t*)in_buf_sizes, in_bufs_len, &rb),
+                             "Native convert columnar to row: make record batch failed");
 
   env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
   env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
@@ -440,8 +441,8 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
       columnar_to_row_converter = backend->getColumnarConverter(rb, pool, wsChild);
   gluten::JniAssertOkOrThrow(columnar_to_row_converter->Init(),
-                     "Native convert columnar to row: Init "
-                     "ColumnarToRowConverter failed");
+                             "Native convert columnar to row: Init "
+                             "ColumnarToRowConverter failed");
   gluten::JniAssertOkOrThrow(
       columnar_to_row_converter->Write(),
       "Native convert columnar to row: ColumnarToRowConverter write failed");
@@ -557,7 +558,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   if (tc_obj == NULL) {
     std::cout << "TaskContext.get() return NULL" << std::endl;
   } else {
-    jmethodID get_tsk_attmpt_mid = GetMethodIDOrError(env, tc_cls, "taskAttemptId", "()J");
+    jmethodID get_tsk_attmpt_mid =
+        GetMethodIDOrError(env, tc_cls, "taskAttemptId", "()J");
     jlong attmpt_id = env->CallLongMethod(tc_obj, get_tsk_attmpt_mid);
     splitOptions.task_attempt_id = (int64_t)attmpt_id;
   }
@@ -571,10 +573,10 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
     expr_size = env->GetArrayLength(expr_arr);
   }
 
-  auto splitter =
-      gluten::JniGetOrThrow(Splitter::Make(partitioning_name, std::move(schema), num_partitions,
-                                   expr_data, expr_size, std::move(splitOptions)),
-                    "Failed create native shuffle splitter");
+  auto splitter = gluten::JniGetOrThrow(
+      Splitter::Make(partitioning_name, std::move(schema), num_partitions, expr_data,
+                     expr_size, std::move(splitOptions)),
+      "Failed create native shuffle splitter");
 
   return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));
 

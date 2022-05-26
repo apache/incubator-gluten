@@ -42,7 +42,7 @@
     auto start = std::chrono::steady_clock::now();                                      \
     auto __s = (expr);                                                                  \
     if (!__s.ok()) {                                                                    \
-      throw GlutenException(__s.message());                                         \
+      throw GlutenException(__s.message());                                             \
     }                                                                                   \
     auto end = std::chrono::steady_clock::now();                                        \
     time += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count(); \
@@ -72,7 +72,7 @@
     auto start = std::chrono::steady_clock::now();                                     \
     auto __s = (expr);                                                                 \
     if (!__s.ok()) {                                                                   \
-      throw GlutenException(__s.message());                                        \
+      throw GlutenException(__s.message());                                            \
     }                                                                                  \
     auto end = std::chrono::steady_clock::now();                                       \
     time += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count(); \
@@ -88,12 +88,12 @@
   }                                    \
   std::cout << std::endl;
 
-#define THROW_NOT_OK(expr)                      \
-  do {                                          \
-    auto __s = (expr);                          \
-    if (!__s.ok()) {                            \
+#define THROW_NOT_OK(expr)                  \
+  do {                                      \
+    auto __s = (expr);                      \
+    if (!__s.ok()) {                        \
       throw GlutenException(__s.message()); \
-    }                                           \
+    }                                       \
   } while (false);
 
 #define TIME_TO_STRING(time) \
