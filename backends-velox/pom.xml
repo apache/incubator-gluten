@@ -31,6 +31,7 @@
 	<velox.build_velox>${build_velox}</velox.build_velox>
 	<velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
         <velox.velox_home>${velox_home}</velox.velox_home>
+        <velox.debug_build>${debug_build}</velox.debug_build>
     </properties>
 
     <dependencies>
@@ -335,6 +336,7 @@
                                 <argument>${velox.build_gazelle_cpp}</argument>
                                 <argument>${velox.build_velox}</argument>
                                 <argument>${velox.velox_home}</argument>
+                                <argument>${velox.debug_build}</argument>
                             </arguments>
                         </configuration>
                     </execution>
