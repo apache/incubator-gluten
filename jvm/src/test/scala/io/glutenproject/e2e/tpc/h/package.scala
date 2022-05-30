@@ -21,10 +21,11 @@ import org.apache.spark.SparkConf
 
 package object h {
 
-  private val MAX_DIRECT_MEMORY = "1g"
+  private val MAX_DIRECT_MEMORY = "6g"
 
   val VANILLA_CONF: SparkConf = new SparkConf()
     .set("spark.memory.offHeap.size", String.valueOf(MAX_DIRECT_MEMORY))
+    .set("spark.memory.offHeap.enabled", "true")
     .set("spark.sql.codegen.wholeStage", "false")
     .set("spark.sql.sources.useV1SourceList", "")
     .set("spark.sql.adaptive.enabled", "false")

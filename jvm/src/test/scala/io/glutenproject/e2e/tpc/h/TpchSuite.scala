@@ -51,7 +51,7 @@ abstract class TpchSuite extends SparkFunSuite {
     sessionSwitcher.registerSession("test", testConf())
     sessionSwitcher.registerSession("baseline", TpchSuite.baselineConf)
     sessionSwitcher.useSession("baseline") // use vanilla spark to generate data
-    val dataGen = new TpchDataGen(sessionSwitcher.spark(), 0.1D, TpchSuite.TPCH_WRITE_PATH,
+    val dataGen = new TpchDataGen(sessionSwitcher.spark(), 0.01D, TpchSuite.TPCH_WRITE_PATH,
       typeModifiers.asScala.toArray)
     dataGen.gen()
   }

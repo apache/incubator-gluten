@@ -27,6 +27,7 @@ package object velox {
 
   val VELOX_BACKEND_CONF: SparkConf = new SparkConf()
     .set("spark.memory.offHeap.size", String.valueOf(MAX_DIRECT_MEMORY))
+    .set("spark.memory.offHeap.enabled", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
     .set("spark.gluten.sql.columnar.backend.lib", "velox")
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -41,6 +42,7 @@ package object velox {
 
   val GAZELLE_CPP_BACKEND_CONF: SparkConf = new SparkConf()
     .set("spark.memory.offHeap.size", String.valueOf(MAX_DIRECT_MEMORY))
+    .set("spark.memory.offHeap.enabled", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
     .set("spark.gluten.sql.columnar.backend.lib", "gazelle_cpp")
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
