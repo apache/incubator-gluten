@@ -84,6 +84,11 @@ set(VELOX_EXPRESSION_FUNCTIONS_LIB_PATH "${VELOX_COMPONENTS_PATH}/expression/lib
 set(VELOX_BUFFER_LIB_PATH "${VELOX_COMPONENTS_PATH}/buffer/libvelox_buffer.a")
 set(VELOX_ARROW_BRIDGE_LIB_PATH "${VELOX_COMPONENTS_PATH}/vector/arrow/c/libvelox_arrow_bridge.a")
 set(VELOX_SUBSTRAIT_LIB_PATH "${VELOX_COMPONENTS_PATH}/substrait/libvelox_substrait_plan_converter.a")
+set(VELOX_ENCODE_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/encode/libvelox_encode.a")
+set(VELOX_DWIO_DWRF_UTILS_PATH "${VELOX_COMPONENTS_PATH}/dwio/dwrf/utils/libvelox_dwio_dwrf_utils.a")
+set(VELOX_DWIO_COMMON_COMPRESSION_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/common/compression/libvelox_dwio_common_compression.a")
+set(VELOX_DWIO_COMMON_ENCRYPTION_LIB_PATH "${VELOX_COMPONENTS_PATH}/dwio/common/encryption/libvelox_dwio_common_encryption.a")
+set(VELOX_COMMON_SERIALIZATION_LIB_PATH "${VELOX_COMPONENTS_PATH}/common/serialization/libvelox_serialization.a")
 
 # Find Folly
 macro(find_folly)
@@ -177,6 +182,7 @@ macro(find_snappy)
 endmacro()
 
 find_package(JNI REQUIRED)
+find_package(Boost REQUIRED regex)
 
 macro(build_velox_exec)
   message(STATUS "Velox can be found in ${VELOX_HOME}")
@@ -223,6 +229,11 @@ macro(build_velox_exec)
   add_library(facebook::velox::arrow::bridge STATIC IMPORTED)
   add_library(facebook::velox::substrait STATIC IMPORTED)
   add_library(facebook::velox::dwio::common::exception STATIC IMPORTED)
+  add_library(facebook::velox::common::encode STATIC IMPORTED)
+  add_library(facebook::velox::dwio::dwrf::utils STATIC IMPORTED)
+  add_library(facebook::velox::dwio::common::compression STATIC IMPORTED)
+  add_library(facebook::velox::dwio::common::encryption STATIC IMPORTED)
+  add_library(facebook::velox::common::serialization STATIC IMPORTED)
   add_library(folly STATIC IMPORTED)
   add_library(iberty STATIC IMPORTED)
   add_library(doubleconversion SHARED IMPORTED)
@@ -230,6 +241,7 @@ macro(build_velox_exec)
   add_library(glog SHARED IMPORTED)
   add_library(fmt STATIC IMPORTED)
   add_library(gtest SHARED IMPORTED)
+  add_library(boost::regex SHARED IMPORTED)
 
   set_target_properties(facebook::velox::exec
                         PROPERTIES IMPORTED_LOCATION "${VELOX_EXEC_LIB_PATH}"
@@ -281,6 +293,10 @@ macro(build_velox_exec)
                                    "${BINARY_RELEASE_DIR}/include")
   set_target_properties(gtest
                         PROPERTIES IMPORTED_LOCATION "${GTEST_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(boost::regex
+                        PROPERTIES IMPORTED_LOCATION "${Boost_REGEX_LIBRARY_RELEASE}"
                                    INTERFACE_INCLUDE_DIRECTORIES
                                    "${BINARY_RELEASE_DIR}/include")
   set_target_properties(facebook::velox::common::base
@@ -427,6 +443,26 @@ macro(build_velox_exec)
                         PROPERTIES IMPORTED_LOCATION "${VELOX_SUBSTRAIT_LIB_PATH}"
                                    INTERFACE_INCLUDE_DIRECTORIES
                                    "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::common::encode
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_ENCODE_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::dwio::dwrf::utils
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_DWRF_UTILS_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::dwio::common::compression
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_COMMON_COMPRESSION_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::dwio::common::encryption
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_DWIO_COMMON_ENCRYPTION_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
+  set_target_properties(facebook::velox::common::serialization
+                        PROPERTIES IMPORTED_LOCATION "${VELOX_COMMON_SERIALIZATION_LIB_PATH}"
+                                   INTERFACE_INCLUDE_DIRECTORIES
+                                   "${BINARY_RELEASE_DIR}/include")
 
   target_link_libraries(velox
                         LINK_PUBLIC spark_columnar_jni
@@ -450,13 +486,13 @@ macro(build_velox_exec)
                         LINK_PUBLIC facebook::velox::common::memory
                         LINK_PUBLIC facebook::velox::common::time
                         LINK_PUBLIC facebook::velox::common::base::exception
-                        LINK_PUBLIC facebook::velox::common::process
                         LINK_PUBLIC facebook::velox::connector::hive
                         LINK_PUBLIC facebook::velox::expression
                         LINK_PUBLIC facebook::velox::expression::function
                         LINK_PUBLIC facebook::velox::dwio::dwrf::writer
                         LINK_PUBLIC facebook::velox::dwio::dwrf::reader
                         LINK_PUBLIC facebook::velox::dwio::dwrf::common
+                        LINK_PUBLIC facebook::velox::common::process
                         LINK_PUBLIC facebook::velox::common::caching
                         LINK_PUBLIC facebook::velox::dwio::common
                         LINK_PUBLIC facebook::velox::type
@@ -472,13 +508,19 @@ macro(build_velox_exec)
                         LINK_PUBLIC facebook::velox::buffer
                         LINK_PUBLIC facebook::velox::functions::prestosql::types
                         LINK_PUBLIC facebook::velox::dwio::common::exception
+                        LINK_PUBLIC facebook::velox::common::encode
+                        LINK_PUBLIC facebook::velox::dwio::dwrf::utils
+                        LINK_PUBLIC facebook::velox::dwio::common::compression
+                        LINK_PUBLIC facebook::velox::dwio::common::encryption
+                        LINK_PUBLIC facebook::velox::common::serialization
                         LINK_PUBLIC gtest
                         LINK_PUBLIC folly
                         LINK_PUBLIC iberty
                         LINK_PUBLIC doubleconversion
                         LINK_PUBLIC snappy
                         LINK_PUBLIC glog
-                        LINK_PUBLIC fmt)
+                        LINK_PUBLIC fmt
+                        LINK_PUBLIC boost::regex)
 endmacro()
 
 # Build Velox backend.
