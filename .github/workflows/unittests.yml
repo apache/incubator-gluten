@@ -32,8 +32,8 @@ jobs:
       - run: sudo swapoff -a
       - run: free
       - run: sudo apt-get update
-      - run: sudo apt-get install cmake ccache
-      - run: sudo apt-get install libboost-all-dev libcurl4-openssl-dev
+      - run: sudo apt-get install -y cmake ccache
+      - run: sudo apt-get install -y libboost-all-dev libcurl4-openssl-dev
       - name: ccache cache files
         uses: actions/cache@v2
         with:
@@ -50,11 +50,11 @@ jobs:
             ${{ runner.os }}-maven-
       - name: Install Googletest
         run: |
-          sudo apt-get install libgtest-dev
+          sudo apt-get install -y libgtest-dev
           cd /usr/src/gtest
           sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
           sudo make
-          sudo apt-get install google-mock
+          sudo apt-get install -y google-mock
       - name: Install OAP optimized Arrow (C++ libs)
         run: |
           mvn clean package -Pbackends-gazelle -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
