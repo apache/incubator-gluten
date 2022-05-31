@@ -33,6 +33,7 @@ jobs:
       - run: free
       - run: sudo apt-get update
       - run: sudo apt-get install -y cmake ccache build-essential
+      - run: sudo apt-get install -y maven
       - run: sudo apt-get install -y libboost-all-dev libcurl4-openssl-dev
       - name: ccache cache files
         uses: actions/cache@v2
