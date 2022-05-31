@@ -37,6 +37,7 @@ jobs:
       - run: sudo apt-get install -y libboost-all-dev libcurl4-openssl-dev
       - run: sudo apt-get install -y libssl-dev
       - run: sudo apt-get install -y libz-dev
+      - run: sudo apt-get install -y llvm clang
       - name: ccache cache files
         uses: actions/cache@v2
         with:
