@@ -27,6 +27,7 @@
 #include "velox/buffer/Buffer.h"
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
+#include "velox/functions/prestosql/aggregates/MinMaxAggregates.h"
 #include "velox/functions/sparksql/Register.h"
 
 using namespace facebook::velox;
@@ -55,6 +56,10 @@ void VeloxInitializer::Init() {
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   aggregate::registerAverageAggregate("avg");
   aggregate::registerCountAggregate("count");
+  aggregate::registerMinMaxAggregate<aggregate::MinAggregate,
+                                     aggregate::NonNumericMinAggregate>("min");
+  aggregate::registerMinMaxAggregate<aggregate::MaxAggregate,
+                                     aggregate::NonNumericMaxAggregate>("max");
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::AggregateRel& sagg) {
