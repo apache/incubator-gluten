@@ -22,7 +22,7 @@ on:
 
 jobs:
   arrow-backend-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.8
@@ -104,7 +104,7 @@ jobs:
 
   formatting-check:
     name: Formatting Check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
     - uses: actions/checkout@v2
     - name: Run clang-format style check for C/C++ programs.
