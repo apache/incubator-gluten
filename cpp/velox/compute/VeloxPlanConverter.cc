@@ -216,8 +216,9 @@ std::shared_ptr<gluten::RecordBatchResultIterator>
 VeloxPlanConverter::GetResultIterator() {
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
+  // Move the velox pool and the iterator will manage it.
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      planNode, subVeloxPlanConverter_->getPartitionIndex(),
+      std::move(veloxPool_), planNode, subVeloxPlanConverter_->getPartitionIndex(),
       subVeloxPlanConverter_->getPaths(), subVeloxPlanConverter_->getStarts(),
       subVeloxPlanConverter_->getLengths(), fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
@@ -228,8 +229,9 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   arrowInputIters_ = std::move(inputs);
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterMiddleStage>(planNode, fakeArrowOutput_);
+  // Move the velox pool and the iterator will manage it.
+  auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(
+      std::move(veloxPool_), planNode, fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -237,20 +239,10 @@ class VeloxPlanConverter::WholeStageResIter {
  public:
   virtual ~WholeStageResIter() = default;
 
-  arrow::Status CopyBuffer(const uint8_t* from, uint8_t* to, int64_t copy_bytes) {
-    // ARROW_ASSIGN_OR_RAISE(*out, AllocateBuffer(size * length, memory_pool_));
-    // uint8_t* buffer_data = (*out)->mutable_data();
-    std::memcpy(to, from, copy_bytes);
-    // double val = *(double*)buffer_data;
-    // std::cout << "buffler val: " << val << std::endl;
-    return arrow::Status::OK();
-  }
-
-  /* This method converts Velox RowVector into Arrow RecordBatch based on Velox's
-     Arrow conversion implementation, in which memcopy is not needed for fixed-width data
-     types, but is conducted in String conversion. The output batch will be the input of
-     Columnar Shuffle.
-  */
+  /// This method converts Velox RowVector into Arrow RecordBatch based on Velox's
+  /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
+  /// types, but is conducted in String conversion. The output batch will be the input of
+  /// Columnar Shuffle.
   void toRealArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
                         const RowTypePtr& outTypes,
                         std::shared_ptr<arrow::RecordBatch>* out) {
@@ -267,10 +259,10 @@ class VeloxPlanConverter::WholeStageResIter {
     *out = batch.ValueOrDie();
   }
 
-  /* This method converts Velox RowVector into Faked Arrow RecordBatch. Velox's impl is
-    used for fixed-width data types. For String conversion, a faked array is constructed.
-    The output batch will be converted into Unsafe Row in Velox-to-Row converter.
-  */
+  /// This method converts Velox RowVector into Faked Arrow RecordBatch. Velox's impl is
+  /// used for fixed-width data types. For String conversion, a faked array is
+  /// constructed. The output batch will be converted into Unsafe Row in Velox-to-Row
+  /// converter.
   void toFakedArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
                          const RowTypePtr& outTypes,
                          std::shared_ptr<arrow::RecordBatch>* out) {
@@ -303,27 +295,28 @@ class VeloxPlanConverter::WholeStageResIter {
     return out;
   }
 
-  arrow::MemoryPool* memoryPool_ = arrow::default_memory_pool();
-  std::unique_ptr<memory::MemoryPool> veloxPool_{memory::getDefaultScopedMemoryPool()};
+  std::unique_ptr<memory::MemoryPool> veloxPool_;
   std::shared_ptr<const core::PlanNode> planNode_;
   test::CursorParameters params_;
   std::unique_ptr<test::TaskCursor> cursor_;
   std::function<void(exec::Task*)> addSplits_;
   bool fakeArrowOutput_;
   bool mayHaveNext_ = true;
-  // FIXME: use the setted one
+  // TODO: use the setted one.
   uint64_t batchSize_ = 10000;
 };
 
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
  public:
-  WholeStageResIterFirstStage(const std::shared_ptr<const core::PlanNode>& planNode,
+  WholeStageResIterFirstStage(std::unique_ptr<memory::MemoryPool> veloxPool,
+                              const std::shared_ptr<const core::PlanNode>& planNode,
                               const u_int32_t index,
                               const std::vector<std::string>& paths,
                               const std::vector<u_int64_t>& starts,
                               const std::vector<u_int64_t>& lengths,
                               const bool fakeArrowOutput)
       : index_(index), paths_(paths), starts_(starts), lengths_(lengths) {
+    veloxPool_ = std::move(veloxPool);
     planNode_ = planNode;
     fakeArrowOutput_ = fakeArrowOutput;
     std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
@@ -364,8 +357,10 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
 
 class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIter {
  public:
-  WholeStageResIterMiddleStage(const std::shared_ptr<const core::PlanNode>& planNode,
+  WholeStageResIterMiddleStage(std::unique_ptr<memory::MemoryPool> veloxPool,
+                               const std::shared_ptr<const core::PlanNode>& planNode,
                                const bool fakeArrowOutput) {
+    veloxPool_ = std::move(veloxPool);
     planNode_ = planNode;
     fakeArrowOutput_ = fakeArrowOutput;
     params_.planNode = planNode;

@@ -93,6 +93,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   }
 
  private:
+  std::unique_ptr<memory::MemoryPool> veloxPool_{memory::getDefaultScopedMemoryPool()};
   int planNodeId_ = 0;
   bool fakeArrowOutput_ = false;
   bool dsAsInput_ = true;
@@ -118,7 +119,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter>
       subVeloxPlanConverter_ =
-          std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>();
+          std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
+              veloxPool_.get());
 
   /* Result Iterator */
   class WholeStageResIter;
