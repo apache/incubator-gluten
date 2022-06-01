@@ -22,7 +22,7 @@ on:
 
 jobs:
   arrow-backend-test:
-    runs-on: self-hosted
+    runs-on: sr121-self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.8
@@ -71,7 +71,7 @@ jobs:
           make -j$(nproc)
 
   velox-backend-test:
-    runs-on: ubuntu-latest
+    runs-on: sr121-self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.8
