@@ -81,9 +81,9 @@ jobs:
       - run: sudo swapoff -a
       - run: free
       - run: sudo apt-get update
-      - run: sudo apt-get install cmake ccache build-essential
+      - run: sudo apt-get install -y cmake ccache build-essential
       - run: sudo apt-get install -y maven
-      - run: sudo apt-get install libboost-all-dev libcurl4-openssl-dev
+      - run: sudo apt-get install -y libboost-all-dev libcurl4-openssl-dev
       - run: sudo apt-get install -y libssl-dev
       - run: sudo apt-get install -y libz-dev
       - run: sudo apt-get install -y llvm clang
@@ -103,11 +103,11 @@ jobs:
             ${{ runner.os }}-maven-
       - name: Install Googletest
         run: |
-          sudo apt-get install libgtest-dev
+          sudo apt-get install -y libgtest-dev
           cd /usr/src/gtest
           sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
           sudo make -j$(nproc)
-          sudo apt-get install google-mock
+          sudo apt-get install -y google-mock
       - name: Install Gluten Velox-backend
         run: |
           mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
