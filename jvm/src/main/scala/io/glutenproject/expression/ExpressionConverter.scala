@@ -179,8 +179,6 @@ object ExpressionConverter extends Logging {
             columnarDivide,
             expr)
         }
-      case oaps: io.glutenproject.expression.ScalarSubqueryTransformer =>
-        oaps
       case s: org.apache.spark.sql.execution.ScalarSubquery =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         new ScalarSubqueryTransformer(s)
