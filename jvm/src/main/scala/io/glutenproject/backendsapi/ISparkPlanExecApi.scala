@@ -24,6 +24,7 @@ import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriter
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -84,4 +85,12 @@ trait ISparkPlanExecApi extends IBackendsApi {
    */
   def createColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
                                     numOutputRows: SQLMetric): Serializer
+
+  /**
+   * Create broadcast relation for BroadcastExchangeExec
+   */
+  def createBroadcastRelation(
+      child: SparkPlan,
+      numOutputRows: SQLMetric,
+      dataSize: SQLMetric): BuildSideRelation
 }

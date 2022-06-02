@@ -77,6 +77,15 @@ trait TransformSupport extends SparkPlan {
   def dependentPlanCtx: TransformContext = null
 
   def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {}
+
+  def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
+    plan match {
+      case c: TransformSupport if !c.isInstanceOf[WholeStageTransformerExec] =>
+        c.columnarInputRDDs
+      case _ =>
+        Seq(plan.executeColumnar())
+    }
+  }
 }
 
 case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int)
