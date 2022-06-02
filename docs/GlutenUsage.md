@@ -35,6 +35,12 @@ add below config to disable Arrow compilation each time when compiling Gluten:
 ```shell script
 -Dbuild_arrow=OFF -Darrow_root=${ARROW_LIB_PATH}
 ```
+Compile gluten again with existed velox and arrow.
+The full compiling command would be like:
+```shell script
+mvn package -Pbackends-velox -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_arrow=ON -Dbuild_protobuf=OFF
+```
+while arrow_root and velox_home is the default value as following
 
 Based on the different environment, there are some parameters can be set via -D with mvn.
 
@@ -42,14 +48,14 @@ Based on the different environment, there are some parameters can be set via -D 
 | ---------- | ----------- | ------------- |
 | build_cpp | Enable or Disable building CPP library | OFF |
 | cpp_tests | Enable or Disable CPP Tests | OFF |
-| build_arrow | Build Arrow from Source | ON |
-| arrow_root | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library. | /usr/local |
+| build_arrow | Build Arrow from Source | OFF |
+| arrow_root | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library. | /PATH_TO_GLUTEN/tools/build/arrow_install |
 | build_protobuf | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library. |ON |
 | build_velox_from_source | Enable or Disable building Velox from a specific velox github repository. A default installed path will be in velox_home | OFF |
 | backends-velox | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend| false |
 | backends-clickhouse | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend | false |
 | build_velox | Enable or Disable building the CPP part of Velox backend | OFF |
-| velox_home (only valid when build_velox is ON) | The path to the compiled Velox project. When building Gluten with Velox, if you have an existing Velox, please set it. | /PATH_TO_GLUTEN/tools/build_velox/velox_ep |
+| velox_home (only valid when build_velox is ON) | The path to the compiled Velox project. When building Gluten with Velox, if you have an existing Velox, please set it. | /PATH_TO_GLUTEN/tools/build/velox_ep |
 | velox_build_type | The build type Velox was built with from source code. Gluten uses this value to locate the binary path of Velox's binary libraries. | release |
 | debug_build | Whether to generate debug binary library from Gluten's C++ codes. | OFF |
 
@@ -68,6 +74,7 @@ spark.memory.offHeap.size 20g
 spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
 spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
 ```
+${BACKEND} can be velox or clickhouse, refer [Velox.md](https://github.com/oap-project/gluten/blob/main/docs/Velox.md}) and [ClickHouse.md](https://github.com/oap-project/gluten/blob/main/docs/ClickHouse.md) to get more detail.
 
 Below is an example of the script to submit Spark SQL query.
 
