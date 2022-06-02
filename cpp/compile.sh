@@ -14,6 +14,8 @@ BUILD_JEMALLOC=${8:-ON}
 BUILD_GAZELLE_CPP=${9:-OFF}
 BUILD_VELOX=${10:-OFF}
 VELOX_HOME=${11:-/root/velox}
+VELOX_BUILD_TYPE=${12:-release}
+DEBUG_BUILD=${13:-OFF}
 
 if [ "$BUILD_CPP" == "ON" ]; then
   NPROC=$(nproc --ignore=2)
@@ -39,6 +41,9 @@ if [ "$BUILD_CPP" == "ON" ]; then
     -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
     -DBUILD_GAZELLE_CPP=${BUILD_GAZELLE_CPP} \
     -DBUILD_VELOX=${BUILD_VELOX} \
-    -DVELOX_HOME=${VELOX_HOME}
+    -DVELOX_HOME=${VELOX_HOME} \
+    -DVELOX_BUILD_TYPE=${VELOX_BUILD_TYPE} \
+    -DCMAKE_BUILD_TYPE=$(if [ "$DEBUG_BUILD" == 'ON' ]; then echo 'Debug'; else echo 'Release'; fi) \
+    -DDEBUG=$DEBUG_BUILD
   make -j$NPROC
 fi
