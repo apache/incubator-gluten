@@ -147,6 +147,21 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.left,
             plan.right)
           transformer.doValidate()
+        case plan: BroadcastExchangeExec =>
+          if (!enableColumnarBroadcastExchange) return false
+          val exec = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
+          exec.doValidate()
+        case plan: BroadcastHashJoinExec =>
+          if (!enableColumnarBroadcastJoin) return false
+          val transformer = BroadcastHashJoinExecTransformer(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.buildSide,
+            plan.condition,
+            plan.left,
+            plan.right)
+          transformer.doValidate()
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) return false
           val transformer = SortMergeJoinExecTransformer(

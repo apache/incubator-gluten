@@ -16,23 +16,36 @@
 
 package io.glutenproject.backendsapi.velox
 
-import scala.collection.JavaConverters._
-import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
-import io.glutenproject.vectorized.ArrowColumnarBatchSerializer
-import org.apache.spark.ShuffleDependency
+import io.glutenproject.backendsapi.ISparkPlanExecApi
+import io.glutenproject.execution.{
+  FilterExecBaseTransformer,
+  FilterExecTransformer,
+  NativeColumnarToRowExec,
+  RowToArrowColumnarExec,
+  VeloxFilterExecTransformer,
+  VeloxNativeColumnarToRowExec,
+  VeloxRowToArrowColumnarExec
+}
+import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
+
+import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, VeloxBuildSideRelation}
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.VeloxExecUtil
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.mutable.ArrayBuffer
 
 class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
 
@@ -54,6 +67,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   override def genRowToArrowColumnarExec(child: SparkPlan): RowToArrowColumnarExec =
     new VeloxRowToArrowColumnarExec(child)
 
+  // scalastyle:off argcount
   /**
    * Generate FilterExecTransformer.
    *
@@ -75,32 +89,44 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    *
    * @return
    */
-  override def genShuffleDependency(rdd: RDD[ColumnarBatch],
-                                    outputAttributes: Seq[Attribute],
-                                    newPartitioning: Partitioning,
-                                    serializer: Serializer,
-                                    writeMetrics: Map[String, SQLMetric],
-                                    dataSize: SQLMetric,
-                                    bytesSpilled: SQLMetric,
-                                    numInputRows: SQLMetric,
-                                    computePidTime: SQLMetric,
-                                    splitTime: SQLMetric,
-                                    spillTime: SQLMetric,
-                                    compressTime: SQLMetric,
-                                    prepareTime: SQLMetric
-                                   ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
-    VeloxExecUtil.genShuffleDependency(rdd, outputAttributes, newPartitioning,
-      serializer, writeMetrics, dataSize, bytesSpilled, numInputRows,
-      computePidTime, splitTime, spillTime, compressTime, prepareTime)
+  override def genShuffleDependency(
+      rdd: RDD[ColumnarBatch],
+      outputAttributes: Seq[Attribute],
+      newPartitioning: Partitioning,
+      serializer: Serializer,
+      writeMetrics: Map[String, SQLMetric],
+      dataSize: SQLMetric,
+      bytesSpilled: SQLMetric,
+      numInputRows: SQLMetric,
+      computePidTime: SQLMetric,
+      splitTime: SQLMetric,
+      spillTime: SQLMetric,
+      compressTime: SQLMetric,
+      prepareTime: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+    VeloxExecUtil.genShuffleDependency(
+      rdd,
+      outputAttributes,
+      newPartitioning,
+      serializer,
+      writeMetrics,
+      dataSize,
+      bytesSpilled,
+      numInputRows,
+      computePidTime,
+      splitTime,
+      spillTime,
+      compressTime,
+      prepareTime)
   }
+  // scalastyle:on argcount
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
    * @return
    */
-  override def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V]
-                                             ): GlutenShuffleWriterWrapper[K, V] = {
+  override def genColumnarShuffleWriter[K, V](
+      parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V] = {
     VeloxShuffleUtil.genColumnarShuffleWriter(parameters)
   }
 
@@ -109,10 +135,50 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    *
    * @return
    */
-  override def createColumnarBatchSerializer(schema: StructType,
-                                             readBatchNumRows: SQLMetric,
-                                             numOutputRows: SQLMetric): Serializer = {
+  override def createColumnarBatchSerializer(
+      schema: StructType,
+      readBatchNumRows: SQLMetric,
+      numOutputRows: SQLMetric): Serializer = {
     new ArrowColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+  }
+
+  /**
+   * Create broadcast relation for BroadcastExchangeExec
+   */
+  override def createBroadcastRelation(
+      child: SparkPlan,
+      numOutputRows: SQLMetric,
+      dataSize: SQLMetric): BuildSideRelation = {
+    val countsAndBytes = child
+      .executeColumnar()
+      .mapPartitions { iter =>
+        var _numRows: Long = 0
+        val _input = new ArrayBuffer[ColumnarBatch]()
+
+        while (iter.hasNext) {
+          val batch = iter.next
+          (0 until batch.numCols).foreach(i =>
+            batch.column(i).asInstanceOf[ArrowWritableColumnVector].retain())
+          _numRows += batch.numRows
+          _input += batch
+        }
+        val bytes = ArrowConverterUtils.convertToNetty(_input.toArray)
+        _input.foreach(_.close)
+
+        Iterator((_numRows, bytes))
+      }
+      .collect
+
+    val batches = countsAndBytes.map(_._2)
+    val rawSize = batches.map(_.length).sum
+    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+      throw new SparkException(
+        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+    }
+    numOutputRows += countsAndBytes.map(_._1).sum
+    dataSize += rawSize
+
+    VeloxBuildSideRelation(child.output, batches)
   }
 
   /**

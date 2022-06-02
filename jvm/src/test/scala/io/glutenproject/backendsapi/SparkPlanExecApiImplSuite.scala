@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -93,4 +94,11 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    * @return
    */
   override def getBackendName: String = "default"
+
+  /**
+   * Create broadcast relation for BroadcastExchangeExec
+   */
+  override def createBroadcastRelation(child: SparkPlan,
+                                       numOutputRows: SQLMetric,
+                                       dataSize: SQLMetric): BuildSideRelation = null
 }

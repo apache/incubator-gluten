@@ -41,14 +41,19 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin, ShuffledJoin}
+import org.apache.spark.sql.execution.joins.{
+  BaseJoinExec,
+  BuildSideRelation,
+  HashJoin,
+  ShuffledJoin
+}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
-case class ShuffledHashJoinExecTransformer(
+abstract class HashJoinLikeExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
     joinType: JoinType,
@@ -138,18 +143,6 @@ case class ShuffledHashJoinExecTransformer(
   }
 
   override def supportsColumnar: Boolean = true
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    val getInputRDDs = (plan: SparkPlan) => {
-      plan match {
-        case c: TransformSupport if !c.isInstanceOf[WholeStageTransformerExec] =>
-          c.columnarInputRDDs
-        case _ =>
-          Seq(plan.executeColumnar())
-      }
-    }
-    getInputRDDs(streamedPlan) ++ getInputRDDs(buildPlan)
-  }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = buildPlan match {
     case c: TransformSupport =>
@@ -303,5 +296,62 @@ case class ShuffledHashJoinExecTransformer(
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
       s"${this.getClass.getSimpleName} doesn't support doExecute")
+  }
+}
+
+case class ShuffledHashJoinExecTransformer(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    projectList: Seq[NamedExpression] = null)
+    extends HashJoinLikeExecTransformer(
+      leftKeys,
+      rightKeys,
+      joinType,
+      buildSide,
+      condition,
+      left,
+      right,
+      projectList) {
+
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
+  }
+}
+
+case class BroadcastHashJoinExecTransformer(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    projectList: Seq[NamedExpression] = null)
+    extends HashJoinLikeExecTransformer(
+      leftKeys,
+      rightKeys,
+      joinType,
+      buildSide,
+      condition,
+      left,
+      right,
+      projectList) {
+
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    val streamedRDD = getColumnarInputRDDs(streamedPlan)
+    val broadcasted = buildSide match {
+      case BuildLeft =>
+        left.executeBroadcast[BuildSideRelation]()
+      case BuildRight =>
+        right.executeBroadcast[BuildSideRelation]()
+    }
+    val buildRDD =
+      BroadcastBuildSideRDD(sparkContext, streamedRDD.head.getNumPartitions, broadcasted)
+    streamedRDD :+ buildRDD
   }
 }
