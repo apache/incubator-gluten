@@ -22,7 +22,6 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
 import org.apache.spark.SparkConf
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
@@ -31,7 +30,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan, V2CommandExec}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -345,5 +344,36 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectColumnar(ColumnarOverrideRules)
+  }
+}
+
+object filterSeparator {
+
+  // Flatten the condition connected with 'And'. Return the filter conditions with sequence.
+  def flattenCondition(condition: Expression) : Seq[Expression] = {
+    var expressions: Seq[Expression] = Seq()
+    condition match {
+      case and: And =>
+        and.children.foreach(expression => {
+          expressions ++= flattenCondition(expression)
+        })
+      case _ =>
+        expressions = expressions :+ condition
+    }
+    expressions
+  }
+
+  // Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
+  // scanFilters: the conditions pushed down into Scan.
+  // filters: the conditions in the Filter after the Scan.
+  // Return the filter condition which is not pushed down into Scan.
+  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Expression = {
+    var leftFilters: Seq[Expression] = Seq()
+    for (expression <- filters) {
+      if (!scanFilters.exists(_.semanticEquals(expression))) {
+        leftFilters = leftFilters :+ expression.clone()
+      }
+    }
+    leftFilters.reduceLeftOption(And).orNull
   }
 }

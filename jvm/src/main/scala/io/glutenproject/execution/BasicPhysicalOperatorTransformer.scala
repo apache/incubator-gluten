@@ -26,6 +26,7 @@ import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.extension.filterSeparator
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -35,9 +36,12 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.JavaConverters._
 
 case class FilterExecTransformer(
     condition: Expression,
@@ -57,11 +61,42 @@ case class FilterExecTransformer(
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_filter"))
 
+  // Get the filter conditions in Scan for the comparison with those in Filter.
+  def getScanFilters: Seq[Expression] = {
+    child match {
+      case fileSourceScan: FileSourceScanExec =>
+        fileSourceScan.dataFilters
+      case batchScan: BatchScanExec =>
+        batchScan.scan match {
+          case scan: FileScan =>
+            scan.dataFilters
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"${batchScan.scan.getClass.toString} is not supported")
+        }
+      case _ =>
+        Seq()
+    }
+  }
+
   override def doValidate(): Boolean = {
+    val scanFilters = getScanFilters
+    val leftCondition = if (scanFilters.isEmpty) {
+      condition
+    } else {
+      filterSeparator
+        .getLeftFilters(scanFilters, filterSeparator.flattenCondition(condition))
+    }
+    // All the filters can be pushed down and the computing of this Filter
+    // is not needed.
+    if (leftCondition == null) {
+      return true
+    }
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, null, validation = true)
+      getRelNode(substraitContext.registeredFunction, leftCondition, child.output,
+        null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -135,11 +170,6 @@ case class FilterExecTransformer(
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object, childRel: RelNode,
-                 validation: Boolean = false): RelNode = {
-    prepareFilterRel(args, condition, child.output, childRel, validation)
-  }
-
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
@@ -147,23 +177,27 @@ case class FilterExecTransformer(
       case _ =>
         null
     }
-    if (GlutenConfig.getConf.isVeloxBackend && child.isInstanceOf[BatchScanExecTransformer]) {
+    val scanFilters = getScanFilters
+    val leftCondition = if (scanFilters.isEmpty) {
+      condition
+    } else {
+      filterSeparator
+        .getLeftFilters(scanFilters, filterSeparator.flattenCondition(condition))
+    }
+    // The computing for this filter is not needed.
+    if (leftCondition == null) {
       return childCtx
     }
     val currRel = if (childCtx != null) {
-      getRelNode(context.registeredFunction, childCtx.root)
+      getRelNode(context.registeredFunction, leftCondition, child.output,
+        childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      getRelNode(
-        context.registeredFunction,
-        RelBuilder.makeReadRel(attrList, context))
+      val attrList = new util.ArrayList[Attribute](child.output.asJava)
+      getRelNode(context.registeredFunction, leftCondition, child.output,
+        RelBuilder.makeReadRel(attrList, context), validation = false)
     }
-
     if (currRel == null) {
       return childCtx
     }
@@ -185,30 +219,29 @@ case class FilterExecTransformer(
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
-  def prepareFilterRel(args: java.lang.Object,
-                       condExpr: Expression,
-                       originalInputAttributes: Seq[Attribute],
-                       input: RelNode,
-                       validation: Boolean): RelNode = {
+  def getRelNode(args: java.lang.Object,
+                 condExpr: Expression,
+                 originalInputAttributes: Seq[Attribute],
+                 input: RelNode,
+                 validation: Boolean): RelNode = {
     if (condExpr == null) {
-      input
+      return input
+    }
+    val columnarCondExpr: Expression = ExpressionConverter
+      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
+    val condExprNode =
+      columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!validation) {
+      RelBuilder.makeFilterRel(input, condExprNode)
     } else {
-      val columnarCondExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-      val condExprNode =
-        columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!validation) {
-        RelBuilder.makeFilterRel(input, condExprNode)
-      } else {
-        // Use a extension node to send the input types through Substrait plan for validation.
-        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-        for (attr <- originalInputAttributes) {
-          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        }
-        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-          Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
-        RelBuilder.makeFilterRel(input, condExprNode, extensionNode)
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+      RelBuilder.makeFilterRel(input, condExprNode, extensionNode)
     }
   }
 }
