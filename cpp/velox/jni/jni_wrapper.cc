@@ -47,8 +47,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
   gluten::SetBackendFactory(
       [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
-  auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
-  veloxInitializer->Init();
+  static auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
 }
 
 JNIEXPORT jboolean JNICALL
