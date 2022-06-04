@@ -169,9 +169,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       }
     }
     for (attr <- childCtx.outputAttributes) {
-      // ============================================
-      // outNames.add(attr.name)
-      outNames.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
+      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
     }
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)

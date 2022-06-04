@@ -78,6 +78,10 @@ object ConverterUtils extends Logging {
     }
   }
 
+  def genColumnNameWithExprId(attr: Attribute): String = {
+    ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id
+  }
+
   def getResultAttrFromExpr(
       fieldExpr: Expression,
       name: String = "None",

@@ -75,12 +75,12 @@ object DSV2BenchmarkTest {
       val sessionBuilderTmp1 = sessionBuilderTmp
         .master("local[3]")
         .config("spark.driver.memory", "4G")
-        .config("spark.driver.memoryOverhead", "6G")
+        .config("spark.driver.memoryOverhead", "12G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
         .config("spark.sql.shuffle.partitions", 3)
         .config("spark.sql.adaptive.enabled", "false")
-        .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
+        .config("spark.sql.files.maxPartitionBytes", 128 << 10 << 10) // default is 128M
         .config("spark.sql.files.minPartitionNum", "1")
         .config("spark.sql.parquet.filterPushdown", "true")
         .config("spark.locality.wait", "0s")
@@ -103,10 +103,11 @@ object DSV2BenchmarkTest {
         .config("spark.gluten.sql.columnar.columnartorow", "false")
         .config("spark.gluten.sql.columnar.backend.lib", "ch")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+        .config("spark.gluten.sql.columnar.backend.ch.use.v2", "true")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH,
-          "/data1/clickhouse-compile/libch.so")
+          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/cmake-build-release/utils/local-engine/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
@@ -119,7 +120,7 @@ object DSV2BenchmarkTest {
         .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
-        .config("spark.memory.offHeap.size", "6442450944")
+        .config("spark.memory.offHeap.size", "10737418240")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -164,8 +165,10 @@ object DSV2BenchmarkTest {
     // testSQL(spark, parquetFilesPath, fileFormat, executedCnt, sqlStr.mkString)
 
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
+    // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    testTPCHAll(spark)
+    testTPCHAll(spark, executedCnt)
+    // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
     if (stopFlagFile.isEmpty) {
@@ -179,66 +182,53 @@ object DSV2BenchmarkTest {
     System.out.println("finished")
   }
 
-  def testTPCHAll(spark: SparkSession): Unit = {
-    val df = spark.sql(
-      s"""
-         |SELECT
-         |    l_shipmode,
-         |    extract(year FROM o_orderdate) as o_year,
-         |    extract(month FROM o_orderdate) as o_month,
-         |    100.00 * sum(
-         |        CASE WHEN p_type LIKE 'PROMO%' THEN
-         |            l_extendedprice * (1 - l_discount)
-         |        ELSE
-         |            0
-         |        END) / sum(l_extendedprice * (1 - l_discount)) AS promo_revenue,
-         |    sum(
-         |        CASE WHEN o_orderpriority = '1-URGENT'
-         |            OR o_orderpriority = '2-HIGH' THEN
-         |            1
-         |        ELSE
-         |            0
-         |        END) AS high_line_count,
-         |    sum(
-         |        CASE WHEN o_orderpriority <> '1-URGENT'
-         |            AND o_orderpriority <> '2-HIGH' THEN
-         |            1
-         |        ELSE
-         |            0
-         |        END) AS low_line_count,
-         |    sum(
-         |        CASE WHEN o_orderpriority = '1-URGENT' THEN
-         |            1
-         |        ELSE
-         |            0
-         |        END) AS mkt_share,
-         |    min(l_extendedprice), max(l_extendedprice)
-         |FROM
-         |    ch_lineitem,
-         |    ch_part,
-         |    ch_orders
-         |WHERE
-         |    l_partkey = p_partkey
-         |    AND o_orderkey = l_orderkey
-         |    AND l_shipdate >= date'1995-09-01'
-         |    AND l_shipmode IN ('MAIL', 'SHIP', 'AIR', 'AIR REG', 'B', 'A', 'C', 'R', 'E')
-         |    AND o_comment NOT LIKE '%special%requests%'
-         |    AND l_shipdate < date'1995-09-01' + interval 1 month
-         |GROUP BY
-         |    l_shipmode,
-         |    o_year,
-         |    o_month
-         |ORDER BY
-         |    l_shipmode;
-         |
-         |""".stripMargin) //.show(30, false)
-    df.explain(false)
-    val result = df.collect()  // .show(100, false)  //.collect()
-    println(result.size)
-    result.foreach(r => println(r.mkString(",")))
-    // .show(30, false)
-    // .explain(false)
-    // .collect()
+  def testTPCHAll(spark: SparkSession, executedCnt: Int): Unit = {
+    val tookTimeArr = ArrayBuffer[Long]()
+    for (i <- 1 to executedCnt) {
+      val startTime = System.nanoTime()
+      val df = spark.sql(
+        s"""
+           |SELECT
+           |    o_orderpriority,
+           |    count(*) AS order_count
+           |FROM
+           |    ch_orders
+           |WHERE
+           |    o_orderdate >= date'1993-07-01'
+           |    AND o_orderdate < date'1993-07-01' + interval 3 month
+           |    AND EXISTS (
+           |        SELECT
+           |            *
+           |        FROM
+           |            ch_lineitem
+           |        WHERE
+           |            l_orderkey = o_orderkey
+           |            AND l_commitdate < l_receiptdate)
+           |GROUP BY
+           |    o_orderpriority
+           |ORDER BY
+           |    o_orderpriority;
+           |
+           |""".stripMargin) //.show(30, false)
+      df.explain(false)
+      val result = df.collect() // .show(100, false)  //.collect()
+      println(result.size)
+      result.foreach(r => println(r.mkString(",")))
+      // .show(30, false)
+      // .explain(false)
+      // .collect()
+      val tookTime = (System.nanoTime() - startTime) / 1000000
+      println(s"Execute ${i} time, time: ${tookTime}")
+      tookTimeArr += tookTime
+    }
+
+    println(tookTimeArr.mkString(","))
+
+    if (executedCnt >= 10) {
+      import spark.implicits._
+      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+      df.summary().show(100, false)
+    }
   }
 
   def testJoinIssue(spark: SparkSession): Unit = {
@@ -368,6 +358,55 @@ object DSV2BenchmarkTest {
          |    p_size
          |
          |""".stripMargin).explain(true) // .show(30, false) // .explain(true) */
+  }
+
+  def benchmarkTPCH(spark: SparkSession, executedCnt: Int): Unit = {
+    val tookTimeArr = ArrayBuffer[Long]()
+    for (i <- 1 to executedCnt) {
+      val startTime = System.nanoTime()
+      val df = spark.sql(
+        s"""
+           |SELECT
+           |    l_orderkey,
+           |    sum(l_extendedprice * (1 - l_discount)) AS revenue,
+           |    o_orderdate,
+           |    o_shippriority
+           |FROM
+           |    ch_customer,
+           |    ch_orders,
+           |    ch_lineitem
+           |WHERE
+           |    c_mktsegment = 'BUILDING'
+           |    AND c_custkey = o_custkey
+           |    AND l_orderkey = o_orderkey
+           |    AND o_orderdate < date'1995-03-15'
+           |    AND l_shipdate > date'1995-03-15'
+           |GROUP BY
+           |    l_orderkey,
+           |    o_orderdate,
+           |    o_shippriority
+           |ORDER BY
+           |    revenue DESC,
+           |    o_orderdate
+           |LIMIT 10;
+           |
+           |
+           |
+           |""".stripMargin) //.show(30, false)
+      // df.explain(false)
+      val result = df.collect()  // .show(100, false)  //.collect()
+      println(result.size)
+      // result.foreach(r => println(r.mkString(",")))
+      val tookTime = (System.nanoTime() - startTime) / 1000000
+      println(s"Execute ${i} time, time: ${tookTime}")
+      tookTimeArr += tookTime
+    }
+
+    println(tookTimeArr.mkString(","))
+
+    import spark.implicits._
+    val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+    df.summary().show(100, false)
   }
 
   def testSerializeFromObjectExec(spark: SparkSession): Unit = {
@@ -1187,5 +1226,29 @@ object DSV2BenchmarkTest {
     dataSourceMap.foreach {
       case (key, value) => value.createOrReplaceTempView(key)
     }
+  }
+
+  def createGlobalTempView(spark: SparkSession): Unit = {
+    spark.sql(s"""DROP VIEW IF EXISTS global_temp.view_lineitem;""")
+    spark.sql(
+      s"""
+         |CREATE OR REPLACE GLOBAL TEMPORARY VIEW view_lineitem
+         |AS SELECT * FROM lineitem;
+         |
+         |""".stripMargin)
+    spark.sql(s"""DROP VIEW IF EXISTS global_temp.view_orders;""")
+    spark.sql(
+      s"""
+         |CREATE OR REPLACE GLOBAL TEMPORARY VIEW view_orders
+         |AS SELECT * FROM orders;
+         |""".stripMargin)
+    spark.sql(
+      s"""
+         |SHOW VIEWS IN global_temp;
+         |""".stripMargin).show(100, false)
+    spark.sql(
+      s"""
+         |SHOW VIEWS;
+         |""".stripMargin).show(100, false)
   }
 }

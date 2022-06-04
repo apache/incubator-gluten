@@ -82,7 +82,7 @@ public class RelBuilder {
     ConverterUtils$ converter = ConverterUtils$.MODULE$;
     for (Attribute attr : attributes) {
       typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
-      nameList.add(attr.name());
+      nameList.add(converter.genColumnNameWithExprId(attr));
     }
 
     // The iterator index will be added in the path of LocalFiles.

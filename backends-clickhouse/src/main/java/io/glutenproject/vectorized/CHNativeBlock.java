@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -76,7 +76,7 @@ public class CHNativeBlock {
   public ColumnarBatch toColumnarBatch() {
     ColumnVector[] vectors = new ColumnVector[numColumns()];
     for (int i = 0; i < numColumns(); i++) {
-      vectors[i] = new CHColumnVector(DataType.fromDDL(getTypeByPosition(i)), blockAddress, i);
+      vectors[i] = new CHColumnVector(CHExecUtil.inferSparkDataType(getTypeByPosition(i)), blockAddress, i);
     }
     int numRows = 0;
     if (numColumns() != 0) {
