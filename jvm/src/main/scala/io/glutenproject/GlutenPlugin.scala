@@ -23,7 +23,7 @@ import scala.language.implicitConversions
 
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.{ColumnarOverrides, StrategyOverrides}
+import io.glutenproject.extension.{ColumnarOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import java.util
 import org.apache.spark.{SparkConf, SparkContext}
@@ -125,7 +125,8 @@ private[glutenproject] object GlutenPlugin {
    */
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
     ColumnarOverrides,
-    StrategyOverrides
+    StrategyOverrides,
+    OthersExtensionOverrides
   )
 
   implicit def sparkConfImplicit(conf: SparkConf): SparkConfImplicits = {

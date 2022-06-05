@@ -56,35 +56,8 @@ class FileSourceScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[InputPartition] = {
-    // TODO: Support bucketed reads
-    val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
-    val maxSplitBytes =
-      FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
-    logInfo(
-      s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
-        s"open cost is considered as scanning $openCostInBytes bytes.")
-
-    val splitFiles = selectedPartitions
-      .flatMap { partition =>
-        partition.files.flatMap { file =>
-          // getPath() is very expensive so we only want to call it once in this block:
-          val filePath = file.getPath
-          val isSplitable =
-            relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
-          PartitionedFileUtil.splitFiles(
-            sparkSession = relation.sparkSession,
-            file = file,
-            filePath = filePath,
-            isSplitable = isSplitable,
-            maxSplitBytes = maxSplitBytes,
-            partitionValues = partition.values)
-        }
-      }
-      .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
-
-    FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
-  }
+  override def getPartitions: Seq[InputPartition] =
+    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(relation, selectedPartitions)
 
   override lazy val supportsColumnar: Boolean = {
     relation.fileFormat

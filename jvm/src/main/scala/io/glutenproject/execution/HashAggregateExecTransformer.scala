@@ -403,8 +403,10 @@ case class HashAggregateExecTransformer(
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(expr => {
+      // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
+      // may be different for each backend.
       val groupingExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(expr, originalInputAttributes)
+        .replaceWithExpressionTransformer(expr, child.output)
       val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
       groupingList.add(exprNode)
     })

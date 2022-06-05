@@ -18,9 +18,6 @@ package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
 import java.util.OptionalLong
 
-import scala.collection.mutable.ArrayBuffer
-
-import io.glutenproject.execution.NativeMergeTreePartition
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.sql.connector.read._
@@ -29,9 +26,9 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
+import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitionsUtil
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.execution.datasources.v2.FileScan
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -59,53 +56,8 @@ case class ClickHouseScan(
 
   protected def getSnapshot(): Snapshot = table.updateSnapshot()
 
-  def getPartsPartitions(
-                          sparkSession: SparkSession,
-                          partsFiles: Seq[AddMergeTreeParts],
-                          maxSplitBytes: Long): Seq[InputPartition] = {
-    val partitions = new ArrayBuffer[InputPartition]
-    val database = table.catalogTable.get.identifier.database.get
-    val tableName = table.catalogTable.get.identifier.table
-    val engine = table.snapshot.metadata.configuration.get("engine").get
-    val tablePath = table.deltaLog.dataPath.toString.substring(6)
-    var currentMinPartsNum = -1L
-    var currentMaxPartsNum = -1L
-    var currentSize = 0L
-
-    /** Close the current partition and move to the next. */
-    def closePartition(): Unit = {
-      if (currentMinPartsNum > 0L && currentMaxPartsNum >= currentMinPartsNum) {
-        val newPartition = NativeMergeTreePartition(partitions.size, engine, database, tableName,
-          tablePath, currentMinPartsNum, currentMaxPartsNum + 1)
-        partitions += newPartition
-      }
-      currentMinPartsNum = -1L
-      currentMaxPartsNum = -1L
-      currentSize = 0
-    }
-
-    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
-    // Assign files to partitions using "Next Fit Decreasing"
-    partsFiles.foreach { parts =>
-      if (currentSize + parts.bytesOnDisk > maxSplitBytes) {
-        closePartition()
-      }
-      // Add the given file to the current partition.
-      currentSize += parts.bytesOnDisk + openCostInBytes
-      if (currentMinPartsNum == -1L) {
-        currentMinPartsNum = parts.minBlockNumber
-      }
-      currentMaxPartsNum = parts.maxBlockNumber
-    }
-    closePartition()
-    partitions.toSeq
-  }
-
-  protected def partsPartitions: Seq[InputPartition] = {
-    val defaultMaxSplitBytes = sparkSession.sessionState.conf.filesMaxPartitionBytes
-    val allParts = table.listFiles()
-    getPartsPartitions(sparkSession, allParts, defaultMaxSplitBytes)
-  }
+  protected def partsPartitions: Seq[InputPartition] =
+    MergeTreePartsPartitionsUtil.getPartsPartitions(sparkSession, table)
 
   override def planInputPartitions(): Array[InputPartition] = partsPartitions.toArray
 

@@ -21,11 +21,13 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
-
+import io.glutenproject.utils.InputPartitionsUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
-import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 
 class CHTransformerApi extends ITransformerApi with Logging {
 
@@ -66,6 +68,20 @@ class CHTransformerApi extends ITransformerApi with Logging {
    * @return true if backend supports reading the file format.
    */
   def supportsReadFileFormat(fileFormat: FileFormat): Boolean = true
+
+  /**
+   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
+   */
+  def genInputPartitionSeq(relation: HadoopFsRelation,
+                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
+    if (relation.location.isInstanceOf[ClickHouseFileIndex]) {
+      // Generate NativeMergeTreePartition for MergeTree
+      relation.location.asInstanceOf[ClickHouseFileIndex].partsPartitions
+    } else {
+      // Generate FilePartition for Parquet
+      InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+    }
+  }
 
   /**
    * Get the backend api name.

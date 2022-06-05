@@ -17,6 +17,8 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.table
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.{DataFrame, SaveMode}
 
 import java.util.concurrent.TimeUnit
 import java.{util => ju}
@@ -24,10 +26,14 @@ import org.sparkproject.guava.cache.{CacheBuilder, CacheLoader}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.delta.actions.{AddFile, SingleAction}
+import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseConfig, ClickHouseLog}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScanBuilder
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.{ClickHouseScanBuilder, ClickHouseWriteBuilder}
+import org.apache.spark.sql.sources.InsertableRelation
 
 // scalastyle:off import.ordering.noEmptyLine
 import scala.collection.JavaConverters._
@@ -64,6 +70,7 @@ case class ClickHouseTableV2(
   extends Table
   with SupportsWrite
   with SupportsRead
+  with V2TableWithV1Fallback
   with DeltaLogging {
 
   private lazy val (rootPath, partitionFilters, timeTravelByPath) = {
@@ -143,15 +150,29 @@ case class ClickHouseTableV2(
 
   override def capabilities(): ju.Set[TableCapability] = Set(
     ACCEPT_ANY_SCHEMA, BATCH_READ,
-    BATCH_WRITE, OVERWRITE_BY_FILTER, TRUNCATE
+    BATCH_WRITE, V1_BATCH_WRITE, OVERWRITE_BY_FILTER, TRUNCATE
   ).asJava
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    throw new UnsupportedOperationException("Do not support write data now.")
+    new ClickHouseWriteBuilder(spark, this, deltaLog, info)
   }
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
     new ClickHouseScanBuilder(spark, this, tableSchema, options)
+  }
+
+  /**
+   * Return V1Table.
+   */
+  override def v1Table: CatalogTable = {
+    if (catalogTable.isEmpty) {
+      throw new IllegalStateException("v1Table call is not expected with path based DeltaTableV2")
+    }
+    if (timeTravelSpec.isDefined) {
+      catalogTable.get.copy(stats = None)
+    } else {
+      catalogTable.get
+    }
   }
 
   /**
@@ -167,8 +188,42 @@ case class ClickHouseTableV2(
     val partitionPredicates = DeltaDataSource.verifyAndCreatePartitionFilters(
       path.toString, snapshot, partitionFilters)
 
-    deltaLog.createRelation(
+    createV1Relation(
       partitionPredicates, Some(snapshot), timeTravelSpec.isDefined, options)
+  }
+
+  /**
+   * Create ClickHouseFileIndex and HadoopFsRelation for DS V1.
+   */
+  def createV1Relation(
+                      partitionFilters: Seq[Expression] = Nil,
+                      snapshotToUseOpt: Option[Snapshot] = None,
+                      isTimeTravelQuery: Boolean = false,
+                      cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty
+                    ): BaseRelation = {
+    val snapshotToUse = snapshotToUseOpt.getOrElse(deltaLog.snapshot)
+    if (snapshotToUse.version < 0) {
+      // A negative version here means the dataPath is an empty directory. Read query should error
+      // out in this case.
+      throw DeltaErrors.pathNotExistsException(deltaLog.dataPath.toString)
+    }
+    val fileIndex = ClickHouseFileIndex(
+      spark, deltaLog, deltaLog.dataPath, this, snapshotToUse, partitionFilters)
+    var bucketSpec: Option[BucketSpec] = None
+    new HadoopFsRelation(
+      fileIndex,
+      partitionSchema = snapshotToUse.metadata.partitionSchema,
+      dataSchema = GeneratedColumn.removeGenerationExpressions(
+        SchemaUtils.dropNullTypeColumns(snapshotToUse.metadata.schema)
+      ),
+      bucketSpec = bucketSpec,
+      snapshotToUse.fileFormat,
+      snapshotToUse.metadata.format.options)(spark) with InsertableRelation {
+      def insert(data: DataFrame, overwrite: Boolean): Unit = {
+        val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
+        // Insert MergeTree data through DataSource V1
+      }
+    }
   }
 
   /**
@@ -195,6 +250,7 @@ case class ClickHouseTableV2(
 
   def listFiles(partitionFilters: Seq[Expression] = Seq.empty[Expression],
                 partitionColumnPrefixes: Seq[String] = Nil): Seq[AddMergeTreeParts] = {
+    // TODO: Refresh cache after writing data.
     val allParts = ClickHouseTableV2.fileStatusCache.get(this.rootPath)
     allParts
   }
