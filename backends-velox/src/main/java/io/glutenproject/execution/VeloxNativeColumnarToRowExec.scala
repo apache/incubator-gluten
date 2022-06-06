@@ -24,15 +24,16 @@ import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToR
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.vectorized.ColumnVector
+
+import java.util.Objects
 
 class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
@@ -41,6 +42,14 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
   override def supportCodegen: Boolean = false
 
   override def buildCheck(): Unit = {
+    val arrowVectorTypeName = classOf[ArrowWritableColumnVector].getName
+    // FIXME: We may define output vector types to all supported SQL operators via #vectorTypes().
+    val vectorTypes = child.vectorTypes.getOrElse(
+      Seq.fill(output.indices.size)(arrowVectorTypeName))
+    if (vectorTypes.exists(s => !Objects.equals(s, arrowVectorTypeName))) {
+      throw new UnsupportedOperationException(
+        "Input contains unsupported vector type: " + vectorTypes)
+    }
     val schema = child.schema
     for (field <- schema.fields) {
       field.dataType match {
