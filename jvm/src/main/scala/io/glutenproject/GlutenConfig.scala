@@ -29,6 +29,7 @@ case class GlutenNumaBindingInfo(
 
 class GlutenConfig(conf: SQLConf) extends Logging {
   def getCpu: Boolean = {
+    return true
     // only for developing on mac
     if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac")) {
       true
