@@ -22,11 +22,10 @@ import java.util
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import io.glutenproject.extension.filterSeparator
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -79,17 +78,44 @@ case class FilterExecTransformer(
     }
   }
 
+  // Flatten the condition connected with 'And'. Return the filter conditions with sequence.
+  def flattenCondition(condition: Expression) : Seq[Expression] = {
+    var expressions: Seq[Expression] = Seq()
+    condition match {
+      case and: And =>
+        and.children.foreach(expression => {
+          expressions ++= flattenCondition(expression)
+        })
+      case _ =>
+        expressions = expressions :+ condition
+    }
+    expressions
+  }
+
+  // Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
+  // scanFilters: the conditions pushed down into Scan.
+  // filters: the conditions in the Filter after the Scan.
+  // Return the filter condition which is not pushed down into Scan.
+  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Expression = {
+    var leftFilters: Seq[Expression] = Seq()
+    for (expression <- filters) {
+      if (!scanFilters.exists(_.semanticEquals(expression))) {
+        leftFilters = leftFilters :+ expression.clone()
+      }
+    }
+    leftFilters.reduceLeftOption(And).orNull
+  }
+
   override def doValidate(): Boolean = {
     val scanFilters = getScanFilters
     val leftCondition = if (scanFilters.isEmpty) {
       condition
     } else {
-      filterSeparator
-        .getLeftFilters(scanFilters, filterSeparator.flattenCondition(condition))
+      getLeftFilters(scanFilters, flattenCondition(condition))
     }
-    // All the filters can be pushed down and the computing of this Filter
-    // is not needed.
     if (leftCondition == null) {
+      // All the filters can be pushed down and the computing of this Filter
+      // is not needed.
       return true
     }
     val substraitContext = new SubstraitContext
@@ -181,11 +207,10 @@ case class FilterExecTransformer(
     val leftCondition = if (scanFilters.isEmpty) {
       condition
     } else {
-      filterSeparator
-        .getLeftFilters(scanFilters, filterSeparator.flattenCondition(condition))
+      getLeftFilters(scanFilters, flattenCondition(condition))
     }
-    // The computing for this filter is not needed.
     if (leftCondition == null) {
+      // The computing for this filter is not needed.
       return childCtx
     }
     val currRel = if (childCtx != null) {
@@ -267,7 +292,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, null, validation = true)
+      getRelNode(substraitContext.registeredFunction, projectList, child.output,
+        null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -327,11 +353,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object, childRel: RelNode,
-                 validation: Boolean = false): RelNode = {
-    prepareProjectRel(args, projectList, child.output, childRel, validation)
-  }
-
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
@@ -340,7 +361,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         null
     }
     val currRel = if (childCtx != null) {
-      getRelNode(context.registeredFunction, childCtx.root)
+      getRelNode(context.registeredFunction, projectList, child.output,
+        childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
@@ -349,7 +371,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context)
-      getRelNode(context.registeredFunction, readRel)
+      getRelNode(context.registeredFunction, projectList, child.output,
+        readRel, validation = false)
     }
 
     if (currRel == null) {
@@ -373,11 +396,11 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
-  def prepareProjectRel(args: java.lang.Object,
-                        projectList: Seq[NamedExpression],
-                        originalInputAttributes: Seq[Attribute],
-                        input: RelNode,
-                        validation: Boolean): RelNode = {
+  def getRelNode(args: java.lang.Object,
+                 projectList: Seq[NamedExpression],
+                 originalInputAttributes: Seq[Attribute],
+                 input: RelNode,
+                 validation: Boolean): RelNode = {
     if (projectList == null || projectList.isEmpty) {
       input
     } else {

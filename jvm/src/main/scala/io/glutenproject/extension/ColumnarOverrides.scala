@@ -346,34 +346,3 @@ object ColumnarOverrides extends GlutenSparkExtensionsInjector {
     extensions.injectColumnar(ColumnarOverrideRules)
   }
 }
-
-object filterSeparator {
-
-  // Flatten the condition connected with 'And'. Return the filter conditions with sequence.
-  def flattenCondition(condition: Expression) : Seq[Expression] = {
-    var expressions: Seq[Expression] = Seq()
-    condition match {
-      case and: And =>
-        and.children.foreach(expression => {
-          expressions ++= flattenCondition(expression)
-        })
-      case _ =>
-        expressions = expressions :+ condition
-    }
-    expressions
-  }
-
-  // Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
-  // scanFilters: the conditions pushed down into Scan.
-  // filters: the conditions in the Filter after the Scan.
-  // Return the filter condition which is not pushed down into Scan.
-  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Expression = {
-    var leftFilters: Seq[Expression] = Seq()
-    for (expression <- filters) {
-      if (!scanFilters.exists(_.semanticEquals(expression))) {
-        leftFilters = leftFilters :+ expression.clone()
-      }
-    }
-    leftFilters.reduceLeftOption(And).orNull
-  }
-}
