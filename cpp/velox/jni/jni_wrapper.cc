@@ -58,8 +58,18 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
   auto planSize = env->GetArrayLength(planArray);
   ::substrait::Plan subPlan;
   ParseProtobuf(planData, planSize, &subPlan);
+
+  // A query context used for function validation.
+  std::shared_ptr<core::QueryCtx> queryCtx_{core::QueryCtx::createForTest()};
+  // A memory pool used for function validation.
+  std::unique_ptr<memory::MemoryPool> pool_ = memory::getDefaultScopedMemoryPool();
+  // An execution context used for function validation.
+  std::unique_ptr<core::ExecCtx> execCtx_ =
+      std::make_unique<core::ExecCtx>(pool_.get(), queryCtx_.get());
+
   auto planValidator =
-      std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>();
+      std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>(
+          pool_.get(), execCtx_.get());
   return planValidator->validate(subPlan);
 }
 

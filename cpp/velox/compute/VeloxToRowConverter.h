@@ -41,11 +41,10 @@ class VeloxToRowConverter : public gluten::columnartorow::ColumnarToRowConverter
   arrow::Status Write() override;
 
  private:
+  void ResumeVeloxVector();
+
   std::vector<VectorPtr> vecs_;
   std::shared_ptr<arrow::Schema> schema_;
-  std::unique_ptr<memory::MemoryPool> velox_pool_{memory::getDefaultScopedMemoryPool()};
-
-  void ResumeVeloxVector();
 };
 
 }  // namespace compute
