@@ -66,7 +66,6 @@ jobs:
           mvn clean package -Pbackends-gazelle -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
       - name: Run unit tests
         run: |
-          mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox
           cd cpp/
           mkdir -p build
           cd build
@@ -120,6 +119,7 @@ jobs:
           mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
       - name: Run unit tests
         run: |
+          mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox
           cd cpp/
           mkdir -p build
           cd build
