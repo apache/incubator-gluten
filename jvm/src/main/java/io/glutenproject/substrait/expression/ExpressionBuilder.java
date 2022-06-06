@@ -113,7 +113,7 @@ public class ExpressionBuilder {
             if (obj == null) {
                 return makeNullLiteral(TypeBuilder.makeString(nullable));
             } else {
-                return makeStringLiteral((String) obj);
+                return makeStringLiteral(obj.toString());
             }
         } else {
             throw new UnsupportedOperationException(
