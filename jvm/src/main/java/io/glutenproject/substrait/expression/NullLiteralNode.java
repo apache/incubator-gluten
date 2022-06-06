@@ -15,15 +15,28 @@
  * limitations under the License.
  */
 
-package io.glutenproject.expression
+package io.glutenproject.substrait.expression;
 
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.sql.catalyst.expressions._
+import io.glutenproject.substrait.type.TypeNode;
+import io.substrait.proto.Expression;
 
-class LiteralTransformer(lit: Literal)
-  extends Literal(lit.value, lit.dataType) with ExpressionTransformer {
+import java.io.Serializable;
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    ExpressionBuilder.makeLiteral(lit.value, dataType, nullable)
-  }
+public class NullLiteralNode implements ExpressionNode, Serializable {
+    private final TypeNode typeNode;
+
+    public NullLiteralNode(TypeNode typeNode) {
+        this.typeNode = typeNode;
+    }
+
+    @Override
+    public Expression toProtobuf() {
+        Expression.Literal.Builder literalBuilder =
+                Expression.Literal.newBuilder();
+        literalBuilder.setNull(typeNode.toProtobuf());
+
+        Expression.Builder builder = Expression.newBuilder();
+        builder.setLiteral(literalBuilder.build());
+        return builder.build();
+    }
 }

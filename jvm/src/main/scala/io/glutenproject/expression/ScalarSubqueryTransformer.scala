@@ -17,7 +17,8 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
@@ -38,6 +39,19 @@ class ScalarSubqueryTransformer(
   override def productElement(n: Int): Any = query.productElement(n)
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: ScalarSubquery.")
+    // the first column in first row from `query`.
+    val rows = query.plan.executeCollect()
+    if (rows.length > 1) {
+      sys.error(s"more than one row returned by a subquery used as an expression:\n${query.plan}")
+    }
+    val result: AnyRef = if (rows.length == 1) {
+      assert(rows(0).numFields == 1,
+        s"Expects 1 field, but got ${rows(0).numFields}; something went wrong in analysis")
+      rows(0).get(0, dataType)
+    } else {
+      // If there is no rows returned, the result should be null.
+      null
+    }
+    ExpressionBuilder.makeLiteral(result, dataType, nullable)
   }
 }

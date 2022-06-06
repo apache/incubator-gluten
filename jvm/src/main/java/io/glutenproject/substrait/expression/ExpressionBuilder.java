@@ -17,7 +17,9 @@
 
 package io.glutenproject.substrait.expression;
 
+import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
+import org.apache.spark.sql.types.*;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -36,6 +38,10 @@ public class ExpressionBuilder {
         } else {
             return functionMap.get(functionName);
         }
+    }
+
+    public static NullLiteralNode makeNullLiteral(TypeNode typeNode) {
+        return new NullLiteralNode(typeNode);
     }
 
     public static IntLiteralNode makeIntLiteral(Integer intConstant) {
@@ -76,6 +82,43 @@ public class ExpressionBuilder {
 
     public static StringListNode makeStringList(ArrayList<String> strConstants) {
         return new StringListNode(strConstants);
+    }
+
+    public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
+        if (dataType instanceof IntegerType) {
+            if (obj == null) {
+                return makeNullLiteral(TypeBuilder.makeI32(nullable));
+            } else {
+                return makeIntLiteral((Integer) obj);
+            }
+        } else if (dataType instanceof LongType) {
+            if (obj == null) {
+                return makeNullLiteral(TypeBuilder.makeI64(nullable));
+            } else {
+                return makeLongLiteral((Long) obj);
+            }
+        } else if (dataType instanceof DoubleType) {
+            if (obj == null) {
+                return makeNullLiteral(TypeBuilder.makeFP64(nullable));
+            } else {
+                return makeDoubleLiteral((Double) obj);
+            }
+        } else if (dataType instanceof DateType) {
+            if (obj == null) {
+                return makeNullLiteral(TypeBuilder.makeDate(nullable));
+            } else {
+                return makeDateLiteral((Integer) obj);
+            }
+        } else if (dataType instanceof StringType) {
+            if (obj == null) {
+                return makeNullLiteral(TypeBuilder.makeString(nullable));
+            } else {
+                return makeStringLiteral(obj.toString());
+            }
+        } else {
+            throw new UnsupportedOperationException(
+                    String.format("Type not supported: %s.", dataType.toString()));
+        }
     }
 
     public static ScalarFunctionNode makeScalarFunction(
