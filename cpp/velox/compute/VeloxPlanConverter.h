@@ -103,7 +103,6 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
   std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> arrowInputIters_;
-  std::shared_ptr<ArrowArrayStream> arrowStreamIter_;
 
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
   void setInputPlanNode(const ::substrait::ProjectRel& sproject);

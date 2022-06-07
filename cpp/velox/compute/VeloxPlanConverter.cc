@@ -147,8 +147,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
 
   // Create ArrowArrayStream.
   struct ArrowArrayStream veloxArrayStream;
-  arrow::ExportRecordBatchReader(reader, &veloxArrayStream);
-  arrowStreamIter_ = std::make_shared<ArrowArrayStream>(veloxArrayStream);
+  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatchReader(reader, &veloxArrayStream));
+  auto arrowStream = std::make_shared<ArrowArrayStream>(veloxArrayStream);
 
   // Create Velox ArrowStream node.
   std::vector<TypePtr> veloxTypeList;
@@ -157,7 +157,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto arrowStreamNode = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(), outputType, arrowStreamIter_);
+      nextPlanNodeId(), outputType, arrowStream);
   subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
 }
 
