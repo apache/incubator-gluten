@@ -31,9 +31,22 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object CHExecUtil {
+
+  def inferSparkDataType(typeName: String): DataType = typeName match {
+    case "Date" => DateType
+    case "Float" => FloatType
+    case "Double" => DoubleType
+    case "Integer" => IntegerType
+    case "Long" => LongType
+    case "Byte" => ByteType
+    case "Short" => ShortType
+    case "String" => StringType
+    case "Binary" => BinaryType
+  }
 
   def genShuffleDependency(rdd: RDD[ColumnarBatch],
                            outputAttributes: Seq[Attribute],
@@ -57,7 +70,7 @@ object CHExecUtil {
         val fields = exprs.zipWithIndex.map {
           case (expr, i) =>
             val attr = ConverterUtils.getAttrFromExpr(expr)
-            attr.name
+            ConverterUtils.genColumnNameWithExprId(attr)
         }
         new NativePartitioning(
           "hash",

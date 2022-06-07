@@ -41,6 +41,8 @@ public class CHStreamReader implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
+    // close input stream and release buffer
+    this.inputStream.close();
     nativeClose(nativeShuffleReader);
     nativeShuffleReader = 0L;
   }

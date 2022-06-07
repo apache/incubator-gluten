@@ -106,7 +106,10 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
-          if (cb != null) cb = null
+          if (cb != null) {
+            cb.close()
+            cb = null
+          }
           if (reader != null) reader.close()
           isClosed = true
         }

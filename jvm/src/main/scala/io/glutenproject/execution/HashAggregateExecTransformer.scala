@@ -205,7 +205,7 @@ case class HashAggregateExecTransformer(
         val nameList = new util.ArrayList[String]()
         for (attr <- aggregateResultAttributes) {
           typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-          nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
+          nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
         }
         // The iterator index will be added in the path of LocalFiles.
         val inputIter = LocalFilesBuilder.makeLocalFiles(

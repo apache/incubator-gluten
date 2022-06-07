@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized;
 
-import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -46,7 +46,7 @@ public class BatchIterator extends GeneralOutIterator {
     int cols = nativeBlock.numColumns();
     ColumnVector[] columnVectors = new ColumnVector[cols];
     for (int i = 0; i < cols; i++) {
-      columnVectors[i] = new CHColumnVector(DataType.fromDDL(nativeBlock.getTypeByPosition(i)), block, i);
+      columnVectors[i] = new CHColumnVector(CHExecUtil.inferSparkDataType(nativeBlock.getTypeByPosition(i)), block, i);
     }
     return new ColumnarBatch(columnVectors, nativeBlock.numRows());
   }
