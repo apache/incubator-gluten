@@ -126,6 +126,7 @@ set(VELOX_SRCS
     compute/VeloxPlanConverter.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxToRowConverter.cc
+    compute/DwrfDatasource.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

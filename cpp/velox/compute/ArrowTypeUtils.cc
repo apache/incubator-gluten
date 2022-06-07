@@ -16,6 +16,7 @@
  */
 
 #include "ArrowTypeUtils.h"
+#include <iostream>
 
 using namespace facebook::velox;
 
@@ -48,6 +49,8 @@ std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
       return arrow::float64();
     case TypeKind::VARCHAR:
       return arrow::utf8();
+    case TypeKind::TIMESTAMP:
+      return arrow::timestamp(arrow::TimeUnit::MICRO);
     default:
       throw std::runtime_error("Type conversion is not supported.");
   }
@@ -69,4 +72,16 @@ const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
       // Unsupported types.
       throw std::runtime_error("Arrow type id not supported.");
   }
+}
+
+std::shared_ptr<arrow::Schema> toArrowSchema(
+    const std::shared_ptr<const RowType>& row_type) {
+  std::vector<std::shared_ptr<arrow::Field>> fields;
+  auto size = row_type->size();
+  fields.reserve(size);
+  for (auto i = 0; i < size; ++i) {
+    fields.push_back(
+        arrow::field(row_type->nameOf(i), toArrowType(row_type->childAt(i))));
+  }
+  return arrow::schema(fields);
 }

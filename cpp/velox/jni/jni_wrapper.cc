@@ -17,8 +17,13 @@
 
 #include <jni.h>
 
+#include "compute/DwrfDatasource.h"
 #include "compute/VeloxPlanConverter.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
+
+// #include "jni/jni_common.h"
+
+#include <jni/dataset/jni_util.h>
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
@@ -71,6 +76,36 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
       std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>(
           pool_.get(), execCtx_.get());
   return planValidator->validate(subPlan);
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_nativeInitDwrfDatasource(
+    JNIEnv* env, jobject obj, jstring file_path) {
+  auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
+      arrow::dataset::jni::JStringToCString(env, file_path));
+  dwrfDatasource->Init();
+  return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_inspectSchema(
+    JNIEnv* env, jobject obj, jlong instanceId) {
+  auto dwrfDatasource =
+      arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
+          instanceId);
+  auto schema = dwrfDatasource->InspectSchema();
+  return std::move(arrow::dataset::jni::ToSchemaByteArray(env, schema)).ValueOrDie();
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_close(
+    JNIEnv* env, jobject obj, jlong instanceId) {
+  auto dwrfDatasource =
+      arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
+          instanceId);
+  dwrfDatasource->Close();
+  arrow::dataset::jni::ReleaseNativeRef<::velox::compute::DwrfDatasource>(instanceId);
+  return;
 }
 
 #ifdef __cplusplus
