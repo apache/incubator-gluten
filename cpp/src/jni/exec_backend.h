@@ -161,24 +161,24 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   }
 
  protected:
-  substrait::Plan plan_;
+  ::substrait::Plan plan_;
   std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>> schema_map_;
 
   arrow::Result<std::shared_ptr<arrow::DataType>> subTypeToArrowType(
-      const substrait::Type& stype) {
+      const ::substrait::Type& stype) {
     // TODO: need to add more types here.
     switch (stype.kind_case()) {
-      case substrait::Type::KindCase::kBool:
+      case ::substrait::Type::KindCase::kBool:
         return arrow::boolean();
       case ::substrait::Type::KindCase::kI32:
         return arrow::int32();
       case ::substrait::Type::KindCase::kI64:
         return arrow::int64();
-      case substrait::Type::KindCase::kFp64:
+      case ::substrait::Type::KindCase::kFp64:
         return arrow::float64();
-      case substrait::Type::KindCase::kString:
+      case ::substrait::Type::KindCase::kString:
         return arrow::utf8();
-      case substrait::Type::KindCase::kDate:
+      case ::substrait::Type::KindCase::kDate:
         return arrow::date32();
       default:
         return arrow::Status::Invalid("Type not supported: " +
@@ -188,7 +188,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
 
  private:
   // This method is used to get the input schema in InputRel.
-  arrow::Status GetIterInputSchemaFromRel(const substrait::Rel& srel) {
+  arrow::Status GetIterInputSchemaFromRel(const ::substrait::Rel& srel) {
     // TODO: need to support more Substrait Rels here.
     if (srel.has_aggregate() && srel.aggregate().has_input()) {
       return GetIterInputSchemaFromRel(srel.aggregate().input());

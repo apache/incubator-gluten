@@ -56,3 +56,8 @@ cmake-build-release/
 *.kdev4
 *.swp
 scalastyle-output.xml
+
+# Generated C++ benchmark executables
+cpp/**/benchmarks/**/*
+!cpp/**/benchmarks/**/
+!cpp/**/benchmarks/**/*.*
