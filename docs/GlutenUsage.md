@@ -50,6 +50,8 @@ Based on the different environment, there are some parameters can be set via -D 
 | backends-clickhouse | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend | false |
 | build_velox | Enable or Disable building the CPP part of Velox backend | OFF |
 | velox_home (only valid when build_velox is ON) | The path to the compiled Velox project. When building Gluten with Velox, if you have an existing Velox, please set it. | /PATH_TO_GLUTEN/tools/build_velox/velox_ep |
+| velox_build_type | The build type Velox was built with from source code. Gluten uses this value to locate the binary path of Velox's binary libraries. | release |
+| debug_build | Whether to generate debug binary library from Gluten's C++ codes. | OFF |
 
 When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten)
 If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.
