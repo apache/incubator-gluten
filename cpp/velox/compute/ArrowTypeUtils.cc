@@ -16,7 +16,6 @@
  */
 
 #include "ArrowTypeUtils.h"
-#include <iostream>
 
 using namespace facebook::velox;
 

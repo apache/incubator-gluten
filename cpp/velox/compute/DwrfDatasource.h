@@ -18,7 +18,6 @@
 #pragma once
 
 #include <arrow/type_fwd.h>
-
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "velox/common/file/FileSystems.h"

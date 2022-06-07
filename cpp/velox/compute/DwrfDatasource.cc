@@ -16,6 +16,7 @@
  */
 
 #include "DwrfDatasource.h"
+
 #include "ArrowTypeUtils.h"
 
 using namespace facebook::velox;
