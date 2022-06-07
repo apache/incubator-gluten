@@ -33,7 +33,7 @@ object ConverterUtils extends Logging {
       case a: Cast =>
         getAttrFromExpr(a.child)
       case a: AggregateExpression =>
-        getAttrFromExpr(a.aggregateFunction.children(0))
+        getAttrFromExpr(a.aggregateFunction.children.head)
       case a: AttributeReference =>
         a
       case a: Alias =>
@@ -48,7 +48,7 @@ object ConverterUtils extends Logging {
       case a: NormalizeNaNAndZero =>
         getAttrFromExpr(a.child)
       case c: Coalesce =>
-        getAttrFromExpr(c.children(0))
+        getAttrFromExpr(c.children.head)
       case i: IsNull =>
         getAttrFromExpr(i.child)
       case a: Add =>
@@ -62,7 +62,7 @@ object ConverterUtils extends Logging {
       case u: Upper =>
         getAttrFromExpr(u.child)
       case ss: Substring =>
-        getAttrFromExpr(ss.children(0))
+        getAttrFromExpr(ss.children.head)
       case other =>
         throw new UnsupportedOperationException(
           s"makeStructField is unable to parse from $other (${other.getClass}).")
@@ -158,13 +158,13 @@ object ConverterUtils extends Logging {
 
   def ifEquals(left: Seq[AttributeReference], right: Seq[NamedExpression]): Boolean = {
     if (left.size != right.size) return false
-    for (i <- 0 until left.size) {
+    for (i <- left.indices) {
       if (left(i).exprId != right(i).exprId) return false
     }
     true
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     s"ConverterUtils"
   }
 

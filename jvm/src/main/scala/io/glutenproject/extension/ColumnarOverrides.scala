@@ -78,9 +78,15 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       ProjectExecTransformer(plan.projectList, columnarChild)
     case plan: FilterExec =>
       // Push down the left conditions in Filter into Scan.
-      val newChild = applyFilterPushdownToScan(plan)
+      val newChild = if (plan.child.isInstanceOf[FileSourceScanExec] ||
+                         plan.child.isInstanceOf[BatchScanExec]) {
+        FilterHandler.applyFilterPushdownToScan(plan)
+      } else {
+        replaceWithTransformerPlan(plan.child)
+      }
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      FilterExecTransformer(plan.condition, newChild)
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genFilterExecTransformer(plan.condition, newChild)
     case plan: HashAggregateExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -190,38 +196,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       p.withNewChildren(children)
   }
   def setAdaptiveSupport(enable: Boolean): Unit = { isSupportAdaptive = enable }
-
-  // Separate and compare the filter conditions in Scan and Filter.
-  // Push down the left conditions in Filter into Scan.
-  def applyFilterPushdownToScan(plan: FilterExec): SparkPlan = plan.child match {
-    case fileSourceScan: FileSourceScanExec =>
-      val leftFilters = filterSeparator.getLeftFilters(
-          fileSourceScan.dataFilters,
-          filterSeparator.flattenCondition(plan.condition))
-      new FileSourceScanExecTransformer(
-        fileSourceScan.relation,
-        fileSourceScan.output,
-        fileSourceScan.requiredSchema,
-        fileSourceScan.partitionFilters,
-        fileSourceScan.optionalBucketSet,
-        fileSourceScan.optionalNumCoalescedBuckets,
-        fileSourceScan.dataFilters ++ leftFilters,
-        fileSourceScan.tableIdentifier,
-        fileSourceScan.disableBucketedScan)
-    case batchScan: BatchScanExec =>
-      batchScan.scan match {
-        case scan: FileScan =>
-          val leftFilters = filterSeparator.getLeftFilters(
-            scan.dataFilters,
-            filterSeparator.flattenCondition(plan.condition))
-          new BatchScanExecTransformer(batchScan.output, batchScan.scan, leftFilters)
-        case _ =>
-          throw new UnsupportedOperationException(
-            s"${batchScan.scan.getClass.toString} is not supported.")
-      }
-    case _ =>
-      replaceWithTransformerPlan(plan.child)
-  }
 
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan)
@@ -377,53 +351,5 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectColumnar(ColumnarOverrideRules)
-  }
-}
-
-object filterSeparator {
-  // Get the original filter conditions in Scan for the comparison with those in Filter.
-  def getScanFilters(child: SparkPlan): Seq[Expression] = {
-    child match {
-      case fileSourceScan: FileSourceScanExec =>
-        fileSourceScan.dataFilters
-      case batchScan: BatchScanExec =>
-        batchScan.scan match {
-          case scan: FileScan =>
-            scan.dataFilters
-          case _ =>
-            throw new UnsupportedOperationException(
-              s"${batchScan.scan.getClass.toString} is not supported")
-        }
-      case _ =>
-        Seq()
-    }
-  }
-
-  // Flatten the condition connected with 'And'. Return the filter conditions with sequence.
-  def flattenCondition(condition: Expression) : Seq[Expression] = {
-    var expressions: Seq[Expression] = Seq()
-    condition match {
-      case and: And =>
-        and.children.foreach(expression => {
-          expressions ++= flattenCondition(expression)
-        })
-      case _ =>
-        expressions = expressions :+ condition
-    }
-    expressions
-  }
-
-  // Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
-  // scanFilters: the conditions pushed down into Scan.
-  // filters: the conditions in the Filter after the Scan.
-  // Return the filter conditions not pushed down into Scan.
-  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] = {
-    var leftFilters: Seq[Expression] = Seq()
-    for (expression <- filters) {
-      if (!scanFilters.exists(_.semanticEquals(expression))) {
-        leftFilters = leftFilters :+ expression.clone()
-      }
-    }
-    leftFilters
   }
 }

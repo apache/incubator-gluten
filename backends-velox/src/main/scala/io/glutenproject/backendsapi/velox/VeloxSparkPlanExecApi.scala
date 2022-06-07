@@ -17,18 +17,16 @@
 package io.glutenproject.backendsapi.velox
 
 import scala.collection.JavaConverters._
-
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
+import io.glutenproject.execution.{FilterExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.vectorized.ArrowColumnarBatchSerializer
 import org.apache.spark.ShuffleDependency
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -55,6 +53,16 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    */
   override def genRowToArrowColumnarExec(child: SparkPlan): RowToArrowColumnarExec =
     new VeloxRowToArrowColumnarExec(child)
+
+  /**
+   * Generate FilterExecTransformer.
+   *
+   * @param condition: the filter condition
+   * @param child: the chid of FilterExec
+   * @return the transformer of FilterExec
+   */
+  override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
+    : FilterExecBaseTransformer = VeloxFilterExecTransformer(condition, child)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.

@@ -17,13 +17,12 @@
 
 package io.glutenproject.backendsapi
 
-import io.glutenproject.execution.{NativeColumnarToRowExec, RowToArrowColumnarExec}
+import io.glutenproject.execution.{FilterExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
 import org.apache.spark.ShuffleDependency
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.SparkPlan
@@ -46,6 +45,16 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    * @return
    */
   override def genRowToArrowColumnarExec(child: SparkPlan): RowToArrowColumnarExec = null
+
+  /**
+   * Generate FilterExecTransformer.
+   *
+   * @param condition: the filter condition
+   * @param child: the chid of FilterExec
+   * @return the transformer of FilterExec
+   */
+  override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
+    : FilterExecBaseTransformer = null
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
