@@ -17,7 +17,6 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.InternalRow

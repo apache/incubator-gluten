@@ -26,6 +26,7 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.extension.filterSeparator
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -60,59 +61,28 @@ case class FilterExecTransformer(
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_filter"))
 
-  // Get the filter conditions in Scan for the comparison with those in Filter.
-  def getScanFilters: Seq[Expression] = {
-    child match {
-      case fileSourceScan: FileSourceScanExec =>
-        fileSourceScan.dataFilters
-      case batchScan: BatchScanExec =>
-        batchScan.scan match {
-          case scan: FileScan =>
-            scan.dataFilters
-          case _ =>
-            throw new UnsupportedOperationException(
-              s"${batchScan.scan.getClass.toString} is not supported")
-        }
+  def getLeftCondition : Expression = {
+    val scanFilters = child match {
+      // Get the filters including the manually pushed down ones.
+      case batchScanTransformer: BatchScanExecTransformer =>
+        batchScanTransformer.filterExprs()
+      case fileScanTransformer: FileSourceScanExecTransformer =>
+        fileScanTransformer.filterExprs()
+      // In ColumnarGuardRules, the child is still row-based. Need to get the original filters.
       case _ =>
-        Seq()
+        filterSeparator.getScanFilters(child)
     }
-  }
-
-  // Flatten the condition connected with 'And'. Return the filter conditions with sequence.
-  def flattenCondition(condition: Expression) : Seq[Expression] = {
-    var expressions: Seq[Expression] = Seq()
-    condition match {
-      case and: And =>
-        and.children.foreach(expression => {
-          expressions ++= flattenCondition(expression)
-        })
-      case _ =>
-        expressions = expressions :+ condition
+    if (scanFilters.isEmpty) {
+      condition
+    } else {
+      val leftFilters = filterSeparator.getLeftFilters(
+        scanFilters, filterSeparator.flattenCondition(condition))
+      leftFilters.reduceLeftOption(And).orNull
     }
-    expressions
-  }
-
-  // Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
-  // scanFilters: the conditions pushed down into Scan.
-  // filters: the conditions in the Filter after the Scan.
-  // Return the filter condition which is not pushed down into Scan.
-  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Expression = {
-    var leftFilters: Seq[Expression] = Seq()
-    for (expression <- filters) {
-      if (!scanFilters.exists(_.semanticEquals(expression))) {
-        leftFilters = leftFilters :+ expression.clone()
-      }
-    }
-    leftFilters.reduceLeftOption(And).orNull
   }
 
   override def doValidate(): Boolean = {
-    val scanFilters = getScanFilters
-    val leftCondition = if (scanFilters.isEmpty) {
-      condition
-    } else {
-      getLeftFilters(scanFilters, flattenCondition(condition))
-    }
+    val leftCondition = getLeftCondition
     if (leftCondition == null) {
       // All the filters can be pushed down and the computing of this Filter
       // is not needed.
@@ -197,17 +167,12 @@ case class FilterExecTransformer(
   // override def canEqual(that: Any): Boolean = false
 
   override def doTransform(context: SubstraitContext): TransformContext = {
+    val leftCondition = getLeftCondition
     val childCtx = child match {
       case c: TransformSupport =>
         c.doTransform(context)
       case _ =>
         null
-    }
-    val scanFilters = getScanFilters
-    val leftCondition = if (scanFilters.isEmpty) {
-      condition
-    } else {
-      getLeftFilters(scanFilters, flattenCondition(condition))
     }
     if (leftCondition == null) {
       // The computing for this filter is not needed.
