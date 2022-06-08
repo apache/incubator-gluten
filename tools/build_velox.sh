@@ -27,15 +27,16 @@ CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 echo $CURRENT_DIR
 
 cd ${CURRENT_DIR}
-if [ -d build/velox_ep ]; then
-    rm -r build/velox_ep
-fi
 
-if [ -d build/velox_install ]; then
-    rm -r build/velox_install
-fi
 
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
+    if [ -d build/velox_ep ]; then
+        rm -r build/velox_ep
+    fi
+
+    if [ -d build/velox_install ]; then
+        rm -r build/velox_install
+    fi
     echo "Building Velox from Source ..."
     mkdir -p build
     cd build
@@ -57,6 +58,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
 
     sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
     sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
+    sed -i '/^sudo apt install/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
     sed -i 's/^  liblzo2-dev.*/  liblzo2-dev/g' scripts/setup-ubuntu.sh
     sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-ubuntu.sh
     sed -i '/^function install_folly.*/i function install_pb {\n  github_checkout protocolbuffers/protobuf v3.13.0\n  git submodule update --init --recursive\n  ./autogen.sh\n  ./configure CFLAGS=-fPIC CXXFLAGS=-fPIC\n  make -j$(nproc)\n  make check\n  sudo make install\n sudo ldconfig\n}\n' scripts/setup-ubuntu.sh

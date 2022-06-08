@@ -45,6 +45,8 @@ CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 echo $CURRENT_DIR
 
 cd ${CURRENT_DIR}
+
+if [ $BUILD_ARROW == "ON" ]; then
 if [ -d build/arrow_ep ]; then
     rm -r build/arrow_ep
 fi
@@ -52,8 +54,6 @@ fi
 if [ -d build/arrow_install ]; then
     rm -r build/arrow_install
 fi
-
-if [ $BUILD_ARROW == "ON" ]; then
 echo "Building Arrow from Source ..."
 mkdir -p build
 cd build

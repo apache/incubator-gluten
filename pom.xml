@@ -48,7 +48,7 @@
     <build_cpp>OFF</build_cpp>
     <cpp_tests>OFF</cpp_tests>
     <build_arrow>OFF</build_arrow>
-    <arrow_root>/usr/local</arrow_root>
+    <arrow_root>${project.basedir}/../tools/build/arrow_install</arrow_root>
     <arrow.bfs.dir>${project.basedir}/../tools/build/arrow_install</arrow.bfs.dir>
     <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
