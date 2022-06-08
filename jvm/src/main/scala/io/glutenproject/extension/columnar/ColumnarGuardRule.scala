@@ -18,8 +18,8 @@
 package io.glutenproject.extension.columnar
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -103,17 +103,8 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           transformer.doValidate()
         case plan: FilterExec =>
           if (!enableColumnarFilter) return false
-          plan.child match {
-            case batchScan: BatchScanExec =>
-              val childTransformer = new BatchScanExecTransformer(batchScan.output, batchScan.scan)
-              if (childTransformer.doValidate()) {
-                // If the BatchScan passes validation, all the filters can be pushed down and
-                // the computing of this Filter is not needed.
-                return true
-              }
-            case _ =>
-          }
-          val transformer = FilterExecTransformer(plan.condition, plan.child)
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genFilterExecTransformer(plan.condition, plan.child)
           transformer.doValidate()
         case plan: HashAggregateExec =>
           if (!enableColumnarHashAgg) return false

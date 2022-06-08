@@ -22,7 +22,7 @@ import java.util
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
@@ -35,11 +35,14 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class FilterExecTransformer(
+import scala.collection.JavaConverters._
+
+abstract class FilterExecBaseTransformer(
     condition: Expression,
     child: SparkPlan) extends UnaryExecNode
     with TransformSupport
@@ -57,25 +60,7 @@ case class FilterExecTransformer(
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_filter"))
 
-  override def doValidate(): Boolean = {
-    val substraitContext = new SubstraitContext
-    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode = try {
-      getRelNode(substraitContext.registeredFunction, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-        return false
-    }
-    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-    // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
-    } else {
-      true
-    }
-  }
+  def doValidate(): Boolean
 
   def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
@@ -135,46 +120,7 @@ case class FilterExecTransformer(
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object, childRel: RelNode,
-                 validation: Boolean = false): RelNode = {
-    prepareFilterRel(args, condition, child.output, childRel, validation)
-  }
-
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context)
-      case _ =>
-        null
-    }
-    if (GlutenConfig.getConf.isVeloxBackend && child.isInstanceOf[BatchScanExecTransformer]) {
-      return childCtx
-    }
-    val currRel = if (childCtx != null) {
-      getRelNode(context.registeredFunction, childCtx.root)
-    } else {
-      // This means the input is just an iterator, so an ReadRel will be created as child.
-      // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      getRelNode(
-        context.registeredFunction,
-        RelBuilder.makeReadRel(attrList, context))
-    }
-
-    if (currRel == null) {
-      return childCtx
-    }
-    val inputAttributes = if (childCtx != null) {
-      // Use the outputAttributes of child context as inputAttributes.
-      childCtx.outputAttributes
-    } else {
-      child.output
-    }
-    TransformContext(inputAttributes, output, currRel)
-  }
+  def doTransform(context: SubstraitContext): TransformContext
 
   protected override def doExecute()
       : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
@@ -185,31 +131,92 @@ case class FilterExecTransformer(
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
-  def prepareFilterRel(args: java.lang.Object,
-                       condExpr: Expression,
-                       originalInputAttributes: Seq[Attribute],
-                       input: RelNode,
-                       validation: Boolean): RelNode = {
+  def getRelNode(args: java.lang.Object,
+                 condExpr: Expression,
+                 originalInputAttributes: Seq[Attribute],
+                 input: RelNode,
+                 validation: Boolean): RelNode = {
     if (condExpr == null) {
-      input
-    } else {
-      val columnarCondExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-      val condExprNode =
-        columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!validation) {
-        RelBuilder.makeFilterRel(input, condExprNode)
-      } else {
-        // Use a extension node to send the input types through Substrait plan for validation.
-        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-        for (attr <- originalInputAttributes) {
-          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        }
-        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-          Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
-        RelBuilder.makeFilterRel(input, condExprNode, extensionNode)
-      }
+      return input
     }
+    val columnarCondExpr: Expression = ExpressionConverter
+      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
+    val condExprNode =
+      columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!validation) {
+      RelBuilder.makeFilterRel(input, condExprNode)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+      RelBuilder.makeFilterRel(input, condExprNode, extensionNode)
+    }
+  }
+}
+
+case class FilterExecTransformer(condition: Expression, child: SparkPlan)
+  extends FilterExecBaseTransformer(condition, child) {
+
+  override def doValidate(): Boolean = {
+    if (condition == null) {
+      // The computing of this Filter is not needed.
+      return true
+    }
+    val substraitContext = new SubstraitContext
+    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
+    val relNode = try {
+      getRelNode(substraitContext.registeredFunction, condition, child.output,
+        null, validation = true)
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+    // Then, validate the generated plan in native engine.
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
+  }
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child match {
+      case c: TransformSupport =>
+        c.doTransform(context)
+      case _ =>
+        null
+    }
+    if (condition == null) {
+      // The computing for this filter is not needed.
+      return childCtx
+    }
+    val currRel = if (childCtx != null) {
+      getRelNode(context.registeredFunction, condition, child.output,
+        childCtx.root, validation = false)
+    } else {
+      // This means the input is just an iterator, so an ReadRel will be created as child.
+      // Prepare the input schema.
+      val attrList = new util.ArrayList[Attribute](child.output.asJava)
+      getRelNode(context.registeredFunction, condition, child.output,
+        RelBuilder.makeReadRel(attrList, context), validation = false)
+    }
+    if (currRel == null) {
+      return childCtx
+    }
+    val inputAttributes = if (childCtx != null) {
+      // Use the outputAttributes of child context as inputAttributes.
+      childCtx.outputAttributes
+    } else {
+      child.output
+    }
+    TransformContext(inputAttributes, output, currRel)
   }
 }
 
@@ -234,7 +241,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, null, validation = true)
+      getRelNode(substraitContext.registeredFunction, projectList, child.output,
+        null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -294,11 +302,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object, childRel: RelNode,
-                 validation: Boolean = false): RelNode = {
-    prepareProjectRel(args, projectList, child.output, childRel, validation)
-  }
-
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
@@ -307,7 +310,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         null
     }
     val currRel = if (childCtx != null) {
-      getRelNode(context.registeredFunction, childCtx.root)
+      getRelNode(context.registeredFunction, projectList, child.output,
+        childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
@@ -316,7 +320,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context)
-      getRelNode(context.registeredFunction, readRel)
+      getRelNode(context.registeredFunction, projectList, child.output,
+        readRel, validation = false)
     }
 
     if (currRel == null) {
@@ -340,11 +345,11 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
-  def prepareProjectRel(args: java.lang.Object,
-                        projectList: Seq[NamedExpression],
-                        originalInputAttributes: Seq[Attribute],
-                        input: RelNode,
-                        validation: Boolean): RelNode = {
+  def getRelNode(args: java.lang.Object,
+                 projectList: Seq[NamedExpression],
+                 originalInputAttributes: Seq[Attribute],
+                 input: RelNode,
+                 validation: Boolean): RelNode = {
     if (projectList == null || projectList.isEmpty) {
       input
     } else {
@@ -416,5 +421,98 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+  }
+}
+
+/** Contains functions for the comparision and separation of the filter conditions
+ * in Scan and Filter.
+ * Contains the function to manually push down the conditions into Scan.
+ */
+object FilterHandler {
+  /** Get the original filter conditions in Scan for the comparison with those in Filter.
+   *
+   * @param plan: the Spark plan
+   * @return If the plan is FileSourceScanExec or BatchScanExec, return the filter conditions in it.
+   *         Otherwise, return empty sequence.
+   */
+  def getScanFilters(plan: SparkPlan): Seq[Expression] = {
+    plan match {
+      case fileSourceScan: FileSourceScanExec =>
+        fileSourceScan.dataFilters
+      case batchScan: BatchScanExec =>
+        batchScan.scan match {
+          case scan: FileScan =>
+            scan.dataFilters
+          case _ =>
+            throw new UnsupportedOperationException(
+              s"${batchScan.scan.getClass.toString} is not supported")
+        }
+      case _ =>
+        Seq()
+    }
+  }
+
+  /** Flatten the condition connected with 'And'. Return the filter conditions with sequence.
+   *
+   * @param condition: the condition connected with 'And'
+   * @return flattened conditions in sequence
+   */
+  def flattenCondition(condition: Expression) : Seq[Expression] = {
+    var expressions: Seq[Expression] = Seq()
+    condition match {
+      case and: And =>
+        and.children.foreach(expression => {
+          expressions ++= flattenCondition(expression)
+        })
+      case _ =>
+        expressions = expressions :+ condition
+    }
+    expressions
+  }
+
+  /** Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
+   *
+   * @param scanFilters: the conditions pushed down into Scan
+   * @param filters: the conditions in the Filter after the Scan
+   * @return the filter conditions not pushed down into Scan.
+   */
+  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] = {
+    var leftFilters: Seq[Expression] = Seq()
+    for (expression <- filters) {
+      if (!scanFilters.exists(_.semanticEquals(expression))) {
+        leftFilters = leftFilters :+ expression.clone()
+      }
+    }
+    leftFilters
+  }
+
+  // Separate and compare the filter conditions in Scan and Filter.
+  // Push down the left conditions in Filter into Scan.
+  def applyFilterPushdownToScan(plan: FilterExec): SparkPlan = plan.child match {
+    case fileSourceScan: FileSourceScanExec =>
+      val leftFilters =
+        getLeftFilters(fileSourceScan.dataFilters, flattenCondition(plan.condition))
+      new FileSourceScanExecTransformer(
+        fileSourceScan.relation,
+        fileSourceScan.output,
+        fileSourceScan.requiredSchema,
+        fileSourceScan.partitionFilters,
+        fileSourceScan.optionalBucketSet,
+        fileSourceScan.optionalNumCoalescedBuckets,
+        fileSourceScan.dataFilters ++ leftFilters,
+        fileSourceScan.tableIdentifier,
+        fileSourceScan.disableBucketedScan)
+    case batchScan: BatchScanExec =>
+      batchScan.scan match {
+        case scan: FileScan =>
+          val leftFilters =
+            getLeftFilters(scan.dataFilters, flattenCondition(plan.condition))
+          new BatchScanExecTransformer(batchScan.output, batchScan.scan, leftFilters)
+        case _ =>
+          throw new UnsupportedOperationException(
+            s"${batchScan.scan.getClass.toString} is not supported.")
+      }
+    case other =>
+      throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
   }
 }
