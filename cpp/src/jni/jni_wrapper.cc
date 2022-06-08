@@ -163,7 +163,7 @@ class JavaRecordBatchIterator {
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
       // Reattach current thread to JVM
-      getEnvStat = vm_->AttachCurrentThread(reinterpret_cast<void **>(&env), NULL);
+      getEnvStat = vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL);
       if (getEnvStat != JNI_OK) {
         std::cout << "Failed to deconstruct due to thread not being reattached."
                   << std::endl;
@@ -176,8 +176,8 @@ class JavaRecordBatchIterator {
     }
 #ifdef DEBUG
     std::cout << "DELETING GLOBAL ITERATOR REF "
-                << reinterpret_cast<long>(java_serialized_record_batch_iterator_) << "..."
-                << std::endl;
+              << reinterpret_cast<long>(java_serialized_record_batch_iterator_) << "..."
+              << std::endl;
 #endif
     env->DeleteGlobalRef(java_serialized_record_batch_iterator_);
     vm_->DetachCurrentThread();
