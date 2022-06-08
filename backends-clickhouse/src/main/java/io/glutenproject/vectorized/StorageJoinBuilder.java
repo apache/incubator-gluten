@@ -15,19 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.joins
+package io.glutenproject.vectorized;
 
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import java.io.InputStream;
 
-trait BuildSideRelation extends Serializable {
+public class StorageJoinBuilder {
+    private InputStream in;
 
-  /**
-   * Deserialized relation from broadcasted value
-   */
-  def deserialized: Iterator[ColumnarBatch]
+    private String buildHashTableId;
 
-  /**
-   * Returns a read-only copy of this, to be safely used in current thread.
-   */
-  def asReadOnlyCopy(buildHashTableId: String): BuildSideRelation
+    public StorageJoinBuilder(InputStream in, String buildHashTableId) {
+        this.in = in;
+        this.buildHashTableId = buildHashTableId;
+    }
+
+    /**
+     * build storage join object
+     */
+    public void build() {
+    }
 }

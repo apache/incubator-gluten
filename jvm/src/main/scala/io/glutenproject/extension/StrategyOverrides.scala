@@ -34,8 +34,17 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
     // targeting equi-joins only
     case j @ ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, nonEquiCond, left, right, hint) =>
-      if (getBroadcastBuildSide(left, right, joinType, hint, hintOnly = false, conf).isDefined) {
-        return Nil
+      // Generate BHJ here, avoid to do match in `JoinSelection` again.
+      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, hintOnly = false, conf)
+      if (buildSide.isDefined) {
+        return Seq(joins.BroadcastHashJoinExec(
+          leftKeys,
+          rightKeys,
+          joinType,
+          buildSide.get,
+          nonEquiCond,
+          planLater(left),
+          planLater(right)))
       }
 
       if (GlutenConfig.getSessionConf.forceShuffledHashJoin) {

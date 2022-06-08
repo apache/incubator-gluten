@@ -17,12 +17,10 @@
 
 package io.glutenproject.execution
 
-import java.util
-
 import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
-import com.google.protobuf.Any
+import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.SubstraitContext
@@ -33,6 +31,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import io.substrait.proto.JoinRel
+import java.util
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -41,12 +40,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.joins.{
-  BaseJoinExec,
-  BuildSideRelation,
-  HashJoin,
-  ShuffledJoin
-}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin, ShuffledJoin}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -246,19 +240,25 @@ abstract class HashJoinLikeExecTransformer(
         .doTransform(substraitContext.registeredFunction)
     }
 
+    val joinParameters = genJoinParametersBuilder()
     if (!validation) {
+      // Use a extension node to send some join parameters through Substrait plan.
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(joinParameters.build(), null)
       RelBuilder.makeJoinRel(
         streamedRelNode,
         buildRelNode,
         substraitJoinType,
         joinExpressionNode,
-        postJoinFilter.orNull)
+        postJoinFilter.orNull,
+        extensionNode)
     } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
+      // Use a extension node to send the input types for validation, and
+      // send some join parameters through Substrait plan.
       val inputTypeNodes = joinOutput.map { attr =>
         ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        joinParameters.build(),
         Any.pack(
           TypeBuilder.makeStruct(new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf))
       RelBuilder.makeJoinRel(
@@ -269,6 +269,23 @@ abstract class HashJoinLikeExecTransformer(
         postJoinFilter.orNull,
         extensionNode)
     }
+  }
+
+  def genJoinParameters(): (Int, Int, String) = {
+    (0, 0, "")
+  }
+
+  def genJoinParametersBuilder(): Any.Builder = {
+    val (isBHJ, isNullAwareAntiJoin, buildHashTableId) = genJoinParameters()
+    // Start with "JoinParameters:"
+    val joinParametersStr = new StringBuffer("JoinParameters:")
+    // isBHJ: 0 for SHJ, 1 for BHJ
+    // isNullAwareAntiJoin: 0 for false, 1 for true
+    // buildHashTableId: the unique id for the hash table of build plan
+    joinParametersStr.append("isBHJ=").append(isBHJ).append("\n")
+      .append("isNullAwareAntiJoin=").append(isNullAwareAntiJoin).append("\n")
+      .append("buildHashTableId=").append(buildHashTableId).append("\n")
+    Any.newBuilder.setValue(ByteString.copyFromUtf8(joinParametersStr.toString()))
   }
 
   private def getNewOutput(
@@ -331,6 +348,7 @@ case class BroadcastHashJoinExecTransformer(
     condition: Option[Expression],
     left: SparkPlan,
     right: SparkPlan,
+    isNullAwareAntiJoin: Boolean = false,
     projectList: Seq[NamedExpression] = null)
     extends HashJoinLikeExecTransformer(
       leftKeys,
@@ -342,6 +360,13 @@ case class BroadcastHashJoinExecTransformer(
       right,
       projectList) {
 
+  // Unique ID for builded hash table
+  lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id
+
+  override def genJoinParameters(): (Int, Int, String) = {
+    (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
+  }
+
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
     val broadcasted = buildSide match {
@@ -351,7 +376,11 @@ case class BroadcastHashJoinExecTransformer(
         right.executeBroadcast[BuildSideRelation]()
     }
     val buildRDD =
-      BroadcastBuildSideRDD(sparkContext, streamedRDD.head.getNumPartitions, broadcasted)
+      BroadcastBuildSideRDD(
+        sparkContext,
+        streamedRDD.head.getNumPartitions,
+        broadcasted,
+        buildHashTableId)
     streamedRDD :+ buildRDD
   }
 }

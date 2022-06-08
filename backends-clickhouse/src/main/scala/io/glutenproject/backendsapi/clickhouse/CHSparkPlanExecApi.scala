@@ -18,9 +18,10 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BlockNativeColumnarToRowExec, FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
-import io.glutenproject.vectorized.CHColumnarBatchSerializer
-import org.apache.spark.ShuffleDependency
+import io.glutenproject.execution._
+import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
+import org.apache.spark.{ShuffleDependency, SparkException}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -28,6 +29,8 @@ import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.types.StructType
@@ -109,6 +112,40 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
                                              readBatchNumRows: SQLMetric,
                                              numOutputRows: SQLMetric): Serializer = {
     new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows)
+  }
+
+
+  /**
+   * Create broadcast relation for BroadcastExchangeExec
+   */
+  override def createBroadcastRelation(child: SparkPlan,
+                                       numOutputRows: SQLMetric,
+                                       dataSize: SQLMetric): BuildSideRelation = {
+    val countsAndBytes = child
+      .executeColumnar()
+      .mapPartitions { iter =>
+        var _numRows: Long = 0
+
+        // Use for reading bytes array from block
+        val blockNativeWriter = new BlockNativeWriter()
+        while (iter.hasNext) {
+          val batch = iter.next
+          blockNativeWriter.write(batch)
+          _numRows += batch.numRows
+        }
+        Iterator((_numRows, blockNativeWriter.collectAsByteArray()))
+      }
+      .collect
+
+    val batches = countsAndBytes.map(_._2)
+    val rawSize = batches.map(_.length).sum
+    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+      throw new SparkException(
+        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+    }
+    numOutputRows += countsAndBytes.map(_._1).sum
+    dataSize += rawSize
+    ClickHouseBuildSideRelation(child.output, batches)
   }
 
   /**

@@ -17,17 +17,23 @@
 
 package org.apache.spark.sql.execution.joins
 
+import java.io.ByteArrayInputStream
+
+import io.glutenproject.vectorized.StorageJoinBuilder
+
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait BuildSideRelation extends Serializable {
+case class ClickHouseBuildSideRelation(output: Seq[Attribute], batches: Array[Array[Byte]])
+  extends BuildSideRelation {
 
-  /**
-   * Deserialized relation from broadcasted value
-   */
-  def deserialized: Iterator[ColumnarBatch]
+  override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
-  /**
-   * Returns a read-only copy of this, to be safely used in current thread.
-   */
-  def asReadOnlyCopy(buildHashTableId: String): BuildSideRelation
+  override def asReadOnlyCopy(buildHashTableId: String): ClickHouseBuildSideRelation = {
+    val allBatches = batches.flatten
+    val storageJoinBuilder = new StorageJoinBuilder(new ByteArrayInputStream(allBatches), buildHashTableId)
+    // Build the hash table
+    storageJoinBuilder.build()
+    this
+  }
 }

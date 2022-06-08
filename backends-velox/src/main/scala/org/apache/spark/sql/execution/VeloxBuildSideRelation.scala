@@ -29,5 +29,5 @@ case class VeloxBuildSideRelation(output: Seq[Attribute], batches: Array[Array[B
     ArrowConverterUtils.convertFromNetty(output, batches)
   }
 
-  override def asReadOnlyCopy(): VeloxBuildSideRelation = this
+  override def asReadOnlyCopy(buildHashTableId: String): VeloxBuildSideRelation = this
 }
