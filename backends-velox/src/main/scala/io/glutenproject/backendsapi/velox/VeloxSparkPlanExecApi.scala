@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi.velox
 import scala.collection.JavaConverters._
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{FilterExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
+import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.vectorized.ArrowColumnarBatchSerializer
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
@@ -62,7 +62,13 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * @return the transformer of FilterExec
    */
   override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
-    : FilterExecBaseTransformer = VeloxFilterExecTransformer(condition, child)
+    : FilterExecBaseTransformer =
+    if (GlutenConfig.getSessionConf.isGazelleBackend) {
+      // Use the original Filter for Arrow backend.
+      FilterExecTransformer(condition, child)
+    } else {
+      VeloxFilterExecTransformer(condition, child)
+    }
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
