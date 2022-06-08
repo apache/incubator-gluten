@@ -17,10 +17,9 @@
 
 package io.glutenproject.expression
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, IOException, OutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream, OutputStream}
 import java.nio.channels.Channels
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
@@ -36,14 +35,13 @@ import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.arrow.vector.ValueVector
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.TimeUnit
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.DateTimeConstants
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtils, SparkVectorUtils}
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils, SparkVectorUtils}
 import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 
 object ArrowConverterUtils extends Logging {
 
@@ -104,7 +102,7 @@ object ArrowConverterUtils extends Logging {
                         attributes: Seq[Attribute],
                         input: InputStream): Iterator[ColumnarBatch] = {
     new Iterator[ColumnarBatch] {
-      val allocator = ArrowWritableColumnVector.getOffRecordAllocator
+      val allocator = SparkMemoryUtils.contextAllocator()
       var messageReader =
         new MessageChannelReader(new ReadChannel(Channels.newChannel(input)), allocator)
       var schema: Schema = null
@@ -191,7 +189,7 @@ object ArrowConverterUtils extends Logging {
     }
     new Iterator[ColumnarBatch] {
       var array_id = 0
-      val allocator = ArrowWritableColumnVector.getOffRecordAllocator
+      val allocator = SparkMemoryUtils.contextAllocator()
       var input = new ByteArrayInputStream(data(array_id))
       var messageReader =
         new MessageChannelReader(new ReadChannel(Channels.newChannel(input)), allocator)

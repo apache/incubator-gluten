@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow._
+import io.glutenproject.vectorized.NativeThreadJniWrapper
 import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.{AllocationListener, BufferAllocator, MemoryChunkCleaner, MemoryChunkManager, RootAllocator}
 import org.apache.spark.internal.Logging
@@ -30,11 +31,13 @@ import org.apache.spark.{SparkEnv, TaskContext}
 import java.io.{ByteArrayOutputStream, PrintWriter}
 import java.util
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.JavaConverters._
 
 object SparkMemoryUtils extends Logging {
 
   private val DEBUG: Boolean = false
+  private val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
   class TaskMemoryResources {
     if (!inSparkTask()) {
@@ -148,7 +151,10 @@ object SparkMemoryUtils extends Logging {
      */
     private def softClose(allocator: BufferAllocator): Unit = {
       // move to leaked list
-      logWarning(s"Detected leaked allocator, size: ${allocator.getAllocatedMemory}...")
+      val leakBytes = allocator.getAllocatedMemory
+      val accumulated = ACCUMULATED_LEAK_BYTES.addAndGet(leakBytes)
+      logWarning(s"Detected leaked allocator, size: $leakBytes, " +
+        s"process accumulated leaked size: $accumulated...")
       if (DEBUG) {
         leakedAllocators.add(allocator)
       }
@@ -160,19 +166,26 @@ object SparkMemoryUtils extends Logging {
 
     private def softClose(pool: NativeMemoryPoolWrapper): Unit = {
       // move to leaked list
-      logWarning(s"Detected leaked memory pool, size: ${pool.pool.getBytesAllocated}...")
+      val leakBytes = pool.pool.getBytesAllocated
+      val accumulated = ACCUMULATED_LEAK_BYTES.addAndGet(leakBytes)
+      logWarning(s"Detected leaked memory pool, size: $leakBytes, " +
+        s"process accumulated leaked size: $accumulated...")
       pool.listener.inactivate()
       if (DEBUG) {
         leakedMemoryPools.add(pool)
       }
     }
 
-    def release(): Unit = {
-      memoryChunkManagerFactory match {
+    private def closeIfCloseable(some: Any) = {
+      some match {
         case closeable: AutoCloseable =>
           closeable.close()
         case _ =>
       }
+    }
+
+    def release(): Unit = {
+      closeIfCloseable(memoryChunkManagerFactory)
       for (allocator <- allocators.asScala.reverse) {
         val allocated = allocator.getAllocatedMemory
         if (allocated == 0L) {
@@ -193,6 +206,7 @@ object SparkMemoryUtils extends Logging {
           softClose(pool)
         }
       }
+      closeIfCloseable(sparkManagedAllocationListener)
     }
   }
 
@@ -200,17 +214,17 @@ object SparkMemoryUtils extends Logging {
 
   private val leakedAllocators = new java.util.Vector[BufferAllocator]()
   private val leakedMemoryPools = new java.util.Vector[NativeMemoryPoolWrapper]()
-  
-  def getLocalTaskContext: TaskContext = {
-    TaskContext.get()
+
+  private def getLocalTaskContext(): TaskContext = {
+    SparkThreadUtils.getAssociatedTaskContext
   }
-  
-  def inSparkTask(): Boolean = {
-    getLocalTaskContext != null
+
+  private def inSparkTask(): Boolean = {
+    SparkThreadUtils.inSparkTask()
   }
-  
+
   private def getTaskMemoryManager(): TaskMemoryManager = {
-    getLocalTaskContext.taskMemoryManager()
+    getLocalTaskContext().taskMemoryManager()
   }
 
   def addLeakSafeTaskCompletionListener[U](f: TaskContext => U): TaskContext = {
@@ -218,19 +232,19 @@ object SparkMemoryUtils extends Logging {
       throw new IllegalStateException("Not in a Spark task")
     }
     getTaskMemoryResources() // initialize cleaners
-    getLocalTaskContext.addTaskCompletionListener(f)
+    getLocalTaskContext().addTaskCompletionListener(f)
   }
 
   def getTaskMemoryResources(): TaskMemoryResources = {
     if (!inSparkTask()) {
       throw new IllegalStateException("Not in a Spark task")
     }
-    val tc = getLocalTaskContext
+    val tc = getLocalTaskContext()
     taskToResourcesMap.synchronized {
 
       if (!taskToResourcesMap.containsKey(tc)) {
-        val resources = new TaskMemoryResources
-        getLocalTaskContext.addTaskCompletionListener(
+        taskToResourcesMap.put(tc, new TaskMemoryResources)
+        tc.addTaskCompletionListener(
           new TaskCompletionListener {
             override def onTaskCompletion(context: TaskContext): Unit = {
               taskToResourcesMap.synchronized {
@@ -240,7 +254,6 @@ object SparkMemoryUtils extends Logging {
               }
             }
           })
-        taskToResourcesMap.put(tc, resources)
       }
 
       return taskToResourcesMap.get(tc)

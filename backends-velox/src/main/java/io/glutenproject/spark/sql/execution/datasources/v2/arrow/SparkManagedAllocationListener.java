@@ -18,12 +18,21 @@
 package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
 
 import org.apache.arrow.memory.AllocationListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class SparkManagedAllocationListener implements AllocationListener {
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public class SparkManagedAllocationListener implements AllocationListener, AutoCloseable {
+    private static final Logger LOG =
+      LoggerFactory.getLogger(SparkManagedAllocationListener.class);
+
     public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
     private final NativeSQLMemoryConsumer consumer;
     private final NativeSQLMemoryMetrics metrics;
+
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private long bytesReserved = 0L;
     private long blocksReserved = 0L;
@@ -35,6 +44,10 @@ public class SparkManagedAllocationListener implements AllocationListener {
 
     @Override
     public void onPreAllocation(long size) {
+        if (closed.get()) {
+            LOG.warn("SparkManagedAllocationListener: already closed");
+            return;
+        }
         long requiredBlocks = updateReservation(size);
         if (requiredBlocks < 0) {
             throw new IllegalStateException();
@@ -49,6 +62,10 @@ public class SparkManagedAllocationListener implements AllocationListener {
 
     @Override
     public void onRelease(long size) {
+        if (closed.get()) {
+            LOG.warn("SparkManagedAllocationListener: already closed");
+            return;
+        }
         long requiredBlocks = updateReservation(-size);
         if (requiredBlocks > 0) {
             throw new IllegalStateException();
@@ -77,5 +94,10 @@ public class SparkManagedAllocationListener implements AllocationListener {
             blocksReserved = newBlocksReserved;
             return requiredBlocks;
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        closed.set(true);
     }
 }

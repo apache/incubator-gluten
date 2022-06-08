@@ -68,6 +68,8 @@ using namespace facebook::velox::exec;
 namespace velox {
 namespace compute {
 
+std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx();
+
 class VeloxInitializer {
  public:
   VeloxInitializer() { Init(); }

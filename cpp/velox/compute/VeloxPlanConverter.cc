@@ -37,8 +37,25 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 
+int64_t GetJavaThreadId();  // from jni_common.h
+
 namespace velox {
 namespace compute {
+
+std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
+  int64_t jParentThreadId = GetJavaThreadId();
+  if (jParentThreadId == -1L) {
+    throw std::runtime_error("Not in a Spark task");
+  }
+  // Gluten's restriction of thread naming. See
+  // org.apache.spark.sql.execution.datasources.v2.arrow.SparkThreadUtils Note that the
+  // thread name should not exceed 15 character limitation
+  auto executor = std::make_shared<folly::CPUThreadPoolExecutor>(
+      24, std::make_shared<folly::NamedThreadFactory>(
+              "G-" + std::to_string(jParentThreadId) + "-"));
+  std::shared_ptr<Config> config = std::make_shared<core::MemConfig>();
+  return std::make_shared<core::QueryCtx>(executor, std::move(config));
+}
 
 // The Init will be called per executor.
 void VeloxInitializer::Init() {
@@ -281,8 +298,41 @@ class VeloxPlanConverter::WholeStageResIter {
   WholeStageResIter(memory::MemoryPool* pool,
                     std::shared_ptr<const core::PlanNode> planNode)
       : pool_(pool), planNode_(planNode) {}
-  virtual ~WholeStageResIter() = default;
 
+  virtual ~WholeStageResIter() {
+    auto task = cursor_->task();
+    if (task == nullptr) {
+      return;
+    }
+    if (mayHaveNext_) {
+      task->requestCancel();
+    }
+    auto* executor = task->queryCtx()->executor();
+    auto* threadPool = dynamic_cast<folly::ThreadPoolExecutor*>(executor);
+    if (threadPool == nullptr) {
+      return;
+    }
+    folly::ThreadPoolExecutor::PoolStats stats = threadPool->getPoolStats();
+#ifdef DEBUG
+    int64_t threadId = GetJavaThreadId();
+    std::cout << "Thread stats: "
+              << " threadId: " << threadId << " threadCount: " << stats.threadCount
+              << " idleThreadCount: " << stats.idleThreadCount
+              << " activeThreadCount: " << stats.activeThreadCount
+              << " pendingTaskCount: " << stats.pendingTaskCount
+              << " totalTaskCount: " << stats.totalTaskCount << std::endl;
+#endif
+    if (stats.activeThreadCount != 0 || stats.pendingTaskCount != 0) {
+#ifdef DEBUG
+      std::cout << "Unfinished thread count is not zero. Joining...." << std::endl;
+#endif
+      threadPool->join();
+#ifdef DEBUG
+      std::cout << "Velox thread pool is now idle."
+                << " threadId: " << threadId << std::endl;
+#endif
+    }
+  }
   /// This method converts Velox RowVector into Arrow RecordBatch based on Velox's
   /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
   /// types, but is conducted in String conversion. The output batch will be the input of
@@ -381,6 +431,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       splits_.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
     }
     params_.planNode = planNode;
+    params_.queryCtx = createNewVeloxQueryCtx();
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
@@ -411,6 +462,7 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
                                const bool fakeArrowOutput)
       : WholeStageResIter(pool, planNode) {
     params_.planNode = planNode;
+    params_.queryCtx = createNewVeloxQueryCtx();
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
