@@ -20,6 +20,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -29,7 +30,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -160,7 +161,8 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.buildSide,
             plan.condition,
             plan.left,
-            plan.right)
+            plan.right,
+            isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
           transformer.doValidate()
         case plan: SortMergeJoinExec =>
           if (!enableColumnarSortMergeJoin || plan.joinType == FullOuter) return false

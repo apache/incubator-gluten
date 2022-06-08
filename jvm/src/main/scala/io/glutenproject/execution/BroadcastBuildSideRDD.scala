@@ -18,8 +18,8 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-
 import org.apache.spark._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -29,14 +29,15 @@ private final case class BroadcastBuildSideRDDPartition(index: Int) extends Part
 case class BroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
     numPartitions: Int,
-    broadcasted: broadcast.Broadcast[BuildSideRelation])
+    broadcasted: broadcast.Broadcast[BuildSideRelation],
+    buildHashTableId: String)
     extends RDD[ColumnarBatch](sc, Nil) {
 
   override def getPartitions: Array[Partition] =
     Array.tabulate(numPartitions)(i => BroadcastBuildSideRDDPartition(i))
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    val relation = broadcasted.value.asReadOnlyCopy()
+    val relation = broadcasted.value.asReadOnlyCopy(buildHashTableId)
     BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(
       relation.deserialized)
   }

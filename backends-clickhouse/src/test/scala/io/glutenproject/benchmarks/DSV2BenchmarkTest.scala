@@ -80,7 +80,8 @@ object DSV2BenchmarkTest {
         .config("spark.default.parallelism", 1)
         .config("spark.sql.shuffle.partitions", 3)
         .config("spark.sql.adaptive.enabled", "false")
-        .config("spark.sql.files.maxPartitionBytes", 128 << 10 << 10) // default is 128M
+        .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
+        .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.minPartitionNum", "1")
         .config("spark.sql.parquet.filterPushdown", "true")
         .config("spark.locality.wait", "0s")
@@ -112,7 +113,8 @@ object DSV2BenchmarkTest {
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
         //.config("spark.gluten.sql.columnar.sort", "false")
-        .config("spark.sql.autoBroadcastJoinThreshold", "-1")
+        //.config("spark.sql.codegen.wholeStage", "false")
+        .config("spark.sql.autoBroadcastJoinThreshold", "50MB")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
         //.config("spark.sql.optimizeNullAwareAntiJoin", "false")
         //.config("spark.sql.join.preferSortMergeJoin", "false")
@@ -189,26 +191,36 @@ object DSV2BenchmarkTest {
       val df = spark.sql(
         s"""
            |SELECT
-           |    o_orderpriority,
-           |    count(*) AS order_count
+           |    c_custkey,
+           |    c_name,
+           |    sum(l_extendedprice * (1 - l_discount)) AS revenue,
+           |    c_acctbal,
+           |    n_name,
+           |    c_address,
+           |    c_phone,
+           |    c_comment
            |FROM
-           |    ch_orders
+           |    ch_customer,
+           |    ch_orders,
+           |    ch_lineitem,
+           |    ch_nation
            |WHERE
-           |    o_orderdate >= date'1993-07-01'
-           |    AND o_orderdate < date'1993-07-01' + interval 3 month
-           |    AND EXISTS (
-           |        SELECT
-           |            *
-           |        FROM
-           |            ch_lineitem
-           |        WHERE
-           |            l_orderkey = o_orderkey
-           |            AND l_commitdate < l_receiptdate)
+           |    c_custkey = o_custkey
+           |    AND l_orderkey = o_orderkey
+           |    AND o_orderdate >= date'1993-10-01' AND o_orderdate < date'1993-10-01' + interval 3 month
+           |    AND l_returnflag = 'R'
+           |    AND c_nationkey = n_nationkey
            |GROUP BY
-           |    o_orderpriority
+           |    c_custkey,
+           |    c_name,
+           |    c_acctbal,
+           |    c_phone,
+           |    n_name,
+           |    c_address,
+           |    c_comment
            |ORDER BY
-           |    o_orderpriority;
-           |
+           |    revenue DESC
+           |LIMIT 20;
            |""".stripMargin) //.show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()

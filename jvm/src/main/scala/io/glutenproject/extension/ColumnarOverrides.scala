@@ -21,17 +21,17 @@ import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
-
 import org.apache.spark.SparkConf
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeAdaptor, ColumnarBroadcastExchangeExec, _}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan, V2CommandExec}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -179,7 +179,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         plan.buildSide,
         plan.condition,
         left,
-        right)
+        right,
+        isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
     case _: ShuffleQueryStageExec | _: BroadcastQueryStageExec =>
       logDebug(
         s"Columnar Processing for ${plan.getClass.getSimpleName} is currently not supported.")

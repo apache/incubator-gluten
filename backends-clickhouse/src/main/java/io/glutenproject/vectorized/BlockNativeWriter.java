@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.joins
+package io.glutenproject.vectorized;
 
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-trait BuildSideRelation extends Serializable {
+public class BlockNativeWriter {
+    private long instance = 0;
 
-  /**
-   * Deserialized relation from broadcasted value
-   */
-  def deserialized: Iterator[ColumnarBatch]
+    public void write(ColumnarBatch columnarBatch) {
+    }
 
-  /**
-   * Returns a read-only copy of this, to be safely used in current thread.
-   */
-  def asReadOnlyCopy(buildHashTableId: String): BuildSideRelation
+    public byte[] collectAsByteArray() {
+        return new byte[0];
+    }
 }
