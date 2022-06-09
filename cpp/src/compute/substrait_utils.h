@@ -34,20 +34,20 @@ namespace compute {
 class SubstraitParser : public ExecBackendBase {
  public:
   SubstraitParser();
-  void ParseLiteral(const substrait::Expression::Literal& slit);
-  void ParseScalarFunction(const substrait::Expression::ScalarFunction& sfunc);
-  void ParseReferenceSegment(const substrait::Expression::ReferenceSegment& sref);
-  void ParseFieldReference(const substrait::Expression::FieldReference& sfield);
-  void ParseExpression(const substrait::Expression& sexpr);
-  void ParseType(const substrait::Type& stype);
-  void ParseNamedStruct(const substrait::NamedStruct& named_struct);
-  void ParseAggregateRel(const substrait::AggregateRel& sagg);
-  void ParseProjectRel(const substrait::ProjectRel& sproject);
-  void ParseFilterRel(const substrait::FilterRel& sfilter);
-  void ParseReadRel(const substrait::ReadRel& sread);
-  void ParseRelRoot(const substrait::RelRoot& sroot);
-  void ParseRel(const substrait::Rel& srel);
-  void ParsePlan(const substrait::Plan& splan);
+  void ParseLiteral(const ::substrait::Expression::Literal& slit);
+  void ParseScalarFunction(const ::substrait::Expression::ScalarFunction& sfunc);
+  void ParseReferenceSegment(const ::substrait::Expression::ReferenceSegment& sref);
+  void ParseFieldReference(const ::substrait::Expression::FieldReference& sfield);
+  void ParseExpression(const ::substrait::Expression& sexpr);
+  void ParseType(const ::substrait::Type& stype);
+  void ParseNamedStruct(const ::substrait::NamedStruct& named_struct);
+  void ParseAggregateRel(const ::substrait::AggregateRel& sagg);
+  void ParseProjectRel(const ::substrait::ProjectRel& sproject);
+  void ParseFilterRel(const ::substrait::FilterRel& sfilter);
+  void ParseReadRel(const ::substrait::ReadRel& sread);
+  void ParseRelRoot(const ::substrait::RelRoot& sroot);
+  void ParseRel(const ::substrait::Rel& srel);
+  void ParsePlan(const ::substrait::Plan& splan);
   std::shared_ptr<RecordBatchResultIterator> GetResultIterator() override;
   std::shared_ptr<RecordBatchResultIterator> GetResultIterator(
       std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) override;

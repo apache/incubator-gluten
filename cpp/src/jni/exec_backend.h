@@ -93,7 +93,7 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
 
   inline void CheckValid() {
     if (iter_ == nullptr) {
-      throw JniPendingException(
+      throw GlutenException(
           "RecordBatchResultIterator: the underlying iterator has expired.");
     }
   }
@@ -139,7 +139,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
             // TODO: remove arrow::Status
             GLUTEN_THROW_NOT_OK(GetIterInputSchemaFromRel(sroot.input()));
           } else {
-            throw JniPendingException("Expect Rel as input.");
+            throw GlutenException("Expect Rel as input.");
           }
         }
         if (srel.has_rel()) {

@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include "compute/VeloxPlanConverter.h"
+#include "jni/jni_errors.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
@@ -31,6 +32,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
   }
+  gluten::GetJniErrorsState()->Initialize(env);
 #ifdef DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -45,14 +47,17 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
+  JNI_METHOD_START
   gluten::SetBackendFactory(
       [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
   static auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jboolean JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env, jobject obj, jbyteArray planArray) {
+  JNI_METHOD_START
   auto planData =
       reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
@@ -71,6 +76,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
       std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>(
           pool_.get(), execCtx_.get());
   return planValidator->validate(subPlan);
+  JNI_METHOD_END(false)
 }
 
 #ifdef __cplusplus

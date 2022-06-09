@@ -25,7 +25,7 @@
   do {                                                          \
     ::arrow::Status _s = ::arrow::internal::GenericToStatus(s); \
     if (!_s.ok()) {                                             \
-      throw ::gluten::JniPendingException(_s.ToString());       \
+      throw gluten::GlutenException(_s.ToString());             \
     }                                                           \
   } while (0)
 
@@ -40,9 +40,9 @@
 
 namespace gluten {
 
-class JniPendingException : public std::runtime_error {
+class GlutenException : public std::runtime_error {
  public:
-  explicit JniPendingException(const std::string& arg) : runtime_error(arg) {}
+  explicit GlutenException(const std::string& arg) : runtime_error(arg) {}
 };
 
 }  // namespace gluten
