@@ -15,21 +15,18 @@
  * limitations under the License.
  */
 
-package io.glutenproject.row;
 
-public class SparkRowInfo {
-    public long[] offsets;
-    public long[] lengths;
-    public long memoryAddress;
+package io.glutenproject.vectorized;
 
-    public long totalSize;
-    public long fieldsNum;
+import io.glutenproject.row.SparkRowInfo;
 
-    public SparkRowInfo(long[] offsets, long[] lengths, long memoryAddress, long fieldsNum, long totalSize) {
-        this.offsets = offsets;
-        this.lengths = lengths;
-        this.memoryAddress = memoryAddress;
-        this.fieldsNum = fieldsNum;
-        this.totalSize = totalSize;
-    }
+import java.io.Closeable;
+import java.io.IOException;
+
+public class BlockNativeConverter {
+
+
+    public native SparkRowInfo converColumarToRow(long blockAddress);
+
+    public native void freeMemory(long address, long size);
 }

@@ -44,6 +44,9 @@ public class CHNativeBlock {
     return nativeNumRows(blockAddress);
   }
 
+  public long blockAddress() {
+    return blockAddress;
+  }
   ;
 
   private native int nativeNumColumns(long blockAddress);

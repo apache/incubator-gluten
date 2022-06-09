@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
+import io.glutenproject.execution.{BlockNativeColumnarToRowExec, FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
 import io.glutenproject.vectorized.CHColumnarBatchSerializer
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
@@ -41,9 +41,9 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec =
-    throw new UnsupportedOperationException(
-      "Cannot support NativeColumnarToRowExec operation with ClickHouse backend.")
+  override def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec = {
+    new BlockNativeColumnarToRowExec(child);
+  }
 
 
   /**
