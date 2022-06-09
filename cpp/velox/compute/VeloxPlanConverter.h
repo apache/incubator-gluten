@@ -79,7 +79,12 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator() override;
 
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) override;
+      std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs);
+
+  // For unit test and benchmark.
+  std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
+      const std::vector<std::string>& paths, const std::vector<u_int64_t>& starts,
+      const std::vector<u_int64_t>& lengths);
 
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase> getColumnarConverter(
       std::shared_ptr<arrow::RecordBatch> rb, arrow::MemoryPool* memory_pool,

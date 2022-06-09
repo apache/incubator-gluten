@@ -230,6 +230,20 @@ VeloxPlanConverter::GetResultIterator() {
 }
 
 std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
+    const std::vector<std::string>& paths, const std::vector<u_int64_t>& starts,
+    const std::vector<u_int64_t>& lengths) {
+  std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
+  const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
+  // Move the velox pool and the iterator will manage it.
+  uint32_t partitionIndx = 0;
+  bool fakeArrowOutput = false;
+  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
+      std::move(veloxPool_), planNode, partitionIndx, paths, starts, lengths,
+      fakeArrowOutput);
+  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+}
+
+std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
     std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   arrowInputIters_ = std::move(inputs);

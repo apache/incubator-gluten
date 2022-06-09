@@ -21,20 +21,11 @@
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
-#include <velox/dwio/dwrf/test/utils/DataFiles.h>
 
-#include <fstream>
-#include <sstream>
-
+#include "BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
-#include "compute/protobuf_utils.h"
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
-
-inline std::string getExampleFilePath(const std::string& fileName) {
-  return ::facebook::velox::test::getDataFilePath("cpp/velox/benchmarks",
-                                                  "data/" + fileName);
-}
 
 class WrapperIterator {
  public:
@@ -70,16 +61,11 @@ std::shared_ptr<gluten::RecordBatchResultIterator> GetInputIterator(
 auto BM_HashJoin = [](::benchmark::State& state, const std::string& l_input_file,
                       const std::string& r_input_file) {
   const auto& filePath = getExampleFilePath("hash_join.json");
-  std::ifstream msgJson(filePath);
-  std::stringstream buffer;
-  buffer << msgJson.rdbuf();
-  std::string msgData = buffer.str();
-
-  auto maybe_plan = SubstraitFromJSON("Plan", msgData);
-  if (!maybe_plan.ok()) {
-    state.SkipWithError(maybe_plan.status().message().c_str());
+  auto maybePlan = readFromFile(filePath);
+  if (!maybePlan.ok()) {
+    state.SkipWithError(maybePlan.status().message().c_str());
   }
-  auto plan = std::move(maybe_plan).ValueOrDie();
+  auto plan = std::move(maybePlan).ValueOrDie();
 
   for (auto _ : state) {
     state.PauseTiming();
@@ -99,17 +85,13 @@ auto BM_HashJoin = [](::benchmark::State& state, const std::string& l_input_file
 
 auto BM_HashJoinExample = [](::benchmark::State& state) {
   const auto& bm_lineitem = getExampleFilePath(
-      "bm_lineitem/part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet");
+      "parquet/bm_lineitem/"
+      "part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet");
   const auto& bm_part = getExampleFilePath(
-      "bm_part/part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet");
+      "parquet/bm_part/"
+      "part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet");
   return BM_HashJoin(state, bm_lineitem, bm_part);
 };
-
-static void InitVeloxBackend() {
-  gluten::SetBackendFactory(
-      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
-  auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
-}
 
 /**
   If no input files specified, small input files will be used as examples.
