@@ -291,7 +291,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     val transKernel = new ExpressionEvaluator(jarList.asJava)
     val columnarNativeIterator =
       new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new VeloxInIterator(iter.asJava)
+        new ArrowInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
       transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator)
@@ -331,8 +331,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @return
    */
   override def genColumnarNativeIterator(
-      delegated: Iterator[ColumnarBatch]): VeloxInIterator = {
-    new VeloxInIterator(delegated.asJava)
+      delegated: Iterator[ColumnarBatch]): ArrowInIterator = {
+    new ArrowInIterator(delegated.asJava)
   }
 
   /**
@@ -348,7 +348,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     val poolId = memoryPool.getNativeInstanceId
     val batchIteratorInstance =
       jniWrapper.nativeCreateKernelWithIterator(poolId, wsPlan, iterList.toArray)
-    new VeloxOutIterator(batchIteratorInstance)
+    new ArrowOutIterator(batchIteratorInstance)
   }
 
   /**

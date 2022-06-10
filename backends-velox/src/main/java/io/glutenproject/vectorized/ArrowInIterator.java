@@ -25,9 +25,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class VeloxInIterator extends GeneralInIterator {
+public class ArrowInIterator extends GeneralInIterator {
 
-  public VeloxInIterator(Iterator<ColumnarBatch> delegated) {
+  public ArrowInIterator(Iterator<ColumnarBatch> delegated) {
     super(delegated);
   }
 
