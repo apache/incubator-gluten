@@ -19,23 +19,26 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowJniWrapper}
+import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import org.apache.arrow.c.{ArrowArray, ArrowSchema}
+import org.apache.arrow.memory.BufferAllocator
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
+import org.slf4j.{Logger, LoggerFactory}
 
 class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
+  private val LOG = LoggerFactory.getLogger(classOf[VeloxNativeColumnarToRowExec])
   override def nodeName: String = "VeloxNativeColumnarToRowExec"
 
   override def supportCodegen: Boolean = false
@@ -78,12 +81,6 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
     child.executeColumnar().mapPartitions { batches =>
       // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
       val jniWrapper = new NativeColumnarToRowJniWrapper()
-      var arrowSchema: Array[Byte] = null
-
-      def serializeSchema(fields: Seq[Field]): Array[Byte] = {
-        val schema = new Schema(fields.asJava)
-        ArrowConverterUtils.getSchemaBytesBuf(schema)
-      }
 
       batches.flatMap { batch =>
         numInputBatches += 1
@@ -102,43 +99,27 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
           val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
           batch.rowIterator().asScala.map(toUnsafe)
         } else {
-          val bufAddrs = new ListBuffer[Long]()
-          val bufSizes = new ListBuffer[Long]()
-          val fields = new ListBuffer[Field]()
-          (0 until batch.numCols).foreach { idx =>
-            val column = batch.column(idx).asInstanceOf[ArrowWritableColumnVector]
-            fields += column.getValueVector.getField
-            column.getValueVector.getBuffers(false)
-              .foreach { buffer =>
-                bufAddrs += buffer.memoryAddress()
-                try {
-                  bufSizes += buffer.readableBytes()
-                } catch {
-                  case e: Throwable =>
-                    // For Velox, the returned format is faked arrow format,
-                    // and the offset buffer is invalid. Only the buffer address is cared.
-                    if (GlutenConfig.getConf.isVeloxBackend &&
-                        child.output(idx).dataType == StringType) {
-                      // Add a fake value here for String column.
-                      bufSizes += 1
-                    } else {
-                      throw e
-                    }
-                }
-              }
+          val allocator = SparkMemoryUtils.contextAllocator()
+          val cArray = ArrowArray.allocateNew(allocator)
+          val cSchema = ArrowSchema.allocateNew(allocator)
+          var info : NativeColumnarToRowInfo = null
+          try {
+            ArrowAbiUtil.exportFromSparkColumnarBatch(
+              SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray)
+            val beforeConvert = System.nanoTime()
+
+            info = jniWrapper.nativeConvertColumnarToRow(
+              cSchema.memoryAddress(), cArray.memoryAddress(),
+              SparkMemoryUtils.contextMemoryPool().getNativeInstanceId, wsChild)
+
+            convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
+
+            cSchema.release()
+            cArray.release()
+          } finally {
+            cArray.close()
+            cSchema.close()
           }
-
-          if (arrowSchema == null) {
-            arrowSchema = serializeSchema(fields)
-          }
-
-          val beforeConvert = System.nanoTime()
-
-          val info = jniWrapper.nativeConvertColumnarToRow(
-            arrowSchema, batch.numRows, bufAddrs.toArray, bufSizes.toArray,
-            SparkMemoryUtils.contextMemoryPool().getNativeInstanceId, wsChild)
-
-          convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 
           new Iterator[InternalRow] {
             var rowId = 0
@@ -174,5 +155,7 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
       (that canEqual this) && super.equals(that)
     case _ => false
   }
+
+  override def hashCode(): Int = super.hashCode()
 }
 
