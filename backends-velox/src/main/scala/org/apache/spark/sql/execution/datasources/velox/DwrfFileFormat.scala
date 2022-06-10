@@ -40,5 +40,7 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
     throw new UnsupportedOperationException
   }
 
+  override def supportBatch(sparkSession: SparkSession, dataSchema: StructType): Boolean = true
+
   override def shortName(): String = "dwrf"
 }
