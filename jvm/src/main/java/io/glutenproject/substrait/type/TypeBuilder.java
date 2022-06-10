@@ -49,4 +49,12 @@ public class TypeBuilder {
     public static TypeNode makeDate(Boolean nullable) {
         return new DateTypeNode(nullable);
     }
+
+    public static TypeNode makeDecimal(Boolean nullable, Integer precision, Integer scale ) {
+        return new DecimalTypeNode(nullable, precision, scale);
+    }
+
+    public static TypeNode makeTimestamp(Boolean nullable) {
+        return new TimestampTypeNode(nullable);
+    }
 }

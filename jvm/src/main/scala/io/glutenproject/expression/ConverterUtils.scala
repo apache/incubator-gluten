@@ -135,6 +135,13 @@ object ConverterUtils extends Logging {
         TypeBuilder.makeI32(nullable)
       case DateType =>
         TypeBuilder.makeDate(nullable)
+      case DecimalType() =>
+        val decimalType = datatye.asInstanceOf[DecimalType]
+        val precision = decimalType.precision
+        val scale = decimalType.scale
+        TypeBuilder.makeDecimal(nullable, precision, scale)
+      case TimestampType =>
+        TypeBuilder.makeTimestamp(nullable)
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }
