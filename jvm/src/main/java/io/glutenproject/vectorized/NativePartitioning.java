@@ -33,7 +33,7 @@ public class NativePartitioning implements Serializable {
    * @param shortName Partitioning short name. "single" -> SinglePartitioning, "rr" ->
    *     RoundRobinPartitioning, "hash" -> HashPartitioning, "range" -> RangePartitioning
    * @param numPartitions Partitioning numPartitions
-   * @param schema Serialized arrow schema
+   * @param schema serialized arrow schema
    * @param exprList Serialized gandiva expressions
    */
   public NativePartitioning(String shortName, int numPartitions, byte[] schema, byte[] exprList) {

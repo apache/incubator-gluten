@@ -17,14 +17,15 @@
 package org.apache.spark.sql.execution.utils
 
 import scala.collection.JavaConverters._
-
 import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.ArrowAbiUtil.exportField
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
+import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -58,13 +59,6 @@ object VeloxExecUtil {
                            compressTime: SQLMetric,
                            prepareTime: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
-    val arrowFields = outputAttributes.map(attr =>
-      ArrowConverterUtils.createArrowField(attr)
-    )
-    def serializeSchema(fields: Seq[Field]): Array[Byte] = {
-      val schema = new Schema(fields.asJava)
-      ArrowConverterUtils.getSchemaBytesBuf(schema)
-    }
 
     // only used for fallback range partitioning
     val rangePartitioner: Option[Partitioner] = newPartitioning match {
@@ -124,8 +118,18 @@ object VeloxExecUtil {
       }
     }
 
+    def serializeSchema(fields: Seq[Field]): Array[Byte] = {
+      val schema = new Schema(fields.asJava)
+      ArrowConverterUtils.getSchemaBytesBuf(schema)
+    }
+
+    val arrowFields = outputAttributes.map(attr =>
+      ArrowConverterUtils.createArrowField(attr)
+    )
+
     val nativePartitioning: NativePartitioning = newPartitioning match {
-      case SinglePartition => new NativePartitioning("single", 1, serializeSchema(arrowFields))
+      case SinglePartition =>
+        new NativePartitioning("single", 1, serializeSchema(arrowFields))
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, serializeSchema(arrowFields))
       case HashPartitioning(exprs, n) =>

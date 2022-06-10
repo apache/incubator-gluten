@@ -28,11 +28,11 @@ public class ShuffleDecompressionJniWrapper {
   /**
    * Make for multiple decompression with the same schema
    *
-   * @param schemaBuf serialized arrow schema
+   * @param cSchema {@link org.apache.arrow.c.ArrowSchema} address
    * @return native schema holder id
    * @throws RuntimeException
    */
-  public native long make(byte[] schemaBuf) throws RuntimeException;
+  public native long make(long cSchema) throws RuntimeException;
 
   public native boolean decompress(
       long schemaHolderId,

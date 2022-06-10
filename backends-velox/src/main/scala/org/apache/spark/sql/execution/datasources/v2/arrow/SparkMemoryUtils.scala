@@ -36,7 +36,10 @@ import scala.collection.JavaConverters._
 
 object SparkMemoryUtils extends Logging {
 
-  private val DEBUG: Boolean = false
+  private val DEBUG: Boolean = {
+    SQLConf.get
+      .getConfString("spark.gluten.sql.memory.debug", "false").toBoolean
+  }
   private val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
   class TaskMemoryResources {

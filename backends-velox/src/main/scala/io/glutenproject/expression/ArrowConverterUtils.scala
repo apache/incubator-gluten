@@ -32,7 +32,7 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.{ReadChannel, WriteChannel}
 import org.apache.arrow.vector.ipc.message.{ArrowRecordBatch, IpcOption, MessageChannelReader, MessageResult, MessageSerializer}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
-import org.apache.arrow.vector.ValueVector
+import org.apache.arrow.vector.{FieldVector, ValueVector}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.TimeUnit
 import org.apache.spark.internal.Logging
@@ -51,6 +51,10 @@ object ArrowConverterUtils extends Logging {
 
   def createArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
     SparkVectorUtils.toArrowRecordBatch(columnarBatch)
+  }
+
+  def createFieldVectorList(columnarBatch: ColumnarBatch): List[FieldVector] = {
+    SparkVectorUtils.toFieldVectorList(columnarBatch)
   }
 
   def createArrowRecordBatch(numRowsInBatch: Int, cols: List[ValueVector]): ArrowRecordBatch = {
@@ -80,8 +84,10 @@ object ArrowConverterUtils extends Logging {
         }
       } catch {
         case e =>
-          System.err.println(s"conversion failed")
+          // scalastyle:off println
+          System.err.println(s"Failed converting to Netty. ")
           e.printStackTrace()
+          // scalastyle:on println
           throw e
       }
     }
@@ -288,8 +294,9 @@ object ArrowConverterUtils extends Logging {
 
   def releaseArrowRecordBatchList(recordBatchList: Array[ArrowRecordBatch]): Unit = {
     recordBatchList.foreach({ recordBatch =>
-      if (recordBatch != null)
+      if (recordBatch != null) {
         releaseArrowRecordBatch(recordBatch)
+      }
     })
   }
 
@@ -452,7 +459,7 @@ object ArrowConverterUtils extends Logging {
 
     val utcTimestampNodeOriginal = inNode
     val utcTimestampNodeMilli = ArrowConverterUtils.convertTimestampToMilli(
-      utcTimestampNodeOriginal,inType)._1
+      utcTimestampNodeOriginal, inType)._1
     val utcTimestampNodeLong = TreeBuilder.makeFunction("castBIGINT",
       Lists.newArrayList(utcTimestampNodeMilli), new ArrowType.Int(64,
         true))
@@ -472,6 +479,15 @@ object ArrowConverterUtils extends Logging {
   def toSparkTimestamp(inNode: TreeNode, inType: ArrowType,
                        timeZoneId: Option[String] = None): (TreeNode, ArrowType) = {
     throw new UnsupportedOperationException()
+  }
+
+  def toSchema( batch: ColumnarBatch) : Schema = {
+    val fields = new java.util.ArrayList[Field](batch.numCols)
+    for (i <- 0 until batch.numCols) {
+      val col: ColumnVector = batch.column(i)
+      fields.add(col.asInstanceOf[ArrowWritableColumnVector].getValueVector.getField)
+    }
+    new Schema(fields)
   }
 
   override def toString(): String = {

@@ -17,6 +17,11 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.expression.ArrowConverterUtils;
+import io.glutenproject.utils.ArrowAbiUtil;
+import org.apache.arrow.c.ArrowSchema;
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
+
 import java.io.IOException;
 
 public class ShuffleSplitterJniWrapper {
@@ -50,27 +55,34 @@ public class ShuffleSplitterJniWrapper {
           boolean preferSpill,
           long memoryPoolId,
           boolean writeSchema) {
-    return nativeMake(
-            part.getShortName(),
-            part.getNumPartitions(),
-            part.getSchema(),
-            part.getExprList(),
-            offheapPerTask,
-            bufferSize,
-            codec,
-            batchCompressThreshold,
-            dataFile,
-            subDirsPerLocalDir,
-            localDirs,
-            preferSpill,
-            memoryPoolId,
-            writeSchema);
+    try(ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())) {
+      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(),
+              ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()),
+              schema);
+      return nativeMake(
+              part.getShortName(),
+              part.getNumPartitions(),
+              schema.memoryAddress(),
+              part.getExprList(),
+              offheapPerTask,
+              bufferSize,
+              codec,
+              batchCompressThreshold,
+              dataFile,
+              subDirsPerLocalDir,
+              localDirs,
+              preferSpill,
+              memoryPoolId,
+              writeSchema);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public native long nativeMake(
           String shortName,
           int numPartitions,
-          byte[] schema,
+          long cSchema,
           byte[] exprList,
           long offheapPerTask,
           int bufferSize,
@@ -103,14 +115,13 @@ public class ShuffleSplitterJniWrapper {
    *
    * @param splitterId splitter instance id
    * @param numRows Rows per batch
-   * @param bufAddrs Addresses of buffers
-   * @param bufSizes Sizes of buffers
+   * @param cArray Addresses of ArrowArray
    * @param firstRecordBatch whether this record batch is the first
    *                         record batch in the first partition.
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(
-          long splitterId, int numRows, long[] bufAddrs, long[] bufSizes, boolean firstRecordBatch)
+          long splitterId, int numRows, long cArray, boolean firstRecordBatch)
           throws IOException;
 
   /**

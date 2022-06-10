@@ -189,7 +189,13 @@ private class ArrowColumnarBatchSerializerInstance(
       private def decompressVectors(): Unit = {
         if (jniWrapper == null) {
           jniWrapper = new ShuffleDecompressionJniWrapper
-          schemaHolderId = jniWrapper.make(ArrowConverterUtils.getSchemaBytesBuf(root.getSchema))
+          val out = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())
+          try {
+            ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(), root.getSchema, out)
+            schemaHolderId = jniWrapper.make(out.memoryAddress())
+          } finally {
+            out.close()
+          }
         }
         if (vectorLoader == null) {
           vectorLoader = new VectorLoader(root)

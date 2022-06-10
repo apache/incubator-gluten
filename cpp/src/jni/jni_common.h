@@ -267,21 +267,6 @@ std::string JStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer.data(), clen);
 }
 
-arrow::Status MakeSchema(JNIEnv* env, jbyteArray schema_arr,
-                         std::shared_ptr<arrow::Schema>* schema) {
-  jsize schema_len = env->GetArrayLength(schema_arr);
-  jbyte* schema_bytes = env->GetByteArrayElements(schema_arr, 0);
-
-  auto serialized_schema =
-      std::make_shared<arrow::Buffer>((uint8_t*)schema_bytes, schema_len);
-  arrow::ipc::DictionaryMemo in_memo;
-  arrow::io::BufferReader buf_reader(serialized_schema);
-  *schema = arrow::ipc::ReadSchema(&buf_reader, &in_memo).ValueOrDie();
-  env->ReleaseByteArrayElements(schema_arr, schema_bytes, JNI_ABORT);
-
-  return arrow::Status::OK();
-}
-
 arrow::Status MakeExprVector(JNIEnv* env, jbyteArray exprs_arr,
                              gandiva::ExpressionVector* expr_vector,
                              gandiva::FieldVector* ret_types) {
