@@ -71,6 +71,7 @@ jobs:
           cd build
           cmake .. -DBUILD_ARROW=0 -DBUILD_TESTS=1
           make -j$(nproc)
+          ctest
 
   velox-backend-test:
     runs-on: sr404-self-hosted
@@ -118,6 +119,7 @@ jobs:
           mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
       - name: Run unit tests
         run: |
+          mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox
           cd cpp/
           mkdir -p build
           cd build

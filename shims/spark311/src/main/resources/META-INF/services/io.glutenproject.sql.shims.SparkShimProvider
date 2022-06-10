@@ -1,1 +1,1 @@
-io.glutenproject.sql.shims.SparkShimProvider
+io.glutenproject.sql.shims.spark311.SparkShimProvider
