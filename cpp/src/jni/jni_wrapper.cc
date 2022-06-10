@@ -17,6 +17,7 @@
 
 #include <arrow/buffer.h>
 #include <arrow/c/bridge.h>
+#include <arrow/c/helpers.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/path_util.h>
 #include <arrow/io/memory.h>
@@ -410,40 +411,13 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeC
 
 JNIEXPORT jobject JNICALL
 Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow(
-    JNIEnv* env, jobject, jbyteArray schema_arr, jint num_rows, jlongArray buf_addrs,
-    jlongArray buf_sizes, jlong memory_pool_id, jboolean wsChild) {
+    JNIEnv* env, jobject, jlong c_schema, jlong c_array, jlong memory_pool_id,
+    jboolean wsChild) {
   JNI_METHOD_START
-  if (schema_arr == NULL) {
-    gluten::JniThrow("Native convert columnar to row schema can't be null");
-  }
-  if (buf_addrs == NULL) {
-    gluten::JniThrow("Native convert columnar to row: buf_addrs can't be null");
-  }
-  if (buf_sizes == NULL) {
-    gluten::JniThrow("Native convert columnar to row: buf_sizes can't be null");
-  }
-
-  int in_bufs_len = env->GetArrayLength(buf_addrs);
-  if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
-    gluten::JniThrow(
-        "Native convert columnar to row: length of buf_addrs and buf_sizes mismatch");
-  }
-
-  std::shared_ptr<arrow::Schema> schema;
-  // ValueOrDie in MakeSchema
-  MakeSchema(env, schema_arr, &schema);
-
-  jlong* in_buf_addrs = env->GetLongArrayElements(buf_addrs, JNI_FALSE);
-  jlong* in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
-
-  std::shared_ptr<arrow::RecordBatch> rb;
-  gluten::JniAssertOkOrThrow(MakeRecordBatch(schema, num_rows, (int64_t*)in_buf_addrs,
-                                             (int64_t*)in_buf_sizes, in_bufs_len, &rb),
-                             "Native convert columnar to row: make record batch failed");
-
-  env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
-  env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
-
+  std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(
+      arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
+                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  int64_t num_rows = rb->num_rows();
   // convert the record batch to spark unsafe row.
   auto* pool = reinterpret_cast<arrow::MemoryPool*>(memory_pool_id);
   if (pool == nullptr) {
@@ -475,6 +449,11 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   jobject native_columnar_to_row_info = env->NewObject(
       native_columnar_to_row_info_class, native_columnar_to_row_info_constructor,
       instanceID, offsets_arr, lengths_arr, address);
+  struct ArrowArray out_array;
+  struct ArrowSchema out_schema;
+  gluten::JniAssertOkOrThrow(arrow::ExportRecordBatch(*rb, &out_array, &out_schema));
+  ArrowArrayRelease(&out_array);
+  ArrowSchemaRelease(&out_schema);
   return native_columnar_to_row_info;
   JNI_METHOD_END(nullptr)
 }
