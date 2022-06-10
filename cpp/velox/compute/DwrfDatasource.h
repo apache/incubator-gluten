@@ -18,16 +18,28 @@
 #pragma once
 
 #include <arrow/type_fwd.h>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
-#include "velox/type/Type.h"
+#include "velox/common/file/FileSystems.h"
+#include "velox/dwio/common/Options.h"
+#include "velox/dwio/dwrf/reader/DwrfReader.h"
 
 using namespace facebook::velox;
 
-std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name);
+namespace velox {
+namespace compute {
 
-std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type);
+class DwrfDatasource {
+ public:
+  DwrfDatasource(const std::string& file_path) : file_path_(file_path) {}
 
-const char* arrowTypeIdToFormatStr(arrow::Type::type typeId);
+  void Init();
+  std::shared_ptr<arrow::Schema> InspectSchema();
+  void Close();
 
-std::shared_ptr<arrow::Schema> toArrowSchema(
-    const std::shared_ptr<const RowType>& row_type);
+ private:
+  std::string file_path_;
+};
+
+}  // namespace compute
+}  // namespace velox

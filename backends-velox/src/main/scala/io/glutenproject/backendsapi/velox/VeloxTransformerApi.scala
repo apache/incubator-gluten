@@ -32,6 +32,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partition
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
 
 class VeloxTransformerApi extends ITransformerApi with Logging {
 
@@ -78,7 +79,8 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    */
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
     GlutenConfig.getConf.isGazelleBackend && fileFormat.isInstanceOf[ParquetFileFormat] ||
-    GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat]
+    GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
+      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat]
   }
 
   /**

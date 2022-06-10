@@ -15,19 +15,21 @@
  * limitations under the License.
  */
 
-#pragma once
+package io.glutenproject.spark.sql.execution.datasources.velox;
 
-#include <arrow/type_fwd.h>
+import java.io.IOException;
 
-#include "velox/type/Type.h"
+import io.glutenproject.vectorized.JniLibLoader;
+import io.glutenproject.vectorized.JniWorkspace;
 
-using namespace facebook::velox;
+public class DwrfDatasourceJniWrapper {
 
-std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name);
-
-std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type);
-
-const char* arrowTypeIdToFormatStr(arrow::Type::type typeId);
-
-std::shared_ptr<arrow::Schema> toArrowSchema(
-    const std::shared_ptr<const RowType>& row_type);
+    public DwrfDatasourceJniWrapper() throws IOException {
+        final JniLibLoader loader = JniWorkspace.getDefault().libLoader();
+        loader.loadEssentials();
+        loader.mapAndLoad("velox");
+    }
+    public native long nativeInitDwrfDatasource(String filePath);
+    public native byte[] inspectSchema(long instanceId);
+    public native void close(long instanceId);
+}
