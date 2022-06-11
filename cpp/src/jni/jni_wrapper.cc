@@ -244,7 +244,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J)V");
 
   serialized_record_batch_iterator_class = CreateGlobalClassReferenceOrError(
-      env, "Lio/glutenproject/vectorized/VeloxInIterator;");
+      env, "Lio/glutenproject/vectorized/ArrowInIterator;");
   serialized_record_batch_iterator_hasNext =
       GetMethodIDOrError(env, serialized_record_batch_iterator_class, "hasNext", "()Z");
   serialized_record_batch_iterator_next =
@@ -354,7 +354,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
 }
 
 JNIEXPORT jboolean JNICALL
-Java_io_glutenproject_vectorized_VeloxOutIterator_nativeHasNext(JNIEnv* env, jobject obj,
+Java_io_glutenproject_vectorized_ArrowOutIterator_nativeHasNext(JNIEnv* env, jobject obj,
                                                                 jlong id) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
@@ -366,7 +366,7 @@ Java_io_glutenproject_vectorized_VeloxOutIterator_nativeHasNext(JNIEnv* env, job
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nativeNext(
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
     JNIEnv* env, jobject obj, jlong id, jlong c_schema, jlong c_array) {
   JNI_METHOD_START
   auto iter = GetBatchIterator(env, id);
@@ -381,7 +381,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nat
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_VeloxOutIterator_nativeClose(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeClose(
     JNIEnv* env, jobject this_obj, jlong id) {
   JNI_METHOD_START
 #ifdef DEBUG

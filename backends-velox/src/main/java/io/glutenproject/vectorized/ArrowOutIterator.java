@@ -26,7 +26,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class VeloxOutIterator extends GeneralOutIterator {
+public class ArrowOutIterator extends GeneralOutIterator {
 
   private native boolean nativeHasNext(long nativeHandle);
   private native boolean nativeNext(long nativeHandle, long cSchema, long cArray);
@@ -34,7 +34,7 @@ public class VeloxOutIterator extends GeneralOutIterator {
   private native void nativeClose(long nativeHandle);
   private native MetricsObject nativeFetchMetrics(long nativeHandle);
 
-  public VeloxOutIterator(long instance_id) throws IOException {
+  public ArrowOutIterator(long instance_id) throws IOException {
     super(instance_id);
   }
 

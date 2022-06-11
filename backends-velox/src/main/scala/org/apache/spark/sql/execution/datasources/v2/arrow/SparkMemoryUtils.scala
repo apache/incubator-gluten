@@ -17,20 +17,20 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
-import java.io.{ByteArrayOutputStream, PrintWriter}
-import java.util.UUID
-import scala.collection.JavaConverters._
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow._
-
-import java.util
 import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.{AllocationListener, BufferAllocator, MemoryChunkCleaner, MemoryChunkManager, RootAllocator}
-import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskCompletionListener
+import org.apache.spark.{SparkEnv, TaskContext}
+
+import java.io.{ByteArrayOutputStream, PrintWriter}
+import java.util
+import java.util.UUID
+import scala.collection.JavaConverters._
 
 object SparkMemoryUtils extends Logging {
 
@@ -64,7 +64,7 @@ object SparkMemoryUtils extends Logging {
       sparkManagedAllocationListener
     }
 
-    val allocListenerForBufferImport: AllocationListener = if (isArrowAutoReleaseEnabled) {
+    val allocListenerUnmanaged: AllocationListener = if (isArrowAutoReleaseEnabled) {
       MemoryChunkCleaner.gcTrigger()
     } else {
       AllocationListener.NOOP
@@ -97,8 +97,8 @@ object SparkMemoryUtils extends Logging {
       alloc
     }
 
-    val taskDefaultAllocatorForBufferImport: BufferAllocator = taskDefaultAllocator
-      .newChildAllocator("CHILD-ALLOC-BUFFER-IMPORT", allocListenerForBufferImport, 0L,
+    val taskDefaultAllocatorUnmanaged: BufferAllocator = taskDefaultAllocator
+      .newChildAllocator("CHILD-ALLOC-UNMANAGED", allocListenerUnmanaged, 0L,
         Long.MaxValue)
 
     val defaultMemoryPool: NativeMemoryPoolWrapper = {
@@ -200,15 +200,17 @@ object SparkMemoryUtils extends Logging {
 
   private val leakedAllocators = new java.util.Vector[BufferAllocator]()
   private val leakedMemoryPools = new java.util.Vector[NativeMemoryPoolWrapper]()
-
-  private def getLocalTaskContext: TaskContext = TaskContext.get()
-
+  
+  def getLocalTaskContext: TaskContext = {
+    TaskContext.get()
+  }
+  
+  def inSparkTask(): Boolean = {
+    getLocalTaskContext != null
+  }
+  
   private def getTaskMemoryManager(): TaskMemoryManager = {
     getLocalTaskContext.taskMemoryManager()
-  }
-
-  private def inSparkTask(): Boolean = {
-    getLocalTaskContext != null
   }
 
   def addLeakSafeTaskCompletionListener[U](f: TaskContext => U): TaskContext = {
@@ -285,11 +287,11 @@ object SparkMemoryUtils extends Logging {
     getTaskMemoryResources().taskDefaultAllocator
   }
 
-  def contextAllocatorForBufferImport(): BufferAllocator = {
+  def contextAllocatorUnmanaged(): BufferAllocator = {
     if (!inSparkTask()) {
       return globalAllocator()
     }
-    getTaskMemoryResources().taskDefaultAllocatorForBufferImport
+    getTaskMemoryResources().taskDefaultAllocatorUnmanaged
   }
 
   def contextMemoryPool(): NativeMemoryPool = {
