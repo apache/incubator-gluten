@@ -340,6 +340,11 @@ case class ShuffledHashJoinExecTransformer(
   }
 }
 
+case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
+                                    joinType: JoinType,
+                                    buildSideStructure: Seq[Attribute],
+                                    buildHashTableId: String)
+
 case class BroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -375,12 +380,16 @@ case class BroadcastHashJoinExecTransformer(
       case BuildRight =>
         right.executeBroadcast[BuildSideRelation]()
     }
+
+    val context = BroadCastHashJoinContext(buildKeyExprs,
+      joinType, buildPlan.output, buildHashTableId)
+
     val buildRDD =
       BroadcastBuildSideRDD(
         sparkContext,
         streamedRDD.head.getNumPartitions,
         broadcasted,
-        buildHashTableId)
+        context)
     streamedRDD :+ buildRDD
   }
 }

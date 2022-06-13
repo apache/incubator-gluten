@@ -16,6 +16,7 @@
 
 package org.apache.spark.sql.execution
 
+import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.expression.ArrowConverterUtils
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -29,5 +30,6 @@ case class VeloxBuildSideRelation(output: Seq[Attribute], batches: Array[Array[B
     ArrowConverterUtils.convertFromNetty(output, batches)
   }
 
-  override def asReadOnlyCopy(buildHashTableId: String): VeloxBuildSideRelation = this
+  override def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext
+                             ): VeloxBuildSideRelation = this
 }
