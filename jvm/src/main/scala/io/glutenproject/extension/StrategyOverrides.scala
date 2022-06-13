@@ -24,27 +24,53 @@ import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
-import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.planning.{
+  ExtractEquiJoinKeys,
+  ExtractSingleColumnNullAwareAntiJoin
+}
+import org.apache.spark.sql.catalyst.plans.LeftAnti
+import org.apache.spark.sql.catalyst.plans.logical.{Join, LogicalPlan}
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins
-
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, BroadcastNestedLoopJoinExec}
 
 object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
+
+  private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
+    case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
+    case _ => false
+  }
+
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
-    // targeting equi-joins only
-    case j @ ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, nonEquiCond, left, right, hint) =>
-      // Generate BHJ here, avoid to do match in `JoinSelection` again.
-      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, hintOnly = false, conf)
-      if (buildSide.isDefined) {
-        return Seq(joins.BroadcastHashJoinExec(
+    // If the build side of BHJ is already decided by AQE, we need to keep the build side.
+    case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, left, right, hint)
+        if isBroadcastStage(left) || isBroadcastStage(right) =>
+      val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
+      Seq(
+        BroadcastHashJoinExec(
           leftKeys,
           rightKeys,
           joinType,
-          buildSide.get,
-          nonEquiCond,
+          buildSide,
+          condition,
           planLater(left),
           planLater(right)))
+
+    // targeting equi-joins only
+    case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, nonEquiCond, left, right, hint) =>
+      // Generate BHJ here, avoid to do match in `JoinSelection` again.
+      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, hintOnly = false, conf)
+      if (buildSide.isDefined) {
+        return Seq(
+          joins.BroadcastHashJoinExec(
+            leftKeys,
+            rightKeys,
+            joinType,
+            buildSide.get,
+            nonEquiCond,
+            planLater(left),
+            planLater(right)))
       }
 
       if (GlutenConfig.getSessionConf.forceShuffledHashJoin) {
@@ -63,17 +89,19 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
           getSmallerSide(left, right)
         }
 
-        return Option(buildSide).map {
-          buildSide =>
-            Seq(joins.ShuffledHashJoinExec(
-              leftKeys,
-              rightKeys,
-              joinType,
-              buildSide,
-              nonEquiCond,
-              planLater(left),
-              planLater(right)))
-        }.getOrElse(Nil)
+        return Option(buildSide)
+          .map { buildSide =>
+            Seq(
+              joins.ShuffledHashJoinExec(
+                leftKeys,
+                rightKeys,
+                joinType,
+                buildSide,
+                nonEquiCond,
+                planLater(left),
+                planLater(right)))
+          }
+          .getOrElse(Nil)
       }
 
       Nil

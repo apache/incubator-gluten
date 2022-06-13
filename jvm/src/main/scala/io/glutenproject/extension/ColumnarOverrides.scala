@@ -21,8 +21,8 @@ import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
-import org.apache.spark.SparkConf
 
+import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions._
@@ -47,19 +47,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     case RowGuard(child: CustomShuffleReaderExec) =>
       replaceWithTransformerPlan(child)
     case plan: RowGuard =>
-      val actualPlan = plan.child match {
-        case p: BroadcastHashJoinExec =>
-          p.withNewChildren(p.children.map {
-            case plan: BroadcastExchangeExec =>
-              // if BroadcastHashJoin is row-based, BroadcastExchange should also be row-based
-              RowGuard(plan)
-            case ReusedExchangeExec(_, plan: BroadcastExchangeExec) =>
-              RowGuard(plan)
-            case other => other
-          })
-        case other =>
-          other
-      }
+      val actualPlan = plan.child
       logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")
       actualPlan.withNewChildren(actualPlan.children.map(replaceWithTransformerPlan))
     /* case plan: ArrowEvalPythonExec =>
@@ -92,12 +80,13 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       ProjectExecTransformer(plan.projectList, columnarChild)
     case plan: FilterExec =>
       // Push down the left conditions in Filter into Scan.
-      val newChild = if (plan.child.isInstanceOf[FileSourceScanExec] ||
-                         plan.child.isInstanceOf[BatchScanExec]) {
-        FilterHandler.applyFilterPushdownToScan(plan)
-      } else {
-        replaceWithTransformerPlan(plan.child)
-      }
+      val newChild =
+        if (plan.child.isInstanceOf[FileSourceScanExec] ||
+            plan.child.isInstanceOf[BatchScanExec]) {
+          FilterHandler.applyFilterPushdownToScan(plan)
+        } else {
+          replaceWithTransformerPlan(plan.child)
+        }
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
       BackendsApiManager.getSparkPlanExecApiInstance
         .genFilterExecTransformer(plan.condition, newChild)
@@ -181,10 +170,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         left,
         right,
         isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-    case _: ShuffleQueryStageExec | _: BroadcastQueryStageExec =>
-      logDebug(
-        s"Columnar Processing for ${plan.getClass.getSimpleName} is currently not supported.")
-      plan
     case plan: CustomShuffleReaderExec if columnarConf.enableColumnarShuffle =>
       plan.child match {
         case shuffle: ColumnarShuffleExchangeAdaptor =>
@@ -212,10 +197,11 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         plan.orderSpec,
         replaceWithTransformerPlan(plan.child))
     case p =>
-      val children = plan.children.map(replaceWithTransformerPlan)
       logDebug(s"Transformation for ${p.getClass} is currently not supported.")
+      val children = plan.children.map(replaceWithTransformerPlan)
       p.withNewChildren(children)
   }
+
   def setAdaptiveSupport(enable: Boolean): Unit = { isSupportAdaptive = enable }
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -235,6 +221,8 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToArrowColumnarExec(child)
     case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
+      replaceWithTransformerPlan(child)
+    case ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
