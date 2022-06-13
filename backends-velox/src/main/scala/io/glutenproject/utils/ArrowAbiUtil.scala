@@ -90,11 +90,15 @@ object ArrowAbiUtil {
       fields.add(col.asInstanceOf[ArrowWritableColumnVector].getValueVector.getField)
     }
     val arrowRecordBatch: ArrowRecordBatch = ArrowConverterUtils.createArrowRecordBatch(batch)
-    val schema: Schema = new Schema(fields)
-    val root: VectorSchemaRoot =
-      VectorSchemaRoot.create(schema, SparkMemoryUtils.contextAllocator())
-    val loader: VectorLoader = new VectorLoader(root)
-    loader.load(arrowRecordBatch)
-    root
+    try {
+      val schema: Schema = new Schema(fields)
+      val root: VectorSchemaRoot =
+        VectorSchemaRoot.create(schema, SparkMemoryUtils.contextAllocator())
+      val loader: VectorLoader = new VectorLoader(root)
+      loader.load(arrowRecordBatch)
+      root
+    } finally {
+      ArrowConverterUtils.releaseArrowRecordBatch(arrowRecordBatch)
+    }
   }
 }
