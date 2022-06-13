@@ -149,7 +149,8 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
             plan.right)
           transformer.doValidate()
         case plan: BroadcastExchangeExec =>
-          if (!enableColumnarBroadcastExchange) return false
+          // columnar broadcast is enabled only when columnar bhj is enabled.
+          if (!enableColumnarBroadcastJoin) return false
           val exec = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
           exec.doValidate()
         case plan: BroadcastHashJoinExec =>
@@ -207,12 +208,8 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
    */
   private def insertRowGuardOrNot(plan: SparkPlan): SparkPlan = {
     plan match {
-      // For operators that will output domain object, do not insert WholeStageCodegen for it as
-      // domain object can not be written into unsafe row.
       case plan if !tryConvertToTransformer(plan) =>
         insertRowGuard(plan)
-      case p: BroadcastQueryStageExec =>
-        p
       case other =>
         other.withNewChildren(other.children.map(insertRowGuardOrNot))
     }
