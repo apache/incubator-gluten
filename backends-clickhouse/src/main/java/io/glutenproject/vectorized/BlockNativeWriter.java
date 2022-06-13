@@ -22,10 +22,30 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 public class BlockNativeWriter {
     private long instance = 0;
 
+    private native long nativeCreateInstance();
+
+    private native void nativeWrite(long instance, long block);
+
+    private native int nativeResultSize(long instance);
+
+    private native void nativeCollect(long instance, byte[] data);
+
+    private native void nativeClose(long instance);
+
     public void write(ColumnarBatch columnarBatch) {
+        if (instance == 0) {
+            instance = nativeCreateInstance();
+        }
+        CHNativeBlock.fromColumnarBatch(columnarBatch).ifPresent(block -> {
+            nativeWrite(instance, block.blockAddress());
+        });
     }
 
     public byte[] collectAsByteArray() {
-        return new byte[0];
+        byte[] result = new byte[nativeResultSize(instance)];
+        nativeCollect(instance, result);
+        nativeClose(instance);
+        instance = 0;
+        return result;
     }
 }

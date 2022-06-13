@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.execution.joins
 
+import io.glutenproject.execution.BroadCastHashJoinContext
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BuildSideRelation extends Serializable {
@@ -29,5 +30,5 @@ trait BuildSideRelation extends Serializable {
   /**
    * Returns a read-only copy of this, to be safely used in current thread.
    */
-  def asReadOnlyCopy(buildHashTableId: String): BuildSideRelation
+  def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext): BuildSideRelation
 }

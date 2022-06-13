@@ -17,21 +17,67 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.execution.BroadCastHashJoinContext;
+import io.glutenproject.expression.ConverterUtils$;
+import io.glutenproject.substrait.type.TypeNode;
+import io.substrait.proto.NamedStruct;
+import io.substrait.proto.Type;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.catalyst.expressions.Expression;
+import scala.collection.JavaConverters;
+
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class StorageJoinBuilder {
     private InputStream in;
 
-    private String buildHashTableId;
+    private BroadCastHashJoinContext broadCastContext;
 
-    public StorageJoinBuilder(InputStream in, String buildHashTableId) {
+    public StorageJoinBuilder(InputStream in, BroadCastHashJoinContext broadCastContext) {
         this.in = in;
-        this.buildHashTableId = buildHashTableId;
+        this.broadCastContext = broadCastContext;
     }
+
+    private native void nativeBuild(String buildHashTableId,
+                                    InputStream in,
+                                    String joinKeys,
+                                    String joinType,
+                                    byte[] namedStruct);
 
     /**
      * build storage join object
      */
     public void build() {
+        ConverterUtils$ converter = ConverterUtils$.MODULE$;
+        String join = converter.convertJoinType(broadCastContext.joinType());
+        List<Expression> keys =
+            JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
+        String joinKey = keys.stream().map((Expression key) -> {
+            Attribute attr = converter.getAttrFromExpr(key, false);
+            return converter.genColumnNameWithExprId(attr);
+        }).collect(Collectors.joining(","));
+
+        // create table named struct
+        ArrayList<TypeNode> typeList = new ArrayList<>();
+        ArrayList<String> nameList = new ArrayList<>();
+        for (Attribute attr : JavaConverters.<Attribute>seqAsJavaList(
+            broadCastContext.buildSideStructure())) {
+            typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
+            nameList.add(converter.genColumnNameWithExprId(attr));
+        }
+        Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+        for (TypeNode typeNode : typeList) {
+            structBuilder.addTypes(typeNode.toProtobuf());
+        }
+        NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
+        nStructBuilder.setStruct(structBuilder.build());
+        for (String name : nameList) {
+            nStructBuilder.addNames(name);
+        }
+        byte[] structure = nStructBuilder.build().toByteArray();
+        nativeBuild(broadCastContext.buildHashTableId(), in, joinKey, join, structure);
     }
 }

@@ -18,11 +18,11 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.`type`._
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
+import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -261,6 +261,21 @@ object ConverterUtils extends Logging {
       }
     }
     typedFuncName
+  }
+
+  def convertJoinType(joinType: JoinType): String = {
+    joinType match {
+      case Inner =>
+        "Inner"
+      case FullOuter =>
+        "Outer"
+      case LeftOuter | RightOuter =>
+        "Left"
+      case LeftSemi =>
+        "Semi"
+      case LeftAnti =>
+        "Anti"
+    }
   }
 
   // A prefix used in the iterator path.

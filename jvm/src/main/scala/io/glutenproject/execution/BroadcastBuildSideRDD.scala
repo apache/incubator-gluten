@@ -30,14 +30,14 @@ case class BroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
     numPartitions: Int,
     broadcasted: broadcast.Broadcast[BuildSideRelation],
-    buildHashTableId: String)
+    broadCastContext: BroadCastHashJoinContext)
     extends RDD[ColumnarBatch](sc, Nil) {
 
   override def getPartitions: Array[Partition] =
     Array.tabulate(numPartitions)(i => BroadcastBuildSideRDDPartition(i))
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    val relation = broadcasted.value.asReadOnlyCopy(buildHashTableId)
+    val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
     BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(
       relation.deserialized)
   }
