@@ -76,6 +76,8 @@ class VeloxInitializer {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter : public gluten::ExecBackendBase {
  public:
+  VeloxPlanConverter(memory::MemoryPool* pool) : pool_(pool) {}
+
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator() override;
 
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
@@ -90,7 +92,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       std::shared_ptr<arrow::RecordBatch> rb, arrow::MemoryPool* memory_pool,
       bool wsChild) override {
     if (wsChild) {
-      return std::make_shared<VeloxToRowConverter>(rb, memory_pool);
+      return std::make_shared<VeloxToRowConverter>(rb, memory_pool, pool_);
     } else {
       // If the child is not Velox output, use Arrow-to-Row conversion instead.
       return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
@@ -99,7 +101,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   }
 
  private:
-  std::unique_ptr<memory::MemoryPool> veloxPool_{memory::getDefaultScopedMemoryPool()};
+  memory::MemoryPool* pool_;
   int planNodeId_ = 0;
   bool fakeArrowOutput_ = false;
   bool dsAsInput_ = true;
@@ -125,7 +127,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter>
       subVeloxPlanConverter_ =
           std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
-              veloxPool_.get());
+              pool_);
 
   /* Result Iterator */
   class WholeStageResIter;
