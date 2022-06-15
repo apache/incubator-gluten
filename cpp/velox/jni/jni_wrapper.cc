@@ -28,6 +28,8 @@
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
+static std::unique_ptr<memory::MemoryPool> veloxPool_;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -38,6 +40,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     return JNI_ERR;
   }
   gluten::GetJniErrorsState()->Initialize(env);
+  veloxPool_ = memory::getDefaultScopedMemoryPool();
 #ifdef DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -47,14 +50,16 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
+  veloxPool_.reset();
 }
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env, jobject obj) {
   JNI_METHOD_START
-  gluten::SetBackendFactory(
-      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
+  gluten::SetBackendFactory([] {
+    return std::make_shared<::velox::compute::VeloxPlanConverter>(veloxPool_.get());
+  });
   static auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
   JNI_METHOD_END()
 }

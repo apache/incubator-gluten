@@ -33,8 +33,8 @@ namespace compute {
 class VeloxToRowConverter : public gluten::columnartorow::ColumnarToRowConverterBase {
  public:
   VeloxToRowConverter(const std::shared_ptr<arrow::RecordBatch>& rb,
-                      arrow::MemoryPool* memory_pool)
-      : ColumnarToRowConverterBase(rb, memory_pool) {}
+                      arrow::MemoryPool* memory_pool, memory::MemoryPool* pool)
+      : ColumnarToRowConverterBase(rb, memory_pool), pool_(pool) {}
 
   arrow::Status Init() override;
 
@@ -43,6 +43,7 @@ class VeloxToRowConverter : public gluten::columnartorow::ColumnarToRowConverter
  private:
   void ResumeVeloxVector();
 
+  memory::MemoryPool* pool_;
   std::vector<VectorPtr> vecs_;
   std::shared_ptr<arrow::Schema> schema_;
 };
