@@ -59,12 +59,7 @@ Ideally if all native library can return arrow record batch, we can share much f
 ### Build the Environment
 
 There are two ways to build the env for compiling OAP: Gluten
-1. Build by Conda Environment
-2. Build by Yourself
-
-- ### Build by Conda (Recommended)
-
-If you already have a working Hadoop Spark Cluster, we provide a Conda package which will automatically install dependencies needed by OAP, you can refer to [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md) for more information.
+1. Build by Yourself
 
 - ### Build by yourself
 
@@ -90,4 +85,4 @@ If you would like to build Gluten with **ClickHouse** backend, please follow the
 
 # Contact
 
-rui.mo@intel.com; binwei.yang@intel.com; chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
+rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com; chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
