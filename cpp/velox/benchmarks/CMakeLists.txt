@@ -18,9 +18,18 @@
 add_library(arrow_deps INTERFACE)
 find_arrow_lib(${PARQUET_LIB_NAME})
 
-add_executable(hash_join_benchmark HashJoinBenchmark.cc)
+# Hash join benchmark
+add_executable(hash_join_benchmark HashJoinBenchmark.cc BenchmarkUtils.cc)
 set_target_properties(hash_join_benchmark PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_include_directories(hash_join_benchmark PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(hash_join_benchmark Arrow::parquet velox benchmark::benchmark)
+
+# Query benchmark
+add_executable(query_benchmark QueryBenchmark.cc BenchmarkUtils.cc)
+set_target_properties(query_benchmark PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_include_directories(query_benchmark PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(query_benchmark Arrow::parquet velox benchmark::benchmark)

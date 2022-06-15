@@ -41,7 +41,8 @@ macro(build_benchmark)
       "-DCMAKE_INSTALL_PREFIX=${GBENCHMARK_PREFIX}"
       -DCMAKE_INSTALL_LIBDIR=lib
       -DBENCHMARK_ENABLE_TESTING=OFF
-      -DCMAKE_CXX_FLAGS="-fPIC")
+      -DCMAKE_CXX_FLAGS="-fPIC"
+      -DCMAKE_BUILD_TYPE=Release)
 
   externalproject_add(gbenchmark_ep
       URL ${GBENCHMARK_SOURCE_URL}
