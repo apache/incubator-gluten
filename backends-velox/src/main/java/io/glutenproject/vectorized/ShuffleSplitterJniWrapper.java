@@ -53,7 +53,7 @@ public class ShuffleSplitterJniWrapper {
     return nativeMake(
             part.getShortName(),
             part.getNumPartitions(),
-            part.getSchema(),
+            part.getSchemaAddress(),
             part.getExprList(),
             offheapPerTask,
             bufferSize,
@@ -70,7 +70,7 @@ public class ShuffleSplitterJniWrapper {
   public native long nativeMake(
           String shortName,
           int numPartitions,
-          byte[] schema,
+          long cSchema,
           byte[] exprList,
           long offheapPerTask,
           int bufferSize,
@@ -103,14 +103,14 @@ public class ShuffleSplitterJniWrapper {
    *
    * @param splitterId splitter instance id
    * @param numRows Rows per batch
-   * @param bufAddrs Addresses of buffers
-   * @param bufSizes Sizes of buffers
+   * @param cArray Addresses of ArrowArray
+   * @param cSchema Address of ArrowSchema
    * @param firstRecordBatch whether this record batch is the first
    *                         record batch in the first partition.
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(
-          long splitterId, int numRows, long[] bufAddrs, long[] bufSizes, boolean firstRecordBatch)
+          long splitterId, int numRows, long cArray, long cSchema, boolean firstRecordBatch)
           throws IOException;
 
   /**

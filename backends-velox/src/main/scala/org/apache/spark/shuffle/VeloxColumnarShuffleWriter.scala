@@ -18,18 +18,17 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-
 import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
 import io.glutenproject.vectorized._
+import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark._
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
@@ -137,21 +136,19 @@ class VeloxColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val startTimeForPrepare = System.nanoTime()
-        val bufAddrs = new ListBuffer[Long]()
-        val bufSizes = new ListBuffer[Long]()
-        val recordBatch = ArrowConverterUtils.createArrowRecordBatch(cb)
-        recordBatch.getBuffers().asScala.foreach { buffer => bufAddrs += buffer.memoryAddress() }
-        recordBatch.getBuffersLayout().asScala.foreach { bufLayout =>
-          bufSizes += bufLayout.getSize()
-        }
-        dep.dataSize.add(bufSizes.sum)
+        val allocator = SparkMemoryUtils.contextAllocator()
+        val cArray = ArrowArray.allocateNew(allocator)
+        val cSchema = ArrowSchema.wrap(dep.nativePartitioning.getSchemaAddress)
+        val rb = ArrowConverterUtils.createArrowRecordBatch(cb)
+
+        ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, cb, null, cArray, rb)
+        dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
 
         val startTime = System.nanoTime()
         val existingIntType: Boolean = if (firstRecordBatch) {
           // Check whether the recordbatch contain the Int data type.
-          val arrowSchema = ArrowConverterUtils.getSchemaFromBytesBuf(
-            dep.nativePartitioning.getSchema)
-          arrowSchema.getFields.asScala.find(_.getType.getTypeID == ArrowTypeID.Int).nonEmpty
+          val schema = ArrowAbiUtil.importToSchema(allocator, cSchema)
+          schema.getFields.asScala.exists(_.getType.getTypeID == ArrowTypeID.Int)
         } else false
 
         // Choose the compress type based on the compress size of the first record batch.
@@ -160,12 +157,14 @@ class VeloxColumnarShuffleWriter[K, V](
           // Compute the default compress size
           splitterJniWrapper.setCompressType(nativeSplitter, defaultCompressionCodec)
           val defaultCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
+            nativeSplitter, cb.numRows, cArray.memoryAddress(), cSchema.memoryAddress(),
+            firstRecordBatch)
 
           // Compute the custom compress size.
           splitterJniWrapper.setCompressType(nativeSplitter, customizedCompressCodec)
           val customizedCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
+            nativeSplitter, cb.numRows, cArray.memoryAddress(), cSchema.memoryAddress(),
+            firstRecordBatch)
 
           // Choose the compress algorithm based on the compress size.
           if (customizedCompressedSize != -1 && defaultCompressedSize != -1) {
@@ -180,11 +179,12 @@ class VeloxColumnarShuffleWriter[K, V](
         dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
 
         splitterJniWrapper
-          .split(nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
+          .split(nativeSplitter, cb.numRows, cArray.memoryAddress(), cSchema.memoryAddress(),
+            firstRecordBatch)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
         writeMetrics.incRecordsWritten(1)
-        ArrowConverterUtils.releaseArrowRecordBatch(recordBatch)
+        cArray.close()
       }
     }
 

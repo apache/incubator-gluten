@@ -206,6 +206,14 @@ std::shared_ptr<JavaRecordBatchIterator> MakeJavaRecordBatchIterator(
   return itr;
 }
 
+void ReleaseRecordBatch(std::shared_ptr<arrow::RecordBatch> rb) {
+  struct ArrowArray out_array;
+  struct ArrowSchema out_schema;
+  gluten::JniAssertOkOrThrow(arrow::ExportRecordBatch(*rb, &out_array, &out_schema));
+  ArrowArrayRelease(&out_array);
+  ArrowSchemaRelease(&out_schema);
+}
+
 jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name,
                              const char* sig) {
   jmethodID ret = GetMethodID(env, this_class, name, sig);
@@ -433,6 +441,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
       columnar_to_row_converter->Write(),
       "Native convert columnar to row: ColumnarToRowConverter write failed");
 
+  ReleaseRecordBatch(rb);
   const auto& offsets = columnar_to_row_converter->GetOffsets();
   const auto& lengths = columnar_to_row_converter->GetLengths();
   int64_t instanceID =
@@ -449,11 +458,6 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   jobject native_columnar_to_row_info = env->NewObject(
       native_columnar_to_row_info_class, native_columnar_to_row_info_constructor,
       instanceID, offsets_arr, lengths_arr, address);
-  struct ArrowArray out_array;
-  struct ArrowSchema out_schema;
-  gluten::JniAssertOkOrThrow(arrow::ExportRecordBatch(*rb, &out_array, &out_schema));
-  ArrowArrayRelease(&out_array);
-  ArrowSchemaRelease(&out_schema);
   return native_columnar_to_row_info;
   JNI_METHOD_END(nullptr)
 }
@@ -595,37 +599,16 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
-    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlongArray buf_addrs,
-    jlongArray buf_sizes, jboolean first_record_batch) {
+    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlong c_array, jlong c_schema, jboolean first_record_batch) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
     std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
     gluten::JniThrow(error_message);
   }
-  if (buf_addrs == NULL) {
-    gluten::JniThrow("Native split: buf_addrs can't be null");
-  }
-  if (buf_sizes == NULL) {
-    gluten::JniThrow("Native split: buf_sizes can't be null");
-  }
-
-  int in_bufs_len = env->GetArrayLength(buf_addrs);
-  if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
-    gluten::JniThrow("Native split: length of buf_addrs and buf_sizes mismatch");
-  }
-
-  jlong* in_buf_addrs = env->GetLongArrayElements(buf_addrs, JNI_FALSE);
-  jlong* in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
-
-  std::shared_ptr<arrow::RecordBatch> in;
-  gluten::JniAssertOkOrThrow(
-      MakeRecordBatch(splitter->input_schema(), num_rows, (int64_t*)in_buf_addrs,
-                      (int64_t*)in_buf_sizes, in_bufs_len, &in),
-      "Native split: make record batch failed");
-
-  env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
-  env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
+  std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
+    arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
+                             reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
   if (first_record_batch) {
     return splitter->CompressedSize(*in);

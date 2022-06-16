@@ -17,14 +17,13 @@
 package org.apache.spark.sql.execution.utils
 
 import scala.collection.JavaConverters._
-
 import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -125,9 +124,10 @@ object VeloxExecUtil {
     }
 
     val nativePartitioning: NativePartitioning = newPartitioning match {
-      case SinglePartition => new NativePartitioning("single", 1, serializeSchema(arrowFields))
+      case SinglePartition =>
+        new NativePartitioning("single", 1, ArrowAbiUtil.exportField(arrowFields))
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, serializeSchema(arrowFields))
+        new NativePartitioning("rr", n, ArrowAbiUtil.exportField(arrowFields))
       case HashPartitioning(exprs, n) =>
         // Function map is not expected to be used.
         val functionMap = new java.util.HashMap[String, java.lang.Long]()
@@ -142,12 +142,12 @@ object VeloxExecUtil {
         new NativePartitioning(
           "hash",
           n,
-          serializeSchema(arrowFields),
+          ArrowAbiUtil.exportField(arrowFields),
           projectRel.toProtobuf().toByteArray)
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
         val pidField = Field.nullable("pid", new ArrowType.Int(32, true))
-        new NativePartitioning("range", n, serializeSchema(pidField +: arrowFields))
+        new NativePartitioning("range", n, ArrowAbiUtil.exportField(pidField +: arrowFields))
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&

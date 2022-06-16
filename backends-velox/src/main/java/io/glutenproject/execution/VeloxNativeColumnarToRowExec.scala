@@ -18,16 +18,12 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-import org.apache.arrow.memory.BufferAllocator
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
