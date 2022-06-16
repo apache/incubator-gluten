@@ -76,9 +76,28 @@ object ArrowAbiUtil {
     }
   }
 
+  def exportSchema(allocator: BufferAllocator, schema: Schema, out: ArrowSchema) {
+    val dictProvider = new CDataDictionaryProvider
+    try {
+      Data.exportSchema(allocator, schema, dictProvider, out)
+    } finally {
+      dictProvider.close()
+    }
+  }
+
+  def getArrowSchemaAddress(schema: Schema): Long = {
+    val out = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())
+    try {
+      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(), schema, out)
+      out.memoryAddress()
+    } finally {
+      out.close()
+    }
+  }
+
   def exportFromArrowBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
                                    cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
-    val vsr = toVectorSchemaRoot(columnarBatch, null)
+    val vsr = toVectorSchemaRoot(allocator, columnarBatch, null)
     try {
       Data.exportVectorSchemaRoot(allocator, vsr, new CDataDictionaryProvider(), cArray, cSchema)
     } catch {
@@ -98,7 +117,7 @@ object ArrowAbiUtil {
 
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
     cSchema: ArrowSchema, cArray: ArrowArray, arrowBatch: ArrowRecordBatch): Unit = {
-    val vsr = toVectorSchemaRoot(columnarBatch, arrowBatch)
+    val vsr = toVectorSchemaRoot(allocator, columnarBatch, arrowBatch)
     try {
       Data.exportVectorSchemaRoot(allocator, vsr, new CDataDictionaryProvider(), cArray, cSchema)
     } catch {
@@ -118,9 +137,15 @@ object ArrowAbiUtil {
         .map(v => v)
     new ColumnarBatch(vectors, rowCount)
   }
+  // will release input record batch
+  private def toVectorSchemaRoot(allocator: BufferAllocator, batch: ColumnarBatch)
+  : VectorSchemaRoot = {
+    toVectorSchemaRoot(allocator, batch, null)
+  }
 
   // will release input record batch
-  private def toVectorSchemaRoot(batch: ColumnarBatch, arrowBatch: ArrowRecordBatch)
+  private def toVectorSchemaRoot(allocator: BufferAllocator, batch: ColumnarBatch,
+                                 arrowBatch: ArrowRecordBatch)
   : VectorSchemaRoot = {
     if (batch.numCols == 0) {
       return VectorSchemaRoot.of()
@@ -136,7 +161,7 @@ object ArrowAbiUtil {
     try {
       val schema: Schema = new Schema(fields)
       val root: VectorSchemaRoot =
-        VectorSchemaRoot.create(schema, SparkMemoryUtils.contextAllocator())
+        VectorSchemaRoot.create(schema, allocator)
       val loader: VectorLoader = new VectorLoader(root)
       loader.load(arrowRecordBatch)
       root

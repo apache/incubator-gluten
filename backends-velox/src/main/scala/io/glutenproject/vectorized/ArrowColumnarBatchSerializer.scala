@@ -189,7 +189,7 @@ private class ArrowColumnarBatchSerializerInstance(
       private def decompressVectors(): Unit = {
         if (jniWrapper == null) {
           jniWrapper = new ShuffleDecompressionJniWrapper
-          schemaHolderId = jniWrapper.make(ArrowConverterUtils.getSchemaBytesBuf(root.getSchema))
+          schemaHolderId = jniWrapper.make(ArrowAbiUtil.getArrowSchemaAddress(root.getSchema))
         }
         if (vectorLoader == null) {
           vectorLoader = new VectorLoader(root)

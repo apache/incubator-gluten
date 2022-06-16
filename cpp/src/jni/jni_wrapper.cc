@@ -206,14 +206,6 @@ std::shared_ptr<JavaRecordBatchIterator> MakeJavaRecordBatchIterator(
   return itr;
 }
 
-void ReleaseRecordBatch(std::shared_ptr<arrow::RecordBatch> rb) {
-  struct ArrowArray out_array;
-  struct ArrowSchema out_schema;
-  gluten::JniAssertOkOrThrow(arrow::ExportRecordBatch(*rb, &out_array, &out_schema));
-  ArrowArrayRelease(&out_array);
-  ArrowSchemaRelease(&out_schema);
-}
-
 jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name,
                              const char* sig) {
   jmethodID ret = GetMethodID(env, this_class, name, sig);
@@ -441,7 +433,6 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
       columnar_to_row_converter->Write(),
       "Native convert columnar to row: ColumnarToRowConverter write failed");
 
-  ReleaseRecordBatch(rb);
   const auto& offsets = columnar_to_row_converter->GetOffsets();
   const auto& lengths = columnar_to_row_converter->GetLengths();
   int64_t instanceID =
@@ -474,7 +465,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
     JNIEnv* env, jobject, jstring partitioning_name_jstr, jint num_partitions,
-    jbyteArray schema_arr, jbyteArray expr_arr, jlong offheap_per_task, jint buffer_size,
+    jlong c_schema, jbyteArray expr_arr, jlong offheap_per_task, jint buffer_size,
     jstring compression_type_jstr, jint batch_compress_threshold, jstring data_file_jstr,
     jint num_sub_dirs, jstring local_dirs_jstr, jboolean prefer_spill,
     jlong memory_pool_id, jboolean write_schema) {
@@ -482,9 +473,6 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   if (partitioning_name_jstr == NULL) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
     return 0;
-  }
-  if (schema_arr == NULL) {
-    gluten::JniThrow(std::string("Make splitter schema can't be null"));
   }
   if (data_file_jstr == NULL) {
     gluten::JniThrow(std::string("Shuffle DataFile can't be null"));
@@ -531,9 +519,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
   env->ReleaseStringUTFChars(local_dirs_jstr, local_dirs);
 
-  std::shared_ptr<arrow::Schema> schema;
-  // ValueOrDie in MakeSchema
-  MakeSchema(env, schema_arr, &schema);
+  std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
+      arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -599,7 +586,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
-    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlong c_array, jlong c_schema, jboolean first_record_batch) {
+    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlong c_array, jlong c_schema,
+    jboolean first_record_batch) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
@@ -607,8 +595,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     gluten::JniThrow(error_message);
   }
   std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
-    arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
-                             reinterpret_cast<struct ArrowSchema*>(c_schema)));
+      arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
+                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
   if (first_record_batch) {
     return splitter->CompressedSize(*in);
@@ -658,13 +646,11 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrappe
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
-    JNIEnv* env, jobject, jbyteArray schema_arr) {
+Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(JNIEnv* env, jobject,
+                                                                     jlong c_schema) {
   JNI_METHOD_START
-  std::shared_ptr<arrow::Schema> schema;
-  // ValueOrDie in MakeSchema
-  gluten::JniAssertOkOrThrow(MakeSchema(env, schema_arr, &schema));
-
+  std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
+      arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
   return decompression_schema_holder_.Insert(schema);
   JNI_METHOD_END(-1L)
 }

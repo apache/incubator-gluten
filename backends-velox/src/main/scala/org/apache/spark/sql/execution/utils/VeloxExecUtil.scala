@@ -21,7 +21,9 @@ import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, Ex
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.ArrowAbiUtil.exportField
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
+import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
@@ -57,13 +59,6 @@ object VeloxExecUtil {
                            compressTime: SQLMetric,
                            prepareTime: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
-    val arrowFields = outputAttributes.map(attr =>
-      ArrowConverterUtils.createArrowField(attr)
-    )
-    def serializeSchema(fields: Seq[Field]): Array[Byte] = {
-      val schema = new Schema(fields.asJava)
-      ArrowConverterUtils.getSchemaBytesBuf(schema)
-    }
 
     // only used for fallback range partitioning
     val rangePartitioner: Option[Partitioner] = newPartitioning match {
@@ -123,11 +118,19 @@ object VeloxExecUtil {
       }
     }
 
+    def getArrowSchemaAddress(fields: Seq[Field]): Long = {
+      ArrowAbiUtil.getArrowSchemaAddress(new Schema(fields.asJava))
+    }
+
+    val arrowFields = outputAttributes.map(attr =>
+      ArrowConverterUtils.createArrowField(attr)
+    )
+
     val nativePartitioning: NativePartitioning = newPartitioning match {
       case SinglePartition =>
-        new NativePartitioning("single", 1, ArrowAbiUtil.exportField(arrowFields))
+        new NativePartitioning("single", 1, getArrowSchemaAddress(arrowFields))
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, ArrowAbiUtil.exportField(arrowFields))
+        new NativePartitioning("rr", n, getArrowSchemaAddress(arrowFields))
       case HashPartitioning(exprs, n) =>
         // Function map is not expected to be used.
         val functionMap = new java.util.HashMap[String, java.lang.Long]()
@@ -142,12 +145,12 @@ object VeloxExecUtil {
         new NativePartitioning(
           "hash",
           n,
-          ArrowAbiUtil.exportField(arrowFields),
+          getArrowSchemaAddress(arrowFields),
           projectRel.toProtobuf().toByteArray)
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
         val pidField = Field.nullable("pid", new ArrowType.Int(32, true))
-        new NativePartitioning("range", n, ArrowAbiUtil.exportField(pidField +: arrowFields))
+        new NativePartitioning("range", n, getArrowSchemaAddress(pidField +: arrowFields))
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
