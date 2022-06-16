@@ -50,7 +50,8 @@ auto BM = [](::benchmark::State& state, const std::string& datasetPath,
 };
 
 int main(int argc, char** argv) {
-  InitVeloxBackend();
+  std::unique_ptr<memory::MemoryPool> veloxPool = memory::getDefaultScopedMemoryPool();
+  InitVeloxBackend(veloxPool.get());
   ::benchmark::Initialize(&argc, argv);
   // Threads cannot work well, use ThreadRange instead.
   // The multi-thread performance is not correct.

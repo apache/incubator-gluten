@@ -18,9 +18,10 @@
 #pragma once
 
 #include "compute/protobuf_utils.h"
+#include "velox/common/memory/Memory.h"
 
 /// Initilize the Velox backend.
-void InitVeloxBackend();
+void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool);
 
 /// Get the location of a file in this project.
 std::string getExampleFilePath(const std::string& fileName);

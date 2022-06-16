@@ -106,9 +106,10 @@ auto BM_HashJoinExample = [](::benchmark::State& state) {
   """).write.format("parquet").save("file:///path/to/bm_part")
  */
 int main(int argc, char** argv) {
-  InitVeloxBackend();
+  std::unique_ptr<facebook::velox::memory::MemoryPool> veloxPool =
+      facebook::velox::memory::getDefaultScopedMemoryPool();
+  InitVeloxBackend(veloxPool.get());
   ::benchmark::Initialize(&argc, argv);
-
   if (argc < 3) {
     std::cout << "Running example." << std::endl;
     ::benchmark::RegisterBenchmark("hash_join_example", BM_HashJoinExample);
