@@ -21,9 +21,11 @@ import java.io.Serializable
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
 import org.apache.spark._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -57,7 +59,7 @@ case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
   }
 }
 
-private[glutenproject] case class FirstZippedPartitionsPartition(
+case class FirstZippedPartitionsPartition(
      idx: Int, inputPartition: InputPartition,
      @transient private val rdds: Seq[RDD[_]] = Seq()) extends Partition with Serializable {
 

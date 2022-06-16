@@ -62,7 +62,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
           starts.add(new java.lang.Long(f.start))
           lengths.add(new java.lang.Long(f.length))
         }
-        val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+        val localFilesNode = LocalFilesBuilder.makeLocalFiles(
+          index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat())
         wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
         val substraitPlan = wsCxt.root.toProtobuf
         logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
@@ -92,38 +93,41 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                    collectTime: SQLMetric,
                                    concatTime: SQLMetric,
                                    avgCoalescedNumRows: SQLMetric): Iterator[ColumnarBatch] = {
-    val operator = new CHCoalesceOperator(recordsPerBatch)
-    val res = new Iterator[ColumnarBatch] {
-
-      override def hasNext: Boolean = {
-        val beforeNext = System.nanoTime
-        val hasNext = iter.hasNext
-        collectTime += System.nanoTime - beforeNext
-        hasNext
-      }
-
-      override def next(): ColumnarBatch = {
-        val c = iter.next()
-        numInputBatches += 1
-        val beforeConcat = System.nanoTime
-        operator.mergeBlock(c)
-
-        while(!operator.isFull && iter.hasNext) {
-          val cb = iter.next();
-          numInputBatches += 1;
-          operator.mergeBlock(cb)
+    val res = if (GlutenConfig.getConf.enableCoalesceBatches) {
+      val operator = new CHCoalesceOperator(recordsPerBatch)
+      new Iterator[ColumnarBatch] {
+        override def hasNext: Boolean = {
+          val beforeNext = System.nanoTime
+          val hasNext = iter.hasNext
+          collectTime += System.nanoTime - beforeNext
+          hasNext
         }
-        val res = operator.release().toColumnarBatch
-        CHNativeBlock.fromColumnarBatch(res).ifPresent(block => {
-          numOutputRows += block.numRows();
-          numOutputBatches += 1;
-        })
-        res
-      }
 
-      TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-        operator.close()
+        override def next(): ColumnarBatch = {
+          val c = iter.next()
+          numInputBatches += 1
+          val beforeConcat = System.nanoTime
+          operator.mergeBlock(c)
+
+          while (!operator.isFull && iter.hasNext) {
+            val cb = iter.next();
+            numInputBatches += 1;
+            operator.mergeBlock(cb)
+          }
+          val res = operator.release().toColumnarBatch
+          CHNativeBlock.fromColumnarBatch(res).ifPresent(block => {
+            numOutputRows += block.numRows();
+            numOutputBatches += 1;
+          })
+          res
+        }
+
+        TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+          operator.close()
+        }
       }
+    } else {
+      iter
     }
 
     new CloseableCHColumnBatchIterator(res)
@@ -156,7 +160,9 @@ class CHIteratorApi extends IIteratorApi with Logging {
     var resIter : GeneralOutIterator = null
     if (loadNative) {
       val transKernel = new ExpressionEvaluator()
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
+      val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
+        new ColumnarNativeIterator(iter.asJava)
+      }.asJava)
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }

@@ -19,7 +19,9 @@ package org.apache.spark.sql.execution.utils
 import scala.collection.JavaConverters._
 
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.NativePartitioning
+import io.glutenproject.vectorized.{BlockSplitIterator, CHNativeBlock, NativePartitioning}
+import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
+import io.glutenproject.GlutenConfig
 import org.apache.spark.ShuffleDependency
 
 import org.apache.spark.rdd.RDD
@@ -87,19 +89,93 @@ object CHExecUtil {
     // Thus in Columnar Shuffle we never use the "key" part.
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
-    val rddWithDummyKey: RDD[Product2[Int, ColumnarBatch]] = newPartitioning match {
-      case _ =>
-        rdd.mapPartitionsWithIndexInternal(
-          (_, cbIter) =>
-            cbIter.map { cb =>
-              (0, cb)
-            },
-          isOrderSensitive = isOrderSensitive)
-    }
+    val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
+      if (GlutenConfig.getConf.isUseColumnarShufflemanager) {
+        newPartitioning match {
+          case _ =>
+            rdd.mapPartitionsWithIndexInternal(
+              (_, cbIter) =>
+                cbIter.map { cb =>
+                  (0, cb)
+                },
+              isOrderSensitive = isOrderSensitive)
+        }
+      } else {
+        val options = new IteratorOptions
+        options.setExpr("")
+        options.setBufferSize(8192)
+        newPartitioning match {
+          case HashPartitioning(exprs, n) =>
+            rdd.mapPartitionsWithIndexInternal(
+              (_, cbIter) => {
+                options.setPartitionNum(n)
+                val fields = exprs.zipWithIndex.map {
+                  case (expr, i) =>
+                    val attr = ConverterUtils.getAttrFromExpr(expr)
+                    ConverterUtils.genColumnNameWithExprId(attr)
+                }
+                options.setExpr(fields.mkString(","))
+                options.setName("hash")
+                new Iterator[Product2[Int, ColumnarBatch]] {
+                  val splitIterator = new BlockSplitIterator(
+                    cbIter.map(cb =>
+                      CHNativeBlock.fromColumnarBatch(cb)
+                        .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
+                        .blockAddress().asInstanceOf[java.lang.Long]).asJava, options)
+
+                  override def hasNext: Boolean = splitIterator.hasNext
+
+                  override def next(): Product2[Int, ColumnarBatch] =
+                    (splitIterator.nextPartitionId(), splitIterator.next());
+                }
+              },
+              isOrderSensitive = isOrderSensitive)
+          case RoundRobinPartitioning(n) =>
+            rdd.mapPartitionsWithIndexInternal(
+              (_, cbIter) => {
+                options.setPartitionNum(n)
+                options.setName("rr")
+                new Iterator[Product2[Int, ColumnarBatch]] {
+                  val splitIterator = new BlockSplitIterator(
+                    cbIter.map(cb =>
+                      CHNativeBlock.fromColumnarBatch(cb)
+                        .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
+                        .blockAddress().asInstanceOf[java.lang.Long]).asJava, options)
+
+                  override def hasNext: Boolean = splitIterator.hasNext
+
+                  override def next(): Product2[Int, ColumnarBatch] =
+                    (splitIterator.nextPartitionId(), splitIterator.next());
+                }
+              },
+              isOrderSensitive = isOrderSensitive)
+          case SinglePartition =>
+            rdd.mapPartitionsWithIndexInternal(
+              (_, cbIter) => {
+                options.setPartitionNum(1)
+                options.setName("rr")
+                new Iterator[Product2[Int, ColumnarBatch]] {
+                  val splitIterator = new BlockSplitIterator(
+                    cbIter.map(cb =>
+                      CHNativeBlock.fromColumnarBatch(cb)
+                        .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
+                        .blockAddress().asInstanceOf[java.lang.Long]).asJava, options)
+
+                  override def hasNext: Boolean = splitIterator.hasNext
+
+                  override def next(): Product2[Int, ColumnarBatch] =
+                    (splitIterator.nextPartitionId(), splitIterator.next());
+                }
+              },
+              isOrderSensitive = isOrderSensitive)
+          case _ =>
+            throw new UnsupportedOperationException(s"Unsupport operators.")
+        }
+      }
 
     val dependency =
       new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
-        rddWithDummyKey,
+        rddWithpartitionKey,
         new PartitionIdPassthrough(newPartitioning.numPartitions),
         serializer,
         shuffleWriterProcessor =

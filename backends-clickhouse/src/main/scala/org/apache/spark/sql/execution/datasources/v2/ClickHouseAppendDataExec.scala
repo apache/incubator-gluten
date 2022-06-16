@@ -22,7 +22,7 @@ import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
 import com.google.common.collect.Lists
-import io.glutenproject.execution.{NativeFilePartition, NativeSubstraitPartition}
+import io.glutenproject.execution.{FirstZippedPartitionsPartition, NativeFilePartition}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.ddlplan.{DllNode, DllTransformContext, InsertOutputBuilder, InsertPlanNode}
@@ -198,7 +198,7 @@ case class ClickHouseAppendDataExec(
     val dllCxt = genInsertPlan(substraitContext, queryOutput)
     val substraitPlanPartition = partitions.map(p => {
       p match {
-        case NativeSubstraitPartition(index: Int, inputPartition: NativeFilePartition) =>
+        case FirstZippedPartitionsPartition(index: Int, inputPartition: NativeFilePartition, _) =>
           val files = inputPartition.files
           if (files.length > 1) {
             throw new SparkException(s"Writing job failed: " +
@@ -214,7 +214,9 @@ case class ClickHouseAppendDataExec(
           paths.add(files.head.filePath)
           starts.add(files.head.start)
           lengths.add(files.head.length)
-          val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths)
+          val localFilesNode =
+            LocalFilesBuilder.makeLocalFiles(
+              index, paths, starts, lengths, substraitContext.getFileFormat())
           val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
             SnowflakeIdWorker.getInstance().nextId(),
             database, tableName, tablePath)
