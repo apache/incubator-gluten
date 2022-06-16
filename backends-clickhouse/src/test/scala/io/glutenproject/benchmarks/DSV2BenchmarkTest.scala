@@ -87,7 +87,7 @@ object DSV2BenchmarkTest {
         .config("spark.locality.wait", "0s")
         .config("spark.sql.sources.ignoreDataLocality", "true")
         .config("spark.sql.parquet.enableVectorizedReader", "true")
-        //.config("spark.sql.sources.useV1SourceList", "avro")
+        // .config("spark.sql.sources.useV1SourceList", "avro")
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
         //.config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
@@ -96,11 +96,13 @@ object DSV2BenchmarkTest {
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config("spark.io.compression.codec", "LZ4")
+        .config("spark.shuffle.compress", "true")
+        // .config("spark.io.compression.codec", "snappy")
+        // .config("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)
         .config("spark.databricks.delta.snapshotPartitions", 1)
         .config("spark.databricks.delta.properties.defaults.checkpointInterval", 5)
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
-        //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", "true")
         .config("spark.gluten.sql.columnar.backend.lib", "ch")
@@ -115,16 +117,21 @@ object DSV2BenchmarkTest {
         .config("spark.gluten.sql.enable.native.validation", "false")
         //.config("spark.gluten.sql.columnar.sort", "false")
         //.config("spark.sql.codegen.wholeStage", "false")
-        .config("spark.sql.autoBroadcastJoinThreshold", "50MB")
-        .config("spark.sql.exchange.reuse", "false")
+        .config("spark.sql.autoBroadcastJoinThreshold", "10MB")
+        .config("spark.sql.exchange.reuse", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
+        .config("spark.gluten.sql.columnar.coalesce.batches", "true")
+        .config("spark.gluten.sql.columnar.filescan", "true")
         //.config("spark.sql.optimizeNullAwareAntiJoin", "false")
         //.config("spark.sql.join.preferSortMergeJoin", "false")
         //.config("spark.sql.planChangeLog.level", "info")
         //.config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
+        .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
+        .config("spark.shuffle.sort.bypassMergeThreshold", "2")
+        .config("spark.local.dir", "/data1/gazelle-jni-warehouse/spark_local_dirs")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -171,8 +178,8 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    testTPCHOne(spark, executedCnt)
-    // testTPCHAll(spark)
+    // testTPCHOne(spark, executedCnt)
+    testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -194,34 +201,49 @@ object DSV2BenchmarkTest {
       val df = spark.sql(
         s"""
            |SELECT
-           |    p_brand,
-           |    p_type,
-           |    p_size,
-           |    count(DISTINCT ps_suppkey) AS supplier_cnt
+           |    s_acctbal,
+           |    s_name,
+           |    n_name,
+           |    p_partkey,
+           |    p_mfgr,
+           |    s_address,
+           |    s_phone,
+           |    s_comment
            |FROM
+           |    ch_part,
+           |    ch_supplier,
            |    ch_partsupp,
-           |    ch_part
+           |    ch_nation,
+           |    ch_region
            |WHERE
            |    p_partkey = ps_partkey
-           |    AND p_brand <> 'Brand#45'
-           |    AND p_type NOT LIKE 'MEDIUM POLISHED%'
-           |    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
-           |    AND ps_suppkey NOT IN (
+           |    AND s_suppkey = ps_suppkey
+           |    AND p_size = 15
+           |    AND p_type LIKE '%BRASS'
+           |    AND s_nationkey = n_nationkey
+           |    AND n_regionkey = r_regionkey
+           |    AND r_name = 'EUROPE'
+           |    AND ps_supplycost = (
            |        SELECT
-           |            s_suppkey
+           |            min(ps_supplycost)
            |        FROM
-           |            ch_supplier
+           |            ch_partsupp,
+           |            ch_supplier,
+           |            ch_nation,
+           |            ch_region
            |        WHERE
-           |            s_comment LIKE '%Customer%Complaints%')
-           |GROUP BY
-           |    p_brand,
-           |    p_type,
-           |    p_size
+           |            p_partkey = ps_partkey
+           |            AND s_suppkey = ps_suppkey
+           |            AND s_nationkey = n_nationkey
+           |            AND n_regionkey = r_regionkey
+           |            AND r_name = 'EUROPE')
            |ORDER BY
-           |    supplier_cnt DESC,
-           |    p_brand,
-           |    p_type,
-           |    p_size;
+           |    s_acctbal DESC,
+           |    n_name,
+           |    s_name,
+           |    p_partkey
+           |LIMIT 100;
+           |
            |""".stripMargin) //.show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()

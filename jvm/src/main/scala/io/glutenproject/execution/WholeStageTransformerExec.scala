@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
+
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -26,6 +27,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.vectorized._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}

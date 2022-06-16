@@ -146,10 +146,20 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarWholeStageTransform: Boolean = conf.getConfString(
     "spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean && enableCpu
 
+  // whether to use ColumnarShuffleManager
+  val isUseColumnarShufflemanager: Boolean =
+    conf.getConfString("spark.shuffle.manager", "sort")
+      .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+
   // enable or disable columnar exchange
-  val enableColumnarShuffle: Boolean = conf
-    .getConfString("spark.shuffle.manager", "sort")
-    .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager") && enableCpu
+  val enableColumnarShuffle: Boolean =
+    if (conf.getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
+      .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    conf
+      .getConfString("spark.gluten.sql.columnar.shuffle", "true").toBoolean && enableCpu
+  } else {
+    isUseColumnarShufflemanager && enableCpu
+  }
 
   // prefer to use columnar operators if set to true
   val enablePreferColumnar: Boolean =
@@ -229,6 +239,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   val shuffleSplitDefaultSize: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192").toInt
+
+  val enableCoalesceBatches: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
 
   val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =

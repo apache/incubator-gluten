@@ -22,7 +22,7 @@ import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
 
-import org.apache.spark.SparkEnv
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
@@ -35,6 +35,8 @@ class CHColumnarBatchSerializer(readBatchNumRows: SQLMetric, numOutputRows: SQLM
   override def newInstance(): SerializerInstance = {
     new CHColumnarBatchSerializerInstance(readBatchNumRows, numOutputRows)
   }
+
+  override def supportsRelocationOfSerializedObjects: Boolean = true
 }
 
 
@@ -45,9 +47,7 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-
-      private val compressionEnabled =
-        SparkEnv.get.conf.getBoolean("spark.shuffle.compress", true)
+      private val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShufflemanager
 
       private var reader: CHStreamReader = _
       private var cb: ColumnarBatch = _
@@ -90,7 +90,7 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
             throw new EOFException
           }
         } else {
-          reader = new CHStreamReader(in)
+          reader = new CHStreamReader(in, isUseColumnarShufflemanager)
           readValue()
         }
       }
@@ -117,9 +117,44 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
     }
   }
 
-  // Columnar shuffle write process don't need this.
-  override def serializeStream(s: OutputStream): SerializationStream =
-    throw new UnsupportedOperationException
+  override def serializeStream(out: OutputStream): SerializationStream = new SerializationStream {
+    private[this] var writeBuffer: Array[Byte] = new Array[Byte](4096)
+    private[this] val dOut: BlockOutputStream = new BlockOutputStream(out, writeBuffer)
+
+    override def writeKey[T: ClassTag](key: T): SerializationStream = {
+      // The key is only needed on the map side when computing partition ids. It does not need to
+      // be shuffled.
+      assert(null == key || key.isInstanceOf[Int])
+      this
+    }
+
+    override def writeValue[T: ClassTag](value: T): SerializationStream = {
+      val cb = value.asInstanceOf[ColumnarBatch]
+
+      // Use for reading bytes array from block
+      dOut.write(cb)
+      this
+    }
+
+    override def writeAll[T: ClassTag](iter: Iterator[T]): SerializationStream = {
+      // This method is never called by shuffle code.
+      throw new UnsupportedOperationException
+    }
+
+    override def writeObject[T: ClassTag](t: T): SerializationStream = {
+      // This method is never called by shuffle code.
+      throw new UnsupportedOperationException
+    }
+
+    override def flush(): Unit = {
+      dOut.flush()
+    }
+
+    override def close(): Unit = {
+      dOut.close()
+      writeBuffer = null
+    }
+  }
 
   // These methods are never called by shuffle code.
   override def serialize[T: ClassTag](t: T): ByteBuffer = throw new UnsupportedOperationException

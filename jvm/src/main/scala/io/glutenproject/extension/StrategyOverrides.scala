@@ -17,23 +17,16 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.GlutenSparkExtensionsInjector
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 
-import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
-import org.apache.spark.sql.catalyst.planning.{
-  ExtractEquiJoinKeys,
-  ExtractSingleColumnNullAwareAntiJoin
-}
-import org.apache.spark.sql.catalyst.plans.LeftAnti
-import org.apache.spark.sql.catalyst.plans.logical.{Join, LogicalPlan}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, SHUFFLE_MERGE}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
-import org.apache.spark.sql.execution.joins
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, BroadcastNestedLoopJoinExec}
+import org.apache.spark.sql.execution.{joins, SparkPlan}
+import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
 
@@ -76,8 +69,26 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
       if (GlutenConfig.getSessionConf.forceShuffledHashJoin) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
-        val leftBuildable = canBuildShuffledHashJoinLeft(joinType)
-        val rightBuildable = canBuildShuffledHashJoinRight(joinType)
+        val (leftBuildable, rightBuildable) = if (GlutenConfig.getConf.isClickHouseBackend) {
+          // Currently, ClickHouse backend can not support AQE, so it needs to use join hint
+          // to decide the build side, after supporting AQE, will remove this.
+          val leftHintEnabled = hintToShuffleHashJoinLeft(hint)
+          val rightHintEnabled = hintToShuffleHashJoinRight(hint)
+          val leftHintMergeEnabled = hint.leftHint.exists(_.strategy.contains(SHUFFLE_MERGE))
+          val rightHintMergeEnabled = hint.rightHint.exists(_.strategy.contains(SHUFFLE_MERGE))
+          if (leftHintEnabled || rightHintEnabled) {
+            (leftHintEnabled, rightHintEnabled)
+          } else if (leftHintMergeEnabled || rightHintMergeEnabled) {
+            // hack: when set SHUFFLE_MERGE hint, it means that
+            // it don't use this side as the build side
+            (!leftHintMergeEnabled, !rightHintMergeEnabled)
+          } else {
+            (canBuildShuffledHashJoinLeft(joinType), canBuildShuffledHashJoinRight(joinType))
+          }
+        } else {
+          (canBuildShuffledHashJoinLeft(joinType), canBuildShuffledHashJoinRight(joinType))
+        }
+
         if (!leftBuildable && !rightBuildable) {
           return Nil
         }
