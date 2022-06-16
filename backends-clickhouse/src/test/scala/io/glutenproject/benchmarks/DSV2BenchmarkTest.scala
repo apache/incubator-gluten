@@ -81,7 +81,7 @@ object DSV2BenchmarkTest {
         .config("spark.sql.shuffle.partitions", 3)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
-        .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 128M
+        .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
         .config("spark.sql.files.minPartitionNum", "1")
         .config("spark.sql.parquet.filterPushdown", "true")
         .config("spark.locality.wait", "0s")
@@ -90,6 +90,7 @@ object DSV2BenchmarkTest {
         //.config("spark.sql.sources.useV1SourceList", "avro")
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
+        //.config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
@@ -101,10 +102,10 @@ object DSV2BenchmarkTest {
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
         //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
-        .config("spark.gluten.sql.columnar.columnartorow", "false")
+        .config("spark.gluten.sql.columnar.columnartorow", "true")
         .config("spark.gluten.sql.columnar.backend.lib", "ch")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .config("spark.gluten.sql.columnar.backend.ch.use.v2", "true")
+        .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH,
@@ -115,11 +116,12 @@ object DSV2BenchmarkTest {
         //.config("spark.gluten.sql.columnar.sort", "false")
         //.config("spark.sql.codegen.wholeStage", "false")
         .config("spark.sql.autoBroadcastJoinThreshold", "50MB")
+        .config("spark.sql.exchange.reuse", "false")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
         //.config("spark.sql.optimizeNullAwareAntiJoin", "false")
         //.config("spark.sql.join.preferSortMergeJoin", "false")
         //.config("spark.sql.planChangeLog.level", "info")
-        .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
+        //.config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
@@ -169,7 +171,8 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    testTPCHAll(spark, executedCnt)
+    testTPCHOne(spark, executedCnt)
+    // testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -184,43 +187,41 @@ object DSV2BenchmarkTest {
     System.out.println("finished")
   }
 
-  def testTPCHAll(spark: SparkSession, executedCnt: Int): Unit = {
+  def testTPCHOne(spark: SparkSession, executedCnt: Int): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
       val df = spark.sql(
         s"""
            |SELECT
-           |    c_custkey,
-           |    c_name,
-           |    sum(l_extendedprice * (1 - l_discount)) AS revenue,
-           |    c_acctbal,
-           |    n_name,
-           |    c_address,
-           |    c_phone,
-           |    c_comment
+           |    p_brand,
+           |    p_type,
+           |    p_size,
+           |    count(DISTINCT ps_suppkey) AS supplier_cnt
            |FROM
-           |    ch_customer,
-           |    ch_orders,
-           |    ch_lineitem,
-           |    ch_nation
+           |    ch_partsupp,
+           |    ch_part
            |WHERE
-           |    c_custkey = o_custkey
-           |    AND l_orderkey = o_orderkey
-           |    AND o_orderdate >= date'1993-10-01' AND o_orderdate < date'1993-10-01' + interval 3 month
-           |    AND l_returnflag = 'R'
-           |    AND c_nationkey = n_nationkey
+           |    p_partkey = ps_partkey
+           |    AND p_brand <> 'Brand#45'
+           |    AND p_type NOT LIKE 'MEDIUM POLISHED%'
+           |    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
+           |    AND ps_suppkey NOT IN (
+           |        SELECT
+           |            s_suppkey
+           |        FROM
+           |            ch_supplier
+           |        WHERE
+           |            s_comment LIKE '%Customer%Complaints%')
            |GROUP BY
-           |    c_custkey,
-           |    c_name,
-           |    c_acctbal,
-           |    c_phone,
-           |    n_name,
-           |    c_address,
-           |    c_comment
+           |    p_brand,
+           |    p_type,
+           |    p_size
            |ORDER BY
-           |    revenue DESC
-           |LIMIT 20;
+           |    supplier_cnt DESC,
+           |    p_brand,
+           |    p_type,
+           |    p_size;
            |""".stripMargin) //.show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()
@@ -235,6 +236,45 @@ object DSV2BenchmarkTest {
     }
 
     println(tookTimeArr.mkString(","))
+
+    if (executedCnt >= 10) {
+      import spark.implicits._
+      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+      df.summary().show(100, false)
+    }
+  }
+
+  def testTPCHAll(spark: SparkSession): Unit = {
+    val tookTimeArr = ArrayBuffer[Long]()
+    val executedCnt = 1
+    val executeExplain = false
+    val sqlFilePath = "/data2/tpch-queries-ch/"
+    for (i <- 1 to 22) {
+      if (i != 21) {
+        val sqlNum = "q" + "%02d".format(i)
+        val sqlFile = sqlFilePath + sqlNum + ".sql"
+        val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+        println("")
+        println("")
+        println(s"execute sql: ${sqlNum}")
+        for (j <- 1 to executedCnt) {
+          val startTime = System.nanoTime()
+          val df = spark.sql(sqlStr)
+          if (executeExplain) df.explain(false)
+          val result = df.collect()
+          println(result.size)
+          result.foreach(r => println(r.mkString(",")))
+          // .show(30, false)
+          // .explain(false)
+          // .collect()
+          val tookTime = (System.nanoTime() - startTime) / 1000000
+          // println(s"Execute ${i} time, time: ${tookTime}")
+          tookTimeArr += tookTime
+        }
+      }
+    }
+
+    // println(tookTimeArr.mkString(","))
 
     if (executedCnt >= 10) {
       import spark.implicits._

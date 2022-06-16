@@ -22,12 +22,16 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.{SparkSession, Strategy}
 
 trait ISparkPlanExecApi extends IBackendsApi {
 
@@ -93,4 +97,19 @@ trait ISparkPlanExecApi extends IBackendsApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation
+
+  /**
+   * Generate extended DataSourceV2 Strategy.
+   * Currently only for ClickHouse backend.
+   * @return
+   */
+  def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy
+
+  /**
+   * Generate extended Analyzer.
+   * Currently only for ClickHouse backend.
+   *
+   * @return
+   */
+  def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan]
 }

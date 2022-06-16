@@ -21,13 +21,14 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.execution._
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 import org.apache.spark.{ShuffleDependency, SparkException}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation}
@@ -35,6 +36,9 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.{SparkSession, Strategy}
+import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
+import org.apache.spark.sql.internal.SQLConf
 
 class CHSparkPlanExecApi extends ISparkPlanExecApi {
 
@@ -146,6 +150,26 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
     numOutputRows += countsAndBytes.map(_._1).sum
     dataSize += rawSize
     ClickHouseBuildSideRelation(child.output, batches)
+  }
+
+  /**
+   * Generate extended DataSourceV2 Strategy.
+   * Currently only for ClickHouse backend.
+   *
+   * @return
+   */
+  override def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy = {
+    CHDataSourceV2Strategy(spark)
+  }
+
+  /**
+   * Generate extended Analyzer.
+   * Currently only for ClickHouse backend.
+   *
+   * @return
+   */
+  override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = {
+    new ClickHouseAnalysis(spark, conf)
   }
 
   /**

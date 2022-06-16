@@ -18,18 +18,15 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ITransformerApi
-import io.glutenproject.expression.{
-  ArrowConverterUtils,
-  ExpressionConverter,
-  ExpressionTransformer
-}
+import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
-
+import io.glutenproject.utils.InputPartitionsUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
-import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
@@ -81,6 +78,14 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
     GlutenConfig.getConf.isGazelleBackend && fileFormat.isInstanceOf[ParquetFileFormat] ||
     GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
       GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat]
+  }
+
+  /**
+   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
+   */
+  def genInputPartitionSeq(relation: HadoopFsRelation,
+                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
+    InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
   }
 
   /**

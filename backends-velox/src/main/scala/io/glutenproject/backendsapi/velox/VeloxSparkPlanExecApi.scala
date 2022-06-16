@@ -18,30 +18,25 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
-import io.glutenproject.execution.{
-  FilterExecBaseTransformer,
-  FilterExecTransformer,
-  NativeColumnarToRowExec,
-  RowToArrowColumnarExec,
-  VeloxFilterExecTransformer,
-  VeloxNativeColumnarToRowExec,
-  VeloxRowToArrowColumnarExec
-}
+import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
-
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, VeloxBuildSideRelation}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.VeloxExecUtil
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -179,6 +174,28 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
     dataSize += rawSize
 
     VeloxBuildSideRelation(child.output, batches)
+  }
+
+  /**
+   * Generate extended DataSourceV2 Strategy.
+   * Currently only for ClickHouse backend.
+   *
+   * @return
+   */
+  override def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy = {
+    throw new UnsupportedOperationException(
+      "Cannot support extending DataSourceV2 strategy for Velox backend.")
+  }
+
+  /**
+   * Generate extended Analyzer.
+   * Currently only for ClickHouse backend.
+   *
+   * @return
+   */
+  override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = {
+    throw new UnsupportedOperationException(
+      "Cannot support extending Analyzer for Velox backend.")
   }
 
   /**

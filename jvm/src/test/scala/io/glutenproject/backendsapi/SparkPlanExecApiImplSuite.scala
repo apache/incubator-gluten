@@ -23,12 +23,16 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.{SparkSession, Strategy}
 
 class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   /**
@@ -88,6 +92,15 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
                                              readBatchNumRows: SQLMetric,
                                              numOutputRows: SQLMetric): Serializer = null
 
+
+  /**
+   * Generate extended DataSourceV2 Strategy.
+   * Currently only for ClickHouse backend.
+   *
+   * @return
+   */
+  override def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy = null
+
   /**
    * Get the backend api name.
    *
@@ -101,4 +114,12 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   override def createBroadcastRelation(child: SparkPlan,
                                        numOutputRows: SQLMetric,
                                        dataSize: SQLMetric): BuildSideRelation = null
+
+  /**
+   * Generate extended Analyzer.
+   * Currently only for ClickHouse backend.
+   *
+   * @return
+   */
+  override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = null
 }

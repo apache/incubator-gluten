@@ -17,6 +17,7 @@
 
 package io.glutenproject.substrait
 
+import io.glutenproject.substrait.ddlplan.InsertOutputNode
 import io.glutenproject.substrait.rel.{ExtensionTableNode, LocalFilesNode}
 
 class SubstraitContext extends Serializable {
@@ -27,6 +28,8 @@ class SubstraitContext extends Serializable {
   private val iteratorNodes = new java.util.HashMap[java.lang.Long, LocalFilesNode]()
   private var extensionTableNode: ExtensionTableNode = _
   private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
+
+  private var insertOutputNode: InsertOutputNode = _
 
   def setLocalFilesNode(localFilesNode: LocalFilesNode): Unit = {
     this.localFilesNode = localFilesNode
@@ -50,6 +53,12 @@ class SubstraitContext extends Serializable {
   }
 
   def getExtensionTableNode: ExtensionTableNode = this.extensionTableNode
+
+  def setInsertOutputNode(insertOutputNode: InsertOutputNode): Unit = {
+    this.insertOutputNode = insertOutputNode
+  }
+
+  def getInsertOutputNode: InsertOutputNode = this.insertOutputNode
 
   def registerFunction(funcName: String): java.lang.Long = {
     if (!functionMap.containsKey(funcName)) {

@@ -327,6 +327,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       !plan.isInstanceOf[SerializeFromObjectExec] &&
       !plan.isInstanceOf[ObjectHashAggregateExec] &&
       !plan.isInstanceOf[V2CommandExec]
+
     val otherSupported = !isCH && nativeEngineEnabled
     if (chSupported || otherSupported) {
       isSupportAdaptive = supportAdaptive(plan)
@@ -344,6 +345,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       !plan.isInstanceOf[SerializeFromObjectExec] &&
       !plan.isInstanceOf[ObjectHashAggregateExec] &&
       !plan.isInstanceOf[V2CommandExec]
+
     val otherSupported = !isCH && nativeEngineEnabled
     if (chSupported || otherSupported) {
       val rule = postOverrides

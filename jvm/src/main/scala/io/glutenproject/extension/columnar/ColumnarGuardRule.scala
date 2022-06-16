@@ -192,7 +192,7 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
       }
     } catch {
       case e: UnsupportedOperationException =>
-        System.out.println(
+        logError(
           s"Fall back to use row-based operators, error is ${e.getMessage}," +
             s"original sparkplan is ${plan.getClass}(${plan.children.toList.map(_.getClass)})")
         false

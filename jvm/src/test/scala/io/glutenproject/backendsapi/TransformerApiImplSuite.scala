@@ -19,7 +19,8 @@ package io.glutenproject.backendsapi
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 
 class TransformerApiImplSuite extends ITransformerApi {
 
@@ -38,6 +39,13 @@ class TransformerApiImplSuite extends ITransformerApi {
    * @return true if backend supports reading the file format.
    */
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = false
+
+  /**
+   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
+   */
+  override def genInputPartitionSeq(relation: HadoopFsRelation,
+                                    selectedPartitions: Array[PartitionDirectory]
+                                   ): Seq[InputPartition] = Seq.empty[InputPartition]
 
   /**
    * Get the backend api name.

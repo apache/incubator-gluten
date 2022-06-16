@@ -23,10 +23,19 @@ import java.util
 
 object ClickHouseConfig {
 
+  // MergeTree DataSource name
   val NAME = "clickhouse"
   val ALT_NAME = "clickhouse"
   val METADATA_DIR = "_metadata_log"
   val DEFAULT_ENGINE = "MergeTree"
+
+  // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
+  val USE_DATASOURCE_V2 = "spark.gluten.sql.columnar.backend.ch.use.v2"
+  val DEFAULT_USE_DATASOURCE_V2 = "false"
+
+  val CLICKHOUSE_WORKER_ID = "spark.gluten.sql.columnar.backend.ch.worker.id"
+
+  val CLICKHOUSE_WAREHOUSE_DIR = "spark.gluten.sql.columnar.backend.ch.warehouse.dir"
 
   /**
    * Validates specified configurations and returns the normalized key -> value map.
