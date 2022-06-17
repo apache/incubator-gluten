@@ -327,16 +327,18 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       // Get the file format based on fileScan
       val fileFormat = fileScan match {
         case f: BatchScanExecTransformer => {
-          f.scan match {
-            case orc: OrcScan => 2
-            case parquet: ParquetScan => 1
+          f.scan.getClass.getSimpleName match {
+            case "OrcScan" => 2
+            case "ParquetScan" => 1
+            case "DwrfScan" => 3
             case _ => -1
           }
         }
         case f: FileSourceScanExecTransformer =>
-          f.relation.fileFormat match {
-            case orc: OrcFileFormat => 2
-            case parquet: ParquetFileFormat => 1
+          f.relation.fileFormat.getClass.getSimpleName match {
+            case "OrcFileFormat" => 2
+            case "ParquetFileFormat" => 1
+            case "DwrfFileFormat" => 3
             case _ => -1
           }
       }

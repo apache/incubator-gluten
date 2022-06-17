@@ -89,6 +89,8 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(dwio::dwrf::reader "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
   add_velox_dependency(dwio::dwrf::utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/utils/libvelox_dwio_dwrf_utils.a")
   add_velox_dependency(dwio::dwrf::common "${VELOX_COMPONENTS_PATH}/dwio/dwrf/common/libvelox_dwio_dwrf_common.a")
+  add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_parquet_reader.a")
+  add_velox_dependency(parquet::reader::duckdb "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/duckdb/libvelox_dwio_parquet_reader_duckdb.a")
   add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
 
   add_velox_dependency(expression "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression.a")
@@ -118,7 +120,13 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::time "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
   add_velox_dependency(common::file "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
   add_velox_dependency(common::process "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
-  add_velox_dependency(parquet "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_parquet_reader.a")
+  
+  add_velox_dependency(duckdb::function "${VELOX_COMPONENTS_PATH}/duckdb/functions/libvelox_duckdb_functions.a")
+  add_velox_dependency(duckdb::conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
+  add_velox_dependency(duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
+  add_velox_dependency(duckdb::tpch "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/libtpch_extension.a")
+  add_velox_dependency(duckdb::tpch::dbgen "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/dbgen/libdbgen.a")
+
 endmacro()
 
 

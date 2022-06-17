@@ -21,6 +21,8 @@
 #include <arrow/type_fwd.h>
 #include <arrow/util/iterator.h>
 
+#include <string>
+
 #include "ArrowTypeUtils.h"
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
@@ -222,25 +224,44 @@ std::shared_ptr<gluten::RecordBatchResultIterator>
 VeloxPlanConverter::GetResultIterator() {
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
+
+  auto splitInfos = subVeloxPlanConverter_->splitInfos();
+  auto leafPlanNodeIds = planNode->leafPlanNodeIds();
+  // Here only one leaf node is expected here.
+  assert(leafPlanNodeIds.size() == 1);
+  auto iter = leafPlanNodeIds.begin();
+  auto splitInfo = splitInfos[*iter].get();
+
+  // Get the information for TableScan.
+  u_int32_t partitionIndex = splitInfo->partitionIndex;
+  const auto& paths = splitInfo->paths;
+  const auto& starts = splitInfo->starts;
+  const auto& lengths = splitInfo->lengths;
+  const auto format = splitInfo->format;
+
   // Move the velox pool and the iterator will manage it.
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, subVeloxPlanConverter_->getPartitionIndex(),
-      subVeloxPlanConverter_->getPaths(), subVeloxPlanConverter_->getStarts(),
-      subVeloxPlanConverter_->getLengths(), subVeloxPlanConverter_->getFileFormat(),
-      fakeArrowOutput_);
+      pool_, planNode, partitionIndex, paths, starts, lengths, format, fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
 std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
     const std::vector<std::string>& paths, const std::vector<u_int64_t>& starts,
-    const std::vector<u_int64_t>& lengths) {
+    const std::vector<u_int64_t>& lengths, const std::string& file_format) {
   std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
+  auto format = FileFormat::UNKNOWN;
+  if (file_format.compare("orc") == 0) {
+    format = FileFormat::ORC;
+  } else if (file_format.compare("parquet") == 0) {
+    format = FileFormat::PARQUET;
+  }
+
   // Move the velox pool and the iterator will manage it.
   uint32_t partitionIndx = 0;
   bool fakeArrowOutput = false;
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, partitionIndx, paths, starts, lengths, fakeArrowOutput);
+      pool_, planNode, partitionIndx, paths, starts, lengths, format, fakeArrowOutput);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -333,25 +354,18 @@ class VeloxPlanConverter::WholeStageResIter {
 
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
  public:
-  WholeStageResIterFirstStage(memory::MemoryPool* pool,
-                              const std::shared_ptr<const core::PlanNode>& planNode,
-                              const u_int32_t index,
-                              const std::vector<std::string>& paths,
-                              const std::vector<u_int64_t>& starts,
-                              const std::vector<u_int64_t>& lengths, const int fileFormat,
-                              const bool fakeArrowOutput)
+  WholeStageResIterFirstStage(
+      memory::MemoryPool* pool, const std::shared_ptr<const core::PlanNode>& planNode,
+      const u_int32_t index, const std::vector<std::string>& paths,
+      const std::vector<u_int64_t>& starts, const std::vector<u_int64_t>& lengths,
+      const dwio::common::FileFormat format, const bool fakeArrowOutput)
       : WholeStageResIter(pool, planNode),
         index_(index),
         paths_(paths),
         starts_(starts),
-        lengths_(lengths) {
+        lengths_(lengths),
+        format_(format) {
     std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
-    auto format = FileFormat::UNKNOWN;
-    if (fileFormat == 2) {
-      format = FileFormat::ORC;
-    } else if (fileFormat == 1) {
-      format = FileFormat::PARQUET;
-    }
 
     for (int idx = 0; idx < paths.size(); idx++) {
       auto path = paths[idx];
@@ -386,6 +400,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
   std::vector<u_int64_t> starts_;
   std::vector<u_int64_t> lengths_;
   std::vector<exec::Split> splits_;
+  dwio::common::FileFormat format_;
   bool noMoreSplits_ = false;
 };
 

@@ -103,6 +103,7 @@ message ReadRel {
         FILE_FORMAT_UNSPECIFIED = 0;
         FILE_FORMAT_PARQUET = 1;
         FILE_FORMAT_ORC = 2;
+        FILE_FORMAT_DWRF = 3;
       }
     }
   }

@@ -41,7 +41,7 @@ auto BM = [](::benchmark::State& state, const std::string& datasetPath,
         gluten::CreateBackend());
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(paths, starts, lengths);
+    auto resultIter = backend->GetResultIterator(paths, starts, lengths, fileFormat);
 
     while (resultIter->HasNext()) {
       std::cout << resultIter->Next()->ToString() << std::endl;
