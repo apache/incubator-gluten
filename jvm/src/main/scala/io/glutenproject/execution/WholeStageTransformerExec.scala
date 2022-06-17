@@ -33,6 +33,10 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -320,7 +324,27 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
       })
       val fileScan = current_op.get
+      // Get the file format based on fileScan
+      val fileFormat = fileScan match {
+        case f: BatchScanExecTransformer => {
+          f.scan.getClass.getSimpleName match {
+            case "OrcScan" => 2
+            case "ParquetScan" => 1
+            case "DwrfScan" => 3
+            case _ => -1
+          }
+        }
+        case f: FileSourceScanExecTransformer =>
+          f.relation.fileFormat.getClass.getSimpleName match {
+            case "OrcFileFormat" => 2
+            case "ParquetFileFormat" => 1
+            case "DwrfFileFormat" => 3
+            case _ => -1
+          }
+      }
+
       val wsCxt = doWholestageTransform()
+      wsCxt.substraitContext.setFileFormat(fileFormat)
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map(p =>

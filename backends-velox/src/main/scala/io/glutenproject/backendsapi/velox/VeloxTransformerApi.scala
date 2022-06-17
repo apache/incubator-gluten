@@ -77,7 +77,8 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
     GlutenConfig.getConf.isGazelleBackend && fileFormat.isInstanceOf[ParquetFileFormat] ||
     GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
-      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat]
+      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat] ||
+      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[ParquetFileFormat]
   }
 
   /**
