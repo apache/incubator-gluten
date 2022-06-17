@@ -18,27 +18,21 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-import org.apache.arrow.memory.BufferAllocator
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration._
-import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
-import org.slf4j.{Logger, LoggerFactory}
+
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
-  private val LOG = LoggerFactory.getLogger(classOf[VeloxNativeColumnarToRowExec])
   override def nodeName: String = "VeloxNativeColumnarToRowExec"
 
   override def supportCodegen: Boolean = false
@@ -105,17 +99,13 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
           var info : NativeColumnarToRowInfo = null
           try {
             ArrowAbiUtil.exportFromSparkColumnarBatch(
-              SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray)
-            val beforeConvert = System.nanoTime()
+              allocator, batch, cSchema, cArray)
 
+            val beforeConvert = System.nanoTime()
             info = jniWrapper.nativeConvertColumnarToRow(
               cSchema.memoryAddress(), cArray.memoryAddress(),
               SparkMemoryUtils.contextMemoryPool().getNativeInstanceId, wsChild)
-
             convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
-
-            cSchema.release()
-            cArray.release()
           } finally {
             cArray.close()
             cSchema.close()

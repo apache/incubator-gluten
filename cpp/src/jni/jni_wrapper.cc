@@ -17,7 +17,6 @@
 
 #include <arrow/buffer.h>
 #include <arrow/c/bridge.h>
-#include <arrow/c/helpers.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/filesystem/path_util.h>
 #include <arrow/io/memory.h>
@@ -441,11 +440,6 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   jobject native_columnar_to_row_info = env->NewObject(
       native_columnar_to_row_info_class, native_columnar_to_row_info_constructor,
       instanceID, offsets_arr, lengths_arr, address);
-  struct ArrowArray out_array;
-  struct ArrowSchema out_schema;
-  gluten::JniAssertOkOrThrow(arrow::ExportRecordBatch(*rb, &out_array, &out_schema));
-  ArrowArrayRelease(&out_array);
-  ArrowSchemaRelease(&out_schema);
   return native_columnar_to_row_info;
   JNI_METHOD_END(nullptr)
 }
