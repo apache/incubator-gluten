@@ -65,7 +65,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     sed -i '/^  run_and_time install_folly/i \ \ run_and_time install_pb' scripts/setup-ubuntu.sh
 
     scripts/setup-ubuntu.sh
-    make release
+    make release EXTRA_CMAKE_FLAGS=" -DVELOX_ENABLE_PARQUET=ON "
     echo "Finish to build Velox from Source !!!"
 else
     echo "Use existing Velox."
