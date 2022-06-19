@@ -77,6 +77,21 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 void VeloxInitializer::Init() {
   // Setup and register.
   filesystems::registerLocalFileSystem();
+
+  // register HDFS
+  std::string hdfsUri = "localhost:9000";
+  const char* envHdfsUri = std::getenv("VELOX_HDFS");
+  if (envHdfsUri != nullptr) {
+    hdfsUri = std::string(envHdfsUri);
+  }
+  auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
+  auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
+  filesystems::registerHdfsFileSystem();
+  std::unordered_map<std::string, std::string> configurationValues(
+      {{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
+  auto memConfig =
+      std::make_shared<const core::MemConfig>(std::move(configurationValues));
+
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
   // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
@@ -84,7 +99,7 @@ void VeloxInitializer::Init() {
   auto hiveConnector =
       getConnectorFactory(
           connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, nullptr);
+          ->newConnector(kHiveConnectorId, memConfig, nullptr);
   registerConnector(hiveConnector);
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
