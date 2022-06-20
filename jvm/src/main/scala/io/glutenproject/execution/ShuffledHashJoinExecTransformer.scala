@@ -182,7 +182,7 @@ abstract class HashJoinLikeExecTransformer(
   override def doTransform(substraitContext: SubstraitContext): TransformContext = {
     def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute]) = {
       plan match {
-        case p: TransformSupport if !p.isInstanceOf[WholeStageTransformerExec] =>
+        case p: TransformSupport =>
           val transformContext = p.doTransform(substraitContext)
           (transformContext.root, transformContext.outputAttributes)
         case _ =>

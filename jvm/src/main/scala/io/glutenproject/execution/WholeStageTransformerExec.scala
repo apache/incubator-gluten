@@ -84,7 +84,7 @@ trait TransformSupport extends SparkPlan {
 
   def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
     plan match {
-      case c: TransformSupport if !c.isInstanceOf[WholeStageTransformerExec] =>
+      case c: TransformSupport =>
         c.columnarInputRDDs
       case _ =>
         Seq(plan.executeColumnar())
@@ -249,7 +249,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
     var current_op = child
     while (current_op.isInstanceOf[TransformSupport] &&
-           !current_op.isInstanceOf[BaseJoinExec] &&
            !current_op.isInstanceOf[BasicScanExecTransformer] &&
            current_op.asInstanceOf[TransformSupport].getChild != null) {
       current_op = current_op.asInstanceOf[TransformSupport].getChild
