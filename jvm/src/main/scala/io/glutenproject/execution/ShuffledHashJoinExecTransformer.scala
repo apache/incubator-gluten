@@ -381,15 +381,25 @@ case class BroadcastHashJoinExecTransformer(
         right.executeBroadcast[BuildSideRelation]()
     }
 
-    val context = BroadCastHashJoinContext(buildKeyExprs,
-      joinType, buildPlan.output, buildHashTableId)
+    val context = BroadCastHashJoinContext(
+      buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
 
-    val buildRDD =
-      BroadcastBuildSideRDD(
-        sparkContext,
-        streamedRDD.head.getNumPartitions,
-        broadcasted,
-        context)
-    streamedRDD :+ buildRDD
+    if (streamedRDD.isEmpty) {
+      val buildRDD =
+        BroadcastBuildSideRDD(
+          sparkContext,
+          36,
+          broadcasted,
+          context)
+      streamedRDD :+ buildRDD
+    } else {
+      val buildRDD =
+        BroadcastBuildSideRDD(
+          sparkContext,
+          streamedRDD.head.getNumPartitions,
+          broadcasted,
+          context)
+      streamedRDD :+ buildRDD
+    }
   }
 }

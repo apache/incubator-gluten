@@ -126,7 +126,6 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   if (iterIdx == -1) {
     return;
   }
-  dsAsInput_ = false;
   if (arrowInputIters_.size() == 0) {
     throw std::runtime_error("Invalid input iterator.");
   }
@@ -240,15 +239,48 @@ std::string VeloxPlanConverter::nextPlanNodeId() {
 
 std::shared_ptr<gluten::RecordBatchResultIterator>
 VeloxPlanConverter::GetResultIterator() {
-  std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
+  std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs = {};
+  return GetResultIterator(inputs);
+}
+
+std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
+    std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
+  if (inputs.size() > 0) {
+    arrowInputIters_ = std::move(inputs);
+  }
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
 
   auto splitInfos = subVeloxPlanConverter_->splitInfos();
-  auto leafPlanNodeIds = planNode->leafPlanNodeIds();
-  // Here only one leaf node is expected here.
-  assert(leafPlanNodeIds.size() == 1);
-  auto iter = leafPlanNodeIds.begin();
-  auto splitInfo = splitInfos[*iter].get();
+  if (splitInfos.size() == 0) {
+    // Source node is not required.
+    auto wholestageIter =
+        std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, fakeArrowOutput_);
+    return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+  }
+
+  // Source node is required.
+  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
+  std::vector<core::PlanNodeId> scanIds;
+  for (const auto& leafPlanNodeId : planNode->leafPlanNodeIds()) {
+    if (splitInfos.find(leafPlanNodeId) == splitInfos.end()) {
+      throw std::runtime_error("Could not find leafPlanNodeId.");
+    }
+    auto splitInfo = splitInfos[leafPlanNodeId];
+    if (!splitInfo->isStream) {
+      scanInfos.emplace_back(splitInfo);
+      scanIds.emplace_back(leafPlanNodeId);
+    }
+  }
+  if (scanInfos.size() == 0) {
+    // Source node is not required.
+    auto wholestageIter =
+        std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, fakeArrowOutput_);
+    return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+  }
+  if (scanInfos.size() > 1) {
+    throw std::runtime_error("Only one scan is supported.");
+  }
+  auto splitInfo = scanInfos[0].get();
 
   // Get the information for TableScan.
   u_int32_t partitionIndex = splitInfo->partitionIndex;
@@ -259,7 +291,8 @@ VeloxPlanConverter::GetResultIterator() {
 
   // Move the velox pool and the iterator will manage it.
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, partitionIndex, paths, starts, lengths, format, fakeArrowOutput_);
+      pool_, planNode, scanIds[0], partitionIndex, paths, starts, lengths, format,
+      fakeArrowOutput_);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -275,22 +308,11 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
     format = FileFormat::PARQUET;
   }
 
-  // Move the velox pool and the iterator will manage it.
   uint32_t partitionIndx = 0;
   bool fakeArrowOutput = false;
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, partitionIndx, paths, starts, lengths, format, fakeArrowOutput);
-  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
-}
-
-std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
-    std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
-  std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
-  arrowInputIters_ = std::move(inputs);
-  const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
-  // Move the velox pool and the iterator will manage it.
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, fakeArrowOutput_);
+      pool_, planNode, "0", partitionIndx, paths, starts, lengths, format,
+      fakeArrowOutput);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -383,7 +405,7 @@ class VeloxPlanConverter::WholeStageResIter {
       } else {
         toRealArrowBatch(result, numRows, outTypes, &out);
       }
-      // arrow::PrettyPrint(*out->get(), 2, &std::cout);
+      // arrow::PrettyPrint(*out, 2, &std::cout);
       return out;
     }
     mayHaveNext_ = false;
@@ -405,12 +427,16 @@ class VeloxPlanConverter::WholeStageResIter {
 
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
  public:
-  WholeStageResIterFirstStage(
-      memory::MemoryPool* pool, const std::shared_ptr<const core::PlanNode>& planNode,
-      const u_int32_t index, const std::vector<std::string>& paths,
-      const std::vector<u_int64_t>& starts, const std::vector<u_int64_t>& lengths,
-      const dwio::common::FileFormat format, const bool fakeArrowOutput)
+  WholeStageResIterFirstStage(memory::MemoryPool* pool,
+                              const std::shared_ptr<const core::PlanNode>& planNode,
+                              core::PlanNodeId scanNodeId, const u_int32_t index,
+                              const std::vector<std::string>& paths,
+                              const std::vector<u_int64_t>& starts,
+                              const std::vector<u_int64_t>& lengths,
+                              const dwio::common::FileFormat format,
+                              const bool fakeArrowOutput)
       : WholeStageResIter(pool, planNode),
+        scanNodeId_(scanNodeId),
         index_(index),
         paths_(paths),
         starts_(starts),
@@ -439,14 +465,15 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
         return;
       }
       for (auto& split : splits_) {
-        task->addSplit("0", std::move(split));
+        task->addSplit(scanNodeId_, std::move(split));
       }
-      task->noMoreSplits("0");
+      task->noMoreSplits(scanNodeId_);
       noMoreSplits_ = true;
     };
   }
 
  private:
+  core::PlanNodeId scanNodeId_;
   u_int32_t index_;
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;

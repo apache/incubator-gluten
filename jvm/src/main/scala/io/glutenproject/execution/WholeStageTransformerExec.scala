@@ -247,20 +247,20 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
-    var current_op = child
-    while (current_op.isInstanceOf[TransformSupport] &&
-           !current_op.isInstanceOf[BasicScanExecTransformer] &&
-           current_op.asInstanceOf[TransformSupport].getChild != null) {
-      current_op = current_op.asInstanceOf[TransformSupport].getChild
+    var currentOp = child
+    while (currentOp.isInstanceOf[TransformSupport] &&
+           !currentOp.isInstanceOf[BasicScanExecTransformer] &&
+           currentOp.asInstanceOf[TransformSupport].getChild != null) {
+      currentOp = currentOp.asInstanceOf[TransformSupport].getChild
     }
-    if (current_op != null &&
-        current_op.isInstanceOf[BasicScanExecTransformer]) {
-      current_op match {
+    if (currentOp != null &&
+        currentOp.isInstanceOf[BasicScanExecTransformer]) {
+      currentOp match {
         case op: BatchScanExecTransformer =>
           op.partitions
-          Some(current_op.asInstanceOf[BatchScanExecTransformer])
+          Some(currentOp.asInstanceOf[BatchScanExecTransformer])
         case op: FileSourceScanExecTransformer =>
-          Some(current_op.asInstanceOf[FileSourceScanExecTransformer])
+          Some(currentOp.asInstanceOf[FileSourceScanExecTransformer])
       }
     } else {
       None
@@ -272,10 +272,10 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val pipelineTime = longMetric("pipelineTime")
 
     // check if BatchScan exists
-    val current_op = checkBatchScanExecTransformerChild()
-    if (current_op.isDefined) {
+    val currentOp = checkBatchScanExecTransformerChild()
+    if (currentOp.isDefined) {
       // If containing scan exec transformer, a new RDD is created.
-      val fileScan = current_op.get
+      val fileScan = currentOp.get
       val wsCxt = doWholestageTransform()
 
       val startTime = System.nanoTime()
@@ -304,46 +304,17 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val dependentKernels: ListBuffer[ExpressionEvaluator] = ListBuffer()
     val dependentKernelIterators: ListBuffer[GeneralOutIterator] = ListBuffer()
     val buildRelationBatchHolder: ListBuffer[ColumnarBatch] = ListBuffer()
-    // val serializableObjectHolder: ListBuffer[SerializableObject] = ListBuffer()
-    // val relationHolder: ListBuffer[ColumnarHashedRelation] = ListBuffer()
 
-    // check if BatchScan exists
-    val current_op = checkBatchScanExecTransformerChild()
-    if (current_op.isDefined) {
+    val inputRDDs = columnarInputRDDs
+    // Check if BatchScan exists.
+    val currentOp = checkBatchScanExecTransformerChild()
+    if (currentOp.isDefined) {
       // If containing scan exec transformer, a new RDD is created.
-      // TODO: Remove ?
-      val execTempDir = GlutenConfig.getTempFile
-      val jarList = listJars.map(jarUrl => {
-        logWarning(s"Get Codegened library Jar ${jarUrl}")
-        UserAddedJarUtils.fetchJarFromSpark(
-          jarUrl,
-          execTempDir,
-          s"spark-columnar-plugin-codegen-precompile-${signature}.jar",
-          sparkConf)
-        s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
-      })
-      val fileScan = current_op.get
-      // Get the file format based on fileScan
-      val fileFormat = fileScan match {
-        case f: BatchScanExecTransformer => {
-          f.scan.getClass.getSimpleName match {
-            case "OrcScan" => 2
-            case "ParquetScan" => 1
-            case "DwrfScan" => 3
-            case _ => -1
-          }
-        }
-        case f: FileSourceScanExecTransformer =>
-          f.relation.fileFormat.getClass.getSimpleName match {
-            case "OrcFileFormat" => 2
-            case "ParquetFileFormat" => 1
-            case "DwrfFileFormat" => 3
-            case _ => -1
-          }
-      }
+      val fileScan = currentOp.get
 
       val wsCxt = doWholestageTransform()
-      wsCxt.substraitContext.setFileFormat(fileFormat)
+      // Get and set the file format based on fileScan.
+      wsCxt.substraitContext.setFileFormat(ConverterUtils.getFileFormat(fileScan))
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map(p =>
@@ -354,10 +325,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val wsRDD = new NativeWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartition,
-        true,
         wsCxt.outputAttributes,
-        jarList,
-        dependentKernelIterators)
+        inputRDDs)
       numOutputBatches match {
         case Some(batches) =>
           wsRDD.map { iter =>
@@ -367,7 +336,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         case None => wsRDD
       }
     } else {
-      val inputRDDs = columnarInputRDDs
       val resCtx = doWholestageTransform()
       logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
 

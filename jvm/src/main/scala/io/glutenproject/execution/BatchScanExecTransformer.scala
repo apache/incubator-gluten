@@ -68,7 +68,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    null
+    Seq()
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {

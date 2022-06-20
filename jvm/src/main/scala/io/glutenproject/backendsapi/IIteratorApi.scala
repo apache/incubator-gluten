@@ -62,7 +62,8 @@ trait IIteratorApi extends IBackendsApi {
    */
   def genFirstStageIterator(inputPartition: BaseNativeFilePartition, loadNative: Boolean,
                             outputAttributes: Seq[Attribute], context: TaskContext,
-                            jarList: Seq[String]): Iterator[ColumnarBatch]
+                            inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
+                            : Iterator[ColumnarBatch]
 
   /**
    * Generate Iterator[ColumnarBatch] for final stage.
