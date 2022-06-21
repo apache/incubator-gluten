@@ -112,7 +112,7 @@ object ArrowAbiUtil {
 
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
                                    cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
-    exportFromSparkColumnarBatch(allocator, columnarBatch, cSchema, cArray)
+    exportFromSparkColumnarBatch(allocator, columnarBatch, cSchema, cArray, null)
   }
 
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
