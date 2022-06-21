@@ -384,22 +384,20 @@ case class BroadcastHashJoinExecTransformer(
     val context = BroadCastHashJoinContext(
       buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
 
-    if (streamedRDD.isEmpty) {
-      val buildRDD =
-        BroadcastBuildSideRDD(
-          sparkContext,
-          36,
-          broadcasted,
-          context)
-      streamedRDD :+ buildRDD
+    val buildRDD = if (streamedRDD.isEmpty) {
+      // Stream plan itself contains scan and has no input rdd,
+      // so the number of partitions cannot be decided here.
+      BroadcastBuildSideRDD(
+        sparkContext,
+        broadcasted,
+        context)
     } else {
-      val buildRDD =
-        BroadcastBuildSideRDD(
-          sparkContext,
-          streamedRDD.head.getNumPartitions,
-          broadcasted,
-          context)
-      streamedRDD :+ buildRDD
+      BroadcastBuildSideRDD(
+        sparkContext,
+        broadcasted,
+        context,
+        streamedRDD.head.getNumPartitions)
     }
+    streamedRDD :+ buildRDD
   }
 }

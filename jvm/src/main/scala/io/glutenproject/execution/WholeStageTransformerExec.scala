@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.ListBuffer
-
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -27,7 +26,8 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.vectorized._
-
+import org.apache.spark.SparkContext
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
-import org.apache.spark.sql.execution.joins.BaseJoinExec
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.UserAddedJarUtils
@@ -305,7 +305,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val dependentKernelIterators: ListBuffer[GeneralOutIterator] = ListBuffer()
     val buildRelationBatchHolder: ListBuffer[ColumnarBatch] = ListBuffer()
 
-    val inputRDDs = columnarInputRDDs
+    var inputRDDs = columnarInputRDDs
     // Check if BatchScan exists.
     val currentOp = checkBatchScanExecTransformerChild()
     if (currentOp.isDefined) {
@@ -322,11 +322,20 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       logInfo(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
+      // Recreate the broadcast build side rdd with matched partition number.
+      inputRDDs = inputRDDs.map {
+        case rdd: BroadcastBuildSideRDD =>
+          rdd.copy(numPartitions = substraitPlanPartition.size)
+        case inputRDD =>
+          inputRDD
+      }
+
       val wsRDD = new NativeWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartition,
         wsCxt.outputAttributes,
         inputRDDs)
+
       numOutputBatches match {
         case Some(batches) =>
           wsRDD.map { iter =>

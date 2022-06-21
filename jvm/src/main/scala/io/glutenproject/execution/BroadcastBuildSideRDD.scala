@@ -28,13 +28,17 @@ private final case class BroadcastBuildSideRDDPartition(index: Int) extends Part
 
 case class BroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
-    numPartitions: Int,
     broadcasted: broadcast.Broadcast[BuildSideRelation],
-    broadCastContext: BroadCastHashJoinContext)
+    broadCastContext: BroadCastHashJoinContext,
+    numPartitions: Int = -1)
     extends RDD[ColumnarBatch](sc, Nil) {
 
-  override def getPartitions: Array[Partition] =
+  override def getPartitions: Array[Partition] = {
+    if (numPartitions <= 0) {
+      throw new RuntimeException(s"Invalid number of partitions: $numPartitions.")
+    }
     Array.tabulate(numPartitions)(i => BroadcastBuildSideRDDPartition(i))
+  }
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)

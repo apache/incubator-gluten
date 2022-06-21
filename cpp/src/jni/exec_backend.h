@@ -244,7 +244,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       colNameList.push_back(name);
     }
     // Get column types from input schema.
-    auto& stypes = baseSchema.struct_().types();
+    const auto& stypes = baseSchema.struct_().types();
     std::vector<std::shared_ptr<arrow::DataType>> arrowTypes;
     arrowTypes.reserve(stypes.size());
     for (const auto& type : stypes) {
@@ -259,7 +259,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     }
     // Create input fields.
     std::vector<std::shared_ptr<arrow::Field>> inputFields;
-    for (int colIdx= 0; colIdx< colNameList.size(); colIdx++) {
+    for (int colIdx = 0; colIdx < colNameList.size(); colIdx++) {
       inputFields.push_back(arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
     }
 
