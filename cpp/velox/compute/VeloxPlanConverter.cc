@@ -381,6 +381,13 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       splits_.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
     }
     params_.planNode = planNode;
+    params_.queryCtx = std::make_shared<core::QueryCtx>(
+        pool,
+        std::make_shared<folly::CPUThreadPoolExecutor>(
+            std::thread::hardware_concurrency()),
+        std::make_shared<core::MemConfig>(),
+        std::unordered_map<std::string, std::shared_ptr<Config>>{},
+        memory::MappedMemory::getInstance());
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
@@ -411,6 +418,13 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
                                const bool fakeArrowOutput)
       : WholeStageResIter(pool, planNode) {
     params_.planNode = planNode;
+    params_.queryCtx = std::make_shared<core::QueryCtx>(
+        pool,
+        std::make_shared<folly::CPUThreadPoolExecutor>(
+            std::thread::hardware_concurrency()),
+        std::make_shared<core::MemConfig>(),
+        std::unordered_map<std::string, std::shared_ptr<Config>>{},
+        memory::MappedMemory::getInstance());
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
