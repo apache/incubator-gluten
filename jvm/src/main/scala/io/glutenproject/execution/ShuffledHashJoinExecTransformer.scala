@@ -287,7 +287,9 @@ abstract class HashJoinLikeExecTransformer(
     joinParametersStr.append("isBHJ=").append(isBHJ).append("\n")
       .append("isNullAwareAntiJoin=").append(isNullAwareAntiJoin).append("\n")
       .append("buildHashTableId=").append(buildHashTableId).append("\n")
-    Any.newBuilder.setValue(ByteString.copyFromUtf8(joinParametersStr.toString()))
+    Any.newBuilder
+      .setValue(ByteString.copyFromUtf8(joinParametersStr.toString()))
+      .setTypeUrl("/google.protobuf.StringValue")
   }
 
   private def getNewOutput(
