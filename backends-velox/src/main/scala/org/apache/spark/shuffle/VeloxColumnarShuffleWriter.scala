@@ -19,7 +19,7 @@ package org.apache.spark.shuffle
 
 import java.io.IOException
 import scala.collection.JavaConverters._
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.{ArrayBuffer}
 import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
@@ -140,8 +140,12 @@ class VeloxColumnarShuffleWriter[K, V](
         val cArray = ArrowArray.allocateNew(allocator)
         val cSchema = ArrowSchema.wrap(dep.nativePartitioning.getSchemaAddress)
         val rb = ArrowConverterUtils.createArrowRecordBatch(cb)
-
-        ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, cb, null, cArray, rb)
+        try {
+          ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, ArrowConverterUtils.toSchema(cb),
+            null, cArray)
+        } finally {
+          ArrowConverterUtils.releaseArrowRecordBatch(rb)
+        }
         dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
 
         val startTime = System.nanoTime()

@@ -80,8 +80,10 @@ object ArrowConverterUtils extends Logging {
         }
       } catch {
         case e =>
-          System.err.println(s"conversion failed")
+          // scalastyle:off println
+          System.err.println(s"Failed converting to Netty. ")
           e.printStackTrace()
+          // scalastyle:on println
           throw e
       }
     }
@@ -288,8 +290,9 @@ object ArrowConverterUtils extends Logging {
 
   def releaseArrowRecordBatchList(recordBatchList: Array[ArrowRecordBatch]): Unit = {
     recordBatchList.foreach({ recordBatch =>
-      if (recordBatch != null)
+      if (recordBatch != null) {
         releaseArrowRecordBatch(recordBatch)
+      }
     })
   }
 
@@ -452,7 +455,7 @@ object ArrowConverterUtils extends Logging {
 
     val utcTimestampNodeOriginal = inNode
     val utcTimestampNodeMilli = ArrowConverterUtils.convertTimestampToMilli(
-      utcTimestampNodeOriginal,inType)._1
+      utcTimestampNodeOriginal, inType)._1
     val utcTimestampNodeLong = TreeBuilder.makeFunction("castBIGINT",
       Lists.newArrayList(utcTimestampNodeMilli), new ArrowType.Int(64,
         true))
@@ -473,6 +476,16 @@ object ArrowConverterUtils extends Logging {
                        timeZoneId: Option[String] = None): (TreeNode, ArrowType) = {
     throw new UnsupportedOperationException()
   }
+
+  def toSchema( batch: ColumnarBatch) : Schema = {
+    val fields = new java.util.ArrayList[Field](batch.numCols)
+    for (i <- 0 until batch.numCols) {
+      val col: ColumnVector = batch.column(i)
+      fields.add(col.asInstanceOf[ArrowWritableColumnVector].getValueVector.getField)
+    }
+    new Schema(fields)
+  }
+
 
   override def toString(): String = {
     s"ArrowConverterUtils"
