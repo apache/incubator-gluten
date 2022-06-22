@@ -88,4 +88,4 @@ static const typeId all[] = {
 
 }  // namespace Type
 }  // namespace shuffle
-}  // namespace gluten
+}  // namespace sparkcolumnarplugin
