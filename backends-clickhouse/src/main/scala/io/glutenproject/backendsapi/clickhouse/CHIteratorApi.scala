@@ -150,6 +150,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      loadNative: Boolean,
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
+                                     updateMetrics: (Long, Long) => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
                                      : Iterator[ColumnarBatch] = {
     var resIter : GeneralOutIterator = null
@@ -198,6 +199,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      rootNode: PlanNode,
                                      streamedSortPlan: SparkPlan,
                                      pipelineTime: SQLMetric,
+                                     updateMetrics: (Long, Long) => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]

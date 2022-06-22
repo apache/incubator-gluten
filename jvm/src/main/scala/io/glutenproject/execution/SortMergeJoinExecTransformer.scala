@@ -236,11 +236,11 @@ case class SortMergeJoinExecTransformer(
       this
   }
 
-  override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    val numOutputBatches = longMetric("numOutputBatches")
     val numOutputRows = longMetric("numOutputRows")
-    val procTime = longMetric("processTime")
-    procTime.set(process_time / 1000000)
-    numOutputRows += out_num_rows
+    numOutputBatches += outNumBatches
+    numOutputRows += outNumRows
   }
 
   override def getChild: SparkPlan = streamedPlan

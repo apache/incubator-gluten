@@ -62,6 +62,7 @@ trait IIteratorApi extends IBackendsApi {
    */
   def genFirstStageIterator(inputPartition: BaseNativeFilePartition, loadNative: Boolean,
                             outputAttributes: Seq[Attribute], context: TaskContext,
+                            updateMetrics: (Long, Long) => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
                             : Iterator[ColumnarBatch]
 
@@ -71,14 +72,19 @@ trait IIteratorApi extends IBackendsApi {
    * @return
    */
   def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
-                            numaBindingInfo: GlutenNumaBindingInfo, listJars: Seq[String],
-                            signature: String, sparkConf: SparkConf,
-                            outputAttributes: Seq[Attribute], rootNode: PlanNode,
-                            streamedSortPlan: SparkPlan, pipelineTime: SQLMetric,
+                            numaBindingInfo: GlutenNumaBindingInfo,
+                            listJars: Seq[String],
+                            signature: String,
+                            sparkConf: SparkConf,
+                            outputAttributes: Seq[Attribute],
+                            rootNode: PlanNode,
+                            streamedSortPlan: SparkPlan,
+                            pipelineTime: SQLMetric,
+                            updateMetrics: (Long, Long) => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
                             dependentKernels: Seq[ExpressionEvaluator],
-                            dependentKernelIterators: Seq[GeneralOutIterator]
-                           ): Iterator[ColumnarBatch]
+                            dependentKernelIterators: Seq[GeneralOutIterator])
+                            : Iterator[ColumnarBatch]
 
   /**
    * Generate columnar native iterator.
