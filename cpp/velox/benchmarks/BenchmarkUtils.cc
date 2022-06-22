@@ -41,7 +41,8 @@ void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool) {
   auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> readFromFile(const std::string& filePath) {
+arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
+    const std::string& filePath) {
   // Read json file and resume the binary data.
   std::ifstream msgJson(filePath);
   std::stringstream buffer;
@@ -85,4 +86,30 @@ std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
 
 bool EndsWith(const std::string& data, const std::string& suffix) {
   return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
+}
+
+std::shared_ptr<arrow::RecordBatchReader> createReader(const std::string& path) {
+  std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
+  std::shared_ptr<arrow::RecordBatchReader> recordBatchReader;
+  ::parquet::ArrowReaderProperties properties =
+      ::parquet::default_arrow_reader_properties();
+
+  GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
+      arrow::default_memory_pool(), ::parquet::ParquetFileReader::OpenFile(path),
+      properties, &parquetReader));
+  GLUTEN_THROW_NOT_OK(parquetReader->GetRecordBatchReader(
+      arrow::internal::Iota(parquetReader->num_row_groups()), &recordBatchReader));
+  return recordBatchReader;
+}
+
+std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchVector(
+    const std::string& path) {
+  return std::make_shared<gluten::RecordBatchResultIterator>(
+      std::make_shared<BatchVectorIterator>(path));
+}
+
+std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
+    const std::string& path) {
+  return std::make_shared<gluten::RecordBatchResultIterator>(
+      std::make_shared<BatchStreamIterator>(path));
 }

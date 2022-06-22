@@ -17,10 +17,16 @@
 
 #pragma once
 
+#include <arrow/util/range.h>
+#include <parquet/arrow/reader.h>
 #include <velox/common/memory/Memory.h>
 #include <velox/substrait/SubstraitToVeloxPlan.h>
 
+#include <utility>
+
 #include "compute/protobuf_utils.h"
+#include "jni/exec_backend.h"
+#include "velox/common/memory/Memory.h"
 
 /// Initilize the Velox backend.
 void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool);
@@ -29,7 +35,8 @@ void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool);
 std::string getExampleFilePath(const std::string& fileName);
 
 /// Read binary data from a json file.
-arrow::Result<std::shared_ptr<arrow::Buffer>> readFromFile(const std::string& msgPath);
+arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
+    const std::string& filePath);
 
 /// Get the file paths, starts, lengths from a directory.
 /// Use fileFormat to specify the format to read, eg., orc, parquet.
@@ -39,3 +46,59 @@ std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
 
 /// Return whether the data ends with suffix.
 bool EndsWith(const std::string& data, const std::string& suffix);
+
+class BatchIteratorWrapper {
+ public:
+  explicit BatchIteratorWrapper(std::string path) : path_(std::move(path)) {}
+
+  virtual arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() = 0;
+
+  void CreateReader() {
+    ::parquet::ArrowReaderProperties properties =
+        ::parquet::default_arrow_reader_properties();
+    GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
+        arrow::default_memory_pool(), ::parquet::ParquetFileReader::OpenFile(path_),
+        properties, &fileReader_));
+    GLUTEN_THROW_NOT_OK(fileReader_->GetRecordBatchReader(
+        arrow::internal::Iota(fileReader_->num_row_groups()), &recordBatchReader_));
+  }
+
+ protected:
+  std::string path_;
+  std::unique_ptr<::parquet::arrow::FileReader> fileReader_;
+  std::shared_ptr<arrow::RecordBatchReader> recordBatchReader_;
+};
+
+class BatchVectorIterator : public BatchIteratorWrapper {
+ public:
+  explicit BatchVectorIterator(std::string path) : BatchIteratorWrapper(std::move(path)) {
+    CreateReader();
+    GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
+    iter_ = batches_.begin();
+  }
+
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() override {
+    return iter_ == batches_.cend() ? nullptr : *iter_++;
+  }
+
+ private:
+  arrow::RecordBatchVector batches_;
+  std::vector<std::shared_ptr<arrow::RecordBatch>>::const_iterator iter_;
+};
+
+class BatchStreamIterator : public BatchIteratorWrapper {
+ public:
+  explicit BatchStreamIterator(std::string path) : BatchIteratorWrapper(std::move(path)) {
+    CreateReader();
+  }
+
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+    return recordBatchReader_->Next();
+  }
+};
+
+std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchVector(
+    const std::string& path);
+
+std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
+    const std::string& path);

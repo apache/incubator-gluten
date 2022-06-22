@@ -24,9 +24,10 @@
 auto BM = [](::benchmark::State& state, const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile, const std::string& fileFormat) {
   const auto& filePath = getExampleFilePath(jsonFile);
-  auto maybePlan = readFromFile(filePath);
+  auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
     state.SkipWithError(maybePlan.status().message().c_str());
+    return;
   }
   auto plan = std::move(maybePlan).ValueOrDie();
 
