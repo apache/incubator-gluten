@@ -357,4 +357,4 @@ class FallbackRangeSplitter : public Splitter {
 };
 
 }  // namespace shuffle
-}  // namespace sparkcolumnarplugin
+}  // namespace gluten

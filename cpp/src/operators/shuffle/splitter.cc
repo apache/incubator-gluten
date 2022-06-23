@@ -215,7 +215,8 @@ arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
 arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
     const std::string& short_name, std::shared_ptr<arrow::Schema> schema,
     int num_partitions, SplitOptions options) {
-  return Make(short_name, std::move(schema), num_partitions, nullptr, 0, std::move(options));
+  return Make(short_name, std::move(schema), num_partitions, nullptr, 0,
+              std::move(options));
 }
 
 arrow::Status Splitter::Init() {
@@ -491,8 +492,8 @@ arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, bool reset_buffer
               partition_buffers_[fixed_width_col_cnt_ + binary_idx][partition_id];
           // validity buffer
           if (buffers[0] != nullptr) {
-            buffers[0] =
-                arrow::SliceBuffer(buffers[0], 0, arrow::bit_util::BytesForBits(num_rows));
+            buffers[0] = arrow::SliceBuffer(buffers[0], 0,
+                                            arrow::bit_util::BytesForBits(num_rows));
           }
           // offset buffer
           if (buffers[1] != nullptr) {
@@ -558,8 +559,8 @@ arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, bool reset_buffer
         default: {
           auto buffers = partition_buffers_[fixed_width_idx][partition_id];
           if (buffers[0] != nullptr) {
-            buffers[0] =
-                arrow::SliceBuffer(buffers[0], 0, arrow::bit_util::BytesForBits(num_rows));
+            buffers[0] = arrow::SliceBuffer(buffers[0], 0,
+                                            arrow::bit_util::BytesForBits(num_rows));
           }
           if (buffers[1] != nullptr) {
             if (column_type_id_[i]->id() == arrow::BooleanType::type_id)
@@ -1568,4 +1569,4 @@ arrow::Status FallbackRangeSplitter::ComputeAndCountPartitionId(
 }
 
 }  // namespace shuffle
-}  // namespace sparkcolumnarplugin
+}  // namespace gluten

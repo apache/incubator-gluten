@@ -90,8 +90,8 @@ void MakeInputBatch(std::vector<std::string> input_data,
   int i = 0;
   for (auto data : input_data) {
     std::shared_ptr<Array> a0;
-    ARROW_ASSIGN_OR_THROW(a0, arrow::ipc::internal::json::ArrayFromJSON(sch->field(i++)->type(),
-                                                            data.c_str()));
+    ARROW_ASSIGN_OR_THROW(a0, arrow::ipc::internal::json::ArrayFromJSON(
+                                  sch->field(i++)->type(), data.c_str()));
     if (length == -1) {
       length = a0->length();
     }

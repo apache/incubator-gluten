@@ -166,4 +166,4 @@ static int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
 }
 
 }  // namespace shuffle
-}  // namespace sparkcolumnarplugin
+}  // namespace gluten

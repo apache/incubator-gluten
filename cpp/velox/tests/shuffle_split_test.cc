@@ -142,8 +142,8 @@ class SplitterTest : public ::testing::Test {
       const std::shared_ptr<arrow::RecordBatch>& input_batch,
       const std::string& json_idx) {
     std::shared_ptr<arrow::Array> take_idx;
-    ARROW_ASSIGN_OR_THROW(take_idx,
-        arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), json_idx));
+    ARROW_ASSIGN_OR_THROW(
+        take_idx, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), json_idx));
 
     auto cntx = arrow::compute::ExecContext();
     std::shared_ptr<arrow::RecordBatch> res;
@@ -358,7 +358,8 @@ TEST_F(SplitterTest, TestHashSplitter) {
   gandiva::ExpressionVector expr_array = {expr_0, expr_1};
 
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", schema_, num_partitions,
-                                                  (const uint8_t*)expr_array.data(), expr_array.size(), split_options_))
+                                                  (const uint8_t*)expr_array.data(),
+                                                  expr_array.size(), split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
@@ -395,10 +396,10 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
 
   std::shared_ptr<arrow::Array> pid_arr_0;
   ARROW_ASSIGN_OR_THROW(pid_arr_0, arrow::ipc::internal::json::ArrayFromJSON(
-      arrow::int32(), "[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]"));
+                                       arrow::int32(), "[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]"));
   std::shared_ptr<arrow::Array> pid_arr_1;
-  ARROW_ASSIGN_OR_THROW(pid_arr_1,
-      arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1]"));
+  ARROW_ASSIGN_OR_THROW(
+      pid_arr_1, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1]"));
 
   std::shared_ptr<arrow::Schema> schema_w_pid;
   std::shared_ptr<arrow::RecordBatch> input_batch_1_w_pid;
@@ -1033,7 +1034,8 @@ TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
   auto expr_1 = TreeExprBuilder::MakeExpression(f_2, field("f_uint64", uint64()));
   gandiva::ExpressionVector expr_array = {expr_1};
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", rb_schema, num_partitions,
-                                                  (const uint8_t*)expr_array.data(), expr_array.size(), split_options_));
+                                                  (const uint8_t*)expr_array.data(),
+                                                  expr_array.size(), split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
 
@@ -1141,4 +1143,4 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitterwithCompression) {
 }
 
 }  // namespace shuffle
-}  // namespace sparkcolumnarplugin
+}  // namespace gluten
