@@ -93,6 +93,7 @@ jobs:
       - run: sudo apt-get install -y libssl-dev
       - run: sudo apt-get install -y libz-dev
       - run: sudo apt-get install -y llvm clang
+      - run: sudo apt-get install -y libdwarf-dev
       - name: ccache cache files
         uses: actions/cache@v2
         with:
@@ -116,7 +117,7 @@ jobs:
           sudo apt-get install -y google-mock
       - name: Install Gluten Velox-backend
         run: |
-          mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+          mvn clean install -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
       - name: Run unit tests
         run: |
           mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox
@@ -125,7 +126,14 @@ jobs:
           cd build
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make -j$(nproc)
-
+      - name: TPC-H SF1.0 local
+        run: |
+          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
+          cd gluten-it
+          mvn clean package
+          java -Xmx1G -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.h.Tpch \
+            --backend-type=velox --fixed-width-as-double --off-heap-size=2g -s=1.0 --cpus=4 --iterations=1 \
+            --queries=q1,q2,q3,q4,q5,q6,q8,q9,q10,q11,q12,q14,q15,q17,q18,q19,q20,q21,q22
   formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest
