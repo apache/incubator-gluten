@@ -1,0 +1,7 @@
+columns format version: 1
+5 columns:
+`ps_partkey` Int64
+`ps_suppkey` Int64
+`ps_availqty` Int64
+`ps_supplycost` Float32
+`ps_comment` String

@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized
 
-import java.io.{EOFException, InputStream, OutputStream, Serializable}
+import java.io.{BufferedOutputStream, DataOutputStream, EOFException, InputStream, OutputStream, Serializable}
 import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
@@ -119,7 +119,8 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
 
   override def serializeStream(out: OutputStream): SerializationStream = new SerializationStream {
     private[this] var writeBuffer: Array[Byte] = new Array[Byte](4096)
-    private[this] val dOut: BlockOutputStream = new BlockOutputStream(out, writeBuffer)
+    private[this] var dOut: BlockOutputStream =
+      new BlockOutputStream(new DataOutputStream(new BufferedOutputStream(out)), writeBuffer)
 
     override def writeKey[T: ClassTag](key: T): SerializationStream = {
       // The key is only needed on the map side when computing partition ids. It does not need to

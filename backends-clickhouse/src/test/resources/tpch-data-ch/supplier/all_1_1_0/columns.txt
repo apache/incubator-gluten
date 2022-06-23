@@ -1,0 +1,9 @@
+columns format version: 1
+7 columns:
+`s_suppkey` Int64
+`s_name` String
+`s_address` String
+`s_nationkey` Int64
+`s_phone` String
+`s_acctbal` Float64
+`s_comment` String
