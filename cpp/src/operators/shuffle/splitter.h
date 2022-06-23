@@ -320,7 +320,7 @@ class HashSplitter : public Splitter {
  private:
   HashSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema,
                SplitOptions options)
-      : Splitter(num_partitions, std::move(schema), std::move(options)), schema_(schema) {}
+      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
 
   arrow::Status CreateGandivaExpr(const substrait::Rel& subRel);
   arrow::Status CreateProjector();
@@ -328,7 +328,6 @@ class HashSplitter : public Splitter {
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   std::vector<u_int32_t> hashIndices_;
-  std::shared_ptr<arrow::Schema> schema_;
   gandiva::ExpressionVector exprVector_;
   std::shared_ptr<gandiva::Projector> projector_;
 };
