@@ -198,14 +198,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::RelRoot& sroot) {
-  auto& snames = sroot.names();
-  int name_idx = 0;
-  for (auto& sname : snames) {
-    if (name_idx == 0 && sname == "fake_arrow_output") {
-      fakeArrowOutput_ = true;
-    }
-    name_idx += 1;
-  }
+  // Output names can be got from RelRoot, but are not used currently.
   if (sroot.has_input()) {
     setInputPlanNode(sroot.input());
   } else {
@@ -252,21 +245,23 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
 
   auto splitInfos = subVeloxPlanConverter_->splitInfos();
   if (splitInfos.size() == 0) {
-    // Source node is not required.
-    auto wholestageIter =
-        std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, fakeArrowOutput_);
-    return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+    throw std::runtime_error(
+        "At least one data source info is required. Can be scan or stream info.");
   }
 
-  // Source node is required.
+  // Scan node can be required.
+  // Separate the scan ids and stream ids, and get the scan infos.
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
   std::vector<core::PlanNodeId> scanIds;
+  std::vector<core::PlanNodeId> streamIds;
   for (const auto& leafPlanNodeId : planNode->leafPlanNodeIds()) {
     if (splitInfos.find(leafPlanNodeId) == splitInfos.end()) {
       throw std::runtime_error("Could not find leafPlanNodeId.");
     }
     auto splitInfo = splitInfos[leafPlanNodeId];
-    if (!splitInfo->isStream) {
+    if (splitInfo->isStream) {
+      streamIds.emplace_back(leafPlanNodeId);
+    } else {
       scanInfos.emplace_back(splitInfo);
       scanIds.emplace_back(leafPlanNodeId);
     }
@@ -274,25 +269,11 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
-        std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, fakeArrowOutput_);
+        std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, streamIds);
     return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
   }
-  if (scanInfos.size() > 1) {
-    throw std::runtime_error("Only one scan is supported.");
-  }
-  auto splitInfo = scanInfos[0].get();
-
-  // Get the information for TableScan.
-  u_int32_t partitionIndex = splitInfo->partitionIndex;
-  const auto& paths = splitInfo->paths;
-  const auto& starts = splitInfo->starts;
-  const auto& lengths = splitInfo->lengths;
-  const auto format = splitInfo->format;
-
-  // Move the velox pool and the iterator will manage it.
-  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, scanIds[0], partitionIndex, paths, starts, lengths, format,
-      fakeArrowOutput_);
+  auto wholestageIter =
+      std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -308,11 +289,10 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
     format = FileFormat::PARQUET;
   }
 
-  uint32_t partitionIndx = 0;
-  bool fakeArrowOutput = false;
-  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, "0", partitionIndx, paths, starts, lengths, format,
-      fakeArrowOutput);
+  std::vector<core::PlanNodeId> scanIds;
+  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
+  auto wholestageIter =
+      std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -360,9 +340,8 @@ class VeloxPlanConverter::WholeStageResIter {
   /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
   /// types, but is conducted in String conversion. The output batch will be the input of
   /// Columnar Shuffle.
-  void toRealArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
-                        const RowTypePtr& outTypes,
-                        std::shared_ptr<arrow::RecordBatch>* out) {
+  void toArrowBatch(const RowVectorPtr& rv, uint64_t numRows, const RowTypePtr& outTypes,
+                    std::shared_ptr<arrow::RecordBatch>* out) {
     ArrowArray cArray{};
     ArrowSchema cSchema{};
     exportToArrow(rv, cArray, pool_);
@@ -374,17 +353,6 @@ class VeloxPlanConverter::WholeStageResIter {
       throw std::runtime_error("Failed to import to Arrow record batch");
     }
     *out = batch.ValueOrDie();
-  }
-
-  /// This method converts Velox RowVector into Faked Arrow RecordBatch. Velox's impl is
-  /// used for fixed-width data types. For String conversion, a faked array is
-  /// constructed. The output batch will be converted into Unsafe Row in Velox-to-Row
-  /// converter.
-  void toFakedArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
-                         const RowTypePtr& outTypes,
-                         std::shared_ptr<arrow::RecordBatch>* out) {
-    // not to make fake batches as of now
-    toRealArrowBatch(rv, numRows, outTypes, out);
   }
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
@@ -400,11 +368,7 @@ class VeloxPlanConverter::WholeStageResIter {
         return out;
       }
       auto outTypes = planNode_->outputType();
-      if (fakeArrowOutput_) {
-        toFakedArrowBatch(result, numRows, outTypes, &out);
-      } else {
-        toRealArrowBatch(result, numRows, outTypes, &out);
-      }
+      toArrowBatch(result, numRows, outTypes, &out);
       // arrow::PrettyPrint(*out, 2, &std::cout);
       return out;
     }
@@ -419,7 +383,6 @@ class VeloxPlanConverter::WholeStageResIter {
  private:
   memory::MemoryPool* pool_;
   std::shared_ptr<const core::PlanNode> planNode_;
-  bool fakeArrowOutput_ = false;
   bool mayHaveNext_ = true;
   // TODO: use the setted one.
   uint64_t batchSize_ = 10000;
@@ -427,36 +390,45 @@ class VeloxPlanConverter::WholeStageResIter {
 
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
  public:
-  WholeStageResIterFirstStage(memory::MemoryPool* pool,
-                              const std::shared_ptr<const core::PlanNode>& planNode,
-                              core::PlanNodeId scanNodeId, const u_int32_t index,
-                              const std::vector<std::string>& paths,
-                              const std::vector<u_int64_t>& starts,
-                              const std::vector<u_int64_t>& lengths,
-                              const dwio::common::FileFormat format,
-                              const bool fakeArrowOutput)
+  WholeStageResIterFirstStage(
+      memory::MemoryPool* pool, const std::shared_ptr<const core::PlanNode>& planNode,
+      const std::vector<core::PlanNodeId>& scanNodeIds,
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos)
       : WholeStageResIter(pool, planNode),
-        scanNodeId_(scanNodeId),
-        index_(index),
-        paths_(paths),
-        starts_(starts),
-        lengths_(lengths),
-        format_(format) {
-    std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
-
-    for (int idx = 0; idx < paths.size(); idx++) {
-      auto path = paths[idx];
-      auto start = starts[idx];
-      auto length = lengths[idx];
-
-      auto split = std::make_shared<hive::HiveConnectorSplit>("hive-connector", path,
-                                                              format, start, length);
-      connectorSplits.push_back(split);
+        scanNodeIds_(scanNodeIds),
+        scanInfos_(scanInfos) {
+    // Generate splits for all scan nodes.
+    splits_.reserve(scanInfos.size());
+    if (scanNodeIds.size() != scanInfos.size()) {
+      throw std::runtime_error("Invalid scan information.");
     }
-    splits_.reserve(connectorSplits.size());
-    for (const auto& connectorSplit : connectorSplits) {
-      splits_.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
+    for (const auto& scanInfo : scanInfos) {
+      // Get the information for TableScan.
+      // Partition index in scan info is not used.
+      const auto& paths = scanInfo->paths;
+      const auto& starts = scanInfo->starts;
+      const auto& lengths = scanInfo->lengths;
+      const auto& format = scanInfo->format;
+
+      std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
+      connectorSplits.reserve(paths.size());
+      for (int idx = 0; idx < paths.size(); idx++) {
+        auto split = std::make_shared<hive::HiveConnectorSplit>(
+            "hive-connector", paths[idx], format, starts[idx], lengths[idx]);
+        connectorSplits.emplace_back(split);
+      }
+
+      std::vector<exec::Split> scanSplits;
+      scanSplits.reserve(connectorSplits.size());
+      for (const auto& connectorSplit : connectorSplits) {
+        // Bucketed group id (-1 means 'none').
+        int32_t groupId = -1;
+        scanSplits.emplace_back(exec::Split(folly::copy(connectorSplit), groupId));
+      }
+      splits_.emplace_back(scanSplits);
     }
+
+    // Set cursor parameters.
     params_.planNode = planNode;
     params_.queryCtx = createNewVeloxQueryCtx();
     cursor_ = std::make_unique<test::TaskCursor>(params_);
@@ -464,22 +436,20 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       if (noMoreSplits_) {
         return;
       }
-      for (auto& split : splits_) {
-        task->addSplit(scanNodeId_, std::move(split));
+      for (int idx = 0; idx < scanNodeIds_.size(); idx++) {
+        for (auto& split : splits_[idx]) {
+          task->addSplit(scanNodeIds_[idx], std::move(split));
+        }
+        task->noMoreSplits(scanNodeIds_[idx]);
       }
-      task->noMoreSplits(scanNodeId_);
       noMoreSplits_ = true;
     };
   }
 
  private:
-  core::PlanNodeId scanNodeId_;
-  u_int32_t index_;
-  std::vector<std::string> paths_;
-  std::vector<u_int64_t> starts_;
-  std::vector<u_int64_t> lengths_;
-  std::vector<exec::Split> splits_;
-  dwio::common::FileFormat format_;
+  std::vector<core::PlanNodeId> scanNodeIds_;
+  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos_;
+  std::vector<std::vector<exec::Split>> splits_;
   bool noMoreSplits_ = false;
 };
 
@@ -487,8 +457,8 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
  public:
   WholeStageResIterMiddleStage(memory::MemoryPool* pool,
                                const std::shared_ptr<const core::PlanNode>& planNode,
-                               const bool fakeArrowOutput)
-      : WholeStageResIter(pool, planNode) {
+                               const std::vector<core::PlanNodeId>& streamIds)
+      : WholeStageResIter(pool, planNode), streamIds_(streamIds) {
     params_.planNode = planNode;
     params_.queryCtx = createNewVeloxQueryCtx();
     cursor_ = std::make_unique<test::TaskCursor>(params_);
@@ -496,13 +466,16 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
       if (noMoreSplits_) {
         return;
       }
-      task->noMoreSplits("0");
+      for (const auto& streamId : streamIds_) {
+        task->noMoreSplits(streamId);
+      }
       noMoreSplits_ = true;
     };
   }
 
  private:
   bool noMoreSplits_ = false;
+  std::vector<core::PlanNodeId> streamIds_;
 };
 
 }  // namespace compute

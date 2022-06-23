@@ -44,6 +44,8 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.util.control.Breaks.{break, breakable}
+
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
@@ -392,11 +394,37 @@ case class BroadcastHashJoinExecTransformer(
         broadcasted,
         context)
     } else {
-      BroadcastBuildSideRDD(
-        sparkContext,
-        broadcasted,
-        context,
-        streamedRDD.head.getNumPartitions)
+      // Try to get the number of partitions from a non-broadcast RDD.
+      val nonBroadcastRDD = streamedRDD.find(rdd => !rdd.isInstanceOf[BroadcastBuildSideRDD])
+      if (nonBroadcastRDD.isDefined) {
+        BroadcastBuildSideRDD(
+          sparkContext,
+          broadcasted,
+          context,
+          nonBroadcastRDD.orNull.getNumPartitions)
+      } else {
+        // When all stream RDDs are broadcast RDD, the number of partitions can be undecided
+        // because stream plan may contain scan.
+        var partitions = -1
+        breakable {
+          for (rdd <- streamedRDD) {
+            try {
+              partitions = rdd.getNumPartitions
+              break
+            } catch {
+              case _: Throwable =>
+              // The partitions of this RDD is not decided yet.
+            }
+          }
+        }
+        // If all the stream RDDs are broadcast RDD,
+        // the number of partitions will be decided later in whole stage transformer.
+        BroadcastBuildSideRDD(
+          sparkContext,
+          broadcasted,
+          context,
+          partitions)
+      }
     }
     streamedRDD :+ buildRDD
   }

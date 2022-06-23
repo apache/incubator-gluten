@@ -101,12 +101,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GlutenConfig.getConf.enableColumnarSortMergeJoinLazyRead
 
-  var fakeArrowOutput = false
-
-  def setFakeOutput(): Unit = {
-    fakeArrowOutput = true
-  }
-
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_wholestagetransform"),
@@ -171,16 +165,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         s"ColumnarWholestageTransformer can't doTansform on ${child}")
     }
     val outNames = new java.util.ArrayList[String]()
-    // Use the first item in output names to specify the output format of the WS computing.
-    // When the next operator is ArrowColumnarToRow, fake Arrow output will be returned.
-    // TODO: Use a more proper way to send some self-assigned parameters to native.
-    if (GlutenConfig.getConf.isVeloxBackend) {
-      if (fakeArrowOutput) {
-        outNames.add("fake_arrow_output")
-      } else {
-        outNames.add("real_arrow_output")
-      }
-    }
     for (attr <- childCtx.outputAttributes) {
       outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
     }
@@ -291,6 +275,41 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
   }
 
+  // Recreate the broadcast build side rdd with matched partition number.
+  // Used when whole stage transformer contains scan.
+  def genFirstNewRDDsForBroadcast(rddSeq: Seq[RDD[ColumnarBatch]], partitions: Int)
+    : Seq[RDD[ColumnarBatch]] = {
+    rddSeq.map {
+      case rdd: BroadcastBuildSideRDD =>
+        rdd.copy(numPartitions = partitions)
+      case inputRDD =>
+        inputRDD
+    }
+  }
+
+  // Recreate the broadcast build side rdd with matched partition number.
+  // Used when whole stage transformer does not contain scan.
+  def genFinalNewRDDsForBroadcast(rddSeq: Seq[RDD[ColumnarBatch]]): Seq[RDD[ColumnarBatch]] = {
+    // Get the number of partitions from a non-broadcast RDD.
+    val nonBroadcastRDD = rddSeq.find(rdd => !rdd.isInstanceOf[BroadcastBuildSideRDD])
+    if (nonBroadcastRDD.isEmpty) {
+      throw new RuntimeException("At least one RDD should not being BroadcastBuildSideRDD")
+    }
+    rddSeq.map {
+      case broadcastRDD: BroadcastBuildSideRDD =>
+        try {
+          broadcastRDD.getNumPartitions
+          broadcastRDD
+        } catch {
+          case _: Throwable =>
+            // Recreate the broadcast build side rdd with matched partition number.
+            broadcastRDD.copy(numPartitions = nonBroadcastRDD.orNull.getNumPartitions)
+        }
+      case rdd =>
+        rdd
+    }
+  }
+
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val signature = doBuild()
     val listJars = uploadAndListJars(signature)
@@ -305,7 +324,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val dependentKernelIterators: ListBuffer[GeneralOutIterator] = ListBuffer()
     val buildRelationBatchHolder: ListBuffer[ColumnarBatch] = ListBuffer()
 
-    var inputRDDs = columnarInputRDDs
+    val inputRDDs = columnarInputRDDs
     // Check if BatchScan exists.
     val currentOp = checkBatchScanExecTransformerChild()
     if (currentOp.isDefined) {
@@ -322,19 +341,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       logInfo(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
-      // Recreate the broadcast build side rdd with matched partition number.
-      inputRDDs = inputRDDs.map {
-        case rdd: BroadcastBuildSideRDD =>
-          rdd.copy(numPartitions = substraitPlanPartition.size)
-        case inputRDD =>
-          inputRDD
-      }
-
       val wsRDD = new NativeWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartition,
         wsCxt.outputAttributes,
-        inputRDDs)
+        genFirstNewRDDsForBroadcast(inputRDDs, substraitPlanPartition.size))
 
       numOutputBatches match {
         case Some(batches) =>
@@ -364,7 +375,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             dependentKernels,
             dependentKernelIterators)
       }
-      new WholeStageZippedPartitionsRDD(sparkContext, inputRDDs, genFinalStageIterator)
+
+      new WholeStageZippedPartitionsRDD(
+        sparkContext, genFinalNewRDDsForBroadcast(inputRDDs), genFinalStageIterator)
     }
   }
 }

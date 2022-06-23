@@ -106,7 +106,6 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
  private:
   memory::MemoryPool* pool_;
   int planNodeId_ = 0;
-  bool fakeArrowOutput_ = false;
   u_int32_t partitionIndex_;
   std::vector<std::string> paths_;
   std::vector<u_int64_t> starts_;
