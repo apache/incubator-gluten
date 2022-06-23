@@ -48,6 +48,9 @@ static JavaVM* g_vm = nullptr;
 static void SetGlobalJavaVM(JavaVM* vm) { g_vm = vm; }
 
 int64_t GetJavaThreadId() {
+  if (g_vm == nullptr) {
+    return -1L;
+  }
   JNIEnv* env;
   int getEnvStat = g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8);
   if (getEnvStat == JNI_EDETACHED) {

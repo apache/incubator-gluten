@@ -45,7 +45,8 @@ namespace compute {
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
   int64_t jParentThreadId = GetJavaThreadId();
   if (jParentThreadId == -1L) {
-    throw std::runtime_error("Not in a Spark task");
+    // In the case of unit testing
+    return core::QueryCtx::createForTest();
   }
   // Gluten's restriction of thread naming. See
   // org.apache.spark.sql.execution.datasources.v2.arrow.SparkThreadUtils Note that the
