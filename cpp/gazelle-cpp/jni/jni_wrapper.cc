@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  SetGlobalJavaVM(vm);
   JNIEnv* env;
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;

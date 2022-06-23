@@ -125,7 +125,7 @@ class JavaRecordBatchIterator {
       return;
     }
 #ifdef DEBUG
-    std::cout << "DELETING GLOBAL ITERATOR REF "
+    std::cout << "DELETING ITERATOR REF "
               << reinterpret_cast<long>(java_serialized_record_batch_iterator_) << "..."
               << std::endl;
 #endif
@@ -156,8 +156,10 @@ class JavaRecordBatchIterator {
 #endif
     if (!env->CallBooleanMethod(java_serialized_record_batch_iterator_,
                                 serialized_record_batch_iterator_hasNext)) {
+      RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
       return nullptr;  // stream ended
     }
+    RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
     ArrowSchema c_schema{};
     ArrowArray c_array{};
     env->CallObjectMethod(
@@ -191,10 +193,16 @@ class JavaRecordBatchIteratorWrapper {
 //
 std::shared_ptr<JavaRecordBatchIterator> MakeJavaRecordBatchIterator(
     JavaVM* vm, jobject java_serialized_record_batch_iterator,
-    std::shared_ptr<arrow::Schema> schema) {
-  std::shared_ptr<arrow::Schema> schema_moved = std::move(schema);
-  return std::make_shared<JavaRecordBatchIterator>(
-      vm, java_serialized_record_batch_iterator, schema_moved);
+    const std::shared_ptr<arrow::Schema>& schema) {
+#ifdef DEBUG
+  std::cout << "CREATING ITERATOR REF "
+            << reinterpret_cast<long>(java_serialized_record_batch_iterator) << "..."
+            << std::endl;
+#endif
+  std::shared_ptr<JavaRecordBatchIterator> itr =
+      std::make_shared<JavaRecordBatchIterator>(vm, java_serialized_record_batch_iterator,
+                                                schema);
+  return itr;
 }
 
 jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name,
@@ -225,6 +233,7 @@ extern "C" {
 #endif
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  SetGlobalJavaVM(vm);
   JNIEnv* env;
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
@@ -340,8 +349,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
         gluten::JniThrow("Schema not found for input batch iterator " +
                          std::to_string(idx));
       }
-
-      auto rb_iter = std::make_shared<JavaRecordBatchIterator>(vm, ref_iter, it->second);
+      auto rb_iter = MakeJavaRecordBatchIterator(vm, ref_iter, it->second);
       input_iters.push_back(
           std::make_shared<RecordBatchResultIterator>(std::move(rb_iter)));
     }

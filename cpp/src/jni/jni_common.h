@@ -30,6 +30,7 @@
 #include <gandiva/gandiva_aliases.h>
 #include <gandiva/tree_expr_builder.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <jni.h>
 
 #include <map>
 #include <memory>
@@ -41,6 +42,24 @@
 
 #include "compute/protobuf_utils.h"
 #include "compute/substrait_utils.h"
+
+static JavaVM* g_vm = nullptr;
+
+static void SetGlobalJavaVM(JavaVM* vm) { g_vm = vm; }
+
+int64_t GetJavaThreadId() {
+  if (g_vm == nullptr) {
+    return -1L;
+  }
+  JNIEnv* env;
+  int getEnvStat = g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8);
+  if (getEnvStat == JNI_EDETACHED) {
+    return -1L;
+  }
+  jclass clazz = env->FindClass("Lio/glutenproject/vectorized/JavaThreadUtils;");
+  jmethodID mid = env->GetStaticMethodID(clazz, "getJavaThreadId", "()J");
+  return env->CallStaticLongMethod(clazz, mid);
+}
 
 jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
   jclass local_class = env->FindClass(class_name);
