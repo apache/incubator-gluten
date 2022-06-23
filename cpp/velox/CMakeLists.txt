@@ -164,3 +164,7 @@ target_link_libraries(velox PUBLIC Folly::folly)
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
+
+if(BUILD_TESTS)
+  add_test_case(shuffle_test SOURCES tests/shuffle_split_test.cc)
+endif()
