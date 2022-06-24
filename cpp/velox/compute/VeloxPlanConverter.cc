@@ -42,6 +42,10 @@ int64_t GetJavaThreadId();  // from jni_common.h
 namespace velox {
 namespace compute {
 
+namespace {
+const std::string kHiveConnectorId = "test-hive";
+}
+
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
   int64_t jParentThreadId = GetJavaThreadId();
   if (jParentThreadId == -1L) {
@@ -66,8 +70,9 @@ void VeloxInitializer::Init() {
       std::make_unique<folly::IOThreadPoolExecutor>(1);
   // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
   // registerConnectorFactory(hiveConnectorFactory);
-  auto hiveConnector = getConnectorFactory("hive")->newConnector(
-      "hive-connector", nullptr, nullptr, executor.get());
+  auto hiveConnector =
+      getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
+          ->newConnector(kHiveConnectorId, nullptr);
   registerConnector(hiveConnector);
   parquet::registerParquetReaderFactory();
   dwrf::registerDwrfReaderFactory();
@@ -423,7 +428,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       auto start = starts[idx];
       auto length = lengths[idx];
 
-      auto split = std::make_shared<hive::HiveConnectorSplit>("hive-connector", path,
+      auto split = std::make_shared<hive::HiveConnectorSplit>(kHiveConnectorId, path,
                                                               format, start, length);
       connectorSplits.push_back(split);
     }
