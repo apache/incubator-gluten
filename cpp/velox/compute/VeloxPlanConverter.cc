@@ -434,7 +434,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
     }
     params_.planNode = planNode;
     params_.queryCtx = createNewVeloxQueryCtx(pool);
-  
+
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
@@ -466,7 +466,7 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
       : WholeStageResIter(pool, planNode) {
     params_.planNode = planNode;
     params_.queryCtx = createNewVeloxQueryCtx(pool);
-   
+
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
