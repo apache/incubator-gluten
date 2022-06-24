@@ -126,6 +126,7 @@ jobs:
           cd build
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make -j$(nproc)
+          ctest -V
       - name: TPC-H SF1.0 local
         run: |
           git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
@@ -134,6 +135,7 @@ jobs:
           java -Xmx1G -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.h.Tpch \
             --backend-type=velox --fixed-width-as-double --off-heap-size=2g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q8,q9,q10,q11,q12,q14,q15,q17,q18,q19,q20,q21,q22
+
   formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest
