@@ -42,12 +42,13 @@ int64_t GetJavaThreadId();  // from jni_common.h
 namespace velox {
 namespace compute {
 
-std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
+std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* pool) {
   int64_t jParentThreadId = GetJavaThreadId();
   if (jParentThreadId == -1L) {
     // In the case of unit testing
     return core::QueryCtx::createForTest();
   }
+
   // Gluten's restriction of thread naming. See
   // org.apache.spark.sql.execution.datasources.v2.arrow.SparkThreadUtils Note that the
   // thread name should not exceed 15 character limitation
@@ -55,7 +56,7 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
       24, std::make_shared<folly::NamedThreadFactory>(
               "G-" + std::to_string(jParentThreadId) + "-"));
   std::shared_ptr<Config> config = std::make_shared<core::MemConfig>();
-  return std::make_shared<core::QueryCtx>(executor, std::move(config));
+  return std::make_shared<core::QueryCtx>(pool, executor, std::move(config));
 }
 
 // The Init will be called per executor.
@@ -432,7 +433,8 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       splits_.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
     }
     params_.planNode = planNode;
-    params_.queryCtx = createNewVeloxQueryCtx();
+    params_.queryCtx = createNewVeloxQueryCtx(pool);
+  
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
@@ -463,7 +465,8 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
                                const bool fakeArrowOutput)
       : WholeStageResIter(pool, planNode) {
     params_.planNode = planNode;
-    params_.queryCtx = createNewVeloxQueryCtx();
+    params_.queryCtx = createNewVeloxQueryCtx(pool);
+   
     cursor_ = std::make_unique<test::TaskCursor>(params_);
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
