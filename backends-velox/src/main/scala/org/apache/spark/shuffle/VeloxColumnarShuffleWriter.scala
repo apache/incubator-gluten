@@ -19,15 +19,17 @@ package org.apache.spark.shuffle
 
 import java.io.IOException
 import scala.collection.JavaConverters._
-import scala.collection.mutable.{ArrayBuffer}
+import scala.collection.mutable.ArrayBuffer
 import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
 import io.glutenproject.vectorized._
+import io.glutenproject.expression.CodeGeneration
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
@@ -130,6 +132,7 @@ class VeloxColumnarShuffleWriter[K, V](
         writeSchema)
     }
 
+    var schema: Schema = null
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
@@ -138,22 +141,25 @@ class VeloxColumnarShuffleWriter[K, V](
         val startTimeForPrepare = System.nanoTime()
         val allocator = SparkMemoryUtils.contextAllocator()
         val cArray = ArrowArray.allocateNew(allocator)
-        val cSchema = ArrowSchema.wrap(dep.nativePartitioning.getSchemaAddress)
+        // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
+        // RecordBatch to ArrowArray without Schema, may optimize later
         val rb = ArrowConverterUtils.createArrowRecordBatch(cb)
+        dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
+        schema = if (firstRecordBatch) {
+          ArrowConverterUtils.toSchema(cb)
+        } else schema
         try {
-          ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, ArrowConverterUtils.toSchema(cb),
+          ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
             null, cArray)
         } finally {
           ArrowConverterUtils.releaseArrowRecordBatch(rb)
         }
-        dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
 
         val startTime = System.nanoTime()
         val existingIntType: Boolean = if (firstRecordBatch) {
           // Check whether the recordbatch contain the Int data type.
-          val schema = ArrowAbiUtil.importToSchema(allocator, cSchema)
           schema.getFields.asScala.exists(_.getType.getTypeID == ArrowTypeID.Int)
-        } else false
+          } else false
 
         // Choose the compress type based on the compress size of the first record batch.
         if (firstRecordBatch && conf.getBoolean("spark.shuffle.compress", true) &&
@@ -161,14 +167,12 @@ class VeloxColumnarShuffleWriter[K, V](
           // Compute the default compress size
           splitterJniWrapper.setCompressType(nativeSplitter, defaultCompressionCodec)
           val defaultCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, cArray.memoryAddress(), cSchema.memoryAddress(),
-            firstRecordBatch)
+            nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
 
           // Compute the custom compress size.
           splitterJniWrapper.setCompressType(nativeSplitter, customizedCompressCodec)
           val customizedCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, cArray.memoryAddress(), cSchema.memoryAddress(),
-            firstRecordBatch)
+            nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
 
           // Choose the compress algorithm based on the compress size.
           if (customizedCompressedSize != -1 && defaultCompressedSize != -1) {
@@ -183,8 +187,7 @@ class VeloxColumnarShuffleWriter[K, V](
         dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
 
         splitterJniWrapper
-          .split(nativeSplitter, cb.numRows, cArray.memoryAddress(), cSchema.memoryAddress(),
-            firstRecordBatch)
+          .split(nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
         writeMetrics.incRecordsWritten(1)

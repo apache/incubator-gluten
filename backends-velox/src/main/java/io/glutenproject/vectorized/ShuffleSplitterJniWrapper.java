@@ -104,13 +104,12 @@ public class ShuffleSplitterJniWrapper {
    * @param splitterId splitter instance id
    * @param numRows Rows per batch
    * @param cArray Addresses of ArrowArray
-   * @param cSchema Address of ArrowSchema
    * @param firstRecordBatch whether this record batch is the first
    *                         record batch in the first partition.
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(
-          long splitterId, int numRows, long cArray, long cSchema, boolean firstRecordBatch)
+          long splitterId, int numRows, long cArray, boolean firstRecordBatch)
           throws IOException;
 
   /**

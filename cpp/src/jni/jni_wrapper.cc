@@ -586,7 +586,7 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
-    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlong c_array, jlong c_schema,
+    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlong c_array,
     jboolean first_record_batch) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
@@ -595,8 +595,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapp
     gluten::JniThrow(error_message);
   }
   std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(
-      arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
-                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+    arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
+                               splitter->input_schema()));
 
   if (first_record_batch) {
     return splitter->CompressedSize(*in);
