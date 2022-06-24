@@ -62,19 +62,23 @@ int main(int argc, char** argv) {
   // Register for TPC-H Q1 ORC tests.
   std::string lineitemOrcPath = getExampleFilePath("orc/bm_lineitem/");
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM, {lineitemOrcPath},
+    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM,
+                                   std::vector<std::string>{lineitemOrcPath},
                                    "q1_first_stage_orc.json", "orc");
   } else {
-    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM, {std::string(argv[1]) + "/"},
+    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM,
+                                   std::vector<std::string>{std::string(argv[1]) + "/"},
                                    "q1_first_stage_orc.json", "orc");
   }
 
   // Register for TPC-H Q6 ORC tests.
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM, {lineitemOrcPath},
+    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM,
+                                   std::vector<std::string>{lineitemOrcPath},
                                    "q6_first_stage_orc.json", "orc");
   } else {
-    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM, {std::string(argv[1]) + "/"},
+    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM,
+                                   std::vector<std::string>{std::string(argv[1]) + "/"},
                                    "q6_first_stage_orc.json", "orc");
   }
 
