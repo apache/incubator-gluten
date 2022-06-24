@@ -230,6 +230,31 @@ std::string VeloxPlanConverter::nextPlanNodeId() {
   return id;
 }
 
+void VeloxPlanConverter::getInfoAndIds(
+    std::unordered_map<core::PlanNodeId,
+                       std::shared_ptr<facebook::velox::substrait::SplitInfo>>
+        splitInfoMap,
+    std::unordered_set<core::PlanNodeId> leafPlanNodeIds,
+    std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+    std::vector<core::PlanNodeId>& scanIds, std::vector<core::PlanNodeId>& streamIds) {
+  if (splitInfoMap.size() == 0) {
+    throw std::runtime_error(
+        "At least one data source info is required. Can be scan or stream info.");
+  }
+  for (const auto& leafPlanNodeId : leafPlanNodeIds) {
+    if (splitInfoMap.find(leafPlanNodeId) == splitInfoMap.end()) {
+      throw std::runtime_error("Could not find leafPlanNodeId.");
+    }
+    auto splitInfo = splitInfoMap[leafPlanNodeId];
+    if (splitInfo->isStream) {
+      streamIds.emplace_back(leafPlanNodeId);
+    } else {
+      scanInfos.emplace_back(splitInfo);
+      scanIds.emplace_back(leafPlanNodeId);
+    }
+  }
+}
+
 std::shared_ptr<gluten::RecordBatchResultIterator>
 VeloxPlanConverter::GetResultIterator() {
   std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs = {};
@@ -243,29 +268,14 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   }
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
 
-  auto splitInfos = subVeloxPlanConverter_->splitInfos();
-  if (splitInfos.size() == 0) {
-    throw std::runtime_error(
-        "At least one data source info is required. Can be scan or stream info.");
-  }
-
   // Scan node can be required.
-  // Separate the scan ids and stream ids, and get the scan infos.
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
   std::vector<core::PlanNodeId> scanIds;
   std::vector<core::PlanNodeId> streamIds;
-  for (const auto& leafPlanNodeId : planNode->leafPlanNodeIds()) {
-    if (splitInfos.find(leafPlanNodeId) == splitInfos.end()) {
-      throw std::runtime_error("Could not find leafPlanNodeId.");
-    }
-    auto splitInfo = splitInfos[leafPlanNodeId];
-    if (splitInfo->isStream) {
-      streamIds.emplace_back(leafPlanNodeId);
-    } else {
-      scanInfos.emplace_back(splitInfo);
-      scanIds.emplace_back(leafPlanNodeId);
-    }
-  }
+  // Separate the scan ids and stream ids, and get the scan infos.
+  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode->leafPlanNodeIds(),
+                scanInfos, scanIds, streamIds);
+
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter =
@@ -278,21 +288,20 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
 }
 
 std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
-    const std::vector<std::string>& paths, const std::vector<u_int64_t>& starts,
-    const std::vector<u_int64_t>& lengths, const std::string& file_format) {
-  std::shared_ptr<gluten::RecordBatchResultIterator> resIter;
+    const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
+        setScanInfos) {
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
-  auto format = FileFormat::UNKNOWN;
-  if (file_format.compare("orc") == 0) {
-    format = FileFormat::ORC;
-  } else if (file_format.compare("parquet") == 0) {
-    format = FileFormat::PARQUET;
-  }
 
-  std::vector<core::PlanNodeId> scanIds;
+  // In test, use setScanInfos to replace the one got from Substrait.
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos);
+  std::vector<core::PlanNodeId> scanIds;
+  std::vector<core::PlanNodeId> streamIds;
+  // Separate the scan ids and stream ids, and get the scan infos.
+  getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode->leafPlanNodeIds(),
+                scanInfos, scanIds, streamIds);
+
+  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
+      pool_, planNode, scanIds, setScanInfos);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
