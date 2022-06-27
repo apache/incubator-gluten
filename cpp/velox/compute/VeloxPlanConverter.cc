@@ -36,12 +36,15 @@ using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
-
+using namespace facebook::velox::parquet;
 int64_t GetJavaThreadId();  // from jni_common.h
 
 namespace velox {
 namespace compute {
 
+namespace {
+const std::string kHiveConnectorId = "test-hive";
+}
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
   int64_t jParentThreadId = GetJavaThreadId();
   if (jParentThreadId == -1L) {
@@ -66,10 +69,11 @@ void VeloxInitializer::Init() {
       std::make_unique<folly::IOThreadPoolExecutor>(1);
   // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
   // registerConnectorFactory(hiveConnectorFactory);
-  auto hiveConnector = getConnectorFactory("hive")->newConnector(
-      "hive-connector", nullptr, nullptr, executor.get());
+  auto hiveConnector =
+      getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
+          ->newConnector(kHiveConnectorId, nullptr);
   registerConnector(hiveConnector);
-  parquet::registerParquetReaderFactory();
+  parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   functions::prestosql::registerAllScalarFunctions();
@@ -423,7 +427,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       connectorSplits.reserve(paths.size());
       for (int idx = 0; idx < paths.size(); idx++) {
         auto split = std::make_shared<hive::HiveConnectorSplit>(
-            "hive-connector", paths[idx], format, starts[idx], lengths[idx]);
+            kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx]);
         connectorSplits.emplace_back(split);
       }
 
