@@ -16,14 +16,28 @@
 
 package org.apache.spark.sql.execution.datasources.velox
 
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.Job
-import io.glutenproject.utils.VeloxDatasourceUtil
 
+import com.intel.oap.spark.sql.DwrfWriteExtension.FakeRow
+import io.glutenproject.GlutenConfig
+import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+import io.glutenproject.utils.VeloxDatasourceUtil
+import io.glutenproject.vectorized.ArrowWritableColumnVector
+import org.apache.arrow.vector.types.pojo.{Field, Schema}
+import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.ArrowUtils
+
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.mutable.ListBuffer
 
 class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
@@ -37,7 +51,73 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
                             job: Job,
                             options: Map[String, String],
                             dataSchema: StructType): OutputWriterFactory = {
-    throw new UnsupportedOperationException
+
+    new OutputWriterFactory {
+      override def getFileExtension(context: TaskAttemptContext): String = {
+        CodecConfig.from(context).getCodec.getExtension + ".dwrf"
+      }
+
+      override def newInstance(path: String, dataSchema: StructType,
+                               context: TaskAttemptContext): OutputWriter = {
+        val originPath = path
+        val schema = ArrowUtils.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
+        val arrowSchema = ArrowConverterUtils.getSchemaBytesBuf(schema)
+        val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
+        val instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath, arrowSchema)
+
+        new OutputWriter {
+          override def write(row: InternalRow): Unit = {
+            val batch = row.asInstanceOf[FakeRow].batch
+            val bufAddrs = new ListBuffer[Long]()
+            val bufSizes = new ListBuffer[Long]()
+            val fields = new ListBuffer[Field]()
+            (0 until batch.numCols).foreach { idx =>
+              val column = batch.column(idx).asInstanceOf[ArrowWritableColumnVector]
+              fields += column.getValueVector.getField
+              column.getValueVector.getBuffers(false)
+                .foreach { buffer =>
+                  bufAddrs += buffer.memoryAddress()
+                  try {
+                    bufSizes += buffer.readableBytes()
+                  } catch {
+                    case e: Throwable =>
+                      // For Velox, the returned format is faked arrow format,
+                      // and the offset buffer is invalid. Only the buffer address is cared.
+                      if (GlutenConfig.getConf.isVeloxBackend &&
+                        batch.column(idx).dataType == StringType) {
+                        // Add a fake value here for String column.
+                        bufSizes += 1
+                      } else {
+                        throw e
+                      }
+                  }
+                }
+            }
+
+            def serializeSchema(fields: Seq[Field]): Array[Byte] = {
+              val schema = new Schema(fields.asJava)
+              ArrowConverterUtils.getSchemaBytesBuf(schema)
+            }
+            var arrowSchema: Array[Byte] = null
+            if (arrowSchema == null) {
+              arrowSchema = serializeSchema(fields)
+            }
+
+            dwrfDatasourceJniWrapper.write(instanceId, arrowSchema,
+              batch.numRows, bufAddrs.toArray, bufSizes.toArray)
+          }
+
+          override def close(): Unit = {
+            dwrfDatasourceJniWrapper.close(instanceId)
+          }
+
+          // Do NOT add override keyword for compatibility on spark 3.1.
+          def path(): String = {
+            originPath
+          }
+        }
+      }
+    }
   }
 
   override def supportBatch(sparkSession: SparkSession, dataSchema: StructType): Boolean = true

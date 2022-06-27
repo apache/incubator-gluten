@@ -29,7 +29,10 @@ public class DwrfDatasourceJniWrapper {
         loader.loadEssentials();
         loader.mapAndLoad("velox");
     }
-    public native long nativeInitDwrfDatasource(String filePath);
+    public native long nativeInitDwrfDatasource(String filePath, byte[] schema);
     public native byte[] inspectSchema(long instanceId);
     public native void close(long instanceId);
+
+    public native void write(long instanceId, byte[] schema, int numRows, long[] bufAddrs,
+                             long[] bufSizes);
 }

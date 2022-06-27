@@ -17,7 +17,20 @@
 
 #include "DwrfDatasource.h"
 
+#include <arrow/array/array_base.h>
+#include <arrow/buffer.h>
+#include <arrow/type_traits.h>
+
+#include <cstdlib>
+#include <cstring>
+#include <string>
+
 #include "ArrowTypeUtils.h"
+#include "arrow/c/Bridge.h"
+#include "arrow/c/bridge.h"
+#include "velox/dwio/common/Options.h"
+#include "velox/row/UnsafeRowDynamicSerializer.h"
+#include "velox/row/UnsafeRowSerializer.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::dwio::common;
@@ -26,14 +39,46 @@ namespace velox {
 namespace compute {
 
 void DwrfDatasource::Init() {
-  // Setup and register.
-  filesystems::registerLocalFileSystem();
-  try {
-    dwrf::registerDwrfReaderFactory();
-  } catch (const VeloxRuntimeError& e) {
-    // The reader factory is already registered in local mode and no need to register.
-    return;
+  // Construct the file path and writer
+  std::string local_path = "";
+  if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
+    local_path = file_path_.substr(5);
+  } else {
+    throw std::runtime_error(
+        "The path is not local file path when Write data with DWRF format!");
   }
+
+  auto pos = local_path.find("_temporary", 0);
+  std::string dir_path = local_path.substr(0, pos - 1);
+
+  auto last_pos = file_path_.find_last_of("/");
+  std::string file_name =
+      file_path_.substr(last_pos + 1, (file_path_.length() - last_pos - 6));
+  final_path_ = dir_path + "/" + file_name;
+  std::string command = "touch " + final_path_;
+  system(command.c_str());
+
+  ArrowSchema c_schema{};
+  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &c_schema);
+  if (!status.ok()) {
+    throw std::runtime_error("Failed to export from Arrow record batch");
+  }
+
+  type_ = importFromArrow(c_schema);
+  auto sink = std::make_unique<facebook::velox::dwio::common::FileSink>(final_path_);
+  auto config = std::make_shared<facebook::velox::dwrf::Config>();
+
+  const int64_t writerMemoryCap = std::numeric_limits<int64_t>::max();
+
+  facebook::velox::dwrf::WriterOptions options;
+  options.config = config;
+  options.schema = type_;
+  options.memoryBudget = writerMemoryCap;
+  options.flushPolicyFactory = nullptr;
+  options.layoutPlannerFactory = nullptr;
+
+  writer_ =
+      std::make_unique<facebook::velox::dwrf::Writer>(options, std::move(sink), *pool_);
 }
 
 std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
@@ -54,7 +99,35 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
   }
 }
 
-void DwrfDatasource::Close() { dwrf::unregisterDwrfReaderFactory; }
+void DwrfDatasource::Close() {
+  if (writer_ != nullptr) {
+    writer_->close();
+  }
+}
+
+void DwrfDatasource::Write(const std::shared_ptr<arrow::RecordBatch>& rb) {
+  auto num_cols = rb->num_columns();
+  num_rbs_ += 1;
+
+  std::vector<VectorPtr> vecs;
+
+  for (int col_idx = 0; col_idx < num_cols; col_idx++) {
+    auto array = rb->column(col_idx);
+    ArrowArray c_array{};
+    ArrowSchema c_schema{};
+    arrow::Status status = arrow::ExportArray(*array, &c_array, &c_schema);
+    if (!status.ok()) {
+      throw std::runtime_error("Failed to export from Arrow record batch");
+    }
+
+    VectorPtr vec = importFromArrowAsOwner(c_schema, c_array, pool_);
+    vecs.push_back(vec);
+  }
+
+  auto row_vec =
+      std::make_shared<RowVector>(pool_, type_, nullptr, rb->num_rows(), vecs, 0);
+  writer_->write(row_vec);
+}
 
 }  // namespace compute
 }  // namespace velox

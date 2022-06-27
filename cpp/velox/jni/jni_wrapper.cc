@@ -28,6 +28,8 @@
 #include <jni/dataset/jni_util.h>
 #include <jni/jni_common.h>
 
+#include <iostream>
+
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
 static std::unique_ptr<memory::MemoryPool> veloxPool_;
@@ -94,32 +96,48 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
 
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_nativeInitDwrfDatasource(
-    JNIEnv* env, jobject obj, jstring file_path) {
-  auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
-      arrow::dataset::jni::JStringToCString(env, file_path));
-  dwrfDatasource->Init();
-  return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+    JNIEnv* env, jobject obj, jstring file_path, jbyteArray schema_arr) {
+  if (schema_arr == NULL) {
+    // Only inspect the schema and not write
+    auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
+        arrow::dataset::jni::JStringToCString(env, file_path), nullptr, veloxPool_.get());
+    // dwrfDatasource->Init( );
+    return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+
+  } else {
+    std::shared_ptr<arrow::Schema> schema;
+    // ValueOrDie in MakeSchema
+    MakeSchema(env, schema_arr, &schema);
+
+    auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
+        arrow::dataset::jni::JStringToCString(env, file_path), schema, veloxPool_.get());
+    dwrfDatasource->Init();
+    return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+  }
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_inspectSchema(
     JNIEnv* env, jobject obj, jlong instanceId) {
+  JNI_METHOD_START
   auto dwrfDatasource =
       arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
           instanceId);
   auto schema = dwrfDatasource->InspectSchema();
   return std::move(arrow::dataset::jni::ToSchemaByteArray(env, schema)).ValueOrDie();
+  JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_close(
     JNIEnv* env, jobject obj, jlong instanceId) {
+  JNI_METHOD_START
   auto dwrfDatasource =
       arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
           instanceId);
   dwrfDatasource->Close();
   arrow::dataset::jni::ReleaseNativeRef<::velox::compute::DwrfDatasource>(instanceId);
-  return;
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jstring JNICALL
@@ -129,6 +147,49 @@ Java_io_glutenproject_vectorized_NativeThreadJniWrapper_getNativeThreadName(
   std::string name = folly::getCurrentThreadName().value();
   return env->NewStringUTF(name.c_str());
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_write(
+    JNIEnv* env, jobject obj, jlong instanceId, jbyteArray schema_arr, jint num_rows,
+    jlongArray buf_addrs, jlongArray buf_sizes) {
+  JNI_METHOD_START
+  if (schema_arr == NULL) {
+    gluten::JniThrow("Native write dwrf file schema can't be null");
+  }
+  if (buf_addrs == NULL) {
+    gluten::JniThrow("Native write dwrf file : buf_addrs can't be null");
+  }
+  if (buf_sizes == NULL) {
+    gluten::JniThrow("Native write dwrf file : buf_sizes can't be null");
+  }
+
+  int in_bufs_len = env->GetArrayLength(buf_addrs);
+  if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
+    gluten::JniThrow(
+        "Native write dwrf file : length of buf_addrs and buf_sizes mismatch");
+  }
+
+  std::shared_ptr<arrow::Schema> schema;
+  // ValueOrDie in MakeSchema
+  MakeSchema(env, schema_arr, &schema);
+
+  jlong* in_buf_addrs = env->GetLongArrayElements(buf_addrs, JNI_FALSE);
+  jlong* in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
+
+  std::shared_ptr<arrow::RecordBatch> rb;
+  gluten::JniAssertOkOrThrow(MakeRecordBatch(schema, num_rows, (int64_t*)in_buf_addrs,
+                                             (int64_t*)in_buf_sizes, in_bufs_len, &rb),
+                             "Native write dwrf file: make record batch failed");
+
+  env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
+  env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
+
+  auto dwrfDatasource =
+      arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
+          instanceId);
+  dwrfDatasource->Write(rb);
+  JNI_METHOD_END()
 }
 
 #ifdef __cplusplus
