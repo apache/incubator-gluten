@@ -21,13 +21,9 @@ import java.io.Serializable
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
-import io.glutenproject.vectorized._
 import org.apache.spark._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -60,33 +56,48 @@ case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
   }
 }
 
-case class NativeSubstraitPartition(val index: Int, val inputPartition: InputPartition)
-  extends Partition with Serializable
+private[glutenproject] case class FirstZippedPartitionsPartition(
+     idx: Int, inputPartition: InputPartition,
+     @transient private val rdds: Seq[RDD[_]] = Seq()) extends Partition with Serializable {
+
+  override val index: Int = idx
+  var partitionValues = rdds.map(rdd => rdd.partitions(idx))
+
+  def partitions: Seq[Partition] = partitionValues
+}
 
 class NativeWholeStageColumnarRDD(
     sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
-    columnarReads: Boolean,
     outputAttributes: Seq[Attribute],
-    jarList: Seq[String],
-    dependentKernelIterators: ListBuffer[GeneralOutIterator])
-    extends RDD[ColumnarBatch](sc, Nil) {
+    var rdds: Seq[RDD[ColumnarBatch]])
+    extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val loadNative: Boolean = GlutenConfig.getConf.loadNative
 
   override protected def getPartitions: Array[Partition] = {
-    inputPartitions.zipWithIndex.map {
-      case (inputPartition, index) => new NativeSubstraitPartition(index, inputPartition)
-    }.toArray
+    if (rdds.isEmpty) {
+      inputPartitions.zipWithIndex.map {
+        case (inputPartition, index) => FirstZippedPartitionsPartition(index, inputPartition)
+      }.toArray
+    } else {
+      val numParts = inputPartitions.size
+      if (!rdds.forall(rdd => rdd.partitions.length == numParts)) {
+        throw new IllegalArgumentException(
+          s"Can't zip RDDs with unequal numbers of partitions: ${rdds.map(_.partitions.length)}")
+      }
+      Array.tabulate[Partition](numParts) { i =>
+        FirstZippedPartitionsPartition(i, inputPartitions(i), rdds) }
+    }
   }
 
-  private def castPartition(split: Partition): NativeSubstraitPartition = split match {
-    case p: NativeSubstraitPartition => p
+  private def castPartition(split: Partition): FirstZippedPartitionsPartition = split match {
+    case p: FirstZippedPartitionsPartition => p
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
   private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
-    case NativeSubstraitPartition(_, p: BaseNativeFilePartition) => p
+    case FirstZippedPartitionsPartition(_, p: BaseNativeFilePartition, _) => p
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
@@ -94,9 +105,24 @@ class NativeWholeStageColumnarRDD(
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
     val inputPartition = castNativePartition(split)
-
-    BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(inputPartition, loadNative,
-      outputAttributes, context, jarList)
+    if (rdds.isEmpty) {
+      BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
+        inputPartition,
+        loadNative,
+        outputAttributes,
+        context)
+    } else {
+      val partitions = split.asInstanceOf[FirstZippedPartitionsPartition].partitions
+      val inputIterators = (rdds zip partitions).map {
+        case (rdd, partition) => rdd.iterator(partition, context)
+      }
+      BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
+        inputPartition,
+        loadNative,
+        outputAttributes,
+        context,
+        inputIterators)
+    }
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {

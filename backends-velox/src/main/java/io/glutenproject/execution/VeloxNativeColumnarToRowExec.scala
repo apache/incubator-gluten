@@ -67,14 +67,6 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
     val numInputBatches = longMetric("numInputBatches")
     val convertTime = longMetric("convertTime")
 
-    // Fake Arrow format will be returned for WS transformer.
-    // TODO: use a Velox layer on the top of the base layer.
-    if (GlutenConfig.getConf.isVeloxBackend) {
-      if (child.isInstanceOf[WholeStageTransformerExec]) {
-        child.asInstanceOf[WholeStageTransformerExec].setFakeOutput()
-      }
-    }
-
     child.executeColumnar().mapPartitions { batches =>
       // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
       val jniWrapper = new NativeColumnarToRowJniWrapper()
@@ -111,20 +103,7 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
             column.getValueVector.getBuffers(false)
               .foreach { buffer =>
                 bufAddrs += buffer.memoryAddress()
-                try {
-                  bufSizes += buffer.readableBytes()
-                } catch {
-                  case e: Throwable =>
-                    // For Velox, the returned format is faked arrow format,
-                    // and the offset buffer is invalid. Only the buffer address is cared.
-                    if (GlutenConfig.getConf.isVeloxBackend &&
-                        child.output(idx).dataType == StringType) {
-                      // Add a fake value here for String column.
-                      bufSizes += 1
-                    } else {
-                      throw e
-                    }
-                }
+                bufSizes += buffer.readableBytes()
               }
           }
 

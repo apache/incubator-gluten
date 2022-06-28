@@ -86,10 +86,10 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
       std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs);
 
-  // For unit test and benchmark.
+  // Used by unit test and benchmark.
   std::shared_ptr<gluten::RecordBatchResultIterator> GetResultIterator(
-      const std::vector<std::string>& paths, const std::vector<u_int64_t>& starts,
-      const std::vector<u_int64_t>& lengths, const std::string& format);
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
+          scanInfos);
 
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase> getColumnarConverter(
       std::shared_ptr<arrow::RecordBatch> rb, arrow::MemoryPool* memory_pool,
@@ -103,39 +103,52 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
     }
   }
 
- private:
-  memory::MemoryPool* pool_;
-  int planNodeId_ = 0;
-  bool fakeArrowOutput_ = false;
-  bool dsAsInput_ = true;
-  u_int32_t partitionIndex_;
-  std::vector<std::string> paths_;
-  std::vector<u_int64_t> starts_;
-  std::vector<u_int64_t> lengths_;
-  std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> arrowInputIters_;
+  /// Separate the scan ids and stream ids, and get the scan infos.
+  void getInfoAndIds(
+      std::unordered_map<core::PlanNodeId,
+                         std::shared_ptr<facebook::velox::substrait::SplitInfo>>
+          splitInfoMap,
+      std::unordered_set<core::PlanNodeId> leafPlanNodeIds,
+      std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      std::vector<core::PlanNodeId>& scanIds, std::vector<core::PlanNodeId>& streamIds);
 
+ private:
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
+
   void setInputPlanNode(const ::substrait::ProjectRel& sproject);
+
   void setInputPlanNode(const ::substrait::FilterRel& sfilter);
+
   void setInputPlanNode(const ::substrait::JoinRel& sJoin);
+
   void setInputPlanNode(const ::substrait::ReadRel& sread);
+
   void setInputPlanNode(const ::substrait::Rel& srel);
+
   void setInputPlanNode(const ::substrait::RelRoot& sroot);
 
   std::shared_ptr<const core::PlanNode> getVeloxPlanNode(const ::substrait::Plan& splan);
 
   std::string nextPlanNodeId();
+
+  /* Result Iterator */
+  class WholeStageResIter;
+
+  class WholeStageResIterFirstStage;
+
+  class WholeStageResIterMiddleStage;
+
+  memory::MemoryPool* pool_;
+  int planNodeId_ = 0;
+  std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> arrowInputIters_;
+
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
+
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter>
       subVeloxPlanConverter_ =
           std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
               pool_);
-
-  /* Result Iterator */
-  class WholeStageResIter;
-  class WholeStageResIterFirstStage;
-  class WholeStageResIterMiddleStage;
 };
 
 }  // namespace compute

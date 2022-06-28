@@ -79,7 +79,7 @@ class FileSourceScanExecTransformer(
   override def hashCode(): Int = super.hashCode()
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    null
+    Seq()
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {

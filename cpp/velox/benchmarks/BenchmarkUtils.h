@@ -17,8 +17,10 @@
 
 #pragma once
 
+#include <velox/common/memory/Memory.h>
+#include <velox/substrait/SubstraitToVeloxPlan.h>
+
 #include "compute/protobuf_utils.h"
-#include "velox/common/memory/Memory.h"
 
 /// Initilize the Velox backend.
 void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool);
@@ -31,9 +33,9 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> readFromFile(const std::string& ms
 
 /// Get the file paths, starts, lengths from a directory.
 /// Use fileFormat to specify the format to read, eg., orc, parquet.
-void getFileInfos(const std::string datasetPath, const std::string fileFormat,
-                  std::vector<std::string>& paths, std::vector<u_int64_t>& starts,
-                  std::vector<u_int64_t>& lengths);
+/// Return a split info.
+std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
+    const std::string& datasetPath, const std::string& fileFormat);
 
 /// Return whether the data ends with suffix.
 bool EndsWith(const std::string& data, const std::string& suffix);

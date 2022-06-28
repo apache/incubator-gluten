@@ -21,7 +21,7 @@
 #include "compute/VeloxPlanConverter.h"
 #include "jni/exec_backend.h"
 
-auto BM = [](::benchmark::State& state, const std::string& datasetPath,
+auto BM = [](::benchmark::State& state, const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile, const std::string& fileFormat) {
   const auto& filePath = getExampleFilePath(jsonFile);
   auto maybePlan = readFromFile(filePath);
@@ -30,10 +30,11 @@ auto BM = [](::benchmark::State& state, const std::string& datasetPath,
   }
   auto plan = std::move(maybePlan).ValueOrDie();
 
-  std::vector<std::string> paths;
-  std::vector<u_int64_t> starts;
-  std::vector<u_int64_t> lengths;
-  getFileInfos(datasetPath, fileFormat, paths, starts, lengths);
+  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
+  scanInfos.reserve(datasetPaths.size());
+  for (const auto& datasetPath : datasetPaths) {
+    scanInfos.emplace_back(getFileInfos(datasetPath, fileFormat));
+  }
 
   for (auto _ : state) {
     state.PauseTiming();
@@ -41,7 +42,7 @@ auto BM = [](::benchmark::State& state, const std::string& datasetPath,
         gluten::CreateBackend());
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(paths, starts, lengths, fileFormat);
+    auto resultIter = backend->GetResultIterator(scanInfos);
 
     while (resultIter->HasNext()) {
       std::cout << resultIter->Next()->ToString() << std::endl;
@@ -60,19 +61,19 @@ int main(int argc, char** argv) {
   // Register for TPC-H Q1 ORC tests.
   std::string lineitemOrcPath = getExampleFilePath("orc/bm_lineitem/");
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM, lineitemOrcPath,
+    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM, {lineitemOrcPath},
                                    "q1_first_stage_orc.json", "orc");
   } else {
-    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM, std::string(argv[1]) + "/",
+    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM, {std::string(argv[1]) + "/"},
                                    "q1_first_stage_orc.json", "orc");
   }
 
   // Register for TPC-H Q6 ORC tests.
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM, lineitemOrcPath,
+    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM, {lineitemOrcPath},
                                    "q6_first_stage_orc.json", "orc");
   } else {
-    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM, std::string(argv[1]) + "/",
+    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM, {std::string(argv[1]) + "/"},
                                    "q6_first_stage_orc.json", "orc");
   }
 

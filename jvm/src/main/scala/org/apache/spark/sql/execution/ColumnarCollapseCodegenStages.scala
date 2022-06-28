@@ -122,10 +122,6 @@ case class ColumnarCollapseCodegenStages(
     plan match {
       case p if !supportTransform(p) =>
         new ColumnarInputAdapter(insertWholeStageTransformer(p))
-      // The children of BaseJoinExec should do transformer separately.
-      case j if j.isInstanceOf[BaseJoinExec] =>
-        j.withNewChildren(j.children.map(c =>
-          new ColumnarInputAdapter(insertWholeStageTransformer(c))))
       case p =>
         p.withNewChildren(p.children.map(insertInputAdapter))
     }
@@ -134,7 +130,8 @@ case class ColumnarCollapseCodegenStages(
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case t: TransformSupport =>
-        WholeStageTransformerExec(insertInputAdapter(t))(codegenStageCounter.incrementAndGet())
+        WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
+          codegenStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }
