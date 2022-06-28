@@ -18,18 +18,19 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
-
 import scala.collection.JavaConverters._
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-
+import scala.collection.mutable.ArrayBuffer
 import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
 import io.glutenproject.vectorized._
+import io.glutenproject.expression.CodeGeneration
+import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark._
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
@@ -131,28 +132,34 @@ class VeloxColumnarShuffleWriter[K, V](
         writeSchema)
     }
 
+    var schema: Schema = null
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val startTimeForPrepare = System.nanoTime()
-        val bufAddrs = new ListBuffer[Long]()
-        val bufSizes = new ListBuffer[Long]()
-        val recordBatch = ArrowConverterUtils.createArrowRecordBatch(cb)
-        recordBatch.getBuffers().asScala.foreach { buffer => bufAddrs += buffer.memoryAddress() }
-        recordBatch.getBuffersLayout().asScala.foreach { bufLayout =>
-          bufSizes += bufLayout.getSize()
+        val allocator = SparkMemoryUtils.contextAllocator()
+        val cArray = ArrowArray.allocateNew(allocator)
+        // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
+        // RecordBatch to ArrowArray without Schema, may optimize later
+        val rb = ArrowConverterUtils.createArrowRecordBatch(cb)
+        dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
+        schema = if (firstRecordBatch) {
+          ArrowConverterUtils.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
+        } else schema
+        try {
+          ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
+            null, cArray)
+        } finally {
+          ArrowConverterUtils.releaseArrowRecordBatch(rb)
         }
-        dep.dataSize.add(bufSizes.sum)
 
         val startTime = System.nanoTime()
         val existingIntType: Boolean = if (firstRecordBatch) {
           // Check whether the recordbatch contain the Int data type.
-          val arrowSchema = ArrowConverterUtils.getSchemaFromBytesBuf(
-            dep.nativePartitioning.getSchema)
-          arrowSchema.getFields.asScala.find(_.getType.getTypeID == ArrowTypeID.Int).nonEmpty
-        } else false
+          schema.getFields.asScala.exists(_.getType.getTypeID == ArrowTypeID.Int)
+          } else false
 
         // Choose the compress type based on the compress size of the first record batch.
         if (firstRecordBatch && conf.getBoolean("spark.shuffle.compress", true) &&
@@ -160,12 +167,12 @@ class VeloxColumnarShuffleWriter[K, V](
           // Compute the default compress size
           splitterJniWrapper.setCompressType(nativeSplitter, defaultCompressionCodec)
           val defaultCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
+            nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
 
           // Compute the custom compress size.
           splitterJniWrapper.setCompressType(nativeSplitter, customizedCompressCodec)
           val customizedCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
+            nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
 
           // Choose the compress algorithm based on the compress size.
           if (customizedCompressedSize != -1 && defaultCompressedSize != -1) {
@@ -180,11 +187,11 @@ class VeloxColumnarShuffleWriter[K, V](
         dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
 
         splitterJniWrapper
-          .split(nativeSplitter, cb.numRows, bufAddrs.toArray, bufSizes.toArray, firstRecordBatch)
+          .split(nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
         writeMetrics.incRecordsWritten(1)
-        ArrowConverterUtils.releaseArrowRecordBatch(recordBatch)
+        cArray.close()
       }
     }
 

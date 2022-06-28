@@ -48,6 +48,11 @@ object SparkVectorUtils {
     buffers.asScala.map(_.getPossibleMemoryConsumed()).sum
   }
 
+  def toFieldVectorList(cb: ColumnarBatch): List[FieldVector] = {
+    (0 until cb.numCols).toList.map(i =>
+      cb.column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector.asInstanceOf[FieldVector])
+  }
+
   def toArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
     val numRowsInBatch = columnarBatch.numRows()
     val cols = (0 until columnarBatch.numCols).toList.map(i =>
