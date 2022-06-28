@@ -17,6 +17,7 @@
 
 package io.glutenproject.expression
 
+import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
@@ -282,6 +283,27 @@ object ConverterUtils extends Logging {
         "Semi"
       case LeftAnti =>
         "Anti"
+    }
+  }
+
+  def getFileFormat(scan: BasicScanExecTransformer): java.lang.Integer = {
+    scan match {
+      case f: BatchScanExecTransformer =>
+        f.scan.getClass.getSimpleName match {
+          case "OrcScan" => 2
+          case "ParquetScan" => 1
+          case "DwrfScan" => 3
+          case _ => -1
+        }
+      case f: FileSourceScanExecTransformer =>
+        f.relation.fileFormat.getClass.getSimpleName match {
+          case "OrcFileFormat" => 2
+          case "ParquetFileFormat" => 1
+          case "DwrfFileFormat" => 3
+          case _ => -1
+        }
+      case other =>
+        throw new UnsupportedOperationException(s"$other not supported.")
     }
   }
 

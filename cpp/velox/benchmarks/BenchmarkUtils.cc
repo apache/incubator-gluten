@@ -17,6 +17,7 @@
 
 #include "BenchmarkUtils.h"
 
+#include <velox/dwio/common/Options.h>
 #include <velox/dwio/dwrf/test/utils/DataFiles.h>
 
 #include <boost/filesystem.hpp>
@@ -51,23 +52,35 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> readFromFile(const std::string& fi
   return maybePlan;
 }
 
-void getFileInfos(const std::string datasetPath, const std::string fileFormat,
-                  std::vector<std::string>& paths, std::vector<u_int64_t>& starts,
-                  std::vector<u_int64_t>& lengths) {
+std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
+    const std::string& datasetPath, const std::string& fileFormat) {
+  auto scanInfo = std::make_shared<facebook::velox::substrait::SplitInfo>();
+
+  // Set format to scan info.
+  auto format = facebook::velox::dwio::common::FileFormat::UNKNOWN;
+  if (fileFormat.compare("orc") == 0) {
+    format = facebook::velox::dwio::common::FileFormat::ORC;
+  } else if (fileFormat.compare("parquet") == 0) {
+    format = facebook::velox::dwio::common::FileFormat::PARQUET;
+  }
+  scanInfo->format = format;
+
+  // Set split start, length, and path to scan info.
   path fileDir(datasetPath);
   for (auto i = directory_iterator(fileDir); i != directory_iterator(); i++) {
     if (!is_directory(i->path())) {
       std::string singleFilePath = i->path().filename().string();
       if (EndsWith(singleFilePath, "." + fileFormat)) {
         auto fileAbsolutePath = datasetPath + singleFilePath;
-        starts.push_back(0);
-        lengths.push_back(fs::file_size(fileAbsolutePath));
-        paths.push_back("file://" + fileAbsolutePath);
+        scanInfo->starts.emplace_back(0);
+        scanInfo->lengths.emplace_back(fs::file_size(fileAbsolutePath));
+        scanInfo->paths.emplace_back("file://" + fileAbsolutePath);
       }
     } else {
       continue;
     }
   }
+  return scanInfo;
 }
 
 bool EndsWith(const std::string& data, const std::string& suffix) {

@@ -211,36 +211,9 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       return arrow::Status::Invalid("Read Rel expected.");
     }
     const auto& sread = srel.read();
-    if (!sread.has_base_schema()) {
-      return arrow::Status::Invalid("Base schema expected.");
-    }
-    const auto& base_schema = sread.base_schema();
-    // Get column names from input schema.
-    std::vector<std::string> col_name_list;
-    for (const auto& name : base_schema.names()) {
-      col_name_list.push_back(name);
-    }
-    // Get column types from input schema.
-    auto& stypes = base_schema.struct_().types();
-    std::vector<std::shared_ptr<arrow::DataType>> arrow_types;
-    arrow_types.reserve(stypes.size());
-    for (const auto& type : stypes) {
-      auto type_res = subTypeToArrowType(type);
-      if (!type_res.status().ok()) {
-        return arrow::Status::Invalid(type_res.status().message());
-      }
-      arrow_types.emplace_back(std::move(type_res).ValueOrDie());
-    }
-    if (col_name_list.size() != arrow_types.size()) {
-      return arrow::Status::Invalid("Incorrect column names or types.");
-    }
-    // Create input fields.
-    std::vector<std::shared_ptr<arrow::Field>> input_fields;
-    for (int col_idx = 0; col_idx < col_name_list.size(); col_idx++) {
-      input_fields.push_back(arrow::field(col_name_list[col_idx], arrow_types[col_idx]));
-    }
 
     // Get the iterator index.
+    int iterIdx = -1;
     if (sread.has_local_files()) {
       const auto& fileList = sread.local_files().items();
       if (fileList.size() == 0) {
@@ -250,14 +223,48 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       std::string prefix = "iterator:";
       std::size_t pos = filePath.find(prefix);
       if (pos == std::string::npos) {
-        return arrow::Status::Invalid("Iterator index is not found.");
+        // This is not an iterator input, but a scan input.
+        return arrow::Status::OK();
       }
       std::string idxStr = filePath.substr(pos + prefix.size(), filePath.size());
-      auto iterIdx = std::stoi(idxStr);
-
-      // Set up the schema map.
-      schema_map_[iterIdx] = arrow::schema(input_fields);
+      iterIdx = std::stoi(idxStr);
     }
+    if (iterIdx < 0) {
+      return arrow::Status::Invalid("Invalid iterator index.");
+    }
+
+    // Construct the input schema.
+    if (!sread.has_base_schema()) {
+      return arrow::Status::Invalid("Base schema expected.");
+    }
+    const auto& baseSchema = sread.base_schema();
+    // Get column names from input schema.
+    std::vector<std::string> colNameList;
+    for (const auto& name : baseSchema.names()) {
+      colNameList.push_back(name);
+    }
+    // Get column types from input schema.
+    const auto& stypes = baseSchema.struct_().types();
+    std::vector<std::shared_ptr<arrow::DataType>> arrowTypes;
+    arrowTypes.reserve(stypes.size());
+    for (const auto& type : stypes) {
+      auto typeRes = subTypeToArrowType(type);
+      if (!typeRes.status().ok()) {
+        return arrow::Status::Invalid(typeRes.status().message());
+      }
+      arrowTypes.emplace_back(std::move(typeRes).ValueOrDie());
+    }
+    if (colNameList.size() != arrowTypes.size()) {
+      return arrow::Status::Invalid("Incorrect column names or types.");
+    }
+    // Create input fields.
+    std::vector<std::shared_ptr<arrow::Field>> inputFields;
+    for (int colIdx = 0; colIdx < colNameList.size(); colIdx++) {
+      inputFields.push_back(arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
+    }
+
+    // Set up the schema map.
+    schema_map_[iterIdx] = arrow::schema(inputFields);
 
     return arrow::Status::OK();
   }

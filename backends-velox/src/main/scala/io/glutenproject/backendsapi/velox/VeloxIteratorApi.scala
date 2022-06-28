@@ -65,7 +65,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           starts.add(new java.lang.Long(f.start))
           lengths.add(new java.lang.Long(f.length))
         }
-        val localFilesNode = LocalFilesBuilder.makeLocalFiles(index, paths, starts, lengths, fileFormat)
+        val localFilesNode = LocalFilesBuilder.makeLocalFiles(
+          index, paths, starts, lengths, fileFormat)
         wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
         val substraitPlan = wsCxt.root.toProtobuf
         /*
@@ -202,18 +203,20 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       loadNative: Boolean,
       outputAttributes: Seq[Attribute],
       context: TaskContext,
-      jarList: Seq[String]): Iterator[ColumnarBatch] = {
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     import org.apache.spark.sql.util.OASPackageBridge._
     var inputSchema : Schema = null
     var outputSchema : Schema = null
     var resIter : GeneralOutIterator = null
     if (loadNative) {
-      // TODO: 'jarList' is kept for codegen
-      val transKernel = new ExpressionEvaluator(jarList.asJava)
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
+      val columnarNativeIterators =
+        new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
+          new ArrowInIterator(iter.asJava)
+        }.asJava)
+      val transKernel = new ExpressionEvaluator()
       outputSchema = ArrowConverterUtils.toArrowSchema(outputAttributes)
-      resIter =
-        transKernel.createKernelWithBatchIterator(inputPartition.substraitPlan, inBatchIters)
+      resIter = transKernel.createKernelWithBatchIterator(
+          inputPartition.substraitPlan, columnarNativeIterators)
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {

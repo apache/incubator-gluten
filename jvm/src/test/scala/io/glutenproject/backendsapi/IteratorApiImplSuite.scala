@@ -65,8 +65,9 @@ class IteratorApiImplSuite extends IIteratorApi {
    */
   override def genFirstStageIterator(inputPartition: BaseNativeFilePartition,
                                      loadNative: Boolean, outputAttributes: Seq[Attribute],
-                                     context: TaskContext, jarList: Seq[String]
-                                    ): Iterator[ColumnarBatch] = null
+                                     context: TaskContext,
+                                     inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
+                                     : Iterator[ColumnarBatch] = null
 
   /**
    * Generate Iterator[ColumnarBatch] for final stage.

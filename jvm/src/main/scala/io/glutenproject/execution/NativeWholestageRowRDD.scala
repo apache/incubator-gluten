@@ -37,17 +37,17 @@ class NativeWholestageRowRDD(
 
   override protected def getPartitions: Array[Partition] = {
     inputPartitions.zipWithIndex.map {
-      case (inputPartition, index) => new NativeSubstraitPartition(index, inputPartition)
+      case (inputPartition, index) => FirstZippedPartitionsPartition(index, inputPartition)
     }.toArray
   }
 
-  private def castPartition(split: Partition): NativeSubstraitPartition = split match {
-    case p: NativeSubstraitPartition => p
+  private def castPartition(split: Partition): FirstZippedPartitionsPartition = split match {
+    case p: FirstZippedPartitionsPartition => p
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 
   private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
-    case NativeSubstraitPartition(_, p: BaseNativeFilePartition) => p
+    case FirstZippedPartitionsPartition(_, p: BaseNativeFilePartition, _) => p
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 

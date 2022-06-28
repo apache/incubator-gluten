@@ -40,7 +40,6 @@ class WholeStageZippedPartitionsRDD[V: ClassTag](
     extends RDD[V](sc, rdds.map(x => new OneToOneDependency(x))) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[V] = {
-
     val partitions = split.asInstanceOf[ZippedPartitionsPartition].partitions
     val inputIterators = (rdds zip partitions).map {
       case (rdd, partition) => rdd.iterator(partition, context)

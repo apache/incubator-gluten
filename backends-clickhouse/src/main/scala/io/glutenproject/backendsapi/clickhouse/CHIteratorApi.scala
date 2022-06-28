@@ -150,11 +150,11 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      loadNative: Boolean,
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
-                                     jarList: Seq[String]): Iterator[ColumnarBatch] = {
+                                     inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
+                                     : Iterator[ColumnarBatch] = {
     var resIter : GeneralOutIterator = null
     if (loadNative) {
-      // TODO: 'jarList' is kept for codegen
-      val transKernel = new ExpressionEvaluator(jarList.asJava)
+      val transKernel = new ExpressionEvaluator()
       val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
