@@ -143,11 +143,11 @@ case class CHHashAggregateExecTransformer(
     // Get the aggregate function nodes.
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
-      val aggregatFunc = aggExpr.aggregateFunction
+      val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggExpr.mode match {
         case Partial =>
-          aggregatFunc.children.toList.map(expr => {
+          aggregateFunc.children.toList.map(expr => {
             val aggExpr: Expression = ExpressionConverter
               .replaceWithExpressionTransformer(expr, child.output)
             aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -163,10 +163,10 @@ case class CHHashAggregateExecTransformer(
         childrenNodeList.add(node)
       }
       val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-        AggregateFunctionsBuilder.create(args, aggregatFunc),
+        AggregateFunctionsBuilder.create(args, aggregateFunc),
         childrenNodeList,
         modeToKeyWord(aggExpr.mode),
-        ConverterUtils.getTypeNode(aggregatFunc.dataType, aggregatFunc.nullable))
+        ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable))
       aggregateFunctionList.add(aggFunctionNode)
     })
     if (!validation) {
