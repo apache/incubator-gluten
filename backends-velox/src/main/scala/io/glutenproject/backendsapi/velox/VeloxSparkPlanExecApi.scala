@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
-import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
+import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -26,7 +26,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.{SparkSession, Strategy}
@@ -78,6 +79,26 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
     } else {
       VeloxFilterExecTransformer(condition, child)
     }
+
+  /**
+   * Generate HashAggregateExecTransformer.
+   */
+  override def genHashAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan): HashAggregateExecBaseTransformer =
+    HashAggregateExecTransformer(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
