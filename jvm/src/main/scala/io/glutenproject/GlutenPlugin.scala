@@ -45,6 +45,19 @@ class GlutenPlugin extends SparkPlugin {
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
+    // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
+    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
+      val customGlutenLib = conf.get(GlutenConfig.GLUTEN_LIB_PATH, "")
+      val customBackendLib = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
+      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
+        conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
+        customGlutenLib,
+        customBackendLib,
+        conf.getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
+      if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
+        initKernel.initNative()
+      }
+    }
     setPredefinedConfigs(conf)
     // Initialize Backends API
     BackendsApiManager.initialize(pluginContext.conf()
