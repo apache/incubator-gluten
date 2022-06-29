@@ -109,14 +109,15 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           transformer.doValidate()
         case plan: HashAggregateExec =>
           if (!enableColumnarHashAgg) return false
-          val transformer = HashAggregateExecTransformer(
-            plan.requiredChildDistributionExpressions,
-            plan.groupingExpressions,
-            plan.aggregateExpressions,
-            plan.aggregateAttributes,
-            plan.initialInputBufferOffset,
-            plan.resultExpressions,
-            plan.child)
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genHashAggregateExecTransformer(
+              plan.requiredChildDistributionExpressions,
+              plan.groupingExpressions,
+              plan.aggregateExpressions,
+              plan.aggregateAttributes,
+              plan.initialInputBufferOffset,
+              plan.resultExpressions,
+              plan.child)
           transformer.doValidate()
         case plan: UnionExec =>
           if (!enableColumnarUnion) return false

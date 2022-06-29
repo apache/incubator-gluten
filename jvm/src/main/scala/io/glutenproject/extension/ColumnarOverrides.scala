@@ -93,14 +93,15 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     case plan: HashAggregateExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      HashAggregateExecTransformer(
-        plan.requiredChildDistributionExpressions,
-        plan.groupingExpressions,
-        plan.aggregateExpressions,
-        plan.aggregateAttributes,
-        plan.initialInputBufferOffset,
-        plan.resultExpressions,
-        child)
+      BackendsApiManager.getSparkPlanExecApiInstance
+        .genHashAggregateExecTransformer(
+          plan.requiredChildDistributionExpressions,
+          plan.groupingExpressions,
+          plan.aggregateExpressions,
+          plan.aggregateAttributes,
+          plan.initialInputBufferOffset,
+          plan.resultExpressions,
+          child)
     case plan: UnionExec =>
       val children = plan.children.map(replaceWithTransformerPlan)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

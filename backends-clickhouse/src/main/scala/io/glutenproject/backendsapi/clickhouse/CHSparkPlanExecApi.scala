@@ -25,7 +25,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -72,6 +73,27 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
    */
   override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
     : FilterExecBaseTransformer = FilterExecTransformer(condition, child)
+
+
+  /**
+   * Generate HashAggregateExecTransformer.
+   */
+  override def genHashAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan): HashAggregateExecBaseTransformer =
+    CHHashAggregateExecTransformer(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
