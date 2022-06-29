@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
-import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, HashAggregateExecBaseTransformer, HashAggregateExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
+import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxHashAggregateExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -91,7 +91,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan): HashAggregateExecBaseTransformer =
-    HashAggregateExecTransformer(
+    VeloxHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions,
       aggregateExpressions,
