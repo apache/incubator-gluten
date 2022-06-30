@@ -88,11 +88,9 @@ case class SortExecTransformer(
       this
   }
 
-  override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
-    val numOutputRows = longMetric("numOutputRows")
-    val procTime = longMetric("processTime")
-    procTime.set(process_time / 1000000)
-    numOutputRows += out_num_rows
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    numOutputBatches += outNumBatches
+    numOutputRows += outNumRows
   }
 
   override def doValidate(): Boolean = false

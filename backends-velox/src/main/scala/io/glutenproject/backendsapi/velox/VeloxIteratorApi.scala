@@ -203,6 +203,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       loadNative: Boolean,
       outputAttributes: Seq[Attribute],
       context: TaskContext,
+      updateMetrics: (Long, Long) => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     import org.apache.spark.sql.util.OASPackageBridge._
     var inputSchema : Schema = null
@@ -248,6 +249,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           case _ => 0L
         }
         inputMetrics.bridgeIncBytesRead(bytes)
+        updateMetrics(1, cb.numRows())
         cb
       }
     }
@@ -274,6 +276,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       rootNode: PlanNode,
       streamedSortPlan: SparkPlan,
       pipelineTime: SQLMetric,
+      updateMetrics: (Long, Long) => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch],
       dependentKernels: Seq[ExpressionEvaluator],
       dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {
@@ -306,16 +309,13 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
 
     val resIter = new Iterator[ColumnarBatch] {
       override def hasNext: Boolean = {
-        val nativeHasNext = nativeResultIterator.hasNext
-        if (!nativeHasNext) {
-          // TODO: update metrics when reach to the end
-        }
-        nativeHasNext
+        nativeResultIterator.hasNext
       }
 
       override def next(): ColumnarBatch = {
         val beforeEval = System.nanoTime()
         val cb = nativeResultIterator.next
+        updateMetrics(1, cb.numRows())
         cb
       }
     }

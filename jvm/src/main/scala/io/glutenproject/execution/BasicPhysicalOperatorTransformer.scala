@@ -36,7 +36,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -109,11 +109,12 @@ abstract class FilterExecBaseTransformer(
       this
   }
 
-  override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
-    val numOutputRows = longMetric("numOutputRows")
-    val procTime = longMetric("processTime")
-    procTime.set(process_time / 1000000)
-    numOutputRows += out_num_rows
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
+
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    numOutputBatches += outNumBatches
+    numOutputRows += outNumRows
   }
 
   override def getChild: SparkPlan = child
@@ -291,11 +292,12 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       this
   }
 
-  override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
-    val numOutputRows = longMetric("numOutputRows")
-    val procTime = longMetric("processTime")
-    procTime.set(process_time / 1000000)
-    numOutputRows += out_num_rows
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
+
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    numOutputBatches += outNumBatches
+    numOutputRows += outNumRows
   }
 
   override def getChild: SparkPlan = child

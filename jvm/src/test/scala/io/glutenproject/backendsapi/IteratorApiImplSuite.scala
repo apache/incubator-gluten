@@ -66,6 +66,7 @@ class IteratorApiImplSuite extends IIteratorApi {
   override def genFirstStageIterator(inputPartition: BaseNativeFilePartition,
                                      loadNative: Boolean, outputAttributes: Seq[Attribute],
                                      context: TaskContext,
+                                     updateMetrics: (Long, Long) => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
                                      : Iterator[ColumnarBatch] = null
 
@@ -79,7 +80,9 @@ class IteratorApiImplSuite extends IIteratorApi {
                                      listJars: Seq[String], signature: String,
                                      sparkConf: SparkConf, outputAttributes: Seq[Attribute],
                                      rootNode: PlanNode, streamedSortPlan: SparkPlan,
-                                     pipelineTime: SQLMetric, buildRelationBatchHolder: Seq[ColumnarBatch],
+                                     pipelineTime: SQLMetric,
+                                     updateMetrics: (Long, Long) => Unit,
+                                     buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = null

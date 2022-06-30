@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
@@ -41,7 +40,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin, ShuffledJoin}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.util.control.Breaks.{break, breakable}
@@ -113,11 +112,12 @@ abstract class HashJoinLikeExecTransformer(
     if (projectList == null || projectList.isEmpty) super.output
     else projectList.map(_.toAttribute)
 
-  override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {
-    val numOutputRows = longMetric("numOutputRows")
-    val procTime = longMetric("processTime")
-    procTime.set(process_time / 1000000)
-    numOutputRows += out_num_rows
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
+
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    numOutputBatches += outNumBatches
+    numOutputRows += outNumRows
   }
 
   override def outputPartitioning: Partitioning = buildSide match {

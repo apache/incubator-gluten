@@ -26,21 +26,13 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.vectorized._
-import org.apache.spark.SparkContext
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
-import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.UserAddedJarUtils
 
 case class TransformContext(
     inputAttributes: Seq[Attribute],
@@ -80,7 +72,7 @@ trait TransformSupport extends SparkPlan {
 
   def dependentPlanCtx: TransformContext = null
 
-  def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {}
+  def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {}
 
   def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
     plan match {
@@ -101,10 +93,10 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     GlutenConfig.getConf.enableColumnarSortMergeJoinLazyRead
 
+
+  // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
+  // See SparkPlanGraph.scala:205 for reference.
   override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_wholestagetransform"),
-    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to build dependencies"),
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
 
   override def output: Seq[Attribute] = child.output
@@ -188,31 +180,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def getChild: SparkPlan = child
 
-  override def updateMetrics(out_num_rows: Long, process_time: Long): Unit = {}
-
-  var metricsUpdated: Boolean = false
-
-  def updateMetrics(nativeIterator: GeneralOutIterator): Unit = {
-    if (metricsUpdated) return
-    try {
-      val metrics = nativeIterator.getMetrics
-      var curChild = child
-      var idx = metrics.output_length_list.length - 1
-      var child_process_time: Long = 0
-      while (idx >= 0 && curChild.isInstanceOf[TransformSupport]) {
-        curChild
-          .asInstanceOf[TransformSupport]
-          .updateMetrics(
-            metrics.output_length_list(idx),
-            metrics.process_time_list(idx) - child_process_time)
-        child_process_time = metrics.process_time_list(idx)
-        idx -= 1
-        curChild = curChild.asInstanceOf[TransformSupport].getChild
-      }
-      metricsUpdated = true
-    } catch {
-      case e: NullPointerException =>
-        logWarning(s"updateMetrics failed due to NullPointerException!")
+  /**
+   * Update metrics for the child plan.
+   * @param outNumBatches the number of batches to add
+   * @param outNumRows the number of rows to add
+   */
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    child match {
+      // For Filter transformer, need to convert to FilterExecBase
+      // to call the overridden updateMetrics.
+      case transformer: FilterExecBaseTransformer =>
+        transformer.updateMetrics(outNumBatches, outNumRows)
+      case _ =>
+        child.asInstanceOf[TransformSupport].updateMetrics(outNumBatches, outNumRows)
     }
   }
 
@@ -252,9 +232,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   override def doExecute(): RDD[InternalRow] = {
-    val numOutputBatches = child.longMetric("numOutputBatches")
-    val pipelineTime = longMetric("pipelineTime")
-
     // check if BatchScan exists
     val currentOp = checkBatchScanExecTransformerChild()
     if (currentOp.isDefined) {
@@ -311,11 +288,10 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val pipelineTime: SQLMetric = longMetric("pipelineTime")
+
     val signature = doBuild()
     val listJars = uploadAndListJars(signature)
-
-    val numOutputBatches = child.metrics.get("numOutputBatches")
-    val pipelineTime = longMetric("pipelineTime")
 
     // we should zip all dependent RDDs to current main RDD
     // TODO: Does it still need these parameters?
@@ -341,20 +317,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       logInfo(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
-      val wsRDD = new NativeWholeStageColumnarRDD(
+      new NativeWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartition,
         wsCxt.outputAttributes,
-        genFirstNewRDDsForBroadcast(inputRDDs, substraitPlanPartition.size))
-
-      numOutputBatches match {
-        case Some(batches) =>
-          wsRDD.map { iter =>
-            batches += 1
-            iter
-          }
-        case None => wsRDD
-      }
+        genFirstNewRDDsForBroadcast(inputRDDs, substraitPlanPartition.size),
+        updateMetrics)
     } else {
       val resCtx = doWholestageTransform()
       logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
@@ -371,6 +339,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             resCtx.root,
             streamedSortPlan,
             pipelineTime,
+            updateMetrics,
             buildRelationBatchHolder,
             dependentKernels,
             dependentKernelIterators)
