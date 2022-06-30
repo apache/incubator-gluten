@@ -17,13 +17,11 @@
 package org.apache.spark.sql.execution.utils
 
 import scala.collection.JavaConverters._
-
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.{BlockSplitIterator, CHNativeBlock, NativePartitioning}
+import io.glutenproject.vectorized.{BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 import io.glutenproject.GlutenConfig
 import org.apache.spark.ShuffleDependency
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
@@ -116,7 +114,7 @@ object CHExecUtil {
                 }
                 options.setExpr(fields.mkString(","))
                 options.setName("hash")
-                new Iterator[Product2[Int, ColumnarBatch]] {
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] {
                   val splitIterator = new BlockSplitIterator(
                     cbIter.map(cb =>
                       CHNativeBlock.fromColumnarBatch(cb)
@@ -128,6 +126,7 @@ object CHExecUtil {
                   override def next(): Product2[Int, ColumnarBatch] =
                     (splitIterator.nextPartitionId(), splitIterator.next());
                 }
+                new CloseablePartitionedBlockIterator(iter)
               },
               isOrderSensitive = isOrderSensitive)
           case RoundRobinPartitioning(n) =>
@@ -135,7 +134,7 @@ object CHExecUtil {
               (_, cbIter) => {
                 options.setPartitionNum(n)
                 options.setName("rr")
-                new Iterator[Product2[Int, ColumnarBatch]] {
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] {
                   val splitIterator = new BlockSplitIterator(
                     cbIter.map(cb =>
                       CHNativeBlock.fromColumnarBatch(cb)
@@ -147,6 +146,7 @@ object CHExecUtil {
                   override def next(): Product2[Int, ColumnarBatch] =
                     (splitIterator.nextPartitionId(), splitIterator.next());
                 }
+                new CloseablePartitionedBlockIterator(iter)
               },
               isOrderSensitive = isOrderSensitive)
           case SinglePartition =>
@@ -154,7 +154,7 @@ object CHExecUtil {
               (_, cbIter) => {
                 options.setPartitionNum(1)
                 options.setName("rr")
-                new Iterator[Product2[Int, ColumnarBatch]] {
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] {
                   val splitIterator = new BlockSplitIterator(
                     cbIter.map(cb =>
                       CHNativeBlock.fromColumnarBatch(cb)
@@ -166,6 +166,7 @@ object CHExecUtil {
                   override def next(): Product2[Int, ColumnarBatch] =
                     (splitIterator.nextPartitionId(), splitIterator.next());
                 }
+                new CloseablePartitionedBlockIterator(iter)
               },
               isOrderSensitive = isOrderSensitive)
           case _ =>
