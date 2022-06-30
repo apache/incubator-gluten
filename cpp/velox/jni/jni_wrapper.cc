@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
+#include <arrow/c/bridge.h>
 #include <folly/system/ThreadName.h>
 #include <jni.h>
-
-#include <arrow/c/bridge.h>
 
 #include "compute/DwrfDatasource.h"
 #include "compute/VeloxPlanConverter.h"
@@ -108,7 +107,7 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
 
   } else {
     std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
-      arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
+        arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
     auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
         arrow::dataset::jni::JStringToCString(env, file_path), schema, veloxPool_.get());
