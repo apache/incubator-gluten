@@ -28,7 +28,7 @@ import org.apache.arrow.vector.util.SchemaUtility
 object VeloxDatasourceUtil {
   def readSchema(file: FileStatus): Option[StructType] = {
     val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
-    val instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(file.getPath.toString, null)
+    val instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(file.getPath.toString, -1)
     val buffer = dwrfDatasourceJniWrapper.inspectSchema(instanceId)
     val schema = SchemaUtility.deserialize(buffer, SparkMemoryUtils.contextAllocator())
     try {
