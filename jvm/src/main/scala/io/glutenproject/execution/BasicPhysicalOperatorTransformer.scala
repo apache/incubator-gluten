@@ -36,7 +36,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -109,9 +109,10 @@ abstract class FilterExecBaseTransformer(
       this
   }
 
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
+
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    val numOutputBatches = longMetric("numOutputBatches")
-    val numOutputRows = longMetric("numOutputRows")
     numOutputBatches += outNumBatches
     numOutputRows += outNumRows
   }
@@ -291,9 +292,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       this
   }
 
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
+
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    val numOutputBatches = longMetric("numOutputBatches")
-    val numOutputRows = longMetric("numOutputRows")
     numOutputBatches += outNumBatches
     numOutputRows += outNumRows
   }

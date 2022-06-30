@@ -186,18 +186,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
    * @param outNumRows the number of rows to add
    */
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    try {
-      child match {
-        // For Filter transformer, need to convert to FilterExecBase
-        // to call the overridden updateMetrics.
-        case transformer: FilterExecBaseTransformer =>
-          transformer.updateMetrics(outNumBatches, outNumRows)
-        case _ =>
-          child.asInstanceOf[TransformSupport].updateMetrics(outNumBatches, outNumRows)
-      }
-    } catch {
-      case e: NullPointerException =>
-        logWarning(s"Updating metrics failed due to ${e.getMessage}")
+    child match {
+      // For Filter transformer, need to convert to FilterExecBase
+      // to call the overridden updateMetrics.
+      case transformer: FilterExecBaseTransformer =>
+        transformer.updateMetrics(outNumBatches, outNumRows)
+      case _ =>
+        child.asInstanceOf[TransformSupport].updateMetrics(outNumBatches, outNumRows)
     }
   }
 

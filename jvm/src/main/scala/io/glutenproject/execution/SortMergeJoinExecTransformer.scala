@@ -237,8 +237,6 @@ case class SortMergeJoinExecTransformer(
   }
 
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    val numOutputBatches = longMetric("numOutputBatches")
-    val numOutputRows = longMetric("numOutputRows")
     numOutputBatches += outNumBatches
     numOutputRows += outNumRows
   }
