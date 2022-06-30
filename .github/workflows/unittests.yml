@@ -109,6 +109,11 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
+      - name: trigger performance test
+        run: |
+          bash tools/trigger_perf_test.sh $PR_NUMBER
+        env:
+          PR_NUMBER: ${{ github.event.number }}
       - name: Install Googletest
         run: |
           sudo apt-get install -y libgtest-dev
