@@ -29,6 +29,8 @@ using GetInputFunc =
 auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJsonFile,
                      const std::vector<std::string>& input_files,
                      GetInputFunc* getInputIterator) {
+  SetCPU(2);
+
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
@@ -65,6 +67,7 @@ int main(int argc, char** argv) {
   for (auto i = 2; i < argc; ++i) {
     inputFiles.emplace_back(argv[i]);
   }
+
   ::benchmark::RegisterBenchmark("InputFromBatchVector", BM_Generic, substraitJsonFile,
                                  inputFiles, getInputFromBatchVector);
 

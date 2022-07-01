@@ -21,6 +21,7 @@
 #include <velox/dwio/dwrf/test/utils/DataFiles.h>
 
 #include <boost/filesystem.hpp>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -31,6 +32,10 @@ using namespace boost::filesystem;
 namespace fs = std::filesystem;
 
 std::string getExampleFilePath(const std::string& fileName) {
+  std::filesystem::path path(fileName);
+  if (path.is_absolute()) {
+    return fileName;
+  }
   return ::facebook::velox::test::getDataFilePath("cpp/velox/benchmarks",
                                                   "data/" + fileName);
 }
@@ -112,4 +117,14 @@ std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
     const std::string& path) {
   return std::make_shared<gluten::RecordBatchResultIterator>(
       std::make_shared<BatchStreamIterator>(path));
+}
+
+void SetCPU(uint32_t cpuindex) {
+  cpu_set_t cs;
+  CPU_ZERO(&cs);
+  CPU_SET(cpuindex, &cs);
+  if (sched_setaffinity(0, sizeof(cs), &cs) == -1) {
+    std::cerr << "Error binding CPU " << std::to_string(cpuindex) << std::endl;
+    exit(EXIT_FAILURE);
+  }
 }

@@ -102,3 +102,5 @@ std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchVector(
 
 std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
     const std::string& path);
+
+void SetCPU(uint32_t cpuindex);
