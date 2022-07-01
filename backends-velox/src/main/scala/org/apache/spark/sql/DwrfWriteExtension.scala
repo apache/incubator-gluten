@@ -45,19 +45,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.CalendarInterval
 import org.apache.spark.unsafe.types.UTF8String
 
-class DwrfWriteExtension extends (SparkSessionExtensions => Unit) {
-  def apply(e: SparkSessionExtensions): Unit = {
-    e.injectColumnar(session => SimpleColumnarRule(DummyRule, DwrfWritePostRule(session)))
-    e.injectPlannerStrategy(session => SimpleStrategy())
-  }
-}
-
 object DwrfWriteExtension {
-  private object DummyRule extends Rule[SparkPlan] {
+  object DummyRule extends Rule[SparkPlan] {
     def apply(p: SparkPlan): SparkPlan = p
   }
 
-  private case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
+  case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
     extends ColumnarRule {
     override def preColumnarTransitions: Rule[SparkPlan] = pre
     override def postColumnarTransitions: Rule[SparkPlan] = post
@@ -162,5 +155,4 @@ object DwrfWriteExtension {
         Nil
     }
   }
-
 }

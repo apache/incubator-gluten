@@ -16,6 +16,7 @@
 
 package io.glutenproject.backendsapi.velox
 
+import com.intel.oap.spark.sql.DwrfWriteExtension.{DummyRule, DwrfWritePostRule, SimpleColumnarRule, SimpleStrategy}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
@@ -31,7 +32,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{SparkPlan, VeloxBuildSideRelation}
+import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan, VeloxBuildSideRelation}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -196,6 +197,26 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = {
     throw new UnsupportedOperationException(
       "Cannot support extending Analyzer for Velox backend.")
+  }
+
+  /**
+   * Generate extended Rule.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedRule(spark: SparkSession): ColumnarRule = {
+    SimpleColumnarRule(DummyRule, DwrfWritePostRule(spark))
+  }
+
+  /**
+   * Generate extended Strategy.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedStrategy(): Strategy = {
+    SimpleStrategy()
   }
 
   /**

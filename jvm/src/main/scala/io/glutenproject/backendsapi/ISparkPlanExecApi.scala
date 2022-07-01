@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
@@ -112,4 +112,20 @@ trait ISparkPlanExecApi extends IBackendsApi {
    * @return
    */
   def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan]
+
+  /**
+   * Generate extended Strategy.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  def genExtendedStrategy(): Strategy
+
+  /**
+   * Generate extended Rule.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  def genExtendedRule(spark: SparkSession): ColumnarRule
 }

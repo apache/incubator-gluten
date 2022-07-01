@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -170,6 +170,28 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
    */
   override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = {
     new ClickHouseAnalysis(spark, conf)
+  }
+
+  /**
+   * Generate extended Rule.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedRule(spark: SparkSession): ColumnarRule = {
+    throw new UnsupportedOperationException(
+      "Cannot support extending Rule for ClickHouse backend.")
+  }
+
+  /**
+   * Generate extended Strategy.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedStrategy(): Strategy = {
+    throw new UnsupportedOperationException(
+      "Cannot support extending Strategy for ClickHouse backend.")
   }
 
   /**
