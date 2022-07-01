@@ -17,20 +17,19 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
@@ -87,18 +86,18 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
           val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
           batch.rowIterator().asScala.map(toUnsafe)
         } else {
-          val allocator = SparkMemoryUtils.contextAllocator()
+          val allocator = SparkMemoryUtils.contextArrowAllocator()
           val cArray = ArrowArray.allocateNew(allocator)
           val cSchema = ArrowSchema.allocateNew(allocator)
           var info : NativeColumnarToRowInfo = null
           try {
             ArrowAbiUtil.exportFromSparkColumnarBatch(
-              SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray)
+              SparkMemoryUtils.contextArrowAllocator(), batch, cSchema, cArray)
             val beforeConvert = System.nanoTime()
 
             info = jniWrapper.nativeConvertColumnarToRow(
               cSchema.memoryAddress(), cArray.memoryAddress(),
-              SparkMemoryUtils.contextMemoryPool().getNativeInstanceId, wsChild)
+              SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId, wsChild)
 
             convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
           } finally {

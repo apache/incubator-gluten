@@ -55,8 +55,8 @@ public class ShuffleSplitterJniWrapper {
           boolean preferSpill,
           long memoryPoolId,
           boolean writeSchema) {
-    try(ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())) {
-      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(),
+    try(ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator())) {
+      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator(),
               ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()),
               schema);
       return nativeMake(

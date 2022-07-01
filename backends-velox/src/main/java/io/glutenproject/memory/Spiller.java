@@ -15,30 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
+package io.glutenproject.memory;
 
-import java.util.concurrent.atomic.AtomicLong;
+import org.apache.spark.memory.MemoryConsumer;
 
-public final class NativeSQLMemoryMetrics {
-    private final AtomicLong peak = new AtomicLong(0L);
-    private final AtomicLong total = new AtomicLong(0L);
+public interface Spiller {
+    Spiller NO_OP = new Spiller() {
+        @Override
+        public long spill(long size, MemoryConsumer trigger) {
+            return 0L;
+        }
+    };
 
-    public void inc(long bytes) {
-        final long total = this.total.addAndGet(bytes);
-        long prev_peak;
-        do {
-            prev_peak = this.peak.get();
-            if (total <= prev_peak) {
-                break;
-            }
-        } while (!this.peak.compareAndSet(prev_peak, total));
-    }
-
-    public long peak() {
-        return peak.get();
-    }
-
-    public long total() {
-        return total.get();
-    }
+    long spill(long size, MemoryConsumer trigger);
 }

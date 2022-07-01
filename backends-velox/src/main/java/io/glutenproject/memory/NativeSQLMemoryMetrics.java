@@ -15,25 +15,30 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.memory;
 
-import io.glutenproject.utils.ArrowAbiUtil;
-import org.apache.arrow.c.ArrowArray;
-import org.apache.arrow.c.ArrowSchema;
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
+import java.util.concurrent.atomic.AtomicLong;
 
-import java.util.Iterator;
+public final class NativeSQLMemoryMetrics {
+    private final AtomicLong peak = new AtomicLong(0L);
+    private final AtomicLong total = new AtomicLong(0L);
 
-public class ArrowInIterator extends GeneralInIterator {
+    public void inc(long bytes) {
+        final long total = this.total.addAndGet(bytes);
+        long prev_peak;
+        do {
+            prev_peak = this.peak.get();
+            if (total <= prev_peak) {
+                break;
+            }
+        } while (!this.peak.compareAndSet(prev_peak, total));
+    }
 
-  public ArrowInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
-  }
+    public long peak() {
+        return peak.get();
+    }
 
-  public void next(long cArrayAddress) {
-    final ColumnarBatch batch = nextColumnarBatch();
-    final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
-    ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextArrowAllocator(), batch, null, cArray);
-  }
+    public long total() {
+        return total.get();
+    }
 }

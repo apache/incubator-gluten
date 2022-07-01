@@ -63,7 +63,8 @@ arrow::Status VeloxToRowConverter::Init() {
     offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
     total_memory_size += lengths_[rowIdx];
   }
-  ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, memory_pool_));
+  ARROW_ASSIGN_OR_RAISE(buffer_,
+                        arrow::AllocateBuffer(total_memory_size, memory_pool_.get()));
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = buffer_->mutable_data();
   return arrow::Status::OK();

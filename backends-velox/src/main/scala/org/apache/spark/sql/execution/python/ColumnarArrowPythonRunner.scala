@@ -66,7 +66,7 @@ class ColumnarArrowPythonRunner(
       context: TaskContext): Iterator[ColumnarBatch] = {
 
     new ReaderIterator(stream, writerThread, startTime, env, worker, releasedOrClosed, context) {
-      private val allocator = SparkMemoryUtils.contextAllocator().newChildAllocator(
+      private val allocator = SparkMemoryUtils.contextArrowAllocator().newChildAllocator(
         s"stdin reader for $pythonExec", 0, Long.MaxValue)
 
       private var reader: ArrowStreamReader = _
@@ -146,7 +146,7 @@ class ColumnarArrowPythonRunner(
       protected override def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
         var numRows: Long = 0
         val arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId)
-        val allocator = SparkMemoryUtils.contextAllocator().newChildAllocator(
+        val allocator = SparkMemoryUtils.contextArrowAllocator().newChildAllocator(
           s"stdout writer for $pythonExec", 0, Long.MaxValue)
         val root = VectorSchemaRoot.create(arrowSchema, allocator)
 

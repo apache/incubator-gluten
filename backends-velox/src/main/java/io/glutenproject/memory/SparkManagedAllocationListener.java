@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
+package io.glutenproject.memory;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.slf4j.Logger;

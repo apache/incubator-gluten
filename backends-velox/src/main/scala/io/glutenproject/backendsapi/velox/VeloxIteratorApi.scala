@@ -350,10 +350,10 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       iterList: Seq[GeneralInIterator],
       jniWrapper: ExpressionEvaluatorJniWrapper,
       outAttrs: Seq[Attribute]): GeneralOutIterator = {
-    val memoryPool = SparkMemoryUtils.contextMemoryPool()
-    val poolId = memoryPool.getNativeInstanceId
+    val alloc = SparkMemoryUtils.contextNativeAllocator()
+    val allocId = alloc.getNativeInstanceId
     val batchIteratorInstance =
-      jniWrapper.nativeCreateKernelWithIterator(poolId, wsPlan, iterList.toArray)
+      jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)
   }
 

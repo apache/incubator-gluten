@@ -24,9 +24,8 @@ import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
 import io.glutenproject.vectorized._
-import io.glutenproject.expression.CodeGeneration
+import io.glutenproject.memory.Spiller
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.pojo.Schema
@@ -117,7 +116,7 @@ class VeloxColumnarShuffleWriter[K, V](
         blockManager.subDirsPerLocalDir,
         localDirs,
         preferSpill,
-        SparkMemoryUtils.createSpillableMemoryPool(
+        SparkMemoryUtils.createSpillableNativeAllocator(
           new Spiller() {
             override def spill(size: Long, trigger: MemoryConsumer): Long = {
               if (nativeSplitter == 0) {
@@ -139,7 +138,7 @@ class VeloxColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val startTimeForPrepare = System.nanoTime()
-        val allocator = SparkMemoryUtils.contextAllocator()
+        val allocator = SparkMemoryUtils.contextArrowAllocator()
         val cArray = ArrowArray.allocateNew(allocator)
         // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
         // RecordBatch to ArrowArray without Schema, may optimize later

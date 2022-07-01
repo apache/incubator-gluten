@@ -76,7 +76,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     String timeZoneId = SparkSchemaUtils.getLocalTimezoneID();
     Schema arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId);
     VectorSchemaRoot new_root =
-        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextAllocator());
+        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextArrowAllocator());
 
     List<FieldVector> fieldVectors = new_root.getFieldVectors();
     ArrowWritableColumnVector[] vectors =
@@ -123,7 +123,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
   public static ArrowWritableColumnVector[] loadColumns(int capacity, Schema arrowSchema,
       ArrowRecordBatch recordBatch, BufferAllocator _allocator) {
     if (_allocator == null) {
-      _allocator = SparkMemoryUtils.contextAllocator();
+      _allocator = SparkMemoryUtils.contextArrowAllocator();
     }
     VectorSchemaRoot root = VectorSchemaRoot.create(arrowSchema, _allocator);
     VectorLoader loader = new VectorLoader(root);
@@ -163,7 +163,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
         Arrays.asList(ArrowUtils.toArrowField("col", dataType, true, timeZoneId));
     Schema arrowSchema = new Schema(fields);
     VectorSchemaRoot root =
-        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextAllocator());
+        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextArrowAllocator());
 
     List<FieldVector> fieldVectors = root.getFieldVectors();
     vector = fieldVectors.get(0);

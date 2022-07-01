@@ -53,7 +53,7 @@ public class ArrowOutIterator extends GeneralOutIterator {
 
   @Override
   public ColumnarBatch nextInternal() throws IOException {
-    final BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
+    final BufferAllocator allocator = SparkMemoryUtils.contextArrowAllocator();
     try (final ArrowArray cArray = ArrowArray.allocateNew(allocator);
         final ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       if (!nativeNext(handle, cArray.memoryAddress())) {
