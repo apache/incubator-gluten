@@ -19,5 +19,14 @@ object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
         BackendsApiManager.getSparkPlanExecApiInstance.genExtendedDataSourceV2Strategy(spark)
       }
     }
+    if (SparkEnv.get.conf.get(GlutenConfig.GLUTEN_BACKEND_LIB)
+      .equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
+      extensions.injectColumnar { session =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genExtendedRule(session)
+      }
+      extensions.injectPlannerStrategy { session =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genExtendedStrategy()
+      }
+    }
   }
 }

@@ -19,7 +19,7 @@ package io.glutenproject
 
 import java.util.{Collections, Objects}
 import scala.language.implicitConversions
-import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, GLUTEN_WRITE_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
+import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.vectorized.ExpressionEvaluator
@@ -69,7 +69,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
           "enabling Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SESSION_EXTS_KEY))
     }
     conf.set(SPARK_SESSION_EXTS_KEY,
-      String.format("%s,%s", GLUTEN_SESSION_EXTENSION_NAME, GLUTEN_WRITE_SESSION_EXTENSION_NAME))
+      String.format("%s", GLUTEN_SESSION_EXTENSION_NAME))
   }
 }
 
@@ -131,8 +131,6 @@ private[glutenproject] object GlutenPlugin {
   val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
   val GLUTEN_SESSION_EXTENSION_NAME: String = Objects.requireNonNull(
     classOf[GlutenSessionExtensions].getCanonicalName)
-  val GLUTEN_WRITE_SESSION_EXTENSION_NAME: String = Objects.requireNonNull(
-    "com.intel.oap.spark.sql.DwrfWriteExtension")
 
   /**
    * Specify all injectors that Gluten is using in following list.
