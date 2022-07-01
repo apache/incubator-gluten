@@ -130,7 +130,7 @@ object DSV2BenchmarkTest {
         //.config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
-        .config("spark.shuffle.sort.bypassMergeThreshold", "2")
+        .config("spark.shuffle.sort.bypassMergeThreshold", "6")
         .config("spark.local.dir", "/data1/gazelle-jni-warehouse/spark_local_dirs")
 
       if (!warehouse.isEmpty) {
@@ -178,8 +178,8 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    testTPCHOne(spark, executedCnt)
-    // testTPCHAll(spark)
+    // testTPCHOne(spark, executedCnt)
+    testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -200,30 +200,22 @@ object DSV2BenchmarkTest {
       val startTime = System.nanoTime()
       val df = spark.sql(
         s"""
-           |SELECT /*+ SHUFFLE_MERGE(ch_lineitem) */
-           |    n_name,
-           |    sum(l_extendedprice * (1 - l_discount)) AS revenue
+           |SELECT
+           |    sum(l_extendedprice) / 7.0 AS avg_yearly
            |FROM
-           |    ch_customer,
-           |    ch_orders,
            |    ch_lineitem,
-           |    ch_supplier,
-           |    ch_nation,
-           |    ch_region
+           |    ch_part
            |WHERE
-           |    c_custkey = o_custkey
-           |    AND l_orderkey = o_orderkey
-           |    AND l_suppkey = s_suppkey
-           |    AND c_nationkey = s_nationkey
-           |    AND s_nationkey = n_nationkey
-           |    AND n_regionkey = r_regionkey
-           |    AND r_name = 'ASIA'
-           |    AND o_orderdate >= date'1994-01-01'
-           |    AND o_orderdate < date'1994-01-01' + interval 1 year
-           |GROUP BY
-           |    n_name
-           |ORDER BY
-           |    revenue DESC;
+           |    p_partkey = l_partkey
+           |    AND p_brand = 'Brand#23'
+           |    AND p_container = 'MED BOX'
+           |    AND l_quantity < (
+           |        SELECT
+           |            0.2 * avg(l_quantity)
+           |        FROM
+           |            ch_lineitem
+           |        WHERE
+           |            l_partkey = p_partkey);
            |""".stripMargin) //.show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()
