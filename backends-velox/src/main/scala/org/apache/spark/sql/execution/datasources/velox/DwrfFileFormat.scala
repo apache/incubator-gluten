@@ -16,14 +16,31 @@
 
 package org.apache.spark.sql.execution.datasources.velox
 
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.Job
-import io.glutenproject.utils.VeloxDatasourceUtil
 
+import com.intel.oap.spark.sql.DwrfWriteExtension.FakeRow
+import io.glutenproject.GlutenConfig
+import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo}
+import org.apache.arrow.c.{ArrowArray, ArrowSchema}
+import org.apache.arrow.vector.types.pojo.{Field, Schema}
+import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.ArrowUtils
+
+import java.io.IOException
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.mutable.ListBuffer
 
 class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
@@ -37,7 +54,60 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
                             job: Job,
                             options: Map[String, String],
                             dataSchema: StructType): OutputWriterFactory = {
-    throw new UnsupportedOperationException
+
+    new OutputWriterFactory {
+      override def getFileExtension(context: TaskAttemptContext): String = {
+        CodecConfig.from(context).getCodec.getExtension + ".dwrf"
+      }
+
+      override def newInstance(path: String, dataSchema: StructType,
+                               context: TaskAttemptContext): OutputWriter = {
+        val originPath = path
+        val arrowSchema = ArrowUtils.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
+        val cSchema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator)
+        var instanceId = -1L
+        val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
+        try {
+          ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator, arrowSchema, cSchema)
+          instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath,
+            cSchema.memoryAddress())
+        } catch {
+          case e: IOException =>
+            throw new RuntimeException(e)
+        } finally {
+          cSchema.close()
+        }
+
+        new OutputWriter {
+          override def write(row: InternalRow): Unit = {
+            val batch = row.asInstanceOf[FakeRow].batch
+            val allocator = SparkMemoryUtils.contextAllocator()
+            val cArray = ArrowArray.allocateNew(allocator)
+            val cSchema = ArrowSchema.allocateNew(allocator)
+            var info : NativeColumnarToRowInfo = null
+            try {
+              ArrowAbiUtil.exportFromSparkColumnarBatch(
+                SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray)
+
+              dwrfDatasourceJniWrapper.write(instanceId, cSchema.memoryAddress(),
+                cArray.memoryAddress())
+            } finally {
+              cArray.close()
+              cSchema.close()
+            }
+          }
+
+          override def close(): Unit = {
+            dwrfDatasourceJniWrapper.close(instanceId)
+          }
+
+          // Do NOT add override keyword for compatibility on spark 3.1.
+          def path(): String = {
+            originPath
+          }
+        }
+      }
+    }
   }
 
   override def supportBatch(sparkSession: SparkSession, dataSchema: StructType): Boolean = true

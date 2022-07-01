@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <arrow/c/bridge.h>
 #include <folly/system/ThreadName.h>
 #include <jni.h>
 
@@ -27,6 +28,8 @@
 
 #include <jni/dataset/jni_util.h>
 #include <jni/jni_common.h>
+
+#include <iostream>
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
@@ -94,32 +97,47 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
 
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_nativeInitDwrfDatasource(
-    JNIEnv* env, jobject obj, jstring file_path) {
-  auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
-      arrow::dataset::jni::JStringToCString(env, file_path));
-  dwrfDatasource->Init();
-  return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+    JNIEnv* env, jobject obj, jstring file_path, jlong c_schema) {
+  if (c_schema == -1) {
+    // Only inspect the schema and not write
+    auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
+        arrow::dataset::jni::JStringToCString(env, file_path), nullptr, veloxPool_.get());
+    // dwrfDatasource->Init( );
+    return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+
+  } else {
+    std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
+        arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
+
+    auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
+        arrow::dataset::jni::JStringToCString(env, file_path), schema, veloxPool_.get());
+    dwrfDatasource->Init();
+    return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+  }
 }
 
 JNIEXPORT jbyteArray JNICALL
 Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_inspectSchema(
     JNIEnv* env, jobject obj, jlong instanceId) {
+  JNI_METHOD_START
   auto dwrfDatasource =
       arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
           instanceId);
   auto schema = dwrfDatasource->InspectSchema();
   return std::move(arrow::dataset::jni::ToSchemaByteArray(env, schema)).ValueOrDie();
+  JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_close(
     JNIEnv* env, jobject obj, jlong instanceId) {
+  JNI_METHOD_START
   auto dwrfDatasource =
       arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
           instanceId);
   dwrfDatasource->Close();
   arrow::dataset::jni::ReleaseNativeRef<::velox::compute::DwrfDatasource>(instanceId);
-  return;
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jstring JNICALL
@@ -129,6 +147,21 @@ Java_io_glutenproject_vectorized_NativeThreadJniWrapper_getNativeThreadName(
   std::string name = folly::getCurrentThreadName().value();
   return env->NewStringUTF(name.c_str());
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_write(
+    JNIEnv* env, jobject obj, jlong instanceId, jlong c_schema, jlong c_array) {
+  JNI_METHOD_START
+  std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(
+      arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
+                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+
+  auto dwrfDatasource =
+      arrow::dataset::jni::RetrieveNativeInstance<::velox::compute::DwrfDatasource>(
+          instanceId);
+  dwrfDatasource->Write(rb);
+  JNI_METHOD_END()
 }
 
 #ifdef __cplusplus
