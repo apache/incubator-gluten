@@ -19,10 +19,13 @@
 
 #include <arrow/array/array_base.h>
 #include <arrow/array/builder_binary.h>
+#include <arrow/c/bridge.h>
 #include <arrow/pretty_print.h>
 #include <arrow/record_batch.h>
 
 #include <iostream>
+
+#include "utils/exception.h"
 
 namespace gluten {
 namespace compute {
@@ -35,25 +38,27 @@ bool LazyReadIterator::HasNext() {
     // If valid batch is still not processed, no need to get a new batch.
     return true;
   }
-  next_batch_ = rb_iter_->Next().ValueOrDie();
-  if (next_batch_ == nullptr) {
+  next_array_ = array_iter_->Next().ValueOrDie();
+  if (next_array_ == nullptr) {
     no_next_ = true;
     return false;
   }
   std::cout << "Input batch from the Java iter:" << std::endl;
-  arrow::PrettyPrint(*next_batch_.get(), 2, &std::cout);
+  // arrow::PrettyPrint(*next_array_.get(), 2, &std::cout);
   need_process_ = true;
   return true;
 }
 
-arrow::Status LazyReadIterator::Next(std::shared_ptr<arrow::RecordBatch>* out) {
+arrow::Status LazyReadIterator::Next(std::shared_ptr<ArrowArray>* out) {
   double res = 900000;
   builder_->Append(res);
   std::shared_ptr<arrow::Array> array;
   auto status = builder_->Finish(&array);
-  std::vector<std::shared_ptr<arrow::Field>> ret_types = {
-      arrow::field("res", arrow::float64())};
-  *out = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
+  // std::vector<std::shared_ptr<arrow::Field>> ret_types = {
+  //     arrow::field("res", arrow::float64())};
+  ArrowArray cArray;
+  GLUTEN_THROW_NOT_OK(arrow::ExportArray(*array, &cArray));
+  *out = std::make_shared<ArrowArray>(cArray);
   if (need_process_) {
     need_process_ = false;
   }

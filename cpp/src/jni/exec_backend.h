@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/c/abi.h>
 #include <arrow/record_batch.h>
 #include <arrow/util/iterator.h>
 
@@ -28,7 +29,8 @@
 
 namespace gluten {
 
-class RecordBatchResultIterator;
+using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
+class ArrowArrayResultIterator;
 
 template <typename T>
 class ResultIteratorBase {
@@ -44,9 +46,9 @@ class ResultIteratorBase {
 class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
  public:
   virtual ~ExecBackendBase() = default;
-  virtual std::shared_ptr<RecordBatchResultIterator> GetResultIterator() = 0;
-  virtual std::shared_ptr<RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) = 0;
+  virtual std::shared_ptr<ArrowArrayResultIterator> GetResultIterator() = 0;
+  virtual std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+      std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) = 0;
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
@@ -209,20 +211,20 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   }
 };
 
-class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> {
+class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
  public:
   /// \brief Iterator may be constructed from any type which has a member function
-  /// with signature arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next();
-  /// and will be wrapped in arrow::RecordBatchIterator.
+  /// with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
+  /// and will be wrapped in ArrowArrayIterator.
   /// For details, please see <arrow/util/iterator.h>
   /// This class is used as input/output iterator for ExecBackendBase. As output,
   /// it can hold the backend to tie their lifetimes, which can be used when the
   /// production of the iterator relies on the backend.
   template <typename T>
-  explicit RecordBatchResultIterator(std::shared_ptr<T> iter,
-                                     std::shared_ptr<ExecBackendBase> backend = nullptr)
+  explicit ArrowArrayResultIterator(std::shared_ptr<T> iter,
+                                    std::shared_ptr<ExecBackendBase> backend = nullptr)
       : raw_iter_(iter.get()),
-        iter_(std::make_unique<arrow::RecordBatchIterator>(Wrapper<T>(std::move(iter)))),
+        iter_(std::make_unique<ArrowArrayIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),
         backend_(std::move(backend)) {}
 
@@ -232,18 +234,16 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
     return next_ != nullptr;
   }
 
-  std::shared_ptr<arrow::RecordBatch> Next() override {
+  std::shared_ptr<ArrowArray> Next() override {
     CheckValid();
     GetNext();
     return std::move(next_);
   }
 
-  /// arrow::RecordBatchIterator doesn't support shared ownership. Once this method is
-  /// called, the caller should take it's ownership, and RecordBatchResultIterator
+  /// ArrowArrayIterator doesn't support shared ownership. Once this method is
+  /// called, the caller should take it's ownership, and ArrowArrayResultIterator
   /// will no longer have access to the underlying iterator.
-  std::shared_ptr<arrow::RecordBatchIterator> ToArrowRecordBatchIterator() {
-    return std::move(iter_);
-  }
+  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() { return std::move(iter_); }
 
   // For testing and benchmarking.
   void* GetRaw() { return raw_iter_; }
@@ -261,21 +261,21 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
    public:
     explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
 
-    arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() { return ptr_->Next(); }
+    arrow::Result<std::shared_ptr<ArrowArray>> Next() { return ptr_->Next(); }
 
    private:
     std::shared_ptr<T> ptr_;
   };
 
   void* raw_iter_;
-  std::unique_ptr<arrow::RecordBatchIterator> iter_;
-  std::shared_ptr<arrow::RecordBatch> next_;
+  std::unique_ptr<ArrowArrayIterator> iter_;
+  std::shared_ptr<ArrowArray> next_;
   std::shared_ptr<ExecBackendBase> backend_;
 
   inline void CheckValid() {
     if (iter_ == nullptr) {
       throw GlutenException(
-          "RecordBatchResultIterator: the underlying iterator has expired.");
+          "ArrowArrayResultIterator: the underlying iterator has expired.");
     }
   }
 

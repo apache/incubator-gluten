@@ -45,6 +45,12 @@ object ArrowAbiUtil {
     toSparkColumnarBatch(vsr)
   }
 
+  def importToSparkColumnarBatch(allocator: BufferAllocator,
+                                 schema: Schema, cArray: ArrowArray): ColumnarBatch = {
+    val vsr = toVectorSchemaRoot(allocator, schema, cArray)
+    toSparkColumnarBatch(vsr)
+  }
+
   private def importToVectorSchemaRoot(allocator: BufferAllocator,
     cSchema: ArrowSchema, cArray: ArrowArray): VectorSchemaRoot = {
     val dictProvider = new CDataDictionaryProvider
@@ -126,6 +132,21 @@ object ArrowAbiUtil {
     val rowCount = if (fieldVectors.isEmpty) 0
     else fieldVectors.get(0).getValueCount
     new VectorSchemaRoot(schema, fieldVectors, rowCount)
+  }
+
+  private def toVectorSchemaRoot(allocator: BufferAllocator, schema: Schema, array: ArrowArray)
+  : VectorSchemaRoot = {
+    val provider = new CDataDictionaryProvider
+
+    val vsr = VectorSchemaRoot.create(schema, allocator);
+    try {
+      if (array != null) {
+        Data.importIntoVectorSchemaRoot(allocator, array, vsr, provider)
+      }
+      vsr
+    } finally {
+      provider.close()
+    }
   }
 
   // will release input record batch

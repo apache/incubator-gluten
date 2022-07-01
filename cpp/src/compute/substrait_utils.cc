@@ -17,6 +17,8 @@
 
 #include "substrait_utils.h"
 
+#include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
 #include <arrow/record_batch.h>
 
 #include "arrow/array/builder_base.h"
@@ -24,6 +26,7 @@
 #include "arrow/util/checked_cast.h"
 #include "kernels_ext.h"
 #include "protobuf_utils.h"
+#include "utils/exception.h"
 
 namespace gluten {
 namespace compute {
@@ -32,15 +35,15 @@ SubstraitParser::SubstraitParser() {
   std::cout << "construct SubstraitParser" << std::endl;
 }
 
-std::shared_ptr<RecordBatchResultIterator> SubstraitParser::GetResultIterator() {
+std::shared_ptr<ArrowArrayResultIterator> SubstraitParser::GetResultIterator() {
   auto res_iter = std::make_shared<FirstStageResultIterator>();
-  return std::make_shared<RecordBatchResultIterator>(std::move(res_iter));
+  return std::make_shared<ArrowArrayResultIterator>(std::move(res_iter));
 }
 
-std::shared_ptr<RecordBatchResultIterator> SubstraitParser::GetResultIterator(
-    std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) {
+std::shared_ptr<ArrowArrayResultIterator> SubstraitParser::GetResultIterator(
+    std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) {
   auto res_iter = std::make_shared<MiddleStageResultIterator>(std::move(inputs));
-  return std::make_shared<RecordBatchResultIterator>(std::move(res_iter));
+  return std::make_shared<ArrowArrayResultIterator>(std::move(res_iter));
 }
 
 void SubstraitParser::ParseLiteral(const substrait::Expression::Literal& slit) {
@@ -305,7 +308,7 @@ class SubstraitParser::FirstStageResultIterator {
         arrow::internal::checked_cast<arrow::DoubleBuilder*>(array_builder.release()));
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+  arrow::Result<std::shared_ptr<ArrowArray>> Next() {
     if (!has_next_) {
       return nullptr;
     }
@@ -313,37 +316,39 @@ class SubstraitParser::FirstStageResultIterator {
     builder_->Append(res);
     std::shared_ptr<arrow::Array> array;
     auto status = builder_->Finish(&array);
-    res_arrays.push_back(array);
-    std::vector<std::shared_ptr<arrow::Field>> ret_types = {
-        arrow::field("res", arrow::float64())};
+    // res_arrays.push_back(array);
+    // std::vector<std::shared_ptr<arrow::Field>> ret_types = {
+    //     arrow::field("res", arrow::float64())};
     has_next_ = false;
-    return arrow::RecordBatch::Make(arrow::schema(ret_types), 1, res_arrays);
+    ArrowArray arrow_array;
+    GLUTEN_THROW_NOT_OK(arrow::ExportArray(*array, &arrow_array));
+    return std::make_shared<ArrowArray>(arrow_array);
   }
 
  private:
   arrow::MemoryPool* pool_ = arrow::default_memory_pool();
   std::unique_ptr<arrow::DoubleBuilder> builder_;
   bool has_next_ = true;
-  std::vector<std::shared_ptr<arrow::Array>> res_arrays;
+  // std::vector<std::shared_ptr<arrow::Array>> res_arrays;
 };
 
 class SubstraitParser::MiddleStageResultIterator {
  public:
   MiddleStageResultIterator(
-      std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) {
+      std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) {
     // TODO: the iter index should be acquired from Substrait Plan.
     int iter_idx = 0;
     lazy_iter_ = std::make_shared<LazyReadIterator>(
-        std::move(inputs[iter_idx]->ToArrowRecordBatchIterator()));
+        std::move(inputs[iter_idx]->ToArrowArrayIterator()));
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+  arrow::Result<std::shared_ptr<ArrowArray>> Next() {
     if (!lazy_iter_->HasNext()) {
       return nullptr;
     }
-    std::shared_ptr<arrow::RecordBatch> rb;
-    lazy_iter_->Next(&rb);
-    return rb;
+    std::shared_ptr<ArrowArray> array;
+    lazy_iter_->Next(&array);
+    return array;
   }
 
  private:

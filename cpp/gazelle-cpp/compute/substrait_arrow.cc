@@ -45,12 +45,12 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIterator() {
+std::shared_ptr<gluten::ArrowArrayResultIterator> ArrowExecBackend::GetResultIterator() {
   return GetResultIterator({});
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIterator(
-    std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
+std::shared_ptr<gluten::ArrowArrayResultIterator> ArrowExecBackend::GetResultIterator(
+    std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
     throw gluten::GlutenException("Expected 1 decl, but got " +
@@ -123,8 +123,8 @@ std::shared_ptr<gluten::RecordBatchResultIterator> ArrowExecBackend::GetResultIt
   std::shared_ptr<arrow::RecordBatchReader> sink_reader =
       arrow::compute::MakeGeneratorReader(std::move(output_schema), std::move(sink_gen),
                                           arrow::default_memory_pool());
-  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(sink_reader),
-                                                             shared_from_this());
+  return std::make_shared<gluten::ArrowArrayResultIterator>(std::move(sink_reader),
+                                                            shared_from_this());
 }
 
 void ArrowExecBackend::PushDownFilter() {

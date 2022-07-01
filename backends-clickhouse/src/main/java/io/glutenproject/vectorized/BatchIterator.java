@@ -17,11 +17,13 @@
 
 package io.glutenproject.vectorized;
 
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
+import java.util.List;
 
 public class BatchIterator extends GeneralOutIterator {
   private native boolean nativeHasNext(long nativeHandle);
@@ -30,8 +32,8 @@ public class BatchIterator extends GeneralOutIterator {
   private native void nativeClose(long nativeHandle);
   private native MetricsObject nativeFetchMetrics(long nativeHandle);
 
-  public BatchIterator(long instance_id) throws IOException {
-    super(instance_id);
+  public BatchIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
+    super(instance_id, outAttrs);
   }
 
   @Override

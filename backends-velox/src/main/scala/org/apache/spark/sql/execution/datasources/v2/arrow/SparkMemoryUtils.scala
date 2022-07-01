@@ -158,6 +158,7 @@ object SparkMemoryUtils extends Logging {
       logWarning(s"Detected leaked allocator, size: $leakBytes, " +
         s"process accumulated leaked size: $accumulated...")
       if (DEBUG) {
+        logDebug(s"Leaked allocator stack ${allocator.toVerboseString}")
         leakedAllocators.add(allocator)
       }
     }

@@ -103,7 +103,8 @@ class IteratorApiImplSuite extends IIteratorApi {
    */
   override def genBatchIterator(wsPlan: Array[Byte],
                                 iterList: Seq[GeneralInIterator],
-                                jniWrapper: ExpressionEvaluatorJniWrapper
+                                jniWrapper: ExpressionEvaluatorJniWrapper,
+                                outAttrs: Seq[Attribute]
                                ): GeneralOutIterator = null
 
   /**

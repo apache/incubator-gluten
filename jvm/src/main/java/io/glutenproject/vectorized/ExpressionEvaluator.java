@@ -22,7 +22,9 @@ import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.row.RowIterator;
 import io.glutenproject.substrait.plan.PlanNode;
 
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -86,7 +88,7 @@ public class ExpressionEvaluator implements AutoCloseable {
   // Used by WholeStageTransfrom to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-          byte[] wsPlan, ArrayList<GeneralInIterator> iterList)
+          byte[] wsPlan, ArrayList<GeneralInIterator> iterList, List<Attribute> outAttrs)
           throws RuntimeException, IOException {
     /* long poolId = 0;
     if (!GlutenConfig.getConf().isClickHouseBackend()) {
@@ -99,15 +101,16 @@ public class ExpressionEvaluator implements AutoCloseable {
     return BackendsApiManager.getIteratorApiInstance()
         .genBatchIterator(wsPlan,
             JavaConverters.asScalaIteratorConverter(iterList.iterator()).asScala().toSeq(),
-            jniWrapper);
+            jniWrapper,
+            JavaConverters.asScalaIteratorConverter(outAttrs.iterator()).asScala().toSeq());
   }
 
   // Used by WholeStageTransfrom to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-          PlanNode wsPlan, ArrayList<GeneralInIterator> iterList)
+          PlanNode wsPlan, ArrayList<GeneralInIterator> iterList, List<Attribute> outAttrs)
           throws RuntimeException, IOException {
-    return createKernelWithBatchIterator(getPlanBytesBuf(wsPlan), iterList);
+    return createKernelWithBatchIterator(getPlanBytesBuf(wsPlan), iterList, outAttrs);
   }
 
   // Used by WholeStageTransfrom to create the native computing pipeline and

@@ -48,9 +48,9 @@ class SubstraitParser : public ExecBackendBase {
   void ParseRelRoot(const ::substrait::RelRoot& sroot);
   void ParseRel(const ::substrait::Rel& srel);
   void ParsePlan(const ::substrait::Plan& splan);
-  std::shared_ptr<RecordBatchResultIterator> GetResultIterator() override;
-  std::shared_ptr<RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) override;
+  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator() override;
+  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+      std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) override;
 
  private:
   std::string FindFunction(uint64_t id);
