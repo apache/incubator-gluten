@@ -17,17 +17,21 @@
 
 package io.glutenproject.vectorized
 
+import java.util.concurrent.TimeUnit
+
 import org.apache.spark.TaskContext
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
  * properly.
  */
-class CloseableCHColumnBatchIterator(itr: Iterator[ColumnarBatch]) extends
-  Iterator[ColumnarBatch] with Logging {
+class CloseableCHColumnBatchIterator(itr: Iterator[ColumnarBatch],
+                                     pipelineTime: Option[SQLMetric] = None
+                                    ) extends Iterator[ColumnarBatch] with Logging {
   var cb: ColumnarBatch = null
 
   private def closeCurrentBatch(): Unit = {
@@ -47,12 +51,17 @@ class CloseableCHColumnBatchIterator(itr: Iterator[ColumnarBatch]) extends
   }
 
   override def hasNext: Boolean = {
-    itr.hasNext
+    val beforeTime = System.nanoTime()
+    val res = itr.hasNext
+    pipelineTime.map(t => t += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeTime))
+    res
   }
 
   override def next(): ColumnarBatch = {
+    val beforeTime = System.nanoTime()
     closeCurrentBatch()
     cb = itr.next()
+    pipelineTime.map(t => t += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeTime))
     cb
   }
 }

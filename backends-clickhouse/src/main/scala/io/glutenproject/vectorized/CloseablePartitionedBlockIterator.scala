@@ -25,8 +25,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
  * properly.
  */
-class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatch]]) extends
-  Iterator[Product2[Int, ColumnarBatch]] with Logging {
+class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatch]]
+                                       ) extends Iterator[Product2[Int, ColumnarBatch]]
+  with Logging {
   var cb: ColumnarBatch = null
 
   private def closeCurrentBatch(): Unit = {
