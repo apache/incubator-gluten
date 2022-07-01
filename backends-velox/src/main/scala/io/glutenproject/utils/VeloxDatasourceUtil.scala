@@ -36,7 +36,7 @@ object VeloxDatasourceUtil {
     val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
     val instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(file.getPath.toString, -1)
     val buffer = dwrfDatasourceJniWrapper.inspectSchema(instanceId)
-    val schema = SchemaUtility.deserialize(buffer, SparkMemoryUtils.contextAllocator())
+    val schema = SchemaUtility.deserialize(buffer, SparkMemoryUtils.contextArrowAllocator())
     try {
       Option(SparkSchemaUtils.fromArrowSchema(schema))
     } finally {

@@ -17,25 +17,23 @@
 
 package io.glutenproject.execution
 
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
-
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-import org.slf4j.LoggerFactory
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
   private val LOG = LoggerFactory.getLogger(classOf[VeloxNativeColumnarToRowExec])
-
   override def nodeName: String = "VeloxNativeColumnarToRowExec"
 
   override def supportCodegen: Boolean = false
@@ -88,18 +86,18 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
           val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
           batch.rowIterator().asScala.map(toUnsafe)
         } else {
-          val allocator = SparkMemoryUtils.contextAllocator()
+          val allocator = SparkMemoryUtils.contextArrowAllocator()
           val cArray = ArrowArray.allocateNew(allocator)
           val cSchema = ArrowSchema.allocateNew(allocator)
-          var info: NativeColumnarToRowInfo = null
+          var info : NativeColumnarToRowInfo = null
           try {
             ArrowAbiUtil.exportFromSparkColumnarBatch(
-              SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray)
+              SparkMemoryUtils.contextArrowAllocator(), batch, cSchema, cArray)
             val beforeConvert = System.nanoTime()
 
             info = jniWrapper.nativeConvertColumnarToRow(
               cSchema.memoryAddress(), cArray.memoryAddress(),
-              SparkMemoryUtils.contextMemoryPool().getNativeInstanceId, wsChild)
+              SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId, wsChild)
 
             convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
           } finally {
@@ -111,7 +109,6 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
             var rowId = 0
             val row = new UnsafeRow(batch.numCols())
             var closed = false
-
             override def hasNext: Boolean = {
               val result = rowId < batch.numRows()
               if (!result && !closed) {
@@ -135,13 +132,13 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
     }
   }
 
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[VeloxNativeColumnarToRowExec]
+
   override def equals(other: Any): Boolean = other match {
     case that: VeloxNativeColumnarToRowExec =>
       (that canEqual this) && super.equals(that)
     case _ => false
   }
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[VeloxNativeColumnarToRowExec]
 
   override def hashCode(): Int = super.hashCode()
 }

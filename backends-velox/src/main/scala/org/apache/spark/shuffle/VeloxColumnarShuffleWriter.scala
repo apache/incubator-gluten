@@ -18,20 +18,18 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-
+import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.spark.sql.execution.datasources.v2.arrow.Spiller
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
-import org.apache.arrow.c.ArrowArray
+import io.glutenproject.memory.Spiller
+import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.pojo.Schema
-
-import org.apache.spark.SparkEnv
+import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
@@ -52,11 +50,22 @@ class VeloxColumnarShuffleWriter[K, V](
   private val conf = SparkEnv.get.conf
 
   private val blockManager = SparkEnv.get.blockManager
+
+  // Are we in the process of stopping? Because map tasks can call stop() with success = true
+  // and then call stop() with success = false if they get an exception, we want to make sure
+  // we don't try deleting files, etc twice.
+  private var stopping = false
+
+  private var mapStatus: MapStatus = _
+
   private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
+
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum;
+
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
+
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
   private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
@@ -66,14 +75,13 @@ class VeloxColumnarShuffleWriter[K, V](
   }
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
+
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
+
   private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
+
   private val jniWrapper = new ShuffleSplitterJniWrapper
-  // Are we in the process of stopping? Because map tasks can call stop() with success = true
-  // and then call stop() with success = false if they get an exception, we want to make sure
-  // we don't try deleting files, etc twice.
-  private var stopping = false
-  private var mapStatus: MapStatus = _
+
   private var nativeSplitter: Long = 0
 
   private var splitResult: SplitResult = _
@@ -85,13 +93,8 @@ class VeloxColumnarShuffleWriter[K, V](
   private var firstRecordBatch: Boolean = true
 
   @throws[IOException]
-  override def write(records: Iterator[Product2[K, V]]): Unit = {
-    internalWrite(records)
-  }
-
-  @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
-    val splitterJniWrapper: ShuffleSplitterJniWrapper =
+    val splitterJniWrapper : ShuffleSplitterJniWrapper =
       jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper]
 
     if (!records.hasNext) {
@@ -113,7 +116,7 @@ class VeloxColumnarShuffleWriter[K, V](
         blockManager.subDirsPerLocalDir,
         localDirs,
         preferSpill,
-        SparkMemoryUtils.createSpillableMemoryPool(
+        SparkMemoryUtils.createSpillableNativeAllocator(
           new Spiller() {
             override def spill(size: Long, trigger: MemoryConsumer): Long = {
               if (nativeSplitter == 0) {
@@ -135,7 +138,7 @@ class VeloxColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val startTimeForPrepare = System.nanoTime()
-        val allocator = SparkMemoryUtils.contextAllocator()
+        val allocator = SparkMemoryUtils.contextArrowAllocator()
         val cArray = ArrowArray.allocateNew(allocator)
         // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
         // RecordBatch to ArrowArray without Schema, may optimize later
@@ -225,6 +228,15 @@ class VeloxColumnarShuffleWriter[K, V](
     mapStatus = MapStatus(blockManager.shuffleServerId, unionPartitionLengths.toArray, mapId)
   }
 
+  @throws[IOException]
+  override def write(records: Iterator[Product2[K, V]]): Unit = {
+    internalWrite(records)
+  }
+
+  def closeSplitter(): Unit = {
+    jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper].close(nativeSplitter)
+  }
+
   override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
@@ -244,11 +256,7 @@ class VeloxColumnarShuffleWriter[K, V](
     }
   }
 
-  def closeSplitter(): Unit = {
-    jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper].close(nativeSplitter)
-  }
-
-  // VisibleForTesting
+  @VisibleForTesting
   def getPartitionLengths: Array[Long] = partitionLengths
 
 }

@@ -55,8 +55,8 @@ public class ShuffleSplitterJniWrapper {
       boolean preferSpill,
       long memoryPoolId,
       boolean writeSchema) {
-    try (ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())) {
-      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(),
+    try(ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator())) {
+      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator(),
           ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()),
           schema);
       return nativeMake(
@@ -96,17 +96,17 @@ public class ShuffleSplitterJniWrapper {
       boolean writeSchema);
 
   /**
+   *
    * Spill partition data to disk.
    *
    * @param splitterId splitter instance id
    * @param size expected size to spill (in bytes)
    * @param callBySelf whether the caller is the shuffle splitter itself, true
-   * when running out of off-heap memory due to allocations from
-   * the evaluator itself
+   *                   when running out of off-heap memory due to allocations from
+   *                   the evaluator itself
    * @return actual spilled size
    */
-  public native long nativeSpill(long splitterId, long size, boolean callBySelf)
-      throws RuntimeException;
+  public native long nativeSpill(long splitterId, long size, boolean callBySelf) throws RuntimeException;
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
@@ -117,7 +117,7 @@ public class ShuffleSplitterJniWrapper {
    * @param numRows Rows per batch
    * @param cArray Addresses of ArrowArray
    * @param firstRecordBatch whether this record batch is the first
-   * record batch in the first partition.
+   *                         record batch in the first partition.
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(

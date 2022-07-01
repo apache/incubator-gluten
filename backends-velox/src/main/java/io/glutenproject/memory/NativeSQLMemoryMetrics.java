@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
+package io.glutenproject.memory;
 
 import java.util.concurrent.atomic.AtomicLong;
 

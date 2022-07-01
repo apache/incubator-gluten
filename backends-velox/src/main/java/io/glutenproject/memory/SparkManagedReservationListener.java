@@ -15,21 +15,18 @@
  * limitations under the License.
  */
 
-package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
-
-import org.apache.arrow.dataset.jni.ReservationListener;
+package io.glutenproject.memory;
 
 /**
  * Reserve Spark managed memory.
  */
 public class SparkManagedReservationListener implements ReservationListener {
 
-  private final NativeSQLMemoryMetrics metrics;
   private NativeSQLMemoryConsumer consumer;
+  private NativeSQLMemoryMetrics metrics;
   private volatile boolean open = true;
 
-  public SparkManagedReservationListener(NativeSQLMemoryConsumer consumer,
-                                         NativeSQLMemoryMetrics metrics) {
+  public SparkManagedReservationListener(NativeSQLMemoryConsumer consumer, NativeSQLMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }
@@ -56,6 +53,7 @@ public class SparkManagedReservationListener implements ReservationListener {
     }
   }
 
+  @Override
   public void inactivate() {
     synchronized (this) {
       consumer = null; // make it gc reachable

@@ -15,17 +15,24 @@
  * limitations under the License.
  */
 
-package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
+package io.glutenproject.memory;
 
-import org.apache.spark.memory.MemoryConsumer;
-
-public interface Spiller {
-  Spiller NO_OP = new Spiller() {
+public interface ReservationListener {
+  ReservationListener NOOP = new ReservationListener() {
     @Override
-    public long spill(long size, MemoryConsumer trigger) {
-      return 0L;
+    public void reserve(long size) {
+    }
+
+    @Override
+    public void unreserve(long size) {
+    }
+
+    @Override
+    public void inactivate() {
     }
   };
 
-  long spill(long size, MemoryConsumer trigger);
+  void reserve(long size);
+  void unreserve(long size);
+  void inactivate();
 }

@@ -70,7 +70,7 @@ private class ArrowColumnarBatchSerializerInstance(
         SparkEnv.get.conf.getBoolean("spark.shuffle.compress", true)
 
       private val allocator: BufferAllocator = SparkMemoryUtils
-        .contextAllocatorUnmanaged()
+        .contextArrowAllocatorUnmanaged()
         .newChildAllocator("ArrowColumnarBatch deserialize", 0, Long.MaxValue)
 
       private var reader: ArrowStreamReader = _
@@ -191,9 +191,9 @@ private class ArrowColumnarBatchSerializerInstance(
       private def decompressVectors(): Unit = {
         if (jniWrapper == null) {
           jniWrapper = new ShuffleDecompressionJniWrapper
-          val out = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())
+          val out = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator())
           try {
-            ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(), root.getSchema, out)
+            ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator(), root.getSchema, out)
             schemaHolderId = jniWrapper.make(out.memoryAddress())
           } finally {
             out.close()

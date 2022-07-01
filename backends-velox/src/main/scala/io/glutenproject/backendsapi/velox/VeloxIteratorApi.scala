@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright (2021) The Delta Lake Project Authors.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +16,7 @@
 
 package io.glutenproject.backendsapi.velox
 
+import java.util
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
@@ -29,7 +29,7 @@ import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.vectorized._
-import java.util
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
@@ -51,8 +51,9 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    *
    * @return
    */
-  override def genNativeFilePartition(p: InputPartition, wsCxt: WholestageTransformContext)
-  : BaseNativeFilePartition = {
+  override def genNativeFilePartition(
+                                       p: InputPartition,
+                                       wsCxt: WholestageTransformContext): BaseNativeFilePartition = {
     p match {
       case FilePartition(index, files) =>
         val paths = new java.util.ArrayList[String]()
@@ -187,8 +188,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @param iter
    * @return
    */
-  override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch])
-  : Iterator[ColumnarBatch] = {
+  override def genCloseableColumnBatchIterator(
+                                                iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     new CloseableColumnBatchIterator(iter)
   }
 
@@ -204,12 +205,11 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                       context: TaskContext,
                                       pipelineTime: SQLMetric,
                                       updateMetrics: (Long, Long) => Unit,
-                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
-  : Iterator[ColumnarBatch] = {
+                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     import org.apache.spark.sql.util.OASPackageBridge._
-    var inputSchema: Schema = null
-    var outputSchema: Schema = null
-    var resIter: GeneralOutIterator = null
+    var inputSchema : Schema = null
+    var outputSchema : Schema = null
+    var resIter : GeneralOutIterator = null
     if (loadNative) {
       val columnarNativeIterators =
         new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
@@ -262,7 +262,6 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
   }
 
   // scalastyle:off argcount
-
   /**
    * Generate Iterator[ColumnarBatch] for final stage.
    *
@@ -281,8 +280,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                       updateMetrics: (Long, Long) => Unit,
                                       buildRelationBatchHolder: Seq[ColumnarBatch],
                                       dependentKernels: Seq[ExpressionEvaluator],
-                                      dependentKernelIterators: Seq[GeneralOutIterator])
-  : Iterator[ColumnarBatch] = {
+                                      dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
@@ -352,10 +350,10 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                  iterList: Seq[GeneralInIterator],
                                  jniWrapper: ExpressionEvaluatorJniWrapper,
                                  outAttrs: Seq[Attribute]): GeneralOutIterator = {
-    val memoryPool = SparkMemoryUtils.contextMemoryPool()
-    val poolId = memoryPool.getNativeInstanceId
+    val alloc = SparkMemoryUtils.contextNativeAllocator()
+    val allocId = alloc.getNativeInstanceId
     val batchIteratorInstance =
-      jniWrapper.nativeCreateKernelWithIterator(poolId, wsPlan, iterList.toArray)
+      jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)
   }
 

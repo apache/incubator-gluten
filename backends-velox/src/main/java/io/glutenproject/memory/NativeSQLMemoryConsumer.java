@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
+package io.glutenproject.memory;
 
-import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -46,7 +45,7 @@ public class NativeSQLMemoryConsumer extends MemoryConsumer {
     long granted = acquireMemory(size);
     if (granted < size) {
       freeMemory(granted);
-      throw new OutOfMemoryException("Not enough spark off-heap execution memory. " +
+      throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
           "Acquired: " + size + ", granted: " + granted + ". " +
           "Try tweaking config option spark.memory.offHeap.size to " +
           "get larger space to run this application. ");

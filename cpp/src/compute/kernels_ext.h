@@ -25,6 +25,7 @@
 #include <arrow/util/checked_cast.h>
 #include <arrow/util/iterator.h>
 
+#include "memory/allocator.h"
 #include "utils/result_iterator.h"
 
 namespace gluten {
@@ -49,7 +50,7 @@ class LazyReadIterator {
   arrow::Status Next(std::shared_ptr<ArrowArray>* out);
 
  private:
-  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
+  arrow::MemoryPool* pool_ = gluten::memory::GetDefaultWrappedArrowMemoryPool();
   std::shared_ptr<ArrowArrayIterator> array_iter_;
   bool need_process_ = false;
   bool no_next_ = false;
