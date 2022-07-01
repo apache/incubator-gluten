@@ -16,6 +16,8 @@
 
 package io.glutenproject.backendsapi.clickhouse
 
+import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
@@ -23,7 +25,7 @@ import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
-import io.glutenproject.vectorized.{ExpressionEvaluatorJniWrapper, _}
+import io.glutenproject.vectorized._
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 
 import org.apache.spark.internal.Logging
@@ -154,6 +156,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      loadNative: Boolean,
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
+                                     pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
                                      : Iterator[ColumnarBatch] = {
@@ -182,13 +185,16 @@ class CHIteratorApi extends IIteratorApi with Logging {
         if (!hasNext) {
           throw new java.util.NoSuchElementException("End of stream")
         }
-        resIter.next()
+        val cb = resIter.next()
+        updateMetrics(1, cb.numRows())
+        cb
       }
     }
 
     // TODO: SPARK-25083 remove the type erasure hack in data source scan
     new InterruptibleIterator(context,
-      new CloseableCHColumnBatchIterator(iter.asInstanceOf[Iterator[ColumnarBatch]]))
+      new CloseableCHColumnBatchIterator(iter.asInstanceOf[Iterator[ColumnarBatch]],
+        Some(pipelineTime)))
   }
 
   /**
@@ -210,8 +216,6 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = {
-    var build_elapse: Long = 0
-    var eval_elapse: Long = 0
     GlutenConfig.getConf
     val transKernel = new ExpressionEvaluator()
     val columnarNativeIterator =
@@ -221,18 +225,18 @@ class CHIteratorApi extends IIteratorApi with Logging {
     // we need to complete dependency RDD's firstly
     val beforeBuild = System.nanoTime()
     val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator)
-    build_elapse += System.nanoTime() - beforeBuild
+    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = streamedSortPlan match {
       case t: TransformSupport =>
         new Iterator[ColumnarBatch] {
           override def hasNext: Boolean = {
-            val res = nativeIterator.hasNext
-            res
+            nativeIterator.hasNext
           }
 
           override def next(): ColumnarBatch = {
-            val beforeEval = System.nanoTime()
-            nativeIterator.next()
+            val cb = nativeIterator.next()
+            updateMetrics(1, cb.numRows())
+            cb
           }
         }
       case _ =>
@@ -243,7 +247,6 @@ class CHIteratorApi extends IIteratorApi with Logging {
 
     def close = {
       closed = true
-      pipelineTime += (eval_elapse + build_elapse) / 1000000
       buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
       dependentKernels.foreach(_.close)
       dependentKernelIterators.foreach(_.close)
@@ -254,7 +257,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
     TaskContext.get().addTaskCompletionListener[Unit] { _ =>
       close
     }
-    new CloseableCHColumnBatchIterator(resIter)
+    new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }
 
   /**

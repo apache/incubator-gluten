@@ -94,10 +94,10 @@ object DSV2BenchmarkTest {
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
-        .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-        .config("spark.io.compression.codec", "LZ4")
+        // .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+        // .config("spark.io.compression.codec", "LZ4")
         .config("spark.shuffle.compress", "true")
-        // .config("spark.io.compression.codec", "snappy")
+        .config("spark.io.compression.codec", "snappy")
         // .config("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)
         .config("spark.databricks.delta.snapshotPartitions", 1)
@@ -121,13 +121,13 @@ object DSV2BenchmarkTest {
         .config("spark.sql.exchange.reuse", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
         .config("spark.gluten.sql.columnar.coalesce.batches", "true")
-        .config("spark.gluten.sql.columnar.filescan", "true")
+        //.config("spark.gluten.sql.columnar.filescan", "true")
         //.config("spark.sql.optimizeNullAwareAntiJoin", "false")
         //.config("spark.sql.join.preferSortMergeJoin", "false")
         //.config("spark.sql.planChangeLog.level", "info")
         //.config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
-        .config("spark.sql.columnVector.offheap.enabled", "true")
-        .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
+        //.config("spark.sql.columnVector.offheap.enabled", "true")
+        //.config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
         .config("spark.shuffle.sort.bypassMergeThreshold", "2")
@@ -178,8 +178,8 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    // testTPCHOne(spark, executedCnt)
-    testTPCHAll(spark)
+    testTPCHOne(spark, executedCnt)
+    // testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -200,50 +200,30 @@ object DSV2BenchmarkTest {
       val startTime = System.nanoTime()
       val df = spark.sql(
         s"""
-           |SELECT
-           |    s_acctbal,
-           |    s_name,
+           |SELECT /*+ SHUFFLE_MERGE(ch_lineitem) */
            |    n_name,
-           |    p_partkey,
-           |    p_mfgr,
-           |    s_address,
-           |    s_phone,
-           |    s_comment
+           |    sum(l_extendedprice * (1 - l_discount)) AS revenue
            |FROM
-           |    ch_part,
+           |    ch_customer,
+           |    ch_orders,
+           |    ch_lineitem,
            |    ch_supplier,
-           |    ch_partsupp,
            |    ch_nation,
            |    ch_region
            |WHERE
-           |    p_partkey = ps_partkey
-           |    AND s_suppkey = ps_suppkey
-           |    AND p_size = 15
-           |    AND p_type LIKE '%BRASS'
+           |    c_custkey = o_custkey
+           |    AND l_orderkey = o_orderkey
+           |    AND l_suppkey = s_suppkey
+           |    AND c_nationkey = s_nationkey
            |    AND s_nationkey = n_nationkey
            |    AND n_regionkey = r_regionkey
-           |    AND r_name = 'EUROPE'
-           |    AND ps_supplycost = (
-           |        SELECT
-           |            min(ps_supplycost)
-           |        FROM
-           |            ch_partsupp,
-           |            ch_supplier,
-           |            ch_nation,
-           |            ch_region
-           |        WHERE
-           |            p_partkey = ps_partkey
-           |            AND s_suppkey = ps_suppkey
-           |            AND s_nationkey = n_nationkey
-           |            AND n_regionkey = r_regionkey
-           |            AND r_name = 'EUROPE')
+           |    AND r_name = 'ASIA'
+           |    AND o_orderdate >= date'1994-01-01'
+           |    AND o_orderdate < date'1994-01-01' + interval 1 year
+           |GROUP BY
+           |    n_name
            |ORDER BY
-           |    s_acctbal DESC,
-           |    n_name,
-           |    s_name,
-           |    p_partkey
-           |LIMIT 100;
-           |
+           |    revenue DESC;
            |""".stripMargin) //.show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()

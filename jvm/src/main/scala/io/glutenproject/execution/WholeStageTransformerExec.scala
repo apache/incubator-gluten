@@ -324,6 +324,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         substraitPlanPartition,
         wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, substraitPlanPartition.size),
+        pipelineTime,
         updateMetrics)
     } else {
       val resCtx = doWholestageTransform()
