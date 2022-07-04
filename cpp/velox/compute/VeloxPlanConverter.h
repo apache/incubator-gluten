@@ -74,6 +74,35 @@ class VeloxInitializer {
   void Init();
 };
 
+class WholeStageResIter {
+ public:
+  WholeStageResIter(memory::MemoryPool* pool,
+                    std::shared_ptr<const core::PlanNode> planNode)
+      : pool_(pool), planNode_(planNode) {}
+
+  virtual ~WholeStageResIter();
+
+  /// This method converts Velox RowVector into Arrow RecordBatch based on Velox's
+  /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
+  /// types, but is conducted in String conversion. The output batch will be the input of
+  /// Columnar Shuffle.
+  void toArrowBatch(const RowVectorPtr& rv, uint64_t numRows, const RowTypePtr& outTypes,
+                    std::shared_ptr<arrow::RecordBatch>* out);
+
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next();
+
+  exec::test::CursorParameters params_;
+  std::unique_ptr<exec::test::TaskCursor> cursor_;
+  std::function<void(exec::Task*)> addSplits_;
+
+ private:
+  memory::MemoryPool* pool_;
+  std::shared_ptr<const core::PlanNode> planNode_;
+  bool mayHaveNext_ = true;
+  // TODO: use the setted one.
+  uint64_t batchSize_ = 10000;
+};
+
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter : public gluten::ExecBackendBase {
  public:
@@ -130,8 +159,6 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::string nextPlanNodeId();
 
   /* Result Iterator */
-  class WholeStageResIter;
-
   class WholeStageResIterFirstStage;
 
   class WholeStageResIterMiddleStage;

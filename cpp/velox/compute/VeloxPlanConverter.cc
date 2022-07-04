@@ -309,97 +309,77 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
-class VeloxPlanConverter::WholeStageResIter {
- public:
-  WholeStageResIter(memory::MemoryPool* pool,
-                    std::shared_ptr<const core::PlanNode> planNode)
-      : pool_(pool), planNode_(planNode) {}
-
-  virtual ~WholeStageResIter() {
-    auto task = cursor_->task();
-    if (task == nullptr) {
-      return;
-    }
-    if (mayHaveNext_) {
-      task->requestCancel();
-    }
-    auto* executor = task->queryCtx()->executor();
-    auto* threadPool = dynamic_cast<folly::ThreadPoolExecutor*>(executor);
-    if (threadPool == nullptr) {
-      return;
-    }
-    folly::ThreadPoolExecutor::PoolStats stats = threadPool->getPoolStats();
-#ifdef DEBUG
-    int64_t threadId = GetJavaThreadId();
-    std::cout << "Thread stats: "
-              << " threadId: " << threadId << " threadCount: " << stats.threadCount
-              << " idleThreadCount: " << stats.idleThreadCount
-              << " activeThreadCount: " << stats.activeThreadCount
-              << " pendingTaskCount: " << stats.pendingTaskCount
-              << " totalTaskCount: " << stats.totalTaskCount << std::endl;
-#endif
-    if (stats.activeThreadCount != 0 || stats.pendingTaskCount != 0) {
-#ifdef DEBUG
-      std::cout << "Unfinished thread count is not zero. Joining...." << std::endl;
-#endif
-      threadPool->join();
-#ifdef DEBUG
-      std::cout << "Velox thread pool is now idle."
-                << " threadId: " << threadId << std::endl;
-#endif
-    }
+WholeStageResIter::~WholeStageResIter() {
+  auto task = cursor_->task();
+  if (task == nullptr) {
+    return;
   }
-  /// This method converts Velox RowVector into Arrow RecordBatch based on Velox's
-  /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
-  /// types, but is conducted in String conversion. The output batch will be the input of
-  /// Columnar Shuffle.
-  void toArrowBatch(const RowVectorPtr& rv, uint64_t numRows, const RowTypePtr& outTypes,
-                    std::shared_ptr<arrow::RecordBatch>* out) {
-    ArrowArray cArray{};
-    ArrowSchema cSchema{};
-    exportToArrow(rv, cArray, pool_);
-    exportToArrow(outTypes, cSchema);
-    arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
-        arrow::ImportRecordBatch(&cArray, &cSchema);
-
-    if (!batch.status().ok()) {
-      throw std::runtime_error("Failed to import to Arrow record batch");
-    }
-    *out = batch.ValueOrDie();
+  if (mayHaveNext_) {
+    task->requestCancel();
   }
+  auto* executor = task->queryCtx()->executor();
+  auto* threadPool = dynamic_cast<folly::ThreadPoolExecutor*>(executor);
+  if (threadPool == nullptr) {
+    return;
+  }
+  folly::ThreadPoolExecutor::PoolStats stats = threadPool->getPoolStats();
+#ifdef DEBUG
+  int64_t threadId = GetJavaThreadId();
+  std::cout << "Thread stats: "
+            << " threadId: " << threadId << " threadCount: " << stats.threadCount
+            << " idleThreadCount: " << stats.idleThreadCount
+            << " activeThreadCount: " << stats.activeThreadCount
+            << " pendingTaskCount: " << stats.pendingTaskCount
+            << " totalTaskCount: " << stats.totalTaskCount << std::endl;
+#endif
+  if (stats.activeThreadCount != 0 || stats.pendingTaskCount != 0) {
+#ifdef DEBUG
+    std::cout << "Unfinished thread count is not zero. Joining...." << std::endl;
+#endif
+    threadPool->join();
+#ifdef DEBUG
+    std::cout << "Velox thread pool is now idle."
+              << " threadId: " << threadId << std::endl;
+#endif
+  }
+}
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
-    std::shared_ptr<arrow::RecordBatch> out = nullptr;
-    if (!mayHaveNext_) {
-      return out;
-    }
-    addSplits_(cursor_->task().get());
-    if (cursor_->moveNext()) {
-      RowVectorPtr result = cursor_->current();
-      uint64_t numRows = result->size();
-      if (numRows == 0) {
-        return out;
-      }
-      auto outTypes = planNode_->outputType();
-      toArrowBatch(result, numRows, outTypes, &out);
-      // arrow::PrettyPrint(*out, 2, &std::cout);
-      return out;
-    }
-    mayHaveNext_ = false;
+void WholeStageResIter::toArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
+                                     const RowTypePtr& outTypes,
+                                     std::shared_ptr<arrow::RecordBatch>* out) {
+  ArrowArray cArray{};
+  ArrowSchema cSchema{};
+  exportToArrow(rv, cArray, pool_);
+  exportToArrow(outTypes, cSchema);
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
+      arrow::ImportRecordBatch(&cArray, &cSchema);
+
+  if (!batch.status().ok()) {
+    throw std::runtime_error("Failed to import to Arrow record batch");
+  }
+  *out = batch.ValueOrDie();
+}
+
+arrow::Result<std::shared_ptr<arrow::RecordBatch>> WholeStageResIter::Next() {
+  std::shared_ptr<arrow::RecordBatch> out = nullptr;
+  if (!mayHaveNext_) {
     return out;
   }
-
-  test::CursorParameters params_;
-  std::unique_ptr<test::TaskCursor> cursor_;
-  std::function<void(exec::Task*)> addSplits_;
-
- private:
-  memory::MemoryPool* pool_;
-  std::shared_ptr<const core::PlanNode> planNode_;
-  bool mayHaveNext_ = true;
-  // TODO: use the setted one.
-  uint64_t batchSize_ = 10000;
-};
+  addSplits_(cursor_->task().get());
+  if (cursor_->moveNext()) {
+    RowVectorPtr result = cursor_->current();
+    uint64_t numRows = result->size();
+    if (numRows == 0) {
+      return out;
+    }
+    auto outTypes = planNode_->outputType();
+    toArrowBatch(result, numRows, outTypes, &out);
+    // arrow::PrettyPrint(*out, 2, &std::cout);
+    return out;
+  }
+  mayHaveNext_ = false;
+  return out;
+}
 
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
  public:

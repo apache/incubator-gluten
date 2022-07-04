@@ -52,7 +52,8 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
   template <typename T>
   explicit RecordBatchResultIterator(std::shared_ptr<T> iter,
                                      std::shared_ptr<ExecBackendBase> backend = nullptr)
-      : iter_(std::make_unique<arrow::RecordBatchIterator>(Wrapper<T>(std::move(iter)))),
+      : raw_iter_(iter.get()),
+        iter_(std::make_unique<arrow::RecordBatchIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),
         backend_(std::move(backend)) {}
 
@@ -75,6 +76,9 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
     return std::move(iter_);
   }
 
+  // For test.
+  void* GetRaw() { return raw_iter_; }
+
  private:
   template <typename T>
   class Wrapper {
@@ -87,6 +91,7 @@ class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> 
     std::shared_ptr<T> ptr_;
   };
 
+  void* raw_iter_;
   std::unique_ptr<arrow::RecordBatchIterator> iter_;
   std::shared_ptr<arrow::RecordBatch> next_;
   std::shared_ptr<ExecBackendBase> backend_;
