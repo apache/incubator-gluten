@@ -139,6 +139,11 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
       std::vector<core::PlanNodeId>& scanIds, std::vector<core::PlanNodeId>& streamIds);
 
+  std::shared_ptr<Metrics> GetMetrics(void* raw_iter) override {
+    auto iter = static_cast<WholeStageResIter*>(raw_iter);
+    return nullptr;
+  }
+
  private:
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
 

@@ -288,7 +288,8 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   }
   auto wholestageIter =
       std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos);
-  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter),
+                                                             shared_from_this());
 }
 
 std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
