@@ -27,51 +27,21 @@
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
 
-class WrapperIterator {
- public:
-  explicit WrapperIterator(arrow::RecordBatchVector batches)
-      : batches_(std::move(batches)), iter_(batches_.begin()) {}
-
-  std::shared_ptr<arrow::RecordBatch> Next() {
-    return iter_ == batches_.cend() ? nullptr : *iter_++;
-  }
-
- private:
-  arrow::RecordBatchVector batches_;
-  std::vector<std::shared_ptr<arrow::RecordBatch>>::const_iterator iter_;
-};
-
-std::shared_ptr<gluten::RecordBatchResultIterator> GetInputIterator(
-    const std::string& path) {
-  std::unique_ptr<parquet::arrow::FileReader> parquet_reader;
-  std::shared_ptr<arrow::RecordBatchReader> rb_reader;
-  parquet::ArrowReaderProperties properties = parquet::default_arrow_reader_properties();
-
-  GLUTEN_THROW_NOT_OK(parquet::arrow::FileReader::Make(
-      arrow::default_memory_pool(), parquet::ParquetFileReader::OpenFile(path),
-      properties, &parquet_reader));
-  GLUTEN_THROW_NOT_OK(parquet_reader->GetRecordBatchReader(
-      arrow::internal::Iota(parquet_reader->num_row_groups()), &rb_reader));
-  GLUTEN_ASSIGN_OR_THROW(auto collect_batches, rb_reader->ToRecordBatches());
-
-  return std::make_shared<gluten::RecordBatchResultIterator>(
-      std::make_shared<WrapperIterator>(std::move(collect_batches)));
-}
-
 auto BM_HashJoin = [](::benchmark::State& state, const std::string& l_input_file,
                       const std::string& r_input_file) {
   const auto& filePath = getExampleFilePath("hash_join.json");
-  auto maybePlan = readFromFile(filePath);
+  auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
     state.SkipWithError(maybePlan.status().message().c_str());
+    return;
   }
   auto plan = std::move(maybePlan).ValueOrDie();
 
   for (auto _ : state) {
     state.PauseTiming();
     auto backend = gluten::CreateBackend();
-    auto l_input_iter = GetInputIterator(l_input_file);
-    auto r_input_iter = GetInputIterator(r_input_file);
+    auto l_input_iter = getInputFromBatchVector(l_input_file);
+    auto r_input_iter = getInputFromBatchVector(r_input_file);
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
     auto result_iter =
@@ -99,11 +69,11 @@ auto BM_HashJoinExample = [](::benchmark::State& state) {
 
   spark.sql("""
     select cast(l_partkey as double), cast(l_extendedprice as double) from lineitem
-  """).write.format("parquet").save("file:///path/to/bm_lineitem")
+  """).repartition(1).write.format("parquet").save("file:///path/to/bm_lineitem")
 
   spark.sql("""
     select cast(p_partkey as double) from part
-  """).write.format("parquet").save("file:///path/to/bm_part")
+  """).repartition(1).write.format("parquet").save("file:///path/to/bm_part")
  */
 int main(int argc, char** argv) {
   std::unique_ptr<facebook::velox::memory::MemoryPool> veloxPool =

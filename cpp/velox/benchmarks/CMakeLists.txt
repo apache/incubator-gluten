@@ -15,21 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-add_library(arrow_deps INTERFACE)
 find_arrow_lib(${PARQUET_LIB_NAME})
 
-# Hash join benchmark
-add_executable(hash_join_benchmark HashJoinBenchmark.cc BenchmarkUtils.cc)
-set_target_properties(hash_join_benchmark PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+function(add_velox_benchmark BM_EXEC BM_FILE)
+  add_executable(${BM_EXEC} ${BM_FILE} BenchmarkUtils.cc)
+  set_target_properties(${BM_EXEC} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  target_include_directories(${BM_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(${BM_EXEC} gflags_shared Arrow::parquet velox benchmark::benchmark)
+endfunction()
 
-target_include_directories(hash_join_benchmark PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(hash_join_benchmark Arrow::parquet velox benchmark::benchmark)
+# Hash join benchmark
+add_velox_benchmark(hash_join_benchmark HashJoinBenchmark.cc)
 
 # Query benchmark
-add_executable(query_benchmark QueryBenchmark.cc BenchmarkUtils.cc)
-set_target_properties(query_benchmark PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_velox_benchmark(query_benchmark QueryBenchmark.cc)
 
-target_include_directories(query_benchmark PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(query_benchmark Arrow::parquet velox benchmark::benchmark)
+# Generic benchmark
+add_velox_benchmark(generic_benchmark GenericBenchmark.cc)

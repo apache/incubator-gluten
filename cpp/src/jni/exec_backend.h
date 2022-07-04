@@ -122,7 +122,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
       std::cout << maybe_plan_json.ValueOrDie() << std::endl;
     } else {
-      std::cout << "Error parsing substrait plan to json" << std::endl;
+      std::cout << "Error parsing substrait plan to json: "
+                << maybe_plan_json.status().ToString() << std::endl;
     }
 #endif
     return ParseProtobuf(data, size, &plan_);
