@@ -83,7 +83,7 @@ void DwrfDatasource::Init() {
 
 std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
   dwio::common::ReaderOptions reader_options;
-  auto format = dwio::common::FileFormat::ORC;  // DWRF
+  auto format = dwio::common::FileFormat::DWRF;  // DWRF
   reader_options.setFileFormat(format);
 
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
