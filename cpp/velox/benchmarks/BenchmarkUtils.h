@@ -92,7 +92,7 @@ class BatchStreamIterator : public BatchIteratorWrapper {
     CreateReader();
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() override {
     return recordBatchReader_->Next();
   }
 };
@@ -103,4 +103,4 @@ std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchVector(
 std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
     const std::string& path);
 
-void SetCPU(uint32_t cpuindex);
+void setCpu(uint32_t cpuindex);

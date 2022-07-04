@@ -17,11 +17,15 @@
 
 #include <arrow/util/range.h>
 #include <benchmark/benchmark.h>
+#include <gflags/gflags.h>
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
+
+DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
+DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 
 using GetInputFunc =
     std::shared_ptr<gluten::RecordBatchResultIterator>(const std::string&);
@@ -29,8 +33,9 @@ using GetInputFunc =
 auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJsonFile,
                      const std::vector<std::string>& input_files,
                      GetInputFunc* getInputIterator) {
-  SetCPU(2);
-
+  if (FLAGS_cpu != -1) {
+    setCpu(FLAGS_cpu);
+  }
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
@@ -61,6 +66,7 @@ int main(int argc, char** argv) {
       facebook::velox::memory::getDefaultScopedMemoryPool();
   InitVeloxBackend(veloxPool.get());
   ::benchmark::Initialize(&argc, argv);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   std::string substraitJsonFile = argv[1];
   std::vector<std::string> inputFiles;
@@ -68,11 +74,14 @@ int main(int argc, char** argv) {
     inputFiles.emplace_back(argv[i]);
   }
 
-  ::benchmark::RegisterBenchmark("InputFromBatchVector", BM_Generic, substraitJsonFile,
-                                 inputFiles, getInputFromBatchVector);
+#define GENERIC_BENCHMARK(NAME, FUNC)                                                   \
+  ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
+      ->Threads(FLAGS_threads)                                                          \
+      ->MeasureProcessCPUTime()                                                         \
+      ->UseRealTime();
 
-  ::benchmark::RegisterBenchmark("InputFromBatchStream", BM_Generic, substraitJsonFile,
-                                 inputFiles, getInputFromBatchStream);
+  GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);
+  GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();

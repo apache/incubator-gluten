@@ -119,7 +119,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
       std::make_shared<BatchStreamIterator>(path));
 }
 
-void SetCPU(uint32_t cpuindex) {
+void setCpu(uint32_t cpuindex) {
   cpu_set_t cs;
   CPU_ZERO(&cs);
   CPU_SET(cpuindex, &cs);
