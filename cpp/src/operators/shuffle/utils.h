@@ -140,6 +140,8 @@ static arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTy
       case arrow::StringType::type_id:
       case arrow::LargeBinaryType::type_id:
       case arrow::LargeStringType::type_id:
+      case arrow::StructType::type_id:
+      case arrow::MapType::type_id:
       case arrow::ListType::type_id:
       case arrow::LargeListType::type_id:
       case arrow::Decimal128Type::type_id:
