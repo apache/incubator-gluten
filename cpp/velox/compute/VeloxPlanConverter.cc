@@ -276,7 +276,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
     return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
   }
   auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos);
+      std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos, streamIds);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -294,7 +294,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
                 scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, scanIds, setScanInfos);
+      pool_, planNode, scanIds, setScanInfos, streamIds);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -366,10 +366,12 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
   WholeStageResIterFirstStage(
       memory::MemoryPool* pool, const std::shared_ptr<const core::PlanNode>& planNode,
       const std::vector<core::PlanNodeId>& scanNodeIds,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos)
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      const std::vector<core::PlanNodeId>& streamIds)
       : WholeStageResIter(pool, planNode),
         scanNodeIds_(scanNodeIds),
-        scanInfos_(scanInfos) {
+        scanInfos_(scanInfos),
+        streamIds_(streamIds) {
     // Generate splits for all scan nodes.
     splits_.reserve(scanInfos.size());
     if (scanNodeIds.size() != scanInfos.size()) {
@@ -420,6 +422,9 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
         }
         task->noMoreSplits(scanNodeIds_[idx]);
       }
+      for (const auto& streamId : streamIds_) {
+        task->noMoreSplits(streamId);
+      }
       noMoreSplits_ = true;
     };
   }
@@ -427,6 +432,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
  private:
   std::vector<core::PlanNodeId> scanNodeIds_;
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos_;
+  std::vector<core::PlanNodeId> streamIds_;
   std::vector<std::vector<exec::Split>> splits_;
   bool noMoreSplits_ = false;
 };
