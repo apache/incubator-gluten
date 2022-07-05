@@ -311,6 +311,12 @@ class VeloxPlanConverter::WholeStageResIter {
   /// Columnar Shuffle.
   void toArrowBatch(const RowVectorPtr& rv, uint64_t numRows, const RowTypePtr& outTypes,
                     std::shared_ptr<arrow::RecordBatch>* out) {
+
+    // Make sure to load lazy vector if not loaded already.
+    for (auto& child : rv->children()) {
+      child->loadedVector();
+    }
+
     ArrowArray cArray{};
     ArrowSchema cSchema{};
     exportToArrow(rv, cArray, pool_);
