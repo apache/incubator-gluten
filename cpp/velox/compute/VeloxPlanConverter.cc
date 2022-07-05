@@ -336,6 +336,9 @@ class VeloxPlanConverter::WholeStageResIter {
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
     addSplits_(task_.get());
+    if (task_->isFinished()) {
+      return nullptr;
+    }
     RowVectorPtr vector = task_->next();
     if (vector == nullptr) {
       return nullptr;
