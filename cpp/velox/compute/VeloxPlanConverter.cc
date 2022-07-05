@@ -317,9 +317,13 @@ class VeloxPlanConverter::WholeStageResIter {
       child->loadedVector();
     }
 
+    RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
+        BaseVector::create(rv->type(), rv->size(), pool_));
+    copy->copy(rv.get(), 0, 0, rv->size());
+
     ArrowArray cArray{};
     ArrowSchema cSchema{};
-    exportToArrow(rv, cArray, pool_);
+    exportToArrow(copy, cArray, pool_);
     exportToArrow(outTypes, cSchema);
     arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
         arrow::ImportRecordBatch(&cArray, &cSchema);
