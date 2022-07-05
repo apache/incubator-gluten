@@ -32,6 +32,10 @@
 #include "velox/functions/prestosql/aggregates/MinMaxAggregates.h"
 #include "velox/functions/sparksql/Register.h"
 
+DEFINE_int32(num_drivers, 1,
+             "Number of drivers(threads) in a pipeline, mainly for testing and "
+             "benchmarking.");
+
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;

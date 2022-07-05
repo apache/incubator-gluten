@@ -24,6 +24,7 @@
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
 
+DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 
@@ -56,7 +57,12 @@ auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJson
     auto resultIter = backend->GetResultIterator(std::move(inputIters));
 
     while (resultIter->HasNext()) {
-      std::cout << resultIter->Next()->ToString() << std::endl;
+      auto batch = resultIter->Next();
+      if (FLAGS_print_result) {
+        state.PauseTiming();
+        std::cout << batch->ToString() << std::endl;
+        state.ResumeTiming();
+      }
     }
 
     auto* rawIter = static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
