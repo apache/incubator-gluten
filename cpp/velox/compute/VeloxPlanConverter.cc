@@ -341,7 +341,7 @@ class VeloxPlanConverter::WholeStageResIter {
     return out;
   }
 
-  std::unique_ptr<exec::Task> task_;
+  std::shared_ptr<exec::Task> task_;
   std::function<void(exec::Task*)> addSplits_;
 
  private:
@@ -394,7 +394,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
     // Set task parameters.
     core::PlanFragment planFragment{planNode, core::ExecutionStrategy::kUngrouped, 1};
     std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
-    task_ = std::make_unique<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
+    task_ = std::make_shared<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
                                          std::move(planFragment), 0, std::move(queryCtx));
     if (!task_->supportsSingleThreadedExecution()) {
       throw std::runtime_error("Task doesn't support single thread execution: " +
@@ -429,7 +429,7 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
       : WholeStageResIter(pool, planNode), streamIds_(streamIds) {
     core::PlanFragment planFragment{planNode, core::ExecutionStrategy::kUngrouped, 1};
     std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
-    task_ = std::make_unique<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
+    task_ = std::make_shared<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
                                          std::move(planFragment), 0, std::move(queryCtx));
     if (!task_->supportsSingleThreadedExecution()) {
       throw std::runtime_error("Task doesn't support single thread execution: " +
