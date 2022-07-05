@@ -42,6 +42,9 @@ public class BlockNativeWriter {
     }
 
     public byte[] collectAsByteArray() {
+        if (instance == 0L) {
+            return new byte[0];
+        }
         byte[] result = new byte[nativeResultSize(instance)];
         nativeCollect(instance, result);
         nativeClose(instance);

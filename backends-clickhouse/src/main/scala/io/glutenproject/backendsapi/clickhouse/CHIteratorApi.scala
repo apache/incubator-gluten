@@ -144,7 +144,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
    */
   override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]
                                               ): Iterator[ColumnarBatch] = {
-    new CloseableCHColumnBatchIterator(iter)
+    if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
+    else new CloseableCHColumnBatchIterator(iter)
   }
 
   /**
@@ -164,7 +165,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
     if (loadNative) {
       val transKernel = new ExpressionEvaluator()
       val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ColumnarNativeIterator(iter.asJava)
+        new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters)
@@ -220,7 +221,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
     val transKernel = new ExpressionEvaluator()
     val columnarNativeIterator =
       new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ColumnarNativeIterator(iter.asJava)
+        new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
     val beforeBuild = System.nanoTime()

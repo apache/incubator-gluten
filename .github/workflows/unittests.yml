@@ -143,6 +143,43 @@ jobs:
             --backend-type=velox --fixed-width-as-double --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
 
+  ch-backend-test:
+    runs-on: libch-self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+          java-package: jdk
+          overwrite-settings: false
+      - run: sudo swapoff -a
+      - run: free
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y maven
+      - name: ccache cache files
+        uses: actions/cache@v2
+        with:
+          path: ~/.ccache
+          key: ${{ github.job }}-ccache
+          restore-keys: |
+            ${{ github.job }}-ccache
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Run ClickHouse Backend unit tests
+        run: |
+          ls -alt /usr/local/clickhouse/lib/libch.so
+      - name: Run Gluten + ClickHouse Backend unit tests
+        run: |
+          export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
+          mvn clean install -Pbackends-clickhouse -Dcheckstyle.skip
+
   formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest

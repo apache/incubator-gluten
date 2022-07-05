@@ -23,7 +23,6 @@ import io.glutenproject.execution._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
