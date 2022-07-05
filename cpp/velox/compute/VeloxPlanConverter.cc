@@ -47,19 +47,7 @@ const std::string kHiveConnectorId = "test-hive";
 std::atomic<int32_t> taskSerial;
 }  // namespace
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
-  int64_t jParentThreadId = GetJavaThreadId();
-  if (jParentThreadId == -1L) {
-    // In the case of unit testing
-    return core::QueryCtx::createForTest();
-  }
-  // Gluten's restriction of thread naming. See
-  // org.apache.spark.sql.execution.datasources.v2.arrow.SparkThreadUtils Note that the
-  // thread name should not exceed 15 character limitation
-  auto executor = std::make_shared<folly::CPUThreadPoolExecutor>(
-      24, std::make_shared<folly::NamedThreadFactory>(
-              "G-" + std::to_string(jParentThreadId) + "-"));
-  std::shared_ptr<Config> config = std::make_shared<core::MemConfig>();
-  return std::make_shared<core::QueryCtx>(executor, std::move(config));
+  return std::make_shared<core::QueryCtx>();
 }
 
 // The Init will be called per executor.
@@ -408,6 +396,10 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
     std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
     task_ = std::make_unique<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
                                          std::move(planFragment), 0, std::move(queryCtx));
+    if (!task_->supportsSingleThreadedExecution()) {
+      throw std::runtime_error("Task doesn't support single thread execution: " +
+                               planNode->toString());
+    }
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
         return;
@@ -439,6 +431,10 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
     std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
     task_ = std::make_unique<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
                                          std::move(planFragment), 0, std::move(queryCtx));
+    if (!task_->supportsSingleThreadedExecution()) {
+      throw std::runtime_error("Task doesn't support single thread execution: " +
+                               planNode->toString());
+    }
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
         return;
