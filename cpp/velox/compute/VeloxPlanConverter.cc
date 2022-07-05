@@ -37,7 +37,6 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
-int64_t GetJavaThreadId();  // from jni_common.h
 
 namespace velox {
 namespace compute {
@@ -275,8 +274,8 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
         std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, streamIds);
     return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
   }
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos, streamIds);
+  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
+      pool_, planNode, scanIds, scanInfos, streamIds);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -311,7 +310,6 @@ class VeloxPlanConverter::WholeStageResIter {
   /// Columnar Shuffle.
   void toArrowBatch(const RowVectorPtr& rv, uint64_t numRows, const RowTypePtr& outTypes,
                     std::shared_ptr<arrow::RecordBatch>* out) {
-
     // Make sure to load lazy vector if not loaded already.
     for (auto& child : rv->children()) {
       child->loadedVector();
@@ -369,7 +367,8 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
   WholeStageResIterFirstStage(
       memory::MemoryPool* pool, const std::shared_ptr<const core::PlanNode>& planNode,
       const std::vector<core::PlanNodeId>& scanNodeIds,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
+          scanInfos,
       const std::vector<core::PlanNodeId>& streamIds)
       : WholeStageResIter(pool, planNode),
         scanNodeIds_(scanNodeIds),

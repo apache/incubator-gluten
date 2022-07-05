@@ -40,7 +40,6 @@ extern "C" {
 #endif
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  SetGlobalJavaVM(vm);
   JNIEnv* env;
   if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
@@ -138,15 +137,6 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
   dwrfDatasource->Close();
   arrow::dataset::jni::ReleaseNativeRef<::velox::compute::DwrfDatasource>(instanceId);
   JNI_METHOD_END()
-}
-
-JNIEXPORT jstring JNICALL
-Java_io_glutenproject_vectorized_NativeThreadJniWrapper_getNativeThreadName(
-    JNIEnv* env, jclass clazz) {
-  JNI_METHOD_START
-  std::string name = folly::getCurrentThreadName().value();
-  return env->NewStringUTF(name.c_str());
-  JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT void JNICALL
