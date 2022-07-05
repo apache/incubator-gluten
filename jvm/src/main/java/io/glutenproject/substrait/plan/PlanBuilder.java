@@ -18,9 +18,11 @@
 package io.glutenproject.substrait.plan;
 
 import io.glutenproject.substrait.SubstraitContext;
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.extensions.ExtensionBuilder;
 import io.glutenproject.substrait.rel.RelNode;
+import io.substrait.proto.AdvancedExtension;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -32,6 +34,10 @@ public class PlanBuilder {
                                     ArrayList<RelNode> relNodes,
                                     ArrayList<String> outNames) {
         return new PlanNode(mappingNodes, relNodes, outNames);
+    }
+
+    public static PlanNode makePlan(AdvancedExtensionNode extension) {
+        return new PlanNode(extension);
     }
 
     public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes,

@@ -64,7 +64,7 @@ public class ExpressionEvaluatorJniWrapper {
   /**
    * Call initNative to initialize native computing.
    */
-  native void nativeInitNative();
+  native void nativeInitNative(byte[] subPlan);
 
   /**
    * Validate the Substrait plan in native compute engine.

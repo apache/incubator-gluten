@@ -38,7 +38,8 @@ using namespace facebook::velox::dwio::common;
 namespace velox {
 namespace compute {
 
-void DwrfDatasource::Init() {
+void DwrfDatasource::Init(
+    const std::unordered_map<std::string, std::string>& sparkConfs) {
   // Construct the file path and writer
   std::string local_path = "";
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
@@ -68,6 +69,25 @@ void DwrfDatasource::Init() {
   auto sink = std::make_unique<facebook::velox::dwio::common::FileSink>(final_path_);
   auto config = std::make_shared<facebook::velox::dwrf::Config>();
 
+  for (auto iter = sparkConfs.begin(); iter != sparkConfs.end(); iter++) {
+    auto key = iter->first;
+    if (strcmp(key.c_str(), "hive.exec.orc.stripe.size") == 0) {
+      config->set(facebook::velox::dwrf::Config::STRIPE_SIZE,
+                  static_cast<uint64_t>(stoi(iter->second)));
+    } else if (strcmp(key.c_str(), "hive.exec.orc.row.index.stride") == 0) {
+      config->set(facebook::velox::dwrf::Config::ROW_INDEX_STRIDE,
+                  static_cast<uint32_t>(stoi(iter->second)));
+    } else if (strcmp(key.c_str(), "hive.exec.orc.compress") == 0) {
+      // Currently velox only support ZLIB and ZSTD and the default is ZSTD.
+      if (strcasecmp(iter->second.c_str(), "ZLIB") == 0) {
+        config->set(facebook::velox::dwrf::Config::COMPRESSION,
+                    facebook::velox::dwrf::CompressionKind::CompressionKind_ZLIB);
+      } else {
+        config->set(facebook::velox::dwrf::Config::COMPRESSION,
+                    facebook::velox::dwrf::CompressionKind::CompressionKind_ZSTD);
+      }
+    }
+  }
   const int64_t writerMemoryCap = std::numeric_limits<int64_t>::max();
 
   facebook::velox::dwrf::WriterOptions options;

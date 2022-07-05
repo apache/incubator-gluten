@@ -17,11 +17,16 @@
 
 package io.glutenproject
 
+import com.google.protobuf.Any
+
 import java.util.{Collections, Objects}
 import scala.language.implicitConversions
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, OthersExtensionOverrides, StrategyOverrides}
+import io.glutenproject.substrait.expression.ExpressionBuilder
+import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
 
 import java.util
@@ -43,19 +48,7 @@ class GlutenPlugin extends SparkPlugin {
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
-    // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val customGlutenLib = conf.get(GlutenConfig.GLUTEN_LIB_PATH, "")
-      val customBackendLib = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
-        conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
-        customGlutenLib,
-        customBackendLib,
-        conf.getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
-      if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
-        initKernel.initNative()
-      }
-    }
+    GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
     // Initialize Backends API
     BackendsApiManager.initialize(pluginContext.conf()
@@ -78,19 +71,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
-    if (ctx.conf().getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val customGlutenLib = ctx.conf().get(GlutenConfig.GLUTEN_LIB_PATH, "")
-      val customBackendLib = ctx.conf().get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
-        ctx.conf().get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
-        customGlutenLib,
-        customBackendLib,
-        ctx.conf().getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
-      if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
-        initKernel.initNative()
-      }
-    }
+    GlutenPlugin.initNative(ctx.conf())
     BackendsApiManager.initialize(ctx.conf().get(GlutenConfig.GLUTEN_BACKEND_LIB, ""))
   }
 
@@ -143,5 +124,38 @@ private[glutenproject] object GlutenPlugin {
 
   implicit def sparkConfImplicit(conf: SparkConf): SparkConfImplicits = {
     new SparkConfImplicits(conf)
+  }
+
+  def initNative(conf: SparkConf): Unit = {
+    // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
+    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
+      val customGlutenLib = conf.get(GlutenConfig.GLUTEN_LIB_PATH, "")
+      val customBackendLib = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
+      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
+        conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
+        customGlutenLib,
+        customBackendLib,
+        conf.getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
+      if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
+        // Pass the spark confs to velox
+        val confs = new util.HashMap[String, String]()
+        if (conf.contains("spark.hive.exec.orc.stripe.size")) {
+          confs.put("hive.exec.orc.stripe.size", conf.get("spark.hive.exec.orc.stripe.size"))
+        }
+        if (conf.contains("spark.hive.exec.orc.row.index.stride")) {
+          confs.put("hive.exec.orc.row.index.stride",
+            conf.get("spark.hive.exec.orc.row.index.stride"))
+        }
+        if (conf.contains("spark.hive.exec.orc.compress")) {
+          confs.put("hive.exec.orc.compress", conf.get("spark.hive.exec.orc.compress"))
+        }
+
+        val stringMapNode = ExpressionBuilder.makeStringMap(confs)
+        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+          Any.pack(stringMapNode.toProtobuf))
+        initKernel.initNative(
+          PlanBuilder.makePlan(extensionNode).toProtobuf.toByteArray)
+      }
+    }
   }
 }

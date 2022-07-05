@@ -42,7 +42,7 @@ class DwrfDatasource {
                  memory::MemoryPool* pool)
       : file_path_(file_path), schema_(schema), pool_(pool) {}
 
-  void Init();
+  void Init(const std::unordered_map<std::string, std::string>& sparkConfs);
   std::shared_ptr<arrow::Schema> InspectSchema();
   void Write(const std::shared_ptr<arrow::RecordBatch>& rb);
   void Close();

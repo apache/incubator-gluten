@@ -74,8 +74,8 @@ public class ExpressionEvaluator implements AutoCloseable {
   }
 
   // Used to initialize the native computing.
-  public void initNative() {
-    jniWrapper.nativeInitNative();
+  public void initNative(byte[] subPlan) {
+    jniWrapper.nativeInitNative(subPlan);
   }
 
   // Used to validate the Substrait plan in native compute engine.
