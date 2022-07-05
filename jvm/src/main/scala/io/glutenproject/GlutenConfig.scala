@@ -48,11 +48,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarHashAgg: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.hashagg", "true").toBoolean
 
-  // A tmp config used to fallback Final Aggregation.
-  // Can be removed after Final Aggregation is fully supported.
-  val enableColumnarFinalAgg: Boolean = conf.getConfString(
-    "spark.gluten.sql.columnar.hashagg.enablefinal", "true").toBoolean
-
   // enable or disable columnar project
   val enableColumnarProject: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.project", "true").toBoolean

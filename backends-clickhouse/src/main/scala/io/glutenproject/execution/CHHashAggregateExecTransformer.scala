@@ -60,37 +60,6 @@ case class CHHashAggregateExecTransformer(
     resultExpressions,
     child) {
 
-  override def doValidate(): Boolean = {
-    val substraitContext = new SubstraitContext
-    val relNode =
-      try {
-        getAggRel(substraitContext.registeredFunction, null, validation = true)
-      } catch {
-        case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-          return false
-      }
-    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-    // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
-    } else {
-      if (GlutenConfig.getConf.enableColumnarFinalAgg) {
-        true
-      } else {
-        var isPartial = true
-        aggregateExpressions.foreach(aggExpr => {
-          aggExpr.mode match {
-            case Partial =>
-            case _ => isPartial = false
-          }
-        })
-        isPartial
-      }
-    }
-  }
-
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
       case c: TransformSupport =>
