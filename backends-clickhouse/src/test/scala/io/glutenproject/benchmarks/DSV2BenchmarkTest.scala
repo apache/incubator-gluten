@@ -43,7 +43,7 @@ object DSV2BenchmarkTest {
       val queryPath = resourcePath + "/queries/"
       //(new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       //"/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpch-data-sf10", "parquet", 1, false, queryPath + "q01.sql", "",
+      ("/data1/test_output/tpch-data-sf10", "parquet", 3, false, queryPath + "q01.sql", "",
         true, "/data1/gazelle-jni-warehouse")
     }
 
@@ -75,7 +75,7 @@ object DSV2BenchmarkTest {
       val sessionBuilderTmp1 = sessionBuilderTmp
         .master("local[12]")
         .config("spark.driver.memory", "8G")
-        .config("spark.driver.memoryOverhead", "12G")
+        .config("spark.driver.memoryOverhead", "2G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
         .config("spark.sql.shuffle.partitions", 12)
@@ -132,7 +132,7 @@ object DSV2BenchmarkTest {
         //.config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
-        .config("spark.shuffle.sort.bypassMergeThreshold", "10")
+        .config("spark.shuffle.sort.bypassMergeThreshold", "20")
         .config("spark.local.dir", "/data1/gazelle-jni-warehouse/spark_local_dirs")
         .config("spark.executor.heartbeatInterval", "240s")
         .config("spark.network.timeout", "300s")
@@ -165,6 +165,7 @@ object DSV2BenchmarkTest {
       refreshClickHouseTable(spark)
     }
     println("start to query ... ")
+    // Thread.sleep(20000)
 
     // createClickHouseTablesAsSelect(spark)
     // createClickHouseTablesAndInsert(spark)
@@ -205,30 +206,22 @@ object DSV2BenchmarkTest {
       val startTime = System.nanoTime()
       val df = spark.sql(
         s"""
-           |SELECT /*+ SHUFFLE_MERGE(ch_lineitem100) */
-           |    n_name,
-           |    sum(l_extendedprice * (1 - l_discount)) AS revenue
+           |SELECT
+           |    sum(l_extendedprice) / 7.0 AS avg_yearly
            |FROM
-           |    ch_customer100,
-           |    ch_orders100,
            |    ch_lineitem100,
-           |    ch_supplier100,
-           |    ch_nation100,
-           |    ch_region100
+           |    ch_part100
            |WHERE
-           |    c_custkey = o_custkey
-           |    AND l_orderkey = o_orderkey
-           |    AND l_suppkey = s_suppkey
-           |    AND c_nationkey = s_nationkey
-           |    AND s_nationkey = n_nationkey
-           |    AND n_regionkey = r_regionkey
-           |    AND r_name = 'ASIA'
-           |    AND o_orderdate >= date'1994-01-01'
-           |    AND o_orderdate < date'1994-01-01' + interval 1 year
-           |GROUP BY
-           |    n_name
-           |ORDER BY
-           |    revenue DESC;
+           |    p_partkey = l_partkey
+           |    AND p_brand = 'Brand#23'
+           |    AND p_container = 'MED BOX'
+           |    AND l_quantity < (
+           |        SELECT
+           |            0.2 * avg(l_quantity)
+           |        FROM
+           |            ch_lineitem100
+           |        WHERE
+           |            l_partkey = p_partkey);
            |""".stripMargin) //.show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()
@@ -240,6 +233,7 @@ object DSV2BenchmarkTest {
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute ${i} time, time: ${tookTime}")
       tookTimeArr += tookTime
+      // Thread.sleep(5000)
     }
 
     println(tookTimeArr.mkString(","))

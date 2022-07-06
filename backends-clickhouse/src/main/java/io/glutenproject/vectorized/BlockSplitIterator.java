@@ -22,7 +22,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 import java.io.Serializable;
 import java.util.Iterator;
 
-public class BlockSplitIterator implements Iterator<ColumnarBatch> {
+public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseable {
+
     public static class IteratorOptions implements Serializable {
         private static final long serialVersionUID = -1L;
         private int partitionNum;
@@ -96,7 +97,7 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch> {
     }
 
     @Override
-    protected void finalize() throws Throwable {
+    public void close() throws Exception {
         nativeClose(instance);
     }
 }

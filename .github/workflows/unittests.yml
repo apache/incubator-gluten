@@ -173,7 +173,7 @@ jobs:
       - name: Run Gluten + ClickHouse Backend unit tests
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Dcheckstyle.skip
+          mvn clean install -Pbackends-clickhouse -Dcheckstyle.skip -Dmaven.test.failure.ignore=true
 
   formatting-check:
     name: Formatting Check

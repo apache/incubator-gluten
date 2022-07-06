@@ -48,6 +48,7 @@ class CloseableCHColumnBatchIterator(itr: Iterator[ColumnarBatch],
 
   TaskContext.get().addTaskCompletionListener[Unit] { _ =>
     closeCurrentBatch()
+    if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
   }
 
   override def hasNext: Boolean = {
