@@ -276,7 +276,8 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   }
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       pool_, planNode, scanIds, scanInfos, streamIds);
-  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter),
+                                                             shared_from_this());
 }
 
 std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
@@ -297,70 +298,50 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
-class VeloxPlanConverter::WholeStageResIter {
- public:
-  WholeStageResIter(memory::MemoryPool* pool,
-                    std::shared_ptr<const core::PlanNode> planNode)
-      : pool_(pool), planNode_(planNode) {}
-
-  virtual ~WholeStageResIter() {}
-  /// This method converts Velox RowVector into Arrow RecordBatch based on Velox's
-  /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
-  /// types, but is conducted in String conversion. The output batch will be the input of
-  /// Columnar Shuffle.
-  void toArrowBatch(const RowVectorPtr& rv, uint64_t numRows, const RowTypePtr& outTypes,
-                    std::shared_ptr<arrow::RecordBatch>* out) {
-    // Make sure to load lazy vector if not loaded already.
-    for (auto& child : rv->children()) {
-      child->loadedVector();
-    }
-
-    RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
-        BaseVector::create(rv->type(), rv->size(), pool_));
-    copy->copy(rv.get(), 0, 0, rv->size());
-
-    ArrowArray cArray{};
-    ArrowSchema cSchema{};
-    exportToArrow(copy, cArray, pool_);
-    exportToArrow(outTypes, cSchema);
-    arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
-        arrow::ImportRecordBatch(&cArray, &cSchema);
-
-    if (!batch.status().ok()) {
-      throw std::runtime_error("Failed to import to Arrow record batch");
-    }
-    *out = batch.ValueOrDie();
+void WholeStageResIter::toArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
+                                     const RowTypePtr& outTypes,
+                                     std::shared_ptr<arrow::RecordBatch>* out) {
+  // Make sure to load lazy vector if not loaded already.
+  for (auto& child : rv->children()) {
+    child->loadedVector();
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
-    addSplits_(task_.get());
-    if (task_->isFinished()) {
-      return nullptr;
-    }
-    RowVectorPtr vector = task_->next();
-    if (vector == nullptr) {
-      return nullptr;
-    }
-    uint64_t numRows = vector->size();
-    if (numRows == 0) {
-      return nullptr;
-    }
-    auto outTypes = planNode_->outputType();
-    std::shared_ptr<arrow::RecordBatch> out;
-    toArrowBatch(vector, numRows, outTypes, &out);
-    // arrow::PrettyPrint(*out, 2, &std::cout);
-    return out;
+  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
+      BaseVector::create(rv->type(), rv->size(), pool_));
+  copy->copy(rv.get(), 0, 0, rv->size());
+
+  ArrowArray cArray{};
+  ArrowSchema cSchema{};
+  exportToArrow(copy, cArray, pool_);
+  exportToArrow(outTypes, cSchema);
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
+      arrow::ImportRecordBatch(&cArray, &cSchema);
+
+  if (!batch.status().ok()) {
+    throw std::runtime_error("Failed to import to Arrow record batch");
   }
+  *out = batch.ValueOrDie();
+}
 
-  std::shared_ptr<exec::Task> task_;
-  std::function<void(exec::Task*)> addSplits_;
-
- private:
-  memory::MemoryPool* pool_;
-  std::shared_ptr<const core::PlanNode> planNode_;
-  // TODO: use the setted one.
-  uint64_t batchSize_ = 10000;
-};
+arrow::Result<std::shared_ptr<arrow::RecordBatch>> WholeStageResIter::Next() {
+  addSplits_(task_.get());
+  if (task_->isFinished()) {
+    return nullptr;
+  }
+  RowVectorPtr vector = task_->next();
+  if (vector == nullptr) {
+    return nullptr;
+  }
+  uint64_t numRows = vector->size();
+  if (numRows == 0) {
+    return nullptr;
+  }
+  auto outTypes = planNode_->outputType();
+  std::shared_ptr<arrow::RecordBatch> out;
+  toArrowBatch(vector, numRows, outTypes, &out);
+  // arrow::PrettyPrint(*out, 2, &std::cout);
+  return out;
+}
 
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
  public:

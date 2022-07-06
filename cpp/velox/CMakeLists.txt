@@ -94,12 +94,16 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(parquet::duckdb::reader "${VELOX_COMPONENTS_PATH}/dwio/parquet/duckdb_reader/duckdb/libvelox_dwio_duckdb_parquet_reader_duckdb.a")
   add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
 
+  add_velox_dependency(duckdb::function "${VELOX_COMPONENTS_PATH}/duckdb/functions/libvelox_duckdb_functions.a")
+  add_velox_dependency(duckdb::conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
+
   add_velox_dependency(expression "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression.a")
   add_velox_dependency(core "${VELOX_COMPONENTS_PATH}/core/libvelox_core.a")
 
   add_velox_dependency(type "${VELOX_COMPONENTS_PATH}/type/libvelox_type.a")
   add_velox_dependency(vector "${VELOX_COMPONENTS_PATH}/vector/libvelox_vector.a")
   add_velox_dependency(expression::function "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression_functions.a")
+  add_velox_dependency(expression::type_calculation "${VELOX_COMPONENTS_PATH}/expression/type_calculation/libvelox_type_calculation.a")
 
   add_velox_dependency(common::caching "${VELOX_COMPONENTS_PATH}/common/caching/libvelox_caching.a")
   add_velox_dependency(common::base "${VELOX_COMPONENTS_PATH}/common/base/libvelox_common_base.a")
@@ -109,8 +113,6 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(type::tz "${VELOX_COMPONENTS_PATH}/type/tz/libvelox_type_tz.a")
   add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
-  add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
-  add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
   add_velox_dependency(dwio::dwrf::proto "${VELOX_COMPONENTS_PATH}/dwio/dwrf/proto/libvelox_dwio_dwrf_proto.a")
   add_velox_dependency(dwio::common::exception "${VELOX_COMPONENTS_PATH}/dwio/common/exception/libvelox_dwio_common_exception.a")
   add_velox_dependency(dwio::common::encryption "${VELOX_COMPONENTS_PATH}/dwio/common/encryption/libvelox_dwio_common_encryption.a")
@@ -121,12 +123,12 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::time "${VELOX_COMPONENTS_PATH}/common/time/libvelox_time.a")
   add_velox_dependency(common::file "${VELOX_COMPONENTS_PATH}/common/file/libvelox_file.a")
   add_velox_dependency(common::process "${VELOX_COMPONENTS_PATH}/common/process/libvelox_process.a")
-  
-  add_velox_dependency(duckdb::function "${VELOX_COMPONENTS_PATH}/duckdb/functions/libvelox_duckdb_functions.a")
-  add_velox_dependency(duckdb::conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
-  add_velox_dependency(duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
-  add_velox_dependency(duckdb::tpch "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/libtpch_extension.a")
-  add_velox_dependency(duckdb::tpch::dbgen "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/dbgen/libdbgen.a")
+
+  add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
+  add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
+  add_velox_dependency(external::duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
+  add_velox_dependency(external::duckdb::tpch "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/libtpch_extension.a")
+  add_velox_dependency(external::duckdb::tpch::dbgen "${VELOX_COMPONENTS_PATH}/external/duckdb/tpch/dbgen/libdbgen.a")
 
 endmacro()
 

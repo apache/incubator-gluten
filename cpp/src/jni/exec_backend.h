@@ -24,10 +24,11 @@
 #include "operators/c2r/arrow_columnar_to_row_converter.h"
 #include "substrait/plan.pb.h"
 #include "utils/exception.h"
+#include "utils/result_iterator.h"
 
 namespace gluten {
 
-class ExecBackendBase;
+class RecordBatchResultIterator;
 
 template <typename T>
 class ResultIteratorBase {
@@ -38,71 +39,6 @@ class ResultIteratorBase {
   virtual void Close() {}  // unused
   virtual bool HasNext() = 0;
   virtual std::shared_ptr<T> Next() = 0;
-};
-
-class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> {
- public:
-  /// \brief Iterator may be constructed from any type which has a member function
-  /// with signature arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next();
-  /// and will be wrapped in arrow::RecordBatchIterator.
-  /// For details, please see <arrow/util/iterator.h>
-  /// This class is used as input/output iterator for ExecBackendBase. As output,
-  /// it can hold the backend to tie their lifetimes, which can be used when the
-  /// production of the iterator relies on the backend.
-  template <typename T>
-  explicit RecordBatchResultIterator(std::shared_ptr<T> iter,
-                                     std::shared_ptr<ExecBackendBase> backend = nullptr)
-      : iter_(std::make_unique<arrow::RecordBatchIterator>(Wrapper<T>(std::move(iter)))),
-        next_(nullptr),
-        backend_(std::move(backend)) {}
-
-  bool HasNext() override {
-    CheckValid();
-    GetNext();
-    return next_ != nullptr;
-  }
-
-  std::shared_ptr<arrow::RecordBatch> Next() override {
-    CheckValid();
-    GetNext();
-    return std::move(next_);
-  }
-
-  /// arrow::RecordBatchIterator doesn't support shared ownership. Once this method is
-  /// called, the caller should take it's ownership, and RecordBatchResultIterator
-  /// will no longer have access to the underlying iterator.
-  std::shared_ptr<arrow::RecordBatchIterator> ToArrowRecordBatchIterator() {
-    return std::move(iter_);
-  }
-
- private:
-  template <typename T>
-  class Wrapper {
-   public:
-    explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
-
-    arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() { return ptr_->Next(); }
-
-   private:
-    std::shared_ptr<T> ptr_;
-  };
-
-  std::unique_ptr<arrow::RecordBatchIterator> iter_;
-  std::shared_ptr<arrow::RecordBatch> next_;
-  std::shared_ptr<ExecBackendBase> backend_;
-
-  inline void CheckValid() {
-    if (iter_ == nullptr) {
-      throw GlutenException(
-          "RecordBatchResultIterator: the underlying iterator has expired.");
-    }
-  }
-
-  inline void GetNext() {
-    if (next_ == nullptr) {
-      GLUTEN_ASSIGN_OR_THROW(next_, iter_->Next());
-    }
-  }
 };
 
 class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
@@ -160,6 +96,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
         rb, memory_pool);
   }
+
+  virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter) { return nullptr; };
 
  protected:
   ::substrait::Plan plan_;
@@ -268,6 +206,83 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     schema_map_[iterIdx] = arrow::schema(inputFields);
 
     return arrow::Status::OK();
+  }
+};
+
+class RecordBatchResultIterator : public ResultIteratorBase<arrow::RecordBatch> {
+ public:
+  /// \brief Iterator may be constructed from any type which has a member function
+  /// with signature arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next();
+  /// and will be wrapped in arrow::RecordBatchIterator.
+  /// For details, please see <arrow/util/iterator.h>
+  /// This class is used as input/output iterator for ExecBackendBase. As output,
+  /// it can hold the backend to tie their lifetimes, which can be used when the
+  /// production of the iterator relies on the backend.
+  template <typename T>
+  explicit RecordBatchResultIterator(std::shared_ptr<T> iter,
+                                     std::shared_ptr<ExecBackendBase> backend = nullptr)
+      : raw_iter_(iter.get()),
+        iter_(std::make_unique<arrow::RecordBatchIterator>(Wrapper<T>(std::move(iter)))),
+        next_(nullptr),
+        backend_(std::move(backend)) {}
+
+  bool HasNext() override {
+    CheckValid();
+    GetNext();
+    return next_ != nullptr;
+  }
+
+  std::shared_ptr<arrow::RecordBatch> Next() override {
+    CheckValid();
+    GetNext();
+    return std::move(next_);
+  }
+
+  /// arrow::RecordBatchIterator doesn't support shared ownership. Once this method is
+  /// called, the caller should take it's ownership, and RecordBatchResultIterator
+  /// will no longer have access to the underlying iterator.
+  std::shared_ptr<arrow::RecordBatchIterator> ToArrowRecordBatchIterator() {
+    return std::move(iter_);
+  }
+
+  // For testing and benchmarking.
+  void* GetRaw() { return raw_iter_; }
+
+  std::shared_ptr<Metrics> GetMetrics() {
+    if (backend_ != nullptr) {
+      return backend_->GetMetrics(raw_iter_);
+    }
+    return nullptr;
+  }
+
+ private:
+  template <typename T>
+  class Wrapper {
+   public:
+    explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
+
+    arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() { return ptr_->Next(); }
+
+   private:
+    std::shared_ptr<T> ptr_;
+  };
+
+  void* raw_iter_;
+  std::unique_ptr<arrow::RecordBatchIterator> iter_;
+  std::shared_ptr<arrow::RecordBatch> next_;
+  std::shared_ptr<ExecBackendBase> backend_;
+
+  inline void CheckValid() {
+    if (iter_ == nullptr) {
+      throw GlutenException(
+          "RecordBatchResultIterator: the underlying iterator has expired.");
+    }
+  }
+
+  inline void GetNext() {
+    if (next_ == nullptr) {
+      GLUTEN_ASSIGN_OR_THROW(next_, iter_->Next());
+    }
   }
 };
 

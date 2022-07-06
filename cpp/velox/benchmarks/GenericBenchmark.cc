@@ -24,6 +24,7 @@
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
 
+DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 
@@ -56,7 +57,34 @@ auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJson
     auto resultIter = backend->GetResultIterator(std::move(inputIters));
 
     while (resultIter->HasNext()) {
-      std::cout << resultIter->Next()->ToString() << std::endl;
+      auto batch = resultIter->Next();
+      if (FLAGS_print_result) {
+        state.PauseTiming();
+        std::cout << batch->ToString() << std::endl;
+        state.ResumeTiming();
+      }
+    }
+
+    auto* rawIter = static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
+    const auto& task = rawIter->task_;
+    auto taskStats = task->taskStats();
+    for (const auto& pStat : taskStats.pipelineStats) {
+      for (const auto& opStat : pStat.operatorStats) {
+        if (opStat.operatorType != "N/A") {
+          // ${pipelineId}_${operatorId}_${planNodeId}_${operatorType}_${metric}
+          // Different operators may have same planNodeId, e.g. HashBuild and HashProbe
+          // from same HashNode.
+          const auto& opId = std::to_string(opStat.pipelineId) + "_" +
+                             std::to_string(opStat.operatorId) + "_" + opStat.planNodeId +
+                             "_" + opStat.operatorType;
+          state.counters[opId + "_addInputTiming"] = benchmark::Counter(
+              opStat.addInputTiming.cpuNanos, benchmark::Counter::Flags::kAvgIterations);
+          state.counters[opId + "_getOutputTiming"] = benchmark::Counter(
+              opStat.getOutputTiming.cpuNanos, benchmark::Counter::Flags::kAvgIterations);
+          state.counters[opId + "_finishTiming"] = benchmark::Counter(
+              opStat.finishTiming.cpuNanos, benchmark::Counter::Flags::kAvgIterations);
+        }
+      }
     }
   }
 };
