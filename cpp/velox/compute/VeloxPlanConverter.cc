@@ -37,28 +37,16 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
-int64_t GetJavaThreadId();  // from jni_common.h
 
 namespace velox {
 namespace compute {
 
 namespace {
 const std::string kHiveConnectorId = "test-hive";
-}
+std::atomic<int32_t> taskSerial;
+}  // namespace
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
-  int64_t jParentThreadId = GetJavaThreadId();
-  if (jParentThreadId == -1L) {
-    // In the case of unit testing
-    return core::QueryCtx::createForTest();
-  }
-  // Gluten's restriction of thread naming. See
-  // org.apache.spark.sql.execution.datasources.v2.arrow.SparkThreadUtils Note that the
-  // thread name should not exceed 15 character limitation
-  auto executor = std::make_shared<folly::CPUThreadPoolExecutor>(
-      24, std::make_shared<folly::NamedThreadFactory>(
-              "G-" + std::to_string(jParentThreadId) + "-"));
-  std::shared_ptr<Config> config = std::make_shared<core::MemConfig>();
-  return std::make_shared<core::QueryCtx>(executor, std::move(config));
+  return std::make_shared<core::QueryCtx>();
 }
 
 // The Init will be called per executor.
@@ -286,8 +274,8 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
         std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, streamIds);
     return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
   }
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(pool_, planNode, scanIds, scanInfos);
+  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
+      pool_, planNode, scanIds, scanInfos, streamIds);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -305,7 +293,7 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
                 scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, scanIds, setScanInfos);
+      pool_, planNode, scanIds, setScanInfos, streamIds);
   return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
 }
 
@@ -315,49 +303,25 @@ class VeloxPlanConverter::WholeStageResIter {
                     std::shared_ptr<const core::PlanNode> planNode)
       : pool_(pool), planNode_(planNode) {}
 
-  virtual ~WholeStageResIter() {
-    auto task = cursor_->task();
-    if (task == nullptr) {
-      return;
-    }
-    if (mayHaveNext_) {
-      task->requestCancel();
-    }
-    auto* executor = task->queryCtx()->executor();
-    auto* threadPool = dynamic_cast<folly::ThreadPoolExecutor*>(executor);
-    if (threadPool == nullptr) {
-      return;
-    }
-    folly::ThreadPoolExecutor::PoolStats stats = threadPool->getPoolStats();
-#ifdef DEBUG
-    int64_t threadId = GetJavaThreadId();
-    std::cout << "Thread stats: "
-              << " threadId: " << threadId << " threadCount: " << stats.threadCount
-              << " idleThreadCount: " << stats.idleThreadCount
-              << " activeThreadCount: " << stats.activeThreadCount
-              << " pendingTaskCount: " << stats.pendingTaskCount
-              << " totalTaskCount: " << stats.totalTaskCount << std::endl;
-#endif
-    if (stats.activeThreadCount != 0 || stats.pendingTaskCount != 0) {
-#ifdef DEBUG
-      std::cout << "Unfinished thread count is not zero. Joining...." << std::endl;
-#endif
-      threadPool->join();
-#ifdef DEBUG
-      std::cout << "Velox thread pool is now idle."
-                << " threadId: " << threadId << std::endl;
-#endif
-    }
-  }
+  virtual ~WholeStageResIter() {}
   /// This method converts Velox RowVector into Arrow RecordBatch based on Velox's
   /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
   /// types, but is conducted in String conversion. The output batch will be the input of
   /// Columnar Shuffle.
   void toArrowBatch(const RowVectorPtr& rv, uint64_t numRows, const RowTypePtr& outTypes,
                     std::shared_ptr<arrow::RecordBatch>* out) {
+    // Make sure to load lazy vector if not loaded already.
+    for (auto& child : rv->children()) {
+      child->loadedVector();
+    }
+
+    RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
+        BaseVector::create(rv->type(), rv->size(), pool_));
+    copy->copy(rv.get(), 0, 0, rv->size());
+
     ArrowArray cArray{};
     ArrowSchema cSchema{};
-    exportToArrow(rv, cArray, pool_);
+    exportToArrow(copy, cArray, pool_);
     exportToArrow(outTypes, cSchema);
     arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
         arrow::ImportRecordBatch(&cArray, &cSchema);
@@ -369,34 +333,31 @@ class VeloxPlanConverter::WholeStageResIter {
   }
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
-    std::shared_ptr<arrow::RecordBatch> out = nullptr;
-    if (!mayHaveNext_) {
-      return out;
+    addSplits_(task_.get());
+    if (task_->isFinished()) {
+      return nullptr;
     }
-    addSplits_(cursor_->task().get());
-    if (cursor_->moveNext()) {
-      RowVectorPtr result = cursor_->current();
-      uint64_t numRows = result->size();
-      if (numRows == 0) {
-        return out;
-      }
-      auto outTypes = planNode_->outputType();
-      toArrowBatch(result, numRows, outTypes, &out);
-      // arrow::PrettyPrint(*out, 2, &std::cout);
-      return out;
+    RowVectorPtr vector = task_->next();
+    if (vector == nullptr) {
+      return nullptr;
     }
-    mayHaveNext_ = false;
+    uint64_t numRows = vector->size();
+    if (numRows == 0) {
+      return nullptr;
+    }
+    auto outTypes = planNode_->outputType();
+    std::shared_ptr<arrow::RecordBatch> out;
+    toArrowBatch(vector, numRows, outTypes, &out);
+    // arrow::PrettyPrint(*out, 2, &std::cout);
     return out;
   }
 
-  test::CursorParameters params_;
-  std::unique_ptr<test::TaskCursor> cursor_;
+  std::shared_ptr<exec::Task> task_;
   std::function<void(exec::Task*)> addSplits_;
 
  private:
   memory::MemoryPool* pool_;
   std::shared_ptr<const core::PlanNode> planNode_;
-  bool mayHaveNext_ = true;
   // TODO: use the setted one.
   uint64_t batchSize_ = 10000;
 };
@@ -406,10 +367,13 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
   WholeStageResIterFirstStage(
       memory::MemoryPool* pool, const std::shared_ptr<const core::PlanNode>& planNode,
       const std::vector<core::PlanNodeId>& scanNodeIds,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos)
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
+          scanInfos,
+      const std::vector<core::PlanNodeId>& streamIds)
       : WholeStageResIter(pool, planNode),
         scanNodeIds_(scanNodeIds),
-        scanInfos_(scanInfos) {
+        scanInfos_(scanInfos),
+        streamIds_(streamIds) {
     // Generate splits for all scan nodes.
     splits_.reserve(scanInfos.size());
     if (scanNodeIds.size() != scanInfos.size()) {
@@ -441,10 +405,15 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
       splits_.emplace_back(scanSplits);
     }
 
-    // Set cursor parameters.
-    params_.planNode = planNode;
-    params_.queryCtx = createNewVeloxQueryCtx();
-    cursor_ = std::make_unique<test::TaskCursor>(params_);
+    // Set task parameters.
+    core::PlanFragment planFragment{planNode, core::ExecutionStrategy::kUngrouped, 1};
+    std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
+    task_ = std::make_shared<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
+                                         std::move(planFragment), 0, std::move(queryCtx));
+    if (!task_->supportsSingleThreadedExecution()) {
+      throw std::runtime_error("Task doesn't support single thread execution: " +
+                               planNode->toString());
+    }
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
         return;
@@ -455,6 +424,9 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
         }
         task->noMoreSplits(scanNodeIds_[idx]);
       }
+      for (const auto& streamId : streamIds_) {
+        task->noMoreSplits(streamId);
+      }
       noMoreSplits_ = true;
     };
   }
@@ -462,6 +434,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
  private:
   std::vector<core::PlanNodeId> scanNodeIds_;
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos_;
+  std::vector<core::PlanNodeId> streamIds_;
   std::vector<std::vector<exec::Split>> splits_;
   bool noMoreSplits_ = false;
 };
@@ -472,9 +445,14 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
                                const std::shared_ptr<const core::PlanNode>& planNode,
                                const std::vector<core::PlanNodeId>& streamIds)
       : WholeStageResIter(pool, planNode), streamIds_(streamIds) {
-    params_.planNode = planNode;
-    params_.queryCtx = createNewVeloxQueryCtx();
-    cursor_ = std::make_unique<test::TaskCursor>(params_);
+    core::PlanFragment planFragment{planNode, core::ExecutionStrategy::kUngrouped, 1};
+    std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
+    task_ = std::make_shared<exec::Task>(fmt::format("gluten task {}", ++taskSerial),
+                                         std::move(planFragment), 0, std::move(queryCtx));
+    if (!task_->supportsSingleThreadedExecution()) {
+      throw std::runtime_error("Task doesn't support single thread execution: " +
+                               planNode->toString());
+    }
     addSplits_ = [&](Task* task) {
       if (noMoreSplits_) {
         return;
