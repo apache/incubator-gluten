@@ -17,6 +17,7 @@
 
 package io.glutenproject.substrait.plan;
 
+import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.rel.RelNode;
 import io.substrait.proto.Plan;
@@ -31,12 +32,18 @@ public class PlanNode implements Serializable {
     private final ArrayList<RelNode> relNodes = new ArrayList<>();
     private final ArrayList<String> outNames = new ArrayList<>();
 
+    private AdvancedExtensionNode extension = null;
+
     PlanNode(ArrayList<FunctionMappingNode> mappingNodes,
              ArrayList<RelNode> relNodes,
              ArrayList<String> outNames) {
         this.mappingNodes.addAll(mappingNodes);
         this.relNodes.addAll(relNodes);
         this.outNames.addAll(outNames);
+    }
+
+    PlanNode(AdvancedExtensionNode extension) {
+        this.extension = extension;
     }
 
     public Plan toProtobuf() {
@@ -57,6 +64,10 @@ public class PlanNode implements Serializable {
             planRelBuilder.setRoot(relRootBuilder.build());
 
             planBuilder.addRelations(planRelBuilder.build());
+        }
+
+        if (extension != null) {
+            planBuilder.setAdvancedExtensions(extension.toProtobuf());
         }
         return planBuilder.build();
     }

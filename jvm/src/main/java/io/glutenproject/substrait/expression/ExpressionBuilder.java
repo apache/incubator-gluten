@@ -139,4 +139,8 @@ public class ExpressionBuilder {
     public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode) {
         return new CastNode(typeNode, expressionNode);
     }
+
+    public static StringMapNode makeStringMap(Map<String, String> values) {
+        return new StringMapNode(values);
+    }
 }
