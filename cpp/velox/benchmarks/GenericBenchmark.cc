@@ -66,7 +66,7 @@ auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJson
     }
 
     auto* rawIter = static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
-    const auto& task = rawIter->cursor_->task();
+    const auto& task = rawIter->task_;
     auto taskStats = task->taskStats();
     for (const auto& pStat : taskStats.pipelineStats) {
       for (const auto& opStat : pStat.operatorStats) {
