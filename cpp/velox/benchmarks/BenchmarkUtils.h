@@ -76,7 +76,8 @@ class BatchVectorIterator : public BatchIteratorWrapper {
     GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
     iter_ = batches_.begin();
 #ifdef DEBUG
-    std::cout << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
+    std::cout << "Number of input batches: " << std::to_string(batches_.size())
+              << std::endl;
 #endif
   }
 
