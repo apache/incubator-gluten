@@ -114,7 +114,7 @@ object CHExecUtil {
                 }
                 options.setExpr(fields.mkString(","))
                 options.setName("hash")
-                val iter = new Iterator[Product2[Int, ColumnarBatch]] {
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
                   val splitIterator = new BlockSplitIterator(
                     cbIter.map(cb =>
                       CHNativeBlock.fromColumnarBatch(cb)
@@ -125,6 +125,8 @@ object CHExecUtil {
 
                   override def next(): Product2[Int, ColumnarBatch] =
                     (splitIterator.nextPartitionId(), splitIterator.next());
+
+                  override def close(): Unit = splitIterator.close()
                 }
                 new CloseablePartitionedBlockIterator(iter)
               },
@@ -134,7 +136,7 @@ object CHExecUtil {
               (_, cbIter) => {
                 options.setPartitionNum(n)
                 options.setName("rr")
-                val iter = new Iterator[Product2[Int, ColumnarBatch]] {
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
                   val splitIterator = new BlockSplitIterator(
                     cbIter.map(cb =>
                       CHNativeBlock.fromColumnarBatch(cb)
@@ -145,6 +147,8 @@ object CHExecUtil {
 
                   override def next(): Product2[Int, ColumnarBatch] =
                     (splitIterator.nextPartitionId(), splitIterator.next());
+
+                  override def close(): Unit = splitIterator.close()
                 }
                 new CloseablePartitionedBlockIterator(iter)
               },
@@ -154,7 +158,7 @@ object CHExecUtil {
               (_, cbIter) => {
                 options.setPartitionNum(1)
                 options.setName("rr")
-                val iter = new Iterator[Product2[Int, ColumnarBatch]] {
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
                   val splitIterator = new BlockSplitIterator(
                     cbIter.map(cb =>
                       CHNativeBlock.fromColumnarBatch(cb)
@@ -165,6 +169,8 @@ object CHExecUtil {
 
                   override def next(): Product2[Int, ColumnarBatch] =
                     (splitIterator.nextPartitionId(), splitIterator.next());
+
+                  override def close(): Unit = splitIterator.close()
                 }
                 new CloseablePartitionedBlockIterator(iter)
               },

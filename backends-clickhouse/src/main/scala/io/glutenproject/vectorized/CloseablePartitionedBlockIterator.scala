@@ -42,8 +42,10 @@ class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatc
     }
   }
 
-  TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+  TaskContext.get().addTaskCompletionListener[Unit] { _ => {
     closeCurrentBatch()
+    if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
+  }
   }
 
   override def hasNext: Boolean = {
