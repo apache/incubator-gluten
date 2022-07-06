@@ -18,7 +18,6 @@
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow._
-import io.glutenproject.vectorized.NativeThreadJniWrapper
 import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.{AllocationListener, BufferAllocator, MemoryChunkCleaner, MemoryChunkManager, RootAllocator}
 import org.apache.spark.internal.Logging
@@ -219,11 +218,11 @@ object SparkMemoryUtils extends Logging {
   private val leakedMemoryPools = new java.util.Vector[NativeMemoryPoolWrapper]()
 
   private def getLocalTaskContext(): TaskContext = {
-    SparkThreadUtils.getAssociatedTaskContext
+    TaskContext.get()
   }
 
   private def inSparkTask(): Boolean = {
-    SparkThreadUtils.inSparkTask()
+    TaskContext.get() != null
   }
 
   private def getTaskMemoryManager(): TaskMemoryManager = {

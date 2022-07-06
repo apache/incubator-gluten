@@ -24,7 +24,6 @@
 #include <arrow/record_batch.h>
 #include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
-#include <gflags/gflags.h>
 
 #include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
@@ -61,8 +60,6 @@
 #include "velox/type/Filter.h"
 #include "velox/type/Subfield.h"
 
-DECLARE_int32(num_drivers);
-
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
@@ -81,17 +78,9 @@ class WholeStageResIter {
  public:
   WholeStageResIter(memory::MemoryPool* pool,
                     std::shared_ptr<const core::PlanNode> planNode)
-      : pool_(pool), planNode_(planNode) {
-#ifdef DEBUG
-    if (FLAGS_num_drivers > 1) {
-      std::cout << "Running in " << std::to_string(FLAGS_num_drivers) << " drivers."
-                << std::endl;
-    }
-#endif
-    params_.maxDrivers = FLAGS_num_drivers > 1 ? FLAGS_num_drivers : 1;
-  }
+      : pool_(pool), planNode_(planNode) {}
 
-  virtual ~WholeStageResIter();
+  virtual ~WholeStageResIter() {}
 
   /// This method converts Velox RowVector into Arrow RecordBatch based on Velox's
   /// Arrow conversion implementation, in which memcopy is not needed for fixed-width data
@@ -102,14 +91,12 @@ class WholeStageResIter {
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next();
 
-  exec::test::CursorParameters params_;
-  std::unique_ptr<exec::test::TaskCursor> cursor_;
+  std::shared_ptr<exec::Task> task_;
   std::function<void(exec::Task*)> addSplits_;
 
  private:
   memory::MemoryPool* pool_;
   std::shared_ptr<const core::PlanNode> planNode_;
-  bool mayHaveNext_ = true;
   // TODO: use the setted one.
   uint64_t batchSize_ = 10000;
 };

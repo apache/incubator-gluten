@@ -1,0 +1,11 @@
+columns format version: 1
+9 columns:
+`o_orderkey` Int64
+`o_custkey` Int64
+`o_orderstatus` String
+`o_totalprice` Float64
+`o_orderdate` Date
+`o_orderpriority` String
+`o_clerk` String
+`o_shippriority` Int64
+`o_comment` String

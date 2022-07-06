@@ -73,12 +73,12 @@ object DSV2BenchmarkTest {
 
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[3]")
-        .config("spark.driver.memory", "4G")
+        .master("local[12]")
+        .config("spark.driver.memory", "8G")
         .config("spark.driver.memoryOverhead", "12G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions", 3)
+        .config("spark.sql.shuffle.partitions", 12)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
@@ -98,6 +98,8 @@ object DSV2BenchmarkTest {
         // .config("spark.io.compression.codec", "LZ4")
         .config("spark.shuffle.compress", "true")
         .config("spark.io.compression.codec", "snappy")
+        .config("spark.reducer.maxSizeInFlight", "48m")
+        .config("spark.shuffle.file.buffer", "32k")
         // .config("spark.gluten.sql.columnar.shuffleSplitDefaultSize", "8192")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)
         .config("spark.databricks.delta.snapshotPartitions", 1)
@@ -130,8 +132,10 @@ object DSV2BenchmarkTest {
         //.config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
-        .config("spark.shuffle.sort.bypassMergeThreshold", "6")
+        .config("spark.shuffle.sort.bypassMergeThreshold", "10")
         .config("spark.local.dir", "/data1/gazelle-jni-warehouse/spark_local_dirs")
+        .config("spark.executor.heartbeatInterval", "240s")
+        .config("spark.network.timeout", "300s")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -160,6 +164,7 @@ object DSV2BenchmarkTest {
     if (refreshTable) {
       refreshClickHouseTable(spark)
     }
+    println("start to query ... ")
 
     // createClickHouseTablesAsSelect(spark)
     // createClickHouseTablesAndInsert(spark)
@@ -178,8 +183,8 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    // testTPCHOne(spark, executedCnt)
-    testTPCHAll(spark)
+    testTPCHOne(spark, executedCnt)
+    // testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -200,22 +205,30 @@ object DSV2BenchmarkTest {
       val startTime = System.nanoTime()
       val df = spark.sql(
         s"""
-           |SELECT
-           |    sum(l_extendedprice) / 7.0 AS avg_yearly
+           |SELECT /*+ SHUFFLE_MERGE(ch_lineitem100) */
+           |    n_name,
+           |    sum(l_extendedprice * (1 - l_discount)) AS revenue
            |FROM
-           |    ch_lineitem,
-           |    ch_part
+           |    ch_customer100,
+           |    ch_orders100,
+           |    ch_lineitem100,
+           |    ch_supplier100,
+           |    ch_nation100,
+           |    ch_region100
            |WHERE
-           |    p_partkey = l_partkey
-           |    AND p_brand = 'Brand#23'
-           |    AND p_container = 'MED BOX'
-           |    AND l_quantity < (
-           |        SELECT
-           |            0.2 * avg(l_quantity)
-           |        FROM
-           |            ch_lineitem
-           |        WHERE
-           |            l_partkey = p_partkey);
+           |    c_custkey = o_custkey
+           |    AND l_orderkey = o_orderkey
+           |    AND l_suppkey = s_suppkey
+           |    AND c_nationkey = s_nationkey
+           |    AND s_nationkey = n_nationkey
+           |    AND n_regionkey = r_regionkey
+           |    AND r_name = 'ASIA'
+           |    AND o_orderdate >= date'1994-01-01'
+           |    AND o_orderdate < date'1994-01-01' + interval 1 year
+           |GROUP BY
+           |    n_name
+           |ORDER BY
+           |    revenue DESC;
            |""".stripMargin) //.show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()
@@ -928,7 +941,7 @@ object DSV2BenchmarkTest {
   }
 
   def createTables(spark: SparkSession, parquetFilesPath: String, fileFormat: String): Unit = {
-    val dataSourceMap = Map(
+    /*val dataSourceMap = Map(
       "customer" -> spark.read.format(fileFormat).load(parquetFilesPath + "/customer"),
 
       "lineitem" -> spark.read.format(fileFormat).load(parquetFilesPath + "/lineitem"),
@@ -943,13 +956,14 @@ object DSV2BenchmarkTest {
 
       "partsupp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/partsupp"),
 
-      "supplier" -> spark.read.format(fileFormat).load(parquetFilesPath + "/supplier"))
+      "supplier" -> spark.read.format(fileFormat).load(parquetFilesPath + "/supplier"))*/
 
-    val customerData = parquetFilesPath + "/customer"
-    spark.sql(s"DROP TABLE IF EXISTS customer01")
+    val parquetFilePath = "/data1/test_output/tpch-data-sf100"
+    val customerData = parquetFilePath + "/customer"
+    spark.sql(s"DROP TABLE IF EXISTS customer100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS customer01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS customer100 (
          | c_custkey    bigint,
          | c_name       string,
          | c_address    string,
@@ -961,11 +975,11 @@ object DSV2BenchmarkTest {
          | STORED AS PARQUET LOCATION '${customerData}'
          |""".stripMargin).show(1, false)
 
-    val lineitemData = parquetFilesPath + "/lineitem"
-    spark.sql(s"DROP TABLE IF EXISTS lineitem01")
+    val lineitemData = parquetFilePath + "/lineitem"
+    spark.sql(s"DROP TABLE IF EXISTS lineitem100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem100 (
          | l_orderkey      bigint,
          | l_partkey       bigint,
          | l_suppkey       bigint,
@@ -985,11 +999,11 @@ object DSV2BenchmarkTest {
          | STORED AS PARQUET LOCATION '${lineitemData}'
          |""".stripMargin).show(1, false)
 
-    val nationData = parquetFilesPath + "/nation"
-    spark.sql(s"DROP TABLE IF EXISTS nation01")
+    val nationData = parquetFilePath + "/nation"
+    spark.sql(s"DROP TABLE IF EXISTS nation100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS nation01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS nation100 (
          | n_nationkey bigint,
          | n_name      string,
          | n_regionkey bigint,
@@ -997,22 +1011,22 @@ object DSV2BenchmarkTest {
          | STORED AS PARQUET LOCATION '${nationData}'
          |""".stripMargin).show(1, false)
 
-    val regionData = parquetFilesPath + "/region"
-    spark.sql(s"DROP TABLE IF EXISTS region01")
+    val regionData = parquetFilePath + "/region"
+    spark.sql(s"DROP TABLE IF EXISTS region100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS region01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS region100 (
          | r_regionkey bigint,
          | r_name      string,
          | r_comment   string)
          | STORED AS PARQUET LOCATION '${regionData}'
          |""".stripMargin).show(1, false)
 
-    val ordersData = parquetFilesPath + "/order"
-    spark.sql(s"DROP TABLE IF EXISTS orders01")
+    val ordersData = parquetFilePath + "/order"
+    spark.sql(s"DROP TABLE IF EXISTS orders100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS orders01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS orders100 (
          | o_orderkey      bigint,
          | o_custkey       bigint,
          | o_orderstatus   string,
@@ -1025,11 +1039,11 @@ object DSV2BenchmarkTest {
          | STORED AS PARQUET LOCATION '${ordersData}'
          |""".stripMargin).show(1, false)
 
-    val partData = parquetFilesPath + "/part"
-    spark.sql(s"DROP TABLE IF EXISTS part01")
+    val partData = parquetFilePath + "/part"
+    spark.sql(s"DROP TABLE IF EXISTS part100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS part01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS part100 (
          | p_partkey     bigint,
          | p_name        string,
          | p_mfgr        string,
@@ -1042,11 +1056,11 @@ object DSV2BenchmarkTest {
          | STORED AS PARQUET LOCATION '${partData}'
          |""".stripMargin).show(1, false)
 
-    val partsuppData = parquetFilesPath + "/partsupp"
-    spark.sql(s"DROP TABLE IF EXISTS partsupp01")
+    val partsuppData = parquetFilePath + "/partsupp"
+    spark.sql(s"DROP TABLE IF EXISTS partsupp100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp100 (
          | ps_partkey    bigint,
          | ps_suppkey    bigint,
          | ps_availqty   bigint,
@@ -1055,11 +1069,11 @@ object DSV2BenchmarkTest {
          | STORED AS PARQUET LOCATION '${partsuppData}'
          |""".stripMargin).show(1, false)
 
-    val supplierData = parquetFilesPath + "/supplier"
-    spark.sql(s"DROP TABLE IF EXISTS supplier01")
+    val supplierData = parquetFilePath + "/supplier"
+    spark.sql(s"DROP TABLE IF EXISTS supplier100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS supplier01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS supplier100 (
          | s_suppkey   bigint,
          | s_name      string,
          | s_address   string,
@@ -1094,13 +1108,13 @@ object DSV2BenchmarkTest {
   }
 
   def createClickHouseTables(spark: SparkSession): Unit = {
-    val dataFilesPath = "/data1/gazelle-jni-warehouse/tpch01_ch_data"
+    val dataFilesPath = "/data1/gazelle-jni-warehouse/tpch100_ch_data"
 
     val customerData = dataFilesPath + "/customer"
-    spark.sql(s"DROP TABLE IF EXISTS ch_customer01")
+    spark.sql(s"DROP TABLE IF EXISTS ch_customer100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_customer01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_customer100 (
          | c_custkey    bigint,
          | c_name       string,
          | c_address    string,
@@ -1116,10 +1130,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val lineitemData = dataFilesPath + "/lineitem"
-    spark.sql(s"DROP TABLE IF EXISTS ch_lineitem01")
+    spark.sql(s"DROP TABLE IF EXISTS ch_lineitem100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_lineitem01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_lineitem100 (
          | l_orderkey      bigint,
          | l_partkey       bigint,
          | l_suppkey       bigint,
@@ -1142,11 +1156,38 @@ object DSV2BenchmarkTest {
          | LOCATION '${lineitemData}'
          |""".stripMargin).show(1, false)
 
-    val nationData = dataFilesPath + "/nation"
-    spark.sql(s"DROP TABLE IF EXISTS ch_nation01")
+    val lineitemLCData = dataFilesPath + "/lineitem_lowcardinality"
+    spark.sql(s"DROP TABLE IF EXISTS ch_lineitem100_lc")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_nation01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_lineitem100_lc (
+         | l_orderkey      bigint,
+         | l_partkey       bigint,
+         | l_suppkey       bigint,
+         | l_linenumber    bigint,
+         | l_quantity      double,
+         | l_extendedprice double,
+         | l_discount      double,
+         | l_tax           double,
+         | l_returnflag    string,
+         | l_linestatus    string,
+         | l_shipdate      date,
+         | l_commitdate    date,
+         | l_receiptdate   date,
+         | l_shipinstruct  string,
+         | l_shipmode      string,
+         | l_comment       string)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${lineitemLCData}'
+         |""".stripMargin).show(1, false)
+
+    val nationData = dataFilesPath + "/nation"
+    spark.sql(s"DROP TABLE IF EXISTS ch_nation100")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_nation100 (
          | n_nationkey bigint,
          | n_name      string,
          | n_regionkey bigint,
@@ -1158,10 +1199,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val regionData = dataFilesPath + "/region"
-    spark.sql(s"DROP TABLE IF EXISTS ch_region01")
+    spark.sql(s"DROP TABLE IF EXISTS ch_region100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_region01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_region100 (
          | r_regionkey bigint,
          | r_name      string,
          | r_comment   string)
@@ -1172,10 +1213,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val ordersData = dataFilesPath + "/order"
-    spark.sql(s"DROP TABLE IF EXISTS ch_orders01")
+    spark.sql(s"DROP TABLE IF EXISTS ch_orders100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_orders01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_orders100 (
          | o_orderkey      bigint,
          | o_custkey       bigint,
          | o_orderstatus   string,
@@ -1192,10 +1233,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val partData = dataFilesPath + "/part"
-    spark.sql(s"DROP TABLE IF EXISTS ch_part01")
+    spark.sql(s"DROP TABLE IF EXISTS ch_part100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_part01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_part100 (
          | p_partkey     bigint,
          | p_name        string,
          | p_mfgr        string,
@@ -1212,10 +1253,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val partsuppData = dataFilesPath + "/partsupp"
-    spark.sql(s"DROP TABLE IF EXISTS ch_partsupp01")
+    spark.sql(s"DROP TABLE IF EXISTS ch_partsupp100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_partsupp01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_partsupp100 (
          | ps_partkey    bigint,
          | ps_suppkey    bigint,
          | ps_availqty   bigint,
@@ -1228,10 +1269,10 @@ object DSV2BenchmarkTest {
          |""".stripMargin).show(1, false)
 
     val supplierData = dataFilesPath + "/supplier"
-    spark.sql(s"DROP TABLE IF EXISTS ch_supplier01")
+    spark.sql(s"DROP TABLE IF EXISTS ch_supplier100")
     spark.sql(
       s"""
-         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_supplier01 (
+         | CREATE EXTERNAL TABLE IF NOT EXISTS ch_supplier100 (
          | s_suppkey   bigint,
          | s_name      string,
          | s_address   string,
