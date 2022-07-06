@@ -81,10 +81,10 @@ void DwrfDatasource::Init(
       // Currently velox only support ZLIB and ZSTD and the default is ZSTD.
       if (strcasecmp(iter->second.c_str(), "ZLIB") == 0) {
         config->set(facebook::velox::dwrf::Config::COMPRESSION,
-                    facebook::velox::dwrf::CompressionKind::CompressionKind_ZLIB);
+                    facebook::velox::dwio::common::CompressionKind::CompressionKind_ZLIB);
       } else {
         config->set(facebook::velox::dwrf::Config::COMPRESSION,
-                    facebook::velox::dwrf::CompressionKind::CompressionKind_ZSTD);
+                    facebook::velox::dwio::common::CompressionKind::CompressionKind_ZSTD);
       }
     }
   }
