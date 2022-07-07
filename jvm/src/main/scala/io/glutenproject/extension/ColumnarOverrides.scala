@@ -82,7 +82,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       // Push down the left conditions in Filter into Scan.
       val newChild =
         if (plan.child.isInstanceOf[FileSourceScanExec] ||
-            plan.child.isInstanceOf[BatchScanExec]) {
+          plan.child.isInstanceOf[BatchScanExec]) {
           FilterHandler.applyFilterPushdownToScan(plan)
         } else {
           replaceWithTransformerPlan(plan.child)
@@ -118,7 +118,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
       if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
-          columnarConf.enableColumnarShuffle) {
+        columnarConf.enableColumnarShuffle) {
         if (isSupportAdaptive) {
           new ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
         } else {
@@ -203,7 +203,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       p.withNewChildren(children)
   }
 
-  def setAdaptiveSupport(enable: Boolean): Unit = { isSupportAdaptive = enable }
+  def setAdaptiveSupport(enable: Boolean): Unit = {
+    isSupportAdaptive = enable
+  }
 
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan)
@@ -244,8 +246,8 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
         plan.withNewChildren(children)
       }
     case r: SparkPlan
-        if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar && r.children.exists(c =>
-          c.isInstanceOf[ColumnarToRowExec]) =>
+      if !r.isInstanceOf[QueryStageExec] && !r.supportsColumnar && r.children.exists(c =>
+        c.isInstanceOf[ColumnarToRowExec]) =>
       // This is a fix for when DPP and AQE both enabled,
       // ColumnarExchange maybe child as a Row SparkPlan
       val children = r.children.map {
@@ -272,7 +274,9 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       p.withNewChildren(children)
   }
 
-  def setAdaptiveSupport(enable: Boolean): Unit = { isSupportAdaptive = enable }
+  def setAdaptiveSupport(enable: Boolean): Unit = {
+    isSupportAdaptive = enable
+  }
 
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan)
@@ -281,40 +285,20 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 }
 
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
-  def nativeEngineEnabled: Boolean = GlutenConfig.getSessionConf.enableNativeEngine
-  def conf: SparkConf = session.sparkContext.getConf
-
-  // Do not create rules in class initialization as we should access SQLConf
-  // while creating the rules. At this time SQLConf may not be there yet.
-  def rowGuardOverrides: TransformGuardRule = TransformGuardRule()
-  def preOverrides: TransformPreOverrides = TransformPreOverrides()
-  def postOverrides: TransformPostOverrides = TransformPostOverrides()
-
   val columnarWholeStageEnabled: Boolean =
     conf.getBoolean("spark.gluten.sql.columnar.wholestagetransform", defaultValue = true)
   val isCH: Boolean = conf
     .get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
     .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-  def collapseOverrides: ColumnarCollapseCodegenStages =
-    ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
-
   var isSupportAdaptive: Boolean = true
 
-  private def supportAdaptive(plan: SparkPlan): Boolean = {
-    // TODO migrate dynamic-partition-pruning onto adaptive execution.
-    // Only QueryStage will have Exchange as Leaf Plan
-    val isLeafPlanExchange = plan match {
-      case e: Exchange => true
-      case other => false
-    }
-    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled && (sanityCheck(plan) &&
-    !plan.logicalLink.exists(_.isStreaming) &&
-    !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
-    plan.children.forall(supportAdaptive)))
-  }
+  def conf: SparkConf = session.sparkContext.getConf
 
-  private def sanityCheck(plan: SparkPlan): Boolean =
-    plan.logicalLink.isDefined
+  // Do not create rules in class initialization as we should access SQLConf
+  // while creating the rules. At this time SQLConf may not be there yet.
+  def rowGuardOverrides: TransformGuardRule = TransformGuardRule()
+
+  def preOverrides: TransformPreOverrides = TransformPreOverrides()
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => {
     // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
@@ -357,6 +341,29 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       plan
     }
   }
+
+  def nativeEngineEnabled: Boolean = GlutenConfig.getSessionConf.enableNativeEngine
+
+  def postOverrides: TransformPostOverrides = TransformPostOverrides()
+
+  def collapseOverrides: ColumnarCollapseCodegenStages =
+    ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
+
+  private def supportAdaptive(plan: SparkPlan): Boolean = {
+    // TODO migrate dynamic-partition-pruning onto adaptive execution.
+    // Only QueryStage will have Exchange as Leaf Plan
+    val isLeafPlanExchange = plan match {
+      case e: Exchange => true
+      case other => false
+    }
+    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled && (sanityCheck(plan) &&
+      !plan.logicalLink.exists(_.isStreaming) &&
+      !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
+      plan.children.forall(supportAdaptive)))
+  }
+
+  private def sanityCheck(plan: SparkPlan): Boolean =
+    plan.logicalLink.isDefined
 }
 
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {

@@ -17,21 +17,22 @@
 
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
+import java.util
+
 import scala.collection.mutable
 
-import java.util
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
-import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
+import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.{BucketTransform, FieldReference, IdentityTransform, Transform}
-import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.delta.DeltaTableIdentifier.gluePermissionError
+import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetSchemaConverter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.commands.CreateClickHouseTableCommand
@@ -46,19 +47,36 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
 
   val spark = SparkSession.active
 
+  override def createTable(ident: Identifier, schema: StructType, partitions: Array[Transform],
+                           properties: util.Map[String, String]): Table = {
+    if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
+      createClickHouseTable(
+        ident,
+        schema,
+        partitions,
+        properties,
+        Map.empty,
+        sourceQuery = None,
+        TableCreationModes.Create)
+    } else {
+      super.createTable(ident, schema, partitions, properties)
+    }
+  }
+
   /**
-   * Creates a ClickHouse table
-   *
-   * @param ident The identifier of the table
-   * @param schema The schema of the table
-   * @param partitions The partition transforms for the table
-   * @param allTableProperties The table properties that configure the behavior of the table or
-   *                           provide information about the table
-   * @param writeOptions Options specific to the write during table creation or replacement
-   * @param sourceQuery A query if this CREATE request came from a CTAS or RTAS
-   * @param operation The specific table creation mode, whether this is a Create/Replace/Create or
-   *                  Replace
-   */
+    * Creates a ClickHouse table
+    *
+    * @param ident              The identifier of the table
+    * @param schema             The schema of the table
+    * @param partitions         The partition transforms for the table
+    * @param allTableProperties The table properties that configure the behavior of the table or
+    *                           provide information about the table
+    * @param writeOptions       Options specific to the write during table creation or replacement
+    * @param sourceQuery        A query if this CREATE request came from a CTAS or RTAS
+    * @param operation          The specific table creation mode, whether this is a
+    *                           Create/Replace/Create or
+    *                           Replace
+    */
   private def createClickHouseTable(
                                      ident: Identifier,
                                      schema: StructType,
@@ -117,30 +135,13 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
     val loadedNewTable = loadTable(ident)
     logInfo(s"scanning table ${ident.toString} data ...")
     loadedNewTable match {
-      case v: ClickHouseTableV2 => {
+      case v: ClickHouseTableV2 =>
         // TODO: remove this operation after implementing write mergetree into table
         ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(spark.sessionState.newHadoopConf(), v)
         v.refresh()
-      }
       case _ =>
     }
     loadedNewTable
-  }
-
-  override def createTable(ident: Identifier, schema: StructType, partitions: Array[Transform],
-                           properties: util.Map[String, String]): Table = {
-    if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
-      createClickHouseTable(
-        ident,
-        schema,
-        partitions,
-        properties,
-        Map.empty,
-        sourceQuery = None,
-        TableCreationModes.Create)
-    } else {
-      super.createTable(ident, schema, partitions, properties)
-    }
   }
 
   // Copy of V2SessionCatalog.convertTransforms, which is private.
@@ -161,66 +162,6 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
     }
 
     (identityCols, bucketSpec)
-  }
-
-  private def newDeltaPathTable(ident: Identifier): ClickHouseTableV2 = {
-    ClickHouseTableV2(spark, new Path(ident.name()))
-  }
-
-  override def loadTable(ident: Identifier): Table = {
-    try {
-      super.loadTable(ident) match {
-        case v1: V1Table if CHDataSourceUtils.isDeltaTable(v1.catalogTable) =>
-          ClickHouseTableV2(
-            spark,
-            new Path(v1.catalogTable.location),
-            catalogTable = Some(v1.catalogTable),
-            tableIdentifier = Some(ident.toString))
-        case o => o
-      }
-    } catch {
-      case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException
-        if isPathIdentifier(ident) =>
-        newDeltaPathTable(ident)
-      case e: AnalysisException if gluePermissionError(e) && isPathIdentifier(ident) =>
-        logWarning("Received an access denied error from Glue. Assuming this " +
-          s"identifier ($ident) is path based.", e)
-        newDeltaPathTable(ident)
-    }
-  }
-
-
-  override def invalidateTable(ident: Identifier): Unit = {
-    try {
-      loadTable(ident) match {
-        case v: ClickHouseTableV2 => {
-          ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(spark.sessionState.newHadoopConf(),
-            v)
-          v.refresh()
-        }
-      }
-      super.invalidateTable(ident)
-    }
-    catch {
-      case ignored: NoSuchTableException =>
-      // ignore if the table doesn't exist, it is not cached
-    }
-  }
-
-  override def stageCreate(ident: Identifier, schema: StructType, partitions: Array[Transform],
-                           properties: util.Map[String, String]): StagedTable = {
-    throw new UnsupportedOperationException("Do not support stageCreate currently.")
-  }
-
-  override def stageReplace(ident: Identifier, schema: StructType, partitions: Array[Transform],
-                            properties: util.Map[String, String]): StagedTable = {
-    throw new UnsupportedOperationException("Do not support stageReplace currently.")
-  }
-
-  override def stageCreateOrReplace(ident: Identifier, schema: StructType,
-                                    partitions: Array[Transform],
-                                    properties: util.Map[String, String]): StagedTable = {
-    throw new UnsupportedOperationException("Do not support stageCreateOrReplace currently.")
   }
 
   /** Performs checks on the parameters provided for table creation for a ClickHouse table. */
@@ -250,7 +191,6 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
       properties = tableDesc.properties)
   }
 
-
   /** Checks if a table already exists for the provided identifier. */
   private def getExistingTableIfExists(table: CatalogTable): Option[CatalogTable] = {
     // If this is a path identifier, we cannot return an existing CatalogTable. The Create command
@@ -276,21 +216,83 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
   private def getProvider(properties: util.Map[String, String]): String = {
     Option(properties.get("provider")).getOrElse(ClickHouseConfig.NAME)
   }
+
+  override def invalidateTable(ident: Identifier): Unit = {
+    try {
+      loadTable(ident) match {
+        case v: ClickHouseTableV2 =>
+          ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(spark.sessionState.newHadoopConf(),
+            v)
+          v.refresh()
+      }
+      super.invalidateTable(ident)
+    }
+    catch {
+      case ignored: NoSuchTableException =>
+      // ignore if the table doesn't exist, it is not cached
+    }
+  }
+
+  override def loadTable(ident: Identifier): Table = {
+    try {
+      super.loadTable(ident) match {
+        case v1: V1Table if CHDataSourceUtils.isDeltaTable(v1.catalogTable) =>
+          ClickHouseTableV2(
+            spark,
+            new Path(v1.catalogTable.location),
+            catalogTable = Some(v1.catalogTable),
+            tableIdentifier = Some(ident.toString))
+        case o => o
+      }
+    } catch {
+      case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException
+        if isPathIdentifier(ident) =>
+        newDeltaPathTable(ident)
+      case e: AnalysisException if gluePermissionError(e) && isPathIdentifier(ident) =>
+        logWarning("Received an access denied error from Glue. Assuming this " +
+          s"identifier ($ident) is path based.", e)
+        newDeltaPathTable(ident)
+    }
+  }
+
+  private def newDeltaPathTable(ident: Identifier): ClickHouseTableV2 = {
+    ClickHouseTableV2(spark, new Path(ident.name()))
+  }
+
+  override def stageCreate(ident: Identifier, schema: StructType, partitions: Array[Transform],
+                           properties: util.Map[String, String]): StagedTable = {
+    throw new UnsupportedOperationException("Do not support stageCreate currently.")
+  }
+
+  override def stageReplace(ident: Identifier, schema: StructType, partitions: Array[Transform],
+                            properties: util.Map[String, String]): StagedTable = {
+    throw new UnsupportedOperationException("Do not support stageReplace currently.")
+  }
+
+  override def stageCreateOrReplace(ident: Identifier, schema: StructType,
+                                    partitions: Array[Transform],
+                                    properties: util.Map[String, String]): StagedTable = {
+    throw new UnsupportedOperationException("Do not support stageCreateOrReplace currently.")
+  }
 }
 
 /**
- * A trait for handling table access through clickhouse.`/some/path`. This is a stop-gap solution
- * until PathIdentifiers are implemented in Apache Spark.
- */
-trait SupportsPathIdentifier extends TableCatalog { self: ClickHouseSparkCatalog =>
-
-  private def supportSQLOnFile: Boolean = spark.sessionState.conf.runSQLonFile
+  * A trait for handling table access through clickhouse.`/some/path`. This is a stop-gap solution
+  * until PathIdentifiers are implemented in Apache Spark.
+  */
+trait SupportsPathIdentifier extends TableCatalog {
+  self: ClickHouseSparkCatalog =>
 
   protected lazy val catalog: SessionCatalog = spark.sessionState.catalog
 
-  private def hasClickHouseNamespace(ident: Identifier): Boolean = {
-    ident.namespace().length == 1 &&
-      CHDataSourceUtils.isClickHouseDataSourceName(ident.namespace().head)
+  override def tableExists(ident: Identifier): Boolean = {
+    if (isPathIdentifier(ident)) {
+      val path = new Path(ident.name())
+      val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
+      fs.exists(path) && fs.listStatus(path).nonEmpty
+    } else {
+      super.tableExists(ident)
+    }
   }
 
   protected def isPathIdentifier(ident: Identifier): Boolean = {
@@ -302,17 +304,14 @@ trait SupportsPathIdentifier extends TableCatalog { self: ClickHouseSparkCatalog
     }
   }
 
-  protected def isPathIdentifier(table: CatalogTable): Boolean = {
-    isPathIdentifier(Identifier.of(table.identifier.database.toArray, table.identifier.table))
+  private def supportSQLOnFile: Boolean = spark.sessionState.conf.runSQLonFile
+
+  private def hasClickHouseNamespace(ident: Identifier): Boolean = {
+    ident.namespace().length == 1 &&
+      CHDataSourceUtils.isClickHouseDataSourceName(ident.namespace().head)
   }
 
-  override def tableExists(ident: Identifier): Boolean = {
-    if (isPathIdentifier(ident)) {
-      val path = new Path(ident.name())
-      val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
-      fs.exists(path) && fs.listStatus(path).nonEmpty
-    } else {
-      super.tableExists(ident)
-    }
+  protected def isPathIdentifier(table: CatalogTable): Boolean = {
+    isPathIdentifier(Identifier.of(table.identifier.database.toArray, table.identifier.table))
   }
 }

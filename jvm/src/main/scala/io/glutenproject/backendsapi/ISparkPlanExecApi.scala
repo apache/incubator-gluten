@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,12 +18,14 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution.{FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
+
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -32,7 +35,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.{SparkSession, Strategy}
 
 trait ISparkPlanExecApi extends IBackendsApi {
 
@@ -55,12 +57,12 @@ trait ISparkPlanExecApi extends IBackendsApi {
   /**
    * Generate FilterExecTransformer.
    *
-   * @param condition: the filter condition
-   * @param child: the chid of FilterExec
+   * @param condition : the filter condition
+   * @param child     : the chid of FilterExec
    * @return the transformer of FilterExec
    */
   def genFilterExecTransformer(condition: Expression, child: SparkPlan)
-    : FilterExecBaseTransformer
+  : FilterExecBaseTransformer
 
   /**
    * Generate HashAggregateExecTransformer.
@@ -79,6 +81,7 @@ trait ISparkPlanExecApi extends IBackendsApi {
    *
    * @return
    */
+  // scalastyle:off argcount
   def genShuffleDependency(rdd: RDD[ColumnarBatch], outputAttributes: Seq[Attribute],
                            newPartitioning: Partitioning, serializer: Serializer,
                            writeMetrics: Map[String, SQLMetric], dataSize: SQLMetric,
@@ -86,6 +89,7 @@ trait ISparkPlanExecApi extends IBackendsApi {
                            computePidTime: SQLMetric, splitTime: SQLMetric,
                            spillTime: SQLMetric, compressTime: SQLMetric, prepareTime: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
+  // scalastyle:on argcount
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
@@ -107,13 +111,14 @@ trait ISparkPlanExecApi extends IBackendsApi {
    * Create broadcast relation for BroadcastExchangeExec
    */
   def createBroadcastRelation(
-      child: SparkPlan,
-      numOutputRows: SQLMetric,
-      dataSize: SQLMetric): BuildSideRelation
+                               child: SparkPlan,
+                               numOutputRows: SQLMetric,
+                               dataSize: SQLMetric): BuildSideRelation
 
   /**
    * Generate extended DataSourceV2 Strategy.
    * Currently only for ClickHouse backend.
+   *
    * @return
    */
   def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy

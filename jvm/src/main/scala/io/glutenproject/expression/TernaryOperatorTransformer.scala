@@ -21,11 +21,12 @@ import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
 class SubStringTransformer(str: Expression, pos: Expression, len: Expression, original: Expression)
-    extends Substring(str: Expression, pos: Expression, len: Expression)
+  extends Substring(str: Expression, pos: Expression, len: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -38,8 +39,8 @@ class SubStringTransformer(str: Expression, pos: Expression, len: Expression, or
       len.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!strNode.isInstanceOf[ExpressionNode] ||
-        !posNode.isInstanceOf[ExpressionNode] ||
-        !lenNode.isInstanceOf[ExpressionNode]) {
+      !posNode.isInstanceOf[ExpressionNode] ||
+      !lenNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -61,9 +62,9 @@ object TernaryOperatorTransformer {
 
   def create(str: Expression, pos: Expression, len: Expression, original: Expression): Expression =
     original match {
-    case ss: Substring =>
-      new SubStringTransformer(str, pos, len, ss)
-    case other =>
-      throw new UnsupportedOperationException(s"not currently supported: $other.")
-  }
+      case ss: Substring =>
+        new SubStringTransformer(str, pos, len, ss)
+      case other =>
+        throw new UnsupportedOperationException(s"not currently supported: $other.")
+    }
 }

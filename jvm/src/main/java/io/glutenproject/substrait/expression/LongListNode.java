@@ -23,25 +23,25 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class LongListNode implements ExpressionNode, Serializable {
-    private final ArrayList<Long> values = new ArrayList<>();
+  private final ArrayList<Long> values = new ArrayList<>();
 
-    public LongListNode(ArrayList<Long> values) {
-        this.values.addAll(values);
+  public LongListNode(ArrayList<Long> values) {
+    this.values.addAll(values);
+  }
+
+  @Override
+  public Expression toProtobuf() {
+    Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
+    Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
+    for (Long value : values) {
+      literalBuilder.setI64(value);
+      listBuilder.addValues(literalBuilder.build());
     }
+    literalBuilder.setList(listBuilder.build());
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
-        Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
-        for (Long value : values) {
-            literalBuilder.setI64(value);
-            listBuilder.addValues(literalBuilder.build());
-        }
-        literalBuilder.setList(listBuilder.build());
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setLiteral(literalBuilder.build());
 
-        Expression.Builder builder =  Expression.newBuilder();
-        builder.setLiteral(literalBuilder.build());
-
-        return builder.build();
-    }
+    return builder.build();
+  }
 }

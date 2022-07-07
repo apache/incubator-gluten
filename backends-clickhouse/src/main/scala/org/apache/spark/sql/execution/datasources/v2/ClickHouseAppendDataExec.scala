@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,27 +30,27 @@ import io.glutenproject.substrait.ddlplan.{DllNode, DllTransformContext, InsertO
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
 import io.glutenproject.utils.SnowflakeIdWorker
-import org.apache.spark.{Partition, SparkEnv, SparkException, TaskContext}
 
+import org.apache.spark.{Partition, SparkEnv, SparkException, TaskContext}
 import org.apache.spark.executor.CommitDeniedException
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.catalog.SupportsWrite
 import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, WriterCommitMessage}
 import org.apache.spark.sql.delta.{DeltaOperations, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
 import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
+import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.files.ClickHouseCommitProtocol
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseBatchWrite
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, WriteJobStatsTracker}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.files.ClickHouseCommitProtocol
 import org.apache.spark.util.{LongAccumulator, SerializableConfiguration, Utils}
 
 case class ClickHouseAppendDataExec(
@@ -250,7 +251,7 @@ case class ClickHouseAppendDataExec(
   }
 
   def genInsertPlan(substraitContext: SubstraitContext,
-                   queryOutput: Seq[Attribute]): DllTransformContext = {
+                    queryOutput: Seq[Attribute]): DllTransformContext = {
     val typeNodes = ConverterUtils.getTypeNodeFromAttributes(queryOutput)
     val nameList = new java.util.ArrayList[String]()
     for (attr <- queryOutput) {

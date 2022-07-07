@@ -17,9 +17,9 @@
 
 package io.glutenproject.execution
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
+
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
@@ -29,7 +29,7 @@ import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import java.util
 
@@ -47,53 +47,25 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * Columnar Based HashAggregateExec.
  */
 abstract class HashAggregateExecBaseTransformer(
-    requiredChildDistributionExpressions: Option[Seq[Expression]],
-    groupingExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[AggregateExpression],
-    aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
-    resultExpressions: Seq[NamedExpression],
-    child: SparkPlan)
-    extends BaseAggregateExec
+                                     requiredChildDistributionExpressions: Option[Seq[Expression]],
+                                     groupingExpressions: Seq[NamedExpression],
+                                     aggregateExpressions: Seq[AggregateExpression],
+                                     aggregateAttributes: Seq[Attribute],
+                                     initialInputBufferOffset: Int,
+                                     resultExpressions: Seq[NamedExpression],
+                                     child: SparkPlan)
+  extends BaseAggregateExec
     with TransformSupport {
-
-  val sparkConf = sparkContext.getConf
-
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-
-  val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
   override lazy val allAttributes: AttributeSeq =
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
       aggregateExpressions.flatMap(_.aggregateFunction.inputAggBufferAttributes)
-
-  // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
-  override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
-
-  // Members declared in org.apache.spark.sql.execution.CodegenSupport
-  protected def doProduce(ctx: CodegenContext): String = throw new UnsupportedOperationException()
-
-  // Members declared in org.apache.spark.sql.execution.SparkPlan
-  protected override def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] =
-    throw new UnsupportedOperationException()
-
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "aggTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in aggregation process"),
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_hashagg"))
-
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
-  val numInputBatches = longMetric("numInputBatches")
-  val aggTime = longMetric("aggTime")
-  val totalTime = longMetric("processTime")
-  numOutputRows.set(0)
-  numOutputBatches.set(0)
-  numInputBatches.set(0)
-
   lazy val aggregateResultAttributes = {
     val groupingAttributes = groupingExpressions.map(expr => {
       ConverterUtils.getAttrFromExpr(expr).toAttribute
@@ -102,10 +74,31 @@ abstract class HashAggregateExecBaseTransformer(
       expr.resultAttribute
     })
   }
+  val sparkConf = sparkContext.getConf
+  val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
+  val numOutputRows = longMetric("numOutputRows")
+  val numOutputBatches = longMetric("numOutputBatches")
+  val numInputBatches = longMetric("numInputBatches")
+  val aggTime = longMetric("aggTime")
+  val totalTime = longMetric("processTime")
+  // The direct outputs of Aggregation.
+  protected val allAggregateResultAttributes: List[Attribute] = {
+    val groupingAttributes = groupingExpressions.map(expr => {
+      ConverterUtils.getAttrFromExpr(expr).toAttribute
+    })
+    groupingAttributes.toList ::: getAttrForAggregateExpr(
+      aggregateExpressions,
+      aggregateAttributes)
+  }
+
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
+  numOutputRows.set(0)
+  numOutputBatches.set(0)
+  numInputBatches.set(0)
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
@@ -135,11 +128,7 @@ abstract class HashAggregateExecBaseTransformer(
 
   override def getChild: SparkPlan = child
 
-  // override def canEqual(that: Any): Boolean = false
-
   override def verboseString(maxFields: Int): String = toString(verbose = true, maxFields)
-
-  override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
 
   private def toString(verbose: Boolean, maxFields: Int): String = {
     val allAggregateExpressions = aggregateExpressions
@@ -152,6 +141,63 @@ abstract class HashAggregateExecBaseTransformer(
       s"HashAggregateTransformer(keys=$keyString, functions=$functionString)"
     }
   }
+
+  // override def canEqual(that: Any): Boolean = false
+
+  override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
+
+  override def doValidate(): Boolean = {
+    val substraitContext = new SubstraitContext
+    val relNode =
+      try {
+        getAggRel(substraitContext.registeredFunction, null, validation = true)
+      } catch {
+        case e: Throwable =>
+          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          return false
+      }
+    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+    // Then, validate the generated plan in native engine.
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
+  }
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child match {
+      case c: TransformSupport =>
+        c.doTransform(context)
+      case _ =>
+        null
+    }
+    val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
+      (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes, output)
+    } else {
+      // This means the input is just an iterator, so an ReadRel will be created as child.
+      // Prepare the input schema.
+      val attrList = new util.ArrayList[Attribute]()
+      for (attr <- child.output) {
+        attrList.add(attr)
+      }
+      val readRel = RelBuilder.makeReadRel(attrList, context)
+      (getAggRel(context.registeredFunction, readRel), child.output, output)
+    }
+    TransformContext(inputAttributes, outputAttributes, relNode)
+  }
+
+  // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
+  override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
+
+  // Members declared in org.apache.spark.sql.execution.CodegenSupport
+  protected def doProduce(ctx: CodegenContext): String = throw new UnsupportedOperationException()
+
+  // Members declared in org.apache.spark.sql.execution.SparkPlan
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] =
+    throw new UnsupportedOperationException()
 
   protected def needsPreProjection: Boolean = {
     var needsProjection = false
@@ -198,7 +244,7 @@ abstract class HashAggregateExecBaseTransformer(
               // If the result attribute and result expression has different name or type,
               // post-projection is needed.
               if (exprAttr.name != resAttr.name ||
-                  exprAttr.dataType != resAttr.dataType) {
+                exprAttr.dataType != resAttr.dataType) {
                 needsProjection = true
                 break
               }
@@ -215,10 +261,10 @@ abstract class HashAggregateExecBaseTransformer(
   }
 
   protected def getAggRelWithPreProjection(
-      args: java.lang.Object,
-      originalInputAttributes: Seq[Attribute],
-      input: RelNode = null,
-      validation: Boolean): RelNode = {
+                                            args: java.lang.Object,
+                                            originalInputAttributes: Seq[Attribute],
+                                            input: RelNode = null,
+                                            validation: Boolean): RelNode = {
     // Will add a Projection before Aggregate.
     // Logic was added to prevent selecting the same column for more than once,
     // so the expression in preExpressions will be unique.
@@ -284,8 +330,8 @@ abstract class HashAggregateExecBaseTransformer(
     getAggRelAfterProject(args, selections, inputRel)
   }
 
-  protected def getAggRelAfterProject(
-    args: java.lang.Object, selections: Seq[Int], inputRel: RelNode): RelNode = {
+  protected def getAggRelAfterProject(args: java.lang.Object, selections: Seq[Int],
+                                      inputRel: RelNode): RelNode = {
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
@@ -320,20 +366,10 @@ abstract class HashAggregateExecBaseTransformer(
                                 aggregateNodeList: util.ArrayList[AggregateFunctionNode]): Unit = {
     aggregateNodeList.add(
       ExpressionBuilder.makeAggregateFunction(
-          AggregateFunctionsBuilder.create(args, aggregateFunction),
-          childrenNodeList,
-          modeToKeyWord(aggregateMode),
-          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)))
-  }
-
-  // The direct outputs of Aggregation.
-  protected val allAggregateResultAttributes: List[Attribute] = {
-    val groupingAttributes = groupingExpressions.map(expr => {
-      ConverterUtils.getAttrFromExpr(expr).toAttribute
-    })
-    groupingAttributes.toList ::: getAttrForAggregateExpr(
-      aggregateExpressions,
-      aggregateAttributes)
+        AggregateFunctionsBuilder.create(args, aggregateFunction),
+        childrenNodeList,
+        modeToKeyWord(aggregateMode),
+        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)))
   }
 
   protected def applyPostProjection(args: java.lang.Object,
@@ -510,11 +546,11 @@ abstract class HashAggregateExecBaseTransformer(
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(expr => {
-    // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
-    // may be different for each backend.
-    val groupingExpr: Expression = ExpressionConverter
-      .replaceWithExpressionTransformer(expr, child.output)
-    val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+      // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
+      // may be different for each backend.
+      val groupingExpr: Expression = ExpressionConverter
+        .replaceWithExpressionTransformer(expr, child.output)
+      val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
       groupingList.add(exprNode)
     })
     // Get the aggregate function nodes.
@@ -567,47 +603,5 @@ abstract class HashAggregateExecBaseTransformer(
       getAggRelWithoutPreProjection(args, originalInputAttributes, input, validation)
     }
     applyPostProjection(args, aggRel, validation)
-  }
-
-  override def doValidate(): Boolean = {
-    val substraitContext = new SubstraitContext
-    val relNode =
-      try {
-        getAggRel(substraitContext.registeredFunction, null, validation = true)
-      } catch {
-        case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-          return false
-      }
-    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-    // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
-    } else {
-      true
-    }
-  }
-
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context)
-      case _ =>
-        null
-    }
-    val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
-      (getAggRel(context.registeredFunction, childCtx.root), childCtx.outputAttributes, output)
-    } else {
-      // This means the input is just an iterator, so an ReadRel will be created as child.
-      // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context)
-      (getAggRel(context.registeredFunction, readRel), child.output, output)
-    }
-    TransformContext(inputAttributes, outputAttributes, relNode)
   }
 }

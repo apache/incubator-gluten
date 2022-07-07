@@ -18,22 +18,23 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution.{FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
+
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.{SparkSession, Strategy}
 
 class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   /**
@@ -55,12 +56,12 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   /**
    * Generate FilterExecTransformer.
    *
-   * @param condition: the filter condition
-   * @param child: the chid of FilterExec
+   * @param condition : the filter condition
+   * @param child     : the chid of FilterExec
    * @return the transformer of FilterExec
    */
   override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
-    : FilterExecBaseTransformer = null
+  : FilterExecBaseTransformer = null
 
   /**
    * Generate HashAggregateExecTransformer.
@@ -79,6 +80,7 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    *
    * @return
    */
+  // scalastyle:off argcount
   override def genShuffleDependency(rdd: RDD[ColumnarBatch], outputAttributes: Seq[Attribute],
                                     newPartitioning: Partitioning, serializer: Serializer,
                                     writeMetrics: Map[String, SQLMetric], dataSize: SQLMetric,
@@ -87,6 +89,7 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
                                     spillTime: SQLMetric, compressTime: SQLMetric,
                                     prepareTime: SQLMetric
                                    ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = null
+  // scalastyle:off argcount
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.

@@ -1,8 +1,7 @@
 %YAML 1.2
 ---
 scalar_functions:
-  -
-    name: concat
+  - name: concat
     description: Concatenate two strings
     impls:
       - args:

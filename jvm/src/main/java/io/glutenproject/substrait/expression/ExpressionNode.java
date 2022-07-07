@@ -23,10 +23,10 @@ import io.substrait.proto.Expression;
  * Contains helper functions for constructing Substrait expressions.
  */
 public interface ExpressionNode {
-    /**
-     * Converts a Expression into a protobuf.
-     *
-     * @return A rel protobuf
-     */
-    Expression toProtobuf();
+  /**
+   * Converts a Expression into a protobuf.
+   *
+   * @return A rel protobuf
+   */
+  Expression toProtobuf();
 }

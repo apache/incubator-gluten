@@ -24,6 +24,11 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 abstract class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child = child) {
 
+  override lazy val metrics: Map[String, SQLMetric] = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
+    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert")
+  )
   // A flag used to check whether child is wholestage transformer.
   // Different backends may have different behaviours according to this flag.
   val wsChild = child.isInstanceOf[WholeStageTransformerExec]
@@ -40,12 +45,6 @@ abstract class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowEx
   }
 
   def buildCheck(): Unit
-
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert")
-  )
 
   def doExecuteInternal(): RDD[InternalRow]
 

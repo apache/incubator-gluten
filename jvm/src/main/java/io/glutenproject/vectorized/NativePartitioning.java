@@ -19,7 +19,9 @@ package io.glutenproject.vectorized;
 
 import java.io.Serializable;
 
-/** POJO to hold partitioning parameters needed by native splitter */
+/**
+ * POJO to hold partitioning parameters needed by native splitter
+ */
 public class NativePartitioning implements Serializable {
 
   private final String shortName;
@@ -30,11 +32,12 @@ public class NativePartitioning implements Serializable {
   /**
    * Constructs a new instance.
    *
-   * @param shortName Partitioning short name. "single" -> SinglePartitioning, "rr" ->
-   *     RoundRobinPartitioning, "hash" -> HashPartitioning, "range" -> RangePartitioning
+   * @param shortName     Partitioning short name. "single" -> SinglePartitioning, "rr" ->
+   *                      RoundRobinPartitioning, "hash" -> HashPartitioning,
+   *                                              "range" -> RangePartitioning
    * @param numPartitions Partitioning numPartitions
-   * @param schema serialized arrow schema
-   * @param exprList Serialized gandiva expressions
+   * @param schema        serialized arrow schema
+   * @param exprList      Serialized gandiva expressions
    */
   public NativePartitioning(String shortName, int numPartitions, byte[] schema, byte[] exprList) {
     this.shortName = shortName;

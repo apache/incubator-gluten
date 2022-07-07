@@ -36,25 +36,6 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def getPartitions: Seq[InputPartition]
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val output = outputAttributes()
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
-    val nameList = new java.util.ArrayList[String]()
-    for (attr <- output) {
-      nameList.add(attr.name)
-    }
-    // Will put all filter expressions into an AND expression
-    val transformer = filterExprs()
-      .reduceLeftOption(And)
-      .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
-    val filterNodes = transformer.map(
-      _.asInstanceOf[ExpressionTransformer].doTransform(context.registeredFunction))
-    val exprNode = filterNodes.orNull
-
-    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, exprNode, context)
-    TransformContext(output, output, relNode)
-  }
-
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
     val relNode =
@@ -73,5 +54,24 @@ trait BasicScanExecTransformer extends TransformSupport {
     } else {
       true
     }
+  }
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val output = outputAttributes()
+    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
+    val nameList = new java.util.ArrayList[String]()
+    for (attr <- output) {
+      nameList.add(attr.name)
+    }
+    // Will put all filter expressions into an AND expression
+    val transformer = filterExprs()
+      .reduceLeftOption(And)
+      .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
+    val filterNodes = transformer.map(
+      _.asInstanceOf[ExpressionTransformer].doTransform(context.registeredFunction))
+    val exprNode = filterNodes.orNull
+
+    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, exprNode, context)
+    TransformContext(output, output, relNode)
   }
 }

@@ -19,43 +19,43 @@ package io.glutenproject.substrait.plan;
 
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
-import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.extensions.ExtensionBuilder;
+import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.rel.RelNode;
-import io.substrait.proto.AdvancedExtension;
 
 import java.util.ArrayList;
 import java.util.Map;
 
 public class PlanBuilder {
-    private PlanBuilder() {}
+  private PlanBuilder() {
+  }
 
-    public static PlanNode makePlan(ArrayList<FunctionMappingNode> mappingNodes,
-                                    ArrayList<RelNode> relNodes,
-                                    ArrayList<String> outNames) {
-        return new PlanNode(mappingNodes, relNodes, outNames);
+  public static PlanNode makePlan(ArrayList<FunctionMappingNode> mappingNodes,
+                                  ArrayList<RelNode> relNodes,
+                                  ArrayList<String> outNames) {
+    return new PlanNode(mappingNodes, relNodes, outNames);
+  }
+
+  public static PlanNode makePlan(AdvancedExtensionNode extension) {
+    return new PlanNode(extension);
+  }
+
+  public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes,
+                                  ArrayList<String> outNames) {
+    if (subCtx == null) {
+      throw new NullPointerException("ColumnarWholestageTransformer cannot doTansform.");
     }
+    ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
 
-    public static PlanNode makePlan(AdvancedExtensionNode extension) {
-        return new PlanNode(extension);
+    for (Map.Entry<String, Long> entry : subCtx.registeredFunction().entrySet()) {
+      FunctionMappingNode mappingNode =
+          ExtensionBuilder.makeFunctionMapping(entry.getKey(), entry.getValue());
+      mappingNodes.add(mappingNode);
     }
+    return makePlan(mappingNodes, relNodes, outNames);
+  }
 
-    public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes,
-                                    ArrayList<String> outNames) {
-        if (subCtx == null) {
-            throw new NullPointerException("ColumnarWholestageTransformer cannot doTansform.");
-        }
-        ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
-
-        for (Map.Entry<String, Long> entry : subCtx.registeredFunction().entrySet()) {
-            FunctionMappingNode mappingNode =
-                    ExtensionBuilder.makeFunctionMapping(entry.getKey(), entry.getValue());
-            mappingNodes.add(mappingNode);
-        }
-        return makePlan(mappingNodes, relNodes, outNames);
-    }
-
-    public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes) {
-        return makePlan(subCtx, relNodes, new ArrayList<>());
-    }
+  public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes) {
+    return makePlan(subCtx, relNodes, new ArrayList<>());
+  }
 }

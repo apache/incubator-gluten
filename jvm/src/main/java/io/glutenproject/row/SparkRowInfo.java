@@ -18,18 +18,19 @@
 package io.glutenproject.row;
 
 public class SparkRowInfo {
-    public long[] offsets;
-    public long[] lengths;
-    public long memoryAddress;
+  public long[] offsets;
+  public long[] lengths;
+  public long memoryAddress;
 
-    public long totalSize;
-    public long fieldsNum;
+  public long totalSize;
+  public long fieldsNum;
 
-    public SparkRowInfo(long[] offsets, long[] lengths, long memoryAddress, long fieldsNum, long totalSize) {
-        this.offsets = offsets;
-        this.lengths = lengths;
-        this.memoryAddress = memoryAddress;
-        this.fieldsNum = fieldsNum;
-        this.totalSize = totalSize;
-    }
+  public SparkRowInfo(long[] offsets, long[] lengths, long memoryAddress, long fieldsNum,
+                      long totalSize) {
+    this.offsets = offsets;
+    this.lengths = lengths;
+    this.memoryAddress = memoryAddress;
+    this.fieldsNum = fieldsNum;
+    this.totalSize = totalSize;
+  }
 }

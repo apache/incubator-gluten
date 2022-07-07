@@ -23,10 +23,10 @@ import io.substrait.proto.Rel;
  * Contains helper functions for constructing substrait relations.
  */
 public interface RelNode {
-    /**
-     * Converts a Rel into a protobuf.
-     *
-     * @return A rel protobuf
-     */
-    Rel toProtobuf();
+  /**
+   * Converts a Rel into a protobuf.
+   *
+   * @return A rel protobuf
+   */
+  Rel toProtobuf();
 }

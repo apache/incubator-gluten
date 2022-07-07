@@ -21,8 +21,8 @@ import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
-import org.apache.spark.SparkConf
-import org.apache.spark.TaskContext
+
+import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -69,13 +69,14 @@ class IteratorApiImplSuite extends IIteratorApi {
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
-                                     : Iterator[ColumnarBatch] = null
+  : Iterator[ColumnarBatch] = null
 
   /**
    * Generate Iterator[ColumnarBatch] for final stage.
    *
    * @return
    */
+    // scalastyle:off argcount
   override def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                                      numaBindingInfo: GlutenNumaBindingInfo,
                                      listJars: Seq[String], signature: String,
@@ -87,7 +88,7 @@ class IteratorApiImplSuite extends IIteratorApi {
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = null
-
+  // scalastyle:on argcount
   /**
    * Generate columnar native iterator.
    *

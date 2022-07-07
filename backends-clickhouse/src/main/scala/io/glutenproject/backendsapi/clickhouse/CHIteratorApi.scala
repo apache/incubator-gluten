@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,8 +27,8 @@ import io.glutenproject.execution._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.vectorized._
-import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 
+import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -39,10 +40,10 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 class CHIteratorApi extends IIteratorApi with Logging {
 
   /**
-   * Generate native row partition.
-   *
-   * @return
-   */
+    * Generate native row partition.
+    *
+    * @return
+    */
   override def genNativeFilePartition(p: InputPartition,
                                       wsCxt: WholestageTransformContext
                                      ): BaseNativeFilePartition = {
@@ -61,8 +62,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
         val lengths = new java.util.ArrayList[java.lang.Long]()
         files.foreach { f =>
           paths.add(f.filePath)
-          starts.add(new java.lang.Long(f.start))
-          lengths.add(new java.lang.Long(f.length))
+          starts.add(java.lang.Long.valueOf(f.start))
+          lengths.add(java.lang.Long.valueOf(f.length))
         }
         val localFilesNode = LocalFilesBuilder.makeLocalFiles(
           index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat())
@@ -75,17 +76,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
 
 
   /**
-   * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
-   *
-   * @param iter
-   * @param recordsPerBatch
-   * @param numOutputRows
-   * @param numInputBatches
-   * @param numOutputBatches
-   * @param collectTime
-   * @param concatTime
-   * @param avgCoalescedNumRows
-   * @return
+    * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
+    *
    */
   override def genCoalesceIterator(iter: Iterator[ColumnarBatch],
                                    recordsPerBatch: Int,
@@ -135,24 +127,11 @@ class CHIteratorApi extends IIteratorApi with Logging {
     new CloseableCHColumnBatchIterator(res)
   }
 
-
   /**
-   * Generate closeable ColumnBatch iterator.
-   *
-   * @param iter
-   * @return
-   */
-  override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]
-                                              ): Iterator[ColumnarBatch] = {
-    if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
-    else new CloseableCHColumnBatchIterator(iter)
-  }
-
-  /**
-   * Generate Iterator[ColumnarBatch] for first stage.
-   *
-   * @return
-   */
+    * Generate Iterator[ColumnarBatch] for first stage.
+    *
+    * @return
+    */
   override def genFirstStageIterator(inputPartition: BaseNativeFilePartition,
                                      loadNative: Boolean,
                                      outputAttributes: Seq[Attribute],
@@ -160,8 +139,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
-                                     : Iterator[ColumnarBatch] = {
-    var resIter : GeneralOutIterator = null
+  : Iterator[ColumnarBatch] = {
+    var resIter: GeneralOutIterator = null
     if (loadNative) {
       val transKernel = new ExpressionEvaluator()
       val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
@@ -198,11 +177,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
         Some(pipelineTime)))
   }
 
-  /**
-   * Generate Iterator[ColumnarBatch] for final stage.
-   *
-   * @return
-   */
+   // Generate Iterator[ColumnarBatch] for final stage.
+   // scalastyle:off argcount
   override def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                                      numaBindingInfo: GlutenNumaBindingInfo,
                                      listJars: Seq[String],
@@ -217,6 +193,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]
                                     ): Iterator[ColumnarBatch] = {
+     // scalastyle:on argcount
     GlutenConfig.getConf
     val transKernel = new ExpressionEvaluator()
     val columnarNativeIterator =
@@ -263,20 +240,32 @@ class CHIteratorApi extends IIteratorApi with Logging {
   }
 
   /**
-   * Generate columnar native iterator.
-   *
-   * @return
-   */
+    * Generate closeable ColumnBatch iterator.
+    *
+    * @param iter
+    * @return
+    */
+  override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]
+                                              ): Iterator[ColumnarBatch] = {
+    if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
+    else new CloseableCHColumnBatchIterator(iter)
+  }
+
+  /**
+    * Generate columnar native iterator.
+    *
+    * @return
+    */
   override def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]
                                         ): ColumnarNativeIterator = {
     new ColumnarNativeIterator(delegated.asJava)
   }
 
   /**
-   * Generate BatchIterator for ExpressionEvaluator.
-   *
-   * @return
-   */
+    * Generate BatchIterator for ExpressionEvaluator.
+    *
+    * @return
+    */
   override def genBatchIterator(wsPlan: Array[Byte],
                                 iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper,
@@ -288,9 +277,9 @@ class CHIteratorApi extends IIteratorApi with Logging {
   }
 
   /**
-   * Get the backend api name.
-   *
-   * @return
-   */
+    * Get the backend api name.
+    *
+    * @return
+    */
   override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

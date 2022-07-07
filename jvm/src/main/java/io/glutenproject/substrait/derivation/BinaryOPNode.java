@@ -22,38 +22,38 @@ import io.substrait.proto.DerivationExpression;
 import java.io.Serializable;
 
 public class BinaryOPNode implements DerivationExpressionNode, Serializable {
-    private final String op;
-    private final DerivationExpressionNode arg1;
-    private final DerivationExpressionNode arg2;
+  private final String op;
+  private final DerivationExpressionNode arg1;
+  private final DerivationExpressionNode arg2;
 
-    BinaryOPNode(String op, DerivationExpressionNode arg1,
-                 DerivationExpressionNode arg2) {
-        this.op = op;
-        this.arg1 = arg1;
-        this.arg2 = arg2;
+  BinaryOPNode(String op, DerivationExpressionNode arg1,
+               DerivationExpressionNode arg2) {
+    this.op = op;
+    this.arg1 = arg1;
+    this.arg2 = arg2;
+  }
+
+  @Override
+  public DerivationExpression toProtobuf() {
+    DerivationExpression.BinaryOp.Builder binaryBuilder =
+        DerivationExpression.BinaryOp.newBuilder();
+    switch (op) {
+      case "multiply":
+        binaryBuilder.setOpType(
+            DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_MULTIPLY);
+        break;
+      case "divide":
+        binaryBuilder.setOpType(
+            DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_DIVIDE);
+        break;
+      default:
+        System.out.println("Not supported.");
     }
+    binaryBuilder.setArg1(arg1.toProtobuf());
+    binaryBuilder.setArg2(arg2.toProtobuf());
 
-    @Override
-    public DerivationExpression toProtobuf() {
-        DerivationExpression.BinaryOp.Builder binaryBuilder =
-                DerivationExpression.BinaryOp.newBuilder();
-        switch(op) {
-            case "multiply":
-                binaryBuilder.setOpType(
-                        DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_MULTIPLY);
-                break;
-            case "divide":
-                binaryBuilder.setOpType(
-                        DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_DIVIDE);
-                break;
-            default:
-                System.out.println("Not supported.");
-        }
-        binaryBuilder.setArg1(arg1.toProtobuf());
-        binaryBuilder.setArg2(arg2.toProtobuf());
-
-        DerivationExpression.Builder builder = DerivationExpression.newBuilder();
-        builder.setBinaryOp(binaryBuilder.build());
-        return builder.build();
-    }
+    DerivationExpression.Builder builder = DerivationExpression.newBuilder();
+    builder.setBinaryOp(binaryBuilder.build());
+    return builder.build();
+  }
 }

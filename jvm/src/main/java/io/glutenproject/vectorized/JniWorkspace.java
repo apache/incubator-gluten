@@ -42,10 +42,6 @@ public class JniWorkspace {
     }
   }
 
-  public String getWorkDir() {
-    return workDir;
-  }
-
   public static JniWorkspace getDefault() {
     return DEFAULT_INSTANCE;
   }
@@ -53,6 +49,10 @@ public class JniWorkspace {
   public static JniWorkspace createOrGet(String rootDir) {
     return INSTANCES.computeIfAbsent(rootDir, JniWorkspace::new);
 
+  }
+
+  public String getWorkDir() {
+    return workDir;
   }
 
   public JniLibLoader libLoader() {

@@ -20,5 +20,5 @@ package io.glutenproject.substrait.type;
 import io.substrait.proto.Type;
 
 public interface TypeNode {
-    Type toProtobuf();
+  Type toProtobuf();
 }

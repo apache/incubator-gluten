@@ -22,20 +22,20 @@ import io.substrait.proto.Expression;
 import java.io.Serializable;
 
 public class DateLiteralNode implements ExpressionNode, Serializable {
-    private final Integer value;
+  private final Integer value;
 
-    public DateLiteralNode(Integer value) {
-        this.value = value;
-    }
+  public DateLiteralNode(Integer value) {
+    this.value = value;
+  }
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.Literal.Builder dateBuilder =
-                Expression.Literal.newBuilder();
-        dateBuilder.setDate(value);
+  @Override
+  public Expression toProtobuf() {
+    Expression.Literal.Builder dateBuilder =
+        Expression.Literal.newBuilder();
+    dateBuilder.setDate(value);
 
-        Expression.Builder builder = Expression.newBuilder();
-        builder.setLiteral(dateBuilder.build());
-        return builder.build();
-    }
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setLiteral(dateBuilder.build());
+    return builder.build();
+  }
 }

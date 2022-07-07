@@ -17,19 +17,21 @@
 
 package io.glutenproject.execution
 
-import java.util
+import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
+import java.util
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -40,25 +42,31 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.collection.JavaConverters._
-
 abstract class FilterExecBaseTransformer(
-    condition: Expression,
-    child: SparkPlan) extends UnaryExecNode
-    with TransformSupport
-    with PredicateHelper
-    with AliasAwareOutputPartitioning
-    with Logging {
-
-  val sparkConf: SparkConf = sparkContext.getConf
-
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
+                                          condition: Expression,
+                                          child: SparkPlan) extends UnaryExecNode
+  with TransformSupport
+  with PredicateHelper
+  with AliasAwareOutputPartitioning
+  with Logging {
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_filter"))
+  val sparkConf: SparkConf = sparkContext.getConf
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
+  // Split out all the IsNotNulls from condition.
+  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
+    case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
+    case _ => false
+  }
+  // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
+  private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   def doValidate(): Boolean
 
@@ -66,27 +74,6 @@ abstract class FilterExecBaseTransformer(
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
   }
-
-  // Split out all the IsNotNulls from condition.
-  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
-    case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
-    case _ => false
-  }
-
-  // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
-  private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-
-  override def output: Seq[Attribute] = {
-    child.output.map { a =>
-      if (a.nullable && notNullAttributes.contains(a.exprId)) {
-        a.withNullability(false)
-      } else {
-        a
-      }
-    }
-  }
-
-  override protected def outputExpressions: Seq[NamedExpression] = output
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
@@ -109,9 +96,6 @@ abstract class FilterExecBaseTransformer(
       this
   }
 
-  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
-  val numOutputRows: SQLMetric = longMetric("numOutputRows")
-
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     numOutputBatches += outNumBatches
     numOutputRows += outNumRows
@@ -119,18 +103,13 @@ abstract class FilterExecBaseTransformer(
 
   override def getChild: SparkPlan = child
 
-  // override def canEqual(that: Any): Boolean = false
-
   def doTransform(context: SubstraitContext): TransformContext
-
-  protected override def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
+
+  // override def canEqual(that: Any): Boolean = false
 
   def getRelNode(args: java.lang.Object,
                  condExpr: Expression,
@@ -156,6 +135,23 @@ abstract class FilterExecBaseTransformer(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode)
     }
+  }
+
+  override protected def outputExpressions: Seq[NamedExpression] = output
+
+  override def output: Seq[Attribute] = {
+    child.output.map { a =>
+      if (a.nullable && notNullAttributes.contains(a.exprId)) {
+        a.withNullability(false)
+      } else {
+        a
+      }
+    }
+  }
+
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 }
 
@@ -223,20 +219,21 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
 
 case class ProjectExecTransformer(projectList: Seq[NamedExpression],
                                   child: SparkPlan) extends UnaryExecNode
-    with TransformSupport
-    with PredicateHelper
-    with AliasAwareOutputPartitioning
-    with Logging {
-
-  val sparkConf: SparkConf = sparkContext.getConf
-
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
+  with TransformSupport
+  with PredicateHelper
+  with AliasAwareOutputPartitioning
+  with Logging {
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_project"))
+  val sparkConf: SparkConf = sparkContext.getConf
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
+
+  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
@@ -267,10 +264,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     case _ => false
   }
 
-  override protected def outputExpressions: Seq[NamedExpression] = projectList
-
-  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
-
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
       c.columnarInputRDDs
@@ -292,17 +285,12 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       this
   }
 
-  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
-  val numOutputRows: SQLMetric = longMetric("numOutputRows")
-
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     numOutputBatches += outNumBatches
     numOutputRows += outNumRows
   }
 
   override def getChild: SparkPlan = child
-
-  // override def canEqual(that: Any): Boolean = false
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
@@ -338,14 +326,9 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     TransformContext(inputAttributes, output, currRel)
   }
 
-  protected override def doExecute()
-  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
+  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
+  // override def canEqual(that: Any): Boolean = false
 
   def getRelNode(args: java.lang.Object,
                  projectList: Seq[NamedExpression],
@@ -377,13 +360,22 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       }
     }
   }
+
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  override protected def outputExpressions: Seq[NamedExpression] = projectList
+
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
+  }
 }
 
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with TransformSupport {
   override def supportsColumnar: Boolean = true
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
+
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map { attrs =>
       val firstAttr = attrs.head
@@ -397,10 +389,6 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
           firstAttr.qualifier)
       }
     }
-  }
-  protected override def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
@@ -424,6 +412,15 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
+
+  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
+  }
 }
 
 /** Contains functions for the comparision and separation of the filter conditions
@@ -433,7 +430,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 object FilterHandler {
   /** Get the original filter conditions in Scan for the comparison with those in Filter.
    *
-   * @param plan: the Spark plan
+   * @param plan : the Spark plan
    * @return If the plan is FileSourceScanExec or BatchScanExec, return the filter conditions in it.
    *         Otherwise, return empty sequence.
    */
@@ -456,10 +453,10 @@ object FilterHandler {
 
   /** Flatten the condition connected with 'And'. Return the filter conditions with sequence.
    *
-   * @param condition: the condition connected with 'And'
+   * @param condition : the condition connected with 'And'
    * @return flattened conditions in sequence
    */
-  def flattenCondition(condition: Expression) : Seq[Expression] = {
+  def flattenCondition(condition: Expression): Seq[Expression] = {
     var expressions: Seq[Expression] = Seq()
     condition match {
       case and: And =>
@@ -474,8 +471,8 @@ object FilterHandler {
 
   /** Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
    *
-   * @param scanFilters: the conditions pushed down into Scan
-   * @param filters: the conditions in the Filter after the Scan
+   * @param scanFilters : the conditions pushed down into Scan
+   * @param filters     : the conditions in the Filter after the Scan
    * @return the filter conditions not pushed down into Scan.
    */
   def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] = {

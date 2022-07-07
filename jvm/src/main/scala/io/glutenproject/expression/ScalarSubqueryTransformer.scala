@@ -18,23 +18,28 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.sql.catalyst.expressions._
+
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.types._
 
 class ScalarSubqueryTransformer(
-  query: ScalarSubquery)
+                                 query: ScalarSubquery)
   extends Expression with ExpressionTransformer {
-  override def dataType: DataType = query.dataType
   override def children: Seq[Expression] = Nil
-  override def nullable: Boolean = true
+
   override def toString: String = query.toString
+
   override def eval(input: InternalRow): Any = query.eval(input)
+
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = query.doGenCode(ctx, ev)
+
   override def canEqual(that: Any): Boolean = query.canEqual(that)
+
   override def productArity: Int = query.productArity
+
   override def productElement(n: Int): Any = query.productElement(n)
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -53,4 +58,8 @@ class ScalarSubqueryTransformer(
     }
     ExpressionBuilder.makeLiteral(result, dataType, nullable)
   }
+
+  override def dataType: DataType = query.dataType
+
+  override def nullable: Boolean = true
 }

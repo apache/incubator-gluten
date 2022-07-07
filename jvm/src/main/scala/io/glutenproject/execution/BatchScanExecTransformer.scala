@@ -17,24 +17,26 @@
 
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.vectorized.ExpressionEvaluator
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
-import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
                                pushdownFilters: Seq[Expression] = Seq())
-    extends BatchScanExec(output, scan) with BasicScanExecTransformer {
+  extends BatchScanExec(output, scan) with BasicScanExecTransformer {
+
+  override lazy val metrics = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
+    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_batchscan"),
+    "inputSize" -> SQLMetrics.createSizeMetric(sparkContext, "input size in bytes"))
 
   override def filterExprs(): Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
     scan.asInstanceOf[FileScan].dataFilters ++ pushdownFilters
@@ -48,24 +50,19 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
-  override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_batchscan"),
-    "inputSize" -> SQLMetrics.createSizeMetric(sparkContext, "input size in bytes"))
-
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
       (that canEqual this) && super.equals(that)
     case _ => false
   }
+
+  override def hashCode(): Int = super.hashCode()
+
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     Seq()

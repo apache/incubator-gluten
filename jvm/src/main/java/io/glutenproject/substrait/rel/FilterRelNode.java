@@ -26,41 +26,41 @@ import io.substrait.proto.RelCommon;
 import java.io.Serializable;
 
 public class FilterRelNode implements RelNode, Serializable {
-    private final RelNode input;
-    private final ExpressionNode condition;
-    private final AdvancedExtensionNode extensionNode;
+  private final RelNode input;
+  private final ExpressionNode condition;
+  private final AdvancedExtensionNode extensionNode;
 
-    FilterRelNode(RelNode input,
-                  ExpressionNode condition) {
-        this.input = input;
-        this.condition = condition;
-        this.extensionNode = null;
+  FilterRelNode(RelNode input,
+                ExpressionNode condition) {
+    this.input = input;
+    this.condition = condition;
+    this.extensionNode = null;
+  }
+
+  FilterRelNode(RelNode input,
+                ExpressionNode condition,
+                AdvancedExtensionNode extensionNode) {
+    this.input = input;
+    this.condition = condition;
+    this.extensionNode = extensionNode;
+  }
+
+  @Override
+  public Rel toProtobuf() {
+    RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
+    relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
+
+    FilterRel.Builder filterBuilder = FilterRel.newBuilder();
+    filterBuilder.setCommon(relCommonBuilder.build());
+    if (input != null) {
+      filterBuilder.setInput(input.toProtobuf());
     }
-
-    FilterRelNode(RelNode input,
-                  ExpressionNode condition,
-                  AdvancedExtensionNode extensionNode) {
-        this.input = input;
-        this.condition = condition;
-        this.extensionNode = extensionNode;
+    filterBuilder.setCondition(condition.toProtobuf());
+    if (extensionNode != null) {
+      filterBuilder.setAdvancedExtension(extensionNode.toProtobuf());
     }
-
-    @Override
-    public Rel toProtobuf() {
-        RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
-        relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
-
-        FilterRel.Builder filterBuilder = FilterRel.newBuilder();
-        filterBuilder.setCommon(relCommonBuilder.build());
-        if (input != null) {
-            filterBuilder.setInput(input.toProtobuf());
-        }
-        filterBuilder.setCondition(condition.toProtobuf());
-        if (extensionNode != null) {
-            filterBuilder.setAdvancedExtension(extensionNode.toProtobuf());
-        }
-        Rel.Builder builder = Rel.newBuilder();
-        builder.setFilter(filterBuilder.build());
-        return builder.build();
-    }
+    Rel.Builder builder = Rel.newBuilder();
+    builder.setFilter(filterBuilder.build());
+    return builder.build();
+  }
 }

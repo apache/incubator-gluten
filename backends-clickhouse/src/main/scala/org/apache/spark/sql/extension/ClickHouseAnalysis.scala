@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,7 +40,7 @@ class ClickHouseAnalysis(session: SparkSession, conf: SQLConf)
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsDown {
     // This rule falls back to V1 nodes according to 'spark.gluten.sql.columnar.backend.ch.use.v2'
-    case dsv2 @ DataSourceV2Relation(tableV2: ClickHouseTableV2, _, _, _, options) =>
+    case dsv2@DataSourceV2Relation(tableV2: ClickHouseTableV2, _, _, _, options) =>
       if (useDSV2) dsv2
       else ClickHouseAnalysis.fromV2Relation(tableV2, dsv2, options)
   }
@@ -47,9 +48,9 @@ class ClickHouseAnalysis(session: SparkSession, conf: SQLConf)
 
 object ClickHouseAnalysis {
   def unapply(plan: LogicalPlan): Option[LogicalRelation] = plan match {
-    case dsv2 @ DataSourceV2Relation(d: ClickHouseTableV2, _, _, _, options) =>
+    case dsv2@DataSourceV2Relation(d: ClickHouseTableV2, _, _, _, options) =>
       Some(fromV2Relation(d, dsv2, options))
-    case lr @ ClickHouseTable(_) => Some(lr)
+    case lr@ClickHouseTable(_) => Some(lr)
     case _ => None
   }
 

@@ -21,22 +21,21 @@ import java.io.IOException
 
 import scala.collection.mutable.ArrayBuffer
 
-import com.google.common.annotations.VisibleForTesting
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
-import org.apache.spark._
 
+import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 class CHColumnarShuffleWriter[K, V](
-    shuffleBlockResolver: IndexShuffleBlockResolver,
-    handle: BaseShuffleHandle[K, V, V],
-    mapId: Long,
-    writeMetrics: ShuffleWriteMetricsReporter)
-    extends ShuffleWriter[K, V]
+                                     shuffleBlockResolver: IndexShuffleBlockResolver,
+                                     handle: BaseShuffleHandle[K, V, V],
+                                     mapId: Long,
+                                     writeMetrics: ShuffleWriteMetricsReporter)
+  extends ShuffleWriter[K, V]
     with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
@@ -44,22 +43,11 @@ class CHColumnarShuffleWriter[K, V](
   private val conf = SparkEnv.get.conf
 
   private val blockManager = SparkEnv.get.blockManager
-
-  // Are we in the process of stopping? Because map tasks can call stop() with success = true
-  // and then call stop() with success = false if they get an exception, we want to make sure
-  // we don't try deleting files, etc twice.
-  private var stopping = false
-
-  private var mapStatus: MapStatus = _
-
   private val localDirs = blockManager.diskBlockManager.localDirs.mkString(",")
-
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum;
-
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
-
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
   private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
@@ -69,13 +57,14 @@ class CHColumnarShuffleWriter[K, V](
   }
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
-
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
-
   private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
-
   private val jniWrapper = new CHShuffleSplitterJniWrapper
-
+  // Are we in the process of stopping? Because map tasks can call stop() with success = true
+  // and then call stop() with success = false if they get an exception, we want to make sure
+  // we don't try deleting files, etc twice.
+  private var stopping = false
+  private var mapStatus: MapStatus = _
   private var nativeSplitter: Long = 0
 
   private var splitResult: SplitResult = _
@@ -86,8 +75,13 @@ class CHColumnarShuffleWriter[K, V](
 
   private var firstRecordBatch: Boolean = true
 
+  @throws[IOException]
+  override def write(records: Iterator[Product2[K, V]]): Unit = {
+    internalCHWrite(records)
+  }
+
   def internalCHWrite(records: Iterator[Product2[K, V]]): Unit = {
-    val splitterJniWrapper : CHShuffleSplitterJniWrapper =
+    val splitterJniWrapper: CHShuffleSplitterJniWrapper =
       jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper]
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
@@ -158,15 +152,6 @@ class CHColumnarShuffleWriter[K, V](
     mapStatus = MapStatus(blockManager.shuffleServerId, unionPartitionLengths.toArray, mapId)
   }
 
-  @throws[IOException]
-  override def write(records: Iterator[Product2[K, V]]): Unit = {
-    internalCHWrite(records)
-  }
-
-  def closeCHSplitter(): Unit = {
-    jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper].close(nativeSplitter)
-  }
-
   override def stop(success: Boolean): Option[MapStatus] = {
     try {
       if (stopping) {
@@ -186,7 +171,11 @@ class CHColumnarShuffleWriter[K, V](
     }
   }
 
-  @VisibleForTesting
+  def closeCHSplitter(): Unit = {
+    jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper].close(nativeSplitter)
+  }
+
+  // VisibleForTesting
   def getPartitionLengths: Array[Long] = partitionLengths
 
 }

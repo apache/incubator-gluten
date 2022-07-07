@@ -17,19 +17,20 @@
 
 package io.glutenproject
 
-import com.google.protobuf.Any
-
 import java.util.{Collections, Objects}
+
 import scala.language.implicitConversions
+
+import com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
+import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.vectorized.ExpressionEvaluator
-
 import java.util
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.sql.SparkSessionExtensions
@@ -59,7 +60,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   def setPredefinedConfigs(conf: SparkConf): Unit = {
     if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       throw new IllegalArgumentException("Spark extensions are already specified before " +
-          "enabling Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SESSION_EXTS_KEY))
+        "enabling Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SESSION_EXTS_KEY))
     }
     conf.set(SPARK_SESSION_EXTS_KEY,
       String.format("%s", GLUTEN_SESSION_EXTENSION_NAME))
@@ -94,7 +95,7 @@ private[glutenproject] class SparkConfImplicits(conf: SparkConf) {
   def enableGlutenPlugin(): SparkConf = {
     if (conf.contains(GlutenPlugin.SPARK_SQL_PLUGINS_KEY)) {
       throw new IllegalArgumentException("A Spark plugin is already specified before enabling " +
-          "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
+        "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
     }
     conf.set(GlutenPlugin.SPARK_SQL_PLUGINS_KEY, GlutenPlugin.GLUTEN_PLUGIN_NAME)
   }
@@ -108,7 +109,7 @@ private[glutenproject] object GlutenPlugin {
   // To enable GlutenPlugin in production, set "spark.plugins=io.glutenproject.GlutenPlugin"
   val SPARK_SQL_PLUGINS_KEY: String = "spark.plugins"
   val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin]
-      .getCanonicalName)
+    .getCanonicalName)
   val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
   val GLUTEN_SESSION_EXTENSION_NAME: String = Objects.requireNonNull(
     classOf[GlutenSessionExtensions].getCanonicalName)

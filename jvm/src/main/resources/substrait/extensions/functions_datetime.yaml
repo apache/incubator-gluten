@@ -1,8 +1,7 @@
 %YAML 1.2
 ---
 scalar_functions:
-  -
-    name: extract
+  - name: extract
     description: Extract portion of a date/time value.
     impls:
       - args:
@@ -29,8 +28,7 @@ scalar_functions:
             required: true
           - value: time
         return: i64
-  -
-    name: "add"
+  - name: "add"
     description: Add an interval to a date/time type.
     impls:
       - args:
@@ -57,8 +55,7 @@ scalar_functions:
           - value: date
           - value: interval_day
         return: timestamp
-  -
-    name: "add_intervals"
+  - name: "add_intervals"
     description: Add two intervals together.
     impls:
       - args:
@@ -69,8 +66,7 @@ scalar_functions:
           - value: interval_year
           - value: interval_year
         return: interval_year
-  -
-    name: "subtract"
+  - name: "subtract"
     description: Subtract an interval from a date/time type.
     impls:
       - args:

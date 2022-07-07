@@ -17,30 +17,19 @@
 
 package io.glutenproject.vectorized;
 
-import java.io.*;
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufOutputStream;
-import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledByteBufAllocator;
-
-/** ArrowBufBuilder. */
+/**
+ * ArrowBufBuilder.
+ */
 public class MetricsObject {
   public long[] process_time_list;
   public long[] output_length_list;
 
-  public MetricsObject() {}
+  public MetricsObject() {
+  }
 
   /**
    * Create an instance for NativeMetricsObject.
    *
-   * @param memoryAddress native ArrowBuf data addr.
-   * @param size ArrowBuf size.
    */
   public MetricsObject(long[] _output_length_list, long[] _process_time_list) {
     output_length_list = _output_length_list;

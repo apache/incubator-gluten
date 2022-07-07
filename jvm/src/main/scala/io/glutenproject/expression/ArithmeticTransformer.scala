@@ -20,6 +20,7 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -28,7 +29,7 @@ import org.apache.spark.sql.types._
  * A version of add that supports columnar processing for longs.
  */
 class AddTransformer(left: Expression, right: Expression, original: Expression)
-    extends Add(left: Expression, right: Expression)
+  extends Add(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -39,7 +40,7 @@ class AddTransformer(left: Expression, right: Expression, original: Expression)
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -57,7 +58,7 @@ class AddTransformer(left: Expression, right: Expression, original: Expression)
 }
 
 class SubtractTransformer(left: Expression, right: Expression, original: Expression)
-    extends Subtract(left: Expression, right: Expression)
+  extends Subtract(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -68,7 +69,7 @@ class SubtractTransformer(left: Expression, right: Expression, original: Express
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -86,7 +87,7 @@ class SubtractTransformer(left: Expression, right: Expression, original: Express
 }
 
 class MultiplyTransformer(left: Expression, right: Expression, original: Expression)
-    extends Multiply(left: Expression, right: Expression)
+  extends Multiply(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -97,7 +98,7 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -116,7 +117,7 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
 
 class DivideTransformer(left: Expression, right: Expression,
                         original: Expression, resType: DecimalType = null)
-    extends Divide(left: Expression, right: Expression)
+  extends Divide(left: Expression, right: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -127,7 +128,7 @@ class DivideTransformer(left: Expression, right: Expression,
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -145,9 +146,9 @@ class DivideTransformer(left: Expression, right: Expression,
 }
 
 class BitwiseAndTransformer(left: Expression, right: Expression, original: Expression)
-    extends BitwiseAnd(left: Expression, right: Expression)
-        with ExpressionTransformer
-        with Logging {
+  extends BitwiseAnd(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: BitwiseAnd.")
@@ -155,9 +156,9 @@ class BitwiseAndTransformer(left: Expression, right: Expression, original: Expre
 }
 
 class BitwiseOrTransformer(left: Expression, right: Expression, original: Expression)
-    extends BitwiseOr(left: Expression, right: Expression)
-        with ExpressionTransformer
-        with Logging {
+  extends BitwiseOr(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: BitwiseOr.")
@@ -165,9 +166,9 @@ class BitwiseOrTransformer(left: Expression, right: Expression, original: Expres
 }
 
 class BitwiseXorTransformer(left: Expression, right: Expression, original: Expression)
-    extends BitwiseXor(left: Expression, right: Expression)
-        with ExpressionTransformer
-        with Logging {
+  extends BitwiseXor(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: BitwiseXor.")
@@ -177,7 +178,7 @@ class BitwiseXorTransformer(left: Expression, right: Expression, original: Expre
 object BinaryArithmeticTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression = {
-      original match {
+    original match {
       case a: Add =>
         new AddTransformer(left, right, a)
       case s: Subtract =>

@@ -30,11 +30,7 @@ import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.plans.physical.{
-  BroadcastMode,
-  BroadcastPartitioning,
-  Partitioning
-}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, Exchange}
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.execution.metric.SQLMetrics
@@ -42,46 +38,17 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) extends Exchange {
-  override def supportsColumnar: Boolean = true
-  override def output: Seq[Attribute] = child.output
-
-  private[sql] val runId: UUID = UUID.randomUUID
-
-  override def outputPartitioning: Partitioning = BroadcastPartitioning(mode)
-
-  override def doCanonicalize(): SparkPlan = {
-    ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
-  }
-
-  // FIXME
-  def doValidate(): Boolean = true
-
-  @transient
-  private val timeout: Long = SQLConf.get.broadcastTimeout
-
   override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of Rows"),
     "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_broadcastExchange"),
     "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
     "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast"))
-
-  // Shouldn't be used.
-  val buildKeyExprs: Seq[Expression] = mode match {
-    case hashRelationMode: HashedRelationBroadcastMode =>
-      hashRelationMode.key
-    case _ =>
-      throw new UnsupportedOperationException(
-        s"ColumnarBroadcastExchange only support HashRelationMode")
-  }
-
   @transient
   lazy val promise = Promise[broadcast.Broadcast[Any]]()
-
   @transient
   lazy val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
     promise.future
-
   @transient
   private[sql] lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] = {
     SQLExecution.withThreadLocalCaptured[broadcast.Broadcast[Any]](
@@ -138,6 +105,30 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
       }
     }
   }
+  // Shouldn't be used.
+  val buildKeyExprs: Seq[Expression] = mode match {
+    case hashRelationMode: HashedRelationBroadcastMode =>
+      hashRelationMode.key
+    case _ =>
+      throw new UnsupportedOperationException(
+        s"ColumnarBroadcastExchange only support HashRelationMode")
+  }
+  private[sql] val runId: UUID = UUID.randomUUID
+  @transient
+  private val timeout: Long = SQLConf.get.broadcastTimeout
+
+  override def supportsColumnar: Boolean = true
+
+  override def output: Seq[Attribute] = child.output
+
+  override def outputPartitioning: Partitioning = BroadcastPartitioning(mode)
+
+  override def doCanonicalize(): SparkPlan = {
+    ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
+  }
+
+  // FIXME
+  def doValidate(): Boolean = true
 
   override def doPrepare(): Unit = {
     // Materialize the future.
@@ -161,10 +152,10 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
         }
         throw new SparkException(
           s"""
-              |Could not execute broadcast in $timeout secs.
-              |You can increase the timeout for broadcasts via
-              |${SQLConf.BROADCAST_TIMEOUT.key} or disable broadcast join
-              |by setting ${SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key} to -1
+             |Could not execute broadcast in $timeout secs.
+             |You can increase the timeout for broadcasts via
+             |${SQLConf.BROADCAST_TIMEOUT.key} or disable broadcast join
+             |by setting ${SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key} to -1
             """.stripMargin,
           ex)
     }
@@ -172,43 +163,31 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
 }
 
 class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPlan)
-    extends BroadcastExchangeExec(mode, child) {
+  extends BroadcastExchangeExec(mode, child) {
+  override lazy val metrics = plan.metrics
+  @transient
+  lazy override val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
+    plan.completionFuture
+  @transient
+  override lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] =
+    plan.relationFuture
+  @transient
+  private lazy val promise = plan.promise
+  override val runId: UUID = plan.runId
   val plan: ColumnarBroadcastExchangeExec = new ColumnarBroadcastExchangeExec(mode, child)
+  val buildKeyExprs: Seq[Expression] = plan.buildKeyExprs
+  @transient
+  private val timeout: Long = SQLConf.get.broadcastTimeout
 
   override def supportsColumnar: Boolean = true
-  override def nodeName: String = plan.nodeName
-  override def output: Seq[Attribute] = plan.output
 
-  override val runId: UUID = plan.runId
+  override def nodeName: String = plan.nodeName
+
+  override def output: Seq[Attribute] = plan.output
 
   override def outputPartitioning: Partitioning = plan.outputPartitioning
 
   override def doCanonicalize(): SparkPlan = plan.doCanonicalize()
-
-  @transient
-  private val timeout: Long = SQLConf.get.broadcastTimeout
-
-  override lazy val metrics = plan.metrics
-
-  val buildKeyExprs: Seq[Expression] = plan.buildKeyExprs
-
-  @transient
-  private lazy val promise = plan.promise
-
-  @transient
-  lazy override val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
-    plan.completionFuture
-
-  @transient
-  override lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] =
-    plan.relationFuture
-
-  override protected def doPrepare(): Unit = plan.doPrepare()
-
-  override protected def doExecute(): RDD[InternalRow] = plan.doExecute()
-
-  override protected[sql] def doExecuteBroadcast[T](): broadcast.Broadcast[T] =
-    plan.doExecuteBroadcast[T]()
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[ColumnarShuffleExchangeAdaptor]
 
@@ -219,4 +198,11 @@ class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPlan)
   }
 
   override def hashCode(): Int = super.hashCode()
+
+  override protected def doPrepare(): Unit = plan.doPrepare()
+
+  override protected def doExecute(): RDD[InternalRow] = plan.doExecute()
+
+  override protected[sql] def doExecuteBroadcast[T](): broadcast.Broadcast[T] =
+    plan.doExecuteBroadcast[T]()
 }

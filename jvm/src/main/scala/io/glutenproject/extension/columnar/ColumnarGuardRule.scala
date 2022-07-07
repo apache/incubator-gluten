@@ -27,7 +27,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -40,11 +39,11 @@ case class RowGuard(child: SparkPlan) extends SparkPlan {
 
   def output: Seq[Attribute] = child.output
 
+  def children: Seq[SparkPlan] = Seq(child)
+
   protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException
   }
-
-  def children: Seq[SparkPlan] = Seq(child)
 }
 
 // This rule will try to convert a plan into plan transformer.
@@ -70,6 +69,10 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
   val enableColumnarBroadcastExchange: Boolean = columnarConf.enableColumnarBroadcastExchange
   val enableColumnarBroadcastJoin: Boolean = columnarConf.enableColumnarBroadcastJoin
   val enableColumnarArrowUDF: Boolean = columnarConf.enableColumnarArrowUDF
+
+  def apply(plan: SparkPlan): SparkPlan = {
+    insertRowGuardOrNot(plan)
+  }
 
   private def tryConvertToTransformer(plan: SparkPlan): Boolean = {
     try {
@@ -214,9 +217,5 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
       case other =>
         other.withNewChildren(other.children.map(insertRowGuardOrNot))
     }
-  }
-
-  def apply(plan: SparkPlan): SparkPlan = {
-    insertRowGuardOrNot(plan)
   }
 }

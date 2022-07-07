@@ -17,39 +17,26 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.SubstraitContext
-import org.apache.spark.Partition
-import org.apache.spark.SparkContext
-import org.apache.spark.TaskContext
+
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
-import org.apache.spark.sql.catalyst.plans.physical.UnknownPartitioning
-import org.apache.spark.sql.execution.CoalesceExec
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.UnaryExecNode
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition, UnknownPartitioning}
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   extends UnaryExecNode with TransformSupport {
 
   override def supportsColumnar: Boolean = true
+
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = {
     if (numPartitions == 1) SinglePartition
     else UnknownPartitioning(numPartitions)
-  }
-
-  protected override def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException()
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
@@ -73,12 +60,20 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
+
+  protected override def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException()
+  }
+
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
 }
 
 object CoalesceExecTransformer {
   class EmptyRDDWithPartitions(
-      @transient private val sc: SparkContext,
-      numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
+                                @transient private val sc: SparkContext,
+                                numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
 
     override def getPartitions: Array[Partition] =
       Array.tabulate(numPartitions)(i => EmptyPartition(i))

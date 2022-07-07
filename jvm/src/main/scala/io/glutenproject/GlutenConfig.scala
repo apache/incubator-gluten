@@ -21,9 +21,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
 case class GlutenNumaBindingInfo(
-    enableNumaBinding: Boolean,
-    totalCoreRange: Array[String] = null,
-    numCoresPerExecutor: Int = -1) {}
+                                  enableNumaBinding: Boolean,
+                                  totalCoreRange: Array[String] = null,
+                                  numCoresPerExecutor: Int = -1) {}
 
 class GlutenConfig(conf: SQLConf) extends Logging {
 
@@ -34,7 +34,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // Substrait plan. After the validations in all backends are correctly implemented,
   // this config should be removed.
   val enableNativeValidation: Boolean =
-    conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
+  conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
 
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
@@ -81,7 +81,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar sortmergejoin
   // this should be set with preferSortMergeJoin=false
   val enableColumnarSortMergeJoin: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean
+  conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean
 
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.sortmergejoin.lazyread", "false").toBoolean
@@ -127,11 +127,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarShuffle: Boolean =
     if (conf.getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
       .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
-    conf
-      .getConfString("spark.gluten.sql.columnar.shuffle", "true").toBoolean
-  } else {
-    isUseColumnarShufflemanager
-  }
+      conf
+        .getConfString("spark.gluten.sql.columnar.shuffle", "true").toBoolean
+    } else {
+      isUseColumnarShufflemanager
+    }
 
   // prefer to use columnar operators if set to true
   val enablePreferColumnar: Boolean =
@@ -144,13 +144,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // This config is used for deciding whether to load the native library.
   // When false, only Java code will be executed for a quick test.
   val loadNative: Boolean =
-    conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
+  conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
 
   // This config is used for deciding whether to load Arrow and Gandiva libraries from
   // the native library. If the native library does not depend on Arrow and Gandiva,
   // this config should will set as false.
   val loadArrow: Boolean =
-    conf.getConfString(GlutenConfig.GLUTEN_LOAD_ARROW, "true").toBoolean
+  conf.getConfString(GlutenConfig.GLUTEN_LOAD_ARROW, "true").toBoolean
 
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
@@ -197,7 +197,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // If false, the partition buffers will be cached in memory first,
   // and the cached buffers will be spilled when reach maximum memory.
   val columnarShufflePreferSpill: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.shuffle.preferSpill", "true").toBoolean
+  conf.getConfString("spark.gluten.sql.columnar.shuffle.preferSpill", "true").toBoolean
 
   val columnarShuffleWriteSchema: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
@@ -252,7 +252,7 @@ object GlutenConfig {
   /**
    * @deprecated We should avoid caching this value in entire JVM. us
    */
-  @Deprecated
+  @deprecated
   def getConf: GlutenConfig = synchronized {
     if (ins == null) {
       ins = getSessionConf
@@ -271,6 +271,7 @@ object GlutenConfig {
       ins.batchSize
     }
   }
+
   def getEnableMetricsTime: Boolean = synchronized {
     if (ins == null) {
       false
@@ -278,6 +279,7 @@ object GlutenConfig {
       ins.enableMetricsTime
     }
   }
+
   def getTempFile: String = synchronized {
     if (ins != null && ins.tmpFile != null) {
       ins.tmpFile
@@ -285,10 +287,12 @@ object GlutenConfig {
       System.getProperty("java.io.tmpdir")
     }
   }
-  def setRandomTempDir(path: String): Unit = synchronized {
-    random_temp_dir_path = path
-  }
+
   def getRandomTempDir: String = synchronized {
     random_temp_dir_path
+  }
+
+  def setRandomTempDir(path: String): Unit = synchronized {
+    random_temp_dir_path = path
   }
 }

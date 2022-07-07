@@ -20,41 +20,42 @@ package io.glutenproject.substrait.type;
 import java.util.ArrayList;
 
 public class TypeBuilder {
-    private TypeBuilder() {}
+  private TypeBuilder() {
+  }
 
-    public static TypeNode makeFP64(Boolean nullable) {
-        return new FP64TypeNode(nullable);
-    }
+  public static TypeNode makeFP64(Boolean nullable) {
+    return new FP64TypeNode(nullable);
+  }
 
-    public static TypeNode makeBoolean(Boolean nullable) {
-        return new BooleanTypeNode(nullable);
-    }
+  public static TypeNode makeBoolean(Boolean nullable) {
+    return new BooleanTypeNode(nullable);
+  }
 
-    public static TypeNode makeStruct(ArrayList<TypeNode> types) {
-        return new StructNode(types);
-    }
+  public static TypeNode makeStruct(ArrayList<TypeNode> types) {
+    return new StructNode(types);
+  }
 
-    public static TypeNode makeString(Boolean nullable) {
-        return new StringTypeNode(nullable);
-    }
+  public static TypeNode makeString(Boolean nullable) {
+    return new StringTypeNode(nullable);
+  }
 
-    public static TypeNode makeI32(Boolean nullable) {
-        return new I32TypeNode(nullable);
-    }
+  public static TypeNode makeI32(Boolean nullable) {
+    return new I32TypeNode(nullable);
+  }
 
-    public static TypeNode makeI64(Boolean nullable) {
-        return new I64TypeNode(nullable);
-    }
+  public static TypeNode makeI64(Boolean nullable) {
+    return new I64TypeNode(nullable);
+  }
 
-    public static TypeNode makeDate(Boolean nullable) {
-        return new DateTypeNode(nullable);
-    }
+  public static TypeNode makeDate(Boolean nullable) {
+    return new DateTypeNode(nullable);
+  }
 
-    public static TypeNode makeDecimal(Boolean nullable, Integer precision, Integer scale ) {
-        return new DecimalTypeNode(nullable, precision, scale);
-    }
+  public static TypeNode makeDecimal(Boolean nullable, Integer precision, Integer scale) {
+    return new DecimalTypeNode(nullable, precision, scale);
+  }
 
-    public static TypeNode makeTimestamp(Boolean nullable) {
-        return new TimestampTypeNode(nullable);
-    }
+  public static TypeNode makeTimestamp(Boolean nullable) {
+    return new TimestampTypeNode(nullable);
+  }
 }

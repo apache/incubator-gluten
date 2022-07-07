@@ -23,8 +23,8 @@ import scala.io.Source
 
 import io.glutenproject.GlutenConfig
 import org.apache.commons.io.FileUtils
-import org.apache.spark.SparkConf
 
+import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -44,36 +44,6 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
   protected val chTpchQueries: String = rootPath + "queries/tpch-queries-ch"
   protected val queriesResults: String = rootPath + "queries-output"
 
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.sql.files.maxPartitionBytes", "1g")
-      .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
-      .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.adaptive.enabled", "false")
-      .set("spark.sql.files.minPartitionNum", "1")
-      .set("spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
-      .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
-      .set("spark.databricks.delta.snapshotPartitions", "1")
-      .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
-      .set("spark.databricks.delta.stalenessLimit", "3600000")
-      .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-      .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
-      .set("spark.gluten.sql.columnar.iterator", "true")
-      .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
-      .set("spark.sql.catalogImplementation", "hive")
-      .set("spark.sql.warehouse.dir", warehouse)
-      .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${metaStorePathAbsolute +
-        "/metastore_db"};create=true")
-  }
-
-  override protected implicit def spark: SparkSession = super.spark
-
   override def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
@@ -89,26 +59,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     createTPCHTables()
   }
 
-  protected override def afterAll(): Unit = {
-    super.afterAll()
-    FileUtils.forceDelete(new File(basePath))
-  }
-
-  protected def runTPCHQuery(queryNum: Int)
-                            (customCheck: (DataFrame) => Unit): Unit = {
-    val sqlNum = "q" + "%02d".format(queryNum)
-    val sqlFile = chTpchQueries + "/" + sqlNum + ".sql"
-    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    val df = spark.sql(sqlStr)
-    val result = df.collect()
-    val resultStr = new StringBuffer()
-    resultStr.append(result.size).append("\n")
-    result.foreach(r => resultStr.append(r.mkString(",")).append("\n"))
-    val queryResultStr =
-      Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").mkString
-    assert(queryResultStr.equals(resultStr.toString))
-    customCheck(df)
-  }
+  override protected implicit def spark: SparkSession = super.spark
 
   override protected def createTPCHTables(): Unit = {
     val customerData = chTablesPath + "/customer"
@@ -265,5 +216,56 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | show tables;
          |""".stripMargin).collect()
     assert(result.size == 8)
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.files.maxPartitionBytes", "1g")
+      .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
+      .set("spark.sql.shuffle.partitions", "5")
+      .set("spark.sql.adaptive.enabled", "false")
+      .set("spark.sql.files.minPartitionNum", "1")
+      .set("spark.sql.catalog.spark_catalog",
+        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+      .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
+      .set("spark.databricks.delta.snapshotPartitions", "1")
+      .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
+      .set("spark.databricks.delta.stalenessLimit", "3600000")
+      .set("spark.gluten.sql.columnar.columnartorow", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+      .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
+      .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
+      .set(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
+      .set("spark.gluten.sql.columnar.iterator", "true")
+      .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
+      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
+      .set("spark.sql.catalogImplementation", "hive")
+      .set("spark.sql.warehouse.dir", warehouse)
+      .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
+        metaStorePathAbsolute +
+          "/metastore_db"
+      };create=true")
+  }
+
+  protected override def afterAll(): Unit = {
+    super.afterAll()
+    FileUtils.forceDelete(new File(basePath))
+  }
+
+  protected def runTPCHQuery(queryNum: Int)
+                            (customCheck: (DataFrame) => Unit): Unit = {
+    val sqlNum = "q" + "%02d".format(queryNum)
+    val sqlFile = chTpchQueries + "/" + sqlNum + ".sql"
+    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+    val df = spark.sql(sqlStr)
+    val result = df.collect()
+    val resultStr = new StringBuffer()
+    resultStr.append(result.size).append("\n")
+    result.foreach(r => resultStr.append(r.mkString(",")).append("\n"))
+    val queryResultStr =
+      Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").mkString
+    assert(queryResultStr.equals(resultStr.toString))
+    customCheck(df)
   }
 }

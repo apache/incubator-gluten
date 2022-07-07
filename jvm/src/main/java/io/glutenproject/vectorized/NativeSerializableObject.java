@@ -17,7 +17,9 @@
 
 package io.glutenproject.vectorized;
 
-/** ArrowBufBuilder. */
+/**
+ * ArrowBufBuilder.
+ */
 public class NativeSerializableObject {
   public int[] size;
   public long[] memoryAddress;
@@ -26,7 +28,7 @@ public class NativeSerializableObject {
    * Create an instance for NativeSerializableObject.
    *
    * @param memoryAddress native ArrowBuf data addr.
-   * @param size ArrowBuf size.
+   * @param size          ArrowBuf size.
    */
   public NativeSerializableObject(long[] memoryAddress, int[] size) {
     this.memoryAddress = memoryAddress;

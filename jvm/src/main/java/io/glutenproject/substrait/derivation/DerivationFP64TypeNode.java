@@ -23,25 +23,25 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class DerivationFP64TypeNode implements DerivationExpressionNode, Serializable {
-    private final Boolean nullable;
+  private final Boolean nullable;
 
-    DerivationFP64TypeNode(Boolean nullable) {
-        this.nullable = nullable;
+  DerivationFP64TypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
+
+  @Override
+  public DerivationExpression toProtobuf() {
+    Type.FP64.Builder doubleBuilder =
+        Type.FP64.newBuilder();
+    if (nullable) {
+      doubleBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
+    } else {
+      doubleBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
     }
 
-    @Override
-    public DerivationExpression toProtobuf() {
-        Type.FP64.Builder doubleBuilder =
-                Type.FP64.newBuilder();
-        if (nullable) {
-            doubleBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
-        } else {
-            doubleBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
-        }
-
-        DerivationExpression.Builder builder =
-                DerivationExpression.newBuilder();
-        builder.setFp64(doubleBuilder.build());
-        return builder.build();
-    }
+    DerivationExpression.Builder builder =
+        DerivationExpression.newBuilder();
+    builder.setFp64(doubleBuilder.build());
+    return builder.build();
+  }
 }

@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.execution.BroadCastHashJoinContext
+
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BuildSideRelation extends Serializable {

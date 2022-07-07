@@ -20,40 +20,40 @@ package io.glutenproject.vectorized;
 import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
-    public CHShuffleSplitterJniWrapper() {
-    }
+  public CHShuffleSplitterJniWrapper() {
+  }
 
-    public long make(
-            NativePartitioning part,
-            long mapId,
-            int bufferSize,
-            String codec,
-            String dataFile,
-            String localDirs) {
-        return nativeMake(
-                part.getShortName(),
-                part.getNumPartitions(),
-                part.getExprList(),
-                mapId,
-                bufferSize,
-                codec,
-                dataFile,
-                localDirs);
-    }
+  public long make(
+      NativePartitioning part,
+      long mapId,
+      int bufferSize,
+      String codec,
+      String dataFile,
+      String localDirs) {
+    return nativeMake(
+        part.getShortName(),
+        part.getNumPartitions(),
+        part.getExprList(),
+        mapId,
+        bufferSize,
+        codec,
+        dataFile,
+        localDirs);
+  }
 
-    public native long nativeMake(
-            String shortName,
-            int numPartitions,
-            byte[] exprList,
-            long mapId,
-            int bufferSize,
-            String codec,
-            String dataFile,
-            String localDirs);
+  public native long nativeMake(
+      String shortName,
+      int numPartitions,
+      byte[] exprList,
+      long mapId,
+      int bufferSize,
+      String codec,
+      String dataFile,
+      String localDirs);
 
-    public native void split(long splitterId, int numRows, long block);
+  public native void split(long splitterId, int numRows, long block);
 
-    public native SplitResult stop(long splitterId) throws IOException;
+  public native SplitResult stop(long splitterId) throws IOException;
 
-    public native void close(long splitterId);
+  public native void close(long splitterId);
 }
