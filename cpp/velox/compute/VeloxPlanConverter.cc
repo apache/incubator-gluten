@@ -26,6 +26,8 @@
 #include "ArrowTypeUtils.h"
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
+#include "bridge.h"
+#include "jni/exec_backend.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
@@ -148,18 +150,11 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
 
   // Create Arrow reader.
   std::shared_ptr<arrow::Schema> schema = arrow::schema(arrowFields);
-  auto rbIter = std::move(arrowInputIters_[iterIdx]);
-  // TODO: manage the iter well.
-  auto maybeReader = arrow::RecordBatchReader::Make(
-      std::move(*(rbIter->ToArrowRecordBatchIterator())), schema);
-  if (!maybeReader.status().ok()) {
-    throw std::runtime_error("Reader is not created.");
-  }
-  auto reader = maybeReader.ValueOrDie();
-
+  auto arrayIter = std::move(arrowInputIters_[iterIdx]);
   // Create ArrowArrayStream.
   struct ArrowArrayStream veloxArrayStream;
-  GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatchReader(reader, &veloxArrayStream));
+  GLUTEN_THROW_NOT_OK(
+      ExportArrowArray(schema, arrayIter->ToArrowArrayIterator(), &veloxArrayStream));
   auto arrowStream = std::make_shared<ArrowArrayStream>(veloxArrayStream);
 
   // Create Velox ArrowStream node.
@@ -247,14 +242,14 @@ void VeloxPlanConverter::getInfoAndIds(
   }
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator>
+std::shared_ptr<gluten::ArrowArrayResultIterator>
 VeloxPlanConverter::GetResultIterator() {
-  std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs = {};
+  std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs = {};
   return GetResultIterator(inputs);
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
-    std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputs) {
+std::shared_ptr<gluten::ArrowArrayResultIterator> VeloxPlanConverter::GetResultIterator(
+    std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
@@ -272,15 +267,14 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
     // Source node is not required.
     auto wholestageIter =
         std::make_shared<WholeStageResIterMiddleStage>(pool_, planNode, streamIds);
-    return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+    return std::make_shared<gluten::ArrowArrayResultIterator>(std::move(wholestageIter));
   }
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       pool_, planNode, scanIds, scanInfos, streamIds);
-  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter),
-                                                             shared_from_this());
+  return std::make_shared<gluten::ArrowArrayResultIterator>(std::move(wholestageIter));
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResultIterator(
+std::shared_ptr<gluten::ArrowArrayResultIterator> VeloxPlanConverter::GetResultIterator(
     const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
         setScanInfos) {
   const std::shared_ptr<const core::PlanNode> planNode = getVeloxPlanNode(plan_);
@@ -295,12 +289,10 @@ std::shared_ptr<gluten::RecordBatchResultIterator> VeloxPlanConverter::GetResult
 
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       pool_, planNode, scanIds, setScanInfos, streamIds);
-  return std::make_shared<gluten::RecordBatchResultIterator>(std::move(wholestageIter));
+  return std::make_shared<gluten::ArrowArrayResultIterator>(std::move(wholestageIter));
 }
 
-void WholeStageResIter::toArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
-                                     const RowTypePtr& outTypes,
-                                     std::shared_ptr<arrow::RecordBatch>* out) {
+void WholeStageResIter::toArrowArray(const RowVectorPtr& rv, ArrowArray& out) {
   // Make sure to load lazy vector if not loaded already.
   for (auto& child : rv->children()) {
     child->loadedVector();
@@ -309,21 +301,10 @@ void WholeStageResIter::toArrowBatch(const RowVectorPtr& rv, uint64_t numRows,
   RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
       BaseVector::create(rv->type(), rv->size(), pool_));
   copy->copy(rv.get(), 0, 0, rv->size());
-
-  ArrowArray cArray{};
-  ArrowSchema cSchema{};
-  exportToArrow(copy, cArray, pool_);
-  exportToArrow(outTypes, cSchema);
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> batch =
-      arrow::ImportRecordBatch(&cArray, &cSchema);
-
-  if (!batch.status().ok()) {
-    throw std::runtime_error("Failed to import to Arrow record batch");
-  }
-  *out = batch.ValueOrDie();
+  exportToArrow(copy, out, pool_);
 }
 
-arrow::Result<std::shared_ptr<arrow::RecordBatch>> WholeStageResIter::Next() {
+arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
   addSplits_(task_.get());
   if (task_->isFinished()) {
     return nullptr;
@@ -336,11 +317,10 @@ arrow::Result<std::shared_ptr<arrow::RecordBatch>> WholeStageResIter::Next() {
   if (numRows == 0) {
     return nullptr;
   }
-  auto outTypes = planNode_->outputType();
-  std::shared_ptr<arrow::RecordBatch> out;
-  toArrowBatch(vector, numRows, outTypes, &out);
-  // arrow::PrettyPrint(*out, 2, &std::cout);
-  return out;
+
+  ArrowArray out;
+  toArrowArray(vector, out);
+  return std::make_shared<ArrowArray>(out);
 }
 
 class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {

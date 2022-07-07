@@ -19,6 +19,7 @@
 
 #include <arrow/array/builder_base.h>
 #include <arrow/array/builder_primitive.h>
+#include <arrow/c/abi.h>
 #include <arrow/record_batch.h>
 #include <arrow/type_fwd.h>
 #include <arrow/util/checked_cast.h>
@@ -29,13 +30,14 @@
 namespace gluten {
 namespace compute {
 
+using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
 // This class is an example shows how to get input from the iter.
 // In real computing, the output of the iter should be used as the
 // input for the following computing.
 class LazyReadIterator {
  public:
-  LazyReadIterator(std::shared_ptr<arrow::RecordBatchIterator> rb_iter) {
-    rb_iter_ = std::move(rb_iter);
+  LazyReadIterator(std::shared_ptr<ArrowArrayIterator> array_iter) {
+    array_iter_ = std::move(array_iter);
     std::unique_ptr<arrow::ArrayBuilder> array_builder;
     arrow::MakeBuilder(pool_, arrow::float64(), &array_builder);
     builder_.reset(
@@ -44,14 +46,14 @@ class LazyReadIterator {
 
   bool HasNext();
 
-  arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out);
+  arrow::Status Next(std::shared_ptr<ArrowArray>* out);
 
  private:
   arrow::MemoryPool* pool_ = arrow::default_memory_pool();
-  std::shared_ptr<arrow::RecordBatchIterator> rb_iter_;
+  std::shared_ptr<ArrowArrayIterator> array_iter_;
   bool need_process_ = false;
   bool no_next_ = false;
-  std::shared_ptr<arrow::RecordBatch> next_batch_;
+  std::shared_ptr<ArrowArray> next_array_;
   std::unique_ptr<arrow::DoubleBuilder> builder_;
 };
 

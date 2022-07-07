@@ -100,5 +100,6 @@ trait IIteratorApi extends IBackendsApi {
    * @return
    */
   def genBatchIterator(wsPlan: Array[Byte], iterList: Seq[GeneralInIterator],
-                       jniWrapper: ExpressionEvaluatorJniWrapper): GeneralOutIterator
+                       jniWrapper: ExpressionEvaluatorJniWrapper,
+                       outAttrs: Seq[Attribute]): GeneralOutIterator
 }

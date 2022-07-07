@@ -140,6 +140,7 @@ set(VELOX_SRCS
     compute/ArrowTypeUtils.cc
     compute/VeloxToRowConverter.cc
     compute/DwrfDatasource.cc
+    compute/bridge.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

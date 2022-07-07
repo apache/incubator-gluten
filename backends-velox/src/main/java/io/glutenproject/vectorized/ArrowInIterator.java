@@ -31,10 +31,9 @@ public class ArrowInIterator extends GeneralInIterator {
     super(delegated);
   }
 
-  public void next(long cSchemaAddress, long cArrayAddress) {
+  public void next(long cArrayAddress) {
     final ColumnarBatch batch = nextColumnarBatch();
-    final ArrowSchema cSchema = ArrowSchema.wrap(cSchemaAddress);
     final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
-    ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray);
+    ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextAllocator(), batch, null, cArray);
   }
 }

@@ -168,7 +168,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
         new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
       resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.substraitPlan, inBatchIters)
+        inputPartition.substraitPlan, inBatchIters, outputAttributes.asJava)
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {
@@ -225,7 +225,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
       }.asJava)
     // we need to complete dependency RDD's firstly
     val beforeBuild = System.nanoTime()
-    val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator)
+    val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator,
+      outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = streamedSortPlan match {
       case t: TransformSupport =>
@@ -278,11 +279,12 @@ class CHIteratorApi extends IIteratorApi with Logging {
    */
   override def genBatchIterator(wsPlan: Array[Byte],
                                 iterList: Seq[GeneralInIterator],
-                                jniWrapper: ExpressionEvaluatorJniWrapper
+                                jniWrapper: ExpressionEvaluatorJniWrapper,
+                                outAttrs: Seq[Attribute]
                                ): GeneralOutIterator = {
     val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
       0L, wsPlan, iterList.toArray);
-    new BatchIterator(batchIteratorInstance)
+    new BatchIterator(batchIteratorInstance, outAttrs.asJava)
   }
 
   /**

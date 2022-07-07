@@ -59,12 +59,12 @@ static jclass byte_array_class;
 static jclass split_result_class;
 static jmethodID split_result_constructor;
 
-static jclass serialized_record_batch_iterator_class;
+static jclass serialized_arrow_array_iterator_class;
 static jclass metrics_builder_class;
 static jmethodID metrics_builder_constructor;
 
-static jmethodID serialized_record_batch_iterator_hasNext;
-static jmethodID serialized_record_batch_iterator_next;
+static jmethodID serialized_arrow_array_iterator_hasNext;
+static jmethodID serialized_arrow_array_iterator_next;
 
 static jclass native_columnar_to_row_info_class;
 static jmethodID native_columnar_to_row_info_constructor;
@@ -77,9 +77,9 @@ static arrow::jni::ConcurrentMap<
     std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
     columnar_to_row_converter_holder_;
 
-using gluten::RecordBatchResultIterator;
-static arrow::jni::ConcurrentMap<std::shared_ptr<RecordBatchResultIterator>>
-    batch_iterator_holder_;
+using gluten::ArrowArrayResultIterator;
+static arrow::jni::ConcurrentMap<std::shared_ptr<ArrowArrayResultIterator>>
+    array_iterator_holder_;
 
 using gluten::shuffle::SplitOptions;
 using gluten::shuffle::Splitter;
@@ -87,8 +87,8 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_hol
 static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
     decompression_schema_holder_;
 
-std::shared_ptr<RecordBatchResultIterator> GetBatchIterator(JNIEnv* env, jlong id) {
-  auto handler = batch_iterator_holder_.Lookup(id);
+std::shared_ptr<ArrowArrayResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
+  auto handler = array_iterator_holder_.Lookup(id);
   if (!handler) {
     std::string error_message = "invalid handler id " + std::to_string(id);
     throw gluten::GlutenException(error_message);
@@ -96,20 +96,18 @@ std::shared_ptr<RecordBatchResultIterator> GetBatchIterator(JNIEnv* env, jlong i
   return handler;
 }
 
-class JavaRecordBatchIterator {
+class JavaArrowArrayIterator {
  public:
-  explicit JavaRecordBatchIterator(JavaVM* vm,
-                                   jobject java_serialized_record_batch_iterator,
-                                   std::shared_ptr<arrow::Schema> schema)
+  explicit JavaArrowArrayIterator(JavaVM* vm,
+                                  jobject java_serialized_arrow_array_iterator)
       : vm_(vm),
-        java_serialized_record_batch_iterator_(java_serialized_record_batch_iterator),
-        schema_(std::move(schema)) {}
+        java_serialized_arrow_array_iterator_(java_serialized_arrow_array_iterator) {}
 
   // singleton, avoid stack instantiation
-  JavaRecordBatchIterator(const JavaRecordBatchIterator& itr) = delete;
-  JavaRecordBatchIterator(JavaRecordBatchIterator&& itr) = delete;
+  JavaArrowArrayIterator(const JavaArrowArrayIterator& itr) = delete;
+  JavaArrowArrayIterator(JavaArrowArrayIterator&& itr) = delete;
 
-  virtual ~JavaRecordBatchIterator() {
+  virtual ~JavaArrowArrayIterator() {
     JNIEnv* env;
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
@@ -127,14 +125,14 @@ class JavaRecordBatchIterator {
     }
 #ifdef DEBUG
     std::cout << "DELETING ITERATOR REF "
-              << reinterpret_cast<long>(java_serialized_record_batch_iterator_) << "..."
+              << reinterpret_cast<long>(java_serialized_arrow_array_iterator_) << "..."
               << std::endl;
 #endif
-    env->DeleteGlobalRef(java_serialized_record_batch_iterator_);
+    env->DeleteGlobalRef(java_serialized_arrow_array_iterator_);
     vm_->DetachCurrentThread();
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+  arrow::Result<std::shared_ptr<ArrowArray>> Next() {
     JNIEnv* env;
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
@@ -152,57 +150,54 @@ class JavaRecordBatchIterator {
     }
 #ifdef DEBUG
     std::cout << "PICKING ITERATOR REF "
-              << reinterpret_cast<long>(java_serialized_record_batch_iterator_) << "..."
+              << reinterpret_cast<long>(java_serialized_arrow_array_iterator_) << "..."
               << std::endl;
 #endif
-    if (!env->CallBooleanMethod(java_serialized_record_batch_iterator_,
-                                serialized_record_batch_iterator_hasNext)) {
+    if (!env->CallBooleanMethod(java_serialized_arrow_array_iterator_,
+                                serialized_arrow_array_iterator_hasNext)) {
       RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
       return nullptr;  // stream ended
     }
     RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
-    ArrowSchema c_schema{};
     ArrowArray c_array{};
-    env->CallObjectMethod(
-        java_serialized_record_batch_iterator_, serialized_record_batch_iterator_next,
-        reinterpret_cast<jlong>(&c_schema), reinterpret_cast<jlong>(&c_array));
+    env->CallObjectMethod(java_serialized_arrow_array_iterator_,
+                          serialized_arrow_array_iterator_next,
+                          reinterpret_cast<jlong>(&c_array));
     RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
-    ARROW_ASSIGN_OR_RAISE(auto batch, arrow::ImportRecordBatch(&c_array, &c_schema))
-    return batch;
+    auto array = std::make_shared<ArrowArray>(c_array);
+    return array;
   }
 
  private:
   JavaVM* vm_;
-  jobject java_serialized_record_batch_iterator_;
-  std::shared_ptr<arrow::Schema> schema_;
+  jobject java_serialized_arrow_array_iterator_;
 };
 
-class JavaRecordBatchIteratorWrapper {
+// TODO: make sure deleted
+class JavaArrowArrayIteratorWrapper {
  public:
-  explicit JavaRecordBatchIteratorWrapper(
-      std::shared_ptr<JavaRecordBatchIterator> delegated)
+  explicit JavaArrowArrayIteratorWrapper(
+      std::shared_ptr<JavaArrowArrayIterator> delegated)
       : delegated_(std::move(delegated)) {}
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() { return delegated_->Next(); }
+  arrow::Result<std::shared_ptr<ArrowArray>> Next() { return delegated_->Next(); }
 
  private:
-  std::shared_ptr<JavaRecordBatchIterator> delegated_;
+  std::shared_ptr<JavaArrowArrayIterator> delegated_;
 };
 
 // See Java class
 // org/apache/arrow/dataset/jni/NativeSerializedRecordBatchIterator
 //
-std::shared_ptr<JavaRecordBatchIterator> MakeJavaRecordBatchIterator(
-    JavaVM* vm, jobject java_serialized_record_batch_iterator,
-    const std::shared_ptr<arrow::Schema>& schema) {
+std::shared_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
+    JavaVM* vm, jobject java_serialized_arrow_array_iterator) {
 #ifdef DEBUG
   std::cout << "CREATING ITERATOR REF "
-            << reinterpret_cast<long>(java_serialized_record_batch_iterator) << "..."
+            << reinterpret_cast<long>(java_serialized_arrow_array_iterator) << "..."
             << std::endl;
 #endif
-  std::shared_ptr<JavaRecordBatchIterator> itr =
-      std::make_shared<JavaRecordBatchIterator>(vm, java_serialized_record_batch_iterator,
-                                                schema);
+  std::shared_ptr<JavaArrowArrayIterator> itr =
+      std::make_shared<JavaArrowArrayIterator>(vm, java_serialized_arrow_array_iterator);
   return itr;
 }
 
@@ -256,12 +251,12 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_constructor =
       GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J)V");
 
-  serialized_record_batch_iterator_class = CreateGlobalClassReferenceOrError(
+  serialized_arrow_array_iterator_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/ArrowInIterator;");
-  serialized_record_batch_iterator_hasNext =
-      GetMethodIDOrError(env, serialized_record_batch_iterator_class, "hasNext", "()Z");
-  serialized_record_batch_iterator_next =
-      GetMethodIDOrError(env, serialized_record_batch_iterator_class, "next", "(JJ)V");
+  serialized_arrow_array_iterator_hasNext =
+      GetMethodIDOrError(env, serialized_arrow_array_iterator_class, "hasNext", "()Z");
+  serialized_arrow_array_iterator_next =
+      GetMethodIDOrError(env, serialized_arrow_array_iterator_class, "next", "(J)V");
 
   native_columnar_to_row_info_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
@@ -278,12 +273,12 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 
   env->DeleteGlobalRef(serializable_obj_builder_class);
   env->DeleteGlobalRef(split_result_class);
-  env->DeleteGlobalRef(serialized_record_batch_iterator_class);
+  env->DeleteGlobalRef(serialized_arrow_array_iterator_class);
   env->DeleteGlobalRef(native_columnar_to_row_info_class);
 
   env->DeleteGlobalRef(byte_array_class);
 
-  batch_iterator_holder_.Clear();
+  array_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
   shuffle_splitter_holder_.Clear();
   decompression_schema_holder_.Clear();
@@ -335,33 +330,26 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
 
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
-  std::vector<std::shared_ptr<RecordBatchResultIterator>> input_iters;
+  std::vector<std::shared_ptr<ArrowArrayResultIterator>> input_iters;
   if (iters_len > 0) {
-    // Get input schema from Substrait plan.
-    const auto& schema_map = backend->GetInputSchemaMap();
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
       // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
       // TODO Release this in JNI Unload or dependent object's destructor
       jobject ref_iter = env->NewGlobalRef(iter);
-      auto it = schema_map.find(idx);
-      if (it == schema_map.end()) {
-        gluten::JniThrow("Schema not found for input batch iterator " +
-                         std::to_string(idx));
-      }
-      auto rb_iter = MakeJavaRecordBatchIterator(vm, ref_iter, it->second);
+      auto array_iter = MakeJavaArrowArrayIterator(vm, ref_iter);
       input_iters.push_back(
-          std::make_shared<RecordBatchResultIterator>(std::move(rb_iter)));
+          std::make_shared<ArrowArrayResultIterator>(std::move(array_iter)));
     }
   }
 
-  std::shared_ptr<RecordBatchResultIterator> res_iter;
+  std::shared_ptr<ArrowArrayResultIterator> res_iter;
   if (input_iters.empty()) {
     res_iter = backend->GetResultIterator();
   } else {
     res_iter = backend->GetResultIterator(input_iters);
   }
-  return batch_iterator_holder_.Insert(std::move(res_iter));
+  return array_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
 }
 
@@ -369,7 +357,7 @@ JNIEXPORT jboolean JNICALL
 Java_io_glutenproject_vectorized_ArrowOutIterator_nativeHasNext(JNIEnv* env, jobject obj,
                                                                 jlong id) {
   JNI_METHOD_START
-  auto iter = GetBatchIterator(env, id);
+  auto iter = GetArrayIterator(env, id);
   if (iter == nullptr) {
     std::string error_message = "faked to get batch iterator";
     gluten::JniThrow(error_message);
@@ -379,16 +367,14 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeHasNext(JNIEnv* env, job
 }
 
 JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
-    JNIEnv* env, jobject obj, jlong id, jlong c_schema, jlong c_array) {
+    JNIEnv* env, jobject obj, jlong id, jlong c_array) {
   JNI_METHOD_START
-  auto iter = GetBatchIterator(env, id);
+  auto iter = GetArrayIterator(env, id);
   if (!iter->HasNext()) {
     return false;
   }
-  auto batch = std::move(iter->Next());
-  gluten::JniAssertOkOrThrow(
-      arrow::ExportRecordBatch(*batch, reinterpret_cast<struct ArrowArray*>(c_array),
-                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  ArrowArrayMove(std::move(iter->Next().get()),
+                 reinterpret_cast<struct ArrowArray*>(c_array));
   return true;
   JNI_METHOD_END(false)
 }
@@ -397,14 +383,14 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeC
     JNIEnv* env, jobject this_obj, jlong id) {
   JNI_METHOD_START
 #ifdef DEBUG
-  auto it = batch_iterator_holder_.Lookup(id);
+  auto it = array_iterator_holder_.Lookup(id);
   if (it.use_count() > 2) {
-    std::cout << "RecordBatchResultIterator Id " << id << " use count is "
+    std::cout << "ArrowArrayResultIterator Id " << id << " use count is "
               << it.use_count() << std::endl;
   }
   std::cout << "BatchIterator nativeClose." << std::endl;
 #endif
-  batch_iterator_holder_.Erase(id);
+  array_iterator_holder_.Erase(id);
   JNI_METHOD_END()
 }
 

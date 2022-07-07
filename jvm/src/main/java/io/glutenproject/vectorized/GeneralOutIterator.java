@@ -18,18 +18,21 @@
 package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.io.IOException;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class GeneralOutIterator implements AutoCloseable, Serializable {
   protected final long handle;
   protected final AtomicBoolean closed = new AtomicBoolean(false);
-
-  public GeneralOutIterator(long handle) throws IOException {
+  protected transient final List<Attribute> outAttrs;
+  public GeneralOutIterator(long handle, List<Attribute> outAttrs) throws IOException {
     this.handle = handle;
+    this.outAttrs = outAttrs;
   }
 
   public final boolean hasNext() throws Exception {

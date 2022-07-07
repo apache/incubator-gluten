@@ -218,7 +218,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       val transKernel = new ExpressionEvaluator()
       outputSchema = ArrowConverterUtils.toArrowSchema(outputAttributes)
       resIter = transKernel.createKernelWithBatchIterator(
-          inputPartition.substraitPlan, columnarNativeIterators)
+          inputPartition.substraitPlan, columnarNativeIterators, outputAttributes.asJava)
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {
@@ -302,11 +302,11 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
         new ArrowInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
-      transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator)
+      transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator,
+        outputAttributes.asJava)
     val buildElapse = System.nanoTime() - beforeBuild
 
     var evalElapse: Long = 0
-    val schema = ArrowUtils.fromAttributes(outputAttributes)
 
     val resIter = new Iterator[ColumnarBatch] {
       override def hasNext: Boolean = {
@@ -348,12 +348,13 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
   override def genBatchIterator(
       wsPlan: Array[Byte],
       iterList: Seq[GeneralInIterator],
-      jniWrapper: ExpressionEvaluatorJniWrapper): GeneralOutIterator = {
+      jniWrapper: ExpressionEvaluatorJniWrapper,
+      outAttrs: Seq[Attribute]): GeneralOutIterator = {
     val memoryPool = SparkMemoryUtils.contextMemoryPool()
     val poolId = memoryPool.getNativeInstanceId
     val batchIteratorInstance =
       jniWrapper.nativeCreateKernelWithIterator(poolId, wsPlan, iterList.toArray)
-    new ArrowOutIterator(batchIteratorInstance)
+    new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)
   }
 
   /**
