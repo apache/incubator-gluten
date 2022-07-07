@@ -333,11 +333,11 @@ object ConverterUtils extends Logging {
   final val IS_NULL = "is_null"
   // Datetime
   final val EXTRACT = "extract"
-  // Below names are not in Substrait yaml.
   final val ENDS_WITH = "ends_with"
   final val CONTAINS = "contains"
-  final val IN = "in"
+  final val IN = "in" // TODO: use OrList in Substrait to replace in.
   final val NOT = "not"
   final val STARTS_WITH = "starts_with"
   final val SUBSTRING = "substring"
+  final val ROW_CONSTRUCTOR = "row_constructor"
 }
