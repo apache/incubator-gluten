@@ -18,6 +18,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -29,10 +30,10 @@ import org.apache.spark.sql.catalyst.expressions._
  *   coalesce(null, null, 2) => 2
  *   coalesce(null, null, null) => null
  * }}}
-**/
+ * */
 
 class CoalesceTransformer(exps: Seq[Expression], original: Expression)
-    extends Coalesce(exps: Seq[Expression])
+  extends Coalesce(exps: Seq[Expression])
     with ExpressionTransformer
     with Logging {
 

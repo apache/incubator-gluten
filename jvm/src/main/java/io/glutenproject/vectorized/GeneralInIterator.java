@@ -21,7 +21,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-abstract public class GeneralInIterator implements AutoCloseable {
+public abstract class GeneralInIterator implements AutoCloseable {
   protected final Iterator<ColumnarBatch> delegated;
   private transient ColumnarBatch nextBatch = null;
 

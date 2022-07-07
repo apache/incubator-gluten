@@ -18,16 +18,16 @@
 package io.glutenproject.vectorized;
 
 public class NativeColumnarToRowInfo {
-    public long instanceID;
-    public long[] offsets;
-    public long[] lengths;
-    public long memoryAddress;
+  public long instanceID;
+  public long[] offsets;
+  public long[] lengths;
+  public long memoryAddress;
 
-    public NativeColumnarToRowInfo(long instanceID,
-                                   long[] offsets, long[] lengths, long memoryAddress) {
-        this.instanceID = instanceID;
-        this.offsets = offsets;
-        this.lengths = lengths;
-        this.memoryAddress = memoryAddress;
-    }
+  public NativeColumnarToRowInfo(long instanceID,
+                                 long[] offsets, long[] lengths, long memoryAddress) {
+    this.instanceID = instanceID;
+    this.offsets = offsets;
+    this.lengths = lengths;
+    this.memoryAddress = memoryAddress;
+  }
 }

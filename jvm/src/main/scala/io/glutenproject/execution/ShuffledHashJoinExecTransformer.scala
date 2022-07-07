@@ -18,6 +18,8 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
+import scala.util.control.Breaks.{break, breakable}
+
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
@@ -43,21 +45,19 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.util.control.Breaks.{break, breakable}
-
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
 abstract class HashJoinLikeExecTransformer(
-    leftKeys: Seq[Expression],
-    rightKeys: Seq[Expression],
-    joinType: JoinType,
-    buildSide: BuildSide,
-    condition: Option[Expression],
-    left: SparkPlan,
-    right: SparkPlan,
-    projectList: Seq[NamedExpression] = null)
-    extends BaseJoinExec
+                                            leftKeys: Seq[Expression],
+                                            rightKeys: Seq[Expression],
+                                            joinType: JoinType,
+                                            buildSide: BuildSide,
+                                            condition: Option[Expression],
+                                            left: SparkPlan,
+                                            right: SparkPlan,
+                                            projectList: Seq[NamedExpression] = null)
+  extends BaseJoinExec
     with TransformSupport
     with ShuffledJoin {
 
@@ -84,14 +84,13 @@ abstract class HashJoinLikeExecTransformer(
       case BuildRight => (rkeys, lkeys)
     }
   }
-
+  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
+  val numOutputRows: SQLMetric = longMetric("numOutputRows")
   private val joinExpression = (streamedKeyExprs zip buildKeyExprs)
     .map { case (l, r) => EqualTo(l, r) }
     .reduce(And)
-
   // Direct output order of substrait join operation
   private val joinOutput = streamedPlan.output ++ buildPlan.output
-
   private val substraitJoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
@@ -111,9 +110,6 @@ abstract class HashJoinLikeExecTransformer(
   override def output: Seq[Attribute] =
     if (projectList == null || projectList.isEmpty) super.output
     else projectList.map(_.toAttribute)
-
-  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
-  val numOutputRows: SQLMetric = longMetric("numOutputRows")
 
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     numOutputBatches += outNumBatches
@@ -226,10 +222,10 @@ abstract class HashJoinLikeExecTransformer(
   }
 
   private def getJoinRel(
-      streamedRelNode: RelNode,
-      buildRelNode: RelNode,
-      substraitContext: SubstraitContext,
-      validation: Boolean = false): RelNode = {
+                          streamedRelNode: RelNode,
+                          buildRelNode: RelNode,
+                          substraitContext: SubstraitContext,
+                          validation: Boolean = false): RelNode = {
     val joinExpressionNode = ExpressionConverter
       .replaceWithExpressionTransformer(joinExpression, joinOutput)
       .asInstanceOf[ExpressionTransformer]
@@ -273,10 +269,6 @@ abstract class HashJoinLikeExecTransformer(
     }
   }
 
-  def genJoinParameters(): (Int, Int, String) = {
-    (0, 0, "")
-  }
-
   def genJoinParametersBuilder(): Any.Builder = {
     val (isBHJ, isNullAwareAntiJoin, buildHashTableId) = genJoinParameters()
     // Start with "JoinParameters:"
@@ -292,9 +284,13 @@ abstract class HashJoinLikeExecTransformer(
       .setTypeUrl("/google.protobuf.StringValue")
   }
 
+  def genJoinParameters(): (Int, Int, String) = {
+    (0, 0, "")
+  }
+
   private def getNewOutput(
-      leftOutput: Seq[Attribute],
-      rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
+                            leftOutput: Seq[Attribute],
+                            rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
         (leftOutput, rightOutput)
@@ -321,23 +317,23 @@ abstract class HashJoinLikeExecTransformer(
 }
 
 case class ShuffledHashJoinExecTransformer(
-    leftKeys: Seq[Expression],
-    rightKeys: Seq[Expression],
-    joinType: JoinType,
-    buildSide: BuildSide,
-    condition: Option[Expression],
-    left: SparkPlan,
-    right: SparkPlan,
-    projectList: Seq[NamedExpression] = null)
-    extends HashJoinLikeExecTransformer(
-      leftKeys,
-      rightKeys,
-      joinType,
-      buildSide,
-      condition,
-      left,
-      right,
-      projectList) {
+                                            leftKeys: Seq[Expression],
+                                            rightKeys: Seq[Expression],
+                                            joinType: JoinType,
+                                            buildSide: BuildSide,
+                                            condition: Option[Expression],
+                                            left: SparkPlan,
+                                            right: SparkPlan,
+                                            projectList: Seq[NamedExpression] = null)
+  extends HashJoinLikeExecTransformer(
+    leftKeys,
+    rightKeys,
+    joinType,
+    buildSide,
+    condition,
+    left,
+    right,
+    projectList) {
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
@@ -350,24 +346,24 @@ case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
                                     buildHashTableId: String)
 
 case class BroadcastHashJoinExecTransformer(
-    leftKeys: Seq[Expression],
-    rightKeys: Seq[Expression],
-    joinType: JoinType,
-    buildSide: BuildSide,
-    condition: Option[Expression],
-    left: SparkPlan,
-    right: SparkPlan,
-    isNullAwareAntiJoin: Boolean = false,
-    projectList: Seq[NamedExpression] = null)
-    extends HashJoinLikeExecTransformer(
-      leftKeys,
-      rightKeys,
-      joinType,
-      buildSide,
-      condition,
-      left,
-      right,
-      projectList) {
+                                             leftKeys: Seq[Expression],
+                                             rightKeys: Seq[Expression],
+                                             joinType: JoinType,
+                                             buildSide: BuildSide,
+                                             condition: Option[Expression],
+                                             left: SparkPlan,
+                                             right: SparkPlan,
+                                             isNullAwareAntiJoin: Boolean = false,
+                                             projectList: Seq[NamedExpression] = null)
+  extends HashJoinLikeExecTransformer(
+    leftKeys,
+    rightKeys,
+    joinType,
+    buildSide,
+    condition,
+    left,
+    right,
+    projectList) {
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id

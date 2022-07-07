@@ -28,29 +28,22 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ExpandExecTransformer(
-    projections: Seq[Seq[Expression]],
-    output: Seq[Attribute],
-    child: SparkPlan)
-    extends UnaryExecNode with TransformSupport {
+                                  projections: Seq[Seq[Expression]],
+                                  output: Seq[Attribute],
+                                  child: SparkPlan)
+  extends UnaryExecNode with TransformSupport {
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_condproject"))
+  val originalInputAttributes: Seq[Attribute] = child.output
+
   // The GroupExpressions can output data with arbitrary partitioning, so set it
   // as UNKNOWN partitioning
   override def outputPartitioning: Partitioning = UnknownPartitioning(0)
 
-  val originalInputAttributes: Seq[Attribute] = child.output
-
   override def supportsColumnar: Boolean = true
-
-  protected override def doExecute(): RDD[InternalRow] =
-    throw new UnsupportedOperationException("doExecute is not supported in ColumnarExpandExec.")
-
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
@@ -72,5 +65,12 @@ case class ExpandExecTransformer(
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+  }
+
+  protected override def doExecute(): RDD[InternalRow] =
+    throw new UnsupportedOperationException("doExecute is not supported in ColumnarExpandExec.")
+
+  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 }

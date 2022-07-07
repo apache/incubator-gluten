@@ -19,6 +19,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
+
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 object AggregateFunctionsBuilder {

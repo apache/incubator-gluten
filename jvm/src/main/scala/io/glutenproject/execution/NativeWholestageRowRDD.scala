@@ -20,6 +20,7 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.row.RowIterator
 import io.glutenproject.vectorized.{ExpressionEvaluator, GeneralInIterator}
+
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -28,35 +29,19 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.util._
 
 class NativeWholestageRowRDD(
-    sc: SparkContext,
-    @transient private val inputPartitions: Seq[InputPartition],
-    columnarReads: Boolean)
-    extends RDD[InternalRow](sc, Nil) {
+                              sc: SparkContext,
+                              @transient private val inputPartitions: Seq[InputPartition],
+                              columnarReads: Boolean)
+  extends RDD[InternalRow](sc, Nil) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val loadNative = GlutenConfig.getConf.loadNative
-
-  override protected def getPartitions: Array[Partition] = {
-    inputPartitions.zipWithIndex.map {
-      case (inputPartition, index) => FirstZippedPartitionsPartition(index, inputPartition)
-    }.toArray
-  }
-
-  private def castPartition(split: Partition): FirstZippedPartitionsPartition = split match {
-    case p: FirstZippedPartitionsPartition => p
-    case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
-  }
-
-  private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
-    case FirstZippedPartitionsPartition(_, p: BaseNativeFilePartition, _) => p
-    case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
-  }
 
   override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
     val inputPartition = castNativePartition(split)
 
-    var resIter : RowIterator = null
+    var resIter: RowIterator = null
     if (loadNative) {
       val transKernel = new ExpressionEvaluator()
       val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
@@ -141,8 +126,24 @@ class NativeWholestageRowRDD(
     iter
   }
 
+  private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
+    case FirstZippedPartitionsPartition(_, p: BaseNativeFilePartition, _) => p
+    case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
+  }
+
   override def getPreferredLocations(split: Partition): Seq[String] = {
     castPartition(split).inputPartition.preferredLocations()
+  }
+
+  private def castPartition(split: Partition): FirstZippedPartitionsPartition = split match {
+    case p: FirstZippedPartitionsPartition => p
+    case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
+  }
+
+  override protected def getPartitions: Array[Partition] = {
+    inputPartitions.zipWithIndex.map {
+      case (inputPartition, index) => FirstZippedPartitionsPartition(index, inputPartition)
+    }.toArray
   }
 
 }

@@ -23,8 +23,8 @@ import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   /**
-   * Run Gluten + ClickHouse Backend with SortShuffleManager
-   */
+    * Run Gluten + ClickHouse Backend with SortShuffleManager
+    */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.io.compression.codec", "snappy")

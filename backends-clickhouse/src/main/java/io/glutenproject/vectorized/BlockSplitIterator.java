@@ -24,80 +24,81 @@ import java.util.Iterator;
 
 public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseable {
 
-    public static class IteratorOptions implements Serializable {
-        private static final long serialVersionUID = -1L;
-        private int partitionNum;
-        private String name;
-        private int bufferSize;
-        private String expr;
+  private long instance = 0;
 
-        public int getPartitionNum() {
-            return partitionNum;
-        }
+  public BlockSplitIterator(Iterator<Long> in, IteratorOptions options) {
+    this.instance = nativeCreate(new IteratorWrapper(in), options.getName(), options.getExpr(),
+        options.getPartitionNum(), options.getBufferSize());
+  }
 
-        public void setPartitionNum(int partitionNum) {
-            this.partitionNum = partitionNum;
-        }
+  private native long nativeCreate(IteratorWrapper in, String name, String expr,
+                                   int partitionNum, int bufferSize);
 
-        public String getName() {
-            return name;
-        }
+  private native void nativeClose(long instance);
 
-        public void setName(String name) {
-            this.name = name;
-        }
+  private native boolean nativeHasNext(long instance);
 
-        public int getBufferSize() {
-            return bufferSize;
-        }
+  @Override
+  public boolean hasNext() {
+    return nativeHasNext(instance);
+  }
 
-        public void setBufferSize(int bufferSize) {
-            this.bufferSize = bufferSize;
-        }
+  private native long nativeNext(long instance);
 
-        public String getExpr() {
-            return expr;
-        }
+  @Override
+  public ColumnarBatch next() {
+    CHNativeBlock block = new CHNativeBlock(nativeNext(instance));
+    return block.toColumnarBatch();
+  }
 
-        public void setExpr(String expr) {
-            this.expr = expr;
-        }
+  private native int nativeNextPartitionId(long instance);
+
+  public int nextPartitionId() {
+    return nativeNextPartitionId(instance);
+  }
+
+  @Override
+  public void close() throws Exception {
+    nativeClose(instance);
+  }
+
+  public static class IteratorOptions implements Serializable {
+    private static final long serialVersionUID = -1L;
+    private int partitionNum;
+    private String name;
+    private int bufferSize;
+    private String expr;
+
+    public int getPartitionNum() {
+      return partitionNum;
     }
 
-    private long instance = 0;
-
-    public BlockSplitIterator(Iterator<Long> in, IteratorOptions options) {
-        this.instance = nativeCreate(new IteratorWrapper(in), options.getName(), options.getExpr(),
-                options.getPartitionNum(), options.getBufferSize());
+    public void setPartitionNum(int partitionNum) {
+      this.partitionNum = partitionNum;
     }
 
-    private native long nativeCreate(IteratorWrapper in, String name, String expr, int partitionNum, int bufferSize);
-
-    private native void nativeClose(long instance);
-
-    private native boolean nativeHasNext(long instance);
-
-    @Override
-    public boolean hasNext() {
-        return nativeHasNext(instance);
+    public String getName() {
+      return name;
     }
 
-    private native long nativeNext(long instance);
-
-    @Override
-    public ColumnarBatch next() {
-        CHNativeBlock block = new CHNativeBlock(nativeNext(instance));
-        return block.toColumnarBatch();
+    public void setName(String name) {
+      this.name = name;
     }
 
-    private native int nativeNextPartitionId(long instance);
-
-    public int nextPartitionId() {
-        return nativeNextPartitionId(instance);
+    public int getBufferSize() {
+      return bufferSize;
     }
 
-    @Override
-    public void close() throws Exception {
-        nativeClose(instance);
+    public void setBufferSize(int bufferSize) {
+      this.bufferSize = bufferSize;
     }
+
+    public String getExpr() {
+      return expr;
+    }
+
+    public void setExpr(String expr) {
+      this.expr = expr;
+    }
+  }
 }

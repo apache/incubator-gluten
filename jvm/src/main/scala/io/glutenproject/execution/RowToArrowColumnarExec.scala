@@ -17,10 +17,7 @@
 
 package io.glutenproject.execution
 
-import java.util.concurrent.TimeUnit._
-
 import org.apache.spark.broadcast
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -48,6 +45,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * would only be to reduce code.
  */
 abstract class RowToArrowColumnarExec(child: SparkPlan) extends RowToColumnarExec(child = child) {
+  override lazy val metrics: Map[String, SQLMetric] = Map(
+    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_rowtoarrowcolumnar")
+  )
+
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
@@ -63,12 +66,6 @@ abstract class RowToArrowColumnarExec(child: SparkPlan) extends RowToColumnarExe
   }
 
   override def supportsColumnar: Boolean = true
-
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_rowtoarrowcolumnar")
-  )
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch]
 

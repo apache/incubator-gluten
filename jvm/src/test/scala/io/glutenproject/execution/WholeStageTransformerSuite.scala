@@ -20,18 +20,20 @@ package io.glutenproject.execution
 import java.io.File
 
 import org.apache.spark.SparkConf
-
 import org.apache.spark.sql.{DataFrame, QueryTest}
 import org.apache.spark.sql.test.SharedSparkSession
 
 abstract class WholeStageTransformerSuite extends QueryTest with SharedSparkSession {
-  import testImplicits._
 
   protected val backend: String
   protected val resourcePath: String
   protected val fileFormat: String
 
   protected var TPCHTables: Map[String, DataFrame] = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+  }
 
   protected def createTPCHTables(): Unit = {
     TPCHTables = Seq(
@@ -56,9 +58,5 @@ abstract class WholeStageTransformerSuite extends QueryTest with SharedSparkSess
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.gluten.sql.columnar.backend.lib", backend)
       .set("spark.default.parallelism", "1")
-  }
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
   }
 }

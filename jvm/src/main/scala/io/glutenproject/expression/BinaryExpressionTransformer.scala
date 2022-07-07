@@ -57,7 +57,7 @@ class EndsWithTransformer(left: Expression, right: Expression, original: Express
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -86,7 +86,7 @@ class StartsWithTransformer(left: Expression, right: Expression, original: Expre
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -114,7 +114,7 @@ class LikeTransformer(left: Expression, right: Expression, original: Expression)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -143,7 +143,7 @@ class ContainsTransformer(left: Expression, right: Expression, original: Express
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
     if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
+      !rightNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
@@ -163,7 +163,7 @@ class ContainsTransformer(left: Expression, right: Expression, original: Express
 }
 
 class DateAddIntervalTransformer(start: Expression, interval: Expression, original: DateAddInterval)
-    extends DateAddInterval(start, interval, original.timeZoneId, original.ansiEnabled)
+  extends DateAddInterval(start, interval, original.timeZoneId, original.ansiEnabled)
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {

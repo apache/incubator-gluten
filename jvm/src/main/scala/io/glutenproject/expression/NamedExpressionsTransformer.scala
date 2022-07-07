@@ -24,10 +24,10 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 class AliasTransformer(child: Expression, name: String)(
-    override val exprId: ExprId,
-    override val qualifier: Seq[String],
-    override val explicitMetadata: Option[Metadata])
-    extends Alias(child, name)(exprId, qualifier, explicitMetadata)
+  override val exprId: ExprId,
+  override val qualifier: Seq[String],
+  override val explicitMetadata: Option[Metadata])
+  extends Alias(child, name)(exprId, qualifier, explicitMetadata)
     with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -46,14 +46,14 @@ class AliasTransformer(child: Expression, name: String)(
 }
 
 class AttributeReferenceTransformer(
-    name: String,
-    ordinal: Int,
-    dataType: DataType,
-    nullable: Boolean = true,
-    override val metadata: Metadata = Metadata.empty)(
-    override val exprId: ExprId,
-    override val qualifier: Seq[String])
-    extends AttributeReference(name, dataType, nullable, metadata)(exprId, qualifier)
+                                     name: String,
+                                     ordinal: Int,
+                                     dataType: DataType,
+                                     nullable: Boolean = true,
+                                     override val metadata: Metadata = Metadata.empty)(
+                                     override val exprId: ExprId,
+                                     override val qualifier: Seq[String])
+  extends AttributeReference(name, dataType, nullable, metadata)(exprId, qualifier)
     with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

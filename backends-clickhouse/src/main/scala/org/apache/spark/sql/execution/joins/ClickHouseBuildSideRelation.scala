@@ -17,22 +17,22 @@
 
 package org.apache.spark.sql.execution.joins
 
+import java.io.ByteArrayInputStream
+
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.vectorized.StorageJoinBuilder
-
-import java.io.ByteArrayInputStream
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ClickHouseBuildSideRelation(output: Seq[Attribute], batches: Array[Array[Byte]])
-    extends BuildSideRelation with Logging {
+  extends BuildSideRelation with Logging {
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
-  override def asReadOnlyCopy(
-      broadCastContext: BroadCastHashJoinContext): ClickHouseBuildSideRelation = {
+  override def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext)
+  : ClickHouseBuildSideRelation = {
     val allBatches = batches.flatten
     logDebug(s"BHJ value size: " +
       s"${broadCastContext.buildHashTableId} = ${allBatches.size}")

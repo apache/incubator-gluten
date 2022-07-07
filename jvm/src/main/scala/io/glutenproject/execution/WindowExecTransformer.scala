@@ -29,9 +29,21 @@ import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
-    partitionSpec: Seq[Expression],
-    orderSpec: Seq[SortOrder],
-    child: SparkPlan) extends WindowExecBase with TransformSupport {
+                                 partitionSpec: Seq[Expression],
+                                 orderSpec: Seq[SortOrder],
+                                 child: SparkPlan) extends WindowExecBase with TransformSupport {
+
+  override lazy val metrics = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
+    "totalTime" -> SQLMetrics
+      .createTimingMetric(sparkContext, "totaltime_window"))
+  val numOutputRows = longMetric("numOutputRows")
+  val numOutputBatches = longMetric("numOutputBatches")
+  val numInputBatches = longMetric("numInputBatches")
+  val totalTime = longMetric("totalTime")
+  val sparkConf = sparkContext.getConf
 
   override def supportsColumnar: Boolean = true
 
@@ -53,33 +65,19 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "totalTime" -> SQLMetrics
-        .createTimingMetric(sparkContext, "totaltime_window"))
-
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
-  val numInputBatches = longMetric("numInputBatches")
-  val totalTime = longMetric("totalTime")
-
-  val sparkConf = sparkContext.getConf
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[WindowExecTransformer]
-
   override def equals(other: Any): Boolean = other match {
     case that: WindowExecTransformer =>
       (that canEqual this) && (that eq this)
     case _ => false
   }
 
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[WindowExecTransformer]
+
   override def hashCode(): Int = System.identityHashCode(this)
+
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
+  }
 
   /* private object NoneType {
     val NONE_TYPE = new NoneType
@@ -105,14 +103,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     override def isComplex: Boolean = false
   } */
 
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException()
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
-  }
-
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
     throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
   }
@@ -129,5 +119,13 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+  }
+
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException()
   }
 }

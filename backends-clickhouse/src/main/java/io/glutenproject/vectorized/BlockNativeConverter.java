@@ -20,13 +20,10 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.row.SparkRowInfo;
 
-import java.io.Closeable;
-import java.io.IOException;
-
 public class BlockNativeConverter {
 
 
-    public native SparkRowInfo converColumarToRow(long blockAddress);
+  public native SparkRowInfo converColumarToRow(long blockAddress);
 
-    public native void freeMemory(long address, long size);
+  public native void freeMemory(long address, long size);
 }

@@ -23,25 +23,25 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class DateListNode implements ExpressionNode, Serializable {
-    private final ArrayList<Integer> values = new ArrayList<>();
+  private final ArrayList<Integer> values = new ArrayList<>();
 
-    public DateListNode(ArrayList<Integer> values) {
-        this.values.addAll(values);
+  public DateListNode(ArrayList<Integer> values) {
+    this.values.addAll(values);
+  }
+
+  @Override
+  public Expression toProtobuf() {
+    Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
+    Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
+    for (Integer value : values) {
+      literalBuilder.setDate(value);
+      listBuilder.addValues(literalBuilder.build());
     }
+    literalBuilder.setList(listBuilder.build());
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
-        Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
-        for (Integer value : values) {
-            literalBuilder.setDate(value);
-            listBuilder.addValues(literalBuilder.build());
-        }
-        literalBuilder.setList(listBuilder.build());
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setLiteral(literalBuilder.build());
 
-        Expression.Builder builder =  Expression.newBuilder();
-        builder.setLiteral(literalBuilder.build());
-
-        return builder.build();
-    }
+    return builder.build();
+  }
 }

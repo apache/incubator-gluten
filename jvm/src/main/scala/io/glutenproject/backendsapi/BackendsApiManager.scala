@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +18,8 @@
 package io.glutenproject.backendsapi
 
 import java.util.ServiceLoader
-import scala.collection.JavaConversions._
+
+import scala.collection.JavaConverters
 
 object BackendsApiManager {
 
@@ -36,7 +38,7 @@ object BackendsApiManager {
     // initialize IIteratorApi instance
     if (iteratorApiInstance == null) {
       val serviceLoader = ServiceLoader.load(classOf[IIteratorApi])
-      for (ele <- serviceLoader) {
+      for (ele <- JavaConverters.iterableAsScalaIterable(serviceLoader)) {
         if (ele.getBackendName.equalsIgnoreCase(glutenBackenLibName)) {
           iteratorApiInstance = ele
         } else if (ele.getBackendName.equalsIgnoreCase("velox")) {
@@ -51,7 +53,7 @@ object BackendsApiManager {
     if (sparkPlanExecApiInstance == null) {
       val serviceLoader = ServiceLoader.load(classOf[ISparkPlanExecApi])
 
-      for (ele <- serviceLoader) {
+      for (ele <- JavaConverters.iterableAsScalaIterable(serviceLoader)) {
         if (ele.getBackendName.equalsIgnoreCase(glutenBackenLibName)) {
           sparkPlanExecApiInstance = ele
         } else if (ele.getBackendName.equalsIgnoreCase("velox")) {
@@ -65,7 +67,7 @@ object BackendsApiManager {
     // initialize ITransformerApi instance
     if (transformerApiInstance == null) {
       val serviceLoader = ServiceLoader.load(classOf[ITransformerApi])
-      for (ele <- serviceLoader) {
+      for (ele <- JavaConverters.iterableAsScalaIterable(serviceLoader)) {
         if (ele.getBackendName.equalsIgnoreCase(glutenBackenLibName)) {
           transformerApiInstance = ele
         } else if (ele.getBackendName.equalsIgnoreCase("velox")) {
@@ -79,20 +81,23 @@ object BackendsApiManager {
   }
 
   def getIteratorApiInstance: IIteratorApi = {
-    if (iteratorApiInstance == null)
+    if (iteratorApiInstance == null) {
       throw new RuntimeException("IIteratorApi instance is null.")
+    }
     iteratorApiInstance
   }
 
   def getSparkPlanExecApiInstance: ISparkPlanExecApi = {
-    if (sparkPlanExecApiInstance == null)
+    if (sparkPlanExecApiInstance == null) {
       throw new RuntimeException("ISparkPlanExecApi instance is null.")
+    }
     sparkPlanExecApiInstance
   }
 
   def getTransformerApiInstance: ITransformerApi = {
-    if (transformerApiInstance == null)
+    if (transformerApiInstance == null) {
       throw new RuntimeException("ITransformerApi instance is null.")
+    }
     transformerApiInstance
   }
 }

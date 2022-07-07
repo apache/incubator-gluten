@@ -17,48 +17,34 @@
 
 package io.glutenproject.execution
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks.{break, breakable}
-
-import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
 import java.util
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.codegen._
-import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.aggregate._
-import org.apache.spark.sql.execution.metric.SQLMetrics
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CHHashAggregateExecTransformer(
-    requiredChildDistributionExpressions: Option[Seq[Expression]],
-    groupingExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[AggregateExpression],
-    aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
-    resultExpressions: Seq[NamedExpression],
-    child: SparkPlan) extends HashAggregateExecBaseTransformer(
-    requiredChildDistributionExpressions,
-    groupingExpressions,
-    aggregateExpressions,
-    aggregateAttributes,
-    initialInputBufferOffset,
-    resultExpressions,
-    child) {
+                                     requiredChildDistributionExpressions: Option[Seq[Expression]],
+                                     groupingExpressions: Seq[NamedExpression],
+                                     aggregateExpressions: Seq[AggregateExpression],
+                                     aggregateAttributes: Seq[Attribute],
+                                     initialInputBufferOffset: Int,
+                                     resultExpressions: Seq[NamedExpression],
+                                     child: SparkPlan) extends HashAggregateExecBaseTransformer(
+  requiredChildDistributionExpressions,
+  groupingExpressions,
+  aggregateExpressions,
+  aggregateAttributes,
+  initialInputBufferOffset,
+  resultExpressions,
+  child) {
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
@@ -93,6 +79,18 @@ case class CHHashAggregateExecTransformer(
       (getAggRel(context.registeredFunction, readRel), aggregateResultAttributes, output)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)
+  }
+
+  override def getAggRel(args: java.lang.Object,
+                         input: RelNode = null,
+                         validation: Boolean = false): RelNode = {
+    val originalInputAttributes = child.output
+    val aggRel = if (needsPreProjection) {
+      getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
+    } else {
+      getAggRelWithoutPreProjection(args, aggregateResultAttributes, input, validation)
+    }
+    applyPostProjection(args, aggRel, validation)
   }
 
   override def getAggRelWithoutPreProjection(args: java.lang.Object,
@@ -150,17 +148,5 @@ case class CHHashAggregateExecTransformer(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, extensionNode)
     }
-  }
-
-  override def getAggRel(args: java.lang.Object,
-                         input: RelNode = null,
-                         validation: Boolean = false): RelNode = {
-    val originalInputAttributes = child.output
-    val aggRel = if (needsPreProjection) {
-      getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
-    } else {
-      getAggRelWithoutPreProjection(args, aggregateResultAttributes, input, validation)
-    }
-    applyPostProjection(args, aggRel, validation)
   }
 }

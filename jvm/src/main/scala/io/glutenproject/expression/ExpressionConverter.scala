@@ -19,13 +19,12 @@ package io.glutenproject.expression
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.types.DecimalType
 
 object ExpressionConverter extends Logging {
   def replaceWithExpressionTransformer(
-      expr: Expression,
-      attributeSeq: Seq[Attribute]): Expression =
+                                        expr: Expression,
+                                        attributeSeq: Seq[Attribute]): Expression =
     expr match {
       case a: Alias =>
         logInfo(s"${expr.getClass} ${expr} is supported")
@@ -100,20 +99,21 @@ object ExpressionConverter extends Logging {
           expr)
       case cw: CaseWhen =>
         logInfo(s"${expr.getClass} ${expr} is supportedn.")
-        val colBranches = cw.branches.map { expr => {(
-              replaceWithExpressionTransformer(
-                expr._1,
-                attributeSeq),
-              replaceWithExpressionTransformer(
-                expr._2,
-                attributeSeq))
-          }
+        val colBranches = cw.branches.map { expr => {
+          (
+            replaceWithExpressionTransformer(
+              expr._1,
+              attributeSeq),
+            replaceWithExpressionTransformer(
+              expr._2,
+              attributeSeq))
+        }
         }
         val colElseValue = cw.elseValue.map { expr => {
-            replaceWithExpressionTransformer(
-              expr,
-              attributeSeq)
-          }
+          replaceWithExpressionTransformer(
+            expr,
+            attributeSeq)
+        }
         }
         logDebug(s"colBanches: $colBranches")
         logDebug(s"colElseValue: $colElseValue")
@@ -222,7 +222,7 @@ object ExpressionConverter extends Logging {
           i.falseValue)
       case cw: CaseWhen =>
         cw.branches.exists(p => containsSubquery(p._1) || containsSubquery(p._2)) ||
-                           cw.elseValue.exists(containsSubquery)
+          cw.elseValue.exists(containsSubquery)
       case c: Coalesce =>
         c.children.exists(containsSubquery)
       case i: In =>

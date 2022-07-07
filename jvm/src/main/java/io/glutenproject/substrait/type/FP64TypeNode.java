@@ -22,23 +22,23 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class FP64TypeNode implements TypeNode, Serializable {
-    private final Boolean nullable;
+  private final Boolean nullable;
 
-    FP64TypeNode(Boolean nullable) {
-        this.nullable = nullable;
+  FP64TypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
+
+  @Override
+  public Type toProtobuf() {
+    Type.FP64.Builder doubleBuilder = Type.FP64.newBuilder();
+    if (nullable) {
+      doubleBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
+    } else {
+      doubleBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
     }
 
-    @Override
-    public Type toProtobuf() {
-        Type.FP64.Builder doubleBuilder = Type.FP64.newBuilder();
-        if (nullable) {
-            doubleBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
-        } else {
-            doubleBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
-        }
-
-        Type.Builder builder = Type.newBuilder();
-        builder.setFp64(doubleBuilder.build());
-        return builder.build();
-    }
+    Type.Builder builder = Type.newBuilder();
+    builder.setFp64(doubleBuilder.build());
+    return builder.build();
+  }
 }

@@ -23,31 +23,31 @@ import scala.util.Try
 
 import org.apache.hadoop.fs.Path
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
-import org.apache.spark.sql.SparkSession
 
 object CHDataSourceUtils {
 
-  def isClickHouseDataSourceName(name: String): Boolean = {
-    name.toLowerCase(Locale.ROOT) == ClickHouseConfig.NAME ||
-      name.toLowerCase(Locale.ROOT) == ClickHouseConfig.ALT_NAME
-  }
+  /** Check whether this table is a Delta table based on information from the Catalog. */
+  def isDeltaTable(table: CatalogTable): Boolean =
+    CHDataSourceUtils.isClickHouseTable(table.provider)
 
   /** Check whether this table is a ClickHouse table based on information from the Catalog. */
   def isClickHouseTable(provider: Option[String]): Boolean = {
     provider.exists(isClickHouseDataSourceName)
   }
 
-  /** Check whether this table is a Delta table based on information from the Catalog. */
-  def isDeltaTable(table: CatalogTable): Boolean =
-    CHDataSourceUtils.isClickHouseTable(table.provider)
+  def isClickHouseDataSourceName(name: String): Boolean = {
+    name.toLowerCase(Locale.ROOT) == ClickHouseConfig.NAME ||
+      name.toLowerCase(Locale.ROOT) == ClickHouseConfig.ALT_NAME
+  }
 
   /** Find the root of a Delta table from the provided path. */
   def findClickHouseTableRoot(
-                          spark: SparkSession,
-                          path: Path,
-                          options: Map[String, String] = Map.empty): Option[Path] = {
+                               spark: SparkSession,
+                               path: Path,
+                               options: Map[String, String] = Map.empty): Option[Path] = {
     val fs = path.getFileSystem(spark.sessionState.newHadoopConfWithOptions(options))
     var currentPath = path
     while (currentPath != null && currentPath.getName != ClickHouseConfig.METADATA_DIR) {

@@ -23,9 +23,9 @@ import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContex
 import org.apache.spark.rdd.RDD
 
 private[glutenproject] class ZippedPartitionsPartition(
-    idx: Int,
-    @transient private val rdds: Seq[RDD[_]])
-    extends Partition {
+                                                        idx: Int,
+                                                        @transient private val rdds: Seq[RDD[_]])
+  extends Partition {
 
   override val index: Int = idx
   var partitionValues = rdds.map(rdd => rdd.partitions(idx))
@@ -34,10 +34,10 @@ private[glutenproject] class ZippedPartitionsPartition(
 }
 
 class WholeStageZippedPartitionsRDD[V: ClassTag](
-    @transient private val sc: SparkContext,
-    var rdds: Seq[RDD[V]],
-    val func: Seq[Iterator[V]] => Iterator[V])
-    extends RDD[V](sc, rdds.map(x => new OneToOneDependency(x))) {
+                                                  @transient private val sc: SparkContext,
+                                                  var rdds: Seq[RDD[V]],
+                                                  val func: Seq[Iterator[V]] => Iterator[V])
+  extends RDD[V](sc, rdds.map(x => new OneToOneDependency(x))) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[V] = {
     val partitions = split.asInstanceOf[ZippedPartitionsPartition].partitions

@@ -19,7 +19,12 @@ package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
-import org.apache.spark.sql.types.*;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DateType;
+import org.apache.spark.sql.types.DoubleType;
+import org.apache.spark.sql.types.IntegerType;
+import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.StringType;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -28,119 +33,120 @@ import java.util.Map;
  * Contains helper functions for constructing substrait relations.
  */
 public class ExpressionBuilder {
-    private ExpressionBuilder() {}
+  private ExpressionBuilder() {
+  }
 
-    public static Long newScalarFunction(Map<String, Long> functionMap, String functionName) {
-        if (!functionMap.containsKey(functionName)) {
-            Long functionId = (long) functionMap.size();
-            functionMap.put(functionName, functionId);
-            return functionId;
-        } else {
-            return functionMap.get(functionName);
-        }
+  public static Long newScalarFunction(Map<String, Long> functionMap, String functionName) {
+    if (!functionMap.containsKey(functionName)) {
+      Long functionId = (long) functionMap.size();
+      functionMap.put(functionName, functionId);
+      return functionId;
+    } else {
+      return functionMap.get(functionName);
     }
+  }
 
-    public static NullLiteralNode makeNullLiteral(TypeNode typeNode) {
-        return new NullLiteralNode(typeNode);
-    }
+  public static NullLiteralNode makeNullLiteral(TypeNode typeNode) {
+    return new NullLiteralNode(typeNode);
+  }
 
-    public static IntLiteralNode makeIntLiteral(Integer intConstant) {
-        return new IntLiteralNode(intConstant);
-    }
+  public static IntLiteralNode makeIntLiteral(Integer intConstant) {
+    return new IntLiteralNode(intConstant);
+  }
 
-    public static IntListNode makeIntList(ArrayList<Integer> intConstants) {
-        return new IntListNode(intConstants);
-    }
+  public static IntListNode makeIntList(ArrayList<Integer> intConstants) {
+    return new IntListNode(intConstants);
+  }
 
-    public static LongLiteralNode makeLongLiteral(Long longConstant) {
-        return new LongLiteralNode(longConstant);
-    }
+  public static LongLiteralNode makeLongLiteral(Long longConstant) {
+    return new LongLiteralNode(longConstant);
+  }
 
-    public static LongListNode makeLongList(ArrayList<Long> longConstants) {
-        return new LongListNode(longConstants);
-    }
+  public static LongListNode makeLongList(ArrayList<Long> longConstants) {
+    return new LongListNode(longConstants);
+  }
 
-    public static DoubleLiteralNode makeDoubleLiteral(Double doubleConstant) {
-        return new DoubleLiteralNode(doubleConstant);
-    }
+  public static DoubleLiteralNode makeDoubleLiteral(Double doubleConstant) {
+    return new DoubleLiteralNode(doubleConstant);
+  }
 
-    public static DoubleListNode makeDoubleList(ArrayList<Double> doubleConstants) {
-        return new DoubleListNode(doubleConstants);
-    }
+  public static DoubleListNode makeDoubleList(ArrayList<Double> doubleConstants) {
+    return new DoubleListNode(doubleConstants);
+  }
 
-    public static DateLiteralNode makeDateLiteral(Integer dateConstant) {
-        return new DateLiteralNode(dateConstant);
-    }
+  public static DateLiteralNode makeDateLiteral(Integer dateConstant) {
+    return new DateLiteralNode(dateConstant);
+  }
 
-    public static DateListNode makeDateList(ArrayList<Integer> dateConstants) {
-        return new DateListNode(dateConstants);
-    }
+  public static DateListNode makeDateList(ArrayList<Integer> dateConstants) {
+    return new DateListNode(dateConstants);
+  }
 
-    public static StringLiteralNode makeStringLiteral(String strConstant) {
-        return new StringLiteralNode(strConstant);
-    }
+  public static StringLiteralNode makeStringLiteral(String strConstant) {
+    return new StringLiteralNode(strConstant);
+  }
 
-    public static StringListNode makeStringList(ArrayList<String> strConstants) {
-        return new StringListNode(strConstants);
-    }
+  public static StringListNode makeStringList(ArrayList<String> strConstants) {
+    return new StringListNode(strConstants);
+  }
 
-    public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
-        if (dataType instanceof IntegerType) {
-            if (obj == null) {
-                return makeNullLiteral(TypeBuilder.makeI32(nullable));
-            } else {
-                return makeIntLiteral((Integer) obj);
-            }
-        } else if (dataType instanceof LongType) {
-            if (obj == null) {
-                return makeNullLiteral(TypeBuilder.makeI64(nullable));
-            } else {
-                return makeLongLiteral((Long) obj);
-            }
-        } else if (dataType instanceof DoubleType) {
-            if (obj == null) {
-                return makeNullLiteral(TypeBuilder.makeFP64(nullable));
-            } else {
-                return makeDoubleLiteral((Double) obj);
-            }
-        } else if (dataType instanceof DateType) {
-            if (obj == null) {
-                return makeNullLiteral(TypeBuilder.makeDate(nullable));
-            } else {
-                return makeDateLiteral((Integer) obj);
-            }
-        } else if (dataType instanceof StringType) {
-            if (obj == null) {
-                return makeNullLiteral(TypeBuilder.makeString(nullable));
-            } else {
-                return makeStringLiteral(obj.toString());
-            }
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format("Type not supported: %s.", dataType.toString()));
-        }
+  public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
+    if (dataType instanceof IntegerType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeI32(nullable));
+      } else {
+        return makeIntLiteral((Integer) obj);
+      }
+    } else if (dataType instanceof LongType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeI64(nullable));
+      } else {
+        return makeLongLiteral((Long) obj);
+      }
+    } else if (dataType instanceof DoubleType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeFP64(nullable));
+      } else {
+        return makeDoubleLiteral((Double) obj);
+      }
+    } else if (dataType instanceof DateType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeDate(nullable));
+      } else {
+        return makeDateLiteral((Integer) obj);
+      }
+    } else if (dataType instanceof StringType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeString(nullable));
+      } else {
+        return makeStringLiteral(obj.toString());
+      }
+    } else {
+      throw new UnsupportedOperationException(
+          String.format("Type not supported: %s.", dataType.toString()));
     }
+  }
 
-    public static ScalarFunctionNode makeScalarFunction(
-            Long functionId, ArrayList<ExpressionNode> expressionNodes,
-            TypeNode typeNode) {
-        return new ScalarFunctionNode(functionId, expressionNodes, typeNode);
-    }
+  public static ScalarFunctionNode makeScalarFunction(
+      Long functionId, ArrayList<ExpressionNode> expressionNodes,
+      TypeNode typeNode) {
+    return new ScalarFunctionNode(functionId, expressionNodes, typeNode);
+  }
 
-    public static SelectionNode makeSelection(Integer fieldIdx) {
-        return new SelectionNode(fieldIdx);
-    }
+  public static SelectionNode makeSelection(Integer fieldIdx) {
+    return new SelectionNode(fieldIdx);
+  }
 
-    public static AggregateFunctionNode makeAggregateFunction(Long functionId,
-            ArrayList<ExpressionNode> expressionNodes, String phase, TypeNode outputTypeNode) {
-        return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
-    }
+  public static AggregateFunctionNode makeAggregateFunction(Long functionId,
+                ArrayList<ExpressionNode> expressionNodes, String phase, TypeNode outputTypeNode) {
+    return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
+  }
 
-    public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode) {
-        return new CastNode(typeNode, expressionNode);
-    }
+  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode) {
+    return new CastNode(typeNode, expressionNode);
+  }
 
-    public static StringMapNode makeStringMap(Map<String, String> values) {
-        return new StringMapNode(values);
-    }
+  public static StringMapNode makeStringMap(Map<String, String> values) {
+    return new StringMapNode(values);
+  }
 }

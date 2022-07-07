@@ -42,7 +42,7 @@ object DSV2ColumnarBenchmarkTest {
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
       (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
-      "/tmp/gluten-warehouse")
+        "/tmp/gluten-warehouse")
     }
 
     val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
@@ -76,7 +76,7 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.driver.memoryOverhead", "6G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions",1)
+        .config("spark.sql.shuffle.partitions", 1)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.minPartitionNum", "1")
@@ -84,10 +84,10 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.locality.wait", "0s")
         .config("spark.sql.sources.ignoreDataLocality", "true")
         .config("spark.sql.parquet.enableVectorizedReader", "true")
-        //.config("spark.sql.sources.useV1SourceList", "avro")
+        // .config("spark.sql.sources.useV1SourceList", "avro")
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
-        //.config("spark.sql.parquet.columnarReaderBatchSize", "20000")
+        // .config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
@@ -96,14 +96,14 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.databricks.delta.properties.defaults.checkpointInterval", 5)
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-        //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
+        // .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", "false")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH,
           "/usr/local/clickhouse/lib/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "true")
-        //.config("spark.sql.planChangeLog.level", "info")
+        // .config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "6442450944")
@@ -111,7 +111,8 @@ object DSV2ColumnarBenchmarkTest {
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
-          .config("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
+          .config("javax.jdo.option.ConnectionURL",
+            s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
           .enableHiveSupport()
       } else {
         sessionBuilderTmp1.enableHiveSupport()
@@ -122,7 +123,7 @@ object DSV2ColumnarBenchmarkTest {
 
     val spark = sessionBuilder.getOrCreate()
     if (!configed) {
-      //spark.sparkContext.setLogLevel("WARN")
+      // spark.sparkContext.setLogLevel("WARN")
     }
 
     val createTbl = true
@@ -134,9 +135,9 @@ object DSV2ColumnarBenchmarkTest {
     if (refreshTable) {
       refreshClickHouseTable(spark)
     }
-//    selectClickHouseTable(spark, executedCnt, sqlStr.mkString)
+    //    selectClickHouseTable(spark, executedCnt, sqlStr.mkString)
     selectLocationClickHouseTable(spark, executedCnt, sqlStr.mkString)
-
+    // scalastyle:off println
     System.out.println("waiting for finishing")
     if (stopFlagFile.isEmpty) {
       Thread.sleep(1800000)
@@ -276,38 +277,8 @@ object DSV2ColumnarBenchmarkTest {
          |""".stripMargin).show(100, false)
   }
 
-  def selectClickHouseTable(spark: SparkSession, executedCnt: Int,
-                            sql: String): Unit = {
-    val tookTimeArr = ArrayBuffer[Long]()
-    for (i <- 1 to executedCnt) {
-      val startTime = System.nanoTime()
-      spark.sql(
-        s"""
-          |SELECT
-          |    sum(l_extendedprice * l_discount) AS revenue
-          |FROM
-          |    ${tableName}
-          |WHERE
-          |    l_shipdate >= date'1994-01-01'
-          |    AND l_shipdate < date'1994-01-01' + interval 1 year
-          |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-          |    AND l_quantity < 24;
-          |""".stripMargin).show(200, false)
-      val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
-      tookTimeArr += tookTime
-    }
-
-    println(tookTimeArr.mkString(","))
-
-    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
-    import spark.implicits._
-    val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-    df.summary().show(100, false)
-  }
-
   def selectLocationClickHouseTable(spark: SparkSession, executedCnt: Int,
-                            sql: String): Unit = {
+                                    sql: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
@@ -330,7 +301,37 @@ object DSV2ColumnarBenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+    // spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+    import spark.implicits._
+    val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+    df.summary().show(100, false)
+  }
+
+  def selectClickHouseTable(spark: SparkSession, executedCnt: Int,
+                            sql: String): Unit = {
+    val tookTimeArr = ArrayBuffer[Long]()
+    for (i <- 1 to executedCnt) {
+      val startTime = System.nanoTime()
+      spark.sql(
+        s"""
+           |SELECT
+           |    sum(l_extendedprice * l_discount) AS revenue
+           |FROM
+           |    ${tableName}
+           |WHERE
+           |    l_shipdate >= date'1994-01-01'
+           |    AND l_shipdate < date'1994-01-01' + interval 1 year
+           |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+           |    AND l_quantity < 24;
+           |""".stripMargin).show(200, false)
+      val tookTime = (System.nanoTime() - startTime) / 1000000
+      println(s"Execute ${i} time, time: ${tookTime}")
+      tookTimeArr += tookTime
+    }
+
+    println(tookTimeArr.mkString(","))
+
+    // spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)

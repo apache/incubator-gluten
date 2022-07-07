@@ -28,32 +28,15 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * The [[Partition]] used by [[ShuffledColumnarBatchRDD]].
  */
 private final case class ShuffledColumnarBatchRDDPartition(index: Int, spec: ShufflePartitionSpec)
-    extends Partition
+  extends Partition
 
 /**
  * [[ShuffledColumnarBatchRDD]] is the columnar version of [[org.apache.spark.rdd.ShuffledRDD]].
  */
-class ShuffledColumnarBatchRDD(
-    var dependency: ShuffleDependency[Int, ColumnarBatch, ColumnarBatch],
-    metrics: Map[String, SQLMetric],
-    partitionSpecs: Array[ShufflePartitionSpec])
-    extends RDD[ColumnarBatch](dependency.rdd.context, Nil) {
-
-  def this(
-      dependency: ShuffleDependency[Int, ColumnarBatch, ColumnarBatch],
-      metrics: Map[String, SQLMetric]) = {
-    this(
-      dependency,
-      metrics,
-      Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)))
-  }
-
-  if (SQLConf.get.fetchShuffleBlocksInBatch) {
-    dependency.rdd.context
-      .setLocalProperty(SortShuffleManager.FETCH_SHUFFLE_BLOCKS_IN_BATCH_ENABLED_KEY, "true")
-  }
-
-  override def getDependencies: Seq[Dependency[_]] = List(dependency)
+class ShuffledColumnarBatchRDD(var dependency: ShuffleDependency[Int, ColumnarBatch, ColumnarBatch],
+                                metrics: Map[String, SQLMetric],
+                                partitionSpecs: Array[ShufflePartitionSpec])
+  extends RDD[ColumnarBatch](dependency.rdd.context, Nil) {
 
   override val partitioner: Option[Partitioner] =
     if (partitionSpecs.forall(_.isInstanceOf[CoalescedPartitionSpec])) {
@@ -67,6 +50,22 @@ class ShuffledColumnarBatchRDD(
     } else {
       None
     }
+
+  if (SQLConf.get.fetchShuffleBlocksInBatch) {
+    dependency.rdd.context
+      .setLocalProperty(SortShuffleManager.FETCH_SHUFFLE_BLOCKS_IN_BATCH_ENABLED_KEY, "true")
+  }
+
+  def this(
+            dependency: ShuffleDependency[Int, ColumnarBatch, ColumnarBatch],
+            metrics: Map[String, SQLMetric]) = {
+    this(
+      dependency,
+      metrics,
+      Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)))
+  }
+
+  override def getDependencies: Seq[Dependency[_]] = List(dependency)
 
   override def getPartitions: Array[Partition] = {
     Array.tabulate[Partition](partitionSpecs.length) { i =>

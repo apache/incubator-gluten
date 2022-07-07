@@ -17,7 +17,9 @@
 
 package io.glutenproject.vectorized;
 
-/** POJO to hold native split result */
+/**
+ * POJO to hold native split result
+ */
 public class SplitResult {
   private final long totalComputePidTime;
   private final long totalWriteTime;

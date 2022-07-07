@@ -41,8 +41,8 @@ object DSV2BenchmarkTest {
       val resourcePath = rootPath + "../../../../jvm/src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
-      //(new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
-      //"/data1/gazelle-jni-warehouse")
+      // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
+      // "/data1/gazelle-jni-warehouse")
       ("/data1/test_output/tpch-data-sf10", "parquet", 3, false, queryPath + "q01.sql", "",
         true, "/data1/gazelle-jni-warehouse")
     }
@@ -90,7 +90,7 @@ object DSV2BenchmarkTest {
         // .config("spark.sql.sources.useV1SourceList", "avro")
         .config("spark.memory.fraction", "0.3")
         .config("spark.memory.storageFraction", "0.3")
-        //.config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
+        // .config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
@@ -105,7 +105,7 @@ object DSV2BenchmarkTest {
         .config("spark.databricks.delta.snapshotPartitions", 1)
         .config("spark.databricks.delta.properties.defaults.checkpointInterval", 5)
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
-        //.config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
+        // .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", "true")
         .config("spark.gluten.sql.columnar.backend.lib", "ch")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
@@ -113,23 +113,24 @@ object DSV2BenchmarkTest {
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH,
-          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/cmake-build-release/utils/local-engine/libch.so")
+          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
+            "cmake-build-release/utils/local-engine/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
-        //.config("spark.gluten.sql.columnar.sort", "false")
-        //.config("spark.sql.codegen.wholeStage", "false")
+        // .config("spark.gluten.sql.columnar.sort", "false")
+        // .config("spark.sql.codegen.wholeStage", "false")
         .config("spark.sql.autoBroadcastJoinThreshold", "10MB")
         .config("spark.sql.exchange.reuse", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
         .config("spark.gluten.sql.columnar.coalesce.batches", "true")
-        //.config("spark.gluten.sql.columnar.filescan", "true")
-        //.config("spark.sql.optimizeNullAwareAntiJoin", "false")
-        //.config("spark.sql.join.preferSortMergeJoin", "false")
-        //.config("spark.sql.planChangeLog.level", "info")
-        //.config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
-        //.config("spark.sql.columnVector.offheap.enabled", "true")
-        //.config("spark.sql.parquet.columnarReaderBatchSize", "4096")
+        // .config("spark.gluten.sql.columnar.filescan", "true")
+        // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
+        // .config("spark.sql.join.preferSortMergeJoin", "false")
+        // .config("spark.sql.planChangeLog.level", "info")
+        // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
+        // .config("spark.sql.columnVector.offheap.enabled", "true")
+        // .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
         .config("spark.shuffle.sort.bypassMergeThreshold", "20")
@@ -139,7 +140,8 @@ object DSV2BenchmarkTest {
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
-          .config("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
+          .config("javax.jdo.option.ConnectionURL",
+            s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
           .enableHiveSupport()
       } else {
         sessionBuilderTmp1.enableHiveSupport()
@@ -164,6 +166,7 @@ object DSV2BenchmarkTest {
     if (refreshTable) {
       refreshClickHouseTable(spark)
     }
+    // scalastyle:off println
     println("start to query ... ")
     // Thread.sleep(20000)
 
@@ -222,7 +225,7 @@ object DSV2BenchmarkTest {
            |            ch_lineitem100
            |        WHERE
            |            l_partkey = p_partkey);
-           |""".stripMargin) //.show(30, false)
+           |""".stripMargin) // .show(30, false)
       df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()
       println(result.size)
@@ -243,6 +246,25 @@ object DSV2BenchmarkTest {
       val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
       df.summary().show(100, false)
     }
+  }
+
+  def refreshClickHouseTable(spark: SparkSession): Unit = {
+    spark.sql(
+      s"""
+         | refresh table ${tableName}
+         |""".stripMargin).show(100, false)
+    spark.sql(
+      s"""
+         | desc formatted ${tableName}
+         |""".stripMargin).show(100, false)
+    spark.sql(
+      s"""
+         | refresh table ch_clickhouse
+         |""".stripMargin).show(100, false)
+    spark.sql(
+      s"""
+         | desc formatted ch_clickhouse
+         |""".stripMargin).show(100, false)
   }
 
   def testTPCHAll(spark: SparkSession): Unit = {
@@ -288,37 +310,37 @@ object DSV2BenchmarkTest {
     spark.sql(
       s"""
          |select
-         |	l_returnflag, l_extendedprice, p_name
+         |  l_returnflag, l_extendedprice, p_name
          |from
-         |	ch_lineitem,
-         |	ch_part
+         |  ch_lineitem,
+         |  ch_part
          |where
-         |	l_partkey = p_partkey
-         |""".stripMargin).show(10, false)      // .show(10, false) .explain("extended")
+         |  l_partkey = p_partkey
+         |""".stripMargin).show(10, false) // .show(10, false) .explain("extended")
     /* spark.sql(
       s"""
          |select
-         |	l_returnflag, sum(l_extendedprice * l_discount)
+         |  l_returnflag, sum(l_extendedprice * l_discount)
          |from
-         |	ch_lineitem01,
-         |	ch_part01
+         |  ch_lineitem01,
+         |  ch_part01
          |where
-         |	l_partkey = p_partkey
+         |  l_partkey = p_partkey
          |group by l_returnflag
          |""".stripMargin).show(10, false)       // .show(10, false) .explain("extended")
     spark.sql(
       s"""
          |select
-         |	l_orderkey,
+         |  l_orderkey,
          |  l_tax,
          |  l_returnflag
          |from
-         |	ch_lineitem01,
+         |  ch_lineitem01,
          |  ch_customer01,
-         |	ch_orders01
+         |  ch_orders01
          |where
-         |	c_custkey = o_custkey
-         |	and l_orderkey = o_orderkey
+         |  c_custkey = o_custkey
+         |  and l_orderkey = o_orderkey
          |""".stripMargin).show(10, false) // .show(10, false) .explain("extended") */
     /* spark.sql(
       s"""
@@ -445,9 +467,9 @@ object DSV2BenchmarkTest {
            |
            |
            |
-           |""".stripMargin) //.show(30, false)
+           |""".stripMargin) // .show(30, false)
       // df.explain(false)
-      val result = df.collect()  // .show(100, false)  //.collect()
+      val result = df.collect() // .show(100, false)  //.collect()
       println(result.size)
       // result.foreach(r => println(r.mkString(",")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
@@ -463,7 +485,7 @@ object DSV2BenchmarkTest {
   }
 
   def testSerializeFromObjectExec(spark: SparkSession): Unit = {
-    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+    // spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
@@ -471,7 +493,7 @@ object DSV2BenchmarkTest {
   }
 
   def createClickHouseTable(spark: SparkSession,
-                             parquetFilesPath: String, fileFormat: String): Unit = {
+                            parquetFilesPath: String, fileFormat: String): Unit = {
     spark.sql(
       """
         | show databases
@@ -705,25 +727,6 @@ object DSV2BenchmarkTest {
 
   }
 
-  def refreshClickHouseTable(spark: SparkSession): Unit = {
-    spark.sql(
-      s"""
-         | refresh table ${tableName}
-         |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
-         | desc formatted ${tableName}
-         |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
-         | refresh table ch_clickhouse
-         |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
-         | desc formatted ch_clickhouse
-         |""".stripMargin).show(100, false)
-  }
-
   def selectClickHouseTable(spark: SparkSession, executedCnt: Int,
                             sql: String, targetTable: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
@@ -731,16 +734,16 @@ object DSV2BenchmarkTest {
       val startTime = System.nanoTime()
       spark.sql(
         s"""
-          |SELECT
-          |    sum(l_extendedprice * l_discount) AS revenue
-          |FROM
-          |    ch_lineitem
-          |WHERE
-          |    l_shipdate >= date'1994-01-01'
-          |    AND l_shipdate < date'1994-01-01' + interval 1 year
-          |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-          |    AND l_quantity < 24;
-          |""".stripMargin).show(200, false) // .explain("extended")
+           |SELECT
+           |    sum(l_extendedprice * l_discount) AS revenue
+           |FROM
+           |    ch_lineitem
+           |WHERE
+           |    l_shipdate >= date'1994-01-01'
+           |    AND l_shipdate < date'1994-01-01' + interval 1 year
+           |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+           |    AND l_quantity < 24;
+           |""".stripMargin).show(200, false) // .explain("extended")
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute ${i} time, time: ${tookTime}")
       tookTimeArr += tookTime
@@ -755,7 +758,7 @@ object DSV2BenchmarkTest {
   }
 
   def selectLocationClickHouseTable(spark: SparkSession, executedCnt: Int,
-                            sql: String): Unit = {
+                                    sql: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
@@ -778,14 +781,14 @@ object DSV2BenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+    // spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)
   }
 
   def selectQ1ClickHouseTable(spark: SparkSession, executedCnt: Int,
-                            sql: String, targetTable: String): Unit = {
+                              sql: String, targetTable: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
@@ -812,7 +815,7 @@ object DSV2BenchmarkTest {
            |-- ORDER BY
            |--     l_returnflag,
            |--     l_linestatus;
-           |""".stripMargin).show(200, false)  // .explain("extended")
+           |""".stripMargin).show(200, false) // .explain("extended")
       // can not use .collect(), will lead to error.
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute ${i} time, time: ${tookTime}")
@@ -838,16 +841,16 @@ object DSV2BenchmarkTest {
         |    l_discount,
         |    l_tax
         | FROM lineitem
-        |""".stripMargin).show(20, false)  // .explain("extended")
+        |""".stripMargin).show(20, false) // .explain("extended")
     spark.sql(
       """
         | SELECT * FROM lineitem
-        |""".stripMargin).show(20, false)  // .explain("extended")
+        |""".stripMargin).show(20, false) // .explain("extended")
     // can not use .collect(), will lead to error.
   }
 
   def selectQ1LocationClickHouseTable(spark: SparkSession, executedCnt: Int,
-                                    sql: String): Unit = {
+                                      sql: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
@@ -882,7 +885,7 @@ object DSV2BenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+    // spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)
@@ -891,10 +894,10 @@ object DSV2BenchmarkTest {
   def testSQL(spark: SparkSession, parquetFilesPath: String,
               fileFormat: String, executedCnt: Int,
               sql: String): Unit = {
-    /*spark.sql(
+    /* spark.sql(
       s"""
          | show tables
-         |""".stripMargin).show(100, false)*/
+         |""".stripMargin).show(100, false) */
 
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
@@ -907,7 +910,7 @@ object DSV2BenchmarkTest {
 
     println(tookTimeArr.mkString(","))
 
-    //spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
+    // spark.conf.set("spark.gluten.sql.enable.native.engine", "false")
     import spark.implicits._
     val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
     df.summary().show(100, false)
@@ -935,7 +938,7 @@ object DSV2BenchmarkTest {
   }
 
   def createTables(spark: SparkSession, parquetFilesPath: String, fileFormat: String): Unit = {
-    /*val dataSourceMap = Map(
+    /* val dataSourceMap = Map(
       "customer" -> spark.read.format(fileFormat).load(parquetFilesPath + "/customer"),
 
       "lineitem" -> spark.read.format(fileFormat).load(parquetFilesPath + "/lineitem"),
@@ -950,7 +953,7 @@ object DSV2BenchmarkTest {
 
       "partsupp" -> spark.read.format(fileFormat).load(parquetFilesPath + "/partsupp"),
 
-      "supplier" -> spark.read.format(fileFormat).load(parquetFilesPath + "/supplier"))*/
+      "supplier" -> spark.read.format(fileFormat).load(parquetFilesPath + "/supplier")) */
 
     val parquetFilePath = "/data1/test_output/tpch-data-sf100"
     val customerData = parquetFilePath + "/customer"
@@ -1086,8 +1089,8 @@ object DSV2BenchmarkTest {
       s"""
          | show tables;
          |""".stripMargin).show(100, false)
-    /*dataSourceMap.foreach {
-      case (key, value) => {
+    /* dataSourceMap.foreach {
+      case (key, value) =>
         println(s"----------------create table $key")
         spark.sql(
           s"""
@@ -1097,8 +1100,8 @@ object DSV2BenchmarkTest {
           s"""
              | select count(1) from $key;
              |""".stripMargin).show(10, false)
-      }
-    }*/
+
+    } */
   }
 
   def createClickHouseTables(spark: SparkSession): Unit = {

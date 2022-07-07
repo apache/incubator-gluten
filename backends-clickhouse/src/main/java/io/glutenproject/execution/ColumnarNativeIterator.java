@@ -29,17 +29,6 @@ public class ColumnarNativeIterator extends GeneralInIterator implements Iterato
     super(delegated);
   }
 
-  @Override
-  public byte[] next() {
-    ColumnarBatch nextBatch = nextColumnarBatch();
-    if (nextBatch.numRows() > 0) {
-      CHColumnVector col = (CHColumnVector) nextBatch.column(0);
-      return longtoBytes(col.getBlockAddress());
-    } else {
-      throw new IllegalStateException();
-    }
-  }
-
   private static byte[] longtoBytes(long data) {
     return new byte[]{
         (byte) ((data >> 56) & 0xff),
@@ -51,5 +40,16 @@ public class ColumnarNativeIterator extends GeneralInIterator implements Iterato
         (byte) ((data >> 8) & 0xff),
         (byte) ((data >> 0) & 0xff),
     };
+  }
+
+  @Override
+  public byte[] next() {
+    ColumnarBatch nextBatch = nextColumnarBatch();
+    if (nextBatch.numRows() > 0) {
+      CHColumnVector col = (CHColumnVector) nextBatch.column(0);
+      return longtoBytes(col.getBlockAddress());
+    } else {
+      throw new IllegalStateException();
+    }
   }
 }

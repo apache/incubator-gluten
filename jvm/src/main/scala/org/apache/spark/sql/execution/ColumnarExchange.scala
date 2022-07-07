@@ -20,41 +20,35 @@ package org.apache.spark.sql.execution
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-import org.apache.spark.broadcast
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeMap, Expression, SortOrder}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange._
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * Base class for operators that exchange data among multiple threads or processes.
  *
- * ColumnarExchanges are the key class of operators that enable parallelism. Although the implementation
+ * ColumnarExchanges are the key class of operators that enable parallelism.
+ * Although the implementation
  * differs significantly, the concept is similar to the exchange operator described in
  * "Volcano -- An Extensible and Parallel Query Evaluation System" by Goetz Graefe.
-
-abstract class ColumnarExchange extends UnaryExecNode {
-  override def output: Seq[Attribute] = child.output
-
-  override def stringArgs: Iterator[Any] = super.stringArgs ++ Iterator(s"[id=#$id]")
-}
+ *
+ * abstract class ColumnarExchange extends UnaryExecNode {
+ * override def output: Seq[Attribute] = child.output
+ *
+ * override def stringArgs: Iterator[Any] = super.stringArgs ++ Iterator(s"[id=#$id]")
+ * }
  */
+
 /**
  * Find out duplicated exchanges in the spark plan, then use the same exchange for all the
  * references.
  */
-case class ReuseColumnarExchange() extends Rule[SparkPlan] {
+case class ReuseColumnarExchange() extends Rule[SparkPlan] with Logging {
 
   def apply(plan: SparkPlan): SparkPlan = {
-    def exchangeReuseEnabled = true //TODO(): allow to config
-      
+    def exchangeReuseEnabled = true // TODO(): allow to config
+
     if (!exchangeReuseEnabled) {
       return plan
     }
@@ -72,9 +66,9 @@ case class ReuseColumnarExchange() extends Rule[SparkPlan] {
           // attributes.
           exchange match {
             case b: BroadcastExchangeExec =>
-              System.out.println(s"Reused ${samePlan.get}")
+              logInfo(s"Reused ${samePlan.get}")
             case s: ColumnarShuffleExchangeExec =>
-              System.out.println(s"Reused ${samePlan.get}")
+              logInfo(s"Reused ${samePlan.get}")
             case other =>
           }
           ReusedExchangeExec(exchange.output, samePlan.get)
@@ -96,10 +90,12 @@ case class ReuseColumnarExchange() extends Rule[SparkPlan] {
     }
   }
 }
+
 case class ReuseColumnarSubquery() extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
-    def exchangeReuseEnabled = true //TODO(): allow to config
+    def exchangeReuseEnabled = true // TODO(): allow to config
+
     if (!exchangeReuseEnabled) {
       return plan
     }
@@ -111,7 +107,7 @@ case class ReuseColumnarSubquery() extends Rule[SparkPlan] {
           subqueries.getOrElseUpdate(sub.plan.schema, ArrayBuffer[BaseSubqueryExec]())
         val sameResult = sameSchema.find(_.sameResult(sub.plan))
         if (sameResult.isDefined) {
-          System.out.println(s"reused subquery ${sameResult.get}")
+          logInfo(s"reused subquery ${sameResult.get}")
           sub.withNewPlan(ReusedSubqueryExec(sameResult.get))
         } else {
           sameSchema += sub.plan

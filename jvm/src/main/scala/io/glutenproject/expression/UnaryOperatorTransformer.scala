@@ -19,7 +19,6 @@ package io.glutenproject.expression
 
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.expression.DateTimeExpressionsTransformer._
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
@@ -29,7 +28,7 @@ import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.types._
 
 class IsNotNullTransformer(child: Expression, original: Expression)
-    extends IsNotNull(child: Expression)
+  extends IsNotNull(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -49,7 +48,7 @@ class IsNotNullTransformer(child: Expression, original: Expression)
 }
 
 class IsNullTransformer(child: Expression, original: Expression)
-    extends IsNotNull(child: Expression)
+  extends IsNotNull(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -69,7 +68,7 @@ class IsNullTransformer(child: Expression, original: Expression)
 }
 
 class NotTransformer(child: Expression, original: Expression)
-    extends Not(child: Expression)
+  extends Not(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -91,7 +90,7 @@ class NotTransformer(child: Expression, original: Expression)
 }
 
 class AbsTransformer(child: Expression, original: Expression)
-    extends Abs(child: Expression)
+  extends Abs(child: Expression)
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -100,7 +99,7 @@ class AbsTransformer(child: Expression, original: Expression)
 }
 
 class UpperTransformer(child: Expression, original: Expression)
-    extends Upper(child: Expression)
+  extends Upper(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -110,7 +109,7 @@ class UpperTransformer(child: Expression, original: Expression)
 }
 
 class BitwiseNotTransformer(child: Expression, original: Expression)
-    extends BitwiseNot(child: Expression)
+  extends BitwiseNot(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -120,9 +119,9 @@ class BitwiseNotTransformer(child: Expression, original: Expression)
 }
 
 class KnownFloatingPointNormalizedTransformer(
-    child: Expression,
-    original: KnownFloatingPointNormalized)
-    extends KnownFloatingPointNormalized(child: Expression)
+                                               child: Expression,
+                                               original: KnownFloatingPointNormalized)
+  extends KnownFloatingPointNormalized(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -132,10 +131,10 @@ class KnownFloatingPointNormalizedTransformer(
 }
 
 class CheckOverflowTransformer(child: Expression, original: CheckOverflow)
-    extends CheckOverflow(
-      child: Expression,
-      original.dataType: DecimalType,
-      original.nullOnOverflow: Boolean)
+  extends CheckOverflow(
+    child: Expression,
+    original.dataType: DecimalType,
+    original.nullOnOverflow: Boolean)
     with ExpressionTransformer
     with Logging {
 
@@ -145,11 +144,11 @@ class CheckOverflowTransformer(child: Expression, original: CheckOverflow)
 }
 
 class CastTransformer(
-    child: Expression,
-    datatype: DataType,
-    timeZoneId: Option[String],
-    original: Expression)
-    extends Cast(child: Expression, datatype: DataType, timeZoneId: Option[String])
+                       child: Expression,
+                       datatype: DataType,
+                       timeZoneId: Option[String],
+                       original: Expression)
+  extends Cast(child: Expression, datatype: DataType, timeZoneId: Option[String])
     with ExpressionTransformer
     with Logging {
 
@@ -165,7 +164,7 @@ class CastTransformer(
 }
 
 class UnscaledValueTransformer(child: Expression, original: Expression)
-    extends UnscaledValue(child: Expression)
+  extends UnscaledValue(child: Expression)
     with ExpressionTransformer
     with Logging {
 
@@ -175,12 +174,12 @@ class UnscaledValueTransformer(child: Expression, original: Expression)
 }
 
 class MakeDecimalTransformer(
-    child: Expression,
-    precision: Int,
-    scale: Int,
-    nullOnOverflow: Boolean,
-    original: Expression)
-    extends MakeDecimal(child: Expression, precision: Int, scale: Int, nullOnOverflow: Boolean)
+                              child: Expression,
+                              precision: Int,
+                              scale: Int,
+                              nullOnOverflow: Boolean,
+                              original: Expression)
+  extends MakeDecimal(child: Expression, precision: Int, scale: Int, nullOnOverflow: Boolean)
     with ExpressionTransformer
     with Logging {
 
@@ -190,7 +189,7 @@ class MakeDecimalTransformer(
 }
 
 class NormalizeNaNAndZeroTransformer(child: Expression, original: NormalizeNaNAndZero)
-    extends NormalizeNaNAndZero(child: Expression)
+  extends NormalizeNaNAndZero(child: Expression)
     with ExpressionTransformer
     with Logging {
 

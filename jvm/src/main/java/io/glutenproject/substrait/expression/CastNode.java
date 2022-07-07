@@ -23,23 +23,23 @@ import io.substrait.proto.Expression;
 import java.io.Serializable;
 
 public class CastNode implements ExpressionNode, Serializable {
-    private final TypeNode typeNode;
-    private final ExpressionNode expressionNode;
+  private final TypeNode typeNode;
+  private final ExpressionNode expressionNode;
 
-    CastNode(TypeNode typeNode, ExpressionNode expressionNode) {
-        this.typeNode = typeNode;
-        this.expressionNode = expressionNode;
-    }
+  CastNode(TypeNode typeNode, ExpressionNode expressionNode) {
+    this.typeNode = typeNode;
+    this.expressionNode = expressionNode;
+  }
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.Cast.Builder castBuilder = Expression.Cast.newBuilder();
-        castBuilder.setType(typeNode.toProtobuf());
-        castBuilder.setInput(expressionNode.toProtobuf());
+  @Override
+  public Expression toProtobuf() {
+    Expression.Cast.Builder castBuilder = Expression.Cast.newBuilder();
+    castBuilder.setType(typeNode.toProtobuf());
+    castBuilder.setInput(expressionNode.toProtobuf());
 
-        Expression.Builder builder = Expression.newBuilder();
-        builder.setCast(castBuilder.build());
-        return builder.build();
-    }
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setCast(castBuilder.build());
+    return builder.build();
+  }
 
 }

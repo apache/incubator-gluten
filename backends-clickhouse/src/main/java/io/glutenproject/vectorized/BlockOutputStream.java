@@ -24,37 +24,37 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class BlockOutputStream implements Closeable {
-    private final long instance;
-    private final OutputStream outputStream;
+  private final long instance;
+  private final OutputStream outputStream;
 
-    public BlockOutputStream(OutputStream outputStream, byte[] buffer) {
-        this.outputStream = outputStream;
-        this.instance = nativeCreate(outputStream, buffer);
-    }
+  public BlockOutputStream(OutputStream outputStream, byte[] buffer) {
+    this.outputStream = outputStream;
+    this.instance = nativeCreate(outputStream, buffer);
+  }
 
-    private native long nativeCreate(OutputStream outputStream, byte[] buffer);
+  private native long nativeCreate(OutputStream outputStream, byte[] buffer);
 
-    private native long nativeClose(long instance);
+  private native long nativeClose(long instance);
 
-    private native void nativeWrite(long instance, long block);
+  private native void nativeWrite(long instance, long block);
 
-    private native void nativeFlush(long instance);
+  private native void nativeFlush(long instance);
 
-    public void write(ColumnarBatch cb) {
-        CHNativeBlock.fromColumnarBatch(cb).ifPresent(block -> {
-            nativeWrite(instance, block.blockAddress());
-        });
-    }
+  public void write(ColumnarBatch cb) {
+    CHNativeBlock.fromColumnarBatch(cb).ifPresent(block -> {
+      nativeWrite(instance, block.blockAddress());
+    });
+  }
 
-    public void flush() throws IOException {
-        nativeFlush(instance);
-        this.outputStream.flush();
-    }
+  public void flush() throws IOException {
+    nativeFlush(instance);
+    this.outputStream.flush();
+  }
 
-    @Override
-    public void close() throws IOException {
-        nativeClose(instance);
-        this.outputStream.flush();
-        this.outputStream.close();
-    }
+  @Override
+  public void close() throws IOException {
+    nativeClose(instance);
+    this.outputStream.flush();
+    this.outputStream.close();
+  }
 }

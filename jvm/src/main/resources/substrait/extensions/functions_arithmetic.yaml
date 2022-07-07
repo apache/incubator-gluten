@@ -1,8 +1,7 @@
 %YAML 1.2
 ---
 scalar_functions:
-  -
-    name: "add"
+  - name: "add"
     description: "Add two values."
     impls:
       - args:
@@ -41,8 +40,7 @@ scalar_functions:
           - value: fp64
           - value: fp64
         return: fp64
-  -
-    name: "subtract"
+  - name: "subtract"
     description: "Subtract one value from another."
     impls:
       - args:
@@ -81,8 +79,7 @@ scalar_functions:
           - value: fp64
           - value: fp64
         return: fp64
-  -
-    name: "multiply"
+  - name: "multiply"
     description: "Multiply two values."
     impls:
       - args:
@@ -121,8 +118,7 @@ scalar_functions:
           - value: fp64
           - value: fp64
         return: fp64
-  -
-    name: "divide"
+  - name: "divide"
     description: "Divide one value by another. Partial values are truncated."
     impls:
       - args:
@@ -153,8 +149,7 @@ scalar_functions:
           - value: fp64
           - value: fp64
         return: fp64
-  -
-    name: "modulus"
+  - name: "modulus"
     description: "Get the remainder when dividing one value by another."
     impls:
       - args:

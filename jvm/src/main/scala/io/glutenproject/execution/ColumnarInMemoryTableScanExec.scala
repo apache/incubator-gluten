@@ -23,46 +23,22 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.columnar.CachedBatch
+import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
-import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarInMemoryTableScanExec(
-    attributes: Seq[Attribute],
-    predicates: Seq[Expression],
-    @transient relation: InMemoryRelation)
-    extends LeafExecNode {
+                                          attributes: Seq[Attribute],
+                                          predicates: Seq[Expression],
+                                          @transient relation: InMemoryRelation)
+  extends LeafExecNode {
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
-
-  override val nodeName: String = {
-    relation.cacheBuilder.tableName match {
-      case Some(_) =>
-        "Scan " + relation.cacheBuilder.cachedName
-      case _ =>
-        super.nodeName
-    }
-  }
-
-  override def innerChildren: Seq[QueryPlan[_]] = Seq(relation) ++ super.innerChildren
-
-  override def doCanonicalize(): SparkPlan =
-    copy(
-      attributes = attributes.map(QueryPlan.normalizeExpressions(_, relation.output)),
-      predicates = predicates.map(QueryPlan.normalizeExpressions(_, relation.output)),
-      relation = relation.canonicalized.asInstanceOf[InMemoryRelation])
-
-  override def vectorTypes: Option[Seq[String]] =
-    relation.cacheBuilder.serializer.vectorTypes(attributes, conf)
-
-  /**
-   * If true, get data from ColumnVector in ColumnarBatch, which are generally faster.
-   * If false, get data from UnsafeRow build from CachedBatch
-   */
-  override val supportsColumnar: Boolean = relation.cachedPlan.supportsColumnar
-
+  // Accumulators used for testing purposes
+  lazy val readPartitions = sparkContext.longAccumulator
+  lazy val readBatches = sparkContext.longAccumulator
   private lazy val columnarInputRDD: RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")
     val buffers = filteredCachedBatches()
@@ -73,7 +49,6 @@ case class ColumnarInMemoryTableScanExec(
         cb
       }
   }
-
   private lazy val inputRDD: RDD[InternalRow] = {
     val numOutputRows = longMetric("numOutputRows")
     // Using these variables here to avoid serialization of entire objects (if referenced
@@ -91,17 +66,32 @@ case class ColumnarInMemoryTableScanExec(
       }
     serializer.convertCachedBatchToInternalRow(withMetrics, relOutput, attributes, conf)
   }
-
-  override def output: Seq[Attribute] = attributes
-
-  private def updateAttribute(expr: Expression): Expression = {
-    // attributes can be pruned so using relation's output.
-    // E.g., relation.output is [id, item] but this scan's output can be [item] only.
-    val attrMap = AttributeMap(relation.cachedPlan.output.zip(relation.output))
-    expr.transform {
-      case attr: Attribute => attrMap.getOrElse(attr, attr)
+  override val nodeName: String = {
+    relation.cacheBuilder.tableName match {
+      case Some(_) =>
+        "Scan " + relation.cacheBuilder.cachedName
+      case _ =>
+        super.nodeName
     }
   }
+  /**
+   * If true, get data from ColumnVector in ColumnarBatch, which are generally faster.
+   * If false, get data from UnsafeRow build from CachedBatch
+   */
+  override val supportsColumnar: Boolean = relation.cachedPlan.supportsColumnar
+
+  override def innerChildren: Seq[QueryPlan[_]] = Seq(relation) ++ super.innerChildren
+
+  override def doCanonicalize(): SparkPlan =
+    copy(
+      attributes = attributes.map(QueryPlan.normalizeExpressions(_, relation.output)),
+      predicates = predicates.map(QueryPlan.normalizeExpressions(_, relation.output)),
+      relation = relation.canonicalized.asInstanceOf[InMemoryRelation])
+
+  override def vectorTypes: Option[Seq[String]] =
+    relation.cacheBuilder.serializer.vectorTypes(attributes, conf)
+
+  override def output: Seq[Attribute] = attributes
 
   // The cached version does not change the outputPartitioning of the original SparkPlan.
   // But the cached version could alias output, so we need to replace output.
@@ -117,12 +107,13 @@ case class ColumnarInMemoryTableScanExec(
   override def outputOrdering: Seq[SortOrder] =
     relation.cachedPlan.outputOrdering.map(updateAttribute(_).asInstanceOf[SortOrder])
 
-  // Accumulators used for testing purposes
-  lazy val readPartitions = sparkContext.longAccumulator
-  lazy val readBatches = sparkContext.longAccumulator
-
-  private def filteredCachedBatches(): RDD[CachedBatch] = {
-    relation.cacheBuilder.cachedColumnBuffers
+  private def updateAttribute(expr: Expression): Expression = {
+    // attributes can be pruned so using relation's output.
+    // E.g., relation.output is [id, item] but this scan's output can be [item] only.
+    val attrMap = AttributeMap(relation.cachedPlan.output.zip(relation.output))
+    expr.transform {
+      case attr: Attribute => attrMap.getOrElse(attr, attr)
+    }
   }
 
   protected override def doExecute(): RDD[InternalRow] = {
@@ -131,5 +122,9 @@ case class ColumnarInMemoryTableScanExec(
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     columnarInputRDD
+  }
+
+  private def filteredCachedBatches(): RDD[CachedBatch] = {
+    relation.cacheBuilder.cachedColumnBuffers
   }
 }

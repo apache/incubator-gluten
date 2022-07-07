@@ -18,11 +18,12 @@
 package io.glutenproject.substrait.ddlplan;
 
 public class InsertOutputBuilder {
-    private InsertOutputBuilder() {}
+  private InsertOutputBuilder() {
+  }
 
-    public static InsertOutputNode makeInsertOutputNode(Long partsNum,
-                                                        String database, String tableName,
-                                                        String relativePath) {
-        return new InsertOutputNode(partsNum, database, tableName, relativePath);
-    }
+  public static InsertOutputNode makeInsertOutputNode(Long partsNum,
+                                                      String database, String tableName,
+                                                      String relativePath) {
+    return new InsertOutputNode(partsNum, database, tableName, relativePath);
+  }
 }

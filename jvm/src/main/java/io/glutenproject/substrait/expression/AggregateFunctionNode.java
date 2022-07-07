@@ -25,45 +25,45 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class AggregateFunctionNode implements Serializable {
-    private final Long functionId;
-    private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
-    private final String phase;
-    private final TypeNode outputTypeNode;
+  private final Long functionId;
+  private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
+  private final String phase;
+  private final TypeNode outputTypeNode;
 
-    AggregateFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
-                          String phase, TypeNode outputTypeNode) {
-        this.functionId = functionId;
-        this.expressionNodes.addAll(expressionNodes);
-        this.phase = phase;
-        this.outputTypeNode = outputTypeNode;
+  AggregateFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
+                        String phase, TypeNode outputTypeNode) {
+    this.functionId = functionId;
+    this.expressionNodes.addAll(expressionNodes);
+    this.phase = phase;
+    this.outputTypeNode = outputTypeNode;
+  }
+
+  public AggregateFunction toProtobuf() {
+    AggregateFunction.Builder aggBuilder = AggregateFunction.newBuilder();
+    aggBuilder.setFunctionReference(functionId.intValue());
+
+    if (phase == null) {
+      aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_UNSPECIFIED);
+    } else {
+      switch (phase) {
+        case "PARTIAL":
+          aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE);
+          break;
+        case "PARTIAL_MERGE":
+          aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE);
+          break;
+        case "FINAL":
+          aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT);
+          break;
+        default:
+          aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_UNSPECIFIED);
+      }
     }
-
-    public AggregateFunction toProtobuf() {
-        AggregateFunction.Builder aggBuilder = AggregateFunction.newBuilder();
-        aggBuilder.setFunctionReference(functionId.intValue());
-
-        if (phase == null) {
-            aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_UNSPECIFIED);
-        } else {
-            switch(phase) {
-                case "PARTIAL":
-                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE);
-                    break;
-                case "PARTIAL_MERGE":
-                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE);
-                    break;
-                case "FINAL":
-                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT);
-                    break;
-                default:
-                    aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_UNSPECIFIED);
-            }
-        }
-        for (ExpressionNode expressionNode : expressionNodes) {
-            aggBuilder.addArgs(expressionNode.toProtobuf());
-        }
-        aggBuilder.setOutputType(outputTypeNode.toProtobuf());
-
-        return aggBuilder.build();
+    for (ExpressionNode expressionNode : expressionNodes) {
+      aggBuilder.addArgs(expressionNode.toProtobuf());
     }
+    aggBuilder.setOutputType(outputTypeNode.toProtobuf());
+
+    return aggBuilder.build();
+  }
 }

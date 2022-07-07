@@ -23,23 +23,17 @@ import io.glutenproject.substrait.rel.{ExtensionTableNode, LocalFilesNode}
 class SubstraitContext extends Serializable {
 
   private val functionMap = new java.util.HashMap[String, java.lang.Long]()
-
-  private var localFilesNode: LocalFilesNode = _
   private val iteratorNodes = new java.util.HashMap[java.lang.Long, LocalFilesNode]()
+  private var localFilesNode: LocalFilesNode = _
   private var extensionTableNode: ExtensionTableNode = _
   private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
   private var fileFormat: java.lang.Integer = new Integer(-1)
-
-  def setFileFormat(format: java.lang.Integer): Unit = {
-    this.fileFormat = format
-  }
+  private var insertOutputNode: InsertOutputNode = _
 
   def getFileFormat(): java.lang.Integer = this.fileFormat
 
-  private var insertOutputNode: InsertOutputNode = _
-
-  def setLocalFilesNode(localFilesNode: LocalFilesNode): Unit = {
-    this.localFilesNode = localFilesNode
+  def setFileFormat(format: java.lang.Integer): Unit = {
+    this.fileFormat = format
   }
 
   def setIteratorNode(index: java.lang.Long, localFilesNode: LocalFilesNode): Unit = {
@@ -51,21 +45,25 @@ class SubstraitContext extends Serializable {
 
   def getLocalFilesNode: LocalFilesNode = this.localFilesNode
 
+  def setLocalFilesNode(localFilesNode: LocalFilesNode): Unit = {
+    this.localFilesNode = localFilesNode
+  }
+
   def getInputIteratorNode(index: java.lang.Long): LocalFilesNode = {
     iteratorNodes.get(index)
   }
+
+  def getExtensionTableNode: ExtensionTableNode = this.extensionTableNode
 
   def setExtensionTableNode(extensionTableNode: ExtensionTableNode): Unit = {
     this.extensionTableNode = extensionTableNode
   }
 
-  def getExtensionTableNode: ExtensionTableNode = this.extensionTableNode
+  def getInsertOutputNode: InsertOutputNode = this.insertOutputNode
 
   def setInsertOutputNode(insertOutputNode: InsertOutputNode): Unit = {
     this.insertOutputNode = insertOutputNode
   }
-
-  def getInsertOutputNode: InsertOutputNode = this.insertOutputNode
 
   def registerFunction(funcName: String): java.lang.Long = {
     if (!functionMap.containsKey(funcName)) {

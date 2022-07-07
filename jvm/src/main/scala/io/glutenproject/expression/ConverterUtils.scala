@@ -19,6 +19,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._

@@ -28,6 +28,7 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFacto
 // Arrow's columnar format. But there is no config to disable the columnar output.
 // In this file, the supportsColumnar was set as false to prevent Spark's columnar
 // output.
+
 /**
  * Physical plan node for scanning a batch of data from a data source v2.
  */
@@ -35,6 +36,11 @@ case class BatchScanExec(output: Seq[AttributeReference],
                          @transient scan: Scan) extends DataSourceV2ScanExecBase {
 
   @transient lazy val batch = scan.toBatch
+  @transient override lazy val partitions: Seq[InputPartition] = batch.planInputPartitions()
+  override lazy val readerFactory: PartitionReaderFactory = batch.createReaderFactory()
+  override lazy val inputRDD: RDD[InternalRow] = {
+    new DataSourceRDD(sparkContext, partitions, readerFactory, supportsColumnar)
+  }
 
   // TODO: unify the equal/hashCode implementation for all data source v2 query plans.
   override def equals(other: Any): Boolean = other match {
@@ -46,14 +52,6 @@ case class BatchScanExec(output: Seq[AttributeReference],
 
   // Set to false to disable BatchScan's columnar output.
   override def supportsColumnar: Boolean = false
-
-  @transient override lazy val partitions: Seq[InputPartition] = batch.planInputPartitions()
-
-  override lazy val readerFactory: PartitionReaderFactory = batch.createReaderFactory()
-
-  override lazy val inputRDD: RDD[InternalRow] = {
-    new DataSourceRDD(sparkContext, partitions, readerFactory, supportsColumnar)
-  }
 
   override def doCanonicalize(): BatchScanExec = {
     this.copy(output = output.map(QueryPlan.normalizeExpressions(_, output)))
