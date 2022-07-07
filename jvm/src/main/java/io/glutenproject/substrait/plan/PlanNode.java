@@ -28,47 +28,47 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class PlanNode implements Serializable {
-    private final ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
-    private final ArrayList<RelNode> relNodes = new ArrayList<>();
-    private final ArrayList<String> outNames = new ArrayList<>();
+  private final ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
+  private final ArrayList<RelNode> relNodes = new ArrayList<>();
+  private final ArrayList<String> outNames = new ArrayList<>();
 
-    private AdvancedExtensionNode extension = null;
+  private AdvancedExtensionNode extension = null;
 
-    PlanNode(ArrayList<FunctionMappingNode> mappingNodes,
-             ArrayList<RelNode> relNodes,
-             ArrayList<String> outNames) {
-        this.mappingNodes.addAll(mappingNodes);
-        this.relNodes.addAll(relNodes);
-        this.outNames.addAll(outNames);
+  PlanNode(ArrayList<FunctionMappingNode> mappingNodes,
+           ArrayList<RelNode> relNodes,
+           ArrayList<String> outNames) {
+    this.mappingNodes.addAll(mappingNodes);
+    this.relNodes.addAll(relNodes);
+    this.outNames.addAll(outNames);
+  }
+
+  PlanNode(AdvancedExtensionNode extension) {
+    this.extension = extension;
+  }
+
+  public Plan toProtobuf() {
+    Plan.Builder planBuilder = Plan.newBuilder();
+    // add the extension functions
+    for (FunctionMappingNode mappingNode : mappingNodes) {
+      planBuilder.addExtensions(mappingNode.toProtobuf());
     }
 
-    PlanNode(AdvancedExtensionNode extension) {
-        this.extension = extension;
+    for (RelNode relNode : relNodes) {
+      PlanRel.Builder planRelBuilder = PlanRel.newBuilder();
+
+      RelRoot.Builder relRootBuilder = RelRoot.newBuilder();
+      relRootBuilder.setInput(relNode.toProtobuf());
+      for (String name : outNames) {
+        relRootBuilder.addNames(name);
+      }
+      planRelBuilder.setRoot(relRootBuilder.build());
+
+      planBuilder.addRelations(planRelBuilder.build());
     }
 
-    public Plan toProtobuf() {
-        Plan.Builder planBuilder = Plan.newBuilder();
-        // add the extension functions
-        for (FunctionMappingNode mappingNode : mappingNodes) {
-            planBuilder.addExtensions(mappingNode.toProtobuf());
-        }
-
-        for (RelNode relNode : relNodes) {
-            PlanRel.Builder planRelBuilder = PlanRel.newBuilder();
-
-            RelRoot.Builder relRootBuilder = RelRoot.newBuilder();
-            relRootBuilder.setInput(relNode.toProtobuf());
-            for (String name : outNames) {
-                relRootBuilder.addNames(name);
-            }
-            planRelBuilder.setRoot(relRootBuilder.build());
-
-            planBuilder.addRelations(planRelBuilder.build());
-        }
-
-        if (extension != null) {
-            planBuilder.setAdvancedExtensions(extension.toProtobuf());
-        }
-        return planBuilder.build();
+    if (extension != null) {
+      planBuilder.setAdvancedExtensions(extension.toProtobuf());
     }
+    return planBuilder.build();
+  }
 }

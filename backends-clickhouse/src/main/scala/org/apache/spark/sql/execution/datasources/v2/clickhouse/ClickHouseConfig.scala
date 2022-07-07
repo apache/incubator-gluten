@@ -17,9 +17,9 @@
 
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
-import scala.collection.JavaConverters._
-
 import java.util
+
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 object ClickHouseConfig {
 
@@ -38,10 +38,10 @@ object ClickHouseConfig {
   val CLICKHOUSE_WAREHOUSE_DIR = "spark.gluten.sql.columnar.backend.ch.warehouse.dir"
 
   /**
-   * Validates specified configurations and returns the normalized key -> value map.
-   */
+    * Validates specified configurations and returns the normalized key -> value map.
+    */
   def validateConfigurations(allProperties: util.Map[String, String]): Map[String, String] = {
-    var configurations = scala.collection.mutable.Map[String, String]()
+    val configurations = scala.collection.mutable.Map[String, String]()
     allProperties.asScala.foreach(configurations += _)
     if (!configurations.contains("metadata_path")) {
       configurations += ("metadata_path" -> METADATA_DIR)

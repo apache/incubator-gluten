@@ -22,23 +22,23 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class BooleanTypeNode implements TypeNode, Serializable {
-    private final Boolean nullable;
+  private final Boolean nullable;
 
-    BooleanTypeNode(Boolean nullable) {
-        this.nullable = nullable;
+  BooleanTypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
+
+  @Override
+  public Type toProtobuf() {
+    Type.Boolean.Builder booleanBuilder = Type.Boolean.newBuilder();
+    if (nullable) {
+      booleanBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
+    } else {
+      booleanBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
     }
 
-    @Override
-    public Type toProtobuf() {
-        Type.Boolean.Builder booleanBuilder = Type.Boolean.newBuilder();
-        if (nullable) {
-            booleanBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
-        } else {
-            booleanBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
-        }
-
-        Type.Builder builder = Type.newBuilder();
-        builder.setBool(booleanBuilder.build());
-        return builder.build();
-    }
+    Type.Builder builder = Type.newBuilder();
+    builder.setBool(booleanBuilder.build());
+    return builder.build();
+  }
 }

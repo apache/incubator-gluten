@@ -33,6 +33,7 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
   // This is not strictly needed because the codegen transformation happens after the columnar
   // transformation but just for consistency
   override def supportsColumnar: Boolean = child.supportsColumnar
+
   override def supportCodegen: Boolean = false
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -42,15 +43,15 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
   override def nodeName: String = s"InputAdapter"
 
   override def generateTreeString(
-      depth: Int,
-      lastChildren: Seq[Boolean],
-      append: String => Unit,
-      verbose: Boolean,
-      prefix: String = "",
-      addSuffix: Boolean = false,
-      maxFields: Int,
-      printNodeId: Boolean,
-      indent: Int = 0): Unit = {
+                                   depth: Int,
+                                   lastChildren: Seq[Boolean],
+                                   append: String => Unit,
+                                   verbose: Boolean,
+                                   prefix: String = "",
+                                   addSuffix: Boolean = false,
+                                   maxFields: Int,
+                                   printNodeId: Boolean,
+                                   indent: Int = 0): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
@@ -82,10 +83,10 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  * :        +- *(1) Filter isnotnull((id#0L % 2))
  * :           +- *(1) Range (0, 5, step=1, splits=8)
  * +- *(4) Sort [y#9L ASC NULLS FIRST], false, 0
- *    +- Exchange hashpartitioning(y#9L, 200)
- *       +- *(3) Project [(id#6L % 2) AS y#9L]
- *          +- *(3) Filter isnotnull((id#6L % 2))
- *             +- *(3) Range (0, 5, step=1, splits=8)
+ * +- Exchange hashpartitioning(y#9L, 200)
+ * +- *(3) Project [(id#6L % 2) AS y#9L]
+ * +- *(3) Filter isnotnull((id#6L % 2))
+ * +- *(3) Range (0, 5, step=1, splits=8)
  *
  * where the ID makes it obvious that not all adjacent codegen'd plan operators are of the
  * same codegen stage.
@@ -105,9 +106,17 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  * failed to generate/compile code.
  */
 case class ColumnarCollapseCodegenStages(
-    columnarWholeStageEnabled: Boolean,
-    codegenStageCounter: AtomicInteger = new AtomicInteger(0))
-    extends Rule[SparkPlan] {
+                                          columnarWholeStageEnabled: Boolean,
+                                          codegenStageCounter: AtomicInteger = new AtomicInteger(0))
+  extends Rule[SparkPlan] {
+
+  def apply(plan: SparkPlan): SparkPlan = {
+    if (columnarWholeStageEnabled) {
+      insertWholeStageTransformer(plan)
+    } else {
+      plan
+    }
+  }
 
   private def supportTransform(plan: SparkPlan): Boolean = plan match {
     case plan: TransformSupport => true
@@ -133,14 +142,6 @@ case class ColumnarCollapseCodegenStages(
           codegenStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
-    }
-  }
-
-  def apply(plan: SparkPlan): SparkPlan = {
-    if (columnarWholeStageEnabled) {
-      insertWholeStageTransformer(plan)
-    } else {
-      plan
     }
   }
 }

@@ -27,44 +27,44 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class ProjectRelNode implements RelNode, Serializable {
-    private final RelNode input;
-    private final ArrayList<ExpressionNode> expressionNodes =
-            new ArrayList<>();
-    private final AdvancedExtensionNode extensionNode;
+  private final RelNode input;
+  private final ArrayList<ExpressionNode> expressionNodes =
+      new ArrayList<>();
+  private final AdvancedExtensionNode extensionNode;
 
-    ProjectRelNode(RelNode input,
-                   ArrayList<ExpressionNode> expressionNodes) {
-        this.input = input;
-        this.expressionNodes.addAll(expressionNodes);
-        this.extensionNode = null;
+  ProjectRelNode(RelNode input,
+                 ArrayList<ExpressionNode> expressionNodes) {
+    this.input = input;
+    this.expressionNodes.addAll(expressionNodes);
+    this.extensionNode = null;
+  }
+
+  ProjectRelNode(RelNode input,
+                 ArrayList<ExpressionNode> expressionNodes,
+                 AdvancedExtensionNode extensionNode) {
+    this.input = input;
+    this.expressionNodes.addAll(expressionNodes);
+    this.extensionNode = extensionNode;
+  }
+
+  @Override
+  public Rel toProtobuf() {
+    RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
+    relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
+
+    ProjectRel.Builder projectBuilder = ProjectRel.newBuilder();
+    projectBuilder.setCommon(relCommonBuilder.build());
+    if (input != null) {
+      projectBuilder.setInput(input.toProtobuf());
     }
-
-    ProjectRelNode(RelNode input,
-                   ArrayList<ExpressionNode> expressionNodes,
-                   AdvancedExtensionNode extensionNode) {
-        this.input = input;
-        this.expressionNodes.addAll(expressionNodes);
-        this.extensionNode = extensionNode;
+    for (ExpressionNode expressionNode : expressionNodes) {
+      projectBuilder.addExpressions(expressionNode.toProtobuf());
     }
-
-    @Override
-    public Rel toProtobuf() {
-        RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
-        relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
-
-        ProjectRel.Builder projectBuilder = ProjectRel.newBuilder();
-        projectBuilder.setCommon(relCommonBuilder.build());
-        if (input != null) {
-            projectBuilder.setInput(input.toProtobuf());
-        }
-        for (ExpressionNode expressionNode : expressionNodes) {
-            projectBuilder.addExpressions(expressionNode.toProtobuf());
-        }
-        if (extensionNode != null) {
-            projectBuilder.setAdvancedExtension(extensionNode.toProtobuf());
-        }
-        Rel.Builder builder = Rel.newBuilder();
-        builder.setProject(projectBuilder.build());
-        return builder.build();
+    if (extensionNode != null) {
+      projectBuilder.setAdvancedExtension(extensionNode.toProtobuf());
     }
+    Rel.Builder builder = Rel.newBuilder();
+    builder.setProject(projectBuilder.build());
+    return builder.build();
+  }
 }

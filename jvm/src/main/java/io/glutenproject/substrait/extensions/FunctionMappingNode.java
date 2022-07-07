@@ -22,22 +22,22 @@ import io.substrait.proto.SimpleExtensionDeclaration;
 import java.io.Serializable;
 
 public class FunctionMappingNode implements Serializable {
-    private final String name;
-    private final Long functionId;
+  private final String name;
+  private final Long functionId;
 
-    public FunctionMappingNode(String name, Long functionId) {
-        this.name = name;
-        this.functionId = functionId;
-    }
+  public FunctionMappingNode(String name, Long functionId) {
+    this.name = name;
+    this.functionId = functionId;
+  }
 
-    public SimpleExtensionDeclaration toProtobuf() {
-        SimpleExtensionDeclaration.ExtensionFunction.Builder funcBuilder =
-                SimpleExtensionDeclaration.ExtensionFunction.newBuilder();
-        funcBuilder.setFunctionAnchor(functionId.intValue());
-        funcBuilder.setName(name);
+  public SimpleExtensionDeclaration toProtobuf() {
+    SimpleExtensionDeclaration.ExtensionFunction.Builder funcBuilder =
+        SimpleExtensionDeclaration.ExtensionFunction.newBuilder();
+    funcBuilder.setFunctionAnchor(functionId.intValue());
+    funcBuilder.setName(name);
 
-        SimpleExtensionDeclaration.Builder declaration = SimpleExtensionDeclaration.newBuilder();
-        declaration.setExtensionFunction(funcBuilder.build());
-        return declaration.build();
-    }
+    SimpleExtensionDeclaration.Builder declaration = SimpleExtensionDeclaration.newBuilder();
+    declaration.setExtensionFunction(funcBuilder.build());
+    return declaration.build();
+  }
 }

@@ -22,23 +22,23 @@ import io.substrait.proto.Type;
 import java.io.Serializable;
 
 public class I64TypeNode implements TypeNode, Serializable {
-    private final Boolean nullable;
+  private final Boolean nullable;
 
-    I64TypeNode(Boolean nullable) {
-        this.nullable = nullable;
+  I64TypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
+
+  @Override
+  public Type toProtobuf() {
+    Type.I64.Builder i64Builder = Type.I64.newBuilder();
+    if (nullable) {
+      i64Builder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
+    } else {
+      i64Builder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
     }
 
-    @Override
-    public Type toProtobuf() {
-        Type.I64.Builder i64Builder = Type.I64.newBuilder();
-        if (nullable) {
-            i64Builder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
-        } else {
-            i64Builder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
-        }
-
-        Type.Builder builder = Type.newBuilder();
-        builder.setI64(i64Builder.build());
-        return builder.build();
-    }
+    Type.Builder builder = Type.newBuilder();
+    builder.setI64(i64Builder.build());
+    return builder.build();
+  }
 }

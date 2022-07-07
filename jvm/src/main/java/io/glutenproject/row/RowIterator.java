@@ -22,20 +22,23 @@ import io.glutenproject.vectorized.MetricsObject;
 import java.io.IOException;
 
 public class RowIterator {
-  private native boolean nativeHasNext(long nativeHandler);
-  private native SparkRowInfo nativeNext(long nativeHandler);
-  private native void nativeClose(long nativeHandler);
-  private native MetricsObject nativeFetchMetrics(long nativeHandler);
-
   private long nativeHandler = 0L;
   private boolean closed = false;
 
   public RowIterator(long nativeHandler) throws IOException {
-      this.nativeHandler = nativeHandler;
+    this.nativeHandler = nativeHandler;
   }
 
+  private native boolean nativeHasNext(long nativeHandler);
+
+  private native SparkRowInfo nativeNext(long nativeHandler);
+
+  private native void nativeClose(long nativeHandler);
+
+  private native MetricsObject nativeFetchMetrics(long nativeHandler);
+
   public boolean hasNext() throws IOException {
-      return nativeHasNext(nativeHandler);
+    return nativeHasNext(nativeHandler);
   }
 
   public SparkRowInfo next() throws IOException {
@@ -55,7 +58,7 @@ public class RowIterator {
   public void close() {
     if (!closed) {
       if (nativeHandler != 0L) {
-          nativeClose(nativeHandler);
+        nativeClose(nativeHandler);
       }
       closed = true;
     }

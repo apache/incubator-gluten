@@ -24,21 +24,16 @@ import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, SHUFFLE_MERGE}
-import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.{joins, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
 
-  private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
-    case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
-    case _ => false
-  }
-
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
     // If the build side of BHJ is already decided by AQE, we need to keep the build side.
     case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, left, right, hint)
-        if isBroadcastStage(left) || isBroadcastStage(right) =>
+      if isBroadcastStage(left) || isBroadcastStage(right) =>
       val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
       Seq(
         BroadcastHashJoinExec(
@@ -117,6 +112,11 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
 
       Nil
     case _ => Nil
+  }
+
+  private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
+    case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
+    case _ => false
   }
 }
 

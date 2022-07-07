@@ -22,20 +22,20 @@ import io.substrait.proto.Expression;
 import java.io.Serializable;
 
 public class StringLiteralNode implements ExpressionNode, Serializable {
-    private final String value;
+  private final String value;
 
-    public StringLiteralNode(String value) {
-        this.value = value;
-    }
+  public StringLiteralNode(String value) {
+    this.value = value;
+  }
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.Literal.Builder stringBuilder =
-                Expression.Literal.newBuilder();
-        stringBuilder.setString(value);
+  @Override
+  public Expression toProtobuf() {
+    Expression.Literal.Builder stringBuilder =
+        Expression.Literal.newBuilder();
+    stringBuilder.setString(value);
 
-        Expression.Builder builder = Expression.newBuilder();
-        builder.setLiteral(stringBuilder.build());
-        return builder.build();
-    }
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setLiteral(stringBuilder.build());
+    return builder.build();
+  }
 }

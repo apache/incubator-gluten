@@ -20,5 +20,5 @@ package io.glutenproject.substrait.derivation;
 import io.substrait.proto.DerivationExpression;
 
 public interface DerivationExpressionNode {
-    DerivationExpression toProtobuf();
+  DerivationExpression toProtobuf();
 }

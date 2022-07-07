@@ -1,8 +1,7 @@
 %YAML 1.2
 ---
 scalar_functions:
-  -
-    name: "add"
+  - name: "add"
     description: "Add two decimal values."
     impls:
       - args:
@@ -18,8 +17,7 @@ scalar_functions:
           prec = min(init_prec,38)
           scale = init_prec > 38 ? scale - init_prec + 38 : min_scale
           DECIMAL<prec, scale>
-  -
-    name: "subtract"
+  - name: "subtract"
     impls:
       - args:
           - options: [ SILENT, SATURATE, ERROR ]
@@ -34,8 +32,7 @@ scalar_functions:
           prec = min(init_prec,38)
           scale = init_prec > 38 ? scale - init_prec + 38 : min_scale
           DECIMAL<prec, scale>
-  -
-    name: "multiply"
+  - name: "multiply"
     impls:
       - args:
           - options: [ SILENT, SATURATE, ERROR ]
@@ -50,8 +47,7 @@ scalar_functions:
           prec = min(init_prec,38)
           scale = init_prec > 38 ? scale - init_prec + 38 : min_scale
           DECIMAL<prec, scale>
-  -
-    name: "divide"
+  - name: "divide"
     impls:
       - args:
           - options: [ SILENT, SATURATE, ERROR ]
@@ -66,8 +62,7 @@ scalar_functions:
           prec = min(init_prec,38)
           scale = init_prec > 38 ? scale - init_prec + 38 : min_scale
           DECIMAL<prec, scale>
-  -
-    name: "modulus"
+  - name: "modulus"
     impls:
       - args:
           - options: [ SILENT, SATURATE, ERROR ]

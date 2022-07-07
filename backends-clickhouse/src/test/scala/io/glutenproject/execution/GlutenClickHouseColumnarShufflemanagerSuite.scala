@@ -22,8 +22,8 @@ import org.apache.spark.SparkConf
 class GlutenClickHouseColumnarShufflemanagerSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   /**
-   * Run Gluten + ClickHouse Backend with ColumnarShuffleManager
-   */
+    * Run Gluten + ClickHouse Backend with ColumnarShuffleManager
+    */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")

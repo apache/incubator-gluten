@@ -27,7 +27,11 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -35,7 +39,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * LoadXXX methods in the utility prevents reloading of a library internally. It's not necessary for caller
+ * LoadXXX methods in the utility prevents reloading of a library internally.
+ * It's not necessary for caller
  * to manage a loaded library list.
  */
 public class JniLibLoader {
@@ -52,7 +57,7 @@ public class JniLibLoader {
     this.workDir = workDir;
   }
 
-  private synchronized static void loadFromPath0(String libPath) {
+  private static synchronized void loadFromPath0(String libPath) {
     if (LOADED_LIBRARY_PATHS.contains(libPath)) {
       LOG.debug("Library in path {} has already been loaded, skipping", libPath);
       return;
@@ -65,7 +70,8 @@ public class JniLibLoader {
   public static void loadFromPath(String libPath) {
     final File file = new File(libPath);
     if (!file.isFile() || !file.exists()) {
-      throw new RuntimeException("library at path: " + libPath + " is not a file or does not exist");
+      throw new RuntimeException("library at path: " + libPath
+          + " is not a file or does not exist");
     }
     loadFromPath0(file.getAbsolutePath());
   }
@@ -109,6 +115,26 @@ public class JniLibLoader {
 
   public JniLoadTransaction newTransaction() {
     return new JniLoadTransaction();
+  }
+
+  private static final class LoadRequest {
+    final String libName;
+    final String linkName;
+    final File file;
+
+    private LoadRequest(String libName, String linkName, File file) {
+      this.libName = libName;
+      this.linkName = linkName;
+      this.file = file;
+    }
+
+    LoadRequest(String libName, File file) {
+      this(libName, null, file);
+    }
+
+    public boolean requireLinking() {
+      return !Objects.isNull(linkName);
+    }
   }
 
   public class JniLoadTransaction {
@@ -207,7 +233,8 @@ public class JniLibLoader {
         Files.delete(libPath);
       }
       final File temp = new File(workDir + "/" + libraryToLoad);
-      try (final InputStream is = JniLibLoader.class.getClassLoader().getResourceAsStream(libraryToLoad)) {
+      try (InputStream is = JniLibLoader.class.getClassLoader()
+          .getResourceAsStream(libraryToLoad)) {
         if (is == null) {
           throw new FileNotFoundException(libraryToLoad);
         }
@@ -239,26 +266,6 @@ public class JniLibLoader {
       LOG.info("Symbolic link {} created for library {}", arrowLink, libPath);
     }
 
-  }
-
-  private static final class LoadRequest {
-    final String libName;
-    final String linkName;
-    final File file;
-
-    private LoadRequest(String libName, String linkName, File file) {
-      this.libName = libName;
-      this.linkName = linkName;
-      this.file = file;
-    }
-
-    public LoadRequest(String libName, File file) {
-      this(libName, null, file);
-    }
-
-    public boolean requireLinking() {
-      return !Objects.isNull(linkName);
-    }
   }
 
 }

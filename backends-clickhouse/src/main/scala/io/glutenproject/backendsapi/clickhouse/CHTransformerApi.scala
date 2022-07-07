@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,8 +17,8 @@
 
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.backendsapi.ITransformerApi
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.ITransformerApi
 import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
@@ -27,20 +28,21 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
 class CHTransformerApi extends ITransformerApi with Logging {
 
   /**
-   * Do validate for ColumnarShuffleExchangeExec.
-   * For ClickHouse backend, it will return true directly.
-   * @return
-   */
+    * Do validate for ColumnarShuffleExchangeExec.
+    * For ClickHouse backend, it will return true directly.
+    *
+    * @return
+    */
   override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
                                                    outputAttributes: Seq[Attribute]
-                                                  ) = {
+                                                  ): Boolean = {
     !outputPartitioning.isInstanceOf[RangePartitioning]
 
     // check repartition expression
@@ -65,16 +67,16 @@ class CHTransformerApi extends ITransformerApi with Logging {
   }
 
   /**
-   * Used for table scan validation.
-   *
-   * @return true if backend supports reading the file format.
-   */
+    * Used for table scan validation.
+    *
+    * @return true if backend supports reading the file format.
+    */
   def supportsReadFileFormat(fileFormat: FileFormat): Boolean =
     GlutenConfig.getConf.isClickHouseBackend && fileFormat.isInstanceOf[ParquetFileFormat]
 
   /**
-   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-   */
+    * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
+    */
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     if (relation.location.isInstanceOf[ClickHouseFileIndex]) {
@@ -87,9 +89,9 @@ class CHTransformerApi extends ITransformerApi with Logging {
   }
 
   /**
-   * Get the backend api name.
-   *
-   * @return
-   */
+    * Get the backend api name.
+    *
+    * @return
+    */
   override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

@@ -23,25 +23,25 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class DoubleListNode implements ExpressionNode, Serializable {
-    private final ArrayList<Double> values = new ArrayList<>();
+  private final ArrayList<Double> values = new ArrayList<>();
 
-    public DoubleListNode(ArrayList<Double> values) {
-        this.values.addAll(values);
+  public DoubleListNode(ArrayList<Double> values) {
+    this.values.addAll(values);
+  }
+
+  @Override
+  public Expression toProtobuf() {
+    Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
+    Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
+    for (Double value : values) {
+      literalBuilder.setFp64(value);
+      listBuilder.addValues(literalBuilder.build());
     }
+    literalBuilder.setList(listBuilder.build());
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.Literal.List.Builder listBuilder = Expression.Literal.List.newBuilder();
-        Expression.Literal.Builder literalBuilder = Expression.Literal.newBuilder();
-        for (Double value : values) {
-            literalBuilder.setFp64(value);
-            listBuilder.addValues(literalBuilder.build());
-        }
-        literalBuilder.setList(listBuilder.build());
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setLiteral(literalBuilder.build());
 
-        Expression.Builder builder =  Expression.newBuilder();
-        builder.setLiteral(literalBuilder.build());
-
-        return builder.build();
-    }
+    return builder.build();
+  }
 }

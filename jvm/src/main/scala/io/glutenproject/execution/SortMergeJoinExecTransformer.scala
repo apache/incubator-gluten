@@ -32,18 +32,17 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
 case class SortMergeJoinExecTransformer(
-    leftKeys: Seq[Expression],
-    rightKeys: Seq[Expression],
-    joinType: JoinType,
-    condition: Option[Expression],
-    left: SparkPlan,
-    right: SparkPlan,
-    isSkewJoin: Boolean = false,
-    projectList: Seq[NamedExpression] = null)
-    extends BinaryExecNode
+                                         leftKeys: Seq[Expression],
+                                         rightKeys: Seq[Expression],
+                                         joinType: JoinType,
+                                         condition: Option[Expression],
+                                         left: SparkPlan,
+                                         right: SparkPlan,
+                                         isSkewJoin: Boolean = false,
+                                         projectList: Seq[NamedExpression] = null)
+  extends BinaryExecNode
     with TransformSupport {
 
-  val sparkConf = sparkContext.getConf
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
@@ -52,23 +51,38 @@ case class SortMergeJoinExecTransformer(
     "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to merge join"),
     "totaltime_sortmergejoin" -> SQLMetrics
       .createTimingMetric(sparkContext, "totaltime_sortmergejoin"))
-
+  val sparkConf = sparkContext.getConf
   val numOutputRows = longMetric("numOutputRows")
   val numOutputBatches = longMetric("numOutputBatches")
   val joinTime = longMetric("joinTime")
   val prepareTime = longMetric("prepareTime")
   val totaltime_sortmegejoin = longMetric("totaltime_sortmergejoin")
   val resultSchema = this.schema
+  val (buildKeys, streamedKeys, buildPlan, streamedPlan) = joinType match {
+    case LeftSemi =>
+      (rightKeys, leftKeys, right, left)
+    case LeftOuter =>
+      (rightKeys, leftKeys, right, left)
+    case LeftAnti =>
+      (rightKeys, leftKeys, right, left)
+    case j: ExistenceJoin =>
+      (rightKeys, leftKeys, right, left)
+    case LeftExistence(_) =>
+      (rightKeys, leftKeys, right, left)
+    case _ =>
+      left match {
+        case p: SortMergeJoinExecTransformer =>
+          (rightKeys, leftKeys, right, left)
+        case FilterExecTransformer(_, child: SortMergeJoinExecTransformer) =>
+          (rightKeys, leftKeys, right, left)
+        case ProjectExecTransformer(_, child: SortMergeJoinExecTransformer) =>
+          (rightKeys, leftKeys, right, left)
+        case other =>
+          (leftKeys, rightKeys, left, right)
+      }
+  }
 
   override def supportsColumnar: Boolean = true
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(
-      s"ColumnarSortMergeJoinExec doesn't support doExecute")
-  }
-  override def nodeName: String = {
-    if (isSkewJoin) super.nodeName + "(skew=true)" else super.nodeName
-  }
 
   override def stringArgs: Iterator[Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
@@ -77,15 +91,19 @@ case class SortMergeJoinExecTransformer(
     s"$nodeName $joinType ($opId)".trim
   }
 
+  override def nodeName: String = {
+    if (isSkewJoin) super.nodeName + "(skew=true)" else super.nodeName
+  }
+
   override def verboseStringWithOperatorId(): String = {
     val joinCondStr = if (condition.isDefined) {
       s"${condition.get}"
     } else "None"
     s"""
-      |(${ExplainUtils.getOpId(this)}) $nodeName
-      |${ExplainUtils.generateFieldString("Left keys", leftKeys)}
-      |${ExplainUtils.generateFieldString("Right keys", rightKeys)}
-      |${ExplainUtils.generateFieldString("Join condition", joinCondStr)}
+       |(${ExplainUtils.getOpId(this)}) $nodeName
+       |${ExplainUtils.generateFieldString("Left keys", leftKeys)}
+       |${ExplainUtils.generateFieldString("Right keys", rightKeys)}
+       |${ExplainUtils.generateFieldString("Join condition", joinCondStr)}
     """.stripMargin
   }
 
@@ -111,6 +129,7 @@ case class SortMergeJoinExecTransformer(
           s"${getClass.getSimpleName} should not take $x as the JoinType")
     }
   }
+
   override def outputPartitioning: Partitioning = joinType match {
     case _: InnerLike =>
       PartitioningCollection(Seq(left.outputPartitioning, right.outputPartitioning))
@@ -158,13 +177,13 @@ case class SortMergeJoinExecTransformer(
   }
 
   private def getKeyOrdering(
-      keys: Seq[Expression],
-      childOutputOrdering: Seq[SortOrder]): Seq[SortOrder] = {
+                              keys: Seq[Expression],
+                              childOutputOrdering: Seq[SortOrder]): Seq[SortOrder] = {
     val requiredOrdering = requiredOrders(keys)
     if (SortOrder.orderingSatisfies(childOutputOrdering, requiredOrdering)) {
       keys.zip(childOutputOrdering).map {
         case (key, childOrder) =>
-        val sameOrderExpressionsSet = ExpressionSet(childOrder.children) - key
+          val sameOrderExpressionsSet = ExpressionSet(childOrder.children) - key
           SortOrder(key, Ascending, sameOrderExpressionsSet.toSeq)
       }
     } else {
@@ -175,30 +194,6 @@ case class SortMergeJoinExecTransformer(
   private def requiredOrders(keys: Seq[Expression]): Seq[SortOrder] = {
     // This must be ascending in order to agree with the `keyOrdering` defined in `doExecute()`.
     keys.map(SortOrder(_, Ascending))
-  }
-
-  val (buildKeys, streamedKeys, buildPlan, streamedPlan) = joinType match {
-    case LeftSemi =>
-      (rightKeys, leftKeys, right, left)
-    case LeftOuter =>
-      (rightKeys, leftKeys, right, left)
-    case LeftAnti =>
-      (rightKeys, leftKeys, right, left)
-    case j: ExistenceJoin =>
-      (rightKeys, leftKeys, right, left)
-    case LeftExistence(_) =>
-      (rightKeys, leftKeys, right, left)
-    case _ =>
-      left match {
-        case p: SortMergeJoinExecTransformer =>
-          (rightKeys, leftKeys, right, left)
-        case FilterExecTransformer(_, child: SortMergeJoinExecTransformer) =>
-          (rightKeys, leftKeys, right, left)
-        case ProjectExecTransformer(_, child: SortMergeJoinExecTransformer) =>
-          (rightKeys, leftKeys, right, left)
-        case other =>
-          (leftKeys, rightKeys, left, right)
-      }
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = streamedPlan match {
@@ -251,5 +246,10 @@ case class SortMergeJoinExecTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException(
+      s"ColumnarSortMergeJoinExec doesn't support doExecute")
   }
 }

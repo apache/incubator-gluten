@@ -17,9 +17,10 @@
 
 package io.glutenproject.execution
 
+import scala.concurrent.duration._
+
 import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 
-import scala.concurrent.duration._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
@@ -27,7 +28,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 
 class BlockNativeColumnarToRowExec(child: SparkPlan)
-    extends NativeColumnarToRowExec(child = child) {
+  extends NativeColumnarToRowExec(child = child) {
   override def nodeName: String = "BlockNativeColumnarToRowExec"
 
   override def supportCodegen: Boolean = false
@@ -84,6 +85,7 @@ class BlockNativeColumnarToRowExec(child: SparkPlan)
             var rowId = 0
             val row = new UnsafeRow(batch.numCols())
             var closed = false
+
             override def hasNext: Boolean = {
               val result = rowId < batch.numRows()
               if (!result && !closed) {
@@ -107,11 +109,11 @@ class BlockNativeColumnarToRowExec(child: SparkPlan)
     }
   }
 
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[BlockNativeColumnarToRowExec]
-
   override def equals(other: Any): Boolean = other match {
     case that: BlockNativeColumnarToRowExec =>
       (that canEqual this) && super.equals(that)
     case _ => false
   }
+
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[BlockNativeColumnarToRowExec]
 }

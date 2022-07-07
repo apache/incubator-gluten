@@ -24,31 +24,31 @@ import java.io.Serializable;
 
 public class AdvancedExtensionNode implements Serializable {
 
-    // An optimization is helpful information that don't influence semantics. May
-    // be ignored by a consumer.
-    private final Any optimization;
+  // An optimization is helpful information that don't influence semantics. May
+  // be ignored by a consumer.
+  private final Any optimization;
 
-    // An enhancement alter semantics. Cannot be ignored by a consumer.
-    private final Any enhancement;
+  // An enhancement alter semantics. Cannot be ignored by a consumer.
+  private final Any enhancement;
 
-    public AdvancedExtensionNode(Any enhancement) {
-        this.optimization = null;
-        this.enhancement = enhancement;
+  public AdvancedExtensionNode(Any enhancement) {
+    this.optimization = null;
+    this.enhancement = enhancement;
+  }
+
+  public AdvancedExtensionNode(Any optimization, Any enhancement) {
+    this.optimization = optimization;
+    this.enhancement = enhancement;
+  }
+
+  public AdvancedExtension toProtobuf() {
+    AdvancedExtension.Builder extensionBuilder = AdvancedExtension.newBuilder();
+    if (optimization != null) {
+      extensionBuilder.setOptimization(optimization);
     }
-
-    public AdvancedExtensionNode(Any optimization, Any enhancement) {
-        this.optimization = optimization;
-        this.enhancement = enhancement;
+    if (enhancement != null) {
+      extensionBuilder.setEnhancement(enhancement);
     }
-
-    public AdvancedExtension toProtobuf() {
-        AdvancedExtension.Builder extensionBuilder = AdvancedExtension.newBuilder();
-        if (optimization != null) {
-            extensionBuilder.setOptimization(optimization);
-        }
-        if (enhancement != null) {
-            extensionBuilder.setEnhancement(enhancement);
-        }
-        return extensionBuilder.build();
-    }
+    return extensionBuilder.build();
+  }
 }

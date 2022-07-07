@@ -29,10 +29,12 @@ import java.util.List;
 public class ExpressionEvaluatorJniWrapper {
   public String tmpDirPath;
 
-  /** Wrapper for native API. */
+  /**
+   * Wrapper for native API.
+   */
   public ExpressionEvaluatorJniWrapper(String tmpDir, List<String> listJars, String libName,
-      String libPath, String customBackendLib,
-      boolean loadArrowAndGandiva)
+                                       String libPath, String customBackendLib,
+                                       boolean loadArrowAndGandiva)
       throws IllegalStateException {
     final JniWorkspace workspace = JniWorkspace.createOrGet(tmpDir);
     final JniLibLoader loader = workspace.libLoader();
@@ -81,8 +83,8 @@ public class ExpressionEvaluatorJniWrapper {
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(long nativeHandler,
-      byte[] wsPlan,
-      GeneralInIterator[] batchItr
+                                                    byte[] wsPlan,
+                                                    GeneralInIterator[] batchItr
   ) throws RuntimeException;
 
   /**

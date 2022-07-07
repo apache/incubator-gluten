@@ -24,14 +24,16 @@ import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.JoinRel;
-
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.util.ArrayList;
 
-/** Contains helper functions for constructing substrait relations. */
+/**
+ * Contains helper functions for constructing substrait relations.
+ */
 public class RelBuilder {
-  private RelBuilder() {}
+  private RelBuilder() {
+  }
 
   public static RelNode makeFilterRel(RelNode input, ExpressionNode condition) {
     return new FilterRelNode(input, condition);

@@ -53,7 +53,7 @@ case class AddMergeTreeParts(database: String, table: String, engine: String,
                             )
 
 object AddFileTags {
-
+  // scalastyle:off argcount
   def partsInfoToAddFile(database: String, table: String, engine: String,
                          path: String, targetNode: String,
                          name: String, uuid: String,
@@ -65,7 +65,9 @@ object AddFileTags {
                          partition: String = "",
                          defaultCompressionCodec: String = "LZ4",
                          stats: String = "",
-                         partitionValues: Map[String, String] = Map.empty[String, String]): AddFile = {
+                         partitionValues: Map[String, String] = Map.empty[String, String])
+  : AddFile = {
+    // scalastyle:on argcount
     val tags = Map[String, String]("database" -> database, "table" -> table, "engine" -> engine,
       "path" -> path, "targetNode" -> targetNode, "partition" -> partition,
       "uuid" -> uuid, "rows" -> rows.toString, "bytesOnDisk" -> bytesOnDisk.toString,

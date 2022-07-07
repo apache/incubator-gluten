@@ -28,29 +28,29 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
  */
 public class SnowflakeIdWorker {
 
-  // ==============================Fields===========================================
-  private final long twepoch = 1640966400L;
-
-  private final long workerIdBits = 6L;
-
-  private final long maxWorkerId = -1L ^ (-1L << workerIdBits);
-
-  private final long sequenceBits = 16L;
-
-  private final long workerIdShift = sequenceBits;
-
-  private final long timestampLeftShift = sequenceBits + workerIdBits;
-
-  private final long sequenceMask = -1L ^ (-1L << sequenceBits);
-
-  private long workerId;
-
-  private long sequence = 0L;
-
-  private long lastTimestamp = -1L;
-
   //==============================Singleton=====================================
   private static volatile SnowflakeIdWorker INSTANCE;
+  // ==============================Fields===========================================
+  private final long twepoch = 1640966400L;
+  private final long workerIdBits = 6L;
+  private final long maxWorkerId = -1L ^ (-1L << workerIdBits);
+  private final long sequenceBits = 16L;
+  private final long workerIdShift = sequenceBits;
+  private final long timestampLeftShift = sequenceBits + workerIdBits;
+  private final long sequenceMask = -1L ^ (-1L << sequenceBits);
+  private long workerId;
+  private long sequence = 0L;
+  private long lastTimestamp = -1L;
+
+  public SnowflakeIdWorker(long workerId) {
+    if (workerId > maxWorkerId || workerId < 0) {
+      throw new IllegalArgumentException(
+          String.format("worker Id can't be greater than %d or less than 0", maxWorkerId));
+    }
+    this.workerId = workerId;
+  }
+
+  //==============================Constructors=====================================
 
   public static SnowflakeIdWorker getInstance() {
     if (INSTANCE == null) {
@@ -69,16 +69,6 @@ public class SnowflakeIdWorker {
     return INSTANCE;
   }
 
-  //==============================Constructors=====================================
-
-  public SnowflakeIdWorker(long workerId) {
-    if (workerId > maxWorkerId || workerId < 0) {
-      throw new IllegalArgumentException(
-          String.format("worker Id can't be greater than %d or less than 0", maxWorkerId));
-    }
-    this.workerId = workerId;
-  }
-
   // ==============================Methods==========================================
   public synchronized long nextId() {
     long timestamp = timeGen();
@@ -94,8 +84,7 @@ public class SnowflakeIdWorker {
       if (sequence == 0) {
         timestamp = tilNextMillis(lastTimestamp);
       }
-    }
-    else {
+    } else {
       sequence = 0L;
     }
 

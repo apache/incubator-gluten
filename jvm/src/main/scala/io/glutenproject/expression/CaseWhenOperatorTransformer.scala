@@ -28,10 +28,10 @@ import org.apache.spark.sql.catalyst.expressions._
  * A version of substring that supports columnar processing for utf8.
  */
 class CaseWhenTransformer(
-  branches: Seq[(Expression, Expression)],
-  elseValue: Option[Expression],
-  original: Expression)
-    extends CaseWhen(branches: Seq[(Expression, Expression)], elseValue: Option[Expression])
+                           branches: Seq[(Expression, Expression)],
+                           elseValue: Option[Expression],
+                           original: Expression)
+  extends CaseWhen(branches: Seq[(Expression, Expression)], elseValue: Option[Expression])
     with ExpressionTransformer
     with Logging {
 

@@ -17,7 +17,7 @@
 
 package io.glutenproject.vectorized
 
-import java.io.{BufferedOutputStream, DataOutputStream, EOFException, InputStream, OutputStream, Serializable}
+import java.io._
 import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag

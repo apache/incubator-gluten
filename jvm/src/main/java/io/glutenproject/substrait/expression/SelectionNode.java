@@ -22,28 +22,28 @@ import io.substrait.proto.Expression;
 import java.io.Serializable;
 
 public class SelectionNode implements ExpressionNode, Serializable {
-    private final Integer fieldIdx;
+  private final Integer fieldIdx;
 
-    SelectionNode(Integer fieldIdx) {
-        this.fieldIdx = fieldIdx;
-    }
+  SelectionNode(Integer fieldIdx) {
+    this.fieldIdx = fieldIdx;
+  }
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.ReferenceSegment.StructField.Builder structBuilder =
-                Expression.ReferenceSegment.StructField.newBuilder();
-        structBuilder.setField(fieldIdx.intValue());
+  @Override
+  public Expression toProtobuf() {
+    Expression.ReferenceSegment.StructField.Builder structBuilder =
+        Expression.ReferenceSegment.StructField.newBuilder();
+    structBuilder.setField(fieldIdx.intValue());
 
-        Expression.ReferenceSegment.Builder refBuilder =
-                Expression.ReferenceSegment.newBuilder();
-        refBuilder.setStructField(structBuilder.build());
+    Expression.ReferenceSegment.Builder refBuilder =
+        Expression.ReferenceSegment.newBuilder();
+    refBuilder.setStructField(structBuilder.build());
 
-        Expression.FieldReference.Builder fieldBuilder =
-                Expression.FieldReference.newBuilder();
-        fieldBuilder.setDirectReference(refBuilder.build());
+    Expression.FieldReference.Builder fieldBuilder =
+        Expression.FieldReference.newBuilder();
+    fieldBuilder.setDirectReference(refBuilder.build());
 
-        Expression.Builder builder = Expression.newBuilder();
-        builder.setSelection(fieldBuilder.build());
-        return builder.build();
-    }
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setSelection(fieldBuilder.build());
+    return builder.build();
+  }
 }

@@ -29,16 +29,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
 
-  override def output: Seq[Attribute] = child.output
-
-  override def supportsColumnar: Boolean = true
-
-  override def nodeName: String = "CoalesceBatches"
-
-  override def outputPartitioning: Partitioning = child.outputPartitioning
-
-  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException
-
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
@@ -47,6 +37,14 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
     "concatTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_coalescebatch"),
     "avgCoalescedNumRows" -> SQLMetrics
       .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
+
+  override def output: Seq[Attribute] = child.output
+
+  override def supportsColumnar: Boolean = true
+
+  override def nodeName: String = "CoalesceBatches"
+
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val recordsPerBatch = conf.arrowMaxRecordsPerBatch
@@ -63,4 +61,6 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
           numInputBatches, numOutputBatches, collectTime, concatTime, avgCoalescedNumRows)
     }
   }
+
+  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException
 }

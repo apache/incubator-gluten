@@ -28,58 +28,58 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class AggregateRelNode implements RelNode, Serializable {
-    private final RelNode input;
-    private final ArrayList<ExpressionNode> groupings = new ArrayList<>();
-    private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes = new ArrayList<>();
-    private final AdvancedExtensionNode extensionNode;
+  private final RelNode input;
+  private final ArrayList<ExpressionNode> groupings = new ArrayList<>();
+  private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes = new ArrayList<>();
+  private final AdvancedExtensionNode extensionNode;
 
-    AggregateRelNode(RelNode input,
-                     ArrayList<ExpressionNode> groupings,
-                     ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
-        this.input = input;
-        this.groupings.addAll(groupings);
-        this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
-        this.extensionNode = null;
+  AggregateRelNode(RelNode input,
+                   ArrayList<ExpressionNode> groupings,
+                   ArrayList<AggregateFunctionNode> aggregateFunctionNodes) {
+    this.input = input;
+    this.groupings.addAll(groupings);
+    this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
+    this.extensionNode = null;
+  }
+
+  AggregateRelNode(RelNode input,
+                   ArrayList<ExpressionNode> groupings,
+                   ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+                   AdvancedExtensionNode extensionNode) {
+    this.input = input;
+    this.groupings.addAll(groupings);
+    this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
+    this.extensionNode = extensionNode;
+  }
+
+  @Override
+  public Rel toProtobuf() {
+    RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
+    relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
+
+    AggregateRel.Grouping.Builder groupingBuilder =
+        AggregateRel.Grouping.newBuilder();
+    for (ExpressionNode exprNode : groupings) {
+      groupingBuilder.addGroupingExpressions(exprNode.toProtobuf());
     }
 
-    AggregateRelNode(RelNode input,
-                     ArrayList<ExpressionNode> groupings,
-                     ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                     AdvancedExtensionNode extensionNode) {
-        this.input = input;
-        this.groupings.addAll(groupings);
-        this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
-        this.extensionNode = extensionNode;
+    AggregateRel.Builder aggBuilder = AggregateRel.newBuilder();
+    aggBuilder.setCommon(relCommonBuilder.build());
+    aggBuilder.addGroupings(groupingBuilder.build());
+
+    for (AggregateFunctionNode aggregateFunctionNode : aggregateFunctionNodes) {
+      AggregateRel.Measure.Builder measureBuilder = AggregateRel.Measure.newBuilder();
+      measureBuilder.setMeasure(aggregateFunctionNode.toProtobuf());
+      aggBuilder.addMeasures(measureBuilder.build());
     }
-
-    @Override
-    public Rel toProtobuf() {
-        RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
-        relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
-
-        AggregateRel.Grouping.Builder groupingBuilder =
-                AggregateRel.Grouping.newBuilder();
-        for (ExpressionNode exprNode : groupings) {
-            groupingBuilder.addGroupingExpressions(exprNode.toProtobuf());
-        }
-
-        AggregateRel.Builder aggBuilder = AggregateRel.newBuilder();
-        aggBuilder.setCommon(relCommonBuilder.build());
-        aggBuilder.addGroupings(groupingBuilder.build());
-
-        for (AggregateFunctionNode aggregateFunctionNode : aggregateFunctionNodes) {
-            AggregateRel.Measure.Builder measureBuilder = AggregateRel.Measure.newBuilder();
-            measureBuilder.setMeasure(aggregateFunctionNode.toProtobuf());
-            aggBuilder.addMeasures(measureBuilder.build());
-        }
-        if (input != null) {
-            aggBuilder.setInput(input.toProtobuf());
-        }
-        if (extensionNode != null) {
-            aggBuilder.setAdvancedExtension(extensionNode.toProtobuf());
-        }
-        Rel.Builder builder = Rel.newBuilder();
-        builder.setAggregate(aggBuilder.build());
-        return builder.build();
+    if (input != null) {
+      aggBuilder.setInput(input.toProtobuf());
     }
+    if (extensionNode != null) {
+      aggBuilder.setAdvancedExtension(extensionNode.toProtobuf());
+    }
+    Rel.Builder builder = Rel.newBuilder();
+    builder.setAggregate(aggBuilder.build());
+    return builder.build();
+  }
 }

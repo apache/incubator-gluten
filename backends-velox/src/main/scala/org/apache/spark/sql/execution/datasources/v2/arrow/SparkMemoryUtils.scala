@@ -17,21 +17,23 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
+import java.io.{ByteArrayOutputStream, PrintWriter}
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
+
+import scala.collection.JavaConverters._
+
 import io.glutenproject.spark.sql.execution.datasources.v2.arrow._
+import java.util
 import org.apache.arrow.dataset.jni.NativeMemoryPool
 import org.apache.arrow.memory.{AllocationListener, BufferAllocator, MemoryChunkCleaner, MemoryChunkManager, RootAllocator}
+
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskCompletionListener
-import org.apache.spark.{SparkEnv, TaskContext}
-
-import java.io.{ByteArrayOutputStream, PrintWriter}
-import java.util
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicLong
-import scala.collection.JavaConverters._
 
 object SparkMemoryUtils extends Logging {
 

@@ -21,20 +21,20 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.delta.DeltaOperations
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.delta.DeltaOperations
+import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 
 object ScanMergeTreePartsUtils extends Logging {
 
   def scanMergeTreePartsToAddFile(configuration: Configuration,
                                   clickHouseTableV2: ClickHouseTableV2): Seq[AddFile] = {
     // scan parts dir
-    val fs = FileSystem.get(configuration)
     val scanPath = new Path(clickHouseTableV2.path + "/*_[0-9]*_[0-9]*_[0-9]*")
+    val fs = scanPath.getFileSystem(configuration)
     val fileGlobStatuses = fs.globStatus(scanPath)
     val allDirSummary = fileGlobStatuses.filter(_.isDirectory).map(p => {
       logInfo(s"scan merge tree parts: ${p.getPath.toString}")

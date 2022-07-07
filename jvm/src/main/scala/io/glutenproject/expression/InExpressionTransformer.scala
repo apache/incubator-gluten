@@ -23,7 +23,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
 class InTransformer(value: Expression, list: Seq[Expression], original: Expression)
-    extends In(value: Expression, list: Seq[Expression])
+  extends In(value: Expression, list: Seq[Expression])
     with ExpressionTransformer
     with Logging {
 
@@ -34,7 +34,7 @@ class InTransformer(value: Expression, list: Seq[Expression], original: Expressi
     }
 
     // Stores the values in a List Literal.
-    val values : Set[Any] = list.map(value => {
+    val values: Set[Any] = list.map(value => {
       value.asInstanceOf[Literal].value
     }).toSet
 
@@ -50,5 +50,5 @@ object InExpressionTransformer {
         new InTransformer(value, list, i)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
-  }
+    }
 }

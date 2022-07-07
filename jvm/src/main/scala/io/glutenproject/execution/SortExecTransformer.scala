@@ -18,28 +18,38 @@
 package io.glutenproject.execution
 
 import io.glutenproject.substrait.SubstraitContext
-import org.apache.spark.sql.execution._
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.plans.physical._
+
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class SortExecTransformer(
-    sortOrder: Seq[SortOrder],
-    global: Boolean,
-    child: SparkPlan,
-    testSpillFrequency: Int = 0)
-    extends UnaryExecNode
+                                sortOrder: Seq[SortOrder],
+                                global: Boolean,
+                                child: SparkPlan,
+                                testSpillFrequency: Int = 0)
+  extends UnaryExecNode
     with TransformSupport {
 
+  override lazy val metrics = Map(
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_sort"),
+    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in cache all data"),
+    "sortTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in sort process"),
+    "shuffleTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in shuffle process"),
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"))
   val sparkConf = sparkContext.getConf
+  val elapse = longMetric("processTime")
+  val sortTime = longMetric("sortTime")
+  val shuffleTime = longMetric("shuffleTime")
+  val numOutputRows = longMetric("numOutputRows")
+  val numOutputBatches = longMetric("numOutputBatches")
 
   override def supportsColumnar: Boolean = true
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"ColumnarSortExec doesn't support doExecute")
-  }
 
   override def output: Seq[Attribute] = child.output
 
@@ -49,20 +59,6 @@ case class SortExecTransformer(
 
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
-
-  override lazy val metrics = Map(
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_sort"),
-    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in cache all data"),
-    "sortTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in sort process"),
-    "shuffleTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in shuffle process"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"))
-
-  val elapse = longMetric("processTime")
-  val sortTime = longMetric("sortTime")
-  val shuffleTime = longMetric("shuffleTime")
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
 
   override def getChild: SparkPlan = child
 
@@ -101,5 +97,9 @@ case class SortExecTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException(s"ColumnarSortExec doesn't support doExecute")
   }
 }

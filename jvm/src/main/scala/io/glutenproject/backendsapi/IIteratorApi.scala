@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +21,7 @@ import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
+
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -65,13 +67,14 @@ trait IIteratorApi extends IBackendsApi {
                             pipelineTime: SQLMetric,
                             updateMetrics: (Long, Long) => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
-                            : Iterator[ColumnarBatch]
+  : Iterator[ColumnarBatch]
 
   /**
    * Generate Iterator[ColumnarBatch] for final stage.
    *
    * @return
    */
+  // scalastyle:off argcount
   def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                             numaBindingInfo: GlutenNumaBindingInfo,
                             listJars: Seq[String],
@@ -85,8 +88,8 @@ trait IIteratorApi extends IBackendsApi {
                             buildRelationBatchHolder: Seq[ColumnarBatch],
                             dependentKernels: Seq[ExpressionEvaluator],
                             dependentKernelIterators: Seq[GeneralOutIterator])
-                            : Iterator[ColumnarBatch]
-
+  : Iterator[ColumnarBatch]
+  // scalastyle:on argcount
   /**
    * Generate columnar native iterator.
    *

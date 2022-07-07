@@ -18,6 +18,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -35,9 +36,9 @@ object RoundOperatorTransformer {
 
   def create(child: Expression, scale: Expression, original: Expression): Expression =
     original match {
-    case r: Round =>
-      new RoundExpression(child, scale, original)
-    case other =>
-      throw new UnsupportedOperationException(s"not currently supported: $other.")
-  }
+      case r: Round =>
+        new RoundExpression(child, scale, original)
+      case other =>
+        throw new UnsupportedOperationException(s"not currently supported: $other.")
+    }
 }

@@ -27,10 +27,10 @@ import java.util
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.{DateType, DoubleType, IntegerType, LongType, StringType}
+import org.apache.spark.sql.types._
 
 class InSetTransformer(value: Expression, hset: Set[Any], original: Expression)
-    extends InSet(value: Expression, hset: Set[Any])
+  extends InSet(value: Expression, hset: Set[Any])
     with ExpressionTransformer
     with Logging {
 
@@ -56,7 +56,7 @@ object InSetOperatorTransformer {
   def toTransformer(args: java.lang.Object,
                     value: Expression,
                     leftNode: ExpressionNode,
-                    values : Set[Any]): ExpressionNode = {
+                    values: Set[Any]): ExpressionNode = {
     val expressionNodes = Lists.newArrayList(leftNode.asInstanceOf[ExpressionNode])
     val listNode = value.dataType match {
       case _: IntegerType =>

@@ -368,7 +368,36 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.scalastyle</groupId>
+        <artifactId>scalastyle-maven-plugin</artifactId>
+        <version>1.0.0</version>
+        <configuration>
+          <configLocation>scalastyle-config.xml</configLocation>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
+
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>3.1.1</version>
+<!--        <configuration>-->
+<!--          <configLocation>${project.basedir}/dev/checkstyle.xml</configLocation>-->
+<!--        </configuration>-->
+      </plugin>
+      <plugin>
+        <groupId>org.scalastyle</groupId>
+        <artifactId>scalastyle-maven-plugin</artifactId>
+        <version>1.0.0</version>
+        <configuration>
+          <configLocation>${project.basedir}/scalastyle-config.xml</configLocation>
+        </configuration>
+      </plugin>
+    </plugins>
+  </reporting>
 
 </project>

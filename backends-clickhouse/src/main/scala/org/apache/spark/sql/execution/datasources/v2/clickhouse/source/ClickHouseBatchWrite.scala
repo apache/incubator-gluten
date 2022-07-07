@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,15 +18,17 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, LogicalWriteInfo, PhysicalWriteInfo, WriterCommitMessage}
+import org.apache.spark.sql.connector.write._
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 class ClickHouseBatchWrite(info: LogicalWriteInfo) extends BatchWrite with Logging {
 
-  def querySchema = info.schema()
+  def querySchema: StructType = info.schema()
 
-  def queryId = info.queryId()
+  def queryId: String = info.queryId()
 
-  def options = info.options()
+  def options: CaseInsensitiveStringMap = info.options()
 
   override def useCommitCoordinator(): Boolean = false
 

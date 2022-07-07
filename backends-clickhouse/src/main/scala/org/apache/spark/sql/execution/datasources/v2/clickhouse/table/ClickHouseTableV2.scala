@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,102 +17,60 @@
 
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.table
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.{DataFrame, SaveMode}
-
-import java.util.concurrent.TimeUnit
 import java.{util => ju}
+import java.util.concurrent.TimeUnit
+
+import scala.collection.JavaConverters._
+
+import org.apache.hadoop.fs.Path
 import org.sparkproject.guava.cache.{CacheBuilder, CacheLoader}
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogUtils}
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.connector.catalog._
+import org.apache.spark.sql.connector.catalog.TableCapability._
+import org.apache.spark.sql.connector.expressions._
 import org.apache.spark.sql.connector.read.ScanBuilder
+import org.apache.spark.sql.connector.write._
+import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaTableIdentifier, DeltaTableUtils, DeltaTimeTravelSpec, GeneratedColumn, Snapshot}
 import org.apache.spark.sql.delta.actions.{AddFile, SingleAction}
+import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
-import org.apache.spark.sql.delta.sources.DeltaSQLConf
+import org.apache.spark.sql.delta.sources.{DeltaDataSource, DeltaSQLConf}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseConfig, ClickHouseLog}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.{ClickHouseScanBuilder, ClickHouseWriteBuilder}
-import org.apache.spark.sql.sources.InsertableRelation
-
-// scalastyle:off import.ordering.noEmptyLine
-import scala.collection.JavaConverters._
-
-import org.apache.hadoop.fs.Path
-
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.catalog.{CatalogTable, CatalogUtils}
-import org.apache.spark.sql.connector.catalog._
-import org.apache.spark.sql.connector.catalog.TableCapability._
-import org.apache.spark.sql.connector.expressions._
-import org.apache.spark.sql.connector.write._
-import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaTableIdentifier, DeltaTableUtils, DeltaTimeTravelSpec, GeneratedColumn, Snapshot}
-import org.apache.spark.sql.delta.metering.DeltaLogging
-import org.apache.spark.sql.delta.sources.DeltaDataSource
-import org.apache.spark.sql.sources.BaseRelation
+import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 /**
- * The data source V2 representation of a ClickHouse table that exists.
- *
- * @param path The path to the table
- * @param tableIdentifier The table identifier for this table
- */
+  * The data source V2 representation of a ClickHouse table that exists.
+  *
+  * @param path            The path to the table
+  * @param tableIdentifier The table identifier for this table
+  */
 case class ClickHouseTableV2(
-    spark: SparkSession,
-    path: Path,
-    catalogTable: Option[CatalogTable] = None,
-    tableIdentifier: Option[String] = None,
-    timeTravelOpt: Option[DeltaTimeTravelSpec] = None,
-    options: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty())
+                              spark: SparkSession,
+                              path: Path,
+                              catalogTable: Option[CatalogTable] = None,
+                              tableIdentifier: Option[String] = None,
+                              timeTravelOpt: Option[DeltaTimeTravelSpec] = None,
+                              options: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty())
   extends Table
-  with SupportsWrite
-  with SupportsRead
-  with V2TableWithV1Fallback
-  with DeltaLogging {
-
-  private lazy val (rootPath, partitionFilters, timeTravelByPath) = {
-    if (catalogTable.isDefined) {
-      // Fast path for reducing path munging overhead
-      (new Path(catalogTable.get.location), Nil, None)
-    } else {
-      DeltaDataSource.parsePathIdentifier(spark, path.toString)
-    }
-  }
+    with SupportsWrite
+    with SupportsRead
+    with V2TableWithV1Fallback
+    with DeltaLogging {
 
   // The loading of the DeltaLog is lazy in order to reduce the amount of FileSystem calls,
   // in cases where we will fallback to the V1 behavior.
   lazy val deltaLog: DeltaLog = ClickHouseLog.forTable(spark, rootPath)
-
-  def updateSnapshot(forceUpdate: Boolean = false): Snapshot = {
-    val needToUpdate = forceUpdate || ClickHouseTableV2.isSnapshotStale
-    if (needToUpdate) {
-      val snapshotUpdated = deltaLog.update()
-      ClickHouseTableV2.fileStatusCache.invalidate(this.rootPath)
-      ClickHouseTableV2.lastUpdateTimestamp = System.currentTimeMillis()
-      snapshotUpdated
-    } else {
-      deltaLog.snapshot
-    }
-  }
-
-  def getTableIdentifierIfExists: Option[TableIdentifier] = tableIdentifier.map(
-    spark.sessionState.sqlParser.parseTableIdentifier)
-
-  override def name(): String = catalogTable.map(_.identifier.unquotedString)
-    .orElse(tableIdentifier)
-    .getOrElse(s"clickhouse.`${deltaLog.dataPath}`")
-
-  private lazy val timeTravelSpec: Option[DeltaTimeTravelSpec] = {
-    if (timeTravelOpt.isDefined && timeTravelByPath.isDefined) {
-      throw DeltaErrors.multipleTimeTravelSyntaxUsed
-    }
-    timeTravelOpt.orElse(timeTravelByPath)
-  }
-
   lazy val snapshot: Snapshot = {
     timeTravelSpec.map { spec =>
       val (version, accessType) = DeltaTableUtils.resolveTimeTravelVersion(
@@ -125,9 +84,29 @@ case class ClickHouseTableV2(
       deltaLog.getSnapshotAt(version)
     }.getOrElse(updateSnapshot())
   }
-
+  private lazy val (rootPath, partitionFilters, timeTravelByPath) = {
+    if (catalogTable.isDefined) {
+      // Fast path for reducing path munging overhead
+      (new Path(catalogTable.get.location), Nil, None)
+    } else {
+      DeltaDataSource.parsePathIdentifier(spark, path.toString)
+    }
+  }
+  private lazy val timeTravelSpec: Option[DeltaTimeTravelSpec] = {
+    if (timeTravelOpt.isDefined && timeTravelByPath.isDefined) {
+      throw DeltaErrors.multipleTimeTravelSyntaxUsed
+    }
+    timeTravelOpt.orElse(timeTravelByPath)
+  }
   private lazy val tableSchema: StructType =
     GeneratedColumn.removeGenerationExpressions(snapshot.schema)
+
+  def getTableIdentifierIfExists: Option[TableIdentifier] = tableIdentifier.map(
+    spark.sessionState.sqlParser.parseTableIdentifier)
+
+  override def name(): String = catalogTable.map(_.identifier.unquotedString)
+    .orElse(tableIdentifier)
+    .getOrElse(s"clickhouse.`${deltaLog.dataPath}`")
 
   override def schema(): StructType = tableSchema
 
@@ -162,8 +141,8 @@ case class ClickHouseTableV2(
   }
 
   /**
-   * Return V1Table.
-   */
+    * Return V1Table.
+    */
   override def v1Table: CatalogTable = {
     if (catalogTable.isEmpty) {
       throw new IllegalStateException("v1Table call is not expected with path based DeltaTableV2")
@@ -176,9 +155,9 @@ case class ClickHouseTableV2(
   }
 
   /**
-   * Creates a V1 BaseRelation from this Table to allow read APIs to go through V1 DataSource code
-   * paths.
-   */
+    * Creates a V1 BaseRelation from this Table to allow read APIs to go through V1 DataSource code
+    * paths.
+    */
   def toBaseRelation: BaseRelation = {
     if (!deltaLog.tableExists) {
       val id = catalogTable.map(ct => DeltaTableIdentifier(table = Some(ct.identifier)))
@@ -193,14 +172,14 @@ case class ClickHouseTableV2(
   }
 
   /**
-   * Create ClickHouseFileIndex and HadoopFsRelation for DS V1.
-   */
+    * Create ClickHouseFileIndex and HadoopFsRelation for DS V1.
+    */
   def createV1Relation(
-                      partitionFilters: Seq[Expression] = Nil,
-                      snapshotToUseOpt: Option[Snapshot] = None,
-                      isTimeTravelQuery: Boolean = false,
-                      cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty
-                    ): BaseRelation = {
+                        partitionFilters: Seq[Expression] = Nil,
+                        snapshotToUseOpt: Option[Snapshot] = None,
+                        isTimeTravelQuery: Boolean = false,
+                        cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty
+                      ): BaseRelation = {
     val snapshotToUse = snapshotToUseOpt.getOrElse(deltaLog.snapshot)
     if (snapshotToUse.version < 0) {
       // A negative version here means the dataPath is an empty directory. Read query should error
@@ -227,8 +206,8 @@ case class ClickHouseTableV2(
   }
 
   /**
-   * Check the passed in options and existing timeTravelOpt, set new time travel by options.
-   */
+    * Check the passed in options and existing timeTravelOpt, set new time travel by options.
+    */
   def withOptions(options: Map[String, String]): ClickHouseTableV2 = {
     val ttSpec = DeltaDataSource.getTimeTravelVersion(options)
     if (timeTravelOpt.nonEmpty && ttSpec.nonEmpty) {
@@ -242,10 +221,22 @@ case class ClickHouseTableV2(
   }
 
   /**
-   * Refresh table to load latest snapshot
-   */
+    * Refresh table to load latest snapshot
+    */
   def refresh(): Unit = {
     updateSnapshot(true)
+  }
+
+  def updateSnapshot(forceUpdate: Boolean = false): Snapshot = {
+    val needToUpdate = forceUpdate || ClickHouseTableV2.isSnapshotStale
+    if (needToUpdate) {
+      val snapshotUpdated = deltaLog.update()
+      ClickHouseTableV2.fileStatusCache.invalidate(this.rootPath)
+      ClickHouseTableV2.lastUpdateTimestamp = System.currentTimeMillis()
+      snapshotUpdated
+    } else {
+      deltaLog.snapshot
+    }
   }
 
   def listFiles(partitionFilters: Seq[Expression] = Seq.empty[Expression],
@@ -256,16 +247,7 @@ case class ClickHouseTableV2(
   }
 }
 
-object ClickHouseTableV2 extends Logging{
-  protected var lastUpdateTimestamp: Long = -1L
-  protected val stalenessLimit = SparkSession.active.sessionState.conf.getConf(
-    DeltaSQLConf.DELTA_ASYNC_UPDATE_STALENESS_TIME_LIMIT)
-
-  def isSnapshotStale: Boolean = {
-    stalenessLimit == 0L || lastUpdateTimestamp < 0 ||
-      System.currentTimeMillis() - lastUpdateTimestamp >= stalenessLimit
-  }
-
+object ClickHouseTableV2 extends Logging {
   val fileStatusCacheLoader: CacheLoader[Path, Seq[AddMergeTreeParts]] =
     new CacheLoader[Path, Seq[AddMergeTreeParts]]() {
       @throws[Exception]
@@ -273,11 +255,18 @@ object ClickHouseTableV2 extends Logging{
         getTableParts(tablePath)
       }
     }
-
   val fileStatusCache = CacheBuilder.newBuilder
     .maximumSize(1000)
     .expireAfterAccess(3600L, TimeUnit.SECONDS)
     .recordStats.build[Path, Seq[AddMergeTreeParts]](fileStatusCacheLoader)
+  protected val stalenessLimit = SparkSession.active.sessionState.conf.getConf(
+    DeltaSQLConf.DELTA_ASYNC_UPDATE_STALENESS_TIME_LIMIT)
+  protected var lastUpdateTimestamp: Long = -1L
+
+  def isSnapshotStale: Boolean = {
+    stalenessLimit == 0L || lastUpdateTimestamp < 0 ||
+      System.currentTimeMillis() - lastUpdateTimestamp >= stalenessLimit
+  }
 
   def getTableParts(tablePath: Path): Seq[AddMergeTreeParts] = {
     implicit val enc = SingleAction.addFileEncoder

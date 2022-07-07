@@ -20,17 +20,18 @@ package io.glutenproject.substrait.extensions;
 import com.google.protobuf.Any;
 
 public class ExtensionBuilder {
-    private ExtensionBuilder() {}
+  private ExtensionBuilder() {
+  }
 
-    public static FunctionMappingNode makeFunctionMapping(String name, Long functionId) {
-        return new FunctionMappingNode(name, functionId);
-    }
+  public static FunctionMappingNode makeFunctionMapping(String name, Long functionId) {
+    return new FunctionMappingNode(name, functionId);
+  }
 
-    public static AdvancedExtensionNode makeAdvancedExtension(Any enhancement) {
-        return new AdvancedExtensionNode(enhancement);
-    }
+  public static AdvancedExtensionNode makeAdvancedExtension(Any enhancement) {
+    return new AdvancedExtensionNode(enhancement);
+  }
 
-    public static AdvancedExtensionNode makeAdvancedExtension(Any optimization, Any enhancement) {
-        return new AdvancedExtensionNode(optimization, enhancement);
-    }
+  public static AdvancedExtensionNode makeAdvancedExtension(Any optimization, Any enhancement) {
+    return new AdvancedExtensionNode(optimization, enhancement);
+  }
 }

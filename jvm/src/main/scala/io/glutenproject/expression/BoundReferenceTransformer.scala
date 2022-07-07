@@ -18,12 +18,13 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.sql.catalyst.expressions._
+
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
-    extends BoundReference(ordinal, dataType, nullable)
+  extends BoundReference(ordinal, dataType, nullable)
     with ExpressionTransformer
     with Logging {
 

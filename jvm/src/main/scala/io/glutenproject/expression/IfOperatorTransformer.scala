@@ -18,12 +18,13 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
 class IfTransformer(predicate: Expression, trueValue: Expression,
-                 falseValue: Expression, original: Expression)
-    extends If(predicate: Expression, trueValue: Expression, falseValue: Expression)
+                    falseValue: Expression, original: Expression)
+  extends If(predicate: Expression, trueValue: Expression, falseValue: Expression)
     with ExpressionTransformer
     with Logging {
 

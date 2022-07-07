@@ -23,20 +23,20 @@ import io.substrait.proto.Expression;
 import java.io.Serializable;
 
 public class NullLiteralNode implements ExpressionNode, Serializable {
-    private final TypeNode typeNode;
+  private final TypeNode typeNode;
 
-    public NullLiteralNode(TypeNode typeNode) {
-        this.typeNode = typeNode;
-    }
+  public NullLiteralNode(TypeNode typeNode) {
+    this.typeNode = typeNode;
+  }
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.Literal.Builder literalBuilder =
-                Expression.Literal.newBuilder();
-        literalBuilder.setNull(typeNode.toProtobuf());
+  @Override
+  public Expression toProtobuf() {
+    Expression.Literal.Builder literalBuilder =
+        Expression.Literal.newBuilder();
+    literalBuilder.setNull(typeNode.toProtobuf());
 
-        Expression.Builder builder = Expression.newBuilder();
-        builder.setLiteral(literalBuilder.build());
-        return builder.build();
-    }
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setLiteral(literalBuilder.build());
+    return builder.build();
+  }
 }

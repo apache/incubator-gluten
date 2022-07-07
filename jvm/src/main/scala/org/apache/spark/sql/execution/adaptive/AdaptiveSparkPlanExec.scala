@@ -17,10 +17,9 @@
 
 package org.apache.spark.sql.execution.adaptive
 
-import java.util
 import java.util.concurrent.LinkedBlockingQueue
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -59,14 +58,23 @@ import org.apache.spark.util.ThreadUtils
  * the rest of the plan.
  */
 case class AdaptiveSparkPlanExec(
-    inputPlan: SparkPlan,
-    @transient context: AdaptiveExecutionContext,
-    @transient preprocessingRules: Seq[Rule[SparkPlan]],
-    @transient isSubquery: Boolean)
+                                  inputPlan: SparkPlan,
+                                  @transient context: AdaptiveExecutionContext,
+                                  @transient preprocessingRules: Seq[Rule[SparkPlan]],
+                                  @transient isSubquery: Boolean)
   extends LeafExecNode {
 
+  // Use a lazy val to avoid this being called more than once.
+  @transient private lazy val finalPlanUpdate: Unit = {
+    // Subqueries that don't belong to any query stage of the main query will execute after the
+    // last UI update in `getFinalPhysicalPlan`, so we need to update UI here again to make sure
+    // the newly generated nodes of those subqueries are updated.
+    if (!isSubquery && currentPhysicalPlan.find(_.subqueries.nonEmpty).isDefined) {
+      getExecutionId.foreach(onUpdatePlan(_, Seq.empty))
+    }
+    logOnLevel(s"Final plan: $currentPhysicalPlan")
+  }
   @transient private val lock = new Object()
-
   @transient private val logOnLevel: ( => String) => Unit = conf.adaptiveExecutionLogLevel match {
     case "TRACE" => logTrace(_)
     case "DEBUG" => logDebug(_)
@@ -75,22 +83,9 @@ case class AdaptiveSparkPlanExec(
     case "ERROR" => logError(_)
     case _ => logDebug(_)
   }
-
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-
   // The logical plan optimizer for re-optimizing the current logical plan.
   @transient private val optimizer = new AQEOptimizer(conf)
-
-  // A list of physical plan rules to be applied before creation of query stages. The physical
-  // plan should reach a final status of query stages (i.e., no more addition or removal of
-  // Exchange nodes) after running these rules.
-  private def queryStagePreparationRules: Seq[Rule[SparkPlan]] = Seq(
-    RemoveRedundantProjects,
-    EnsureRequirements,
-    RemoveRedundantSorts,
-    DisableUnnecessaryBucketedScan
-  ) ++ context.session.sessionState.queryStagePrepRules
-
   // A list of physical optimizer rules to be applied to a new stage before its execution. These
   // optimizations should be stage-independent.
   @transient private val queryStageOptimizerRules: Seq[Rule[SparkPlan]] = Seq(
@@ -108,6 +103,149 @@ case class AdaptiveSparkPlanExec(
     ApplyColumnarRulesAndInsertTransitions(context.session.sessionState.columnarRules),
     CollapseCodegenStages()
   )
+  @transient private val costEvaluator = SimpleCostEvaluator
+  @transient private val initialPlan = context.session.withActive {
+    applyPhysicalRules(
+      inputPlan, queryStagePreparationRules, Some((planChangeLogger, "AQE Preparations")))
+  }
+  @volatile private var currentPhysicalPlan = initialPlan
+  private var isFinalPlan = false
+  private var currentStageId = 0
+
+  override def conf: SQLConf = context.session.sessionState.conf
+
+  override def output: Seq[Attribute] = inputPlan.output
+
+  override def doCanonicalize(): SparkPlan = inputPlan.canonicalized
+
+  override def resetMetrics(): Unit = {
+    metrics.valuesIterator.foreach(_.reset())
+    executedPlan.resetMetrics()
+  }
+
+  def executedPlan: SparkPlan = currentPhysicalPlan
+
+  override def executeCollect(): Array[InternalRow] = {
+    val rdd = getFinalPhysicalPlan().executeCollect()
+    finalPlanUpdate
+    rdd
+  }
+
+  override def executeTake(n: Int): Array[InternalRow] = {
+    val rdd = getFinalPhysicalPlan().executeTake(n)
+    finalPlanUpdate
+    rdd
+  }
+
+  override def executeTail(n: Int): Array[InternalRow] = {
+    val rdd = getFinalPhysicalPlan().executeTail(n)
+    finalPlanUpdate
+    rdd
+  }
+
+  override def doExecute(): RDD[InternalRow] = {
+    val rdd = getFinalPhysicalPlan().execute()
+    finalPlanUpdate
+    rdd
+  }
+
+  override def generateTreeString(
+                                   depth: Int,
+                                   lastChildren: Seq[Boolean],
+                                   append: String => Unit,
+                                   verbose: Boolean,
+                                   prefix: String = "",
+                                   addSuffix: Boolean = false,
+                                   maxFields: Int,
+                                   printNodeId: Boolean,
+                                   indent: Int = 0): Unit = {
+    super.generateTreeString(
+      depth,
+      lastChildren,
+      append,
+      verbose,
+      prefix,
+      addSuffix,
+      maxFields,
+      printNodeId,
+      indent)
+    if (currentPhysicalPlan.fastEquals(initialPlan)) {
+      currentPhysicalPlan.generateTreeString(
+        depth + 1,
+        lastChildren :+ true,
+        append,
+        verbose,
+        prefix = "",
+        addSuffix = false,
+        maxFields,
+        printNodeId,
+        indent)
+    } else {
+      generateTreeStringWithHeader(
+        if (isFinalPlan) "Final Plan" else "Current Plan",
+        currentPhysicalPlan,
+        depth,
+        lastChildren,
+        append,
+        verbose,
+        maxFields,
+        printNodeId)
+      generateTreeStringWithHeader(
+        "Initial Plan",
+        initialPlan,
+        depth,
+        lastChildren,
+        append,
+        verbose,
+        maxFields,
+        printNodeId)
+    }
+  }
+
+  private def generateTreeStringWithHeader(
+                                            header: String,
+                                            plan: SparkPlan,
+                                            depth: Int,
+                                            lastChildren: Seq[Boolean],
+                                            append: String => Unit,
+                                            verbose: Boolean,
+                                            maxFields: Int,
+                                            printNodeId: Boolean): Unit = {
+    append("   " * depth)
+    append(s"+- == $header ==\n")
+    plan.generateTreeString(
+      0,
+      Nil,
+      append,
+      verbose,
+      prefix = "",
+      addSuffix = false,
+      maxFields,
+      printNodeId,
+      indent = depth + 1)
+  }
+
+  override def hashCode(): Int = inputPlan.hashCode()
+
+  override def equals(obj: Any): Boolean = {
+    if (!obj.isInstanceOf[AdaptiveSparkPlanExec]) {
+      return false
+    }
+
+    this.inputPlan == obj.asInstanceOf[AdaptiveSparkPlanExec].inputPlan
+  }
+
+  protected override def stringArgs: Iterator[Any] = Iterator(s"isFinalPlan=$isFinalPlan")
+
+  // A list of physical plan rules to be applied before creation of query stages. The physical
+  // plan should reach a final status of query stages (i.e., no more addition or removal of
+  // Exchange nodes) after running these rules.
+  private def queryStagePreparationRules: Seq[Rule[SparkPlan]] = Seq(
+    RemoveRedundantProjects,
+    EnsureRequirements,
+    RemoveRedundantSorts,
+    DisableUnnecessaryBucketedScan
+  ) ++ context.session.sessionState.queryStagePrepRules
 
   // The partitioning of the query output depends on the shuffle(s) in the final stage. If the
   // original plan contains a repartition operator, we need to preserve the specified partitioning,
@@ -124,43 +262,6 @@ case class AdaptiveSparkPlanExec(
         origins.forall(c.supportedShuffleOrigins.contains)
       case _ => true
     }
-  }
-
-  @transient private val costEvaluator = SimpleCostEvaluator
-
-  @transient private val initialPlan = context.session.withActive {
-    applyPhysicalRules(
-      inputPlan, queryStagePreparationRules, Some((planChangeLogger, "AQE Preparations")))
-  }
-
-  @volatile private var currentPhysicalPlan = initialPlan
-
-  private var isFinalPlan = false
-
-  private var currentStageId = 0
-
-  /**
-   * Return type for `createQueryStages`
-   * @param newPlan the new plan with created query stages.
-   * @param allChildStagesMaterialized whether all child stages have been materialized.
-   * @param newStages the newly created query stages, including new reused query stages.
-   */
-  private case class CreateStageResult(
-    newPlan: SparkPlan,
-    allChildStagesMaterialized: Boolean,
-    newStages: Seq[QueryStageExec])
-
-  def executedPlan: SparkPlan = currentPhysicalPlan
-
-  override def conf: SQLConf = context.session.sessionState.conf
-
-  override def output: Seq[Attribute] = inputPlan.output
-
-  override def doCanonicalize(): SparkPlan = inputPlan.canonicalized
-
-  override def resetMetrics(): Unit = {
-    metrics.valuesIterator.foreach(_.reset())
-    executedPlan.resetMetrics()
   }
 
   private def getExecutionId: Option[Long] = {
@@ -210,7 +311,7 @@ case class AdaptiveSparkPlanExec(
         // new stages can be created. There might be other stages that finish at around the same
         // time, so we process those stages too in order to reduce re-planning.
         val nextMsg = events.take()
-        val rem = new util.ArrayList[StageMaterializationEvent]()
+        val rem = new java.util.ArrayList[StageMaterializationEvent]()
         events.drainTo(rem)
         (Seq(nextMsg) ++ rem.asScala).foreach {
           case StageSuccess(stage, res) =>
@@ -240,7 +341,7 @@ case class AdaptiveSparkPlanExec(
         val origCost = costEvaluator.evaluateCost(currentPhysicalPlan)
         val newCost = costEvaluator.evaluateCost(newPhysicalPlan)
         if (newCost < origCost ||
-            (newCost == origCost && currentPhysicalPlan != newPhysicalPlan)) {
+          (newCost == origCost && currentPhysicalPlan != newPhysicalPlan)) {
           logOnLevel(s"Plan changed from $currentPhysicalPlan to $newPhysicalPlan")
           cleanUpTempTags(newPhysicalPlan)
           currentPhysicalPlan = newPhysicalPlan
@@ -262,130 +363,6 @@ case class AdaptiveSparkPlanExec(
     }
   }
 
-  // Use a lazy val to avoid this being called more than once.
-  @transient private lazy val finalPlanUpdate: Unit = {
-    // Subqueries that don't belong to any query stage of the main query will execute after the
-    // last UI update in `getFinalPhysicalPlan`, so we need to update UI here again to make sure
-    // the newly generated nodes of those subqueries are updated.
-    if (!isSubquery && currentPhysicalPlan.find(_.subqueries.nonEmpty).isDefined) {
-      getExecutionId.foreach(onUpdatePlan(_, Seq.empty))
-    }
-    logOnLevel(s"Final plan: $currentPhysicalPlan")
-  }
-
-  override def executeCollect(): Array[InternalRow] = {
-    val rdd = getFinalPhysicalPlan().executeCollect()
-    finalPlanUpdate
-    rdd
-  }
-
-  override def executeTake(n: Int): Array[InternalRow] = {
-    val rdd = getFinalPhysicalPlan().executeTake(n)
-    finalPlanUpdate
-    rdd
-  }
-
-  override def executeTail(n: Int): Array[InternalRow] = {
-    val rdd = getFinalPhysicalPlan().executeTail(n)
-    finalPlanUpdate
-    rdd
-  }
-
-  override def doExecute(): RDD[InternalRow] = {
-    val rdd = getFinalPhysicalPlan().execute()
-    finalPlanUpdate
-    rdd
-  }
-
-  protected override def stringArgs: Iterator[Any] = Iterator(s"isFinalPlan=$isFinalPlan")
-
-  override def generateTreeString(
-      depth: Int,
-      lastChildren: Seq[Boolean],
-      append: String => Unit,
-      verbose: Boolean,
-      prefix: String = "",
-      addSuffix: Boolean = false,
-      maxFields: Int,
-      printNodeId: Boolean,
-      indent: Int = 0): Unit = {
-    super.generateTreeString(
-      depth,
-      lastChildren,
-      append,
-      verbose,
-      prefix,
-      addSuffix,
-      maxFields,
-      printNodeId,
-      indent)
-    if (currentPhysicalPlan.fastEquals(initialPlan)) {
-      currentPhysicalPlan.generateTreeString(
-        depth + 1,
-        lastChildren :+ true,
-        append,
-        verbose,
-        prefix = "",
-        addSuffix = false,
-        maxFields,
-        printNodeId,
-        indent)
-    } else {
-      generateTreeStringWithHeader(
-        if (isFinalPlan) "Final Plan" else "Current Plan",
-        currentPhysicalPlan,
-        depth,
-        lastChildren,
-        append,
-        verbose,
-        maxFields,
-        printNodeId)
-      generateTreeStringWithHeader(
-        "Initial Plan",
-        initialPlan,
-        depth,
-        lastChildren,
-        append,
-        verbose,
-        maxFields,
-        printNodeId)
-    }
-  }
-
-
-  private def generateTreeStringWithHeader(
-      header: String,
-      plan: SparkPlan,
-      depth: Int,
-      lastChildren: Seq[Boolean],
-      append: String => Unit,
-      verbose: Boolean,
-      maxFields: Int,
-      printNodeId: Boolean): Unit = {
-    append("   " * depth)
-    append(s"+- == $header ==\n")
-    plan.generateTreeString(
-      0,
-      Nil,
-      append,
-      verbose,
-      prefix = "",
-      addSuffix = false,
-      maxFields,
-      printNodeId,
-      indent = depth + 1)
-  }
-
-  override def hashCode(): Int = inputPlan.hashCode()
-
-  override def equals(obj: Any): Boolean = {
-    if (!obj.isInstanceOf[AdaptiveSparkPlanExec]) {
-      return false
-    }
-
-    this.inputPlan == obj.asInstanceOf[AdaptiveSparkPlanExec].inputPlan
-  }
-
   /**
    * This method is called recursively to traverse the plan tree bottom-up and create a new query
    * stage or try reusing an existing stage if the current node is an [[Exchange]] node and all of
@@ -400,7 +377,8 @@ case class AdaptiveSparkPlanExec(
     case e: Exchange =>
       // First have a quick check in the `stageCache` without having to traverse down the node.
       context.stageCache.get(e.canonicalized) match {
-        case Some(existingStage) if conf.exchangeReuseEnabled && (existingStage.schema == e.schema) =>
+        case Some(existingStage)
+          if conf.exchangeReuseEnabled && (existingStage.schema == e.schema) =>
           val stage = reuseQueryStage(existingStage, e)
           val isMaterialized = stage.resultOption.get().isDefined
           CreateStageResult(
@@ -508,35 +486,36 @@ case class AdaptiveSparkPlanExec(
    * For each query stage in `stagesToReplace`, find their corresponding logical nodes in the
    * `logicalPlan` and replace them with new [[LogicalQueryStage]] nodes.
    * 1. If the query stage can be mapped to an integral logical sub-tree, replace the corresponding
-   *    logical sub-tree with a leaf node [[LogicalQueryStage]] referencing this query stage. For
-   *    example:
-   *        Join                   SMJ                      SMJ
-   *      /     \                /    \                   /    \
-   *    r1      r2    =>    Xchg1     Xchg2    =>    Stage1     Stage2
-   *                          |        |
-   *                          r1       r2
-   *    The updated plan node will be:
-   *                               Join
-   *                             /     \
-   *    LogicalQueryStage1(Stage1)     LogicalQueryStage2(Stage2)
+   * logical sub-tree with a leaf node [[LogicalQueryStage]] referencing this query stage. For
+   * example:
+   * Join                   SMJ                      SMJ
+   * /     \                /    \                   /    \
+   * r1      r2    =>    Xchg1     Xchg2    =>    Stage1     Stage2
+   * |        |
+   * r1       r2
+   * The updated plan node will be:
+   * Join
+   * /     \
+   * LogicalQueryStage1(Stage1)     LogicalQueryStage2(Stage2)
    *
    * 2. Otherwise (which means the query stage can only be mapped to part of a logical sub-tree),
-   *    replace the corresponding logical sub-tree with a leaf node [[LogicalQueryStage]]
-   *    referencing to the top physical node into which this logical node is transformed during
-   *    physical planning. For example:
-   *     Agg           HashAgg          HashAgg
-   *      |               |                |
-   *    child    =>     Xchg      =>     Stage1
-   *                      |
-   *                   HashAgg
-   *                      |
-   *                    child
-   *    The updated plan node will be:
-   *    LogicalQueryStage(HashAgg - Stage1)
+   * replace the corresponding logical sub-tree with a leaf node [[LogicalQueryStage]]
+   * referencing to the top physical node into which this logical node is transformed during
+   * physical planning. For example:
+   * Agg           HashAgg          HashAgg
+   * |               |                |
+   * child    =>     Xchg      =>     Stage1
+   * |
+   * HashAgg
+   * |
+   * child
+   * The updated plan node will be:
+   * LogicalQueryStage(HashAgg - Stage1)
    */
   private def replaceWithQueryStagesInLogicalPlan(
-      plan: LogicalPlan,
-      stagesToReplace: Seq[QueryStageExec]): LogicalPlan = {
+                                                   plan: LogicalPlan,
+                                                   stagesToReplace: Seq[QueryStageExec])
+  : LogicalPlan = {
     var logicalPlan = plan
     stagesToReplace.foreach {
       case stage if currentPhysicalPlan.find(_.eq(stage)).isDefined =>
@@ -632,8 +611,8 @@ case class AdaptiveSparkPlanExec(
    * materialization errors and stage cancellation errors.
    */
   private def cleanUpAndThrowException(
-       errors: Seq[Throwable],
-       earlyFailedStage: Option[Int]): Unit = {
+                                        errors: Seq[Throwable],
+                                        earlyFailedStage: Option[Int]): Unit = {
     currentPhysicalPlan.foreach {
       // earlyFailedStage is the stage which failed before calling doMaterialize,
       // so we should avoid calling cancel on it to re-trigger the failure again.
@@ -655,12 +634,22 @@ case class AdaptiveSparkPlanExec(
     }
     throw e
   }
+
+  /**
+   * Return type for `createQueryStages`
+   *
+   * @param newPlan                    the new plan with created query stages.
+   * @param allChildStagesMaterialized whether all child stages have been materialized.
+   * @param newStages                  the newly created query stages,
+   *                                   including new reused query stages.
+   */
+  private case class CreateStageResult(
+                                        newPlan: SparkPlan,
+                                        allChildStagesMaterialized: Boolean,
+                                        newStages: Seq[QueryStageExec])
 }
 
 object AdaptiveSparkPlanExec {
-  private[adaptive] val executionContext = ExecutionContext.fromExecutorService(
-    ThreadUtils.newDaemonCachedThreadPool("QueryStageCreator", 16))
-
   /**
    * The temporary [[LogicalPlan]] link for query stages.
    *
@@ -672,14 +661,17 @@ object AdaptiveSparkPlanExec {
    * the temp logical links.
    */
   val TEMP_LOGICAL_PLAN_TAG = TreeNodeTag[LogicalPlan]("temp_logical_plan")
+  private[adaptive] val executionContext = ExecutionContext.fromExecutorService(
+    ThreadUtils.newDaemonCachedThreadPool("QueryStageCreator", 16))
 
   /**
    * Apply a list of physical operator rules on a [[SparkPlan]].
    */
   def applyPhysicalRules(
-      plan: SparkPlan,
-      rules: Seq[Rule[SparkPlan]],
-      loggerAndBatchName: Option[(PlanChangeLogger[SparkPlan], String)] = None): SparkPlan = {
+                          plan: SparkPlan,
+                          rules: Seq[Rule[SparkPlan]],
+                          loggerAndBatchName: Option[(PlanChangeLogger[SparkPlan], String)] = None)
+  : SparkPlan = {
     if (loggerAndBatchName.isEmpty) {
       rules.foldLeft(plan) { case (sp, rule) => rule.apply(sp) }
     } else {

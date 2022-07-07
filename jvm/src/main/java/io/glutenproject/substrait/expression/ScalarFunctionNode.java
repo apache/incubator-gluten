@@ -24,29 +24,29 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class ScalarFunctionNode implements ExpressionNode, Serializable {
-    private final Long functionId;
-    private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
-    private final TypeNode typeNode;
+  private final Long functionId;
+  private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
+  private final TypeNode typeNode;
 
-    ScalarFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
-                       TypeNode typeNode) {
-        this.functionId = functionId;
-        this.expressionNodes.addAll(expressionNodes);
-        this.typeNode = typeNode;
+  ScalarFunctionNode(Long functionId, ArrayList<ExpressionNode> expressionNodes,
+                     TypeNode typeNode) {
+    this.functionId = functionId;
+    this.expressionNodes.addAll(expressionNodes);
+    this.typeNode = typeNode;
+  }
+
+  @Override
+  public Expression toProtobuf() {
+    Expression.ScalarFunction.Builder scalarBuilder =
+        Expression.ScalarFunction.newBuilder();
+    scalarBuilder.setFunctionReference(functionId.intValue());
+    for (ExpressionNode expressionNode : expressionNodes) {
+      scalarBuilder.addArgs(expressionNode.toProtobuf());
     }
+    scalarBuilder.setOutputType(typeNode.toProtobuf());
 
-    @Override
-    public Expression toProtobuf() {
-        Expression.ScalarFunction.Builder scalarBuilder =
-                Expression.ScalarFunction.newBuilder();
-        scalarBuilder.setFunctionReference(functionId.intValue());
-        for (ExpressionNode expressionNode : expressionNodes) {
-            scalarBuilder.addArgs(expressionNode.toProtobuf());
-        }
-        scalarBuilder.setOutputType(typeNode.toProtobuf());
-
-        Expression.Builder builder = Expression.newBuilder();
-        builder.setScalarFunction(scalarBuilder.build());
-        return builder.build();
-    }
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setScalarFunction(scalarBuilder.build());
+    return builder.build();
+  }
 }
