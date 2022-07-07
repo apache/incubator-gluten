@@ -30,7 +30,7 @@
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
-DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
+DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
 
 using namespace boost::filesystem;
 namespace fs = std::filesystem;

@@ -19,10 +19,12 @@
 
 #include <arrow/c/bridge.h>
 #include <arrow/util/range.h>
+#include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
 #include <velox/common/memory/Memory.h>
 #include <velox/substrait/SubstraitToVeloxPlan.h>
 
+#include <thread>
 #include <utility>
 
 #include "compute/protobuf_utils.h"
@@ -32,6 +34,9 @@
 DECLARE_bool(print_result);
 DECLARE_int32(cpu);
 DECLARE_int32(threads);
+
+using GetInputFunc =
+    std::shared_ptr<gluten::ArrowArrayResultIterator>(const std::string&);
 
 /// Initilize the Velox backend.
 void InitVeloxBackend();
@@ -75,7 +80,13 @@ class BatchIteratorWrapper {
         &recordBatchReader_));
   }
 
+  int64_t GetCollectBatchTime() {
+    return collectBatchTime_;
+  }
+
  protected:
+  int64_t collectBatchTime_ = 0;
+
   std::string path_;
   std::unique_ptr<::parquet::arrow::FileReader> fileReader_;
   std::shared_ptr<arrow::RecordBatchReader> recordBatchReader_;
@@ -86,7 +97,8 @@ class BatchVectorIterator : public BatchIteratorWrapper {
   explicit BatchVectorIterator(const std::string& path)
       : BatchIteratorWrapper(path) {
     CreateReader();
-    GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
+    CollectBatches();
+
     iter_ = batches_.begin();
 #ifdef GLUTEN_PRINT_DEBUG
     std::cout << "Number of input batches: " << std::to_string(batches_.size())
@@ -104,6 +116,15 @@ class BatchVectorIterator : public BatchIteratorWrapper {
   }
 
  private:
+  void CollectBatches() {
+    auto startTime = std::chrono::steady_clock::now();
+    GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
+    auto endTime = std::chrono::steady_clock::now();
+    collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             endTime - startTime)
+                             .count();
+  }
+
   arrow::RecordBatchVector batches_;
   std::vector<std::shared_ptr<arrow::RecordBatch>>::const_iterator iter_;
 };
@@ -116,12 +137,16 @@ class BatchStreamIterator : public BatchIteratorWrapper {
   }
 
   arrow::Result<std::shared_ptr<ArrowArray>> Next() override {
+    auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
     if (batch == nullptr) {
       return nullptr;
     }
     auto cArray = std::make_shared<ArrowArray>();
     GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get()));
+    collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             std::chrono::steady_clock::now() - startTime)
+                             .count();
     return cArray;
   }
 };
