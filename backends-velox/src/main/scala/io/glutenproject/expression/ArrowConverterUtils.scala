@@ -17,9 +17,11 @@
 
 package io.glutenproject.expression
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream, OutputStream}
+import java.io._
 import java.nio.channels.Channels
+
 import scala.collection.JavaConverters._
+
 import com.google.common.collect.Lists
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
@@ -29,19 +31,20 @@ import org.apache.arrow.gandiva.expression.{ExpressionTree, TreeBuilder, TreeNod
 import org.apache.arrow.gandiva.ipc.GandivaTypes
 import org.apache.arrow.gandiva.ipc.GandivaTypes.ExpressionList
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.ipc.{ReadChannel, WriteChannel}
-import org.apache.arrow.vector.ipc.message.{ArrowRecordBatch, IpcOption, MessageChannelReader, MessageResult, MessageSerializer}
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.arrow.vector.{FieldVector, ValueVector}
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
+import org.apache.arrow.vector.ipc.{ReadChannel, WriteChannel}
+import org.apache.arrow.vector.ipc.message._
 import org.apache.arrow.vector.types.TimeUnit
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
+import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.DateTimeConstants
 import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils, SparkVectorUtils}
-import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 object ArrowConverterUtils extends Logging {
 
@@ -57,8 +60,15 @@ object ArrowConverterUtils extends Logging {
     SparkVectorUtils.toFieldVectorList(columnarBatch)
   }
 
-  def createArrowRecordBatch(numRowsInBatch: Int, cols: List[ValueVector]): ArrowRecordBatch = {
-    SparkVectorUtils.toArrowRecordBatch(numRowsInBatch, cols)
+  def convertToNetty(iter: Array[ColumnarBatch]): Array[Byte] = {
+    val innerBuf = ByteBufAllocator.DEFAULT.buffer()
+    val outStream = new ByteBufOutputStream(innerBuf)
+    convertToNetty(iter, outStream)
+    val bytes = new Array[Byte](innerBuf.readableBytes);
+    innerBuf.getBytes(innerBuf.readerIndex, bytes);
+    innerBuf.release()
+    outStream.close()
+    bytes
   }
 
   def convertToNetty(iter: Array[ColumnarBatch], out: OutputStream): Unit = {
@@ -93,15 +103,8 @@ object ArrowConverterUtils extends Logging {
     }
   }
 
-  def convertToNetty(iter: Array[ColumnarBatch]): Array[Byte] = {
-    val innerBuf = ByteBufAllocator.DEFAULT.buffer()
-    val outStream = new ByteBufOutputStream(innerBuf)
-    convertToNetty(iter, outStream)
-    val bytes = new Array[Byte](innerBuf.readableBytes);
-    innerBuf.getBytes(innerBuf.readerIndex, bytes);
-    innerBuf.release()
-    outStream.close()
-    bytes
+  def createArrowRecordBatch(numRowsInBatch: Int, cols: List[ValueVector]): ArrowRecordBatch = {
+    SparkVectorUtils.toArrowRecordBatch(numRowsInBatch, cols)
   }
 
   def convertFromNetty(
@@ -121,6 +124,7 @@ object ArrowConverterUtils extends Logging {
           messageReader.close
           return false
         }
+
       override def next(): ColumnarBatch = {
         if (input.available == 0) {
           if (attributes == null) {
@@ -177,6 +181,7 @@ object ArrowConverterUtils extends Logging {
     if (data.size == 0) {
       return new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = false
+
         override def next(): ColumnarBatch = {
           val resultStructType = if (columnIndices == null) {
             StructType(
@@ -209,6 +214,7 @@ object ArrowConverterUtils extends Logging {
           messageReader.close
           return false
         }
+
       override def next(): ColumnarBatch = {
         if (input.available == 0) {
           messageReader.close
@@ -286,18 +292,18 @@ object ArrowConverterUtils extends Logging {
     ArrowWritableColumnVector.loadColumns(numRows, recordBatchSchema, recordBatch, allocator)
   }
 
-  def releaseArrowRecordBatch(recordBatch: ArrowRecordBatch): Unit = {
-    if (recordBatch != null) {
-      recordBatch.close()
-    }
-  }
-
   def releaseArrowRecordBatchList(recordBatchList: Array[ArrowRecordBatch]): Unit = {
     recordBatchList.foreach({ recordBatch =>
       if (recordBatch != null) {
         releaseArrowRecordBatch(recordBatch)
       }
     })
+  }
+
+  def releaseArrowRecordBatch(recordBatch: ArrowRecordBatch): Unit = {
+    if (recordBatch != null) {
+      recordBatch.close()
+    }
   }
 
   def combineArrowRecordBatch(rb1: ArrowRecordBatch, rb2: ArrowRecordBatch): ArrowRecordBatch = {
@@ -382,13 +388,6 @@ object ArrowConverterUtils extends Logging {
   def createArrowField(attr: Attribute): Field =
     createArrowField(s"${attr.name}#${attr.exprId.id}", attr.dataType)
 
-  private def asTimestampType(inType: ArrowType): ArrowType.Timestamp = {
-    if (inType.getTypeID != ArrowTypeID.Timestamp) {
-      throw new IllegalArgumentException(s"Value type to convert must be timestamp")
-    }
-    inType.asInstanceOf[ArrowType.Timestamp]
-  }
-
   def convertTimestampZone(inNode: TreeNode, inType: ArrowType,
                            toZone: String): (TreeNode, ArrowType) = {
     throw new UnsupportedOperationException("not implemented") // fixme 20210602 hongze
@@ -403,34 +402,6 @@ object ArrowConverterUtils extends Logging {
         // todo conversion
       }
     (outNode0, outTimestamp0)
-  }
-
-  def convertTimestampToMilli(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
-    val inTimestamp = asTimestampType(inType)
-    inTimestamp.getUnit match {
-      case TimeUnit.MILLISECOND => (inNode, inType)
-      case TimeUnit.MICROSECOND =>
-        // truncate from micro to milli
-        val outType = new ArrowType.Timestamp(TimeUnit.MILLISECOND,
-          inTimestamp.getTimezone)
-        (TreeBuilder.makeFunction(
-          "convertTimestampUnit",
-          Lists.newArrayList(inNode), outType), outType)
-    }
-  }
-
-  def convertTimestampToMicro(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
-    val inTimestamp = asTimestampType(inType)
-    inTimestamp.getUnit match {
-      case TimeUnit.MICROSECOND => (inNode, inType)
-      case TimeUnit.MILLISECOND =>
-        // truncate from micro to milli
-        val outType = new ArrowType.Timestamp(TimeUnit.MICROSECOND,
-          inTimestamp.getTimezone)
-        (TreeBuilder.makeFunction(
-          "convertTimestampUnit",
-          Lists.newArrayList(inNode), outType), outType)
-    }
   }
 
   def toInt32(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
@@ -450,6 +421,20 @@ object ArrowConverterUtils extends Logging {
       "UTC")
     ArrowConverterUtils.convertTimestampToMicro(utcTimestampNodeOriginal,
       inTimestampTypeUTC)
+  }
+
+  def convertTimestampToMicro(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
+    val inTimestamp = asTimestampType(inType)
+    inTimestamp.getUnit match {
+      case TimeUnit.MICROSECOND => (inNode, inType)
+      case TimeUnit.MILLISECOND =>
+        // truncate from micro to milli
+        val outType = new ArrowType.Timestamp(TimeUnit.MICROSECOND,
+          inTimestamp.getTimezone)
+        (TreeBuilder.makeFunction(
+          "convertTimestampUnit",
+          Lists.newArrayList(inNode), outType), outType)
+    }
   }
 
   // use this carefully
@@ -476,12 +461,33 @@ object ArrowConverterUtils extends Logging {
     (localizedTimestampNode, localized)
   }
 
+  def convertTimestampToMilli(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
+    val inTimestamp = asTimestampType(inType)
+    inTimestamp.getUnit match {
+      case TimeUnit.MILLISECOND => (inNode, inType)
+      case TimeUnit.MICROSECOND =>
+        // truncate from micro to milli
+        val outType = new ArrowType.Timestamp(TimeUnit.MILLISECOND,
+          inTimestamp.getTimezone)
+        (TreeBuilder.makeFunction(
+          "convertTimestampUnit",
+          Lists.newArrayList(inNode), outType), outType)
+    }
+  }
+
+  private def asTimestampType(inType: ArrowType): ArrowType.Timestamp = {
+    if (inType.getTypeID != ArrowTypeID.Timestamp) {
+      throw new IllegalArgumentException(s"Value type to convert must be timestamp")
+    }
+    inType.asInstanceOf[ArrowType.Timestamp]
+  }
+
   def toSparkTimestamp(inNode: TreeNode, inType: ArrowType,
                        timeZoneId: Option[String] = None): (TreeNode, ArrowType) = {
     throw new UnsupportedOperationException()
   }
 
-  def toSchema( batch: ColumnarBatch) : Schema = {
+  def toSchema(batch: ColumnarBatch): Schema = {
     val fields = new java.util.ArrayList[Field](batch.numCols)
     for (i <- 0 until batch.numCols) {
       val col: ColumnVector = batch.column(i)

@@ -35,5 +35,6 @@ public class ArrowColumnarBatch implements AutoCloseable {
   }
 
   @Override
-  public void close() throws IOException {}
+  public void close() throws IOException {
+  }
 }

@@ -17,21 +17,24 @@
 
 package io.glutenproject.spark.sql.execution.datasources.velox;
 
-import java.io.IOException;
-
 import io.glutenproject.vectorized.JniLibLoader;
 import io.glutenproject.vectorized.JniWorkspace;
 
+import java.io.IOException;
+
 public class DwrfDatasourceJniWrapper {
 
-    public DwrfDatasourceJniWrapper() throws IOException {
-        final JniLibLoader loader = JniWorkspace.getDefault().libLoader();
-        loader.loadEssentials();
-        loader.mapAndLoad("velox");
-    }
-    public native long nativeInitDwrfDatasource(String filePath, long cSchema);
-    public native byte[] inspectSchema(long instanceId);
-    public native void close(long instanceId);
+  public DwrfDatasourceJniWrapper() throws IOException {
+    final JniLibLoader loader = JniWorkspace.getDefault().libLoader();
+    loader.loadEssentials();
+    loader.mapAndLoad("velox");
+  }
 
-    public native void write(long instanceId, long cSchema, long cArray);
+  public native long nativeInitDwrfDatasource(String filePath, long cSchema);
+
+  public native byte[] inspectSchema(long instanceId);
+
+  public native void close(long instanceId);
+
+  public native void write(long instanceId, long cSchema, long cArray);
 }

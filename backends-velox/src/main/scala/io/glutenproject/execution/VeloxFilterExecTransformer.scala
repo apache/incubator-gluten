@@ -17,7 +17,7 @@
 
 package io.glutenproject.execution
 
-import java.util
+import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
@@ -25,34 +25,14 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.vectorized.ExpressionEvaluator
+import java.util
+
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
-
-import scala.collection.JavaConverters._
 
 case class VeloxFilterExecTransformer(condition: Expression,
                                       child: SparkPlan)
   extends FilterExecBaseTransformer(condition, child) {
-
-  def getLeftCondition : Expression = {
-    val scanFilters = child match {
-      // Get the filters including the manually pushed down ones.
-      case batchScanTransformer: BatchScanExecTransformer =>
-        batchScanTransformer.filterExprs()
-      case fileScanTransformer: FileSourceScanExecTransformer =>
-        fileScanTransformer.filterExprs()
-      // In ColumnarGuardRules, the child is still row-based. Need to get the original filters.
-      case _ =>
-        FilterHandler.getScanFilters(child)
-    }
-    if (scanFilters.isEmpty) {
-      condition
-    } else {
-      val leftFilters = FilterHandler.getLeftFilters(
-        scanFilters, FilterHandler.flattenCondition(condition))
-      leftFilters.reduceLeftOption(And).orNull
-    }
-  }
 
   override def doValidate(): Boolean = {
     val leftCondition = getLeftCondition
@@ -113,5 +93,25 @@ case class VeloxFilterExecTransformer(condition: Expression,
       child.output
     }
     TransformContext(inputAttributes, output, currRel)
+  }
+
+  def getLeftCondition: Expression = {
+    val scanFilters = child match {
+      // Get the filters including the manually pushed down ones.
+      case batchScanTransformer: BatchScanExecTransformer =>
+        batchScanTransformer.filterExprs()
+      case fileScanTransformer: FileSourceScanExecTransformer =>
+        fileScanTransformer.filterExprs()
+      // In ColumnarGuardRules, the child is still row-based. Need to get the original filters.
+      case _ =>
+        FilterHandler.getScanFilters(child)
+    }
+    if (scanFilters.isEmpty) {
+      condition
+    } else {
+      val leftFilters = FilterHandler.getLeftFilters(
+        scanFilters, FilterHandler.flattenCondition(condition))
+      leftFilters.reduceLeftOption(And).orNull
+    }
   }
 }

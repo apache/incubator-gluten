@@ -34,6 +34,7 @@ object ArrowUtils {
   val rootAllocator = new RootAllocator(Long.MaxValue)
 
   // todo: support more types.
+
   /** Maps data type from Spark to Arrow. NOTE: timeZoneId required for TimestampTypes */
   def toArrowType(dt: DataType, timeZoneId: String): ArrowType = dt match {
     case BooleanType => ArrowType.Bool.INSTANCE
@@ -79,7 +80,7 @@ object ArrowUtils {
 
   /** Maps field from Spark to Arrow. NOTE: timeZoneId required for TimestampType */
   def toArrowField(
-      name: String, dt: DataType, nullable: Boolean, timeZoneId: String): Field = {
+                    name: String, dt: DataType, nullable: Boolean, timeZoneId: String): Field = {
     dt match {
       case ArrayType(elementType, containsNull) =>
         val fieldType = new FieldType(nullable, ArrowType.List.INSTANCE, null)
@@ -151,7 +152,7 @@ object ArrowUtils {
       conf.arrowSafeTypeConversion.toString)
     Map(timeZoneConf ++ pandasColsByName ++ arrowSafeTypeCheck: _*)
   }
-  
-  def fromAttributes(attributes: Seq[Attribute]): StructType = 
+
+  def fromAttributes(attributes: Seq[Attribute]): StructType =
     StructType.fromAttributes(attributes)
 }

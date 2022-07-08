@@ -33,96 +33,96 @@ public class ShuffleSplitterJniWrapper {
   /**
    * Construct native splitter for shuffled RecordBatch over
    *
-   * @param part contains the partitioning parameter needed by native splitter
-   * @param bufferSize size of native buffers hold by each partition writer
-   * @param codec compression codec
-   * @param dataFile acquired from spark IndexShuffleBlockResolver
+   * @param part               contains the partitioning parameter needed by native splitter
+   * @param bufferSize         size of native buffers hold by each partition writer
+   * @param codec              compression codec
+   * @param dataFile           acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
-   * @param localDirs configured local directories where Spark can write files
+   * @param localDirs          configured local directories where Spark can write files
    * @param preferSpill
    * @param memoryPoolId
    * @return native splitter instance id if created successfully.
    */
   public long make(
-          NativePartitioning part,
-          long offheapPerTask,
-          int bufferSize,
-          String codec,
-          int batchCompressThreshold,
-          String dataFile,
-          int subDirsPerLocalDir,
-          String localDirs,
-          boolean preferSpill,
-          long memoryPoolId,
-          boolean writeSchema) {
-    try(ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())) {
+      NativePartitioning part,
+      long offheapPerTask,
+      int bufferSize,
+      String codec,
+      int batchCompressThreshold,
+      String dataFile,
+      int subDirsPerLocalDir,
+      String localDirs,
+      boolean preferSpill,
+      long memoryPoolId,
+      boolean writeSchema) {
+    try (ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())) {
       ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(),
-              ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()),
-              schema);
+          ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()),
+          schema);
       return nativeMake(
-              part.getShortName(),
-              part.getNumPartitions(),
-              schema.memoryAddress(),
-              part.getExprList(),
-              offheapPerTask,
-              bufferSize,
-              codec,
-              batchCompressThreshold,
-              dataFile,
-              subDirsPerLocalDir,
-              localDirs,
-              preferSpill,
-              memoryPoolId,
-              writeSchema);
+          part.getShortName(),
+          part.getNumPartitions(),
+          schema.memoryAddress(),
+          part.getExprList(),
+          offheapPerTask,
+          bufferSize,
+          codec,
+          batchCompressThreshold,
+          dataFile,
+          subDirsPerLocalDir,
+          localDirs,
+          preferSpill,
+          memoryPoolId,
+          writeSchema);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   public native long nativeMake(
-          String shortName,
-          int numPartitions,
-          long cSchema,
-          byte[] exprList,
-          long offheapPerTask,
-          int bufferSize,
-          String codec,
-          int batchCompressThreshold,
-          String dataFile,
-          int subDirsPerLocalDir,
-          String localDirs,
-          boolean preferSpill,
-          long memoryPoolId,
-          boolean writeSchema);
+      String shortName,
+      int numPartitions,
+      long cSchema,
+      byte[] exprList,
+      long offheapPerTask,
+      int bufferSize,
+      String codec,
+      int batchCompressThreshold,
+      String dataFile,
+      int subDirsPerLocalDir,
+      String localDirs,
+      boolean preferSpill,
+      long memoryPoolId,
+      boolean writeSchema);
 
   /**
-   *
    * Spill partition data to disk.
    *
    * @param splitterId splitter instance id
-   * @param size expected size to spill (in bytes)
+   * @param size       expected size to spill (in bytes)
    * @param callBySelf whether the caller is the shuffle splitter itself, true
    *                   when running out of off-heap memory due to allocations from
    *                   the evaluator itself
    * @return actual spilled size
    */
-  public native long nativeSpill(long splitterId, long size, boolean callBySelf) throws RuntimeException;
+  public native long nativeSpill(long splitterId, long size, boolean callBySelf)
+      throws RuntimeException;
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
    * split according to the first column as partition id. During splitting, the data in native
    * buffers will be write to disk when the buffers are full.
    *
-   * @param splitterId splitter instance id
-   * @param numRows Rows per batch
-   * @param cArray Addresses of ArrowArray
+   * @param splitterId       splitter instance id
+   * @param numRows          Rows per batch
+   * @param cArray           Addresses of ArrowArray
    * @param firstRecordBatch whether this record batch is the first
    *                         record batch in the first partition.
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(
-          long splitterId, int numRows, long cArray, boolean firstRecordBatch)
-          throws IOException;
+      long splitterId, int numRows, long cArray, boolean firstRecordBatch)
+      throws IOException;
 
   /**
    * Update the compress type.

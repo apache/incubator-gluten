@@ -19,18 +19,20 @@ package io.glutenproject.vectorized
 
 import java.io._
 import java.nio.ByteBuffer
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
+
 import io.glutenproject.GlutenConfig
-import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator}
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowStreamReader
 import org.apache.arrow.vector.types.pojo.Schema
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
@@ -39,11 +41,11 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
-class ArrowColumnarBatchSerializer(
-    schema: StructType, readBatchNumRows: SQLMetric, numOutputRows: SQLMetric)
-extends Serializer with Serializable {
+class ArrowColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
+                                   numOutputRows: SQLMetric)
+  extends Serializer with Serializable {
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -53,10 +55,10 @@ extends Serializer with Serializable {
 }
 
 private class ArrowColumnarBatchSerializerInstance(
-    schema: Schema,
-    readBatchNumRows: SQLMetric,
-    numOutputRows: SQLMetric)
-    extends SerializerInstance
+                                                    schema: Schema,
+                                                    readBatchNumRows: SQLMetric,
+                                                    numOutputRows: SQLMetric)
+  extends SerializerInstance
     with Logging {
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
@@ -123,8 +125,8 @@ private class ArrowColumnarBatchSerializerInstance(
 
             // jni call to decompress buffers
             if (compressionEnabled &&
-                reader.asInstanceOf[SchemaAwareArrowCompressedStreamReader]
-                    .isCurrentBatchCompressed) {
+              reader.asInstanceOf[SchemaAwareArrowCompressedStreamReader]
+                .isCurrentBatchCompressed) {
               try {
                 decompressVectors()
               } catch {
@@ -214,14 +216,15 @@ private class ArrowColumnarBatchSerializerInstance(
               if (is_bit) {
                 val validityBuf = buffer
                 if (validityBuf
-                      .capacity() <= 8 || java.lang.Long.bitCount(validityBuf.getLong(0)) == 64 ||
-                    java.lang.Long.bitCount(validityBuf.getLong(0)) == 0) {
+                  .capacity() <= 8 || java.lang.Long.bitCount(validityBuf.getLong(0)) == 64
+                  || java.lang.Long.bitCount(validityBuf.getLong(0)) == 0) {
                   bufBS.add(bufIdx)
                 }
               }
 
               bufAddrs += buffer.memoryAddress()
-              // buffer.readableBytes() will return wrong readable length here since it is initialized by
+              // buffer.readableBytes() will return wrong readable length here
+              // since it is initialized by
               // data stored in IPC message header, which is not the actual compressed length
               bufSizes += buffer.capacity()
               bufIdx += 1
@@ -253,7 +256,8 @@ private class ArrowColumnarBatchSerializerInstance(
           if (decompressedRecordBatch != null) {
             vectorLoader.load(decompressedRecordBatch)
             logDebug(
-              s"ArrowColumnarBatchSerializer, Decompressed vector is ${root.contentToTSVString()}")
+              s"ArrowColumnarBatchSerializer, Decompressed vector is " +
+                s"${root.contentToTSVString()}")
             decompressedRecordBatch.close()
           }
         } finally {

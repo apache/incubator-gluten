@@ -18,7 +18,6 @@
 package io.glutenproject.vectorized
 
 import org.apache.spark.TaskContext
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -32,25 +31,24 @@ class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch])
     with Logging {
   var cb: ColumnarBatch = null
 
-  private def closeCurrentBatch(): Unit = {
-    if (cb != null) {
-      //logInfo(s"${itr} close ${cb}.")
-      cb.close
-      cb = null
-    }
+  override def hasNext: Boolean = {
+    itr.hasNext
   }
 
   SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((tc: TaskContext) => {
     closeCurrentBatch()
   })
 
-  override def hasNext: Boolean = {
-    itr.hasNext
-  }
-
   override def next(): ColumnarBatch = {
     closeCurrentBatch()
     cb = itr.next()
     cb
+  }
+
+  private def closeCurrentBatch(): Unit = {
+    if (cb != null) {
+      cb.close
+      cb = null
+    }
   }
 }

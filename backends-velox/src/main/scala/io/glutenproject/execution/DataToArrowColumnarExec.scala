@@ -20,7 +20,6 @@ package io.glutenproject.execution
 import scala.collection.JavaConverters._
 
 import org.apache.spark.broadcast
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection}
@@ -33,7 +32,10 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
 case class DataToArrowColumnarExec(child: SparkPlan, numPartitions: Int) extends UnaryExecNode {
-  override def output: Seq[Attribute] = child.output
+  override lazy val metrics: Map[String, SQLMetric] = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_datatoarrowcolumnar"))
 
   override def outputPartitioning: Partitioning = UnknownPartitioning(numPartitions)
 
@@ -57,16 +59,13 @@ case class DataToArrowColumnarExec(child: SparkPlan, numPartitions: Int) extends
     }
   }
 
+  override def output: Seq[Attribute] = child.output
+
   override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     child.executeBroadcast()
   }
 
   override def supportsColumnar: Boolean = true
-
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_datatoarrowcolumnar"))
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")

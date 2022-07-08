@@ -26,34 +26,34 @@ import java.io.IOException;
 
 public class NativeSQLMemoryConsumer extends MemoryConsumer {
 
-    private final Spiller spiller;
+  private final Spiller spiller;
 
-    public NativeSQLMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
-        super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
-        this.spiller = spiller;
+  public NativeSQLMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
+    super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
+    this.spiller = spiller;
+  }
+
+  @Override
+  public long spill(long size, MemoryConsumer trigger) throws IOException {
+    return spiller.spill(size, trigger);
+  }
+
+
+  public void acquire(long size) {
+    if (size == 0) {
+      return;
     }
-
-    @Override
-    public long spill(long size, MemoryConsumer trigger) throws IOException {
-        return spiller.spill(size, trigger);
+    long granted = acquireMemory(size);
+    if (granted < size) {
+      freeMemory(granted);
+      throw new OutOfMemoryException("Not enough spark off-heap execution memory. " +
+          "Acquired: " + size + ", granted: " + granted + ". " +
+          "Try tweaking config option spark.memory.offHeap.size to " +
+          "get larger space to run this application. ");
     }
+  }
 
-
-    public void acquire(long size) {
-        if (size == 0) {
-            return;
-        }
-        long granted = acquireMemory(size);
-        if (granted < size) {
-            freeMemory(granted);
-            throw new OutOfMemoryException("Not enough spark off-heap execution memory. " +
-                    "Acquired: " + size + ", granted: " + granted + ". " +
-                    "Try tweaking config option spark.memory.offHeap.size to " +
-                    "get larger space to run this application. ");
-        }
-    }
-
-    public void free(long size) {
-        freeMemory(size);
-    }
+  public void free(long size) {
+    freeMemory(size);
+  }
 }

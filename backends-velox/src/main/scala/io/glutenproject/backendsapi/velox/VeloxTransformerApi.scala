@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,6 +23,7 @@ import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, Ex
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
 import io.glutenproject.utils.InputPartitionsUtil
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
@@ -39,8 +41,8 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * @return
    */
   override def validateColumnarShuffleExchangeExec(
-      outputPartitioning: Partitioning,
-      outputAttributes: Seq[Attribute]): Boolean = {
+                                                    outputPartitioning: Partitioning,
+                                                    outputAttributes: Seq[Attribute]): Boolean = {
     // check input datatype
     for (attr <- outputAttributes) {
       try ArrowConverterUtils.createArrowField(attr)
@@ -76,7 +78,7 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    */
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
     GlutenConfig.getConf.isGazelleBackend && fileFormat.isInstanceOf[ParquetFileFormat] ||
-    GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
+      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
       GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat] ||
       GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[ParquetFileFormat]
   }
