@@ -25,9 +25,9 @@
 #include "arrow/array/builder_primitive.h"
 #include "arrow/util/checked_cast.h"
 #include "kernels_ext.h"
+#include "memory/allocator.h"
 #include "protobuf_utils.h"
 #include "utils/exception.h"
-#include "memory/allocator.h"
 
 namespace gluten {
 namespace compute {

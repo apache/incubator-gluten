@@ -464,8 +464,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
     JNIEnv* env, jobject, jstring partitioning_name_jstr, jint num_partitions,
     jlong c_schema, jbyteArray expr_arr, jlong offheap_per_task, jint buffer_size,
     jstring compression_type_jstr, jint batch_compress_threshold, jstring data_file_jstr,
-    jint num_sub_dirs, jstring local_dirs_jstr, jboolean prefer_spill,
-    jlong allocator_id, jboolean write_schema) {
+    jint num_sub_dirs, jstring local_dirs_jstr, jboolean prefer_spill, jlong allocator_id,
+    jboolean write_schema) {
   JNI_METHOD_START
   if (partitioning_name_jstr == NULL) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
@@ -758,14 +758,13 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_createListenableAllocator(
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(
-    JNIEnv* env, jclass, jlong allocator_id) {
+Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(JNIEnv* env, jclass,
+                                                                    jlong allocator_id) {
   JNI_METHOD_START
   if (allocator_id == default_memory_allocator_id) {
     return;
   }
-  auto* alloc =
-      reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  auto* alloc = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
   if (alloc == nullptr) {
     return;
   }
@@ -776,10 +775,10 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(
 JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_NativeMemoryAllocator_bytesAllocated(
     JNIEnv* env, jclass, jlong allocator_id) {
   JNI_METHOD_START
-  auto* alloc =
-      reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  auto* alloc = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
   if (alloc == nullptr) {
-    gluten::JniThrow("Memory allocator instance not found. It may not exist nor has been closed");
+    gluten::JniThrow(
+        "Memory allocator instance not found. It may not exist nor has been closed");
   }
   return alloc->GetBytes();
   JNI_METHOD_END(-1L)

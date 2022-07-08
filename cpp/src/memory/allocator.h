@@ -17,14 +17,14 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <utility>
-#include <atomic>
 
-#include "arrow/util/memory.h"
 #include "arrow/memory_pool.h"
+#include "arrow/util/memory.h"
 
 namespace gluten {
 namespace memory {

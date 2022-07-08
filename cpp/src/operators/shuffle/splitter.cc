@@ -346,13 +346,14 @@ arrow::Status Splitter::AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& b
   auto reminder = size & 0x3f;
   size += (64 - reminder) & ((reminder == 0) - 1);
   if (size > SPLIT_BUFFER_SIZE) {
-    ARROW_ASSIGN_OR_RAISE(buffer,
-                          arrow::AllocateResizableBuffer(size, options_.memory_pool.get()));
+    ARROW_ASSIGN_OR_RAISE(
+        buffer, arrow::AllocateResizableBuffer(size, options_.memory_pool.get()));
     return arrow::Status::OK();
   } else if (combine_buffer_->capacity() - combine_buffer_->size() < size) {
     // memory pool is not enough
-    ARROW_ASSIGN_OR_RAISE(combine_buffer_, arrow::AllocateResizableBuffer(
-                                               SPLIT_BUFFER_SIZE, options_.memory_pool.get()));
+    ARROW_ASSIGN_OR_RAISE(
+        combine_buffer_,
+        arrow::AllocateResizableBuffer(SPLIT_BUFFER_SIZE, options_.memory_pool.get()));
     combine_buffer_->Resize(0, /*shrink_to_fit = */ false);
   }
   buffer = arrow::SliceMutableBuffer(combine_buffer_, combine_buffer_->size(), size);
