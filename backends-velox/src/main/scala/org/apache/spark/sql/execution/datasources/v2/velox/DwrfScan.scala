@@ -27,14 +27,14 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 case class DwrfScan(
-                      sparkSession: SparkSession,
-                      fileIndex: PartitioningAwareFileIndex,
-                      readDataSchema: StructType,
-                      readPartitionSchema: StructType,
-                      pushedFilters: Array[Filter],
-                      options: CaseInsensitiveStringMap,
-                      partitionFilters: Seq[Expression] = Seq.empty,
-                      dataFilters: Seq[Expression] = Seq.empty)
+                     sparkSession: SparkSession,
+                     fileIndex: PartitioningAwareFileIndex,
+                     readDataSchema: StructType,
+                     readPartitionSchema: StructType,
+                     pushedFilters: Array[Filter],
+                     options: CaseInsensitiveStringMap,
+                     partitionFilters: Seq[Expression] = Seq.empty,
+                     dataFilters: Seq[Expression] = Seq.empty)
   extends FileScan {
   override def createReaderFactory(): PartitionReaderFactory = {
     null

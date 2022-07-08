@@ -26,25 +26,23 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 case class DwrfScanBuilder(
-                             sparkSession: SparkSession,
-                             fileIndex: PartitioningAwareFileIndex,
-                             schema: StructType,
-                             dataSchema: StructType,
-                             options: CaseInsensitiveStringMap)
+                            sparkSession: SparkSession,
+                            fileIndex: PartitioningAwareFileIndex,
+                            schema: StructType,
+                            dataSchema: StructType,
+                            options: CaseInsensitiveStringMap)
   extends FileScanBuilder(sparkSession, fileIndex, dataSchema)
     with SupportsPushDownFilters {
 
-  private var filters: Array[Filter] = Array.empty
   private lazy val pushedArrowFilters: Array[Filter] = {
     filters // todo filter validation & pushdown
   }
+  private var filters: Array[Filter] = Array.empty
 
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
     this.filters = filters
     this.filters
   }
-
-  override def pushedFilters: Array[Filter] = pushedArrowFilters
 
   override def build(): Scan = {
     DwrfScan(
@@ -55,4 +53,6 @@ case class DwrfScanBuilder(
       pushedFilters,
       options)
   }
+
+  override def pushedFilters: Array[Filter] = pushedArrowFilters
 }

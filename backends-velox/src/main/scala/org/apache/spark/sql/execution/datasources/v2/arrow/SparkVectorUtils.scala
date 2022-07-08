@@ -17,21 +17,12 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.memory.ArrowBuf
-import org.apache.arrow.vector.ipc.message.ArrowFieldNode
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
-import org.apache.arrow.vector.{
-  BaseFixedWidthVector,
-  BaseVariableWidthVector,
-  FieldVector,
-  TypeLayout,
-  VectorLoader,
-  ValueVector,
-  VectorSchemaRoot
-}
+import org.apache.arrow.vector._
+import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch}
 
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -73,7 +64,7 @@ object SparkVectorUtils {
     try {
       vector.getFieldBuffers.asScala.toArray
     } catch {
-      case _  : Throwable =>
+      case _: Throwable =>
         vector match {
           case fixed: BaseFixedWidthVector =>
             Array(fixed.getValidityBuffer, fixed.getDataBuffer)
@@ -87,10 +78,10 @@ object SparkVectorUtils {
   }
 
   def appendNodes(
-      vector: FieldVector,
-      nodes: java.util.List[ArrowFieldNode],
-      buffers: java.util.List[ArrowBuf],
-      bits: java.util.List[Boolean] = null): Unit = {
+                   vector: FieldVector,
+                   nodes: java.util.List[ArrowFieldNode],
+                   buffers: java.util.List[ArrowBuf],
+                   bits: java.util.List[Boolean] = null): Unit = {
     if (nodes != null) {
       nodes.add(new ArrowFieldNode(vector.getValueCount, vector.getNullCount))
     }
@@ -101,12 +92,11 @@ object SparkVectorUtils {
         s"Wrong number of buffers for field ${vector.getField} in vector " +
           s"${vector.getClass.getSimpleName}. found: ${fieldBuffers}")
     }
-    import collection.JavaConversions._
-    buffers.addAll(fieldBuffers.toSeq)
+    buffers.addAll(fieldBuffers.toSeq.asJava)
     if (bits != null) {
       val bits_tmp = Array.fill[Boolean](expectedBufferCount)(false)
       bits_tmp(0) = true
-      bits.addAll(bits_tmp.toSeq)
+      bits.addAll(bits_tmp.toSeq.asJava)
       vector.getChildrenFromFields.asScala.foreach(child =>
         appendNodes(child, nodes, buffers, bits))
     } else {

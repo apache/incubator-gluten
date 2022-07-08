@@ -17,8 +17,7 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
-import java.util.Objects
-import java.util.TimeZone
+import java.util.{Objects, TimeZone}
 
 import org.apache.arrow.vector.types.pojo.Schema
 
@@ -36,23 +35,19 @@ object SparkSchemaUtils {
     ArrowUtils.toArrowSchema(schema, timeZoneId)
   }
 
-  @deprecated  // experimental
+  @deprecated // experimental
   def getGandivaCompatibleTimeZoneID(): String = {
     val zone = SQLConf.get.sessionLocalTimeZone
     validateGandivaCompatibleTimezoneID(zone)
     zone
   }
 
-  def getLocalTimezoneID(): String = {
-    SQLConf.get.sessionLocalTimeZone
-  }
-
   def validateGandivaCompatibleTimezoneID(zoneId: String): Unit = {
     throw new UnsupportedOperationException("not implemented") // fixme 20210602 hongze
     if (!isTimeZoneIDGandivaCompatible(zoneId)) {
       throw new RuntimeException("Running Spark with Native SQL engine in non-UTC timezone" +
-          " environment is forbidden. Consider setting session timezone within Spark config " +
-          "spark.sql.session.timeZone. E.g. spark.sql.session.timeZone = UTC")
+        " environment is forbidden. Consider setting session timezone within Spark config " +
+        "spark.sql.session.timeZone. E.g. spark.sql.session.timeZone = UTC")
     }
   }
 
@@ -61,20 +56,24 @@ object SparkSchemaUtils {
     isTimeZoneIDEquivalentToUTC(zoneId)
   }
 
-  def timeZoneIDEquals(one: String, other: String): Boolean = {
-    getTimeZoneIDOffset(one) == getTimeZoneIDOffset(other)
-  }
-
   def isTimeZoneIDEquivalentToUTC(zoneId: String): Boolean = {
     getTimeZoneIDOffset(zoneId) == 0
+  }
+
+  def getLocalTimezoneID(): String = {
+    SQLConf.get.sessionLocalTimeZone
+  }
+
+  def timeZoneIDEquals(one: String, other: String): Boolean = {
+    getTimeZoneIDOffset(one) == getTimeZoneIDOffset(other)
   }
 
   def getTimeZoneIDOffset(zoneId: String): Int = {
     Objects.requireNonNull(zoneId)
     TimeZone.getTimeZone(zoneId)
-        .toZoneId
-        .getRules
-        .getOffset(java.time.Instant.now())
-        .getTotalSeconds
+      .toZoneId
+      .getRules
+      .getOffset(java.time.Instant.now())
+      .getTotalSeconds
   }
 }

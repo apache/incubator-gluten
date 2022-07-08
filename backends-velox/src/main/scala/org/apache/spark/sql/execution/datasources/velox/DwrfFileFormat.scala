@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,30 +18,25 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 
+import java.io.IOException
+
 import com.intel.oap.spark.sql.DwrfWriteExtension.FakeRow
-import io.glutenproject.GlutenConfig
-import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
+import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
+import io.glutenproject.vectorized.NativeColumnarToRowInfo
+import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo}
-import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-import org.apache.arrow.vector.types.pojo.{Field, Schema}
 import org.apache.parquet.hadoop.codec.CodecConfig
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-
-import java.io.IOException
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.collection.mutable.ListBuffer
 
 class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
@@ -84,7 +80,7 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
             val allocator = SparkMemoryUtils.contextAllocator()
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
-            var info : NativeColumnarToRowInfo = null
+            var info: NativeColumnarToRowInfo = null
             try {
               ArrowAbiUtil.exportFromSparkColumnarBatch(
                 SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray)
