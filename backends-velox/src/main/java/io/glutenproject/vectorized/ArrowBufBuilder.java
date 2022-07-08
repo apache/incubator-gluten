@@ -31,9 +31,9 @@ public class ArrowBufBuilder {
    * Create an instance for ArrowBufBuilder.
    *
    * @param nativeInstanceId native ArrowBuf holder.
-   * @param memoryAddress    native ArrowBuf data addr.
-   * @param size             ArrowBuf size.
-   * @param capacity         ArrowBuf rowNums.
+   * @param memoryAddress native ArrowBuf data addr.
+   * @param size ArrowBuf size.
+   * @param capacity ArrowBuf rowNums.
    */
   public ArrowBufBuilder(long nativeInstanceId, long memoryAddress, int size, long capacity) {
     this.memoryAddress = memoryAddress;

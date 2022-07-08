@@ -33,12 +33,12 @@ public class ShuffleSplitterJniWrapper {
   /**
    * Construct native splitter for shuffled RecordBatch over
    *
-   * @param part               contains the partitioning parameter needed by native splitter
-   * @param bufferSize         size of native buffers hold by each partition writer
-   * @param codec              compression codec
-   * @param dataFile           acquired from spark IndexShuffleBlockResolver
+   * @param part contains the partitioning parameter needed by native splitter
+   * @param bufferSize size of native buffers hold by each partition writer
+   * @param codec compression codec
+   * @param dataFile acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
-   * @param localDirs          configured local directories where Spark can write files
+   * @param localDirs configured local directories where Spark can write files
    * @param preferSpill
    * @param memoryPoolId
    * @return native splitter instance id if created successfully.
@@ -99,10 +99,10 @@ public class ShuffleSplitterJniWrapper {
    * Spill partition data to disk.
    *
    * @param splitterId splitter instance id
-   * @param size       expected size to spill (in bytes)
+   * @param size expected size to spill (in bytes)
    * @param callBySelf whether the caller is the shuffle splitter itself, true
-   *                   when running out of off-heap memory due to allocations from
-   *                   the evaluator itself
+   * when running out of off-heap memory due to allocations from
+   * the evaluator itself
    * @return actual spilled size
    */
   public native long nativeSpill(long splitterId, long size, boolean callBySelf)
@@ -113,11 +113,11 @@ public class ShuffleSplitterJniWrapper {
    * split according to the first column as partition id. During splitting, the data in native
    * buffers will be write to disk when the buffers are full.
    *
-   * @param splitterId       splitter instance id
-   * @param numRows          Rows per batch
-   * @param cArray           Addresses of ArrowArray
+   * @param splitterId splitter instance id
+   * @param numRows Rows per batch
+   * @param cArray Addresses of ArrowArray
    * @param firstRecordBatch whether this record batch is the first
-   *                         record batch in the first partition.
+   * record batch in the first partition.
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(

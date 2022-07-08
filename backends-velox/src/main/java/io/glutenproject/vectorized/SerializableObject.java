@@ -52,7 +52,7 @@ public class SerializableObject implements Externalizable, KryoSerializable {
    * Create an instance for NativeSerializableObject.
    *
    * @param memoryAddress native ArrowBuf data addr.
-   * @param size          ArrowBuf size.
+   * @param size ArrowBuf size.
    */
   public SerializableObject(long[] memoryAddress, int[] size, AutoCloseable[] resources) {
     this.total_size = 0;
