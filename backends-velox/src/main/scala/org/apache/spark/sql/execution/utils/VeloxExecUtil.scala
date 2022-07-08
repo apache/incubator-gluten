@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,34 +18,33 @@
 package org.apache.spark.sql.execution.utils
 
 import scala.collection.JavaConverters._
+
 import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.utils.ArrowAbiUtil.exportField
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
-import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
+
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
-import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
-import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection}
+import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
+import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.MutablePair
 
 object VeloxExecUtil {
-
+  // scalastyle:off argcount
   def genShuffleDependency(rdd: RDD[ColumnarBatch],
                            outputAttributes: Seq[Attribute],
                            newPartitioning: Partitioning,
@@ -59,7 +59,7 @@ object VeloxExecUtil {
                            compressTime: SQLMetric,
                            prepareTime: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
-
+    // scalastyle:on argcount
     // only used for fallback range partitioning
     val rangePartitioner: Option[Partitioner] = newPartitioning match {
       case RangePartitioning(sortingExpressions, numPartitions) =>
@@ -93,7 +93,7 @@ object VeloxExecUtil {
 
     // only used for fallback range partitioning
     def computeAndAddPartitionId(cbIter: Iterator[ColumnarBatch],
-                                  partitionKeyExtractor: InternalRow => Any
+                                 partitionKeyExtractor: InternalRow => Any
                                 ): CloseablePairedColumnarBatchIterator = {
       CloseablePairedColumnarBatchIterator {
         cbIter
@@ -158,7 +158,8 @@ object VeloxExecUtil {
       newPartitioning.numPartitions > 1
 
     // RDD passed to ShuffleDependency should be the form of key-value pairs.
-    // ColumnarShuffleWriter will compute ids from ColumnarBatch on native side other than read the "key" part.
+    // ColumnarShuffleWriter will compute ids from ColumnarBatch on native side
+    // other than read the "key" part.
     // Thus in Columnar Shuffle we never use the "key" part.
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
@@ -220,17 +221,6 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
 
   private var cur: (Int, ColumnarBatch) = _
 
-  def closeAppendedVector(): Unit = {
-    if (cur != null) {
-      logDebug("Close appended partition id vector")
-      cur match {
-        case (_, cb: ColumnarBatch) =>
-          cb.column(0).asInstanceOf[ArrowWritableColumnVector].close()
-      }
-      cur = null
-    }
-  }
-
   override def hasNext: Boolean = {
     iter.hasNext
   }
@@ -241,5 +231,16 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
       cur = iter.next()
       cur
     } else Iterator.empty.next()
+  }
+
+  def closeAppendedVector(): Unit = {
+    if (cur != null) {
+      logDebug("Close appended partition id vector")
+      cur match {
+        case (_, cb: ColumnarBatch) =>
+          cb.column(0).asInstanceOf[ArrowWritableColumnVector].close()
+      }
+      cur = null
+    }
   }
 }

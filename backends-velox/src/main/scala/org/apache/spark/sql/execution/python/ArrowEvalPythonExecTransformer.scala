@@ -20,21 +20,21 @@ package org.apache.spark.sql.execution.python
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{TransformContext, TransformSupport}
 import io.glutenproject.substrait.SubstraitContext
-import org.apache.spark.TaskContext
 
+import org.apache.spark.TaskContext
 import org.apache.spark.api.python.ChainedPythonFunctions
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetrics
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq[Attribute],
                                           child: SparkPlan, evalType: Int)
-    extends EvalPythonExec with TransformSupport {
+  extends EvalPythonExec with TransformSupport {
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
@@ -46,22 +46,46 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
   private val pythonRunnerConf = ArrowUtils.getPythonRunnerConfMap(conf)
 
   override def supportsColumnar: Boolean = true
-  
+
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
+  }
+
+  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
+  }
+
+  override def getStreamedLeafPlan: SparkPlan = {
+    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
+  }
+
+  override def getChild: SparkPlan = {
+    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
+  }
+
+  override def doValidate(): Boolean = false
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+  }
+
   protected def evaluate(
-      funcs: Seq[ChainedPythonFunctions],
-      argOffsets: Array[Array[Int]],
-      iter: Iterator[InternalRow],
-      schema: StructType,
-      context: TaskContext): Iterator[InternalRow] = {
+                          funcs: Seq[ChainedPythonFunctions],
+                          argOffsets: Array[Array[Int]],
+                          iter: Iterator[InternalRow],
+                          schema: StructType,
+                          context: TaskContext): Iterator[InternalRow] = {
+    // scalastyle:off throwerror
     throw new NotImplementedError("evaluate Internal row is not supported")
+    // scalastyle:on throwerror
   }
 
   protected def evaluateColumnar(
-    funcs: Seq[ChainedPythonFunctions],
-    argOffsets: Array[Array[Int]],
-    iter: Iterator[ColumnarBatch],
-    schema: StructType,
-    context: TaskContext): Iterator[ColumnarBatch] = {
+                                  funcs: Seq[ChainedPythonFunctions],
+                                  argOffsets: Array[Array[Int]],
+                                  iter: Iterator[ColumnarBatch],
+                                  schema: StructType,
+                                  context: TaskContext): Iterator[ColumnarBatch] = {
 
     val outputTypes = output.drop(child.output.length).map(_.dataType)
 
@@ -85,6 +109,13 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
     }
   }
 
+  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+    copy(child = newChild)
+
   private def collectFunctions(udf: PythonUDF): (ChainedPythonFunctions, Seq[Expression]) = {
     udf.children match {
       case Seq(u: PythonUDF) =>
@@ -95,34 +126,5 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
         assert(children.forall(_.find(_.isInstanceOf[PythonUDF]).isEmpty))
         (ChainedPythonFunctions(Seq(udf.func)), udf.children)
     }
-  }
-
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-    copy(child = newChild)
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
-  }
-
-  override def getChild: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
-  }
-
-  override def doValidate(): Boolean = false
-
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
   }
 }

@@ -25,10 +25,9 @@ import io.glutenproject.expression._
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
-import org.apache.spark.{SparkEnv, TaskContext}
 
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.api.python.{BasePythonRunner, ChainedPythonFunctions, PythonRDD, SpecialLengths}
-//import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -40,12 +39,12 @@ import org.apache.spark.util.Utils
  * Similar to `PythonUDFRunner`, but exchange data with Python worker via Arrow stream.
  */
 class ColumnarArrowPythonRunner(
-    funcs: Seq[ChainedPythonFunctions],
-    evalType: Int,
-    argOffsets: Array[Array[Int]],
-    schema: StructType,
-    timeZoneId: String,
-    conf: Map[String, String])
+                                 funcs: Seq[ChainedPythonFunctions],
+                                 evalType: Int,
+                                 argOffsets: Array[Array[Int]],
+                                 schema: StructType,
+                                 timeZoneId: String,
+                                 conf: Map[String, String])
   extends BasePythonRunner[ColumnarBatch, ColumnarBatch](funcs, evalType, argOffsets) {
 
   override val simplifiedTraceback: Boolean = SQLConf.get.pysparkSimplifiedTraceback
@@ -57,13 +56,13 @@ class ColumnarArrowPythonRunner(
       s"Please change '${SQLConf.PANDAS_UDF_BUFFER_SIZE.key}'.")
 
   protected def newReaderIterator(
-      stream: DataInputStream,
-      writerThread: WriterThread,
-      startTime: Long,
-      env: SparkEnv,
-      worker: Socket,
-      releasedOrClosed: AtomicBoolean,
-      context: TaskContext): Iterator[ColumnarBatch] = {
+                                   stream: DataInputStream,
+                                   writerThread: WriterThread,
+                                   startTime: Long,
+                                   env: SparkEnv,
+                                   worker: Socket,
+                                   releasedOrClosed: AtomicBoolean,
+                                   context: TaskContext): Iterator[ColumnarBatch] = {
 
     new ReaderIterator(stream, writerThread, startTime, env, worker, releasedOrClosed, context) {
       private val allocator = SparkMemoryUtils.contextAllocator().newChildAllocator(
@@ -106,7 +105,8 @@ class ColumnarArrowPythonRunner(
                 reader = new ArrowStreamReader(stream, allocator)
                 root = reader.getVectorSchemaRoot()
                 schema = ArrowUtils.fromArrowSchema(root.getSchema())
-                vectors = ArrowWritableColumnVector.loadColumns(root.getRowCount, root.getFieldVectors).toArray[ColumnVector]
+                vectors = ArrowWritableColumnVector.loadColumns(root.getRowCount,
+                  root.getFieldVectors).toArray[ColumnVector]
                 read()
               case SpecialLengths.TIMING_DATA =>
                 handleTimingData()
@@ -124,11 +124,11 @@ class ColumnarArrowPythonRunner(
   }
 
   protected override def newWriterThread(
-      env: SparkEnv,
-      worker: Socket,
-      inputIterator: Iterator[ColumnarBatch],
-      partitionIndex: Int,
-      context: TaskContext): WriterThread = {
+                                          env: SparkEnv,
+                                          worker: Socket,
+                                          inputIterator: Iterator[ColumnarBatch],
+                                          partitionIndex: Int,
+                                          context: TaskContext): WriterThread = {
     new WriterThread(env, worker, inputIterator, partitionIndex, context) {
 
       protected override def writeCommand(dataOut: DataOutputStream): Unit = {
@@ -166,7 +166,7 @@ class ColumnarArrowPythonRunner(
           // It could throw exception if the output stream is closed, so it should be
           // in the try block.
           writer.end()
-        }{
+        } {
           root.close()
           allocator.close()
         }

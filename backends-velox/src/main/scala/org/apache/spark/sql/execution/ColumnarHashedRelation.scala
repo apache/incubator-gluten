@@ -30,10 +30,10 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.KnownSizeEstimation
 
 class ColumnarHashedRelation(
-    var hashRelationObj: SerializableObject,
-    var arrowColumnarBatch: Array[ColumnarBatch],
-    var arrowColumnarBatchSize: Int)
-    extends Externalizable
+                              var hashRelationObj: SerializableObject,
+                              var arrowColumnarBatch: Array[ColumnarBatch],
+                              var arrowColumnarBatchSize: Int)
+  extends Externalizable
     with KryoSerializable
     with KnownSizeEstimation {
 
@@ -43,17 +43,8 @@ class ColumnarHashedRelation(
     this(null, null, 0)
   }
 
-  private def createCleaner(obj: SerializableObject, batch: Array[ColumnarBatch]): Unit = {
-    if (obj == null && batch == null) {
-      // no need to clean up
-      return
-    }
-    Cleaner.create(this, new Deallocator(obj, batch))
-  }
-
-
   def asReadOnlyCopy(): ColumnarHashedRelation = {
-    //new ColumnarHashedRelation(hashRelationObj, arrowColumnarBatch, arrowColumnarBatchSize)
+    // new ColumnarHashedRelation(hashRelationObj, arrowColumnarBatch, arrowColumnarBatchSize)
     this
   }
 
@@ -79,10 +70,18 @@ class ColumnarHashedRelation(
       ArrowConverterUtils.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
     createCleaner(hashRelationObj, arrowColumnarBatch)
     // retain all cols
-    /*arrowColumnarBatch.foreach(cb => {
+    /* arrowColumnarBatch.foreach(cb => {
       (0 until cb.numCols).toList.foreach(i =>
         cb.column(i).asInstanceOf[ArrowWritableColumnVector].retain())
-    })*/
+    }) */
+  }
+
+  private def createCleaner(obj: SerializableObject, batch: Array[ColumnarBatch]): Unit = {
+    if (obj == null && batch == null) {
+      // no need to clean up
+      return
+    }
+    Cleaner.create(this, new Deallocator(obj, batch))
   }
 
   override def read(kryo: Kryo, in: Input): Unit = {
@@ -94,11 +93,11 @@ class ColumnarHashedRelation(
       ArrowConverterUtils.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
     createCleaner(hashRelationObj, arrowColumnarBatch)
     // retain all cols
-    /*arrowColumnarBatch.foreach(cb => {
+    /* arrowColumnarBatch.foreach(cb => {
       (0 until cb.numCols).toList.foreach(i =>
         cb.column(i).asInstanceOf[ArrowWr:w
         itableColumnVector].retain())
-    })*/
+    }) */
   }
 
   def size(): Int = {
@@ -109,7 +108,9 @@ class ColumnarHashedRelation(
     new Iterator[ColumnarBatch] {
       var idx = 0
       val total_len = arrowColumnarBatch.length
+
       override def hasNext: Boolean = idx < total_len
+
       override def next(): ColumnarBatch = {
         val tmp_idx = idx
         idx += 1
@@ -122,11 +123,12 @@ class ColumnarHashedRelation(
     }
   }
 }
+
 object ColumnarHashedRelation {
 
-  private class Deallocator (
-      var hashRelationObj: SerializableObject,
-      var arrowColumnarBatch: Array[ColumnarBatch]) extends Runnable {
+  private class Deallocator(
+                             var hashRelationObj: SerializableObject,
+                             var arrowColumnarBatch: Array[ColumnarBatch]) extends Runnable {
 
     override def run(): Unit = {
       try {
@@ -135,7 +137,9 @@ object ColumnarHashedRelation {
       } catch {
         case e: Exception =>
           // We should suppress all possible errors in Cleaner to prevent JVM from being shut down
+          // scalastyle:off println
           System.err.println("ColumnarHashedRelation: Error running deaallocator")
+          // scalastyle:on println
           e.printStackTrace()
       }
     }
