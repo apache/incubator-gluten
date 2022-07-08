@@ -82,8 +82,9 @@ class WholeStageResIter {
  public:
   WholeStageResIter(
       std::shared_ptr<memory::MemoryPool> pool,
-      std::shared_ptr<const core::PlanNode> planNode)
-      : pool_(pool), planNode_(planNode) {
+      std::shared_ptr<const core::PlanNode> planNode,
+      const std::unordered_map<std::string, std::string>& confMap)
+      : pool_(pool), planNode_(planNode), confMap_(confMap) {
     getOrderedNodeIds(planNode_, orderedNodeIds_);
   }
 
@@ -96,11 +97,16 @@ class WholeStageResIter {
     return metrics_;
   }
 
-  std::shared_ptr<const core::PlanNode> planNode_;
+  memory::MemoryPool* getPool() const;
+
+  /// Set the Spark confs to Velox query context.
+  void setConfToQueryContext(const std::shared_ptr<core::QueryCtx>& queryCtx);
+
   std::shared_ptr<exec::Task> task_;
+
   std::function<void(exec::Task*)> addSplits_;
 
-  memory::MemoryPool* getPool() const;
+  std::shared_ptr<const core::PlanNode> planNode_;
 
  private:
   /// This method converts Velox RowVector into Arrow Array based on Velox's
@@ -118,17 +124,25 @@ class WholeStageResIter {
   void collectMetrics();
 
   std::shared_ptr<memory::MemoryPool> pool_;
-  // TODO: use the setted one.
-  uint64_t batchSize_ = 10000;
+
   std::shared_ptr<Metrics> metrics_ = nullptr;
+
+  /// All the children plan node ids with postorder traversal.
   std::vector<core::PlanNodeId> orderedNodeIds_;
+
+  /// Node ids should be ommited in metrics.
   std::unordered_set<core::PlanNodeId> omittedNodeIds_;
+
+  /// A map of custome configs.
+  std::unordered_map<std::string, std::string> confMap_;
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter : public gluten::ExecBackendBase {
  public:
-  VeloxPlanConverter() {}
+  VeloxPlanConverter(
+      const std::unordered_map<std::string, std::string>& confMap)
+      : confMap_(confMap) {}
 
   std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator) override;
@@ -200,17 +214,15 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   void cacheOutputSchema(const std::shared_ptr<const core::PlanNode>& planNode);
 
-  //   void ExportArrowArray(struct ArrowSchema* schema,
-  //                                           std::shared_ptr<gluten::ArrowArrayIterator>
-  //                                           it, struct ArrowArrayStream*
-  //                                           outStream);
-
   /* Result Iterator */
   class WholeStageResIterFirstStage;
 
   class WholeStageResIterMiddleStage;
 
   int planNodeId_ = 0;
+
+  std::unordered_map<std::string, std::string> confMap_;
+
   std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>>
       arrowInputIters_;
 
