@@ -18,8 +18,8 @@
 package io.glutenproject.vectorized;
 
 import org.apache.arrow.flatbuf.CompressionType;
-import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.flatbuf.MessageHeader;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -36,7 +36,12 @@ import org.apache.arrow.vector.util.DictionaryUtility;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * This class reads from an input stream containing compressed buffers and produces
@@ -51,14 +56,14 @@ public class SchemaAwareArrowCompressedStreamReader extends ArrowStreamReader {
   private String compressType;
 
   public SchemaAwareArrowCompressedStreamReader(Schema originalSchema, InputStream in,
-      BufferAllocator allocator) {
+                                                BufferAllocator allocator) {
     super(in, allocator);
     this.originalSchema = originalSchema;
   }
 
 
   public SchemaAwareArrowCompressedStreamReader(InputStream in,
-      BufferAllocator allocator) {
+                                                BufferAllocator allocator) {
     this(null, in, allocator);
   }
 
@@ -116,7 +121,8 @@ public class SchemaAwareArrowCompressedStreamReader extends ArrowStreamReader {
         bodyBuffer = allocator.getEmpty();
       }
 
-      ArrowRecordBatch batch = MessageSerializer.deserializeRecordBatch(result.getMessage(), bodyBuffer);
+      ArrowRecordBatch batch = MessageSerializer.deserializeRecordBatch(result.getMessage(),
+          bodyBuffer);
       byte codec = batch.getBodyCompression().getCodec();
       final String codecName;
       if (codec == NoCompressionCodec.COMPRESSION_TYPE) {
@@ -134,14 +140,15 @@ public class SchemaAwareArrowCompressedStreamReader extends ArrowStreamReader {
       checkDictionaries();
       return true;
     } else if (result.getMessage().headerType() == MessageHeader.DictionaryBatch) {
-      // if it's dictionary message, read dictionary message out and continue to read unless get a batch or eos.
+      // if it's dictionary message, read dictionary message out and
+      // continue to read unless get a batch or eos.
       ArrowDictionaryBatch dictionaryBatch = readDictionary(result);
       loadDictionary(dictionaryBatch);
       loadedDictionaryCount++;
       return loadNextBatch();
     } else {
       throw new IOException("Expected RecordBatch or DictionaryBatch but header was " +
-        result.getMessage().headerType());
+          result.getMessage().headerType());
     }
   }
 

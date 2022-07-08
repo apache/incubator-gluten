@@ -18,8 +18,8 @@
 package io.glutenproject.utils
 
 import scala.collection.JavaConverters._
-import com.google.common.collect.Lists
 
+import com.google.common.collect.Lists
 import io.glutenproject.expression.CodeGeneration
 import org.apache.arrow.gandiva.expression.{TreeBuilder, TreeNode}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
@@ -55,13 +55,13 @@ object VeloxTransformerUtil {
           TreeBuilder.makeField(field)
         })
         .asJava,
-      new ArrowType.Int(32, true) /*dummy ret type, won't be used*/ )
+      new ArrowType.Int(32, true) /* dummy ret type, won't be used */)
 
     val cachedRelationFuncName = "CachedRelation"
     val cached_relation_func = TreeBuilder.makeFunction(
       cachedRelationFuncName,
       Lists.newArrayList(key_args_node),
-      new ArrowType.Int(32, true) /*dummy ret type, won't be used*/ )
+      new ArrowType.Int(32, true) /* dummy ret type, won't be used */)
 
     TreeBuilder.makeFunction(
       "standalone",

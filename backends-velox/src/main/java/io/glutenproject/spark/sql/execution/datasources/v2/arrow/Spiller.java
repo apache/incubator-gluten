@@ -20,12 +20,12 @@ package io.glutenproject.spark.sql.execution.datasources.v2.arrow;
 import org.apache.spark.memory.MemoryConsumer;
 
 public interface Spiller {
-    Spiller NO_OP = new Spiller() {
-        @Override
-        public long spill(long size, MemoryConsumer trigger) {
-            return 0L;
-        }
-    };
+  Spiller NO_OP = new Spiller() {
+    @Override
+    public long spill(long size, MemoryConsumer trigger) {
+      return 0L;
+    }
+  };
 
-    long spill(long size, MemoryConsumer trigger);
+  long spill(long size, MemoryConsumer trigger);
 }

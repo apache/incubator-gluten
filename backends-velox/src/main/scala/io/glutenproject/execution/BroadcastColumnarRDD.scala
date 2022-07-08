@@ -19,7 +19,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.vectorized.CloseableColumnBatchIterator
 
-import org.apache.spark._
+import org.apache.spark.{broadcast, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -34,11 +34,12 @@ case class BroadcastColumnarRDD(
                                  inputByteBuf: broadcast.Broadcast[ColumnarHashedRelation])
   extends RDD[ColumnarBatch](sc, Nil) {
 
-  override protected def getPartitions: Array[Partition] = {
-    (0 until numPartitioning).map { index => new BroadcastColumnarRDDPartition(index) }.toArray
-  }
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val relation = inputByteBuf.value.asReadOnlyCopy
     new CloseableColumnBatchIterator(relation.getColumnarBatchAsIter)
+  }
+
+  override protected def getPartitions: Array[Partition] = {
+    (0 until numPartitioning).map { index => new BroadcastColumnarRDDPartition(index) }.toArray
   }
 }

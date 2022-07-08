@@ -18,13 +18,17 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-
 import org.apache.spark.sql.execution.ColumnarInputAdapter
 
 class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-orc-velox"
   override protected val fileFormat: String = "orc"
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    createTPCHTables()
+  }
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -35,19 +39,15 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
       .set("spark.sql.shuffle.partitions", "1")
   }
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    createTPCHTables()
-  }
-
   test("generate hash join plan") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {
-      val df = spark.sql("""select l_partkey from
-                           | lineitem join part join partsupp
-                           | on l_partkey = p_partkey
-                           | and l_suppkey = ps_suppkey""".stripMargin)
+      val df = spark.sql(
+        """select l_partkey from
+          | lineitem join part join partsupp
+          | on l_partkey = p_partkey
+          | and l_suppkey = ps_suppkey""".stripMargin)
       val plan = df.queryExecution.executedPlan
       val joins = plan.collect {
         case shj: ShuffledHashJoinExecTransformer => shj

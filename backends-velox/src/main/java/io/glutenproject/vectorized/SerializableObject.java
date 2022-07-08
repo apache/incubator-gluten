@@ -35,7 +35,9 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.io.OutputStream;
 
-/** ArrowBufBuilder. */
+/**
+ * ArrowBufBuilder.
+ */
 public class SerializableObject implements Externalizable, KryoSerializable {
   public int total_size;
   public int[] size;
@@ -43,15 +45,16 @@ public class SerializableObject implements Externalizable, KryoSerializable {
 
   private transient AutoCloseable[] resources = null;
 
-  public SerializableObject() {}
+  public SerializableObject() {
+  }
 
   /**
    * Create an instance for NativeSerializableObject.
    *
    * @param memoryAddress native ArrowBuf data addr.
-   * @param size ArrowBuf size.
+   * @param size          ArrowBuf size.
    */
-  public SerializableObject(long[] memoryAddress, int[] size, AutoCloseable[] resources) throws IOException {
+  public SerializableObject(long[] memoryAddress, int[] size, AutoCloseable[] resources) {
     this.total_size = 0;
     this.size = size;
     directAddrs = new ByteBuf[size.length];
@@ -118,6 +121,7 @@ public class SerializableObject implements Externalizable, KryoSerializable {
           out.write(data);
           out.close();
         } catch (IOException e) {
+          e.printStackTrace();
         }
       }
     }
@@ -135,6 +139,7 @@ public class SerializableObject implements Externalizable, KryoSerializable {
         try {
           in.read(data);
         } catch (IOException e) {
+          e.printStackTrace();
         }
         out.writeBytes(data);
       }

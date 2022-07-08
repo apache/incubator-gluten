@@ -18,14 +18,20 @@
 package io.glutenproject.utils
 
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
-import org.apache.hadoop.fs.FileStatus
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
-
 import org.apache.arrow.vector.util.SchemaUtility
+import org.apache.hadoop.fs.FileStatus
+
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils}
+import org.apache.spark.sql.types.StructType
 
 object VeloxDatasourceUtil {
+  def readSchema(files: Seq[FileStatus]): Option[StructType] = {
+    if (files.isEmpty) {
+      throw new IllegalArgumentException("No input file specified")
+    }
+    readSchema(files.toList.head)
+  }
+
   def readSchema(file: FileStatus): Option[StructType] = {
     val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
     val instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(file.getPath.toString, -1)
@@ -36,12 +42,5 @@ object VeloxDatasourceUtil {
     } finally {
       dwrfDatasourceJniWrapper.close(instanceId)
     }
-  }
-
-  def readSchema(files: Seq[FileStatus]): Option[StructType] = {
-    if (files.isEmpty) {
-      throw new IllegalArgumentException("No input file specified")
-    }
-    readSchema(files.toList.head)
   }
 }

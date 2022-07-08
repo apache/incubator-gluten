@@ -18,8 +18,8 @@
 package io.glutenproject.vectorized;
 
 import org.apache.arrow.flatbuf.CompressionType;
-import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.flatbuf.MessageHeader;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -35,7 +35,11 @@ import org.apache.arrow.vector.util.DictionaryUtility;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * This class reads from an input stream containing compressed buffers and produces
@@ -48,7 +52,7 @@ public class ArrowCompressedStreamReader extends ArrowStreamReader {
     super(in, allocator);
   }
 
-  public String GetCompressType() {
+  public String getCompressType() {
     return compressType;
   }
 
@@ -94,7 +98,8 @@ public class ArrowCompressedStreamReader extends ArrowStreamReader {
         bodyBuffer = allocator.getEmpty();
       }
 
-      ArrowRecordBatch batch = MessageSerializer.deserializeRecordBatch(result.getMessage(), bodyBuffer);
+      ArrowRecordBatch batch = MessageSerializer.deserializeRecordBatch(result.getMessage(),
+          bodyBuffer);
       String codecName = CompressionType.name(batch.getBodyCompression().getCodec());
 
       if (codecName.equals("LZ4_FRAME")) {
@@ -107,14 +112,15 @@ public class ArrowCompressedStreamReader extends ArrowStreamReader {
       checkDictionaries();
       return true;
     } else if (result.getMessage().headerType() == MessageHeader.DictionaryBatch) {
-      // if it's dictionary message, read dictionary message out and continue to read unless get a batch or eos.
+      // if it's dictionary message, read dictionary message out and
+      // continue to read unless get a batch or eos.
       ArrowDictionaryBatch dictionaryBatch = readDictionary(result);
       loadDictionary(dictionaryBatch);
       loadedDictionaryCount++;
       return loadNextBatch();
     } else {
       throw new IOException("Expected RecordBatch or DictionaryBatch but header was " +
-        result.getMessage().headerType());
+          result.getMessage().headerType());
     }
   }
 

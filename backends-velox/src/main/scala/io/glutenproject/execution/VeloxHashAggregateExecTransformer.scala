@@ -16,19 +16,19 @@
  */
 
 package io.glutenproject.execution
+import java.util.ArrayList
 
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
-import com.google.common.collect.Lists
+
 import com.google.protobuf.Any
 import io.glutenproject.expression._
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import java.util
 
-import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
@@ -54,9 +54,9 @@ case class VeloxHashAggregateExecTransformer(
   override protected def addFunctionNode(
     args: java.lang.Object,
     aggregateFunction: AggregateFunction,
-    childrenNodeList: util.ArrayList[ExpressionNode],
+    childrenNodeList: ArrayList[ExpressionNode],
     aggregateMode: AggregateMode,
-    aggregateNodeList: util.ArrayList[AggregateFunctionNode]): Unit = {
+    aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     aggregateFunction match {
       case _: Average =>
@@ -124,9 +124,9 @@ case class VeloxHashAggregateExecTransformer(
 
   // Return a scalar function node representing row construct function in Velox.
   private def getRowConstructNode(
-    args: java.lang.Object,
-    childNodes: util.ArrayList[ExpressionNode],
-    rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
+                                   args: java.lang.Object,
+                                   childNodes: util.ArrayList[ExpressionNode],
+                                   rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.ROW_CONSTRUCTOR,

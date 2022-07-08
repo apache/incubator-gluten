@@ -28,13 +28,13 @@ public class SchemaAwareArrowStreamReader extends ArrowStreamReader {
   private final Schema originalSchema;
 
   public SchemaAwareArrowStreamReader(Schema originalSchema, InputStream in,
-      BufferAllocator allocator) {
+                                      BufferAllocator allocator) {
     super(in, allocator);
     this.originalSchema = originalSchema;
   }
 
   public SchemaAwareArrowStreamReader(InputStream in,
-      BufferAllocator allocator) {
+                                      BufferAllocator allocator) {
     this(null, in, allocator);
   }
 
