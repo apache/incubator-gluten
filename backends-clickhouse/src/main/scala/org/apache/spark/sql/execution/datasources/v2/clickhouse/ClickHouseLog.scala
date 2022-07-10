@@ -95,4 +95,8 @@ object ClickHouseLog {
     log
   }
 
+  // TODO: use the default path "_delta_log" as metadata path
+  def clearCache(): Unit = {
+    DeltaLog.clearCache()
+  }
 }

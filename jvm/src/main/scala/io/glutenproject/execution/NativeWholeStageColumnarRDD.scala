@@ -37,6 +37,13 @@ trait BaseNativeFilePartition extends Partition with InputPartition {
   def substraitPlan: Array[Byte]
 }
 
+case class NativePartition(index: Int, substraitPlan: Array[Byte])
+  extends BaseNativeFilePartition {
+  override def preferredLocations(): Array[String] = {
+    Array.empty[String]
+  }
+}
+
 case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
                                substraitPlan: Array[Byte])
   extends BaseNativeFilePartition {

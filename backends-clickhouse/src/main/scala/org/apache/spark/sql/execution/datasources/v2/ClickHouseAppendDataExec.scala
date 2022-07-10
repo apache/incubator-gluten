@@ -217,11 +217,11 @@ case class ClickHouseAppendDataExec(
           lengths.add(files.head.length)
           val localFilesNode =
             LocalFilesBuilder.makeLocalFiles(
-              index, paths, starts, lengths, substraitContext.getFileFormat())
+              index, paths, starts, lengths, -1)
           val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
             SnowflakeIdWorker.getInstance().nextId(),
             database, tableName, tablePath)
-          dllCxt.substraitContext.setLocalFilesNode(localFilesNode)
+          dllCxt.substraitContext.setLocalFilesNodes(Seq(localFilesNode))
           dllCxt.substraitContext.setInsertOutputNode(insertOutputNode)
           val substraitPlan = dllCxt.root.toProtobuf
           logWarning(dllCxt.root.toProtobuf.toString)

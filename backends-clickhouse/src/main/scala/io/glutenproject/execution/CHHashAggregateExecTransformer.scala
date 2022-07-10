@@ -54,10 +54,18 @@ case class CHHashAggregateExecTransformer(
         null
     }
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
-      (
-        getAggRel(context.registeredFunction, childCtx.root),
-        childCtx.outputAttributes,
-        aggregateResultAttributes)
+      // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
+      // are in the one WholeStageTransformer.
+      if (child.isInstanceOf[CHHashAggregateExecTransformer] &&
+        childCtx.outputAttributes == aggregateResultAttributes) {
+        (getAggRel(context.registeredFunction, childCtx.root),
+          childCtx.outputAttributes,
+          output)
+      } else {
+        (getAggRel(context.registeredFunction, childCtx.root),
+          childCtx.outputAttributes,
+          aggregateResultAttributes)
+      }
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
@@ -71,10 +79,11 @@ case class CHHashAggregateExecTransformer(
         nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
       }
       // The iterator index will be added in the path of LocalFiles.
+      val iteratorIndex: Long = context.nextIteratorIndex
       val inputIter = LocalFilesBuilder.makeLocalFiles(
-        ConverterUtils.ITERATOR_PREFIX.concat(context.nextIteratorIndex.toString))
-      context.setLocalFilesNode(inputIter)
-      val readRel = RelBuilder.makeReadRel(typeList, nameList, null, context)
+        ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
+      context.setIteratorNode(iteratorIndex, inputIter)
+      val readRel = RelBuilder.makeReadRel(typeList, nameList, null, context, iteratorIndex)
 
       (getAggRel(context.registeredFunction, readRel), aggregateResultAttributes, output)
     }

@@ -46,12 +46,12 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   override def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec = null
 
   /**
-   * Generate RowToArrowColumnarExec.
+   * Generate RowToColumnarExec.
    *
    * @param child
    * @return
    */
-  override def genRowToArrowColumnarExec(child: SparkPlan): RowToArrowColumnarExec = null
+  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec = null
 
   /**
    * Generate FilterExecTransformer.

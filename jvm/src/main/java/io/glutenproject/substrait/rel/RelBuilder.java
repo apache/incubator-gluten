@@ -78,6 +78,15 @@ public class RelBuilder {
     return new ReadRelNode(types, names, context, filter, null);
   }
 
+  public static RelNode makeReadRel(
+      ArrayList<TypeNode> types,
+      ArrayList<String> names,
+      ExpressionNode filter,
+      SubstraitContext context,
+      Long iteratorIndex) {
+    return new ReadRelNode(types, names, context, filter, iteratorIndex);
+  }
+
   public static RelNode makeReadRel(ArrayList<Attribute> attributes, SubstraitContext context) {
     ArrayList<TypeNode> typeList = new ArrayList<>();
     ArrayList<String> nameList = new ArrayList<>();

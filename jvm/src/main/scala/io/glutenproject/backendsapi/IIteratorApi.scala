@@ -36,7 +36,8 @@ trait IIteratorApi extends IBackendsApi {
    *
    * @return
    */
-  def genNativeFilePartition(p: InputPartition,
+  def genNativeFilePartition(index: Int,
+                             partitions: Seq[InputPartition],
                              wsCxt: WholestageTransformContext): BaseNativeFilePartition
 
   /**

@@ -18,21 +18,22 @@
 package io.glutenproject.substrait
 
 import io.glutenproject.substrait.ddlplan.InsertOutputNode
-import io.glutenproject.substrait.rel.{ExtensionTableNode, LocalFilesNode}
+import io.glutenproject.substrait.rel.LocalFilesNode
 
 class SubstraitContext extends Serializable {
 
   private val functionMap = new java.util.HashMap[String, java.lang.Long]()
   private val iteratorNodes = new java.util.HashMap[java.lang.Long, LocalFilesNode]()
-  private var localFilesNode: LocalFilesNode = _
-  private var extensionTableNode: ExtensionTableNode = _
+  private var localFilesNodesIndex: java.lang.Integer = new java.lang.Integer(0)
+  private var localFilesNodes: Seq[java.io.Serializable] = _
   private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
-  private var fileFormat: java.lang.Integer = new Integer(-1)
+  private var fileFormat: java.util.List[java.lang.Integer] =
+    new java.util.ArrayList[java.lang.Integer]()
   private var insertOutputNode: InsertOutputNode = _
 
-  def getFileFormat(): java.lang.Integer = this.fileFormat
+  def getFileFormat(): java.util.List[java.lang.Integer] = this.fileFormat
 
-  def setFileFormat(format: java.lang.Integer): Unit = {
+  def setFileFormat(format: java.util.List[java.lang.Integer]): Unit = {
     this.fileFormat = format
   }
 
@@ -43,20 +44,29 @@ class SubstraitContext extends Serializable {
     iteratorNodes.put(index, localFilesNode)
   }
 
-  def getLocalFilesNode: LocalFilesNode = this.localFilesNode
+  def initLocalFilesNodesIndex(localFilesNodesIndex: java.lang.Integer): Unit = {
+    this.localFilesNodesIndex = localFilesNodesIndex
+  }
 
-  def setLocalFilesNode(localFilesNode: LocalFilesNode): Unit = {
-    this.localFilesNode = localFilesNode
+  def getLocalFilesNodes: Seq[java.io.Serializable] = this.localFilesNodes
+
+  def getCurrentLocalFileNode: java.io.Serializable = {
+    if (getLocalFilesNodes != null && getLocalFilesNodes.size > localFilesNodesIndex) {
+      val res = getLocalFilesNodes(localFilesNodesIndex)
+      localFilesNodesIndex += 1
+      res
+    } else {
+      throw new IllegalStateException(
+        s"LocalFilesNodes index ${localFilesNodesIndex} exceeds the size of the LocalFilesNodes.")
+    }
+  }
+
+  def setLocalFilesNodes(localFilesNodes: Seq[java.io.Serializable]): Unit = {
+    this.localFilesNodes = localFilesNodes
   }
 
   def getInputIteratorNode(index: java.lang.Long): LocalFilesNode = {
     iteratorNodes.get(index)
-  }
-
-  def getExtensionTableNode: ExtensionTableNode = this.extensionTableNode
-
-  def setExtensionTableNode(extensionTableNode: ExtensionTableNode): Unit = {
-    this.extensionTableNode = extensionTableNode
   }
 
   def getInsertOutputNode: InsertOutputNode = this.insertOutputNode

@@ -47,12 +47,12 @@ trait ISparkPlanExecApi extends IBackendsApi {
   def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec
 
   /**
-   * Generate RowToArrowColumnarExec.
+   * Generate RowToColumnarExec.
    *
    * @param child
    * @return
    */
-  def genRowToArrowColumnarExec(child: SparkPlan): RowToArrowColumnarExec
+  def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec
 
   /**
    * Generate FilterExecTransformer.
