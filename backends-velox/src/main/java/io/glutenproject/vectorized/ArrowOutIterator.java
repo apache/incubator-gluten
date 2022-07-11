@@ -20,6 +20,7 @@ package io.glutenproject.vectorized;
 import io.glutenproject.expression.ArrowConverterUtils;
 import io.glutenproject.utils.ArrowAbiUtil;
 import org.apache.arrow.c.ArrowArray;
+import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
@@ -31,13 +32,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class ArrowOutIterator extends GeneralOutIterator {
-  private final transient Schema schema;
-
-  public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
-    super(instance_id, outAttrs);
-    this.schema = ArrowConverterUtils.toArrowSchema(
-        JavaConverters.asScalaIteratorConverter(outAttrs.iterator()).asScala().toSeq());
-  }
+  private transient Schema schema;
 
   private native boolean nativeHasNext(long nativeHandle);
 
@@ -49,6 +44,12 @@ public class ArrowOutIterator extends GeneralOutIterator {
 
   private native MetricsObject nativeFetchMetrics(long nativeHandle);
 
+  public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
+    super(instance_id, outAttrs);
+    this.schema = ArrowConverterUtils.toArrowSchema(
+        JavaConverters.asScalaIteratorConverter(outAttrs.iterator()).asScala().toSeq());
+  }
+
   @Override
   public boolean hasNextInternal() throws IOException {
     return nativeHasNext(handle);
@@ -56,8 +57,9 @@ public class ArrowOutIterator extends GeneralOutIterator {
 
   @Override
   public ColumnarBatch nextInternal() throws IOException {
-    final BufferAllocator allocator = SparkMemoryUtils.contextAllocator();
-    try (ArrowArray cArray = ArrowArray.allocateNew(allocator)) {
+    final BufferAllocator allocator = SparkMemoryUtils.contextArrowAllocator();
+    try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
+         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       if (!nativeNext(handle, cArray.memoryAddress())) {
         return null; // stream ended
       }

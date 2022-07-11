@@ -33,7 +33,7 @@ namespace columnartorow {
 class ColumnarToRowConverterBase {
  public:
   ColumnarToRowConverterBase(std::shared_ptr<arrow::RecordBatch> rb,
-                             arrow::MemoryPool* memory_pool)
+                             std::shared_ptr<arrow::MemoryPool> memory_pool)
       : rb_(rb), memory_pool_(memory_pool) {}
 
   virtual ~ColumnarToRowConverterBase() = default;
@@ -46,10 +46,10 @@ class ColumnarToRowConverterBase {
   const std::vector<int64_t>& GetLengths() { return lengths_; }
 
  protected:
+  std::shared_ptr<arrow::MemoryPool> memory_pool_;
   std::vector<int64_t> buffer_cursor_;
   std::shared_ptr<arrow::RecordBatch> rb_;
   std::shared_ptr<arrow::Buffer> buffer_;
-  arrow::MemoryPool* memory_pool_ = arrow::default_memory_pool();
   int64_t nullBitsetWidthInBytes_;
   int64_t num_cols_;
   int64_t num_rows_;

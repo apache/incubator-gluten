@@ -15,25 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.memory;
 
-import io.glutenproject.utils.ArrowAbiUtil;
-import org.apache.arrow.c.ArrowArray;
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.apache.spark.memory.MemoryConsumer;
 
-import java.util.Iterator;
+public interface Spiller {
+  Spiller NO_OP = new Spiller() {
+    @Override
+    public long spill(long size, MemoryConsumer trigger) {
+      return 0L;
+    }
+  };
 
-public class ArrowInIterator extends GeneralInIterator {
-
-  public ArrowInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
-  }
-
-  public void next(long cArrayAddress) {
-    final ColumnarBatch batch = nextColumnarBatch();
-    final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
-    ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextArrowAllocator(), batch,
-        null, cArray);
-  }
+  long spill(long size, MemoryConsumer trigger);
 }

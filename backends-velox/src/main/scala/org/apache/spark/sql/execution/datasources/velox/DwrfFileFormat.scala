@@ -60,11 +60,11 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
                                context: TaskAttemptContext): OutputWriter = {
         val originPath = path
         val arrowSchema = ArrowUtils.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
-        val cSchema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator)
+        val cSchema = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator)
         var instanceId = -1L
         val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
         try {
-          ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator, arrowSchema, cSchema)
+          ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator, arrowSchema, cSchema)
           instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath,
             cSchema.memoryAddress())
         } catch {
@@ -77,13 +77,13 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            val allocator = SparkMemoryUtils.contextAllocator()
+            val allocator = SparkMemoryUtils.contextArrowAllocator()
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
             var info: NativeColumnarToRowInfo = null
             try {
               ArrowAbiUtil.exportFromSparkColumnarBatch(
-                SparkMemoryUtils.contextAllocator(), batch, cSchema, cArray)
+                SparkMemoryUtils.contextArrowAllocator(), batch, cSchema, cArray)
 
               dwrfDatasourceJniWrapper.write(instanceId, cSchema.memoryAddress(),
                 cArray.memoryAddress())

@@ -25,6 +25,7 @@
 #include "arrow/array/builder_primitive.h"
 #include "arrow/util/checked_cast.h"
 #include "kernels_ext.h"
+#include "memory/allocator.h"
 #include "protobuf_utils.h"
 #include "utils/exception.h"
 
@@ -326,7 +327,7 @@ class SubstraitParser::FirstStageResultIterator {
   }
 
  private:
-  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
+  arrow::MemoryPool* pool_ = gluten::memory::GetDefaultWrappedArrowMemoryPool();
   std::unique_ptr<arrow::DoubleBuilder> builder_;
   bool has_next_ = true;
   // std::vector<std::shared_ptr<arrow::Array>> res_arrays;

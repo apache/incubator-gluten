@@ -75,56 +75,16 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(ArrowWritableColumnVector.class);
-  public static AtomicLong vectorCount = new AtomicLong(0);
-  private final ArrowVectorWriter writer;
-  private final ValueVector vector;
-  private final AtomicLong refCnt = new AtomicLong(0);
+
   private ArrowVectorAccessor accessor;
+  private ArrowVectorWriter writer;
+
   private int ordinal;
+  private ValueVector vector;
   private ValueVector dictionaryVector;
+  public static AtomicLong vectorCount = new AtomicLong(0);
+  private AtomicLong refCnt = new AtomicLong(0);
   private boolean closed = false;
-
-  @Deprecated
-  public ArrowWritableColumnVector(
-      ValueVector vector, int ordinal, int capacity, boolean init) {
-    this(vector, null, ordinal, capacity, init);
-  }
-
-  public ArrowWritableColumnVector(ValueVector vector, ValueVector dicionaryVector,
-                                   int ordinal, int capacity, boolean init) {
-    super(capacity, ArrowUtils.fromArrowField(vector.getField()));
-    vectorCount.getAndIncrement();
-    refCnt.getAndIncrement();
-
-    this.ordinal = ordinal;
-    this.vector = vector;
-    this.dictionaryVector = dicionaryVector;
-    if (init) {
-      vector.setInitialCapacity(capacity);
-      vector.allocateNew();
-    }
-    writer = createVectorWriter(vector);
-    createVectorAccessor(vector, dicionaryVector);
-  }
-
-  public ArrowWritableColumnVector(int capacity, DataType dataType) {
-    super(capacity, dataType);
-    vectorCount.getAndIncrement();
-    refCnt.getAndIncrement();
-    String timeZoneId = SparkSchemaUtils.getLocalTimezoneID();
-    List<Field> fields =
-        Arrays.asList(ArrowUtils.toArrowField("col", dataType, true, timeZoneId));
-    Schema arrowSchema = new Schema(fields);
-    VectorSchemaRoot root =
-        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextAllocator());
-
-    List<FieldVector> fieldVectors = root.getFieldVectors();
-    vector = fieldVectors.get(0);
-    vector.setInitialCapacity(capacity);
-    vector.allocateNew();
-    this.writer = createVectorWriter(vector);
-    createVectorAccessor(vector, null);
-  }
 
   /**
    * Allocates columns to store elements of each field of the schema on heap.
@@ -136,7 +96,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     String timeZoneId = SparkSchemaUtils.getLocalTimezoneID();
     Schema arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId);
     VectorSchemaRoot new_root =
-        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextAllocator());
+        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextArrowAllocator());
 
     List<FieldVector> fieldVectors = new_root.getFieldVectors();
     ArrowWritableColumnVector[] vectors =
@@ -184,7 +144,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
                                                         ArrowRecordBatch recordBatch,
                                                         BufferAllocator _allocator) {
     if (_allocator == null) {
-      _allocator = SparkMemoryUtils.contextAllocator();
+      _allocator = SparkMemoryUtils.contextArrowAllocator();
     }
     VectorSchemaRoot root = VectorSchemaRoot.create(arrowSchema, _allocator);
     VectorLoader loader = new VectorLoader(root);
@@ -192,8 +152,46 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     return loadColumns(capacity, root.getFieldVectors());
   }
 
-  public static String stat() {
-    return "vectorCounter is " + vectorCount.get();
+  @Deprecated
+  public ArrowWritableColumnVector(
+      ValueVector vector, int ordinal, int capacity, boolean init) {
+    this(vector, null, ordinal, capacity, init);
+  }
+
+  public ArrowWritableColumnVector(ValueVector vector, ValueVector dicionaryVector,
+                                   int ordinal, int capacity, boolean init) {
+    super(capacity, ArrowUtils.fromArrowField(vector.getField()));
+    vectorCount.getAndIncrement();
+    refCnt.getAndIncrement();
+
+    this.ordinal = ordinal;
+    this.vector = vector;
+    this.dictionaryVector = dicionaryVector;
+    if (init) {
+      vector.setInitialCapacity(capacity);
+      vector.allocateNew();
+    }
+    writer = createVectorWriter(vector);
+    createVectorAccessor(vector, dicionaryVector);
+  }
+
+  public ArrowWritableColumnVector(int capacity, DataType dataType) {
+    super(capacity, dataType);
+    vectorCount.getAndIncrement();
+    refCnt.getAndIncrement();
+    String timeZoneId = SparkSchemaUtils.getLocalTimezoneID();
+    List<Field> fields =
+        Arrays.asList(ArrowUtils.toArrowField("col", dataType, true, timeZoneId));
+    Schema arrowSchema = new Schema(fields);
+    VectorSchemaRoot root =
+        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextArrowAllocator());
+
+    List<FieldVector> fieldVectors = root.getFieldVectors();
+    vector = fieldVectors.get(0);
+    vector.setInitialCapacity(capacity);
+    vector.allocateNew();
+    this.writer = createVectorWriter(vector);
+    createVectorAccessor(vector, null);
   }
 
   public ValueVector getValueVector() {
@@ -357,6 +355,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     if (dictionaryVector != null) {
       dictionaryVector.close();
     }
+  }
+
+  public static String stat() {
+    return "vectorCounter is " + vectorCount.get();
   }
 
   @Override
@@ -795,7 +797,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     }
     if (dataType() instanceof ArrayType) {
       UTF8String ret_0 = accessor.getUTF8String(rowId);
-      for (int i = 0; i < accessor.getArrayLength(rowId); i++) {
+      for (int i = 0; i < ((ArrayAccessor) accessor).getArrayLength(rowId); i++) {
         ret_0 = UTF8String.concat(ret_0, getArray(rowId).getUTF8String(i));
       }
       return ret_0;

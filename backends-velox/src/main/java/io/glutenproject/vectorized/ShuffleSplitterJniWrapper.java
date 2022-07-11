@@ -43,57 +43,25 @@ public class ShuffleSplitterJniWrapper {
    * @param memoryPoolId
    * @return native splitter instance id if created successfully.
    */
-  public long make(
-      NativePartitioning part,
-      long offheapPerTask,
-      int bufferSize,
-      String codec,
-      int batchCompressThreshold,
-      String dataFile,
-      int subDirsPerLocalDir,
-      String localDirs,
-      boolean preferSpill,
-      long memoryPoolId,
-      boolean writeSchema) {
-    try (ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextAllocator())) {
-      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextAllocator(),
-          ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()),
-          schema);
-      return nativeMake(
-          part.getShortName(),
-          part.getNumPartitions(),
-          schema.memoryAddress(),
-          part.getExprList(),
-          offheapPerTask,
-          bufferSize,
-          codec,
-          batchCompressThreshold,
-          dataFile,
-          subDirsPerLocalDir,
-          localDirs,
-          preferSpill,
-          memoryPoolId,
-          writeSchema);
+  public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
+                   int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
+                   String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema) {
+    try (ArrowSchema schema = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator())) {
+      ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator(),
+          ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()), schema);
+      return nativeMake(part.getShortName(), part.getNumPartitions(), schema.memoryAddress(),
+          part.getExprList(), offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
+          subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
-  public native long nativeMake(
-      String shortName,
-      int numPartitions,
-      long cSchema,
-      byte[] exprList,
-      long offheapPerTask,
-      int bufferSize,
-      String codec,
-      int batchCompressThreshold,
-      String dataFile,
-      int subDirsPerLocalDir,
-      String localDirs,
-      boolean preferSpill,
-      long memoryPoolId,
-      boolean writeSchema);
+  public native long nativeMake(String shortName, int numPartitions, long cSchema,
+                                byte[] exprList, long offheapPerTask, int bufferSize,
+                                String codec, int batchCompressThreshold, String dataFile,
+                                int subDirsPerLocalDir, String localDirs, boolean preferSpill,
+                                long memoryPoolId, boolean writeSchema);
 
   /**
    * Spill partition data to disk.
@@ -105,8 +73,8 @@ public class ShuffleSplitterJniWrapper {
    * the evaluator itself
    * @return actual spilled size
    */
-  public native long nativeSpill(long splitterId, long size, boolean callBySelf)
-      throws RuntimeException;
+  public native long nativeSpill(
+      long splitterId, long size, boolean callBySelf) throws RuntimeException;
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
@@ -121,8 +89,7 @@ public class ShuffleSplitterJniWrapper {
    * @return If the firstRecorBatch is true, return the compressed size, otherwise -1.
    */
   public native long split(
-      long splitterId, int numRows, long cArray, boolean firstRecordBatch)
-      throws IOException;
+      long splitterId, int numRows, long cArray, boolean firstRecordBatch) throws IOException;
 
   /**
    * Update the compress type.

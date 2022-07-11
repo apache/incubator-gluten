@@ -24,6 +24,8 @@
 
 #include <deque>
 
+#include "memory/allocator.h"
+
 namespace gluten {
 namespace shuffle {
 
@@ -51,7 +53,8 @@ struct SplitOptions {
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
 
-  arrow::MemoryPool* memory_pool = arrow::default_memory_pool();
+  std::shared_ptr<arrow::MemoryPool> memory_pool =
+      gluten::memory::AsWrappedArrowMemoryPool(gluten::memory::DefaultMemoryAllocator());
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 

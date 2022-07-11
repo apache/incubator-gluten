@@ -19,12 +19,7 @@
 #include <arrow/c/bridge.h>
 #include <arrow/c/helpers.h>
 #include <arrow/filesystem/filesystem.h>
-#include <arrow/filesystem/path_util.h>
-#include <arrow/io/memory.h>
 #include <arrow/ipc/api.h>
-#include <arrow/ipc/dictionary.h>
-#include <arrow/memory_pool.h>
-#include <arrow/pretty_print.h>
 #include <arrow/record_batch.h>
 #include <arrow/util/compression.h>
 #include <arrow/util/iterator.h>
@@ -54,6 +49,11 @@ class ExpressionList;
 static jclass serializable_obj_builder_class;
 static jmethodID serializable_obj_builder_constructor;
 
+jclass java_reservation_listener_class;
+
+jmethodID reserve_memory_method;
+jmethodID unreserve_memory_method;
+
 static jclass byte_array_class;
 
 static jclass split_result_class;
@@ -69,9 +69,9 @@ static jmethodID serialized_arrow_array_iterator_next;
 static jclass native_columnar_to_row_info_class;
 static jmethodID native_columnar_to_row_info_constructor;
 
-using arrow::jni::ConcurrentMap;
+jlong default_memory_allocator_id = -1L;
 
-static jint JNI_VERSION = JNI_VERSION_1_8;
+using arrow::jni::ConcurrentMap;
 
 static arrow::jni::ConcurrentMap<
     std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
@@ -263,6 +263,17 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   native_columnar_to_row_info_constructor =
       GetMethodIDOrError(env, native_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
 
+  java_reservation_listener_class = CreateGlobalClassReference(env,
+                                                               "Lio/glutenproject/memory/"
+                                                               "ReservationListener;");
+  reserve_memory_method =
+      GetMethodIDOrError(env, java_reservation_listener_class, "reserve", "(J)V");
+  unreserve_memory_method =
+      GetMethodIDOrError(env, java_reservation_listener_class, "unreserve", "(J)V");
+
+  default_memory_allocator_id =
+      reinterpret_cast<jlong>(gluten::memory::DefaultMemoryAllocator());
+
   return JNI_VERSION;
 }
 
@@ -309,7 +320,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsT
 
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
-    JNIEnv* env, jobject obj, jlong memory_pool_id, jbyteArray plan_arr,
+    JNIEnv* env, jobject obj, jlong allocator_id, jbyteArray plan_arr,
     jobjectArray iter_arr) {
   JNI_METHOD_START
   arrow::Status msg;
@@ -396,7 +407,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeC
 
 JNIEXPORT jobject JNICALL
 Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow(
-    JNIEnv* env, jobject, jlong c_schema, jlong c_array, jlong memory_pool_id,
+    JNIEnv* env, jobject, jlong c_schema, jlong c_array, jlong allocator_id,
     jboolean wsChild) {
   JNI_METHOD_START
   std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(
@@ -404,13 +415,14 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
                                reinterpret_cast<struct ArrowSchema*>(c_schema)));
   int64_t num_rows = rb->num_rows();
   // convert the record batch to spark unsafe row.
-  auto* pool = reinterpret_cast<arrow::MemoryPool*>(memory_pool_id);
-  if (pool == nullptr) {
+  auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
   auto backend = gluten::CreateBackend();
+  auto memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
-      columnar_to_row_converter = backend->getColumnarConverter(rb, pool, wsChild);
+      columnar_to_row_converter = backend->getColumnarConverter(rb, memory_pool, wsChild);
   gluten::JniAssertOkOrThrow(columnar_to_row_converter->Init(),
                              "Native convert columnar to row: Init "
                              "ColumnarToRowConverter failed");
@@ -452,8 +464,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
     JNIEnv* env, jobject, jstring partitioning_name_jstr, jint num_partitions,
     jlong c_schema, jbyteArray expr_arr, jlong offheap_per_task, jint buffer_size,
     jstring compression_type_jstr, jint batch_compress_threshold, jstring data_file_jstr,
-    jint num_sub_dirs, jstring local_dirs_jstr, jboolean prefer_spill,
-    jlong memory_pool_id, jboolean write_schema) {
+    jint num_sub_dirs, jstring local_dirs_jstr, jboolean prefer_spill, jlong allocator_id,
+    jboolean write_schema) {
   JNI_METHOD_START
   if (partitioning_name_jstr == NULL) {
     gluten::JniThrow(std::string("Short partitioning name can't be null"));
@@ -494,11 +506,11 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   splitOptions.data_file = std::string(data_file_c);
   env->ReleaseStringUTFChars(data_file_jstr, data_file_c);
 
-  auto* pool = reinterpret_cast<arrow::MemoryPool*>(memory_pool_id);
-  if (pool == nullptr) {
+  auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
-  splitOptions.memory_pool = pool;
+  splitOptions.memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
 
   auto local_dirs = env->GetStringUTFChars(local_dirs_jstr, JNI_FALSE);
   setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
@@ -689,6 +701,7 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
 
   // decompress buffers
   auto options = arrow::ipc::IpcReadOptions::Defaults();
+  options.memory_pool = gluten::memory::GetDefaultWrappedArrowMemoryPool();
   options.use_threads = false;
   gluten::JniAssertOkOrThrow(
       DecompressBuffers(compression_type, options, (uint8_t*)in_buf_mask, input_buffers,
@@ -717,6 +730,58 @@ JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_close(
     JNIEnv* env, jobject, jlong schema_holder_id) {
   decompression_schema_holder_.Erase(schema_holder_id);
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_memory_NativeMemoryAllocator_getDefaultAllocator(JNIEnv* env,
+                                                                       jclass) {
+  JNI_METHOD_START
+  return default_memory_allocator_id;
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_memory_NativeMemoryAllocator_createListenableAllocator(
+    JNIEnv* env, jclass, jobject jlistener) {
+  JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    gluten::JniThrow("Unable to get JavaVM instance");
+  }
+  std::shared_ptr<gluten::memory::AllocationListener> listener =
+      std::make_shared<SparkAllocationListener>(vm, jlistener, reserve_memory_method,
+                                                unreserve_memory_method, 8L << 10 << 10);
+  auto allocator = new gluten::memory::ListenableMemoryAllocator(
+      gluten::memory::DefaultMemoryAllocator(), listener);
+  return reinterpret_cast<jlong>(allocator);
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(JNIEnv* env, jclass,
+                                                                    jlong allocator_id) {
+  JNI_METHOD_START
+  if (allocator_id == default_memory_allocator_id) {
+    return;
+  }
+  auto* alloc = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  if (alloc == nullptr) {
+    return;
+  }
+  delete alloc;
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_NativeMemoryAllocator_bytesAllocated(
+    JNIEnv* env, jclass, jlong allocator_id) {
+  JNI_METHOD_START
+  auto* alloc = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  if (alloc == nullptr) {
+    gluten::JniThrow(
+        "Memory allocator instance not found. It may not exist nor has been closed");
+  }
+  return alloc->GetBytes();
+  JNI_METHOD_END(-1L)
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocTrim(JNIEnv* env,

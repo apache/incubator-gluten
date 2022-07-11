@@ -17,22 +17,15 @@
 
 package io.glutenproject.backendsapi.velox
 
+import java.util
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
-import io.glutenproject.backendsapi.IIteratorApi
-import io.glutenproject.execution._
-import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.LocalFilesBuilder
-import io.glutenproject.vectorized._
-import java.util
-import org.apache.arrow.vector.types.pojo.Schema
-
-import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
+import org.apache.spark.InterruptibleIterator
+import org.apache.spark.SparkConf
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -41,8 +34,20 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
+import org.apache.spark.sql.vectorized.ColumnVector
+import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.ExecutorManager
+import org.apache.spark.util.UserAddedJarUtils
+
+import io.glutenproject.GlutenConfig
+import io.glutenproject.GlutenNumaBindingInfo
+import io.glutenproject.backendsapi.IIteratorApi
+import io.glutenproject.execution._
+import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.substrait.rel.LocalFilesBuilder
+import io.glutenproject.vectorized._
+import org.apache.arrow.vector.types.pojo.Schema
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
@@ -51,7 +56,9 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    *
    * @return
    */
-  override def genNativeFilePartition(p: InputPartition, wsCxt: WholestageTransformContext)
+  override def genNativeFilePartition(
+                                       p: InputPartition,
+                                       wsCxt: WholestageTransformContext)
   : BaseNativeFilePartition = {
     p match {
       case FilePartition(index, files) =>
@@ -187,7 +194,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @param iter
    * @return
    */
-  override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch])
+  override def genCloseableColumnBatchIterator(
+                                                iter: Iterator[ColumnarBatch])
   : Iterator[ColumnarBatch] = {
     new CloseableColumnBatchIterator(iter)
   }
@@ -352,10 +360,10 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                  iterList: Seq[GeneralInIterator],
                                  jniWrapper: ExpressionEvaluatorJniWrapper,
                                  outAttrs: Seq[Attribute]): GeneralOutIterator = {
-    val memoryPool = SparkMemoryUtils.contextMemoryPool()
-    val poolId = memoryPool.getNativeInstanceId
+    val alloc = SparkMemoryUtils.contextNativeAllocator()
+    val allocId = alloc.getNativeInstanceId
     val batchIteratorInstance =
-      jniWrapper.nativeCreateKernelWithIterator(poolId, wsPlan, iterList.toArray)
+      jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)
   }
 

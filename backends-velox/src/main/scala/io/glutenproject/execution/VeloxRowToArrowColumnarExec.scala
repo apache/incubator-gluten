@@ -19,16 +19,17 @@ package io.glutenproject.execution
 
 import java.util.concurrent.TimeUnit._
 
-import io.glutenproject.vectorized._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils.UnsafeItr
-import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, WritableColumnVector}
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
+import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import io.glutenproject.vectorized._
 
 class RowToColumnConverter(schema: StructType) extends Serializable {
   private val converters = schema.fields.map {
@@ -282,6 +283,8 @@ class VeloxRowToArrowColumnarExec(child: SparkPlan) extends RowToArrowColumnarEx
       }
     }
   }
+
+  override def hashCode(): Int = super.hashCode()
 
   override def equals(other: Any): Boolean = other match {
     case that: VeloxRowToArrowColumnarExec =>

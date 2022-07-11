@@ -31,8 +31,6 @@
 
 #include <iostream>
 
-static jint JNI_VERSION = JNI_VERSION_1_8;
-
 static std::unique_ptr<memory::MemoryPool> veloxPool_;
 static std::unordered_map<std::string, std::string> sparkConfs_;
 

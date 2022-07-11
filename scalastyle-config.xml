@@ -264,7 +264,7 @@ This file is divided into 3 sections:
     is slower.  </customMessage>
   </check>
 
-  <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="true">
+  <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="false">
     <parameters>
       <parameter name="groups">java,scala,3rdParty,spark</parameter>
       <parameter name="group.java">javax?\..*</parameter>

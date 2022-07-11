@@ -230,6 +230,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attrib
 set(SPARK_COLUMNAR_PLUGIN_SRCS
         jni/jni_wrapper.cc
         jni/exec_backend.cc
+        memory/allocator.cc
         ${PROTO_SRCS}
         compute/protobuf_utils.cc
         compute/substrait_utils.cc

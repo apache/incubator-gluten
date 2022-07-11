@@ -42,6 +42,9 @@
 
 #include "compute/protobuf_utils.h"
 #include "compute/substrait_utils.h"
+#include "memory/allocator.h"
+
+static jint JNI_VERSION = JNI_VERSION_1_8;
 
 jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
   jclass local_class = env->FindClass(class_name);
@@ -249,39 +252,12 @@ std::string JStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer.data(), clen);
 }
 
-arrow::Status MakeExprVector(JNIEnv* env, jbyteArray exprs_arr,
-                             gandiva::ExpressionVector* expr_vector,
-                             gandiva::FieldVector* ret_types) {
-  exprs::ExpressionList exprs;
-  jsize exprs_len = env->GetArrayLength(exprs_arr);
-  jbyte* exprs_bytes = env->GetByteArrayElements(exprs_arr, 0);
-
-  if (!ParseProtobuf(reinterpret_cast<uint8_t*>(exprs_bytes), exprs_len, &exprs)) {
-    env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
-    return arrow::Status::UnknownError("Unable to parse");
-  }
-
-  // create Expression out of the list of exprs
-  for (int i = 0; i < exprs.exprs_size(); i++) {
-    gandiva::ExpressionPtr root = ProtoTypeToExpression(exprs.exprs(i));
-
-    if (root == nullptr) {
-      env->ReleaseByteArrayElements(exprs_arr, exprs_bytes, JNI_ABORT);
-      return arrow::Status::UnknownError("Unable to construct expression object");
-    }
-
-    expr_vector->push_back(root);
-    ret_types->push_back(root->result());
-  }
-
-  return arrow::Status::OK();
-}
-
 jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
   arrow::Result<std::shared_ptr<arrow::Buffer>> maybe_buffer;
-  maybe_buffer = arrow::ipc::SerializeSchema(*schema.get(), arrow::default_memory_pool());
+  maybe_buffer = arrow::ipc::SerializeSchema(
+      *schema.get(), gluten::memory::GetDefaultWrappedArrowMemoryPool());
   if (!status.ok()) {
     std::string error_message =
         "Unable to convert schema to byte array, err is " + status.message();
@@ -434,3 +410,94 @@ arrow::Status DecompressBuffers(
   return ::arrow::internal::OptionalParallelFor(
       options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
 }
+
+void CheckException(JNIEnv* env) {
+  if (env->ExceptionCheck()) {
+    jthrowable t = env->ExceptionOccurred();
+    env->ExceptionClear();
+    jclass describer_class =
+        env->FindClass("org/apache/arrow/dataset/jni/JniExceptionDescriber");
+    jmethodID describe_method = env->GetStaticMethodID(
+        describer_class, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
+    std::string description = JStringToCString(
+        env, (jstring)env->CallStaticObjectMethod(describer_class, describe_method, t));
+    throw gluten::GlutenException("Error during calling Java code from native code: " +
+                                  description);
+  }
+}
+
+class SparkAllocationListener : public gluten::memory::AllocationListener {
+ public:
+  SparkAllocationListener(JavaVM* vm, jobject java_listener,
+                          jmethodID java_reserve_method, jmethodID java_unreserve_method,
+                          int64_t block_size)
+      : vm_(vm),
+        java_reserve_method_(java_reserve_method),
+        java_unreserve_method_(java_unreserve_method),
+        block_size_(block_size) {
+    JNIEnv* env;
+    if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+      throw gluten::GlutenException("JNIEnv was not attached to current thread");
+    }
+    java_listener_ = env->NewGlobalRef(java_listener);
+  }
+
+  ~SparkAllocationListener() override {
+    JNIEnv* env;
+    if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+      std::cerr << "SparkAllocationListener#~SparkAllocationListener(): "
+                << "JNIEnv was not attached to current thread" << std::endl;
+      return;
+    }
+    env->DeleteGlobalRef(java_listener_);
+  }
+
+  void AllocationChanged(int64_t size) override { UpdateReservation(size); };
+
+ private:
+  int64_t Reserve(int64_t diff) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    bytes_reserved_ += diff;
+    int64_t new_block_count;
+    if (bytes_reserved_ == 0) {
+      new_block_count = 0;
+    } else {
+      // ceil to get the required block number
+      new_block_count = (bytes_reserved_ - 1) / block_size_ + 1;
+    }
+    int64_t bytes_granted = (new_block_count - blocks_reserved_) * block_size_;
+    blocks_reserved_ = new_block_count;
+    if (bytes_reserved_ > max_bytes_reserved_) {
+      max_bytes_reserved_ = bytes_reserved_;
+    }
+    return bytes_granted;
+  }
+
+  void UpdateReservation(int64_t diff) {
+    JNIEnv* env;
+    if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
+      throw gluten::GlutenException("JNIEnv was not attached to current thread");
+    }
+    int64_t granted = Reserve(diff);
+    if (granted == 0) {
+      return;
+    }
+    if (granted < 0) {
+      env->CallObjectMethod(java_listener_, java_unreserve_method_, -granted);
+      CheckException(env);
+      return;
+    }
+    env->CallObjectMethod(java_listener_, java_reserve_method_, granted);
+    CheckException(env);
+  }
+
+  JavaVM* vm_;
+  jobject java_listener_;
+  jmethodID java_reserve_method_;
+  jmethodID java_unreserve_method_;
+  int64_t block_size_;
+  int64_t blocks_reserved_ = 0L;
+  int64_t bytes_reserved_ = 0L;
+  int64_t max_bytes_reserved_ = 0L;
+  std::mutex mutex_;
+};

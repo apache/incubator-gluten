@@ -311,7 +311,7 @@ arrow::Status Splitter::Init() {
   }
 
   auto& ipc_write_options = options_.ipc_write_options;
-  ipc_write_options.memory_pool = options_.memory_pool;
+  ipc_write_options.memory_pool = options_.memory_pool.get();
   ipc_write_options.use_threads = false;
 
   if (options_.compression_type == arrow::Compression::FASTPFOR) {
@@ -334,7 +334,7 @@ arrow::Status Splitter::Init() {
 
   // Allocate first buffer for split reducer
   ARROW_ASSIGN_OR_RAISE(combine_buffer_,
-                        arrow::AllocateResizableBuffer(0, options_.memory_pool));
+                        arrow::AllocateResizableBuffer(0, options_.memory_pool.get()));
   combine_buffer_->Resize(0, /*shrink_to_fit =*/false);
 
   return arrow::Status::OK();
@@ -346,13 +346,14 @@ arrow::Status Splitter::AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& b
   auto reminder = size & 0x3f;
   size += (64 - reminder) & ((reminder == 0) - 1);
   if (size > SPLIT_BUFFER_SIZE) {
-    ARROW_ASSIGN_OR_RAISE(buffer,
-                          arrow::AllocateResizableBuffer(size, options_.memory_pool));
+    ARROW_ASSIGN_OR_RAISE(
+        buffer, arrow::AllocateResizableBuffer(size, options_.memory_pool.get()));
     return arrow::Status::OK();
   } else if (combine_buffer_->capacity() - combine_buffer_->size() < size) {
     // memory pool is not enough
-    ARROW_ASSIGN_OR_RAISE(combine_buffer_, arrow::AllocateResizableBuffer(
-                                               SPLIT_BUFFER_SIZE, options_.memory_pool));
+    ARROW_ASSIGN_OR_RAISE(
+        combine_buffer_,
+        arrow::AllocateResizableBuffer(SPLIT_BUFFER_SIZE, options_.memory_pool.get()));
     combine_buffer_->Resize(0, /*shrink_to_fit = */ false);
   }
   buffer = arrow::SliceMutableBuffer(combine_buffer_, combine_buffer_->size(), size);
@@ -406,7 +407,7 @@ arrow::Status Splitter::Stop() {
                         arrow::io::FileOutputStream::Open(options_.data_file, true));
   if (options_.buffered_write) {
     ARROW_ASSIGN_OR_RAISE(data_file_os_, arrow::io::BufferedOutputStream::Create(
-                                             16384, options_.memory_pool, fout));
+                                             16384, options_.memory_pool.get(), fout));
   } else {
     data_file_os_ = fout;
   }
@@ -640,7 +641,7 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
         auto value_buf_size = binary_array_empirical_size_[binary_idx] * new_size + 1024;
         ARROW_ASSIGN_OR_RAISE(
             std::shared_ptr<arrow::Buffer> value_buffer,
-            arrow::AllocateResizableBuffer(value_buf_size, options_.memory_pool));
+            arrow::AllocateResizableBuffer(value_buf_size, options_.memory_pool.get()));
         ARROW_RETURN_NOT_OK(
             AllocateBufferFromPool(offset_buffer, new_size * sizeof_binary_offset + 1));
         // set the first offset to 0
@@ -673,7 +674,7 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
       case arrow::ListType::type_id: {
         std::unique_ptr<arrow::ArrayBuilder> array_builder;
         RETURN_NOT_OK(
-            MakeBuilder(options_.memory_pool, column_type_id_[i], &array_builder));
+            MakeBuilder(options_.memory_pool.get(), column_type_id_[i], &array_builder));
         assert(array_builder != nullptr);
         RETURN_NOT_OK(array_builder->Reserve(new_size));
         partition_list_builders_[list_idx][partition_id] = std::move(array_builder);
@@ -1492,7 +1493,7 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
 
   arrow::ArrayVector outputs;
   TIME_NANO_OR_RAISE(total_compute_pid_time_,
-                     projector_->Evaluate(rb, options_.memory_pool, &outputs));
+                     projector_->Evaluate(rb, options_.memory_pool.get(), &outputs));
   if (outputs.size() != 1) {
     return arrow::Status::Invalid("Projector result should have one field, actual is ",
                                   std::to_string(outputs.size()));
