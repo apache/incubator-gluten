@@ -17,10 +17,12 @@
 
 #include "substrait_arrow.h"
 
+#include <arrow/c/bridge.h>
 #include <arrow/compute/exec/options.h>
 #include <arrow/compute/registry.h>
 #include <arrow/dataset/plan.h>
 #include <arrow/dataset/scanner.h>
+#include <arrow/util/async_generator.h>
 
 #include "jni/exec_backend.h"
 
@@ -71,19 +73,21 @@ ArrowExecBackend::GetResultIterator(
         throw gluten::GlutenException(
             "Schema not found for input batch iterator " + std::to_string(i));
       }
+      auto schema = it->second;
       auto batch_it = MakeMapIterator(
-          [](const std::shared_ptr<arrow::RecordBatch>& batch) {
+          [schema](const std::shared_ptr<ArrowArray>& array) {
+            GLUTEN_ASSIGN_OR_THROW(
+                auto batch, arrow::ImportRecordBatch(array.get(), schema));
             return arrow::util::make_optional(
                 arrow::compute::ExecBatch(*batch));
           },
-          std::move(*inputs[i]->ToArrowRecordBatchIterator()));
+          std::move(*inputs[i]->ToArrowArrayIterator()));
       GLUTEN_ASSIGN_OR_THROW(
           auto gen,
           arrow::MakeBackgroundGenerator(
               std::move(batch_it), arrow::internal::GetCpuThreadPool()));
       source_decls.emplace_back(
-          "source",
-          arrow::compute::SourceNodeOptions{it->second, std::move(gen)});
+          "source", arrow::compute::SourceNodeOptions{schema, std::move(gen)});
     }
     ReplaceSourceDecls(std::move(source_decls));
   }
@@ -136,13 +140,12 @@ ArrowExecBackend::GetResultIterator(
             << output_schema->ToString() << std::endl;
 #endif
 
-  std::shared_ptr<arrow::RecordBatchReader> sink_reader =
-      arrow::compute::MakeGeneratorReader(
-          std::move(output_schema),
-          std::move(sink_gen),
-          arrow::default_memory_pool());
+  auto iter = arrow::MakeGeneratorIterator(std::move(sink_gen));
+  auto sink_iter =
+      std::make_shared<ArrowExecResultIterator>(output_schema, std::move(iter));
+
   return std::make_shared<gluten::ArrowArrayResultIterator>(
-      std::move(sink_reader), shared_from_this());
+      std::move(sink_iter), shared_from_this());
 }
 
 void ArrowExecBackend::PushDownFilter() {
@@ -241,6 +244,17 @@ void ArrowExecBackend::ReplaceSourceDecls(
                      ->index;
     *source_index = std::move(source_decls[index]);
   }
+}
+
+std::shared_ptr<ArrowArray> ArrowExecResultIterator::Next() {
+  GLUTEN_ASSIGN_OR_THROW(auto exec_batch, iter_.Next());
+  if (exec_batch.has_value()) {
+    GLUTEN_ASSIGN_OR_THROW(auto batch, exec_batch->ToRecordBatch(schema_));
+    auto array = std::make_shared<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, array.get()));
+    return array;
+  }
+  return nullptr;
 }
 
 void Initialize() {

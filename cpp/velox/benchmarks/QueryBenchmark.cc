@@ -47,9 +47,15 @@ auto BM = [](::benchmark::State& state,
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
     auto resultIter = backend->GetResultIterator(scanInfos);
-
+    auto outputSchema = backend->GetOutputSchema();
     while (resultIter->HasNext()) {
-      std::cout << resultIter->Next()->ToString() << std::endl;
+      auto array = resultIter->Next();
+      auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+      if (!maybeBatch.ok()) {
+        state.SkipWithError(maybeBatch.status().message().c_str());
+        return;
+      }
+      std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
     }
   }
 };

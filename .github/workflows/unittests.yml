@@ -67,7 +67,7 @@ jobs:
           sudo apt-get install -y google-mock
       - name: Install Gluten Velox-backend
         run: |
-          mvn clean install -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+          mvn clean install -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
           mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox
@@ -76,7 +76,14 @@ jobs:
           cd build
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make -j$(nproc)
-          ctest -V
+          # ctest -V
+      #- name: Run micro benchmarks
+      #  run: |
+      #    cd cpp/velox/benchmarks/
+      #    ./generic_benchmark \
+      #    hash_join.json \
+      #    parquet/bm_lineitem/part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet \
+      #    parquet/bm_part/part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet
 
       - name: TPC-H Parquet SF1.0 local
         run: |

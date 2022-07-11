@@ -17,25 +17,25 @@
 
 #include "exec_backend.h"
 
+#include <arrow/c/bridge.h>
 #include <gtest/gtest.h>
-
 namespace gluten {
 
 class DummyBackend : public ExecBackendBase {
  public:
-  std::shared_ptr<RecordBatchResultIterator> GetResultIterator() override {
+  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator() override {
     auto res_iter = std::make_shared<ResultIterator>();
-    return std::make_shared<RecordBatchResultIterator>(std::move(res_iter));
+    return std::make_shared<ArrowArrayResultIterator>(std::move(res_iter));
   }
-  std::shared_ptr<RecordBatchResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<RecordBatchResultIterator>> inputs) {
+  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+      std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) {
     return GetResultIterator();
   }
 
  private:
   class ResultIterator {
    public:
-    arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() {
+    arrow::Result<std::shared_ptr<ArrowArray>> Next() {
       if (!has_next_) {
         return nullptr;
       }
@@ -53,7 +53,10 @@ class DummyBackend : public ExecBackendBase {
       RETURN_NOT_OK(builder->Finish(&array));
       std::vector<std::shared_ptr<arrow::Field>> ret_types = {
           arrow::field("res", arrow::float64())};
-      return arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
+      auto batch = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
+      auto cArray = std::make_shared<ArrowArray>();
+      GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get()));
+      return cArray;
     }
 
    private:

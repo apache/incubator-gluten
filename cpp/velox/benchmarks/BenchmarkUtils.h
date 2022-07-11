@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/c/bridge.h>
 #include <arrow/util/range.h>
 #include <parquet/arrow/reader.h>
 #include <velox/common/memory/Memory.h>
@@ -27,6 +28,10 @@
 #include "compute/protobuf_utils.h"
 #include "jni/exec_backend.h"
 #include "velox/common/memory/Memory.h"
+
+DECLARE_bool(print_result);
+DECLARE_int32(cpu);
+DECLARE_int32(threads);
 
 /// Initilize the Velox backend.
 void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool);
@@ -50,9 +55,12 @@ bool EndsWith(const std::string& data, const std::string& suffix);
 
 class BatchIteratorWrapper {
  public:
-  explicit BatchIteratorWrapper(std::string path) : path_(std::move(path)) {}
+  explicit BatchIteratorWrapper(const std::string& path)
+      : path_(getExampleFilePath(path)) {}
 
-  virtual arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() = 0;
+  virtual ~BatchIteratorWrapper() = default;
+
+  virtual arrow::Result<std::shared_ptr<ArrowArray>> Next() = 0;
 
   void CreateReader() {
     ::parquet::ArrowReaderProperties properties =
@@ -75,8 +83,8 @@ class BatchIteratorWrapper {
 
 class BatchVectorIterator : public BatchIteratorWrapper {
  public:
-  explicit BatchVectorIterator(std::string path)
-      : BatchIteratorWrapper(std::move(path)) {
+  explicit BatchVectorIterator(const std::string& path)
+      : BatchIteratorWrapper(path) {
     CreateReader();
     GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
     iter_ = batches_.begin();
@@ -86,8 +94,13 @@ class BatchVectorIterator : public BatchIteratorWrapper {
 #endif
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() override {
-    return iter_ == batches_.cend() ? nullptr : *iter_++;
+  arrow::Result<std::shared_ptr<ArrowArray>> Next() override {
+    if (iter_ == batches_.cend()) {
+      return nullptr;
+    }
+    auto cArray = std::make_shared<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(**iter_++, cArray.get()));
+    return cArray;
   }
 
  private:
@@ -97,20 +110,26 @@ class BatchVectorIterator : public BatchIteratorWrapper {
 
 class BatchStreamIterator : public BatchIteratorWrapper {
  public:
-  explicit BatchStreamIterator(std::string path)
-      : BatchIteratorWrapper(std::move(path)) {
+  explicit BatchStreamIterator(const std::string& path)
+      : BatchIteratorWrapper(path) {
     CreateReader();
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Next() override {
-    return recordBatchReader_->Next();
+  arrow::Result<std::shared_ptr<ArrowArray>> Next() override {
+    GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
+    if (batch == nullptr) {
+      return nullptr;
+    }
+    auto cArray = std::make_shared<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get()));
+    return cArray;
   }
 };
 
-std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchVector(
+std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchVector(
     const std::string& path);
 
-std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
+std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchStream(
     const std::string& path);
 
 void setCpu(uint32_t cpuindex);

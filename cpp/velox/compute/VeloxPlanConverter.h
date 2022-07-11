@@ -122,7 +122,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
   getColumnarConverter(
       std::shared_ptr<arrow::RecordBatch> rb,
-      std::shared_ptr<arrow::MemoryPool> memory_pool,
+      arrow::MemoryPool* memory_pool,
       bool wsChild) override {
     if (wsChild) {
       return std::make_shared<VeloxToRowConverter>(rb, memory_pool, pool_);
@@ -149,6 +149,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
     return nullptr;
   }
 
+  std::shared_ptr<arrow::Schema> GetOutputSchema() override;
+
  private:
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
 
@@ -168,6 +170,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       const ::substrait::Plan& splan);
 
   std::string nextPlanNodeId();
+
+  void cacheOutputSchema(const std::shared_ptr<const core::PlanNode>& planNode);
 
   //   void ExportArrowArray(struct ArrowSchema* schema,
   //                                           std::shared_ptr<gluten::ArrowArrayIterator>
@@ -190,6 +194,10 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter>
       subVeloxPlanConverter_ = std::make_shared<
           facebook::velox::substrait::SubstraitVeloxPlanConverter>(pool_);
+
+  // Cache for tests/benchmark purpose.
+  std::shared_ptr<const core::PlanNode> planNode_;
+  std::shared_ptr<arrow::Schema> output_schema_;
 };
 
 } // namespace compute

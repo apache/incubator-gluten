@@ -28,6 +28,10 @@
 
 #include "compute/VeloxPlanConverter.h"
 
+DEFINE_bool(print_result, true, "Print result for execution");
+DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
+DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
+
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
 
@@ -114,15 +118,15 @@ std::shared_ptr<arrow::RecordBatchReader> createReader(
   return recordBatchReader;
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchVector(
+std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchVector(
     const std::string& path) {
-  return std::make_shared<gluten::RecordBatchResultIterator>(
+  return std::make_shared<gluten::ArrowArrayResultIterator>(
       std::make_shared<BatchVectorIterator>(path));
 }
 
-std::shared_ptr<gluten::RecordBatchResultIterator> getInputFromBatchStream(
+std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchStream(
     const std::string& path) {
-  return std::make_shared<gluten::RecordBatchResultIterator>(
+  return std::make_shared<gluten::ArrowArrayResultIterator>(
       std::make_shared<BatchStreamIterator>(path));
 }
 

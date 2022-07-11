@@ -19,6 +19,8 @@
 
 #include <arrow/engine/substrait/serde.h>
 
+#include <utility>
+
 #include "compute/substrait_utils.h"
 
 namespace gazellecpp {
@@ -47,6 +49,20 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
   static void FieldPathToName(
       arrow::compute::Expression* expression,
       const std::shared_ptr<arrow::Schema>& schema);
+};
+
+class ArrowExecResultIterator {
+ public:
+  ArrowExecResultIterator(
+      std::shared_ptr<arrow::Schema> schema,
+      arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter)
+      : schema_(std::move(schema)), iter_(std::move(iter)) {}
+
+  std::shared_ptr<ArrowArray> Next();
+
+ private:
+  std::shared_ptr<arrow::Schema> schema_;
+  arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter_;
 };
 
 void Initialize();

@@ -47,6 +47,7 @@
     <velox.script.dir>${project.basedir}/../tools</velox.script.dir>
     <build_cpp>OFF</build_cpp>
     <cpp_tests>OFF</cpp_tests>
+    <cpp_benchmarks>OFF</cpp_benchmarks>
     <build_arrow>OFF</build_arrow>
     <arrow_root>${project.basedir}/../tools/build/arrow_install</arrow_root>
     <arrow.bfs.dir>${project.basedir}/../tools/build/arrow_install</arrow.bfs.dir>

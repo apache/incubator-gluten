@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <arrow/c/bridge.h>
 #include <arrow/util/range.h>
 #include <benchmark/benchmark.h>
 #include <gflags/gflags.h>
@@ -24,12 +25,8 @@
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
 
-DEFINE_bool(print_result, true, "Print result for execution");
-DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
-DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
-
 using GetInputFunc =
-    std::shared_ptr<gluten::RecordBatchResultIterator>(const std::string&);
+    std::shared_ptr<gluten::ArrowArrayResultIterator>(const std::string&);
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
@@ -49,7 +46,7 @@ auto BM_Generic = [](::benchmark::State& state,
   for (auto _ : state) {
     state.PauseTiming();
     auto backend = gluten::CreateBackend();
-    std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputIters;
+    std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputIters;
     std::transform(
         input_files.cbegin(),
         input_files.cend(),
@@ -59,12 +56,18 @@ auto BM_Generic = [](::benchmark::State& state,
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
     auto resultIter = backend->GetResultIterator(std::move(inputIters));
+    auto outputSchema = backend->GetOutputSchema();
 
     while (resultIter->HasNext()) {
-      auto batch = resultIter->Next();
+      auto array = resultIter->Next();
       if (FLAGS_print_result) {
         state.PauseTiming();
-        std::cout << batch->ToString() << std::endl;
+        auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+        if (!maybeBatch.ok()) {
+          state.SkipWithError(maybeBatch.status().message().c_str());
+          return;
+        }
+        std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
         state.ResumeTiming();
       }
     }
