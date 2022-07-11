@@ -35,9 +35,13 @@ public class ArrowOutIterator extends GeneralOutIterator {
   private transient Schema schema;
 
   private native boolean nativeHasNext(long nativeHandle);
+
   private native boolean nativeNext(long nativeHandle, long cArray);
+
   private native long nativeCHNext(long nativeHandle);
+
   private native void nativeClose(long nativeHandle);
+
   private native MetricsObject nativeFetchMetrics(long nativeHandle);
 
   public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
@@ -54,8 +58,8 @@ public class ArrowOutIterator extends GeneralOutIterator {
   @Override
   public ColumnarBatch nextInternal() throws IOException {
     final BufferAllocator allocator = SparkMemoryUtils.contextArrowAllocator();
-    try (final ArrowArray cArray = ArrowArray.allocateNew(allocator);
-         final ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
+    try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
+         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       if (!nativeNext(handle, cArray.memoryAddress())) {
         return null; // stream ended
       }

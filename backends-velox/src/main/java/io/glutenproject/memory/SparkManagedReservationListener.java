@@ -26,7 +26,8 @@ public class SparkManagedReservationListener implements ReservationListener {
   private NativeSQLMemoryMetrics metrics;
   private volatile boolean open = true;
 
-  public SparkManagedReservationListener(NativeSQLMemoryConsumer consumer, NativeSQLMemoryMetrics metrics) {
+  public SparkManagedReservationListener(NativeSQLMemoryConsumer consumer,
+                                         NativeSQLMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }

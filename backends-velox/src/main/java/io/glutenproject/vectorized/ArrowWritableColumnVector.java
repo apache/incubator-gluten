@@ -17,33 +17,53 @@
 
 package io.glutenproject.vectorized;
 
-import java.lang.*;
-import java.math.BigDecimal;
-import java.nio.ByteOrder;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.*;
-import org.apache.arrow.vector.complex.*;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeStampMicroTZVector;
+import org.apache.arrow.vector.TimeStampMicroVector;
+import org.apache.arrow.vector.TimeStampVector;
+import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VectorLoader;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.types.pojo.Field;
-
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils;
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
+import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.ArrowUtils;
-import org.apache.spark.sql.vectorized.*;
-import org.apache.spark.sql.types.*;
+import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.types.UTF8String;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A column backed by an in memory JVM array. This stores the NULLs as a byte per value
@@ -121,7 +141,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
   }
 
   public static ArrowWritableColumnVector[] loadColumns(int capacity, Schema arrowSchema,
-                                                        ArrowRecordBatch recordBatch, BufferAllocator _allocator) {
+                                                        ArrowRecordBatch recordBatch,
+                                                        BufferAllocator _allocator) {
     if (_allocator == null) {
       _allocator = SparkMemoryUtils.contextArrowAllocator();
     }
@@ -677,7 +698,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
   }
 
   @Override
-  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
+  }
 
   @Override
   public float getFloat(int rowId) {
@@ -709,7 +731,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
   }
 
   @Override
-  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
+  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
+  }
 
   @Override
   public void putDoubles(int rowId, int count, byte[] src, int srcIndex) {
@@ -734,6 +757,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
   public int getArrayLength(int rowId) {
     return accessor.getArrayLength(rowId);
   }
+
   @Override
   public int getArrayOffset(int rowId) {
     return accessor.getArrayOffset(rowId);
@@ -760,15 +784,17 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
   @Override
   public Decimal getDecimal(int rowId, int precision, int scale) {
-    if (isNullAt(rowId))
+    if (isNullAt(rowId)) {
       return null;
+    }
     return accessor.getDecimal(rowId, precision, scale);
   }
 
   @Override
   public UTF8String getUTF8String(int rowId) {
-    if (isNullAt(rowId))
+    if (isNullAt(rowId)) {
       return null;
+    }
     if (dataType() instanceof ArrayType) {
       UTF8String ret_0 = accessor.getUTF8String(rowId);
       for (int i = 0; i < ((ArrayAccessor) accessor).getArrayLength(rowId); i++) {
@@ -782,8 +808,9 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
   @Override
   public byte[] getBinary(int rowId) {
-    if (isNullAt(rowId))
+    if (isNullAt(rowId)) {
       return null;
+    }
     return accessor.getBinary(rowId);
   }
 
@@ -1035,14 +1062,16 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
     @Override
     final Decimal getDecimal(int rowId, int _precision, int _scale) {
-      if (isNullAt(rowId))
+      if (isNullAt(rowId)) {
         return null;
+      }
       return Decimal.apply(accessor.getObject(rowId), _precision, _scale);
     }
 
     final Decimal getDecimal(int rowId) {
-      if (isNullAt(rowId))
+      if (isNullAt(rowId)) {
         return null;
+      }
       return Decimal.apply(accessor.getObject(rowId), this.precision, this.scale);
     }
 
@@ -1218,11 +1247,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
   /**
    * Any call to "get" method will throw UnsupportedOperationException.
-   *
+   * <p>
    * Access struct values in a ArrowWritableColumnVector doesn't use this accessor.
    * Instead, it uses getStruct() method defined in the parent class. Any call to "get"
    * method in this class is a bug in the code.
-   *
    */
   private static class StructAccessor extends ArrowVectorAccessor {
     StructAccessor(StructVector vector) {
