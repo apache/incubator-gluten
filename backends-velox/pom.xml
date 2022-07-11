@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>gluten-parent</artifactId>
@@ -18,18 +18,18 @@
         <maven.compiler.target>8</maven.compiler.target>
         <cpp.dir>../cpp/</cpp.dir>
         <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
-	<resource.dir>${project.basedir}/src/main/resources</resource.dir>
+        <resource.dir>${project.basedir}/src/main/resources</resource.dir>
         <velox.build_cpp>${build_cpp}</velox.build_cpp>
         <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
         <velox.build_arrow>OFF</velox.build_arrow>
         <velox.static_arrow>${static_arrow}</velox.static_arrow>
         <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
-	<velox.arrow_root>${arrow_root}</velox.arrow_root>
-	<velox.arrow.bfs.dir>${arrow.bfs.dir}</velox.arrow.bfs.dir>
+        <velox.arrow_root>${arrow_root}</velox.arrow_root>
+        <velox.arrow.bfs.dir>${arrow.bfs.dir}</velox.arrow.bfs.dir>
         <velox.build_jemalloc>${build_jemalloc}</velox.build_jemalloc>
         <velox.build_gazelle_cpp>${build_gazelle_cpp}</velox.build_gazelle_cpp>
-	<velox.build_velox>${build_velox}</velox.build_velox>
-	<velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
+        <velox.build_velox>${build_velox}</velox.build_velox>
+        <velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
         <velox.velox_home>${velox_home}</velox.velox_home>
         <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
         <velox.debug_build>${debug_build}</velox.debug_build>
@@ -160,7 +160,7 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-core</artifactId>
-	    <version>${arrow.version}</version>
+            <version>${arrow.version}</version>
             <scope>compile</scope>
             <exclusions>
                 <exclusion>
@@ -272,7 +272,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <version>1.6.0</version>
                 <executions>
-	            <execution>
+                    <execution>
                         <id>Build velox</id>
                         <phase>generate-resources</phase>
                         <goals>
@@ -298,7 +298,7 @@
                                 <argument>${cpp.dir}/compile.sh</argument>
                                 <argument>${velox.build_cpp}</argument>
                                 <argument>${velox.cpp_tests}</argument>
-				<argument>${velox.build_arrow}</argument>
+                                <argument>${velox.build_arrow}</argument>
                                 <argument>${velox.static_arrow}</argument>
                                 <argument>${velox.build_protobuf}</argument>
                                 <argument>${velox.arrow_root}</argument>
@@ -386,7 +386,7 @@
                 <version>1.0.0</version>
                 <configuration>
                     <verbose>false</verbose>
-                    <failOnViolation>false</failOnViolation>
+                    <failOnViolation>true</failOnViolation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <failOnWarning>false</failOnWarning>
                     <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
@@ -397,6 +397,7 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <phase>validate</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
@@ -431,6 +432,7 @@
                 </dependencies>
                 <executions>
                     <execution>
+                        <phase>validate</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>

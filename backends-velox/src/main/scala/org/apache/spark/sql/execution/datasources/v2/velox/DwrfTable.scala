@@ -29,12 +29,12 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 case class DwrfTable(
-                       name: String,
-                       sparkSession: SparkSession,
-                       options: CaseInsensitiveStringMap,
-                       paths: Seq[String],
-                       userSpecifiedSchema: Option[StructType],
-                       fallbackFileFormat: Class[_ <: FileFormat])
+                      name: String,
+                      sparkSession: SparkSession,
+                      options: CaseInsensitiveStringMap,
+                      paths: Seq[String],
+                      userSpecifiedSchema: Option[StructType],
+                      fallbackFileFormat: Class[_ <: FileFormat])
   extends FileTable(sparkSession, options, paths, userSpecifiedSchema) {
   override def inferSchema(files: Seq[FileStatus]): Option[StructType] = {
     VeloxDatasourceUtil.readSchema(files)

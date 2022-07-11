@@ -42,6 +42,116 @@ object SparkMemoryUtils extends Logging {
       .getConfString("spark.gluten.sql.memory.debug", "false").toBoolean
   }
   private val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
+  private val taskToResourcesMap = new java.util.IdentityHashMap[TaskContext, TaskMemoryResources]()
+  private val leakedAllocators = new java.util.Vector[BufferAllocator]()
+  private val leakedMemoryPools = new java.util.Vector[NativeMemoryPoolWrapper]()
+  private val maxAllocationSize = {
+    SparkEnv.get.conf.get(MEMORY_OFFHEAP_SIZE)
+  }
+  private val globalAlloc = new RootAllocator(
+    RootAllocator.configBuilder()
+      .maxAllocation(maxAllocationSize)
+      .memoryChunkManagerFactory(MemoryChunkCleaner.newFactory())
+      .listener(MemoryChunkCleaner.gcTrigger())
+      .build)
+
+  def addLeakSafeTaskCompletionListener[U](f: TaskContext => U): TaskContext = {
+    if (!inSparkTask()) {
+      throw new IllegalStateException("Not in a Spark task")
+    }
+    getTaskMemoryResources() // initialize cleaners
+    getLocalTaskContext().addTaskCompletionListener(f)
+  }
+
+  def createSpillableAllocator(spiller: Spiller): BufferAllocator = {
+    if (!inSparkTask()) {
+      throw new IllegalStateException("Spiller must be used in a Spark task")
+    }
+    getTaskMemoryResources().createSpillableAllocator(spiller)
+  }
+
+  def createSpillableMemoryPool(spiller: Spiller): NativeMemoryPool = {
+    if (!inSparkTask()) {
+      throw new IllegalStateException("Spiller must be used in a Spark task")
+    }
+    getTaskMemoryResources().createSpillableMemoryPool(spiller)
+  }
+
+  def contextAllocator(): BufferAllocator = {
+    if (!inSparkTask()) {
+      return globalAllocator()
+    }
+    getTaskMemoryResources().taskDefaultAllocator
+  }
+
+  def contextAllocatorUnmanaged(): BufferAllocator = {
+    if (!inSparkTask()) {
+      return globalAllocator()
+    }
+    getTaskMemoryResources().taskDefaultAllocatorUnmanaged
+  }
+
+  def getTaskMemoryResources(): TaskMemoryResources = {
+    if (!inSparkTask()) {
+      throw new IllegalStateException("Not in a Spark task")
+    }
+    val tc = getLocalTaskContext()
+    taskToResourcesMap.synchronized {
+
+      if (!taskToResourcesMap.containsKey(tc)) {
+        taskToResourcesMap.put(tc, new TaskMemoryResources)
+        tc.addTaskCompletionListener(
+          new TaskCompletionListener {
+            override def onTaskCompletion(context: TaskContext): Unit = {
+              taskToResourcesMap.synchronized {
+                val resources = taskToResourcesMap.remove(context)
+                resources.release()
+                context.taskMetrics().incPeakExecutionMemory(resources.sharedMetrics.peak())
+              }
+            }
+          })
+      }
+
+      return taskToResourcesMap.get(tc)
+    }
+  }
+
+  private def getLocalTaskContext(): TaskContext = {
+    TaskContext.get()
+  }
+
+  private def inSparkTask(): Boolean = {
+    TaskContext.get() != null
+  }
+
+  def globalAllocator(): BufferAllocator = {
+    globalAlloc
+  }
+
+  def contextMemoryPool(): NativeMemoryPool = {
+    if (!inSparkTask()) {
+      return globalMemoryPool()
+    }
+    getTaskMemoryResources().defaultMemoryPool.pool
+  }
+
+  def globalMemoryPool(): NativeMemoryPool = {
+    NativeMemoryPool.getDefault
+  }
+
+  def getLeakedAllocators(): List[BufferAllocator] = {
+    val list = new util.ArrayList[BufferAllocator](leakedAllocators)
+    list.asScala.toList
+  }
+
+  def getLeakedMemoryPools(): List[NativeMemoryPoolWrapper] = {
+    val list = new util.ArrayList[NativeMemoryPoolWrapper](leakedMemoryPools)
+    list.asScala.toList
+  }
+
+  private def getTaskMemoryManager(): TaskMemoryManager = {
+    getLocalTaskContext().taskMemoryManager()
+  }
 
   class TaskMemoryResources {
     if (!inSparkTask()) {
@@ -54,6 +164,9 @@ object SparkMemoryUtils extends Logging {
       SQLConf.get
         .getConfString("spark.gluten.sql.columnar.autorelease", "false").toBoolean
     }
+
+    private val allocators = new util.ArrayList[BufferAllocator]()
+    private val memoryPools = new util.ArrayList[NativeMemoryPoolWrapper]()
 
     val memoryChunkManagerFactory: MemoryChunkManager.Factory = if (isArrowAutoReleaseEnabled) {
       MemoryChunkCleaner.newFactory(MemoryChunkCleaner.Mode.HYBRID_WITH_LOG)
@@ -76,23 +189,6 @@ object SparkMemoryUtils extends Logging {
     } else {
       AllocationListener.NOOP
     }
-
-    private def collectStackForDebug = {
-      if (DEBUG) {
-        val out = new ByteArrayOutputStream()
-        val writer = new PrintWriter(out)
-        new Exception().printStackTrace(writer)
-        writer.close()
-        out.toString
-      } else {
-        null
-      }
-    }
-
-    private val allocators = new util.ArrayList[BufferAllocator]()
-
-    private val memoryPools = new util.ArrayList[NativeMemoryPoolWrapper]()
-
     val taskDefaultAllocator: BufferAllocator = {
       val alloc = new RootAllocator(
         RootAllocator.configBuilder()
@@ -103,11 +199,9 @@ object SparkMemoryUtils extends Logging {
       allocators.add(alloc)
       alloc
     }
-
     val taskDefaultAllocatorUnmanaged: BufferAllocator = taskDefaultAllocator
       .newChildAllocator("CHILD-ALLOC-UNMANAGED", allocListenerUnmanaged, 0L,
         Long.MaxValue)
-
     val defaultMemoryPool: NativeMemoryPoolWrapper = {
       val rl = new SparkManagedReservationListener(
         new NativeSQLMemoryConsumer(getTaskMemoryManager(), Spiller.NO_OP),
@@ -127,6 +221,18 @@ object SparkMemoryUtils extends Logging {
       pool
     }
 
+    private def collectStackForDebug = {
+      if (DEBUG) {
+        val out = new ByteArrayOutputStream()
+        val writer = new PrintWriter(out)
+        new Exception().printStackTrace(writer)
+        writer.close()
+        out.toString
+      } else {
+        null
+      }
+    }
+
     def createSpillableAllocator(spiller: Spiller): BufferAllocator = {
       val al = new SparkManagedAllocationListener(
         new NativeSQLMemoryConsumer(getTaskMemoryManager(), spiller),
@@ -136,6 +242,31 @@ object SparkMemoryUtils extends Logging {
         UUID.randomUUID().toString, al, 0, parent.getLimit).asInstanceOf[BufferAllocator]
       allocators.add(alloc)
       alloc
+    }
+
+    def release(): Unit = {
+      closeIfCloseable(memoryChunkManagerFactory)
+      for (allocator <- allocators.asScala.reverse) {
+        val allocated = allocator.getAllocatedMemory
+        if (allocated == 0L) {
+          close(allocator)
+        } else {
+          if (isArrowAutoReleaseEnabled) {
+            close(allocator)
+          } else {
+            softClose(allocator)
+          }
+        }
+      }
+      for (pool <- memoryPools.asScala) {
+        val allocated = pool.pool.getBytesAllocated
+        if (allocated == 0L) {
+          close(pool)
+        } else {
+          softClose(pool)
+        }
+      }
+      closeIfCloseable(sparkManagedAllocationListener)
     }
 
     private def close(allocator: BufferAllocator): Unit = {
@@ -188,145 +319,6 @@ object SparkMemoryUtils extends Logging {
         case _ =>
       }
     }
-
-    def release(): Unit = {
-      closeIfCloseable(memoryChunkManagerFactory)
-      for (allocator <- allocators.asScala.reverse) {
-        val allocated = allocator.getAllocatedMemory
-        if (allocated == 0L) {
-          close(allocator)
-        } else {
-          if (isArrowAutoReleaseEnabled) {
-            close(allocator)
-          } else {
-            softClose(allocator)
-          }
-        }
-      }
-      for (pool <- memoryPools.asScala) {
-        val allocated = pool.pool.getBytesAllocated
-        if (allocated == 0L) {
-          close(pool)
-        } else {
-          softClose(pool)
-        }
-      }
-      closeIfCloseable(sparkManagedAllocationListener)
-    }
-  }
-
-  private val taskToResourcesMap = new java.util.IdentityHashMap[TaskContext, TaskMemoryResources]()
-
-  private val leakedAllocators = new java.util.Vector[BufferAllocator]()
-  private val leakedMemoryPools = new java.util.Vector[NativeMemoryPoolWrapper]()
-
-  private def getLocalTaskContext(): TaskContext = {
-    TaskContext.get()
-  }
-
-  private def inSparkTask(): Boolean = {
-    TaskContext.get() != null
-  }
-
-  private def getTaskMemoryManager(): TaskMemoryManager = {
-    getLocalTaskContext().taskMemoryManager()
-  }
-
-  def addLeakSafeTaskCompletionListener[U](f: TaskContext => U): TaskContext = {
-    if (!inSparkTask()) {
-      throw new IllegalStateException("Not in a Spark task")
-    }
-    getTaskMemoryResources() // initialize cleaners
-    getLocalTaskContext().addTaskCompletionListener(f)
-  }
-
-  def getTaskMemoryResources(): TaskMemoryResources = {
-    if (!inSparkTask()) {
-      throw new IllegalStateException("Not in a Spark task")
-    }
-    val tc = getLocalTaskContext()
-    taskToResourcesMap.synchronized {
-
-      if (!taskToResourcesMap.containsKey(tc)) {
-        taskToResourcesMap.put(tc, new TaskMemoryResources)
-        tc.addTaskCompletionListener(
-          new TaskCompletionListener {
-            override def onTaskCompletion(context: TaskContext): Unit = {
-              taskToResourcesMap.synchronized {
-                val resources = taskToResourcesMap.remove(context)
-                resources.release()
-                context.taskMetrics().incPeakExecutionMemory(resources.sharedMetrics.peak())
-              }
-            }
-          })
-      }
-
-      return taskToResourcesMap.get(tc)
-    }
-  }
-
-  private val maxAllocationSize = {
-    SparkEnv.get.conf.get(MEMORY_OFFHEAP_SIZE)
-  }
-
-  private val globalAlloc = new RootAllocator(
-    RootAllocator.configBuilder()
-      .maxAllocation(maxAllocationSize)
-      .memoryChunkManagerFactory(MemoryChunkCleaner.newFactory())
-      .listener(MemoryChunkCleaner.gcTrigger())
-      .build)
-
-  def globalAllocator(): BufferAllocator = {
-    globalAlloc
-  }
-
-  def globalMemoryPool(): NativeMemoryPool = {
-    NativeMemoryPool.getDefault
-  }
-
-  def createSpillableAllocator(spiller: Spiller): BufferAllocator = {
-    if (!inSparkTask()) {
-      throw new IllegalStateException("Spiller must be used in a Spark task")
-    }
-    getTaskMemoryResources().createSpillableAllocator(spiller)
-  }
-
-  def createSpillableMemoryPool(spiller: Spiller): NativeMemoryPool = {
-    if (!inSparkTask()) {
-      throw new IllegalStateException("Spiller must be used in a Spark task")
-    }
-    getTaskMemoryResources().createSpillableMemoryPool(spiller)
-  }
-
-  def contextAllocator(): BufferAllocator = {
-    if (!inSparkTask()) {
-      return globalAllocator()
-    }
-    getTaskMemoryResources().taskDefaultAllocator
-  }
-
-  def contextAllocatorUnmanaged(): BufferAllocator = {
-    if (!inSparkTask()) {
-      return globalAllocator()
-    }
-    getTaskMemoryResources().taskDefaultAllocatorUnmanaged
-  }
-
-  def contextMemoryPool(): NativeMemoryPool = {
-    if (!inSparkTask()) {
-      return globalMemoryPool()
-    }
-    getTaskMemoryResources().defaultMemoryPool.pool
-  }
-
-  def getLeakedAllocators(): List[BufferAllocator] = {
-    val list = new util.ArrayList[BufferAllocator](leakedAllocators)
-    list.asScala.toList
-  }
-
-  def getLeakedMemoryPools(): List[NativeMemoryPoolWrapper] = {
-    val list = new util.ArrayList[NativeMemoryPoolWrapper](leakedMemoryPools)
-    list.asScala.toList
   }
 
   class UnsafeItr[T <: AutoCloseable](delegate: Iterator[T])

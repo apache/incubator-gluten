@@ -17,7 +17,9 @@
 
 package io.glutenproject.vectorized;
 
-/** ArrowBufBuilder. */
+/**
+ * ArrowBufBuilder.
+ */
 public class ArrowBufBuilder {
 
   public long nativeInstanceId;

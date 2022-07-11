@@ -24,41 +24,42 @@ import org.apache.arrow.dataset.jni.ReservationListener;
  */
 public class SparkManagedReservationListener implements ReservationListener {
 
-    private NativeSQLMemoryConsumer consumer;
-    private NativeSQLMemoryMetrics metrics;
-    private volatile boolean open = true;
+  private final NativeSQLMemoryMetrics metrics;
+  private NativeSQLMemoryConsumer consumer;
+  private volatile boolean open = true;
 
-    public SparkManagedReservationListener(NativeSQLMemoryConsumer consumer, NativeSQLMemoryMetrics metrics) {
-        this.consumer = consumer;
-        this.metrics = metrics;
-    }
+  public SparkManagedReservationListener(NativeSQLMemoryConsumer consumer,
+                                         NativeSQLMemoryMetrics metrics) {
+    this.consumer = consumer;
+    this.metrics = metrics;
+  }
 
-    @Override
-    public void reserve(long size) {
-        synchronized (this) {
-            if (!open) {
-                return;
-            }
-            consumer.acquire(size);
-            metrics.inc(size);
-        }
+  @Override
+  public void reserve(long size) {
+    synchronized (this) {
+      if (!open) {
+        return;
+      }
+      consumer.acquire(size);
+      metrics.inc(size);
     }
+  }
 
-    @Override
-    public void unreserve(long size) {
-        synchronized (this) {
-            if (!open) {
-                return;
-            }
-            consumer.free(size);
-            metrics.inc(-size);
-        }
+  @Override
+  public void unreserve(long size) {
+    synchronized (this) {
+      if (!open) {
+        return;
+      }
+      consumer.free(size);
+      metrics.inc(-size);
     }
+  }
 
-    public void inactivate() {
-        synchronized (this) {
-            consumer = null; // make it gc reachable
-            open = false;
-        }
+  public void inactivate() {
+    synchronized (this) {
+      consumer = null; // make it gc reachable
+      open = false;
     }
+  }
 }

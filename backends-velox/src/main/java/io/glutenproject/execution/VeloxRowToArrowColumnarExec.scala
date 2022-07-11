@@ -45,30 +45,6 @@ class RowToColumnConverter(schema: StructType) extends Serializable {
 }
 
 object RowToColumnConverter {
-  private abstract class TypeConverter extends Serializable {
-    def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit
-  }
-
-  private final case class BasicNullableTypeConverter(base: TypeConverter) extends TypeConverter {
-    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
-      if (row.isNullAt(column)) {
-        cv.appendNull
-      } else {
-        base.append(row, column, cv)
-      }
-    }
-  }
-
-  private final case class StructNullableTypeConverter(base: TypeConverter) extends TypeConverter {
-    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
-      if (row.isNullAt(column)) {
-        cv.appendStruct(true)
-      } else {
-        base.append(row, column, cv)
-      }
-    }
-  }
-
   private def getConverterForType(dataType: DataType, nullable: Boolean): TypeConverter = {
     val core = dataType match {
       case BooleanType => BooleanConverter
@@ -99,6 +75,85 @@ object RowToColumnConverter {
       }
     } else {
       core
+    }
+  }
+
+  private abstract class TypeConverter extends Serializable {
+    def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit
+  }
+
+  private final case class BasicNullableTypeConverter(base: TypeConverter) extends TypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
+      if (row.isNullAt(column)) {
+        cv.appendNull
+      } else {
+        base.append(row, column, cv)
+      }
+    }
+  }
+
+  private final case class StructNullableTypeConverter(base: TypeConverter) extends TypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
+      if (row.isNullAt(column)) {
+        cv.appendStruct(true)
+      } else {
+        base.append(row, column, cv)
+      }
+    }
+  }
+
+  private case class ArrayConverter(childConverter: TypeConverter) extends TypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
+      val values = row.getArray(column)
+      val numElements = values.numElements()
+      cv.appendArray(numElements)
+      val arrData = cv.arrayData()
+      for (i <- 0 until numElements) {
+        childConverter.append(values, i, arrData)
+      }
+    }
+  }
+
+  private case class StructConverter(childConverters: Array[TypeConverter]) extends TypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
+      cv.appendStruct(false)
+      val data = row.getStruct(column, childConverters.length)
+      for (i <- 0 until childConverters.length) {
+        childConverters(i).append(data, i, cv.getChild(i))
+      }
+    }
+  }
+
+  private case class DecimalConverter(dt: DecimalType) extends TypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
+      val d = row.getDecimal(column, dt.precision, dt.scale)
+      if (dt.precision <= Decimal.MAX_INT_DIGITS) {
+        cv.appendInt(d.toUnscaledLong.toInt)
+      } else if (dt.precision <= Decimal.MAX_LONG_DIGITS) {
+        cv.appendLong(d.toUnscaledLong)
+      } else {
+        val value = d.toJavaBigDecimal
+        cv.asInstanceOf[ArrowWritableColumnVector].appendDecimal(value)
+      }
+    }
+  }
+
+  private case class MapConverter(keyConverter: TypeConverter, valueConverter: TypeConverter)
+    extends TypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
+      val m = row.getMap(column)
+      val keys = cv.getChild(0)
+      val values = cv.getChild(1)
+      val numElements = m.numElements()
+      cv.appendArray(numElements)
+
+      val srcKeys = m.keyArray()
+      val srcValues = m.valueArray()
+
+      for (i <- 0 until numElements) {
+        keyConverter.append(srcKeys, i, keys)
+        valueConverter.append(srcValues, i, values)
+      }
     }
   }
 
@@ -158,61 +213,6 @@ object RowToColumnConverter {
       cv.getChild(0).appendInt(c.months)
       cv.getChild(1).appendInt(c.days)
       cv.getChild(2).appendLong(c.microseconds)
-    }
-  }
-
-  private case class ArrayConverter(childConverter: TypeConverter) extends TypeConverter {
-    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
-      val values = row.getArray(column)
-      val numElements = values.numElements()
-      cv.appendArray(numElements)
-      val arrData = cv.arrayData()
-      for (i <- 0 until numElements) {
-        childConverter.append(values, i, arrData)
-      }
-    }
-  }
-
-  private case class StructConverter(childConverters: Array[TypeConverter]) extends TypeConverter {
-    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
-      cv.appendStruct(false)
-      val data = row.getStruct(column, childConverters.length)
-      for (i <- 0 until childConverters.length) {
-        childConverters(i).append(data, i, cv.getChild(i))
-      }
-    }
-  }
-
-  private case class DecimalConverter(dt: DecimalType) extends TypeConverter {
-    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
-      val d = row.getDecimal(column, dt.precision, dt.scale)
-      if (dt.precision <= Decimal.MAX_INT_DIGITS) {
-        cv.appendInt(d.toUnscaledLong.toInt)
-      } else if (dt.precision <= Decimal.MAX_LONG_DIGITS) {
-        cv.appendLong(d.toUnscaledLong)
-      } else {
-        val value = d.toJavaBigDecimal
-        cv.asInstanceOf[ArrowWritableColumnVector].appendDecimal(value)
-      }
-    }
-  }
-
-  private case class MapConverter(keyConverter: TypeConverter, valueConverter: TypeConverter)
-    extends TypeConverter {
-    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
-      val m = row.getMap(column)
-      val keys = cv.getChild(0)
-      val values = cv.getChild(1)
-      val numElements = m.numElements()
-      cv.appendArray(numElements)
-
-      val srcKeys = m.keyArray()
-      val srcValues = m.valueArray()
-
-      for (i <- 0 until numElements) {
-        keyConverter.append(srcKeys, i, keys)
-        valueConverter.append(srcValues, i, values)
-      }
     }
   }
 }
@@ -283,11 +283,11 @@ class VeloxRowToArrowColumnarExec(child: SparkPlan) extends RowToArrowColumnarEx
     }
   }
 
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[VeloxRowToArrowColumnarExec]
-
   override def equals(other: Any): Boolean = other match {
     case that: VeloxRowToArrowColumnarExec =>
       (that canEqual this) && super.equals(that)
     case _ => false
   }
+
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[VeloxRowToArrowColumnarExec]
 }

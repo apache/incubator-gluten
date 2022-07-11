@@ -17,22 +17,14 @@
 
 package io.glutenproject.expression
 
-import org.apache.arrow.vector.Float4Vector
-import org.apache.arrow.vector.IntVector
-import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.ArrowType
+
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ArrowUtils
 
 object CodeGeneration {
   private val defaultTimeZoneId = SparkSchemaUtils.getLocalTimezoneID()
-
-  def getResultType(left: ArrowType, right: ArrowType): ArrowType = {
-    //TODO(): remove this API
-    left
-  }
 
   def getResultType(dataType: DataType): ArrowType = {
     getResultType(dataType, defaultTimeZoneId)
@@ -43,7 +35,7 @@ object CodeGeneration {
       case other =>
         ArrowUtils.toArrowType(dataType, timeZoneId)
     }
-    /*dataType match {
+    /* dataType match {
     case t: IntegerType =>
       new ArrowType.Int(32, true)
     case l: LongType =>
@@ -72,14 +64,16 @@ object CodeGeneration {
       case t: ArrowType.FloatingPoint =>
         8
       case _ =>
-        throw new UnsupportedOperationException(s"Unable to get precise level of $dataType ${dataType.getClass}.")
+        throw new UnsupportedOperationException(s"Unable to get precise level of" +
+          s"$dataType ${dataType.getClass}.")
     }
   }
 
   def getCastFuncName(dataType: ArrowType): String = {
     dataType match {
       case t: ArrowType.FloatingPoint =>
-        s"castFLOAT${4 * dataType.asInstanceOf[ArrowType.FloatingPoint].getPrecision().getFlatbufID()}"
+        s"castFLOAT" +
+          s"${4 * dataType.asInstanceOf[ArrowType.FloatingPoint].getPrecision().getFlatbufID()}"
       case _ =>
         throw new UnsupportedOperationException(s"getCastFuncName(${dataType}) is not supported.")
     }
