@@ -17,23 +17,29 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
-import org.apache.arrow.c.{ArrowArray, ArrowSchema}
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
-import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
+import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.vectorized.ArrowWritableColumnVector
+import io.glutenproject.vectorized.NativeColumnarToRowInfo
+import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
+import org.apache.arrow.c.ArrowArray
+import org.apache.arrow.c.ArrowSchema
+import org.slf4j.LoggerFactory
 
 class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
   private val LOG = LoggerFactory.getLogger(classOf[VeloxNativeColumnarToRowExec])
+
   override def nodeName: String = "VeloxNativeColumnarToRowExec"
 
   override def supportCodegen: Boolean = false
@@ -55,7 +61,8 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
         case d: TimestampType =>
         case d: BinaryType =>
         case _ =>
-          throw new UnsupportedOperationException(s"${field.dataType} is not supported in NativeColumnarToRowExec.")
+          throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
+            s"NativeColumnarToRowExec.")
       }
     }
   }
@@ -89,7 +96,7 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
           val allocator = SparkMemoryUtils.contextArrowAllocator()
           val cArray = ArrowArray.allocateNew(allocator)
           val cSchema = ArrowSchema.allocateNew(allocator)
-          var info : NativeColumnarToRowInfo = null
+          var info: NativeColumnarToRowInfo = null
           try {
             ArrowAbiUtil.exportFromSparkColumnarBatch(
               SparkMemoryUtils.contextArrowAllocator(), batch, cSchema, cArray)
@@ -109,6 +116,7 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
             var rowId = 0
             val row = new UnsafeRow(batch.numCols())
             var closed = false
+
             override def hasNext: Boolean = {
               val result = rowId < batch.numRows()
               if (!result && !closed) {

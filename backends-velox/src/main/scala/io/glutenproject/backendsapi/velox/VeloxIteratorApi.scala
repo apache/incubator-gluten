@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,17 +23,9 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
-import io.glutenproject.backendsapi.IIteratorApi
-import io.glutenproject.execution._
-import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.LocalFilesBuilder
-import io.glutenproject.vectorized._
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
-import org.apache.arrow.vector.types.pojo.Schema
-
-import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
+import org.apache.spark.InterruptibleIterator
+import org.apache.spark.SparkConf
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -41,8 +34,20 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
+import org.apache.spark.sql.vectorized.ColumnVector
+import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.ExecutorManager
+import org.apache.spark.util.UserAddedJarUtils
+
+import io.glutenproject.GlutenConfig
+import io.glutenproject.GlutenNumaBindingInfo
+import io.glutenproject.backendsapi.IIteratorApi
+import io.glutenproject.execution._
+import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.substrait.rel.LocalFilesBuilder
+import io.glutenproject.vectorized._
+import org.apache.arrow.vector.types.pojo.Schema
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
@@ -53,7 +58,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    */
   override def genNativeFilePartition(
                                        p: InputPartition,
-                                       wsCxt: WholestageTransformContext): BaseNativeFilePartition = {
+                                       wsCxt: WholestageTransformContext)
+  : BaseNativeFilePartition = {
     p match {
       case FilePartition(index, files) =>
         val paths = new java.util.ArrayList[String]()
@@ -189,7 +195,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @return
    */
   override def genCloseableColumnBatchIterator(
-                                                iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+                                                iter: Iterator[ColumnarBatch])
+  : Iterator[ColumnarBatch] = {
     new CloseableColumnBatchIterator(iter)
   }
 
@@ -205,11 +212,12 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                       context: TaskContext,
                                       pipelineTime: SQLMetric,
                                       updateMetrics: (Long, Long) => Unit,
-                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
+                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
+  : Iterator[ColumnarBatch] = {
     import org.apache.spark.sql.util.OASPackageBridge._
-    var inputSchema : Schema = null
-    var outputSchema : Schema = null
-    var resIter : GeneralOutIterator = null
+    var inputSchema: Schema = null
+    var outputSchema: Schema = null
+    var resIter: GeneralOutIterator = null
     if (loadNative) {
       val columnarNativeIterators =
         new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
@@ -262,6 +270,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
   }
 
   // scalastyle:off argcount
+
   /**
    * Generate Iterator[ColumnarBatch] for final stage.
    *
@@ -280,7 +289,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                       updateMetrics: (Long, Long) => Unit,
                                       buildRelationBatchHolder: Seq[ColumnarBatch],
                                       dependentKernels: Seq[ExpressionEvaluator],
-                                      dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {
+                                      dependentKernelIterators: Seq[GeneralOutIterator])
+  : Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 

@@ -256,7 +256,6 @@ class VeloxColumnarShuffleWriter[K, V](
     }
   }
 
-  @VisibleForTesting
   def getPartitionLengths: Array[Long] = partitionLengths
 
 }
