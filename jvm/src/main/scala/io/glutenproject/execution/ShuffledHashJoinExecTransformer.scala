@@ -23,11 +23,12 @@ import scala.util.control.Breaks.{break, breakable}
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
+import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression}
 import io.glutenproject.expression._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
@@ -43,6 +44,7 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin, ShuffledJoin}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.types.{BooleanType, DataType, NullType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
@@ -55,8 +57,7 @@ abstract class HashJoinLikeExecTransformer(
                                             buildSide: BuildSide,
                                             condition: Option[Expression],
                                             left: SparkPlan,
-                                            right: SparkPlan,
-                                            projectList: Seq[NamedExpression] = null)
+                                            right: SparkPlan)
   extends BaseJoinExec
     with TransformSupport
     with ShuffledJoin {
@@ -84,13 +85,10 @@ abstract class HashJoinLikeExecTransformer(
       case BuildRight => (rkeys, lkeys)
     }
   }
+
   val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
   val numOutputRows: SQLMetric = longMetric("numOutputRows")
-  private val joinExpression = (streamedKeyExprs zip buildKeyExprs)
-    .map { case (l, r) => EqualTo(l, r) }
-    .reduce(And)
   // Direct output order of substrait join operation
-  private val joinOutput = streamedPlan.output ++ buildPlan.output
   private val substraitJoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
@@ -104,12 +102,9 @@ abstract class HashJoinLikeExecTransformer(
       JoinRel.JoinType.JOIN_TYPE_ANTI
     case _ =>
       // TODO: Support cross join with Cross Rel
+      // TODO: Support existence join
       JoinRel.JoinType.UNRECOGNIZED
   }
-
-  override def output: Seq[Attribute] =
-    if (projectList == null || projectList.isEmpty) super.output
-    else projectList.map(_.toAttribute)
 
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     numOutputBatches += outNumBatches
@@ -161,7 +156,8 @@ abstract class HashJoinLikeExecTransformer(
     }
     val relNode =
       try {
-        getJoinRel(null, null, substraitContext, validation = true)
+        createJoinRel(null, null,
+          streamedPlan.output, buildPlan.output, substraitContext, validation = true)
       } catch {
         case e: Throwable =>
           logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -171,7 +167,8 @@ abstract class HashJoinLikeExecTransformer(
     if (GlutenConfig.getConf.enableNativeValidation) {
       val validator = new ExpressionEvaluator()
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      val result = validator.doValidate(planNode.toProtobuf.toByteArray)
+      result
     } else {
       true
     }
@@ -192,81 +189,196 @@ abstract class HashJoinLikeExecTransformer(
       }
     }
 
-    val (streamedRelNode, streamedOutput) = transformAndGetOutput(streamedPlan)
-    val (buildRelNode, buildOutput) = transformAndGetOutput(buildPlan)
-    val joinRel = getJoinRel(streamedRelNode, buildRelNode, substraitContext)
+    val (inputStreamedRelNode, inputStreamedOutput) = transformAndGetOutput(streamedPlan)
+    val (inputBuildRelNode, inputBuildOutput) = transformAndGetOutput(buildPlan)
+    val joinRel = createJoinRel(
+      inputStreamedRelNode,
+      inputBuildRelNode,
+      inputStreamedOutput,
+      inputBuildOutput,
+      substraitContext)
+    createTransformContext(joinRel, inputStreamedOutput, inputBuildOutput)
+  }
 
-    val (inputAttributes, outputAttributes, resultProjection) = buildSide match {
+  private def createPreProjectionIfNeeded(
+                                           keyExprs: Seq[Expression],
+                                           inputNode: RelNode,
+                                           inputNodeOutput: Seq[Attribute],
+                                           joinOutput: Seq[Attribute],
+                                           substraitContext: SubstraitContext,
+                                           validation: Boolean
+                                         )
+  : (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
+    if (keyExprs.forall(_.isInstanceOf[AttributeReference])) {
+      // Skip pre-projection if all keys are [AttributeReference]s,
+      // which can be directly converted into SelectionNode.
+      val keys = keyExprs.map { expr =>
+        (ExpressionConverter.replaceWithExpressionTransformer(expr, joinOutput)
+          .asInstanceOf[AttributeReferenceTransformer]
+          .doTransform(substraitContext.registeredFunction), expr.dataType)
+      }
+      (keys, inputNode, inputNodeOutput)
+    } else {
+      // Pre-projection is constructed from original columns followed by join-key expressions.
+      val selectOrigins = inputNodeOutput.indices.map(ExpressionBuilder.makeSelection(_))
+      val appendedKeys = keyExprs.flatMap {
+        case _: AttributeReference => None
+        case expr =>
+          Some(
+            (ExpressionConverter
+              .replaceWithExpressionTransformer(expr, inputNodeOutput)
+              .asInstanceOf[ExpressionTransformer]
+              .doTransform(substraitContext.registeredFunction), expr.dataType))
+      }
+      val preProjectNode = RelBuilder.makeProjectRel(
+        inputNode,
+        new java.util.ArrayList[ExpressionNode](
+          (selectOrigins ++ appendedKeys.map(_._1)).asJava),
+        createExtensionNode(inputNodeOutput, validation))
+
+      // Compute index for join keys in join outputs.
+      val offset = joinOutput.size - inputNodeOutput.size + selectOrigins.size
+      val appendedKeysAndIndices = appendedKeys.zipWithIndex.iterator
+      val keys = keyExprs.map {
+        case a: AttributeReference =>
+          // The selection index for original AttributeReference is unchanged.
+          (ExpressionConverter.replaceWithExpressionTransformer(a, joinOutput)
+            .asInstanceOf[AttributeReferenceTransformer]
+            .doTransform(substraitContext.registeredFunction), a.dataType)
+        case _ =>
+          val (key, idx) = appendedKeysAndIndices.next()
+          (ExpressionBuilder.makeSelection(idx + offset), key._2)
+      }
+      (keys, preProjectNode, inputNodeOutput ++
+        appendedKeys.zipWithIndex.map { case (key, idx) =>
+          // Create output attributes for appended keys.
+          // This is used as place holder for finding the right column indexes in post-join filters.
+          AttributeReference(s"col_${idx + offset}", key._2)()
+        }
+      )
+    }
+  }
+
+
+  private def createJoinRel(
+                             inputStreamedRelNode: RelNode,
+                             inputBuildRelNode: RelNode,
+                             inputStreamedOutput: Seq[Attribute],
+                             inputBuildOutput: Seq[Attribute],
+                             substraitContext: SubstraitContext,
+                             validation: Boolean = false
+                           ): RelNode = {
+    // Create pre-projection for build/streamed plan. Append projected keys to each side.
+    val (streamedKeys, streamedRelNode, streamedOutput) = createPreProjectionIfNeeded(
+      streamedKeyExprs,
+      inputStreamedRelNode,
+      inputStreamedOutput,
+      inputStreamedOutput,
+      substraitContext,
+      validation)
+    val (buildKeys, buildRelNode, buildOutput) = createPreProjectionIfNeeded(
+      buildKeyExprs,
+      inputBuildRelNode,
+      inputBuildOutput,
+      streamedOutput ++ inputBuildOutput,
+      substraitContext,
+      validation)
+
+    // Combine join keys to make a single expression.
+    val joinExpressionNode = (streamedKeys zip buildKeys).map {
+      case ((leftKey, leftType), (rightKey, rightType)) =>
+        makeEqualToExpression(
+          leftKey, leftType, rightKey, rightType, substraitContext.registeredFunction)
+    }.reduce((l, r) => makeAndExpression(l, r, substraitContext.registeredFunction))
+
+    // Create post-join filter, which will be computed in hash join.
+    val postJoinFilter = condition.map {
+      expr =>
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, streamedOutput ++ buildOutput)
+          .asInstanceOf[ExpressionTransformer]
+          .doTransform(substraitContext.registeredFunction)
+    }
+
+    // Create JoinRel.
+    val joinRel = RelBuilder.makeJoinRel(
+      streamedRelNode,
+      buildRelNode,
+      substraitJoinType,
+      joinExpressionNode,
+      postJoinFilter.orNull,
+      createJoinExtensionNode(streamedOutput ++ buildOutput, validation))
+
+    // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
+    val resultProjection = buildSide match {
       case BuildLeft =>
-        val (leftOutput, rightOutput) = getNewOutput(buildOutput, streamedOutput)
-        val resultOutput = leftOutput ++ rightOutput
-        val resultProjection = leftOutput.indices.map(idx =>
+        val (leftOutput, rightOutput) =
+          getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
+        // Exchange the order of build and streamed.
+        leftOutput.indices.map(idx =>
           ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
           rightOutput.indices
             .map(ExpressionBuilder.makeSelection(_))
-        (buildOutput ++ streamedOutput, resultOutput, resultProjection)
       case BuildRight =>
-        val (leftOutput, rightOutput) = getNewOutput(streamedOutput, buildOutput)
-        val resultOutput = leftOutput ++ rightOutput
-        val resultProjection =
-          resultOutput.indices.map(ExpressionBuilder.makeSelection(_))
-        (streamedOutput ++ buildOutput, resultOutput, resultProjection)
+        val (leftOutput, rightOutput) =
+          getResultProjectionOutput(inputStreamedOutput, inputBuildOutput)
+        leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
+          rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
     }
 
-    val resultProjectRel =
-      RelBuilder.makeProjectRel(
-        joinRel,
-        new java.util.ArrayList[ExpressionNode](resultProjection.asJava))
-
-    TransformContext(inputAttributes, outputAttributes, resultProjectRel)
+    RelBuilder.makeProjectRel(
+      joinRel,
+      new java.util.ArrayList[ExpressionNode](resultProjection.asJava),
+      createExtensionNode(streamedOutput ++ buildOutput, validation)
+    )
   }
 
-  private def getJoinRel(
-                          streamedRelNode: RelNode,
-                          buildRelNode: RelNode,
-                          substraitContext: SubstraitContext,
-                          validation: Boolean = false): RelNode = {
-    val joinExpressionNode = ExpressionConverter
-      .replaceWithExpressionTransformer(joinExpression, joinOutput)
-      .asInstanceOf[ExpressionTransformer]
-      .doTransform(substraitContext.registeredFunction)
-
-    val postJoinFilter = condition.map { expr =>
-      ExpressionConverter
-        .replaceWithExpressionTransformer(expr, joinOutput)
-        .asInstanceOf[ExpressionTransformer]
-        .doTransform(substraitContext.registeredFunction)
+  private def createTransformContext(
+                                      rel: RelNode,
+                                      inputStreamedOutput: Seq[Attribute],
+                                      inputBuildOutput: Seq[Attribute]
+                                    ): TransformContext = {
+    val inputAttributes = buildSide match {
+      case BuildLeft => inputBuildOutput ++ inputStreamedOutput
+      case BuildRight => inputStreamedOutput ++ inputBuildOutput
     }
+    TransformContext(inputAttributes, output, rel)
+  }
 
-    val joinParameters = genJoinParametersBuilder()
-    if (!validation) {
-      // Use a extension node to send some join parameters through Substrait plan.
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(joinParameters.build(), null)
-      RelBuilder.makeJoinRel(
-        streamedRelNode,
-        buildRelNode,
-        substraitJoinType,
-        joinExpressionNode,
-        postJoinFilter.orNull,
-        extensionNode)
+  private def createEnhancementForValidation(output: Seq[Attribute]): com.google.protobuf.Any = {
+    val inputTypeNodes = output.map { attr =>
+      ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
+    }
+    Any.pack(TypeBuilder.makeStruct(
+      new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf)
+  }
+
+  private def createExtensionNode(
+                                   output: Seq[Attribute],
+                                   validation: Boolean
+                                 ): AdvancedExtensionNode = {
+    // Use field [enhancement] in a extension node for input type validation.
+    if (validation) {
+      ExtensionBuilder.makeAdvancedExtension(
+        createEnhancementForValidation(output))
     } else {
-      // Use a extension node to send the input types for validation, and
-      // send some join parameters through Substrait plan.
-      val inputTypeNodes = joinOutput.map { attr =>
-        ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
-      }
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        joinParameters.build(),
-        Any.pack(
-          TypeBuilder.makeStruct(new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf))
-      RelBuilder.makeJoinRel(
-        streamedRelNode,
-        buildRelNode,
-        substraitJoinType,
-        joinExpressionNode,
-        postJoinFilter.orNull,
-        extensionNode)
+      null
     }
+  }
+
+  private def createJoinExtensionNode(
+                                       output: Seq[Attribute],
+                                       validation: Boolean
+                                     ): AdvancedExtensionNode = {
+    // Use field [optimization] in a extension node
+    // to send some join parameters through Substrait plan.
+    val joinParameters = genJoinParametersBuilder()
+    val enhancement = if (validation) {
+      createEnhancementForValidation(output)
+    } else {
+      null
+    }
+    ExtensionBuilder.makeAdvancedExtension(joinParameters.build(), enhancement)
   }
 
   def genJoinParametersBuilder(): Any.Builder = {
@@ -288,9 +400,11 @@ abstract class HashJoinLikeExecTransformer(
     (0, 0, "")
   }
 
-  private def getNewOutput(
-                            leftOutput: Seq[Attribute],
-                            rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
+  // The output of result projection should be consistent with ShuffledJoin.output
+  private def getResultProjectionOutput(
+                                         leftOutput: Seq[Attribute],
+                                         rightOutput: Seq[Attribute]
+                                       ): (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
         (leftOutput, rightOutput)
@@ -306,13 +420,46 @@ abstract class HashJoinLikeExecTransformer(
         (leftOutput, Nil)
       case x =>
         throw new IllegalArgumentException(
-          s"${getClass.getSimpleName} not take $x as the JoinType")
+          s"${
+            getClass.getSimpleName
+          } not take $x as the JoinType")
     }
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
-      s"${this.getClass.getSimpleName} doesn't support doExecute")
+      s"${
+        this.getClass.getSimpleName
+      } doesn't support doExecute")
+  }
+}
+
+object HashJoinLikeExecTransformer {
+  def makeEqualToExpression(leftNode: ExpressionNode,
+                            leftType: DataType,
+                            rightNode: ExpressionNode,
+                            rightType: DataType,
+                            functionMap: java.util.HashMap[String, java.lang.Long]
+                           ): ExpressionNode = {
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.EQUAL, Seq(leftType, rightType)))
+
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    val typeNode = TypeBuilder.makeBoolean(true)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+
+  def makeAndExpression(leftNode: ExpressionNode,
+                        rightNode: ExpressionNode,
+                        functionMap: java.util.HashMap[String, java.lang.Long]): ExpressionNode = {
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.AND, Seq(BooleanType, BooleanType)))
+
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    val typeNode = TypeBuilder.makeBoolean(true)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -323,8 +470,7 @@ case class ShuffledHashJoinExecTransformer(
                                             buildSide: BuildSide,
                                             condition: Option[Expression],
                                             left: SparkPlan,
-                                            right: SparkPlan,
-                                            projectList: Seq[NamedExpression] = null)
+                                            right: SparkPlan)
   extends HashJoinLikeExecTransformer(
     leftKeys,
     rightKeys,
@@ -332,8 +478,7 @@ case class ShuffledHashJoinExecTransformer(
     buildSide,
     condition,
     left,
-    right,
-    projectList) {
+    right) {
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
@@ -353,8 +498,7 @@ case class BroadcastHashJoinExecTransformer(
                                              condition: Option[Expression],
                                              left: SparkPlan,
                                              right: SparkPlan,
-                                             isNullAwareAntiJoin: Boolean = false,
-                                             projectList: Seq[NamedExpression] = null)
+                                             isNullAwareAntiJoin: Boolean = false)
   extends HashJoinLikeExecTransformer(
     leftKeys,
     rightKeys,
@@ -362,8 +506,7 @@ case class BroadcastHashJoinExecTransformer(
     buildSide,
     condition,
     left,
-    right,
-    projectList) {
+    right) {
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id
