@@ -28,7 +28,8 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
   // Calculate the initial size
   nullBitsetWidthInBytes_ = CalculateBitSetWidthInBytes(num_cols_);
 
-  int64_t fixed_size_per_row = CalculatedFixeSizePerRow(rb_->schema(), num_cols_);
+  int64_t fixed_size_per_row =
+      CalculatedFixeSizePerRow(rb_->schema(), num_cols_);
 
   // Initialize the offsets_ , lengths_, buffer_cursor_
   for (auto i = 0; i < num_rows_; i++) {
@@ -56,7 +57,8 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
     total_memory_size += lengths_[i];
   }
 
-  ARROW_ASSIGN_OR_RAISE(buffer_, AllocateBuffer(total_memory_size, memory_pool_.get()));
+  ARROW_ASSIGN_OR_RAISE(
+      buffer_, AllocateBuffer(total_memory_size, memory_pool_.get()));
 
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
 
@@ -65,8 +67,12 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
 }
 
 arrow::Status ArrowColumnarToRowConverter::WriteValue(
-    uint8_t* buffer_address, int64_t field_offset, std::shared_ptr<arrow::Array> array,
-    int32_t col_index, int64_t num_rows, std::vector<int64_t>& offsets,
+    uint8_t* buffer_address,
+    int64_t field_offset,
+    std::shared_ptr<arrow::Array> array,
+    int32_t col_index,
+    int64_t num_rows,
+    std::vector<int64_t>& offsets,
     std::vector<int64_t>& buffer_cursor) {
   switch (array->type_id()) {
     case arrow::BooleanType::type_id: {
@@ -78,7 +84,8 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = bool_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(bool));
+          memcpy(
+              buffer_address + offsets[i] + field_offset, &value, sizeof(bool));
         }
       }
       break;
@@ -92,7 +99,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = int8_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(int8_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(int8_t));
         }
       }
       break;
@@ -106,7 +116,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = int16_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(int16_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(int16_t));
         }
       }
       break;
@@ -120,7 +133,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = int32_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(int32_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(int32_t));
         }
       }
       break;
@@ -134,7 +150,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = int64_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(int64_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(int64_t));
         }
       }
       break;
@@ -148,7 +167,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = float_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(float));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(float));
         }
       }
       break;
@@ -162,7 +184,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = double_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(double));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(double));
         }
       }
       break;
@@ -183,8 +208,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           memcpy(buffer_address + offsets[i] + buffer_cursor[i], value, length);
           // write the offset and size
           int64_t offsetAndSize = (buffer_cursor[i] << 32) | length;
-          memcpy(buffer_address + offsets[i] + field_offset, &offsetAndSize,
-                 sizeof(int64_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &offsetAndSize,
+              sizeof(int64_t));
           buffer_cursor[i] += length;
         }
       }
@@ -206,8 +233,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           memcpy(buffer_address + offsets[i] + buffer_cursor[i], value, length);
           // write the offset and size
           int64_t offsetAndSize = (buffer_cursor[i] << 32) | length;
-          memcpy(buffer_address + offsets[i] + field_offset, &offsetAndSize,
-                 sizeof(int64_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &offsetAndSize,
+              sizeof(int64_t));
           buffer_cursor[i] += length;
         }
       }
@@ -215,7 +244,8 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
     }
     case arrow::Decimal128Type::type_id: {
       auto out_array = dynamic_cast<arrow::Decimal128Array*>(array.get());
-      auto dtype = dynamic_cast<arrow::Decimal128Type*>(out_array->type().get());
+      auto dtype =
+          dynamic_cast<arrow::Decimal128Type*>(out_array->type().get());
 
       int32_t precision = dtype->precision();
       int32_t scale = dtype->scale();
@@ -229,7 +259,10 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
             // Get the long value and write the long value
             // Refer to the int64_t() method of Decimal128
             int64_t long_value = static_cast<int64_t>(out_value.low_bits());
-            memcpy(buffer_address + offsets[i] + field_offset, &long_value, sizeof(long));
+            memcpy(
+                buffer_address + offsets[i] + field_offset,
+                &long_value,
+                sizeof(long));
           } else {
             SetNullAt(buffer_address, offsets[i], field_offset, col_index);
           }
@@ -242,11 +275,14 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
             assert(size <= 16);
 
             // write the variable value
-            memcpy(buffer_address + buffer_cursor[i] + offsets[i], &out[0], size);
+            memcpy(
+                buffer_address + buffer_cursor[i] + offsets[i], &out[0], size);
             // write the offset and size
             int64_t offsetAndSize = (buffer_cursor[i] << 32) | size;
-            memcpy(buffer_address + offsets[i] + field_offset, &offsetAndSize,
-                   sizeof(int64_t));
+            memcpy(
+                buffer_address + offsets[i] + field_offset,
+                &offsetAndSize,
+                sizeof(int64_t));
           }
 
           // Update the cursor of the buffer.
@@ -264,26 +300,34 @@ arrow::Status ArrowColumnarToRowConverter::WriteValue(
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = date32_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(int32_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(int32_t));
         }
       }
       break;
     }
     case arrow::TimestampType::type_id: {
-      auto timestamp_array = std::static_pointer_cast<arrow::TimestampArray>(array);
+      auto timestamp_array =
+          std::static_pointer_cast<arrow::TimestampArray>(array);
       for (auto i = 0; i < num_rows; i++) {
         bool is_null = array->IsNull(i);
         if (is_null) {
           SetNullAt(buffer_address, offsets[i], field_offset, col_index);
         } else {
           auto value = timestamp_array->Value(i);
-          memcpy(buffer_address + offsets[i] + field_offset, &value, sizeof(int64_t));
+          memcpy(
+              buffer_address + offsets[i] + field_offset,
+              &value,
+              sizeof(int64_t));
         }
       }
       break;
     }
     default:
-      return arrow::Status::Invalid("Unsupported data type: " + array->type_id());
+      return arrow::Status::Invalid(
+          "Unsupported data type: " + array->type_id());
   }
   return arrow::Status::OK();
 }
@@ -292,11 +336,17 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
   for (auto i = 0; i < num_cols_; i++) {
     auto array = rb_->column(i);
     int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, i);
-    WriteValue(buffer_address_, field_offset, array, i, num_rows_, offsets_,
-               buffer_cursor_);
+    WriteValue(
+        buffer_address_,
+        field_offset,
+        array,
+        i,
+        num_rows_,
+        offsets_,
+        buffer_cursor_);
   }
   return arrow::Status::OK();
 }
 
-}  // namespace columnartorow
-}  // namespace gluten
+} // namespace columnartorow
+} // namespace gluten

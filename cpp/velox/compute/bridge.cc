@@ -34,8 +34,9 @@ namespace {
 class ExportedArrayStreamByArray {
  public:
   struct PrivateData {
-    explicit PrivateData(std::shared_ptr<gluten::ArrowArrayIterator> reader,
-                         std::shared_ptr<arrow::Schema> schema)
+    explicit PrivateData(
+        std::shared_ptr<gluten::ArrowArrayIterator> reader,
+        std::shared_ptr<arrow::Schema> schema)
         : reader_(std::move(reader)), schema_(schema) {}
 
     std::shared_ptr<gluten::ArrowArrayIterator> reader_;
@@ -82,14 +83,16 @@ class ExportedArrayStreamByArray {
 
   // C-compatible callbacks
 
-  static int StaticGetSchema(struct ArrowArrayStream* stream,
-                             struct ArrowSchema* out_schema) {
+  static int StaticGetSchema(
+      struct ArrowArrayStream* stream,
+      struct ArrowSchema* out_schema) {
     ExportedArrayStreamByArray self{stream};
     return self.ToCError(self.GetSchema(out_schema));
   }
 
-  static int StaticGetNext(struct ArrowArrayStream* stream,
-                           struct ArrowArray* out_array) {
+  static int StaticGetNext(
+      struct ArrowArrayStream* stream,
+      struct ArrowArray* out_array) {
     ExportedArrayStreamByArray self{stream};
     return self.ToCError(self.GetNext(out_array));
   }
@@ -117,7 +120,7 @@ class ExportedArrayStreamByArray {
       case StatusCode::OutOfMemory:
         return ENOMEM;
       default:
-        return EINVAL;  // Fallback for Invalid, TypeError, etc.
+        return EINVAL; // Fallback for Invalid, TypeError, etc.
     }
   }
 
@@ -129,22 +132,25 @@ class ExportedArrayStreamByArray {
     return private_data()->reader_;
   }
 
-  const std::shared_ptr<Schema> schema() { return private_data()->schema_; }
+  const std::shared_ptr<Schema> schema() {
+    return private_data()->schema_;
+  }
 
   struct ArrowArrayStream* stream_;
 };
 
-}  // namespace
+} // namespace
 
-Status ExportArrowArray(std::shared_ptr<arrow::Schema> schema,
-                        std::shared_ptr<gluten::ArrowArrayIterator> reader,
-                        struct ArrowArrayStream* out) {
+Status ExportArrowArray(
+    std::shared_ptr<arrow::Schema> schema,
+    std::shared_ptr<gluten::ArrowArrayIterator> reader,
+    struct ArrowArrayStream* out) {
   out->get_schema = ExportedArrayStreamByArray::StaticGetSchema;
   out->get_next = ExportedArrayStreamByArray::StaticGetNext;
   out->get_last_error = ExportedArrayStreamByArray::StaticGetLastError;
   out->release = ExportedArrayStreamByArray::StaticRelease;
-  out->private_data =
-      new ExportedArrayStreamByArray::PrivateData{std::move(reader), std::move(schema)};
+  out->private_data = new ExportedArrayStreamByArray::PrivateData{
+      std::move(reader), std::move(schema)};
   return Status::OK();
 }
 
@@ -183,8 +189,8 @@ Status ExportArrowArray(std::shared_ptr<arrow::Schema> schema,
 //   std::shared_ptr<Schema> CacheSchema() const {
 //     if (!schema_) {
 //       struct ArrowSchema c_schema;
-//       ARROW_CHECK_OK(StatusFromCError(stream_.get_schema(&stream_, &c_schema)));
-//       schema_ = ImportSchema(&c_schema).ValueOrDie();
+//       ARROW_CHECK_OK(StatusFromCError(stream_.get_schema(&stream_,
+//       &c_schema))); schema_ = ImportSchema(&c_schema).ValueOrDie();
 //     }
 //     return schema_;
 //   }
@@ -228,4 +234,4 @@ Status ExportArrowArray(std::shared_ptr<arrow::Schema> schema,
 //   return std::make_shared<ArrayStreamArrayReader>(stream);
 // }
 
-}  // namespace arrow
+} // namespace arrow

@@ -30,11 +30,13 @@ using namespace facebook::velox;
 namespace velox {
 namespace compute {
 
-class VeloxToRowConverter : public gluten::columnartorow::ColumnarToRowConverterBase {
+class VeloxToRowConverter
+    : public gluten::columnartorow::ColumnarToRowConverterBase {
  public:
-  VeloxToRowConverter(const std::shared_ptr<arrow::RecordBatch>& rb,
-                      std::shared_ptr<arrow::MemoryPool> memory_pool,
-                      memory::MemoryPool* pool)
+  VeloxToRowConverter(
+      const std::shared_ptr<arrow::RecordBatch>& rb,
+      std::shared_ptr<arrow::MemoryPool> memory_pool,
+      memory::MemoryPool* pool)
       : ColumnarToRowConverterBase(rb, memory_pool), pool_(pool) {}
 
   arrow::Status Init() override;
@@ -49,5 +51,5 @@ class VeloxToRowConverter : public gluten::columnartorow::ColumnarToRowConverter
   std::shared_ptr<arrow::Schema> schema_;
 };
 
-}  // namespace compute
-}  // namespace velox
+} // namespace compute
+} // namespace velox

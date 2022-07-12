@@ -27,7 +27,8 @@
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
 
-auto BM_HashJoin = [](::benchmark::State& state, const std::string& l_input_file,
+auto BM_HashJoin = [](::benchmark::State& state,
+                      const std::string& l_input_file,
                       const std::string& r_input_file) {
   const auto& filePath = getExampleFilePath("hash_join.json");
   auto maybePlan = getPlanFromFile(filePath);
@@ -44,8 +45,8 @@ auto BM_HashJoin = [](::benchmark::State& state, const std::string& l_input_file
     auto r_input_iter = getInputFromBatchVector(r_input_file);
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto result_iter =
-        backend->GetResultIterator({std::move(l_input_iter), std::move(r_input_iter)});
+    auto result_iter = backend->GetResultIterator(
+        {std::move(l_input_iter), std::move(r_input_iter)});
 
     while (result_iter->HasNext()) {
       std::cout << result_iter->Next()->ToString() << std::endl;
@@ -68,7 +69,8 @@ auto BM_HashJoinExample = [](::benchmark::State& state) {
   Larger input files can be generated using following commands:
 
   spark.sql("""
-    select cast(l_partkey as double), cast(l_extendedprice as double) from lineitem
+    select cast(l_partkey as double), cast(l_extendedprice as double) from
+  lineitem
   """).repartition(1).write.format("parquet").save("file:///path/to/bm_lineitem")
 
   spark.sql("""

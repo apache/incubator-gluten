@@ -36,14 +36,16 @@ std::string getExampleFilePath(const std::string& fileName) {
   if (path.is_absolute()) {
     return fileName;
   }
-  return ::facebook::velox::test::getDataFilePath("cpp/velox/benchmarks",
-                                                  "data/" + fileName);
+  return ::facebook::velox::test::getDataFilePath(
+      "cpp/velox/benchmarks", "data/" + fileName);
 }
 
 void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool) {
-  gluten::SetBackendFactory(
-      [=] { return std::make_shared<::velox::compute::VeloxPlanConverter>(pool); });
-  auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>();
+  gluten::SetBackendFactory([=] {
+    return std::make_shared<::velox::compute::VeloxPlanConverter>(pool);
+  });
+  auto veloxInitializer =
+      std::make_shared<::velox::compute::VeloxInitializer>();
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
@@ -59,7 +61,8 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
 }
 
 std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
-    const std::string& datasetPath, const std::string& fileFormat) {
+    const std::string& datasetPath,
+    const std::string& fileFormat) {
   auto scanInfo = std::make_shared<facebook::velox::substrait::SplitInfo>();
 
   // Set format to scan info.
@@ -93,17 +96,21 @@ bool EndsWith(const std::string& data, const std::string& suffix) {
   return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
 }
 
-std::shared_ptr<arrow::RecordBatchReader> createReader(const std::string& path) {
+std::shared_ptr<arrow::RecordBatchReader> createReader(
+    const std::string& path) {
   std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
   std::shared_ptr<arrow::RecordBatchReader> recordBatchReader;
   ::parquet::ArrowReaderProperties properties =
       ::parquet::default_arrow_reader_properties();
 
   GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-      arrow::default_memory_pool(), ::parquet::ParquetFileReader::OpenFile(path),
-      properties, &parquetReader));
+      arrow::default_memory_pool(),
+      ::parquet::ParquetFileReader::OpenFile(path),
+      properties,
+      &parquetReader));
   GLUTEN_THROW_NOT_OK(parquetReader->GetRecordBatchReader(
-      arrow::internal::Iota(parquetReader->num_row_groups()), &recordBatchReader));
+      arrow::internal::Iota(parquetReader->num_row_groups()),
+      &recordBatchReader));
   return recordBatchReader;
 }
 

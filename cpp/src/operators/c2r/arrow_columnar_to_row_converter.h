@@ -24,8 +24,9 @@ namespace columnartorow {
 
 class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
  public:
-  ArrowColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb,
-                              std::shared_ptr<arrow::MemoryPool> memory_pool)
+  ArrowColumnarToRowConverter(
+      std::shared_ptr<arrow::RecordBatch> rb,
+      std::shared_ptr<arrow::MemoryPool> memory_pool)
       : ColumnarToRowConverterBase(rb, memory_pool) {}
 
   arrow::Status Init() override;
@@ -33,11 +34,15 @@ class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
   arrow::Status Write() override;
 
  private:
-  arrow::Status WriteValue(uint8_t* buffer_address, int64_t field_offset,
-                           std::shared_ptr<arrow::Array> array, int32_t col_index,
-                           int64_t num_rows, std::vector<int64_t>& offsets,
-                           std::vector<int64_t>& buffer_cursor);
+  arrow::Status WriteValue(
+      uint8_t* buffer_address,
+      int64_t field_offset,
+      std::shared_ptr<arrow::Array> array,
+      int32_t col_index,
+      int64_t num_rows,
+      std::vector<int64_t>& offsets,
+      std::vector<int64_t>& buffer_cursor);
 };
 
-}  // namespace columnartorow
-}  // namespace gluten
+} // namespace columnartorow
+} // namespace gluten

@@ -34,10 +34,16 @@ class MemoryAllocator {
   virtual ~MemoryAllocator() = default;
   virtual bool Allocate(int64_t size, void** out) = 0;
   virtual bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
-  virtual bool AllocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
-  virtual bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) = 0;
-  virtual bool ReallocateAligned(void* p, uint16_t alignment, int64_t size,
-                                 int64_t new_size, void** out) = 0;
+  virtual bool
+  AllocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
+  virtual bool
+  Reallocate(void* p, int64_t size, int64_t new_size, void** out) = 0;
+  virtual bool ReallocateAligned(
+      void* p,
+      uint16_t alignment,
+      int64_t size,
+      int64_t new_size,
+      void** out) = 0;
   virtual bool Free(void* p, int64_t size) = 0;
   virtual int64_t GetBytes() = 0;
 };
@@ -55,8 +61,9 @@ class AllocationListener {
 
 class ListenableMemoryAllocator : public MemoryAllocator {
  public:
-  explicit ListenableMemoryAllocator(MemoryAllocator* delegated,
-                                     std::shared_ptr<AllocationListener> listener)
+  explicit ListenableMemoryAllocator(
+      MemoryAllocator* delegated,
+      std::shared_ptr<AllocationListener> listener)
       : delegated_(delegated), listener_(std::move(listener)) {}
 
  public:
@@ -68,8 +75,12 @@ class ListenableMemoryAllocator : public MemoryAllocator {
 
   bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
 
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size,
-                         void** out) override;
+  bool ReallocateAligned(
+      void* p,
+      uint16_t alignment,
+      int64_t size,
+      int64_t new_size,
+      void** out) override;
 
   bool Free(void* p, int64_t size) override;
 
@@ -91,8 +102,12 @@ class StdMemoryAllocator : public MemoryAllocator {
 
   bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
 
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size,
-                         void** out) override;
+  bool ReallocateAligned(
+      void* p,
+      uint16_t alignment,
+      int64_t size,
+      int64_t new_size,
+      void** out) override;
 
   bool Free(void* p, int64_t size) override;
 
@@ -107,11 +122,13 @@ MemoryAllocator* DefaultMemoryAllocator();
 // TODO aligned allocation
 class WrappedMemoryPool : public arrow::MemoryPool {
  public:
-  explicit WrappedMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
+  explicit WrappedMemoryPool(MemoryAllocator* allocator)
+      : allocator_(allocator) {}
 
   arrow::Status Allocate(int64_t size, uint8_t** out) override;
 
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override;
+  arrow::Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr)
+      override;
 
   void Free(uint8_t* buffer, int64_t size) override;
 
@@ -123,9 +140,10 @@ class WrappedMemoryPool : public arrow::MemoryPool {
   MemoryAllocator* allocator_;
 };
 
-std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator);
+std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(
+    MemoryAllocator* allocator);
 
 arrow::MemoryPool* GetDefaultWrappedArrowMemoryPool();
 
-}  // namespace memory
-}  // namespace gluten
+} // namespace memory
+} // namespace gluten

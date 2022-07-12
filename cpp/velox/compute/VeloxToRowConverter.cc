@@ -63,8 +63,8 @@ arrow::Status VeloxToRowConverter::Init() {
     offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
     total_memory_size += lengths_[rowIdx];
   }
-  ARROW_ASSIGN_OR_RAISE(buffer_,
-                        arrow::AllocateBuffer(total_memory_size, memory_pool_.get()));
+  ARROW_ASSIGN_OR_RAISE(
+      buffer_, arrow::AllocateBuffer(total_memory_size, memory_pool_.get()));
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = buffer_->mutable_data();
   return arrow::Status::OK();
@@ -125,27 +125,33 @@ arrow::Status VeloxToRowConverter::Write() {
       }
       case arrow::StringType::type_id: {
         // Will convert the faked String column into Row through memcopy.
-        auto str_views = vecs_[col_idx]->asFlatVector<StringView>()->rawValues();
+        auto str_views =
+            vecs_[col_idx]->asFlatVector<StringView>()->rawValues();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           int32_t length = (int32_t)str_views[row_idx].size();
           auto value = str_views[row_idx].data();
           // Write the variable value.
-          memcpy(buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx], value,
-                 length);
+          memcpy(
+              buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx],
+              value,
+              length);
           int64_t offset_and_size = (buffer_cursor_[row_idx] << 32) | length;
           // Write the offset and size.
-          memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offset_and_size,
-                 sizeof(int64_t));
+          memcpy(
+              buffer_address_ + offsets_[row_idx] + field_offset,
+              &offset_and_size,
+              sizeof(int64_t));
           buffer_cursor_[row_idx] += length;
         }
         break;
       }
       default:
-        return arrow::Status::Invalid("Type is not supported in VeloxToRow conversion.");
+        return arrow::Status::Invalid(
+            "Type is not supported in VeloxToRow conversion.");
     }
   }
   return arrow::Status::OK();
 }
 
-}  // namespace compute
-}  // namespace velox
+} // namespace compute
+} // namespace velox

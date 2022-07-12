@@ -30,22 +30,26 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
 
   ~ArrowExecBackend() override;
 
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator() override;
+  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator()
+      override;
 
   std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
-      std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs) override;
+      std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs)
+      override;
 
  private:
   std::shared_ptr<arrow::compute::Declaration> decl_;
   std::shared_ptr<arrow::compute::ExecPlan> exec_plan_;
 
-  void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
+  void ReplaceSourceDecls(
+      std::vector<arrow::compute::Declaration> source_decls);
   void PushDownFilter();
-  static void FieldPathToName(arrow::compute::Expression* expression,
-                              const std::shared_ptr<arrow::Schema>& schema);
+  static void FieldPathToName(
+      arrow::compute::Expression* expression,
+      const std::shared_ptr<arrow::Schema>& schema);
 };
 
 void Initialize();
 
-}  // namespace compute
-}  // namespace gazellecpp
+} // namespace compute
+} // namespace gazellecpp

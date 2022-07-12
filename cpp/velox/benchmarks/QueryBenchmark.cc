@@ -21,8 +21,10 @@
 #include "compute/VeloxPlanConverter.h"
 #include "jni/exec_backend.h"
 
-auto BM = [](::benchmark::State& state, const std::vector<std::string>& datasetPaths,
-             const std::string& jsonFile, const std::string& fileFormat) {
+auto BM = [](::benchmark::State& state,
+             const std::vector<std::string>& datasetPaths,
+             const std::string& jsonFile,
+             const std::string& fileFormat) {
   const auto& filePath = getExampleFilePath(jsonFile);
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
@@ -39,8 +41,9 @@ auto BM = [](::benchmark::State& state, const std::vector<std::string>& datasetP
 
   for (auto _ : state) {
     state.PauseTiming();
-    auto backend = std::dynamic_pointer_cast<velox::compute::VeloxPlanConverter>(
-        gluten::CreateBackend());
+    auto backend =
+        std::dynamic_pointer_cast<velox::compute::VeloxPlanConverter>(
+            gluten::CreateBackend());
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
     auto resultIter = backend->GetResultIterator(scanInfos);
@@ -52,7 +55,8 @@ auto BM = [](::benchmark::State& state, const std::vector<std::string>& datasetP
 };
 
 int main(int argc, char** argv) {
-  std::unique_ptr<memory::MemoryPool> veloxPool = memory::getDefaultScopedMemoryPool();
+  std::unique_ptr<memory::MemoryPool> veloxPool =
+      memory::getDefaultScopedMemoryPool();
   InitVeloxBackend(veloxPool.get());
   ::benchmark::Initialize(&argc, argv);
   // Threads cannot work well, use ThreadRange instead.
@@ -62,24 +66,36 @@ int main(int argc, char** argv) {
   // Register for TPC-H Q1 ORC tests.
   std::string lineitemOrcPath = getExampleFilePath("orc/bm_lineitem/");
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM,
-                                   std::vector<std::string>{lineitemOrcPath},
-                                   "q1_first_stage_orc.json", "orc");
+    ::benchmark::RegisterBenchmark(
+        "q1_first_stage_orc",
+        BM,
+        std::vector<std::string>{lineitemOrcPath},
+        "q1_first_stage_orc.json",
+        "orc");
   } else {
-    ::benchmark::RegisterBenchmark("q1_first_stage_orc", BM,
-                                   std::vector<std::string>{std::string(argv[1]) + "/"},
-                                   "q1_first_stage_orc.json", "orc");
+    ::benchmark::RegisterBenchmark(
+        "q1_first_stage_orc",
+        BM,
+        std::vector<std::string>{std::string(argv[1]) + "/"},
+        "q1_first_stage_orc.json",
+        "orc");
   }
 
   // Register for TPC-H Q6 ORC tests.
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM,
-                                   std::vector<std::string>{lineitemOrcPath},
-                                   "q6_first_stage_orc.json", "orc");
+    ::benchmark::RegisterBenchmark(
+        "q6_first_stage_orc",
+        BM,
+        std::vector<std::string>{lineitemOrcPath},
+        "q6_first_stage_orc.json",
+        "orc");
   } else {
-    ::benchmark::RegisterBenchmark("q6_first_stage_orc", BM,
-                                   std::vector<std::string>{std::string(argv[1]) + "/"},
-                                   "q6_first_stage_orc.json", "orc");
+    ::benchmark::RegisterBenchmark(
+        "q6_first_stage_orc",
+        BM,
+        std::vector<std::string>{std::string(argv[1]) + "/"},
+        "q6_first_stage_orc.json",
+        "orc");
   }
 
   ::benchmark::RunSpecifiedBenchmarks();

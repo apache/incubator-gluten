@@ -67,5 +67,5 @@ arrow::Status LazyReadIterator::Next(std::shared_ptr<ArrowArray>* out) {
   return arrow::Status::OK();
 }
 
-}  // namespace compute
-}  // namespace gluten
+} // namespace compute
+} // namespace gluten

@@ -19,7 +19,8 @@
 
 using namespace facebook::velox;
 
-std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name) {
+std::shared_ptr<arrow::DataType> toArrowTypeFromName(
+    const std::string& type_name) {
   if (type_name == "BOOLEAN") {
     return arrow::boolean();
   }
@@ -58,15 +59,15 @@ std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
 const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
   switch (typeId) {
     case arrow::Type::type::BOOL:
-      return "b";  // boolean
+      return "b"; // boolean
     case arrow::Type::type::INT32:
-      return "i";  // int32
+      return "i"; // int32
     case arrow::Type::type::INT64:
-      return "l";  // int64
+      return "l"; // int64
     case arrow::Type::type::DOUBLE:
-      return "g";  // float64
+      return "g"; // float64
     case arrow::Type::type::STRING:
-      return "u";  // utf-8 string
+      return "u"; // utf-8 string
     default:
       // Unsupported types.
       throw std::runtime_error("Arrow type id not supported.");
