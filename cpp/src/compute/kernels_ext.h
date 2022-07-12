@@ -41,8 +41,8 @@ class LazyReadIterator {
     array_iter_ = std::move(array_iter);
     std::unique_ptr<arrow::ArrayBuilder> array_builder;
     arrow::MakeBuilder(pool_, arrow::float64(), &array_builder);
-    builder_.reset(
-        arrow::internal::checked_cast<arrow::DoubleBuilder*>(array_builder.release()));
+    builder_.reset(arrow::internal::checked_cast<arrow::DoubleBuilder*>(
+        array_builder.release()));
   }
 
   bool HasNext();
@@ -58,5 +58,5 @@ class LazyReadIterator {
   std::unique_ptr<arrow::DoubleBuilder> builder_;
 };
 
-}  // namespace compute
-}  // namespace gluten
+} // namespace compute
+} // namespace gluten

@@ -52,8 +52,9 @@ static std::string GenerateUUID() {
   return boost::uuids::to_string(generator());
 }
 
-static std::string GetSpilledShuffleFileDir(const std::string& configured_dir,
-                                            int32_t sub_dir_id) {
+static std::string GetSpilledShuffleFileDir(
+    const std::string& configured_dir,
+    int32_t sub_dir_id) {
   auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(2) << std::hex << sub_dir_id;
@@ -81,15 +82,18 @@ static arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
     }
     return res;
   } else {
-    ARROW_ASSIGN_OR_RAISE(auto arrow_tmp_dir,
-                          arrow::internal::TemporaryDir::Make("columnar-shuffle-"));
+    ARROW_ASSIGN_OR_RAISE(
+        auto arrow_tmp_dir,
+        arrow::internal::TemporaryDir::Make("columnar-shuffle-"));
     return std::vector<std::string>{arrow_tmp_dir->path().ToString()};
   }
 }
 
-static arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) {
+static arrow::Result<std::string> CreateTempShuffleFile(
+    const std::string& dir) {
   if (dir.length() == 0) {
-    return arrow::Status::Invalid("Failed to create spilled file, got empty path.");
+    return arrow::Status::Invalid(
+        "Failed to create spilled file, got empty path.");
   }
 
   auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
@@ -101,8 +105,8 @@ static arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) 
   bool exist = true;
   std::string file_path;
   while (exist) {
-    file_path =
-        arrow::fs::internal::ConcatAbstractPath(dir, "temp_shuffle_" + GenerateUUID());
+    file_path = arrow::fs::internal::ConcatAbstractPath(
+        dir, "temp_shuffle_" + GenerateUUID());
     ARROW_ASSIGN_OR_RAISE(auto file_info, fs->GetFileInfo(file_path));
     if (file_info.type() == arrow::fs::FileType::NotFound) {
       exist = false;
@@ -113,8 +117,8 @@ static arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) 
   return file_path;
 }
 
-static arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTypeId(
-    const std::vector<std::shared_ptr<arrow::Field>>& fields) {
+static arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>>
+ToSplitterTypeId(const std::vector<std::shared_ptr<arrow::Field>>& fields) {
   std::vector<std::shared_ptr<arrow::DataType>> splitter_type_id;
   std::pair<std::string, arrow::Type::type> field_type_not_implemented;
   for (auto field : fields) {
@@ -159,11 +163,14 @@ static arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTy
 
 static int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
   const auto& buffers = array->data()->buffers;
-  return std::accumulate(std::cbegin(buffers), std::cend(buffers), 0LL,
-                         [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
-                           return buf == nullptr ? sum : sum + buf->size();
-                         });
+  return std::accumulate(
+      std::cbegin(buffers),
+      std::cend(buffers),
+      0LL,
+      [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
+        return buf == nullptr ? sum : sum + buf->size();
+      });
 }
 
-}  // namespace shuffle
-}  // namespace gluten
+} // namespace shuffle
+} // namespace gluten

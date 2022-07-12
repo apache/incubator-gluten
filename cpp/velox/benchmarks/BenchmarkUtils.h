@@ -42,7 +42,8 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
 /// Use fileFormat to specify the format to read, eg., orc, parquet.
 /// Return a split info.
 std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
-    const std::string& datasetPath, const std::string& fileFormat);
+    const std::string& datasetPath,
+    const std::string& fileFormat);
 
 /// Return whether the data ends with suffix.
 bool EndsWith(const std::string& data, const std::string& suffix);
@@ -57,10 +58,13 @@ class BatchIteratorWrapper {
     ::parquet::ArrowReaderProperties properties =
         ::parquet::default_arrow_reader_properties();
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        arrow::default_memory_pool(), ::parquet::ParquetFileReader::OpenFile(path_),
-        properties, &fileReader_));
+        arrow::default_memory_pool(),
+        ::parquet::ParquetFileReader::OpenFile(path_),
+        properties,
+        &fileReader_));
     GLUTEN_THROW_NOT_OK(fileReader_->GetRecordBatchReader(
-        arrow::internal::Iota(fileReader_->num_row_groups()), &recordBatchReader_));
+        arrow::internal::Iota(fileReader_->num_row_groups()),
+        &recordBatchReader_));
   }
 
  protected:
@@ -71,7 +75,8 @@ class BatchIteratorWrapper {
 
 class BatchVectorIterator : public BatchIteratorWrapper {
  public:
-  explicit BatchVectorIterator(std::string path) : BatchIteratorWrapper(std::move(path)) {
+  explicit BatchVectorIterator(std::string path)
+      : BatchIteratorWrapper(std::move(path)) {
     CreateReader();
     GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
     iter_ = batches_.begin();
@@ -92,7 +97,8 @@ class BatchVectorIterator : public BatchIteratorWrapper {
 
 class BatchStreamIterator : public BatchIteratorWrapper {
  public:
-  explicit BatchStreamIterator(std::string path) : BatchIteratorWrapper(std::move(path)) {
+  explicit BatchStreamIterator(std::string path)
+      : BatchIteratorWrapper(std::move(path)) {
     CreateReader();
   }
 

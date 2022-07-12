@@ -37,8 +37,8 @@ class ResultIteratorBase {
  public:
   virtual ~ResultIteratorBase() = default;
 
-  virtual void Init() {}   // unused
-  virtual void Close() {}  // unused
+  virtual void Init() {} // unused
+  virtual void Close() {} // unused
   virtual bool HasNext() = 0;
   virtual std::shared_ptr<T> Next() = 0;
 };
@@ -57,7 +57,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     auto buf = std::make_shared<arrow::Buffer>(data, size);
     auto maybe_plan_json = SubstraitToJSON("Plan", *buf);
     if (maybe_plan_json.status().ok()) {
-      std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
+      std::cout << std::string(50, '#')
+                << " received substrait::Plan:" << std::endl;
       std::cout << maybe_plan_json.ValueOrDie() << std::endl;
     } else {
       std::cout << "Error parsing substrait plan to json: "
@@ -90,16 +91,21 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     return schema_map_;
   }
 
-  /// This function is used to create certain converter from the format used by the
-  /// backend to Spark unsafe row. By default, Arrow-to-Row converter is used.
+  /// This function is used to create certain converter from the format used by
+  /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
+  /// used.
   virtual std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
-  getColumnarConverter(std::shared_ptr<arrow::RecordBatch> rb,
-                       std::shared_ptr<arrow::MemoryPool> memory_pool, bool wsChild) {
+  getColumnarConverter(
+      std::shared_ptr<arrow::RecordBatch> rb,
+      std::shared_ptr<arrow::MemoryPool> memory_pool,
+      bool wsChild) {
     return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
         rb, memory_pool);
   }
 
-  virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter) { return nullptr; };
+  virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter) {
+    return nullptr;
+  };
 
  protected:
   ::substrait::Plan plan_;
@@ -122,8 +128,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       case ::substrait::Type::KindCase::kDate:
         return arrow::date32();
       default:
-        return arrow::Status::Invalid("Type not supported: " +
-                                      std::to_string(stype.kind_case()));
+        return arrow::Status::Invalid(
+            "Type not supported: " + std::to_string(stype.kind_case()));
     }
   }
 
@@ -167,7 +173,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
         // This is not an iterator input, but a scan input.
         return arrow::Status::OK();
       }
-      std::string idxStr = filePath.substr(pos + prefix.size(), filePath.size());
+      std::string idxStr =
+          filePath.substr(pos + prefix.size(), filePath.size());
       iterIdx = std::stoi(idxStr);
     }
     if (iterIdx < 0) {
@@ -201,7 +208,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     // Create input fields.
     std::vector<std::shared_ptr<arrow::Field>> inputFields;
     for (int colIdx = 0; colIdx < colNameList.size(); colIdx++) {
-      inputFields.push_back(arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
+      inputFields.push_back(
+          arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
     }
 
     // Set up the schema map.
@@ -213,18 +221,20 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
 
 class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
  public:
-  /// \brief Iterator may be constructed from any type which has a member function
-  /// with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
+  /// \brief Iterator may be constructed from any type which has a member
+  /// function with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
   /// and will be wrapped in ArrowArrayIterator.
   /// For details, please see <arrow/util/iterator.h>
-  /// This class is used as input/output iterator for ExecBackendBase. As output,
-  /// it can hold the backend to tie their lifetimes, which can be used when the
-  /// production of the iterator relies on the backend.
+  /// This class is used as input/output iterator for ExecBackendBase. As
+  /// output, it can hold the backend to tie their lifetimes, which can be used
+  /// when the production of the iterator relies on the backend.
   template <typename T>
-  explicit ArrowArrayResultIterator(std::shared_ptr<T> iter,
-                                    std::shared_ptr<ExecBackendBase> backend = nullptr)
+  explicit ArrowArrayResultIterator(
+      std::shared_ptr<T> iter,
+      std::shared_ptr<ExecBackendBase> backend = nullptr)
       : raw_iter_(iter.get()),
-        iter_(std::make_unique<ArrowArrayIterator>(Wrapper<T>(std::move(iter)))),
+        iter_(
+            std::make_unique<ArrowArrayIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),
         backend_(std::move(backend)) {}
 
@@ -241,12 +251,17 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
   }
 
   /// ArrowArrayIterator doesn't support shared ownership. Once this method is
-  /// called, the caller should take it's ownership, and ArrowArrayResultIterator
-  /// will no longer have access to the underlying iterator.
-  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() { return std::move(iter_); }
+  /// called, the caller should take it's ownership, and
+  /// ArrowArrayResultIterator will no longer have access to the underlying
+  /// iterator.
+  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
+    return std::move(iter_);
+  }
 
   // For testing and benchmarking.
-  void* GetRaw() { return raw_iter_; }
+  void* GetRaw() {
+    return raw_iter_;
+  }
 
   std::shared_ptr<Metrics> GetMetrics() {
     if (backend_ != nullptr) {
@@ -261,7 +276,9 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
    public:
     explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
 
-    arrow::Result<std::shared_ptr<ArrowArray>> Next() { return ptr_->Next(); }
+    arrow::Result<std::shared_ptr<ArrowArray>> Next() {
+      return ptr_->Next();
+    }
 
    private:
     std::shared_ptr<T> ptr_;
@@ -286,8 +303,9 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
   }
 };
 
-void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory);
+void SetBackendFactory(
+    std::function<std::shared_ptr<ExecBackendBase>()> factory);
 
 std::shared_ptr<ExecBackendBase> CreateBackend();
 
-}  // namespace gluten
+} // namespace gluten

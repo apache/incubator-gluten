@@ -44,7 +44,7 @@
 
 namespace types {
 class ExpressionList;
-}  // namespace types
+} // namespace types
 
 static jclass serializable_obj_builder_class;
 static jmethodID serializable_obj_builder_constructor;
@@ -83,11 +83,14 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<ArrowArrayResultIterator>>
 
 using gluten::shuffle::SplitOptions;
 using gluten::shuffle::Splitter;
-static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_holder_;
+static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>>
+    shuffle_splitter_holder_;
 static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
     decompression_schema_holder_;
 
-std::shared_ptr<ArrowArrayResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
+std::shared_ptr<ArrowArrayResultIterator> GetArrayIterator(
+    JNIEnv* env,
+    jlong id) {
   auto handler = array_iterator_holder_.Lookup(id);
   if (!handler) {
     std::string error_message = "invalid handler id " + std::to_string(id);
@@ -98,10 +101,12 @@ std::shared_ptr<ArrowArrayResultIterator> GetArrayIterator(JNIEnv* env, jlong id
 
 class JavaArrowArrayIterator {
  public:
-  explicit JavaArrowArrayIterator(JavaVM* vm,
-                                  jobject java_serialized_arrow_array_iterator)
+  explicit JavaArrowArrayIterator(
+      JavaVM* vm,
+      jobject java_serialized_arrow_array_iterator)
       : vm_(vm),
-        java_serialized_arrow_array_iterator_(java_serialized_arrow_array_iterator) {}
+        java_serialized_arrow_array_iterator_(
+            java_serialized_arrow_array_iterator) {}
 
   // singleton, avoid stack instantiation
   JavaArrowArrayIterator(const JavaArrowArrayIterator& itr) = delete;
@@ -112,7 +117,8 @@ class JavaArrowArrayIterator {
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
       // Reattach current thread to JVM
-      getEnvStat = vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL);
+      getEnvStat =
+          vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL);
       if (getEnvStat != JNI_OK) {
         std::cout << "Failed to deconstruct due to thread not being reattached."
                   << std::endl;
@@ -120,13 +126,14 @@ class JavaArrowArrayIterator {
       }
     }
     if (getEnvStat != JNI_OK) {
-      std::cout << "Failed to deconstruct due to thread not being attached." << std::endl;
+      std::cout << "Failed to deconstruct due to thread not being attached."
+                << std::endl;
       return;
     }
 #ifdef DEBUG
     std::cout << "DELETING ITERATOR REF "
-              << reinterpret_cast<long>(java_serialized_arrow_array_iterator_) << "..."
-              << std::endl;
+              << reinterpret_cast<long>(java_serialized_arrow_array_iterator_)
+              << "..." << std::endl;
 #endif
     env->DeleteGlobalRef(java_serialized_arrow_array_iterator_);
     vm_->DetachCurrentThread();
@@ -139,30 +146,34 @@ class JavaArrowArrayIterator {
 #ifdef DEBUG
       std::cout << "JNIEnv was not attached to current thread." << std::endl;
 #endif
-      if (vm_->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(&env), NULL) != 0) {
+      if (vm_->AttachCurrentThreadAsDaemon(
+              reinterpret_cast<void**>(&env), NULL) != 0) {
         return arrow::Status::Invalid("Failed to attach thread.");
       }
 #ifdef DEBUG
       std::cout << "Succeeded attaching current thread." << std::endl;
 #endif
     } else if (getEnvStat != JNI_OK) {
-      return arrow::Status::Invalid("JNIEnv was not attached to current thread");
+      return arrow::Status::Invalid(
+          "JNIEnv was not attached to current thread");
     }
 #ifdef DEBUG
     std::cout << "PICKING ITERATOR REF "
-              << reinterpret_cast<long>(java_serialized_arrow_array_iterator_) << "..."
-              << std::endl;
+              << reinterpret_cast<long>(java_serialized_arrow_array_iterator_)
+              << "..." << std::endl;
 #endif
-    if (!env->CallBooleanMethod(java_serialized_arrow_array_iterator_,
-                                serialized_arrow_array_iterator_hasNext)) {
+    if (!env->CallBooleanMethod(
+            java_serialized_arrow_array_iterator_,
+            serialized_arrow_array_iterator_hasNext)) {
       RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
-      return nullptr;  // stream ended
+      return nullptr; // stream ended
     }
     RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
     ArrowArray c_array{};
-    env->CallObjectMethod(java_serialized_arrow_array_iterator_,
-                          serialized_arrow_array_iterator_next,
-                          reinterpret_cast<jlong>(&c_array));
+    env->CallObjectMethod(
+        java_serialized_arrow_array_iterator_,
+        serialized_arrow_array_iterator_next,
+        reinterpret_cast<jlong>(&c_array));
     RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
     auto array = std::make_shared<ArrowArray>(c_array);
     return array;
@@ -180,7 +191,9 @@ class JavaArrowArrayIteratorWrapper {
       std::shared_ptr<JavaArrowArrayIterator> delegated)
       : delegated_(std::move(delegated)) {}
 
-  arrow::Result<std::shared_ptr<ArrowArray>> Next() { return delegated_->Next(); }
+  arrow::Result<std::shared_ptr<ArrowArray>> Next() {
+    return delegated_->Next();
+  }
 
  private:
   std::shared_ptr<JavaArrowArrayIterator> delegated_;
@@ -190,23 +203,28 @@ class JavaArrowArrayIteratorWrapper {
 // org/apache/arrow/dataset/jni/NativeSerializedRecordBatchIterator
 //
 std::shared_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
-    JavaVM* vm, jobject java_serialized_arrow_array_iterator) {
+    JavaVM* vm,
+    jobject java_serialized_arrow_array_iterator) {
 #ifdef DEBUG
   std::cout << "CREATING ITERATOR REF "
-            << reinterpret_cast<long>(java_serialized_arrow_array_iterator) << "..."
-            << std::endl;
+            << reinterpret_cast<long>(java_serialized_arrow_array_iterator)
+            << "..." << std::endl;
 #endif
   std::shared_ptr<JavaArrowArrayIterator> itr =
-      std::make_shared<JavaArrowArrayIterator>(vm, java_serialized_arrow_array_iterator);
+      std::make_shared<JavaArrowArrayIterator>(
+          vm, java_serialized_arrow_array_iterator);
   return itr;
 }
 
-jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name,
-                             const char* sig) {
+jmethodID GetMethodIDOrError(
+    JNIEnv* env,
+    jclass this_class,
+    const char* name,
+    const char* sig) {
   jmethodID ret = GetMethodID(env, this_class, name, sig);
   if (ret == nullptr) {
     std::string error_message = "Unable to find method " + std::string(name) +
-                                " within signature" + std::string(sig);
+        " within signature" + std::string(sig);
     throw gluten::GlutenException(error_message);
   }
   return ret;
@@ -216,7 +234,8 @@ jclass CreateGlobalClassReferenceOrError(JNIEnv* env, const char* class_name) {
   jclass global_class = CreateGlobalClassReference(env, class_name);
   if (global_class == nullptr) {
     std::string error_message =
-        "Unable to CreateGlobalClassReferenceOrError for" + std::string(class_name);
+        "Unable to CreateGlobalClassReferenceOrError for" +
+        std::string(class_name);
     throw gluten::GlutenException(error_message);
   }
   return global_class;
@@ -237,12 +256,12 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   serializable_obj_builder_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/NativeSerializableObject;");
-  serializable_obj_builder_constructor =
-      GetMethodIDOrError(env, serializable_obj_builder_class, "<init>", "([J[I)V");
+  serializable_obj_builder_constructor = GetMethodIDOrError(
+      env, serializable_obj_builder_class, "<init>", "([J[I)V");
 
   byte_array_class = CreateGlobalClassReferenceOrError(env, "[B");
-  split_result_class =
-      CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/SplitResult;");
+  split_result_class = CreateGlobalClassReferenceOrError(
+      env, "Lio/glutenproject/vectorized/SplitResult;");
   split_result_constructor =
       GetMethodIDOrError(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
@@ -253,23 +272,24 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   serialized_arrow_array_iterator_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/ArrowInIterator;");
-  serialized_arrow_array_iterator_hasNext =
-      GetMethodIDOrError(env, serialized_arrow_array_iterator_class, "hasNext", "()Z");
-  serialized_arrow_array_iterator_next =
-      GetMethodIDOrError(env, serialized_arrow_array_iterator_class, "next", "(J)V");
+  serialized_arrow_array_iterator_hasNext = GetMethodIDOrError(
+      env, serialized_arrow_array_iterator_class, "hasNext", "()Z");
+  serialized_arrow_array_iterator_next = GetMethodIDOrError(
+      env, serialized_arrow_array_iterator_class, "next", "(J)V");
 
   native_columnar_to_row_info_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
-  native_columnar_to_row_info_constructor =
-      GetMethodIDOrError(env, native_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
+  native_columnar_to_row_info_constructor = GetMethodIDOrError(
+      env, native_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
 
-  java_reservation_listener_class = CreateGlobalClassReference(env,
-                                                               "Lio/glutenproject/memory/"
-                                                               "ReservationListener;");
-  reserve_memory_method =
-      GetMethodIDOrError(env, java_reservation_listener_class, "reserve", "(J)V");
-  unreserve_memory_method =
-      GetMethodIDOrError(env, java_reservation_listener_class, "unreserve", "(J)V");
+  java_reservation_listener_class = CreateGlobalClassReference(
+      env,
+      "Lio/glutenproject/memory/"
+      "ReservationListener;");
+  reserve_memory_method = GetMethodIDOrError(
+      env, java_reservation_listener_class, "reserve", "(J)V");
+  unreserve_memory_method = GetMethodIDOrError(
+      env, java_reservation_listener_class, "unreserve", "(J)V");
 
   default_memory_allocator_id =
       reinterpret_cast<jlong>(gluten::memory::DefaultMemoryAllocator());
@@ -297,7 +317,9 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpDir(
-    JNIEnv* env, jobject obj, jstring pathObj) {
+    JNIEnv* env,
+    jobject obj,
+    jstring pathObj) {
   JNI_METHOD_START
   jboolean ifCopy;
   auto path = env->GetStringUTFChars(pathObj, &ifCopy);
@@ -308,19 +330,26 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetJavaTmpD
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetBatchSize(
-    JNIEnv* env, jobject obj, jint batch_size) {
+    JNIEnv* env,
+    jobject obj,
+    jint batch_size) {
   setenv("NATIVESQL_BATCH_SIZE", std::to_string(batch_size).c_str(), 1);
 }
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeSetMetricsTime(
-    JNIEnv* env, jobject obj, jboolean is_enable) {
+    JNIEnv* env,
+    jobject obj,
+    jboolean is_enable) {
   setenv("NATIVESQL_METRICS_TIME", (is_enable ? "true" : "false"), 1);
 }
 
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
-    JNIEnv* env, jobject obj, jlong allocator_id, jbyteArray plan_arr,
+    JNIEnv* env,
+    jobject obj,
+    jlong allocator_id,
+    jbyteArray plan_arr,
     jobjectArray iter_arr) {
   JNI_METHOD_START
   arrow::Status msg;
@@ -365,8 +394,10 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
 }
 
 JNIEXPORT jboolean JNICALL
-Java_io_glutenproject_vectorized_ArrowOutIterator_nativeHasNext(JNIEnv* env, jobject obj,
-                                                                jlong id) {
+Java_io_glutenproject_vectorized_ArrowOutIterator_nativeHasNext(
+    JNIEnv* env,
+    jobject obj,
+    jlong id) {
   JNI_METHOD_START
   auto iter = GetArrayIterator(env, id);
   if (iter == nullptr) {
@@ -377,21 +408,29 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeHasNext(JNIEnv* env, job
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
-    JNIEnv* env, jobject obj, jlong id, jlong c_array) {
+JNIEXPORT jboolean JNICALL
+Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
+    JNIEnv* env,
+    jobject obj,
+    jlong id,
+    jlong c_array) {
   JNI_METHOD_START
   auto iter = GetArrayIterator(env, id);
   if (!iter->HasNext()) {
     return false;
   }
-  ArrowArrayMove(std::move(iter->Next().get()),
-                 reinterpret_cast<struct ArrowArray*>(c_array));
+  ArrowArrayMove(
+      std::move(iter->Next().get()),
+      reinterpret_cast<struct ArrowArray*>(c_array));
   return true;
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeClose(
-    JNIEnv* env, jobject this_obj, jlong id) {
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_ArrowOutIterator_nativeClose(
+    JNIEnv* env,
+    jobject this_obj,
+    jlong id) {
   JNI_METHOD_START
 #ifdef DEBUG
   auto it = array_iterator_holder_.Lookup(id);
@@ -407,25 +446,33 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ArrowOutIterator_nativeC
 
 JNIEXPORT jobject JNICALL
 Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColumnarToRow(
-    JNIEnv* env, jobject, jlong c_schema, jlong c_array, jlong allocator_id,
+    JNIEnv* env,
+    jobject,
+    jlong c_schema,
+    jlong c_array,
+    jlong allocator_id,
     jboolean wsChild) {
   JNI_METHOD_START
-  std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(
-      arrow::ImportRecordBatch(reinterpret_cast<struct ArrowArray*>(c_array),
-                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  std::shared_ptr<arrow::RecordBatch> rb =
+      gluten::JniGetOrThrow(arrow::ImportRecordBatch(
+          reinterpret_cast<struct ArrowArray*>(c_array),
+          reinterpret_cast<struct ArrowSchema*>(c_schema)));
   int64_t num_rows = rb->num_rows();
   // convert the record batch to spark unsafe row.
-  auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  auto* allocator =
+      reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
   if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
   auto backend = gluten::CreateBackend();
   auto memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
-      columnar_to_row_converter = backend->getColumnarConverter(rb, memory_pool, wsChild);
-  gluten::JniAssertOkOrThrow(columnar_to_row_converter->Init(),
-                             "Native convert columnar to row: Init "
-                             "ColumnarToRowConverter failed");
+      columnar_to_row_converter =
+          backend->getColumnarConverter(rb, memory_pool, wsChild);
+  gluten::JniAssertOkOrThrow(
+      columnar_to_row_converter->Init(),
+      "Native convert columnar to row: Init "
+      "ColumnarToRowConverter failed");
   gluten::JniAssertOkOrThrow(
       columnar_to_row_converter->Write(),
       "Native convert columnar to row: ColumnarToRowConverter write failed");
@@ -441,18 +488,25 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   auto lengths_arr = env->NewLongArray(num_rows);
   auto lengths_src = reinterpret_cast<const jlong*>(lengths.data());
   env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
-  long address = reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
+  long address =
+      reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
 
   jobject native_columnar_to_row_info = env->NewObject(
-      native_columnar_to_row_info_class, native_columnar_to_row_info_constructor,
-      instanceID, offsets_arr, lengths_arr, address);
+      native_columnar_to_row_info_class,
+      native_columnar_to_row_info_constructor,
+      instanceID,
+      offsets_arr,
+      lengths_arr,
+      address);
   return native_columnar_to_row_info;
   JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
-    JNIEnv* env, jobject, jlong instance_id) {
+    JNIEnv* env,
+    jobject,
+    jlong instance_id) {
   JNI_METHOD_START
   columnar_to_row_converter_holder_.Erase(instance_id);
   JNI_METHOD_END()
@@ -461,10 +515,21 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
 // Shuffle
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
-    JNIEnv* env, jobject, jstring partitioning_name_jstr, jint num_partitions,
-    jlong c_schema, jbyteArray expr_arr, jlong offheap_per_task, jint buffer_size,
-    jstring compression_type_jstr, jint batch_compress_threshold, jstring data_file_jstr,
-    jint num_sub_dirs, jstring local_dirs_jstr, jboolean prefer_spill, jlong allocator_id,
+    JNIEnv* env,
+    jobject,
+    jstring partitioning_name_jstr,
+    jint num_partitions,
+    jlong c_schema,
+    jbyteArray expr_arr,
+    jlong offheap_per_task,
+    jint buffer_size,
+    jstring compression_type_jstr,
+    jint batch_compress_threshold,
+    jstring data_file_jstr,
+    jint num_sub_dirs,
+    jstring local_dirs_jstr,
+    jboolean prefer_spill,
+    jlong allocator_id,
     jboolean write_schema) {
   JNI_METHOD_START
   if (partitioning_name_jstr == NULL) {
@@ -478,7 +543,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
     gluten::JniThrow(std::string("Shuffle DataFile can't be null"));
   }
 
-  auto partitioning_name_c = env->GetStringUTFChars(partitioning_name_jstr, JNI_FALSE);
+  auto partitioning_name_c =
+      env->GetStringUTFChars(partitioning_name_jstr, JNI_FALSE);
   auto partitioning_name = std::string(partitioning_name_c);
   env->ReleaseStringUTFChars(partitioning_name_jstr, partitioning_name_c);
 
@@ -496,7 +562,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   }
 
   if (compression_type_jstr != NULL) {
-    auto compression_type_result = GetCompressionType(env, compression_type_jstr);
+    auto compression_type_result =
+        GetCompressionType(env, compression_type_jstr);
     if (compression_type_result.status().ok()) {
       splitOptions.compression_type = compression_type_result.MoveValueUnsafe();
     }
@@ -506,11 +573,13 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   splitOptions.data_file = std::string(data_file_c);
   env->ReleaseStringUTFChars(data_file_jstr, data_file_c);
 
-  auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  auto* allocator =
+      reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
   if (allocator == nullptr) {
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
-  splitOptions.memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
+  splitOptions.memory_pool =
+      gluten::memory::AsWrappedArrowMemoryPool(allocator);
 
   auto local_dirs = env->GetStringUTFChars(local_dirs_jstr, JNI_FALSE);
   setenv("NATIVESQL_SPARK_LOCAL_DIRS", local_dirs, 1);
@@ -520,7 +589,8 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
       arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
   jclass cls = env->FindClass("java/lang/Thread");
-  jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
+  jmethodID mid =
+      env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
   if (thread == NULL) {
     std::cout << "Thread.currentThread() return NULL" << std::endl;
@@ -548,13 +618,19 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   const uint8_t* expr_data = nullptr;
   int expr_size = 0;
   if (expr_arr != NULL) {
-    expr_data = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(expr_arr, 0));
+    expr_data = reinterpret_cast<const uint8_t*>(
+        env->GetByteArrayElements(expr_arr, 0));
     expr_size = env->GetArrayLength(expr_arr);
   }
 
   auto splitter = gluten::JniGetOrThrow(
-      Splitter::Make(partitioning_name, std::move(schema), num_partitions, expr_data,
-                     expr_size, std::move(splitOptions)),
+      Splitter::Make(
+          partitioning_name,
+          std::move(schema),
+          num_partitions,
+          expr_data,
+          expr_size,
+          std::move(splitOptions)),
       "Failed create native shuffle splitter");
 
   return shuffle_splitter_holder_.Insert(std::shared_ptr<Splitter>(splitter));
@@ -564,16 +640,21 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
-    JNIEnv* env, jobject, jlong splitter_id, jstring compression_type_jstr) {
+    JNIEnv* env,
+    jobject,
+    jlong splitter_id,
+    jstring compression_type_jstr) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
-    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+    std::string error_message =
+        "Invalid splitter id " + std::to_string(splitter_id);
     gluten::JniThrow(error_message);
   }
 
   if (compression_type_jstr != NULL) {
-    auto compression_type_result = GetCompressionType(env, compression_type_jstr);
+    auto compression_type_result =
+        GetCompressionType(env, compression_type_jstr);
     if (compression_type_result.status().ok()) {
       gluten::JniAssertOkOrThrow(
           splitter->SetCompressType(compression_type_result.MoveValueUnsafe()));
@@ -582,68 +663,95 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
-    JNIEnv* env, jobject, jlong splitter_id, jint num_rows, jlong c_array,
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
+    JNIEnv* env,
+    jobject,
+    jlong splitter_id,
+    jint num_rows,
+    jlong c_array,
     jboolean first_record_batch) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
-    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+    std::string error_message =
+        "Invalid splitter id " + std::to_string(splitter_id);
     gluten::JniThrow(error_message);
   }
-  std::shared_ptr<arrow::RecordBatch> in = gluten::JniGetOrThrow(arrow::ImportRecordBatch(
-      reinterpret_cast<struct ArrowArray*>(c_array), splitter->input_schema()));
+  std::shared_ptr<arrow::RecordBatch> in =
+      gluten::JniGetOrThrow(arrow::ImportRecordBatch(
+          reinterpret_cast<struct ArrowArray*>(c_array),
+          splitter->input_schema()));
 
   if (first_record_batch) {
     return splitter->CompressedSize(*in);
   }
-  gluten::JniAssertOkOrThrow(splitter->Split(*in), "Native split: splitter split failed");
+  gluten::JniAssertOkOrThrow(
+      splitter->Split(*in), "Native split: splitter split failed");
   return -1L;
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(
-    JNIEnv* env, jobject, jlong splitter_id) {
+JNIEXPORT jobject JNICALL
+Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(
+    JNIEnv* env,
+    jobject,
+    jlong splitter_id) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
-    std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);
+    std::string error_message =
+        "Invalid splitter id " + std::to_string(splitter_id);
     gluten::JniThrow(error_message);
   }
 
-  gluten::JniAssertOkOrThrow(splitter->Stop(), "Native split: splitter stop failed");
+  gluten::JniAssertOkOrThrow(
+      splitter->Stop(), "Native split: splitter stop failed");
 
   const auto& partition_lengths = splitter->PartitionLengths();
   auto partition_length_arr = env->NewLongArray(partition_lengths.size());
   auto src = reinterpret_cast<const jlong*>(partition_lengths.data());
-  env->SetLongArrayRegion(partition_length_arr, 0, partition_lengths.size(), src);
+  env->SetLongArrayRegion(
+      partition_length_arr, 0, partition_lengths.size(), src);
 
   const auto& raw_partition_lengths = splitter->RawPartitionLengths();
-  auto raw_partition_length_arr = env->NewLongArray(raw_partition_lengths.size());
+  auto raw_partition_length_arr =
+      env->NewLongArray(raw_partition_lengths.size());
   auto raw_src = reinterpret_cast<const jlong*>(raw_partition_lengths.data());
-  env->SetLongArrayRegion(raw_partition_length_arr, 0, raw_partition_lengths.size(),
-                          raw_src);
+  env->SetLongArrayRegion(
+      raw_partition_length_arr, 0, raw_partition_lengths.size(), raw_src);
 
   jobject split_result = env->NewObject(
-      split_result_class, split_result_constructor, splitter->TotalComputePidTime(),
-      splitter->TotalWriteTime(), splitter->TotalSpillTime(),
-      splitter->TotalCompressTime(), splitter->TotalBytesWritten(),
-      splitter->TotalBytesSpilled(), partition_length_arr, raw_partition_length_arr);
+      split_result_class,
+      split_result_constructor,
+      splitter->TotalComputePidTime(),
+      splitter->TotalWriteTime(),
+      splitter->TotalSpillTime(),
+      splitter->TotalCompressTime(),
+      splitter->TotalBytesWritten(),
+      splitter->TotalBytesSpilled(),
+      partition_length_arr,
+      raw_partition_length_arr);
 
   return split_result;
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_close(
-    JNIEnv* env, jobject, jlong splitter_id) {
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_close(
+    JNIEnv* env,
+    jobject,
+    jlong splitter_id) {
   JNI_METHOD_START
   shuffle_splitter_holder_.Erase(splitter_id);
   JNI_METHOD_END()
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(JNIEnv* env, jobject,
-                                                                     jlong c_schema) {
+Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
+    JNIEnv* env,
+    jobject,
+    jlong c_schema) {
   JNI_METHOD_START
   std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
       arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
@@ -653,9 +761,16 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(JNIEnv* env
 
 JNIEXPORT jboolean JNICALL
 Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
-    JNIEnv* env, jobject obj, jlong schema_holder_id, jstring compression_type_jstr,
-    jint num_rows, jlongArray buf_addrs, jlongArray buf_sizes, jlongArray buf_mask,
-    jlong c_schema, jlong c_array) {
+    JNIEnv* env,
+    jobject obj,
+    jlong schema_holder_id,
+    jstring compression_type_jstr,
+    jint num_rows,
+    jlongArray buf_addrs,
+    jlongArray buf_sizes,
+    jlongArray buf_mask,
+    jlong c_schema,
+    jlong c_array) {
   JNI_METHOD_START
   auto schema = decompression_schema_holder_.Lookup(schema_holder_id);
   if (!schema) {
@@ -675,12 +790,14 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
 
   int in_bufs_len = env->GetArrayLength(buf_addrs);
   if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
-    gluten::JniThrow("Native decompress: length of buf_addrs and buf_sizes mismatch");
+    gluten::JniThrow(
+        "Native decompress: length of buf_addrs and buf_sizes mismatch");
   }
 
   auto compression_type = arrow::Compression::UNCOMPRESSED;
   if (compression_type_jstr != NULL) {
-    auto compression_type_result = GetCompressionType(env, compression_type_jstr);
+    auto compression_type_result =
+        GetCompressionType(env, compression_type_jstr);
     if (compression_type_result.status().ok()) {
       compression_type = compression_type_result.MoveValueUnsafe();
     }
@@ -704,8 +821,12 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
   options.memory_pool = gluten::memory::GetDefaultWrappedArrowMemoryPool();
   options.use_threads = false;
   gluten::JniAssertOkOrThrow(
-      DecompressBuffers(compression_type, options, (uint8_t*)in_buf_mask, input_buffers,
-                        schema->fields()),
+      DecompressBuffers(
+          compression_type,
+          options,
+          (uint8_t*)in_buf_mask,
+          input_buffers,
+          schema->fields()),
       "ShuffleDecompressionJniWrapper_decompress, failed to decompress buffers");
 
   env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
@@ -715,26 +836,31 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
   // make arrays from buffers
   std::shared_ptr<arrow::RecordBatch> rb;
   gluten::JniAssertOkOrThrow(
-      MakeRecordBatch(schema, num_rows, input_buffers, input_buffers.size(), &rb),
+      MakeRecordBatch(
+          schema, num_rows, input_buffers, input_buffers.size(), &rb),
       "ShuffleDecompressionJniWrapper_decompress, failed to MakeRecordBatch upon "
       "buffers");
 
-  gluten::JniAssertOkOrThrow(
-      arrow::ExportRecordBatch(*rb, reinterpret_cast<struct ArrowArray*>(c_array),
-                               reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  gluten::JniAssertOkOrThrow(arrow::ExportRecordBatch(
+      *rb,
+      reinterpret_cast<struct ArrowArray*>(c_array),
+      reinterpret_cast<struct ArrowSchema*>(c_schema)));
   return true;
   JNI_METHOD_END(false)
 }
 
 JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_close(
-    JNIEnv* env, jobject, jlong schema_holder_id) {
+    JNIEnv* env,
+    jobject,
+    jlong schema_holder_id) {
   decompression_schema_holder_.Erase(schema_holder_id);
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_glutenproject_memory_NativeMemoryAllocator_getDefaultAllocator(JNIEnv* env,
-                                                                       jclass) {
+Java_io_glutenproject_memory_NativeMemoryAllocator_getDefaultAllocator(
+    JNIEnv* env,
+    jclass) {
   JNI_METHOD_START
   return default_memory_allocator_id;
   JNI_METHOD_END(-1L)
@@ -742,15 +868,21 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_getDefaultAllocator(JNIEnv* e
 
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_memory_NativeMemoryAllocator_createListenableAllocator(
-    JNIEnv* env, jclass, jobject jlistener) {
+    JNIEnv* env,
+    jclass,
+    jobject jlistener) {
   JNI_METHOD_START
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     gluten::JniThrow("Unable to get JavaVM instance");
   }
   std::shared_ptr<gluten::memory::AllocationListener> listener =
-      std::make_shared<SparkAllocationListener>(vm, jlistener, reserve_memory_method,
-                                                unreserve_memory_method, 8L << 10 << 10);
+      std::make_shared<SparkAllocationListener>(
+          vm,
+          jlistener,
+          reserve_memory_method,
+          unreserve_memory_method,
+          8L << 10 << 10);
   auto allocator = new gluten::memory::ListenableMemoryAllocator(
       gluten::memory::DefaultMemoryAllocator(), listener);
   return reinterpret_cast<jlong>(allocator);
@@ -758,13 +890,16 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_createListenableAllocator(
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(JNIEnv* env, jclass,
-                                                                    jlong allocator_id) {
+Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(
+    JNIEnv* env,
+    jclass,
+    jlong allocator_id) {
   JNI_METHOD_START
   if (allocator_id == default_memory_allocator_id) {
     return;
   }
-  auto* alloc = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  auto* alloc =
+      reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
   if (alloc == nullptr) {
     return;
   }
@@ -772,10 +907,14 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(JNIEnv* env,
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_NativeMemoryAllocator_bytesAllocated(
-    JNIEnv* env, jclass, jlong allocator_id) {
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_memory_NativeMemoryAllocator_bytesAllocated(
+    JNIEnv* env,
+    jclass,
+    jlong allocator_id) {
   JNI_METHOD_START
-  auto* alloc = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  auto* alloc =
+      reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
   if (alloc == nullptr) {
     gluten::JniThrow(
         "Memory allocator instance not found. It may not exist nor has been closed");
@@ -784,15 +923,15 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_NativeMemoryAllocator_bytes
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocTrim(JNIEnv* env,
-                                                                        jobject obj) {
+JNIEXPORT void JNICALL
+Java_io_glutenproject_tpc_MallocUtils_mallocTrim(JNIEnv* env, jobject obj) {
   //  malloc_stats_print(statsPrint, nullptr, nullptr);
   std::cout << "Calling malloc_trim... " << std::endl;
   malloc_trim(0);
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocStats(JNIEnv* env,
-                                                                         jobject obj) {
+JNIEXPORT void JNICALL
+Java_io_glutenproject_tpc_MallocUtils_mallocStats(JNIEnv* env, jobject obj) {
   //  malloc_stats_print(statsPrint, nullptr, nullptr);
   std::cout << "Calling malloc_stats... " << std::endl;
   malloc_stats();

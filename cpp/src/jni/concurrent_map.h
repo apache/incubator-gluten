@@ -79,7 +79,7 @@ class ConcurrentMap {
   std::unordered_map<jlong, Holder> map_;
 };
 
-}  // namespace jni
-}  // namespace arrow
+} // namespace jni
+} // namespace arrow
 
-#endif  // JNI_ID_TO_MODULE_MAP_H
+#endif // JNI_ID_TO_MODULE_MAP_H

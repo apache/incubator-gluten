@@ -31,7 +31,8 @@ DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 using GetInputFunc =
     std::shared_ptr<gluten::RecordBatchResultIterator>(const std::string&);
 
-auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJsonFile,
+auto BM_Generic = [](::benchmark::State& state,
+                     const std::string& substraitJsonFile,
                      const std::vector<std::string>& input_files,
                      GetInputFunc* getInputIterator) {
   if (FLAGS_cpu != -1) {
@@ -49,8 +50,11 @@ auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJson
     state.PauseTiming();
     auto backend = gluten::CreateBackend();
     std::vector<std::shared_ptr<gluten::RecordBatchResultIterator>> inputIters;
-    std::transform(input_files.cbegin(), input_files.cend(),
-                   std::back_inserter(inputIters), getInputIterator);
+    std::transform(
+        input_files.cbegin(),
+        input_files.cend(),
+        std::back_inserter(inputIters),
+        getInputIterator);
 
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
@@ -65,24 +69,28 @@ auto BM_Generic = [](::benchmark::State& state, const std::string& substraitJson
       }
     }
 
-    auto* rawIter = static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
+    auto* rawIter =
+        static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
     const auto& task = rawIter->task_;
     auto taskStats = task->taskStats();
     for (const auto& pStat : taskStats.pipelineStats) {
       for (const auto& opStat : pStat.operatorStats) {
         if (opStat.operatorType != "N/A") {
           // ${pipelineId}_${operatorId}_${planNodeId}_${operatorType}_${metric}
-          // Different operators may have same planNodeId, e.g. HashBuild and HashProbe
-          // from same HashNode.
+          // Different operators may have same planNodeId, e.g. HashBuild and
+          // HashProbe from same HashNode.
           const auto& opId = std::to_string(opStat.pipelineId) + "_" +
-                             std::to_string(opStat.operatorId) + "_" + opStat.planNodeId +
-                             "_" + opStat.operatorType;
+              std::to_string(opStat.operatorId) + "_" + opStat.planNodeId +
+              "_" + opStat.operatorType;
           state.counters[opId + "_addInputTiming"] = benchmark::Counter(
-              opStat.addInputTiming.cpuNanos, benchmark::Counter::Flags::kAvgIterations);
+              opStat.addInputTiming.cpuNanos,
+              benchmark::Counter::Flags::kAvgIterations);
           state.counters[opId + "_getOutputTiming"] = benchmark::Counter(
-              opStat.getOutputTiming.cpuNanos, benchmark::Counter::Flags::kAvgIterations);
+              opStat.getOutputTiming.cpuNanos,
+              benchmark::Counter::Flags::kAvgIterations);
           state.counters[opId + "_finishTiming"] = benchmark::Counter(
-              opStat.finishTiming.cpuNanos, benchmark::Counter::Flags::kAvgIterations);
+              opStat.finishTiming.cpuNanos,
+              benchmark::Counter::Flags::kAvgIterations);
         }
       }
     }
@@ -102,10 +110,11 @@ int main(int argc, char** argv) {
     inputFiles.emplace_back(argv[i]);
   }
 
-#define GENERIC_BENCHMARK(NAME, FUNC)                                                   \
-  ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
-      ->Threads(FLAGS_threads)                                                          \
-      ->MeasureProcessCPUTime()                                                         \
+#define GENERIC_BENCHMARK(NAME, FUNC)                        \
+  ::benchmark::RegisterBenchmark(                            \
+      NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
+      ->Threads(FLAGS_threads)                               \
+      ->MeasureProcessCPUTime()                              \
       ->UseRealTime();
 
   GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);

@@ -43,7 +43,8 @@ std::shared_ptr<ArrowArrayResultIterator> SubstraitParser::GetResultIterator() {
 
 std::shared_ptr<ArrowArrayResultIterator> SubstraitParser::GetResultIterator(
     std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) {
-  auto res_iter = std::make_shared<MiddleStageResultIterator>(std::move(inputs));
+  auto res_iter =
+      std::make_shared<MiddleStageResultIterator>(std::move(inputs));
   return std::make_shared<ArrowArrayResultIterator>(std::move(res_iter));
 }
 
@@ -79,7 +80,8 @@ void SubstraitParser::ParseScalarFunction(
 void SubstraitParser::ParseReferenceSegment(
     const ::substrait::Expression::ReferenceSegment& sref) {
   switch (sref.reference_type_case()) {
-    case substrait::Expression::ReferenceSegment::ReferenceTypeCase::kStructField: {
+    case substrait::Expression::ReferenceSegment::ReferenceTypeCase::
+        kStructField: {
       auto sfield = sref.struct_field();
       auto field_id = sfield.field();
       std::cout << "field_id: " << field_id << std::endl;
@@ -94,12 +96,14 @@ void SubstraitParser::ParseReferenceSegment(
 void SubstraitParser::ParseFieldReference(
     const substrait::Expression::FieldReference& sfield) {
   switch (sfield.reference_type_case()) {
-    case substrait::Expression::FieldReference::ReferenceTypeCase::kDirectReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::
+        kDirectReference: {
       auto dref = sfield.direct_reference();
       ParseReferenceSegment(dref);
       break;
     }
-    case substrait::Expression::FieldReference::ReferenceTypeCase::kMaskedReference: {
+    case substrait::Expression::FieldReference::ReferenceTypeCase::
+        kMaskedReference: {
       std::cout << "not supported" << std::endl;
       break;
     }
@@ -174,7 +178,8 @@ void SubstraitParser::ParseType(const substrait::Type& stype) {
   }
 }
 
-void SubstraitParser::ParseNamedStruct(const substrait::NamedStruct& named_struct) {
+void SubstraitParser::ParseNamedStruct(
+    const substrait::NamedStruct& named_struct) {
   auto& snames = named_struct.names();
   for (auto& sname : snames) {
     std::cout << "NamedStruct name: " << sname << std::endl;
@@ -305,8 +310,8 @@ class SubstraitParser::FirstStageResultIterator {
   FirstStageResultIterator() {
     std::unique_ptr<arrow::ArrayBuilder> array_builder;
     arrow::MakeBuilder(pool_, arrow::float64(), &array_builder);
-    builder_.reset(
-        arrow::internal::checked_cast<arrow::DoubleBuilder*>(array_builder.release()));
+    builder_.reset(arrow::internal::checked_cast<arrow::DoubleBuilder*>(
+        array_builder.release()));
   }
 
   arrow::Result<std::shared_ptr<ArrowArray>> Next() {
@@ -356,5 +361,5 @@ class SubstraitParser::MiddleStageResultIterator {
   std::shared_ptr<LazyReadIterator> lazy_iter_;
 };
 
-}  // namespace compute
-}  // namespace gluten
+} // namespace compute
+} // namespace gluten

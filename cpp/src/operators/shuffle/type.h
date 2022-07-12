@@ -54,9 +54,11 @@ struct SplitOptions {
   int64_t task_attempt_id = -1;
 
   std::shared_ptr<arrow::MemoryPool> memory_pool =
-      gluten::memory::AsWrappedArrowMemoryPool(gluten::memory::DefaultMemoryAllocator());
+      gluten::memory::AsWrappedArrowMemoryPool(
+          gluten::memory::DefaultMemoryAllocator());
 
-  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
+  arrow::ipc::IpcWriteOptions ipc_write_options =
+      arrow::ipc::IpcWriteOptions::Defaults();
 
   static SplitOptions Defaults();
 };
@@ -84,11 +86,17 @@ enum typeId : int {
 };
 
 static const typeId all[] = {
-    SHUFFLE_1BYTE,  SHUFFLE_2BYTE,        SHUFFLE_4BYTE,
-    SHUFFLE_8BYTE,  SHUFFLE_DECIMAL128,   SHUFFLE_BIT,
-    SHUFFLE_BINARY, SHUFFLE_LARGE_BINARY, SHUFFLE_NULL,
+    SHUFFLE_1BYTE,
+    SHUFFLE_2BYTE,
+    SHUFFLE_4BYTE,
+    SHUFFLE_8BYTE,
+    SHUFFLE_DECIMAL128,
+    SHUFFLE_BIT,
+    SHUFFLE_BINARY,
+    SHUFFLE_LARGE_BINARY,
+    SHUFFLE_NULL,
 };
 
-}  // namespace Type
-}  // namespace shuffle
-}  // namespace gluten
+} // namespace Type
+} // namespace shuffle
+} // namespace gluten

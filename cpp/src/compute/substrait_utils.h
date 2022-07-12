@@ -35,9 +35,12 @@ class SubstraitParser : public ExecBackendBase {
  public:
   SubstraitParser();
   void ParseLiteral(const ::substrait::Expression::Literal& slit);
-  void ParseScalarFunction(const ::substrait::Expression::ScalarFunction& sfunc);
-  void ParseReferenceSegment(const ::substrait::Expression::ReferenceSegment& sref);
-  void ParseFieldReference(const ::substrait::Expression::FieldReference& sfield);
+  void ParseScalarFunction(
+      const ::substrait::Expression::ScalarFunction& sfunc);
+  void ParseReferenceSegment(
+      const ::substrait::Expression::ReferenceSegment& sref);
+  void ParseFieldReference(
+      const ::substrait::Expression::FieldReference& sfield);
   void ParseExpression(const ::substrait::Expression& sexpr);
   void ParseType(const ::substrait::Type& stype);
   void ParseNamedStruct(const ::substrait::NamedStruct& named_struct);
@@ -59,5 +62,5 @@ class SubstraitParser : public ExecBackendBase {
   class MiddleStageResultIterator;
 };
 
-}  // namespace compute
-}  // namespace gluten
+} // namespace compute
+} // namespace gluten

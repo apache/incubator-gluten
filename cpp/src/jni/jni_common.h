@@ -53,13 +53,17 @@ jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
   return global_class;
 }
 
-jmethodID GetMethodID(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
+jmethodID
+GetMethodID(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
   jmethodID ret = env->GetMethodID(this_class, name, sig);
   return ret;
 }
 
-jmethodID GetStaticMethodID(JNIEnv* env, jclass this_class, const char* name,
-                            const char* sig) {
+jmethodID GetStaticMethodID(
+    JNIEnv* env,
+    jclass this_class,
+    const char* name,
+    const char* sig) {
   jmethodID ret = env->GetStaticMethodID(this_class, name, sig);
   return ret;
 }
@@ -68,13 +72,16 @@ std::shared_ptr<arrow::DataType> GetOffsetDataType(
     std::shared_ptr<arrow::DataType> parent_type) {
   switch (parent_type->id()) {
     case arrow::BinaryType::type_id:
-      return std::make_shared<arrow::TypeTraits<arrow::BinaryType>::OffsetType>();
+      return std::make_shared<
+          arrow::TypeTraits<arrow::BinaryType>::OffsetType>();
     case arrow::LargeBinaryType::type_id:
-      return std::make_shared<arrow::TypeTraits<arrow::LargeBinaryType>::OffsetType>();
+      return std::make_shared<
+          arrow::TypeTraits<arrow::LargeBinaryType>::OffsetType>();
     case arrow::ListType::type_id:
       return std::make_shared<arrow::TypeTraits<arrow::ListType>::OffsetType>();
     case arrow::LargeListType::type_id:
-      return std::make_shared<arrow::TypeTraits<arrow::LargeListType>::OffsetType>();
+      return std::make_shared<
+          arrow::TypeTraits<arrow::LargeListType>::OffsetType>();
     default:
       return nullptr;
   }
@@ -85,8 +92,9 @@ bool is_fixed_width_type(T _) {
   return std::is_base_of<arrow::FixedWidthType, T>::value;
 }
 
-arrow::Status AppendNodes(std::shared_ptr<arrow::Array> column,
-                          std::vector<std::pair<int64_t, int64_t>>* nodes) {
+arrow::Status AppendNodes(
+    std::shared_ptr<arrow::Array> column,
+    std::vector<std::pair<int64_t, int64_t>>* nodes) {
   auto type = column->type();
   (*nodes).push_back(std::make_pair(column->length(), column->null_count()));
   switch (type->id()) {
@@ -101,8 +109,9 @@ arrow::Status AppendNodes(std::shared_ptr<arrow::Array> column,
   return arrow::Status::OK();
 }
 
-arrow::Status AppendBuffers(std::shared_ptr<arrow::Array> column,
-                            std::vector<std::shared_ptr<arrow::Buffer>>* buffers) {
+arrow::Status AppendBuffers(
+    std::shared_ptr<arrow::Array> column,
+    std::vector<std::shared_ptr<arrow::Buffer>>* buffers) {
   auto type = column->type();
   switch (type->id()) {
     case arrow::Type::LIST:
@@ -121,22 +130,32 @@ arrow::Status AppendBuffers(std::shared_ptr<arrow::Array> column,
   return arrow::Status::OK();
 }
 
-arrow::Status FIXOffsetBuffer(std::shared_ptr<arrow::Buffer>* in_buf, int fix_row) {
-  if ((*in_buf) == nullptr || (*in_buf)->size() == 0) return arrow::Status::OK();
+arrow::Status FIXOffsetBuffer(
+    std::shared_ptr<arrow::Buffer>* in_buf,
+    int fix_row) {
+  if ((*in_buf) == nullptr || (*in_buf)->size() == 0)
+    return arrow::Status::OK();
   if ((*in_buf)->size() * 8 <= fix_row) {
-    ARROW_ASSIGN_OR_RAISE(auto valid_copy, arrow::AllocateBuffer((*in_buf)->size() + 1));
-    std::memcpy(valid_copy->mutable_data(), (*in_buf)->data(),
-                static_cast<size_t>((*in_buf)->size()));
+    ARROW_ASSIGN_OR_RAISE(
+        auto valid_copy, arrow::AllocateBuffer((*in_buf)->size() + 1));
+    std::memcpy(
+        valid_copy->mutable_data(),
+        (*in_buf)->data(),
+        static_cast<size_t>((*in_buf)->size()));
     (*in_buf) = std::move(valid_copy);
   }
-  arrow::bit_util::SetBitsTo(const_cast<uint8_t*>((*in_buf)->data()), fix_row, 1, true);
+  arrow::bit_util::SetBitsTo(
+      const_cast<uint8_t*>((*in_buf)->data()), fix_row, 1, true);
   return arrow::Status::OK();
 }
 
-arrow::Status MakeArrayData(std::shared_ptr<arrow::DataType> type, int num_rows,
-                            std::vector<std::shared_ptr<arrow::Buffer>> in_bufs,
-                            int in_bufs_len, std::shared_ptr<arrow::ArrayData>* arr_data,
-                            int* buf_idx_ptr) {
+arrow::Status MakeArrayData(
+    std::shared_ptr<arrow::DataType> type,
+    int num_rows,
+    std::vector<std::shared_ptr<arrow::Buffer>> in_bufs,
+    int in_bufs_len,
+    std::shared_ptr<arrow::ArrayData>* arr_data,
+    int* buf_idx_ptr) {
   if (arrow::is_nested(type->id())) {
     // Maybe ListType, MapType, StructType or UnionType
     switch (type->id()) {
@@ -147,24 +166,38 @@ arrow::Status MakeArrayData(std::shared_ptr<arrow::DataType> type, int num_rows,
         auto child_type = list_type->value_type();
         std::shared_ptr<arrow::ArrayData> child_array_data, offset_array_data;
         // create offset array
-        // Chendi: For some reason, for ListArray::FromArrays will remove last row from
-        // offset array, refer to array_nested.cc CleanListOffsets function
+        // Chendi: For some reason, for ListArray::FromArrays will remove last
+        // row from offset array, refer to array_nested.cc CleanListOffsets
+        // function
         FIXOffsetBuffer(&in_bufs[*buf_idx_ptr], num_rows);
-        RETURN_NOT_OK(MakeArrayData(offset_data_type, num_rows + 1, in_bufs, in_bufs_len,
-                                    &offset_array_data, buf_idx_ptr));
+        RETURN_NOT_OK(MakeArrayData(
+            offset_data_type,
+            num_rows + 1,
+            in_bufs,
+            in_bufs_len,
+            &offset_array_data,
+            buf_idx_ptr));
         auto offset_array = arrow::MakeArray(offset_array_data);
         // create child data array
-        RETURN_NOT_OK(MakeArrayData(child_type, -1, in_bufs, in_bufs_len,
-                                    &child_array_data, buf_idx_ptr));
+        RETURN_NOT_OK(MakeArrayData(
+            child_type,
+            -1,
+            in_bufs,
+            in_bufs_len,
+            &child_array_data,
+            buf_idx_ptr));
         auto child_array = arrow::MakeArray(child_array_data);
         auto list_array =
-            arrow::ListArray::FromArrays(*offset_array, *child_array).ValueOrDie();
+            arrow::ListArray::FromArrays(*offset_array, *child_array)
+                .ValueOrDie();
         *arr_data = list_array->data();
 
       } break;
       default:
-        return arrow::Status::NotImplemented("MakeArrayData for type ", type->ToString(),
-                                             " is not supported yet.");
+        return arrow::Status::NotImplemented(
+            "MakeArrayData for type ",
+            type->ToString(),
+            " is not supported yet.");
     }
 
   } else {
@@ -187,7 +220,8 @@ arrow::Status MakeArrayData(std::shared_ptr<arrow::DataType> type, int num_rows,
       buffers.push_back(in_bufs[*buf_idx_ptr]);
       auto offsets_size = in_bufs[*buf_idx_ptr]->size();
       *buf_idx_ptr += 1;
-      if (num_rows == -1) num_rows = offsets_size / 4 - 1;
+      if (num_rows == -1)
+        num_rows = offsets_size / 4 - 1;
     }
 
     if (*buf_idx_ptr >= in_bufs_len) {
@@ -200,15 +234,18 @@ arrow::Status MakeArrayData(std::shared_ptr<arrow::DataType> type, int num_rows,
       num_rows = value_size * 8 / arrow::bit_width(type->id());
     }
 
-    *arr_data = arrow::ArrayData::Make(type, num_rows, std::move(buffers), null_count);
+    *arr_data =
+        arrow::ArrayData::Make(type, num_rows, std::move(buffers), null_count);
   }
   return arrow::Status::OK();
 }
 
-arrow::Status MakeRecordBatch(const std::shared_ptr<arrow::Schema>& schema, int num_rows,
-                              std::vector<std::shared_ptr<arrow::Buffer>> in_bufs,
-                              int in_bufs_len,
-                              std::shared_ptr<arrow::RecordBatch>* batch) {
+arrow::Status MakeRecordBatch(
+    const std::shared_ptr<arrow::Schema>& schema,
+    int num_rows,
+    std::vector<std::shared_ptr<arrow::Buffer>> in_bufs,
+    int in_bufs_len,
+    std::shared_ptr<arrow::RecordBatch>* batch) {
   std::vector<std::shared_ptr<arrow::ArrayData>> arrays;
   auto num_fields = schema->num_fields();
   int buf_idx = 0;
@@ -216,8 +253,8 @@ arrow::Status MakeRecordBatch(const std::shared_ptr<arrow::Schema>& schema, int 
   for (int i = 0; i < num_fields; i++) {
     auto field = schema->field(i);
     std::shared_ptr<arrow::ArrayData> array_data;
-    RETURN_NOT_OK(MakeArrayData(field->type(), num_rows, in_bufs, in_bufs_len,
-                                &array_data, &buf_idx));
+    RETURN_NOT_OK(MakeArrayData(
+        field->type(), num_rows, in_bufs, in_bufs_len, &array_data, &buf_idx));
     arrays.push_back(array_data);
   }
 
@@ -225,10 +262,13 @@ arrow::Status MakeRecordBatch(const std::shared_ptr<arrow::Schema>& schema, int 
   return arrow::Status::OK();
 }
 
-arrow::Status MakeRecordBatch(const std::shared_ptr<arrow::Schema>& schema, int num_rows,
-                              int64_t* in_buf_addrs, int64_t* in_buf_sizes,
-                              int in_bufs_len,
-                              std::shared_ptr<arrow::RecordBatch>* batch) {
+arrow::Status MakeRecordBatch(
+    const std::shared_ptr<arrow::Schema>& schema,
+    int num_rows,
+    int64_t* in_buf_addrs,
+    int64_t* in_buf_sizes,
+    int in_bufs_len,
+    std::shared_ptr<arrow::RecordBatch>* batch) {
   std::vector<std::shared_ptr<arrow::ArrayData>> arrays;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
   for (int i = 0; i < in_bufs_len; i++) {
@@ -252,7 +292,9 @@ std::string JStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer.data(), clen);
 }
 
-jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
+jbyteArray ToSchemaByteArray(
+    JNIEnv* env,
+    std::shared_ptr<arrow::Schema> schema) {
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
   arrow::Result<std::shared_ptr<arrow::Buffer>> maybe_buffer;
@@ -270,16 +312,20 @@ jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema)
   return out;
 }
 
-arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv* env,
-                                                           jstring codec_jstr) {
+arrow::Result<arrow::Compression::type> GetCompressionType(
+    JNIEnv* env,
+    jstring codec_jstr) {
   auto codec_l = env->GetStringUTFChars(codec_jstr, JNI_FALSE);
 
   std::string codec_u;
-  std::transform(codec_l, codec_l + std::strlen(codec_l), std::back_inserter(codec_u),
-                 ::tolower);
+  std::transform(
+      codec_l,
+      codec_l + std::strlen(codec_l),
+      std::back_inserter(codec_u),
+      ::tolower);
 
-  ARROW_ASSIGN_OR_RAISE(auto compression_type,
-                        arrow::util::Codec::GetCompressionType(codec_u));
+  ARROW_ASSIGN_OR_RAISE(
+      auto compression_type, arrow::util::Codec::GetCompressionType(codec_u));
 
   if (compression_type == arrow::Compression::LZ4) {
     compression_type = arrow::Compression::LZ4_FRAME;
@@ -288,42 +334,57 @@ arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv* env,
   return compression_type;
 }
 
-Status DecompressBuffer(const arrow::Buffer& buffer, arrow::util::Codec* codec,
-                        std::shared_ptr<arrow::Buffer>* out, arrow::MemoryPool* pool) {
+Status DecompressBuffer(
+    const arrow::Buffer& buffer,
+    arrow::util::Codec* codec,
+    std::shared_ptr<arrow::Buffer>* out,
+    arrow::MemoryPool* pool) {
   const uint8_t* data = buffer.data();
   int64_t compressed_size = buffer.size() - sizeof(int64_t);
   int64_t uncompressed_size =
       arrow::bit_util::FromLittleEndian(arrow::util::SafeLoadAs<int64_t>(data));
-  ARROW_ASSIGN_OR_RAISE(auto uncompressed, AllocateBuffer(uncompressed_size, pool));
+  ARROW_ASSIGN_OR_RAISE(
+      auto uncompressed, AllocateBuffer(uncompressed_size, pool));
 
   int64_t actual_decompressed;
   ARROW_ASSIGN_OR_RAISE(
       actual_decompressed,
-      codec->Decompress(compressed_size, data + sizeof(int64_t), uncompressed_size,
-                        uncompressed->mutable_data()));
+      codec->Decompress(
+          compressed_size,
+          data + sizeof(int64_t),
+          uncompressed_size,
+          uncompressed->mutable_data()));
   if (actual_decompressed != uncompressed_size) {
-    return Status::Invalid("Failed to fully decompress buffer, expected ",
-                           uncompressed_size, " bytes but decompressed ",
-                           actual_decompressed);
+    return Status::Invalid(
+        "Failed to fully decompress buffer, expected ",
+        uncompressed_size,
+        " bytes but decompressed ",
+        actual_decompressed);
   }
   *out = std::move(uncompressed);
   return Status::OK();
 }
 
 Status DecompressBuffersByType(
-    arrow::Compression::type compression, const arrow::ipc::IpcReadOptions& options,
-    const uint8_t* buf_mask, std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    arrow::Compression::type compression,
+    const arrow::ipc::IpcReadOptions& options,
+    const uint8_t* buf_mask,
+    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     const std::vector<std::shared_ptr<arrow::Field>>& schema_fields) {
   std::unique_ptr<arrow::util::Codec> codec;
   std::unique_ptr<arrow::util::Codec> int32_codec;
   std::unique_ptr<arrow::util::Codec> int64_codec;
-  ARROW_ASSIGN_OR_RAISE(codec, arrow::util::Codec::Create(arrow::Compression::LZ4_FRAME));
-  ARROW_ASSIGN_OR_RAISE(int32_codec, arrow::util::Codec::CreateInt32(compression));
-  ARROW_ASSIGN_OR_RAISE(int64_codec, arrow::util::Codec::CreateInt64(compression));
+  ARROW_ASSIGN_OR_RAISE(
+      codec, arrow::util::Codec::Create(arrow::Compression::LZ4_FRAME));
+  ARROW_ASSIGN_OR_RAISE(
+      int32_codec, arrow::util::Codec::CreateInt32(compression));
+  ARROW_ASSIGN_OR_RAISE(
+      int64_codec, arrow::util::Codec::CreateInt64(compression));
 
   int32_t buffer_idx = 0;
   for (const auto& field : schema_fields) {
-    if (field->type()->id() == arrow::Type::NA) continue;
+    if (field->type()->id() == arrow::Type::NA)
+      continue;
 
     const auto& layout_buffers = field->type()->layout().buffers;
     for (size_t i = 0; i < layout_buffers.size(); ++i) {
@@ -343,22 +404,24 @@ Status DecompressBuffersByType(
       }
       switch (layout.kind) {
         case arrow::DataTypeLayout::BufferKind::FIXED_WIDTH:
-          if (layout.byte_width == 4 && field->type()->id() != arrow::Type::FLOAT) {
-            RETURN_NOT_OK(DecompressBuffer(*buffer, int32_codec.get(), &buffer,
-                                           options.memory_pool));
-          } else if (layout.byte_width == 8 &&
-                     field->type()->id() != arrow::Type::DOUBLE) {
-            RETURN_NOT_OK(DecompressBuffer(*buffer, int64_codec.get(), &buffer,
-                                           options.memory_pool));
+          if (layout.byte_width == 4 &&
+              field->type()->id() != arrow::Type::FLOAT) {
+            RETURN_NOT_OK(DecompressBuffer(
+                *buffer, int32_codec.get(), &buffer, options.memory_pool));
+          } else if (
+              layout.byte_width == 8 &&
+              field->type()->id() != arrow::Type::DOUBLE) {
+            RETURN_NOT_OK(DecompressBuffer(
+                *buffer, int64_codec.get(), &buffer, options.memory_pool));
           } else {
-            RETURN_NOT_OK(
-                DecompressBuffer(*buffer, codec.get(), &buffer, options.memory_pool));
+            RETURN_NOT_OK(DecompressBuffer(
+                *buffer, codec.get(), &buffer, options.memory_pool));
           }
           break;
         case arrow::DataTypeLayout::BufferKind::BITMAP:
         case arrow::DataTypeLayout::BufferKind::VARIABLE_WIDTH: {
-          RETURN_NOT_OK(
-              DecompressBuffer(*buffer, codec.get(), &buffer, options.memory_pool));
+          RETURN_NOT_OK(DecompressBuffer(
+              *buffer, codec.get(), &buffer, options.memory_pool));
           break;
         }
         case arrow::DataTypeLayout::BufferKind::ALWAYS_NULL:
@@ -373,12 +436,14 @@ Status DecompressBuffersByType(
 }
 
 arrow::Status DecompressBuffers(
-    arrow::Compression::type compression, const arrow::ipc::IpcReadOptions& options,
-    const uint8_t* buf_mask, std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    arrow::Compression::type compression,
+    const arrow::ipc::IpcReadOptions& options,
+    const uint8_t* buf_mask,
+    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     const std::vector<std::shared_ptr<arrow::Field>>& schema_fields) {
   if (compression == arrow::Compression::FASTPFOR) {
-    RETURN_NOT_OK(
-        DecompressBuffersByType(compression, options, buf_mask, buffers, schema_fields));
+    RETURN_NOT_OK(DecompressBuffersByType(
+        compression, options, buf_mask, buffers, schema_fields));
     return arrow::Status::OK();
   }
 
@@ -391,8 +456,8 @@ arrow::Status DecompressBuffers(
     }
     // if the buffer has been rebuilt to uncompressed on java side, return
     if (arrow::bit_util::GetBit(buf_mask, i)) {
-      ARROW_ASSIGN_OR_RAISE(auto valid_copy,
-                            buffers[i]->CopySlice(0, buffers[i]->size()));
+      ARROW_ASSIGN_OR_RAISE(
+          auto valid_copy, buffers[i]->CopySlice(0, buffers[i]->size()));
       buffers[i] = valid_copy;
       return arrow::Status::OK();
     }
@@ -402,8 +467,8 @@ arrow::Status DecompressBuffers(
           "Likely corrupted message, compressed buffers "
           "are larger than 8 bytes by construction");
     }
-    RETURN_NOT_OK(
-        DecompressBuffer(*buffers[i], codec.get(), &buffers[i], options.memory_pool));
+    RETURN_NOT_OK(DecompressBuffer(
+        *buffers[i], codec.get(), &buffers[i], options.memory_pool));
     return arrow::Status::OK();
   };
 
@@ -418,26 +483,34 @@ void CheckException(JNIEnv* env) {
     jclass describer_class =
         env->FindClass("org/apache/arrow/dataset/jni/JniExceptionDescriber");
     jmethodID describe_method = env->GetStaticMethodID(
-        describer_class, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
+        describer_class,
+        "describe",
+        "(Ljava/lang/Throwable;)Ljava/lang/String;");
     std::string description = JStringToCString(
-        env, (jstring)env->CallStaticObjectMethod(describer_class, describe_method, t));
-    throw gluten::GlutenException("Error during calling Java code from native code: " +
-                                  description);
+        env,
+        (jstring)env->CallStaticObjectMethod(
+            describer_class, describe_method, t));
+    throw gluten::GlutenException(
+        "Error during calling Java code from native code: " + description);
   }
 }
 
 class SparkAllocationListener : public gluten::memory::AllocationListener {
  public:
-  SparkAllocationListener(JavaVM* vm, jobject java_listener,
-                          jmethodID java_reserve_method, jmethodID java_unreserve_method,
-                          int64_t block_size)
+  SparkAllocationListener(
+      JavaVM* vm,
+      jobject java_listener,
+      jmethodID java_reserve_method,
+      jmethodID java_unreserve_method,
+      int64_t block_size)
       : vm_(vm),
         java_reserve_method_(java_reserve_method),
         java_unreserve_method_(java_unreserve_method),
         block_size_(block_size) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
-      throw gluten::GlutenException("JNIEnv was not attached to current thread");
+      throw gluten::GlutenException(
+          "JNIEnv was not attached to current thread");
     }
     java_listener_ = env->NewGlobalRef(java_listener);
   }
@@ -452,7 +525,9 @@ class SparkAllocationListener : public gluten::memory::AllocationListener {
     env->DeleteGlobalRef(java_listener_);
   }
 
-  void AllocationChanged(int64_t size) override { UpdateReservation(size); };
+  void AllocationChanged(int64_t size) override {
+    UpdateReservation(size);
+  };
 
  private:
   int64_t Reserve(int64_t diff) {
@@ -476,7 +551,8 @@ class SparkAllocationListener : public gluten::memory::AllocationListener {
   void UpdateReservation(int64_t diff) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
-      throw gluten::GlutenException("JNIEnv was not attached to current thread");
+      throw gluten::GlutenException(
+          "JNIEnv was not attached to current thread");
     }
     int64_t granted = Reserve(diff);
     if (granted == 0) {

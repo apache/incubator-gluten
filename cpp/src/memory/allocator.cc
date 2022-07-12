@@ -17,7 +17,9 @@
 
 #include "allocator.h"
 
-bool gluten::memory::ListenableMemoryAllocator::Allocate(int64_t size, void** out) {
+bool gluten::memory::ListenableMemoryAllocator::Allocate(
+    int64_t size,
+    void** out) {
   listener_->AllocationChanged(size);
   bool succeed = delegated_->Allocate(size, out);
   if (!succeed) {
@@ -29,9 +31,10 @@ bool gluten::memory::ListenableMemoryAllocator::Allocate(int64_t size, void** ou
   return succeed;
 }
 
-bool gluten::memory::ListenableMemoryAllocator::AllocateZeroFilled(int64_t nmemb,
-                                                                   int64_t size,
-                                                                   void** out) {
+bool gluten::memory::ListenableMemoryAllocator::AllocateZeroFilled(
+    int64_t nmemb,
+    int64_t size,
+    void** out) {
   listener_->AllocationChanged(size);
   bool succeed = delegated_->AllocateZeroFilled(nmemb, size, out);
   if (!succeed) {
@@ -43,9 +46,10 @@ bool gluten::memory::ListenableMemoryAllocator::AllocateZeroFilled(int64_t nmemb
   return succeed;
 }
 
-bool gluten::memory::ListenableMemoryAllocator::AllocateAligned(uint16_t alignment,
-                                                                int64_t size,
-                                                                void** out) {
+bool gluten::memory::ListenableMemoryAllocator::AllocateAligned(
+    uint16_t alignment,
+    int64_t size,
+    void** out) {
   listener_->AllocationChanged(size);
   bool succeed = delegated_->AllocateAligned(alignment, size, out);
   if (!succeed) {
@@ -57,8 +61,11 @@ bool gluten::memory::ListenableMemoryAllocator::AllocateAligned(uint16_t alignme
   return succeed;
 }
 
-bool gluten::memory::ListenableMemoryAllocator::Reallocate(void* p, int64_t size,
-                                                           int64_t new_size, void** out) {
+bool gluten::memory::ListenableMemoryAllocator::Reallocate(
+    void* p,
+    int64_t size,
+    int64_t new_size,
+    void** out) {
   int64_t diff = new_size - size;
   listener_->AllocationChanged(diff);
   bool succeed = delegated_->Reallocate(p, size, new_size, out);
@@ -72,10 +79,15 @@ bool gluten::memory::ListenableMemoryAllocator::Reallocate(void* p, int64_t size
 }
 
 bool gluten::memory::ListenableMemoryAllocator::ReallocateAligned(
-    void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) {
+    void* p,
+    uint16_t alignment,
+    int64_t size,
+    int64_t new_size,
+    void** out) {
   int64_t diff = new_size - size;
   listener_->AllocationChanged(diff);
-  bool succeed = delegated_->ReallocateAligned(p, alignment, size, new_size, out);
+  bool succeed =
+      delegated_->ReallocateAligned(p, alignment, size, new_size, out);
   if (!succeed) {
     listener_->AllocationChanged(-diff);
   }
@@ -97,7 +109,9 @@ bool gluten::memory::ListenableMemoryAllocator::Free(void* p, int64_t size) {
   return succeed;
 }
 
-int64_t gluten::memory::ListenableMemoryAllocator::GetBytes() { return bytes_; }
+int64_t gluten::memory::ListenableMemoryAllocator::GetBytes() {
+  return bytes_;
+}
 
 bool gluten::memory::StdMemoryAllocator::Allocate(int64_t size, void** out) {
   *out = std::malloc(size);
@@ -105,30 +119,40 @@ bool gluten::memory::StdMemoryAllocator::Allocate(int64_t size, void** out) {
   return true;
 }
 
-bool gluten::memory::StdMemoryAllocator::AllocateZeroFilled(int64_t nmemb, int64_t size,
-                                                            void** out) {
+bool gluten::memory::StdMemoryAllocator::AllocateZeroFilled(
+    int64_t nmemb,
+    int64_t size,
+    void** out) {
   *out = std::calloc(nmemb, size);
   bytes_ += size;
   return true;
 }
 
-bool gluten::memory::StdMemoryAllocator::AllocateAligned(uint16_t alignment, int64_t size,
-                                                         void** out) {
+bool gluten::memory::StdMemoryAllocator::AllocateAligned(
+    uint16_t alignment,
+    int64_t size,
+    void** out) {
   *out = aligned_alloc(alignment, size);
   bytes_ += size;
   return true;
 }
 
-bool gluten::memory::StdMemoryAllocator::Reallocate(void* p, int64_t size,
-                                                    int64_t new_size, void** out) {
+bool gluten::memory::StdMemoryAllocator::Reallocate(
+    void* p,
+    int64_t size,
+    int64_t new_size,
+    void** out) {
   *out = std::realloc(p, new_size);
   bytes_ += (new_size - size);
   return true;
 }
 
-bool gluten::memory::StdMemoryAllocator::ReallocateAligned(void* p, uint16_t alignment,
-                                                           int64_t size, int64_t new_size,
-                                                           void** out) {
+bool gluten::memory::StdMemoryAllocator::ReallocateAligned(
+    void* p,
+    uint16_t alignment,
+    int64_t size,
+    int64_t new_size,
+    void** out) {
   if (new_size <= 0) {
     return false;
   }
@@ -147,27 +171,35 @@ bool gluten::memory::StdMemoryAllocator::Free(void* p, int64_t size) {
   return true;
 }
 
-int64_t gluten::memory::StdMemoryAllocator::GetBytes() { return bytes_; }
+int64_t gluten::memory::StdMemoryAllocator::GetBytes() {
+  return bytes_;
+}
 
 gluten::memory::MemoryAllocator* gluten::memory::DefaultMemoryAllocator() {
   static MemoryAllocator* alloc = new StdMemoryAllocator();
   return alloc;
 }
 
-arrow::Status gluten::memory::WrappedMemoryPool::Allocate(int64_t size, uint8_t** out) {
+arrow::Status gluten::memory::WrappedMemoryPool::Allocate(
+    int64_t size,
+    uint8_t** out) {
   if (!allocator_->Allocate(size, reinterpret_cast<void**>(out))) {
-    return arrow::Status::Invalid("WrappedMemoryPool: Error allocating " +
-                                  std::to_string(size) + " bytes");
+    return arrow::Status::Invalid(
+        "WrappedMemoryPool: Error allocating " + std::to_string(size) +
+        " bytes");
   }
   return arrow::Status::OK();
 }
 
-arrow::Status gluten::memory::WrappedMemoryPool::Reallocate(int64_t old_size,
-                                                            int64_t new_size,
-                                                            uint8_t** ptr) {
-  if (!allocator_->Reallocate(*ptr, old_size, new_size, reinterpret_cast<void**>(ptr))) {
-    return arrow::Status::Invalid("WrappedMemoryPool: Error reallocating " +
-                                  std::to_string(new_size) + " bytes");
+arrow::Status gluten::memory::WrappedMemoryPool::Reallocate(
+    int64_t old_size,
+    int64_t new_size,
+    uint8_t** ptr) {
+  if (!allocator_->Reallocate(
+          *ptr, old_size, new_size, reinterpret_cast<void**>(ptr))) {
+    return arrow::Status::Invalid(
+        "WrappedMemoryPool: Error reallocating " + std::to_string(new_size) +
+        " bytes");
   }
   return arrow::Status::OK();
 }

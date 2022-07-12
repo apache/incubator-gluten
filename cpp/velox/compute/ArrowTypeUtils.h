@@ -23,7 +23,8 @@
 
 using namespace facebook::velox;
 
-std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name);
+std::shared_ptr<arrow::DataType> toArrowTypeFromName(
+    const std::string& type_name);
 
 std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type);
 
