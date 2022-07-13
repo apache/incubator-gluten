@@ -39,7 +39,7 @@
 #include "operators/c2r/columnar_to_row_base.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/exception.h"
-#include "utils/result_iterator.h"
+#include "utils/metrics.h"
 
 namespace types {
 class ExpressionList;
@@ -265,9 +265,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       GetMethodIDOrError(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
 
   metrics_builder_class = CreateGlobalClassReferenceOrError(
-      env, "Lio/glutenproject/vectorized/MetricsObject;");
-  metrics_builder_constructor =
-      GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J)V");
+      env, "Lio/glutenproject/vectorized/Metrics;");
+  metrics_builder_constructor = GetMethodIDOrError(
+      env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serialized_arrow_array_iterator_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/ArrowInIterator;");
@@ -429,6 +429,72 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
       reinterpret_cast<struct ArrowArray*>(c_array));
   return true;
   JNI_METHOD_END(false)
+}
+
+JNIEXPORT jobject JNICALL
+Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
+    JNIEnv* env,
+    jobject obj,
+    jlong id) {
+  JNI_METHOD_START
+  auto iter = GetArrayIterator(env, id);
+  std::shared_ptr<Metrics> metrics = iter->GetMetrics();
+
+  int numMetrics = 0;
+  if (metrics) {
+    numMetrics = metrics->numMetrics;
+  }
+  auto inputRows = env->NewLongArray(numMetrics);
+  auto inputVectors = env->NewLongArray(numMetrics);
+  auto inputBytes = env->NewLongArray(numMetrics);
+  auto rawInputRows = env->NewLongArray(numMetrics);
+  auto outputRows = env->NewLongArray(numMetrics);
+  auto outputVectors = env->NewLongArray(numMetrics);
+  auto outputBytes = env->NewLongArray(numMetrics);
+  auto count = env->NewLongArray(numMetrics);
+  auto wallNanos = env->NewLongArray(numMetrics);
+  auto cpuNanos = env->NewLongArray(numMetrics);
+  auto blockedWallNanos = env->NewLongArray(numMetrics);
+  auto peakMemoryBytes = env->NewLongArray(numMetrics);
+  auto numMemoryAllocations = env->NewLongArray(numMetrics);
+
+  if (metrics) {
+    env->SetLongArrayRegion(inputRows, 0, numMetrics, metrics->inputRows);
+    env->SetLongArrayRegion(inputVectors, 0, numMetrics, metrics->inputVectors);
+    env->SetLongArrayRegion(inputBytes, 0, numMetrics, metrics->inputBytes);
+    env->SetLongArrayRegion(rawInputRows, 0, numMetrics, metrics->rawInputRows);
+    env->SetLongArrayRegion(outputRows, 0, numMetrics, metrics->outputRows);
+    env->SetLongArrayRegion(
+        outputVectors, 0, numMetrics, metrics->outputVectors);
+    env->SetLongArrayRegion(outputBytes, 0, numMetrics, metrics->outputBytes);
+    env->SetLongArrayRegion(count, 0, numMetrics, metrics->count);
+    env->SetLongArrayRegion(wallNanos, 0, numMetrics, metrics->wallNanos);
+    env->SetLongArrayRegion(cpuNanos, 0, numMetrics, metrics->cpuNanos);
+    env->SetLongArrayRegion(
+        blockedWallNanos, 0, numMetrics, metrics->blockedWallNanos);
+    env->SetLongArrayRegion(
+        peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
+    env->SetLongArrayRegion(
+        numMemoryAllocations, 0, numMetrics, metrics->numMemoryAllocations);
+  }
+
+  return env->NewObject(
+      metrics_builder_class,
+      metrics_builder_constructor,
+      inputRows,
+      inputVectors,
+      inputBytes,
+      rawInputRows,
+      outputRows,
+      outputVectors,
+      outputBytes,
+      count,
+      wallNanos,
+      cpuNanos,
+      blockedWallNanos,
+      peakMemoryBytes,
+      numMemoryAllocations);
+  JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT void JNICALL

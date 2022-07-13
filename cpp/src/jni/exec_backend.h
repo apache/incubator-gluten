@@ -26,8 +26,7 @@
 #include "operators/c2r/arrow_columnar_to_row_converter.h"
 #include "substrait/plan.pb.h"
 #include "utils/exception.h"
-#include "utils/result_iterator.h"
-
+#include "utils/metrics.h"
 namespace gluten {
 
 using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
@@ -270,7 +269,7 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
   }
 
   std::shared_ptr<Metrics> GetMetrics() {
-    if (backend_ != nullptr) {
+    if (backend_) {
       return backend_->GetMetrics(raw_iter_);
     }
     return nullptr;

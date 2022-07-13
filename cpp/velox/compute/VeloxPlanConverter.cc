@@ -29,6 +29,7 @@
 #include "bridge.h"
 #include "jni/exec_backend.h"
 #include "velox/buffer/Buffer.h"
+#include "velox/exec/PlanNodeStats.h"
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
 #include "velox/functions/prestosql/aggregates/MinMaxAggregates.h"
@@ -302,12 +303,12 @@ VeloxPlanConverter::GetResultIterator(
     auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(
         veloxPool, planNode_, streamIds);
     return std::make_shared<gluten::ArrowArrayResultIterator>(
-        std::move(wholestageIter));
+        std::move(wholestageIter), shared_from_this());
   }
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       veloxPool, planNode_, scanIds, scanInfos, streamIds);
   return std::make_shared<gluten::ArrowArrayResultIterator>(
-      std::move(wholestageIter));
+      std::move(wholestageIter), shared_from_this());
 }
 
 std::shared_ptr<gluten::ArrowArrayResultIterator>
@@ -333,7 +334,7 @@ VeloxPlanConverter::GetResultIterator(
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       veloxPool, planNode_, scanIds, setScanInfos, streamIds);
   return std::make_shared<gluten::ArrowArrayResultIterator>(
-      std::move(wholestageIter));
+      std::move(wholestageIter), shared_from_this());
 }
 
 std::shared_ptr<arrow::Schema> VeloxPlanConverter::GetOutputSchema() {
@@ -383,6 +384,83 @@ arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
 
 memory::MemoryPool* WholeStageResIter::getPool() const {
   return pool_.get();
+}
+
+void WholeStageResIter::getOrderedNodeIds(
+    const std::shared_ptr<const core::PlanNode>& planNode,
+    std::vector<core::PlanNodeId>& nodeIds) {
+  const auto& sourceNodes = planNode->sources();
+  for (const auto& sourceNode : sourceNodes) {
+    getOrderedNodeIds(sourceNode, nodeIds);
+  }
+  nodeIds.emplace_back(planNode->id());
+}
+
+void WholeStageResIter::collectMetrics() {
+  if (metrics_) {
+    // The metrics has already been created.
+    return;
+  }
+
+  auto planStats = toPlanStats(task_->taskStats());
+  // Calculate the total number of metrics.
+  int numOfStats = 0;
+  for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
+    const auto& nodeId = orderedNodeIds_[idx];
+    if (planStats.find(nodeId) == planStats.end()) {
+      throw std::runtime_error("Node id is not found.");
+    }
+    const auto& status = planStats.at(nodeId);
+    if (status.isMultiOperatorNode()) {
+      numOfStats += status.operatorStats.size();
+    } else {
+      numOfStats += 1;
+    }
+  }
+
+  metrics_ = std::make_shared<Metrics>(numOfStats);
+  int metricsIdx = 0;
+  for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
+    const auto& nodeId = orderedNodeIds_[idx];
+    const auto& status = planStats.at(nodeId);
+    if (status.isMultiOperatorNode()) {
+      // Add each operator status into metrics.
+      for (const auto& entry : status.operatorStats) {
+        metrics_->inputRows[metricsIdx] = entry.second->inputRows;
+        metrics_->inputVectors[metricsIdx] = entry.second->inputVectors;
+        metrics_->inputBytes[metricsIdx] = entry.second->inputBytes;
+        metrics_->rawInputRows[metricsIdx] = entry.second->rawInputRows;
+        metrics_->rawInputBytes[metricsIdx] = entry.second->rawInputBytes;
+        metrics_->outputRows[metricsIdx] = entry.second->outputRows;
+        metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
+        metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
+        metrics_->count[metricsIdx] = entry.second->cpuWallTiming.count;
+        metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
+        metrics_->cpuNanos[metricsIdx] = entry.second->cpuWallTiming.cpuNanos;
+        metrics_->blockedWallNanos[metricsIdx] = entry.second->blockedWallNanos;
+        metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
+        metrics_->numMemoryAllocations[metricsIdx] =
+            entry.second->numMemoryAllocations;
+        metricsIdx += 1;
+      }
+    } else {
+      metrics_->inputRows[metricsIdx] = status.inputRows;
+      metrics_->inputVectors[metricsIdx] = status.inputVectors;
+      metrics_->inputBytes[metricsIdx] = status.inputBytes;
+      metrics_->rawInputRows[metricsIdx] = status.rawInputRows;
+      metrics_->rawInputBytes[metricsIdx] = status.rawInputBytes;
+      metrics_->outputRows[metricsIdx] = status.outputRows;
+      metrics_->outputVectors[metricsIdx] = status.outputVectors;
+      metrics_->outputBytes[metricsIdx] = status.outputBytes;
+      metrics_->count[metricsIdx] = status.cpuWallTiming.count;
+      metrics_->wallNanos[metricsIdx] = status.cpuWallTiming.wallNanos;
+      metrics_->cpuNanos[metricsIdx] = status.cpuWallTiming.cpuNanos;
+      metrics_->blockedWallNanos[metricsIdx] = status.blockedWallNanos;
+      metrics_->peakMemoryBytes[metricsIdx] = status.peakMemoryBytes;
+      metrics_->numMemoryAllocations[metricsIdx] = status.numMemoryAllocations;
+      metricsIdx += 1;
+    }
+  }
 }
 
 class VeloxPlanConverter::WholeStageResIterFirstStage

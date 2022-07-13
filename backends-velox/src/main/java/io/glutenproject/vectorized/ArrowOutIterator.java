@@ -42,7 +42,7 @@ public class ArrowOutIterator extends GeneralOutIterator {
 
   private native void nativeClose(long nativeHandle);
 
-  private native MetricsObject nativeFetchMetrics(long nativeHandle);
+  private native Metrics nativeFetchMetrics(long nativeHandle);
 
   public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
     super(instance_id, outAttrs);
@@ -68,7 +68,7 @@ public class ArrowOutIterator extends GeneralOutIterator {
   }
 
   @Override
-  public MetricsObject getMetricsInternal() throws IOException, ClassNotFoundException {
+  public Metrics getMetricsInternal() throws IOException, ClassNotFoundException {
     return nativeFetchMetrics(handle);
   }
 

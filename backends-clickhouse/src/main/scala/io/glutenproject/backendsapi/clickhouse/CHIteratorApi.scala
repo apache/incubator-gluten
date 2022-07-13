@@ -48,7 +48,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                       partitions: Seq[InputPartition],
                                       wsCxt: WholestageTransformContext
                                      ): BaseNativeFilePartition = {
-    val localFilesNodes = (0 until partitions.size).map(i =>
+    val localFilesNodes = partitions.indices.map(i =>
       partitions(i) match {
         case p: NativeMergeTreePartition =>
           ExtensionTableBuilder.makeExtensionTable(p.minParts,
@@ -271,7 +271,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                 outAttrs: Seq[Attribute]
                                ): GeneralOutIterator = {
     val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
-      0L, wsPlan, iterList.toArray);
+      0L, wsPlan, iterList.toArray)
     new BatchIterator(batchIteratorInstance, outAttrs.asJava)
   }
 

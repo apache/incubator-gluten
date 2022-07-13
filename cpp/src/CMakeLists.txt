@@ -223,7 +223,7 @@ file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/third_party/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/precompile/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/utils/)
 file(MAKE_DIRECTORY ${root_directory}/releases/include/codegen/arrow_compute/ext/)
-file(COPY utils/result_iterator.h DESTINATION ${root_directory}/releases/include/common/)
+file(COPY utils/metrics.h DESTINATION ${root_directory}/releases/include/common/)
 
 add_definitions(-DNATIVESQL_SRC_PATH="${root_directory}/releases")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")

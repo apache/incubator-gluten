@@ -20,7 +20,6 @@ package io.glutenproject.execution
 import java.util
 
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
@@ -31,7 +30,8 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+
+import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -43,22 +43,46 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-abstract class FilterExecBaseTransformer(
-                                          condition: Expression,
-                                          child: SparkPlan) extends UnaryExecNode
+abstract class FilterExecBaseTransformer(condition: Expression,
+                                         child: SparkPlan) extends UnaryExecNode
   with TransformSupport
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
 
   override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_filter"))
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
+    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
+    "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val count: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val cpuNanos: SQLMetric = longMetric("cpuNanos")
+  val blockedWallNanos: SQLMetric = longMetric("blockedWallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
   val sparkConf: SparkConf = sparkContext.getConf
-  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
-  val numOutputRows: SQLMetric = longMetric("numOutputRows")
   // Split out all the IsNotNulls from condition.
   private val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
@@ -98,8 +122,27 @@ abstract class FilterExecBaseTransformer(
   }
 
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    numOutputBatches += outNumBatches
-    numOutputRows += outNumRows
+    outputVectors += outNumBatches
+    outputRows += outNumRows
+  }
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      count += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      cpuNanos += operatorMetrics.cpuNanos
+      blockedWallNanos += operatorMetrics.blockedWallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
   }
 
   override def getChild: SparkPlan = child
@@ -112,11 +155,13 @@ abstract class FilterExecBaseTransformer(
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object,
+  def getRelNode(context: SubstraitContext,
                  condExpr: Expression,
                  originalInputAttributes: Seq[Attribute],
+                 operatorId: Long,
                  input: RelNode,
                  validation: Boolean): RelNode = {
+    val args = context.registeredFunction
     if (condExpr == null) {
       return input
     }
@@ -124,8 +169,9 @@ abstract class FilterExecBaseTransformer(
       .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
     val condExprNode =
       columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+
     if (!validation) {
-      RelBuilder.makeFilterRel(input, condExprNode)
+      RelBuilder.makeFilterRel(input, condExprNode, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -134,7 +180,7 @@ abstract class FilterExecBaseTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
-      RelBuilder.makeFilterRel(input, condExprNode, extensionNode)
+      RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
     }
   }
 
@@ -165,10 +211,11 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
       return true
     }
     val substraitContext = new SubstraitContext
+    val operatorId = substraitContext.nextOperatorId
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, condition, child.output,
-        null, validation = true)
+      getRelNode(
+        substraitContext, condition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -200,20 +247,25 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
       case _ =>
         null
     }
+
+    val operatorId = context.nextOperatorId
     if (condition == null) {
       // The computing for this filter is not needed.
+      context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
+
     val currRel = if (childCtx != null) {
-      getRelNode(context.registeredFunction, condition, child.output,
-        childCtx.root, validation = false)
+      getRelNode(
+        context, condition, child.output, operatorId, childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context.registeredFunction, condition, child.output,
-        RelBuilder.makeReadRel(attrList, context), validation = false)
+      getRelNode(context, condition, child.output, operatorId,
+        RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
     }
+    assert(currRel != null, "Filter rel should be valid.")
     if (currRel == null) {
       return childCtx
     }
@@ -235,22 +287,48 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   with Logging {
 
   override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_project"))
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
+    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
+    "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val count: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val cpuNanos: SQLMetric = longMetric("cpuNanos")
+  val blockedWallNanos: SQLMetric = longMetric("blockedWallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
   val sparkConf: SparkConf = sparkContext.getConf
-  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
-  val numOutputRows: SQLMetric = longMetric("numOutputRows")
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
+    val operatorId = substraitContext.nextOperatorId
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, projectList, child.output,
-        null, validation = true)
+      getRelNode(
+        substraitContext, projectList, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -296,8 +374,27 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   }
 
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    numOutputBatches += outNumBatches
-    numOutputRows += outNumRows
+    outputVectors += outNumBatches
+    outputRows += outNumRows
+  }
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      count += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      cpuNanos += operatorMetrics.cpuNanos
+      blockedWallNanos += operatorMetrics.blockedWallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
   }
 
   override def getChild: SparkPlan = child
@@ -309,9 +406,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       case _ =>
         null
     }
+    val operatorId = context.nextOperatorId
     val currRel = if (childCtx != null) {
-      getRelNode(context.registeredFunction, projectList, child.output,
-        childCtx.root, validation = false)
+      getRelNode(
+        context, projectList, child.output, operatorId, childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
@@ -319,9 +417,9 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       for (attr <- child.output) {
         attrList.add(attr)
       }
-      val readRel = RelBuilder.makeReadRel(attrList, context)
-      getRelNode(context.registeredFunction, projectList, child.output,
-        readRel, validation = false)
+      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      getRelNode(
+        context, projectList, child.output, operatorId, readRel, validation = false)
     }
 
     if (currRel == null) {
@@ -340,11 +438,13 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(args: java.lang.Object,
+  def getRelNode(context: SubstraitContext,
                  projectList: Seq[NamedExpression],
                  originalInputAttributes: Seq[Attribute],
+                 operatorId: Long,
                  input: RelNode,
                  validation: Boolean): RelNode = {
+    val args = context.registeredFunction
     if (projectList == null || projectList.isEmpty) {
       input
     } else {
@@ -357,7 +457,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
       }
       if (!validation) {
-        RelBuilder.makeProjectRel(input, projExprNodeList)
+        RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId)
       } else {
         // Use a extension node to send the input types through Substrait plan for validation.
         val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -366,7 +466,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         }
         val extensionNode = ExtensionBuilder.makeAdvancedExtension(
           Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
-        RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode)
+        RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode, context, operatorId)
       }
     }
   }

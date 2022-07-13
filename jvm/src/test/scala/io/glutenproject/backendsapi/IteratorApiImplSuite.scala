@@ -69,6 +69,7 @@ class IteratorApiImplSuite extends IIteratorApi {
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
+                                     updateNativeMetrics: GeneralOutIterator => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = null
 
@@ -85,6 +86,7 @@ class IteratorApiImplSuite extends IIteratorApi {
                                      rootNode: PlanNode, streamedSortPlan: SparkPlan,
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
+                                     updateNativeMetrics: GeneralOutIterator => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]
@@ -106,8 +108,7 @@ class IteratorApiImplSuite extends IIteratorApi {
   override def genBatchIterator(wsPlan: Array[Byte],
                                 iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper,
-                                outAttrs: Seq[Attribute]
-                               ): GeneralOutIterator = null
+                                outAttrs: Seq[Attribute]): GeneralOutIterator = null
 
   /**
    * Get the backend api name.

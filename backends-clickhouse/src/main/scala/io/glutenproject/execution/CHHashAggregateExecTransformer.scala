@@ -99,7 +99,11 @@ case class CHHashAggregateExecTransformer(
     } else {
       getAggRelWithoutPreProjection(args, aggregateResultAttributes, input, validation)
     }
-    applyPostProjection(args, aggRel, validation)
+    if (!needsPostProjection(allAggregateResultAttributes)) {
+      aggRel
+    } else {
+      applyPostProjection(args, aggRel, validation)
+    }
   }
 
   override def getAggRelWithoutPreProjection(args: java.lang.Object,

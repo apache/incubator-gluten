@@ -17,7 +17,7 @@
 
 package io.glutenproject.row;
 
-import io.glutenproject.vectorized.MetricsObject;
+import io.glutenproject.vectorized.Metrics;
 
 import java.io.IOException;
 
@@ -35,7 +35,7 @@ public class RowIterator {
 
   private native void nativeClose(long nativeHandler);
 
-  private native MetricsObject nativeFetchMetrics(long nativeHandler);
+  private native Metrics nativeFetchMetrics(long nativeHandler);
 
   public boolean hasNext() throws IOException {
     return nativeHasNext(nativeHandler);
@@ -48,7 +48,7 @@ public class RowIterator {
     return nativeNext(nativeHandler);
   }
 
-  public MetricsObject getMetrics() throws IOException, ClassNotFoundException {
+  public Metrics getMetrics() throws IOException, ClassNotFoundException {
     if (nativeHandler == 0) {
       return null;
     }

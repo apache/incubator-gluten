@@ -18,13 +18,12 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import java.util
 
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
@@ -32,7 +31,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 case class VeloxFilterExecTransformer(condition: Expression,
                                       child: SparkPlan)
-  extends FilterExecBaseTransformer(condition, child) {
+  extends FilterExecBaseTransformer(condition, child) with TransformSupport {
 
   override def doValidate(): Boolean = {
     val leftCondition = getLeftCondition
@@ -42,10 +41,11 @@ case class VeloxFilterExecTransformer(condition: Expression,
       return true
     }
     val substraitContext = new SubstraitContext
+    val operatorId = substraitContext.nextOperatorId
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode = try {
-      getRelNode(substraitContext.registeredFunction, leftCondition, child.output,
-        null, validation = true)
+      getRelNode(
+        substraitContext, leftCondition, child.output, operatorId, null, validation = true)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -69,23 +69,25 @@ case class VeloxFilterExecTransformer(condition: Expression,
       case _ =>
         null
     }
+
+    val operatorId = context.nextOperatorId
     if (leftCondition == null) {
       // The computing for this filter is not needed.
+      context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
+
     val currRel = if (childCtx != null) {
-      getRelNode(context.registeredFunction, leftCondition, child.output,
-        childCtx.root, validation = false)
+      getRelNode(
+        context, leftCondition, child.output, operatorId, childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context.registeredFunction, leftCondition, child.output,
-        RelBuilder.makeReadRel(attrList, context), validation = false)
+      getRelNode(context, leftCondition, child.output, operatorId,
+        RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
     }
-    if (currRel == null) {
-      return childCtx
-    }
+    assert(currRel != null, "Filter rel should be valid.")
     val inputAttributes = if (childCtx != null) {
       // Use the outputAttributes of child context as inputAttributes.
       childCtx.outputAttributes
@@ -95,7 +97,7 @@ case class VeloxFilterExecTransformer(condition: Expression,
     TransformContext(inputAttributes, output, currRel)
   }
 
-  def getLeftCondition: Expression = {
+  private def getLeftCondition: Expression = {
     val scanFilters = child match {
       // Get the filters including the manually pushed down ones.
       case batchScanTransformer: BatchScanExecTransformer =>

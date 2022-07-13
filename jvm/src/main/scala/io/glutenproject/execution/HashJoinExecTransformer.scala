@@ -19,19 +19,18 @@ package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
-
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression}
 import io.glutenproject.expression._
-import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.substrait.proto.JoinRel
 import java.util
 
@@ -50,24 +49,340 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
-abstract class HashJoinLikeExecTransformer(
-                                            leftKeys: Seq[Expression],
-                                            rightKeys: Seq[Expression],
-                                            joinType: JoinType,
-                                            buildSide: BuildSide,
-                                            condition: Option[Expression],
-                                            left: SparkPlan,
-                                            right: SparkPlan)
+abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
+                                           rightKeys: Seq[Expression],
+                                           joinType: JoinType,
+                                           buildSide: BuildSide,
+                                           condition: Option[Expression],
+                                           left: SparkPlan,
+                                           right: SparkPlan)
   extends BaseJoinExec
     with TransformSupport
     with ShuffledJoin {
 
   override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_hashjoin"),
-    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to build hash map"),
-    "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "join time"))
+    "streamInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream side input rows"),
+    "streamInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream side input vectors"),
+    "streamInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of stream side input bytes"),
+    "streamRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream side raw input rows"),
+    "streamRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of stream side raw input bytes"),
+    "streamOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream side output rows"),
+    "streamOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream side output vectors"),
+    "streamOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of stream side output bytes"),
+    "streamCount" -> SQLMetrics.createMetric(
+      sparkContext, "stream side cpu wall time count"),
+    "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "stream side cpu wall nanos"),
+    "streamCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "stream side cpu nanos"),
+    "streamBlockedWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "stream side block wall nanos"),
+    "streamPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "stream side peak memory bytes"),
+    "streamNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream side memory allocations"),
+
+    "streamPreProjectionInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream preProjection input rows"),
+    "streamPreProjectionInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream preProjection input vectors"),
+    "streamPreProjectionInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of stream preProjection input bytes"),
+    "streamPreProjectionRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream preProjection raw input rows"),
+    "streamPreProjectionRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of stream preProjection raw input bytes"),
+    "streamPreProjectionOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream preProjection output rows"),
+    "streamPreProjectionOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream preProjection output vectors"),
+    "streamPreProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of stream preProjection output bytes"),
+    "streamPreProjectionCount" -> SQLMetrics.createMetric(
+      sparkContext, "stream preProjection cpu wall time count"),
+    "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "stream preProjection cpu wall nanos"),
+    "streamPreProjectionCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "stream preProjection cpu nanos"),
+    "streamPreProjectionBlockedWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "stream preProjection block wall nanos"),
+    "streamPreProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "stream preProjection peak memory bytes"),
+    "streamPreProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of stream preProjection memory allocations"),
+
+    "buildInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of build side input rows"),
+    "buildInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of build side input vectors"),
+    "buildInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of build side input bytes"),
+    "buildRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of build side raw input rows"),
+    "buildRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of build side raw input bytes"),
+    "buildOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of build side output rows"),
+    "buildOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of build side output vectors"),
+    "buildOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of build side output bytes"),
+    "buildCount" -> SQLMetrics.createMetric(
+      sparkContext, "build side cpu wall time count"),
+    "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "build side cpu wall nanos"),
+    "buildCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "build side cpu nanos"),
+    "buildBlockedWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "build side block wall nanos"),
+    "buildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "build side peak memory bytes"),
+    "buildNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of build side memory allocations"),
+
+    "buildPreProjectionInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of build preProjection input rows"),
+    "buildPreProjectionInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of build preProjection input vectors"),
+    "buildPreProjectionInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of build preProjection input bytes"),
+    "buildPreProjectionRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of build preProjection raw input rows"),
+    "buildPreProjectionRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of build preProjection raw input bytes"),
+    "buildPreProjectionOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of build preProjection output rows"),
+    "buildPreProjectionOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of build preProjection output vectors"),
+    "buildPreProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of build preProjection output bytes"),
+    "buildPreProjectionCount" -> SQLMetrics.createMetric(
+      sparkContext, "build preProjection cpu wall time count"),
+    "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "build preProjection cpu wall nanos"),
+    "buildPreProjectionCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "build preProjection cpu nanos"),
+    "buildPreProjectionBlockedWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "build preProjection block wall nanos"),
+    "buildPreProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "build preProjection peak memory bytes"),
+    "buildPreProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of build preProjection memory allocations"),
+
+    "hashBuildInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash build input rows"),
+    "hashBuildInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash build input vectors"),
+    "hashBuildInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of hash build input bytes"),
+    "hashBuildRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash build raw input rows"),
+    "hashBuildRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of hash build raw input bytes"),
+    "hashBuildOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash build output rows"),
+    "hashBuildOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash build output vectors"),
+    "hashBuildOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of hash build output bytes"),
+    "hashBuildCount" -> SQLMetrics.createMetric(
+      sparkContext, "hash build cpu wall time count"),
+    "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "hash build cpu wall nanos"),
+    "hashBuildCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "hash build cpu nanos"),
+    "hashBuildBlockedWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "hash build block wall nanos"),
+    "hashBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "hash build peak memory bytes"),
+    "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash build memory allocations"),
+
+    "hashProbeInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe input rows"),
+    "hashProbeInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe input vectors"),
+    "hashProbeInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of hash probe input bytes"),
+    "hashProbeRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe raw input rows"),
+    "hashProbeRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of hash probe raw input bytes"),
+    "hashProbeOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe output rows"),
+    "hashProbeOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe output vectors"),
+    "hashProbeOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of hash probe output bytes"),
+    "hashProbeCount" -> SQLMetrics.createMetric(
+      sparkContext, "hash probe cpu wall time count"),
+    "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "hash probe cpu wall nanos"),
+    "hashProbeCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "hash probe cpu nanos"),
+    "hashProbeBlockedWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "hash probe block wall nanos"),
+    "hashProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "hash probe peak memory bytes"),
+    "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe memory allocations"),
+
+    "postProjectionInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection input rows"),
+    "postProjectionInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection input vectors"),
+    "postProjectionInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of postProjection input bytes"),
+    "postProjectionRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection raw input rows"),
+    "postProjectionRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of postProjection raw input bytes"),
+    "postProjectionOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection output rows"),
+    "postProjectionOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection output vectors"),
+    "postProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of postProjection output bytes"),
+    "postProjectionCount" -> SQLMetrics.createMetric(
+      sparkContext, "postProjection cpu wall time count"),
+    "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "postProjection cpu wall nanos"),
+    "postProjectionCpuNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "postProjection cpu nanos"),
+    "postProjectionBlockedWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "postProjection block wall nanos"),
+    "postProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "postProjection peak memory bytes"),
+    "postProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of postProjection memory allocations"),
+
+    "finalOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of final output rows"),
+    "finalOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of final output vectors"))
+
+  val streamInputRows: SQLMetric = longMetric("streamInputRows")
+  val streamInputVectors: SQLMetric = longMetric("streamInputVectors")
+  val streamInputBytes: SQLMetric = longMetric("streamInputBytes")
+  val streamRawInputRows: SQLMetric = longMetric("streamRawInputRows")
+  val streamRawInputBytes: SQLMetric = longMetric("streamRawInputBytes")
+  val streamOutputRows: SQLMetric = longMetric("streamOutputRows")
+  val streamOutputVectors: SQLMetric = longMetric("streamOutputVectors")
+  val streamOutputBytes: SQLMetric = longMetric("streamOutputBytes")
+  val streamCount: SQLMetric = longMetric("streamCount")
+  val streamWallNanos: SQLMetric = longMetric("streamWallNanos")
+  val streamCpuNanos: SQLMetric = longMetric("streamCpuNanos")
+  val streamBlockedWallNanos: SQLMetric = longMetric("streamBlockedWallNanos")
+  val streamPeakMemoryBytes: SQLMetric = longMetric("streamPeakMemoryBytes")
+  val streamNumMemoryAllocations: SQLMetric = longMetric("streamNumMemoryAllocations")
+
+  val streamPreProjectionInputRows: SQLMetric = longMetric("streamPreProjectionInputRows")
+  val streamPreProjectionInputVectors: SQLMetric = longMetric("streamPreProjectionInputVectors")
+  val streamPreProjectionInputBytes: SQLMetric = longMetric("streamPreProjectionInputBytes")
+  val streamPreProjectionRawInputRows: SQLMetric = longMetric("streamPreProjectionRawInputRows")
+  val streamPreProjectionRawInputBytes: SQLMetric = longMetric("streamPreProjectionRawInputBytes")
+  val streamPreProjectionOutputRows: SQLMetric = longMetric("streamPreProjectionOutputRows")
+  val streamPreProjectionOutputVectors: SQLMetric = longMetric("streamPreProjectionOutputVectors")
+  val streamPreProjectionOutputBytes: SQLMetric = longMetric("streamPreProjectionOutputBytes")
+  val streamPreProjectionCount: SQLMetric = longMetric("streamPreProjectionCount")
+  val streamPreProjectionWallNanos: SQLMetric = longMetric("streamPreProjectionWallNanos")
+  val streamPreProjectionCpuNanos: SQLMetric = longMetric("streamPreProjectionCpuNanos")
+  val streamPreProjectionBlockedWallNanos: SQLMetric =
+    longMetric("streamPreProjectionBlockedWallNanos")
+  val streamPreProjectionPeakMemoryBytes: SQLMetric =
+    longMetric("streamPreProjectionPeakMemoryBytes")
+  val streamPreProjectionNumMemoryAllocations: SQLMetric =
+    longMetric("streamPreProjectionNumMemoryAllocations")
+
+  val buildInputRows: SQLMetric = longMetric("buildInputRows")
+  val buildInputVectors: SQLMetric = longMetric("buildInputVectors")
+  val buildInputBytes: SQLMetric = longMetric("buildInputBytes")
+  val buildRawInputRows: SQLMetric = longMetric("buildRawInputRows")
+  val buildRawInputBytes: SQLMetric = longMetric("buildRawInputBytes")
+  val buildOutputRows: SQLMetric = longMetric("buildOutputRows")
+  val buildOutputVectors: SQLMetric = longMetric("buildOutputVectors")
+  val buildOutputBytes: SQLMetric = longMetric("buildOutputBytes")
+  val buildCount: SQLMetric = longMetric("buildCount")
+  val buildWallNanos: SQLMetric = longMetric("buildWallNanos")
+  val buildCpuNanos: SQLMetric = longMetric("buildCpuNanos")
+  val buildBlockedWallNanos: SQLMetric = longMetric("buildBlockedWallNanos")
+  val buildPeakMemoryBytes: SQLMetric = longMetric("buildPeakMemoryBytes")
+  val buildNumMemoryAllocations: SQLMetric = longMetric("buildNumMemoryAllocations")
+
+  val buildPreProjectionInputRows: SQLMetric = longMetric("buildPreProjectionInputRows")
+  val buildPreProjectionInputVectors: SQLMetric = longMetric("buildPreProjectionInputVectors")
+  val buildPreProjectionInputBytes: SQLMetric = longMetric("buildPreProjectionInputBytes")
+  val buildPreProjectionRawInputRows: SQLMetric = longMetric("buildPreProjectionRawInputRows")
+  val buildPreProjectionRawInputBytes: SQLMetric = longMetric("buildPreProjectionRawInputBytes")
+  val buildPreProjectionOutputRows: SQLMetric = longMetric("buildPreProjectionOutputRows")
+  val buildPreProjectionOutputVectors: SQLMetric = longMetric("buildPreProjectionOutputVectors")
+  val buildPreProjectionOutputBytes: SQLMetric = longMetric("buildPreProjectionOutputBytes")
+  val buildPreProjectionCount: SQLMetric = longMetric("buildPreProjectionCount")
+  val buildPreProjectionWallNanos: SQLMetric = longMetric("buildPreProjectionWallNanos")
+  val buildPreProjectionCpuNanos: SQLMetric = longMetric("buildPreProjectionCpuNanos")
+  val buildPreProjectionBlockedWallNanos: SQLMetric =
+    longMetric("buildPreProjectionBlockedWallNanos")
+  val buildPreProjectionPeakMemoryBytes: SQLMetric =
+    longMetric("buildPreProjectionPeakMemoryBytes")
+  val buildPreProjectionNumMemoryAllocations: SQLMetric =
+    longMetric("buildPreProjectionNumMemoryAllocations")
+
+  val hashBuildInputRows: SQLMetric = longMetric("hashBuildInputRows")
+  val hashBuildInputVectors: SQLMetric = longMetric("hashBuildInputVectors")
+  val hashBuildInputBytes: SQLMetric = longMetric("hashBuildInputBytes")
+  val hashBuildRawInputRows: SQLMetric = longMetric("hashBuildRawInputRows")
+  val hashBuildRawInputBytes: SQLMetric = longMetric("hashBuildRawInputBytes")
+  val hashBuildOutputRows: SQLMetric = longMetric("hashBuildOutputRows")
+  val hashBuildOutputVectors: SQLMetric = longMetric("hashBuildOutputVectors")
+  val hashBuildOutputBytes: SQLMetric = longMetric("hashBuildOutputBytes")
+  val hashBuildCount: SQLMetric = longMetric("hashBuildCount")
+  val hashBuildWallNanos: SQLMetric = longMetric("hashBuildWallNanos")
+  val hashBuildCpuNanos: SQLMetric = longMetric("hashBuildCpuNanos")
+  val hashBuildBlockedWallNanos: SQLMetric = longMetric("hashBuildBlockedWallNanos")
+  val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
+  val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
+
+  val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
+  val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
+  val hashProbeInputBytes: SQLMetric = longMetric("hashProbeInputBytes")
+  val hashProbeRawInputRows: SQLMetric = longMetric("hashProbeRawInputRows")
+  val hashProbeRawInputBytes: SQLMetric = longMetric("hashProbeRawInputBytes")
+  val hashProbeOutputRows: SQLMetric = longMetric("hashProbeOutputRows")
+  val hashProbeOutputVectors: SQLMetric = longMetric("hashProbeOutputVectors")
+  val hashProbeOutputBytes: SQLMetric = longMetric("hashProbeOutputBytes")
+  val hashProbeCount: SQLMetric = longMetric("hashProbeCount")
+  val hashProbeWallNanos: SQLMetric = longMetric("hashProbeWallNanos")
+  val hashProbeCpuNanos: SQLMetric = longMetric("hashProbeCpuNanos")
+  val hashProbeBlockedWallNanos: SQLMetric = longMetric("hashProbeBlockedWallNanos")
+  val hashProbePeakMemoryBytes: SQLMetric = longMetric("hashProbePeakMemoryBytes")
+  val hashProbeNumMemoryAllocations: SQLMetric = longMetric("hashProbeNumMemoryAllocations")
+
+  val postProjectionInputRows: SQLMetric = longMetric("postProjectionInputRows")
+  val postProjectionInputVectors: SQLMetric = longMetric("postProjectionInputVectors")
+  val postProjectionInputBytes: SQLMetric = longMetric("postProjectionInputBytes")
+  val postProjectionRawInputRows: SQLMetric = longMetric("postProjectionRawInputRows")
+  val postProjectionRawInputBytes: SQLMetric = longMetric("postProjectionRawInputBytes")
+  val postProjectionOutputRows: SQLMetric = longMetric("postProjectionOutputRows")
+  val postProjectionOutputVectors: SQLMetric = longMetric("postProjectionOutputVectors")
+  val postProjectionOutputBytes: SQLMetric = longMetric("postProjectionOutputBytes")
+  val postProjectionCount: SQLMetric = longMetric("postProjectionCount")
+  val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
+  val postProjectionCpuNanos: SQLMetric = longMetric("postProjectionCpuNanos")
+  val postProjectionBlockedWallNanos: SQLMetric = longMetric("postProjectionBlockedWallNanos")
+  val postProjectionPeakMemoryBytes: SQLMetric = longMetric("postProjectionPeakMemoryBytes")
+  val postProjectionNumMemoryAllocations: SQLMetric =
+    longMetric("postProjectionNumMemoryAllocations")
+
+  val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
+  val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
 
   lazy val (buildPlan, streamedPlan) = buildSide match {
     case BuildLeft => (left, right)
@@ -86,8 +401,6 @@ abstract class HashJoinLikeExecTransformer(
     }
   }
 
-  val numOutputBatches: SQLMetric = longMetric("numOutputBatches")
-  val numOutputRows: SQLMetric = longMetric("numOutputRows")
   // Direct output order of substrait join operation
   private val substraitJoinType = joinType match {
     case Inner =>
@@ -107,8 +420,146 @@ abstract class HashJoinLikeExecTransformer(
   }
 
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    numOutputBatches += outNumBatches
-    numOutputRows += outNumRows
+    finalOutputVectors += outNumBatches
+    finalOutputRows += outNumRows
+  }
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    throw new UnsupportedOperationException(s"updateNativeMetrics is not supported for join.")
+  }
+
+  def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
+                        joinParams: JoinParams): Unit = {
+    var idx = 0
+    if (joinParams.postProjectionNeeded) {
+      val metrics = joinMetrics.get(idx)
+      postProjectionInputRows += metrics.inputRows
+      postProjectionInputVectors += metrics.inputVectors
+      postProjectionInputBytes += metrics.inputBytes
+      postProjectionRawInputRows += metrics.rawInputRows
+      postProjectionRawInputBytes += metrics.rawInputBytes
+      postProjectionOutputRows += metrics.outputRows
+      postProjectionOutputVectors += metrics.outputVectors
+      postProjectionOutputBytes += metrics.outputBytes
+      postProjectionCount += metrics.count
+      postProjectionWallNanos += metrics.wallNanos
+      postProjectionCpuNanos += metrics.cpuNanos
+      postProjectionBlockedWallNanos += metrics.blockedWallNanos
+      postProjectionPeakMemoryBytes += metrics.peakMemoryBytes
+      postProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
+
+    // HashProbe
+    val hashProbeMetrics = joinMetrics.get(idx)
+    hashProbeInputRows += hashProbeMetrics.inputRows
+    hashProbeInputVectors += hashProbeMetrics.inputVectors
+    hashProbeInputBytes += hashProbeMetrics.inputBytes
+    hashProbeRawInputRows += hashProbeMetrics.rawInputRows
+    hashProbeRawInputBytes += hashProbeMetrics.rawInputBytes
+    hashProbeOutputRows += hashProbeMetrics.outputRows
+    hashProbeOutputVectors += hashProbeMetrics.outputVectors
+    hashProbeOutputBytes += hashProbeMetrics.outputBytes
+    hashProbeCount += hashProbeMetrics.count
+    hashProbeWallNanos += hashProbeMetrics.wallNanos
+    hashProbeCpuNanos += hashProbeMetrics.cpuNanos
+    hashProbeBlockedWallNanos += hashProbeMetrics.blockedWallNanos
+    hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
+    hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
+    idx += 1
+
+    // HashBuild
+    val hashBuildMetrics = joinMetrics.get(idx)
+    hashBuildInputRows += hashBuildMetrics.inputRows
+    hashBuildInputVectors += hashBuildMetrics.inputVectors
+    hashBuildInputBytes += hashBuildMetrics.inputBytes
+    hashBuildRawInputRows += hashBuildMetrics.rawInputRows
+    hashBuildRawInputBytes += hashBuildMetrics.rawInputBytes
+    hashBuildOutputRows += hashBuildMetrics.outputRows
+    hashBuildOutputVectors += hashBuildMetrics.outputVectors
+    hashBuildOutputBytes += hashBuildMetrics.outputBytes
+    hashBuildCount += hashBuildMetrics.count
+    hashBuildWallNanos += hashBuildMetrics.wallNanos
+    hashBuildCpuNanos += hashBuildMetrics.cpuNanos
+    hashBuildBlockedWallNanos += hashBuildMetrics.blockedWallNanos
+    hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
+    hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
+    idx += 1
+
+    if (joinParams.buildPreProjectionNeeded) {
+      val metrics = joinMetrics.get(idx)
+      buildPreProjectionInputRows += metrics.inputRows
+      buildPreProjectionInputVectors += metrics.inputVectors
+      buildPreProjectionInputBytes += metrics.inputBytes
+      buildPreProjectionRawInputRows += metrics.rawInputRows
+      buildPreProjectionRawInputBytes += metrics.rawInputBytes
+      buildPreProjectionOutputRows += metrics.outputRows
+      buildPreProjectionOutputVectors += metrics.outputVectors
+      buildPreProjectionOutputBytes += metrics.outputBytes
+      buildPreProjectionCount += metrics.count
+      buildPreProjectionWallNanos += metrics.wallNanos
+      buildPreProjectionCpuNanos += metrics.cpuNanos
+      buildPreProjectionBlockedWallNanos += metrics.blockedWallNanos
+      buildPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
+      buildPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
+
+    if (joinParams.isBuildReadRel) {
+      val metrics = joinMetrics.get(idx)
+      buildInputRows += metrics.inputRows
+      buildInputBytes += metrics.inputBytes
+      buildRawInputRows += metrics.rawInputRows
+      buildRawInputBytes += metrics.rawInputBytes
+      buildOutputRows += metrics.outputRows
+      buildOutputVectors += metrics.outputVectors
+      buildOutputBytes += metrics.outputBytes
+      buildCount += metrics.count
+      buildWallNanos += metrics.wallNanos
+      buildCpuNanos += metrics.cpuNanos
+      buildBlockedWallNanos += metrics.blockedWallNanos
+      buildPeakMemoryBytes += metrics.peakMemoryBytes
+      buildNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
+
+    if (joinParams.streamPreProjectionNeeded) {
+      val metrics = joinMetrics.get(idx)
+      streamPreProjectionInputRows += metrics.inputRows
+      streamPreProjectionInputVectors += metrics.inputVectors
+      streamPreProjectionInputBytes += metrics.inputBytes
+      streamPreProjectionRawInputRows += metrics.rawInputRows
+      streamPreProjectionRawInputBytes += metrics.rawInputBytes
+      streamPreProjectionOutputRows += metrics.outputRows
+      streamPreProjectionOutputVectors += metrics.outputVectors
+      streamPreProjectionOutputBytes += metrics.outputBytes
+      streamPreProjectionCount += metrics.count
+      streamPreProjectionWallNanos += metrics.wallNanos
+      streamPreProjectionCpuNanos += metrics.cpuNanos
+      streamPreProjectionBlockedWallNanos += metrics.blockedWallNanos
+      streamPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
+      streamPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
+
+    if (joinParams.isStreamReadRel) {
+      val metrics = joinMetrics.get(idx)
+      streamInputRows += metrics.inputRows
+      streamInputVectors += metrics.inputVectors
+      streamInputBytes += metrics.inputBytes
+      streamRawInputRows += metrics.rawInputRows
+      streamRawInputBytes += metrics.rawInputBytes
+      streamOutputRows += metrics.outputRows
+      streamOutputVectors += metrics.outputVectors
+      streamOutputBytes += metrics.outputBytes
+      streamCount += metrics.count
+      streamWallNanos += metrics.wallNanos
+      streamCpuNanos += metrics.cpuNanos
+      streamBlockedWallNanos += metrics.blockedWallNanos
+      streamPeakMemoryBytes += metrics.peakMemoryBytes
+      streamNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
   }
 
   override def outputPartitioning: Partitioning = buildSide match {
@@ -154,15 +605,14 @@ abstract class HashJoinLikeExecTransformer(
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
       return false
     }
-    val relNode =
-      try {
-        createJoinRel(null, null,
-          streamedPlan.output, buildPlan.output, substraitContext, validation = true)
-      } catch {
-        case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-          return false
-      }
+    val relNode = try {
+      createJoinRel(null, null, streamedPlan.output,
+        buildPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val validator = new ExpressionEvaluator()
@@ -174,41 +624,78 @@ abstract class HashJoinLikeExecTransformer(
   }
 
   override def doTransform(substraitContext: SubstraitContext): TransformContext = {
+
     def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute]) = {
       plan match {
         case p: TransformSupport =>
           val transformContext = p.doTransform(substraitContext)
           (transformContext.root, transformContext.outputAttributes)
         case _ =>
-          val readRel =
-            RelBuilder.makeReadRel(
-              new util.ArrayList[Attribute](plan.output.asJava),
-              substraitContext)
-          (readRel, plan.output)
+          (null, plan.output)
       }
     }
 
-    val (inputStreamedRelNode, inputStreamedOutput) = transformAndGetOutput(streamedPlan)
-    val (inputBuildRelNode, inputBuildOutput) = transformAndGetOutput(buildPlan)
+    def getReadRel(plan: SparkPlan, operatorId: Long): RelNode = {
+      plan match {
+        case _: TransformSupport =>
+          throw new IllegalArgumentException(s"Plan should not support transform.")
+        case _ =>
+          RelBuilder.makeReadRel(
+            new util.ArrayList[Attribute](plan.output.asJava),
+            substraitContext,
+            operatorId)
+      }
+    }
+
+    var (inputStreamedRelNode, inputStreamedOutput) = transformAndGetOutput(streamedPlan)
+    var (inputBuildRelNode, inputBuildOutput) = transformAndGetOutput(buildPlan)
+
+    val operatorId = substraitContext.nextOperatorId
+    val joinParams = new JoinParams
+
+    if (inputStreamedRelNode == null) {
+      joinParams.isStreamReadRel = true
+      inputStreamedRelNode = getReadRel(streamedPlan, operatorId)
+    }
+    if (inputBuildRelNode == null) {
+      joinParams.isBuildReadRel = true
+      inputBuildRelNode = getReadRel(buildPlan, operatorId)
+    }
+
+    if (preProjectionNeeded(streamedKeyExprs)) {
+      joinParams.streamPreProjectionNeeded = true
+    }
+
+    if (preProjectionNeeded(buildKeyExprs)) {
+      joinParams.buildPreProjectionNeeded = true
+    }
+
     val joinRel = createJoinRel(
       inputStreamedRelNode,
       inputBuildRelNode,
       inputStreamedOutput,
       inputBuildOutput,
-      substraitContext)
+      substraitContext,
+      operatorId)
+
+    substraitContext.registerJoinParam(operatorId, joinParams)
+
     createTransformContext(joinRel, inputStreamedOutput, inputBuildOutput)
   }
 
-  private def createPreProjectionIfNeeded(
-                                           keyExprs: Seq[Expression],
-                                           inputNode: RelNode,
-                                           inputNodeOutput: Seq[Attribute],
-                                           joinOutput: Seq[Attribute],
-                                           substraitContext: SubstraitContext,
-                                           validation: Boolean
-                                         )
+  private def preProjectionNeeded(keyExprs: Seq[Expression]): Boolean = {
+    keyExprs.forall(_.isInstanceOf[AttributeReference])
+  }
+
+  private def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
+                                          inputNode: RelNode,
+                                          inputNodeOutput: Seq[Attribute],
+                                          joinOutput: Seq[Attribute],
+                                          substraitContext: SubstraitContext,
+                                          operatorId: java.lang.Long,
+                                          validation: Boolean)
   : (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
-    if (keyExprs.forall(_.isInstanceOf[AttributeReference])) {
+    if (preProjectionNeeded(keyExprs)) {
       // Skip pre-projection if all keys are [AttributeReference]s,
       // which can be directly converted into SelectionNode.
       val keys = keyExprs.map { expr =>
@@ -233,7 +720,9 @@ abstract class HashJoinLikeExecTransformer(
         inputNode,
         new java.util.ArrayList[ExpressionNode](
           (selectOrigins ++ appendedKeys.map(_._1)).asJava),
-        createExtensionNode(inputNodeOutput, validation))
+        createExtensionNode(inputNodeOutput, validation),
+        substraitContext,
+        operatorId)
 
       // Compute index for join keys in join outputs.
       val offset = joinOutput.size - inputNodeOutput.size + selectOrigins.size
@@ -259,14 +748,13 @@ abstract class HashJoinLikeExecTransformer(
   }
 
 
-  private def createJoinRel(
-                             inputStreamedRelNode: RelNode,
-                             inputBuildRelNode: RelNode,
-                             inputStreamedOutput: Seq[Attribute],
-                             inputBuildOutput: Seq[Attribute],
-                             substraitContext: SubstraitContext,
-                             validation: Boolean = false
-                           ): RelNode = {
+  private def createJoinRel(inputStreamedRelNode: RelNode,
+                            inputBuildRelNode: RelNode,
+                            inputStreamedOutput: Seq[Attribute],
+                            inputBuildOutput: Seq[Attribute],
+                            substraitContext: SubstraitContext,
+                            operatorId: java.lang.Long,
+                            validation: Boolean = false): RelNode = {
     // Create pre-projection for build/streamed plan. Append projected keys to each side.
     val (streamedKeys, streamedRelNode, streamedOutput) = createPreProjectionIfNeeded(
       streamedKeyExprs,
@@ -274,13 +762,16 @@ abstract class HashJoinLikeExecTransformer(
       inputStreamedOutput,
       inputStreamedOutput,
       substraitContext,
+      operatorId,
       validation)
+
     val (buildKeys, buildRelNode, buildOutput) = createPreProjectionIfNeeded(
       buildKeyExprs,
       inputBuildRelNode,
       inputBuildOutput,
       streamedOutput ++ inputBuildOutput,
       substraitContext,
+      operatorId,
       validation)
 
     // Combine join keys to make a single expression.
@@ -306,7 +797,9 @@ abstract class HashJoinLikeExecTransformer(
       substraitJoinType,
       joinExpressionNode,
       postJoinFilter.orNull,
-      createJoinExtensionNode(streamedOutput ++ buildOutput, validation))
+      createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
+      substraitContext,
+      operatorId)
 
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
     val resultProjection = buildSide match {
@@ -328,15 +821,14 @@ abstract class HashJoinLikeExecTransformer(
     RelBuilder.makeProjectRel(
       joinRel,
       new java.util.ArrayList[ExpressionNode](resultProjection.asJava),
-      createExtensionNode(streamedOutput ++ buildOutput, validation)
-    )
+      createExtensionNode(streamedOutput ++ buildOutput, validation),
+      substraitContext,
+      operatorId)
   }
 
-  private def createTransformContext(
-                                      rel: RelNode,
-                                      inputStreamedOutput: Seq[Attribute],
-                                      inputBuildOutput: Seq[Attribute]
-                                    ): TransformContext = {
+  private def createTransformContext(rel: RelNode,
+                                     inputStreamedOutput: Seq[Attribute],
+                                     inputBuildOutput: Seq[Attribute]): TransformContext = {
     val inputAttributes = buildSide match {
       case BuildLeft => inputBuildOutput ++ inputStreamedOutput
       case BuildRight => inputStreamedOutput ++ inputBuildOutput
@@ -352,10 +844,8 @@ abstract class HashJoinLikeExecTransformer(
       new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf)
   }
 
-  private def createExtensionNode(
-                                   output: Seq[Attribute],
-                                   validation: Boolean
-                                 ): AdvancedExtensionNode = {
+  private def createExtensionNode(output: Seq[Attribute],
+                                  validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.
     if (validation) {
       ExtensionBuilder.makeAdvancedExtension(
@@ -365,10 +855,8 @@ abstract class HashJoinLikeExecTransformer(
     }
   }
 
-  private def createJoinExtensionNode(
-                                       output: Seq[Attribute],
-                                       validation: Boolean
-                                     ): AdvancedExtensionNode = {
+  private def createJoinExtensionNode(output: Seq[Attribute],
+                                      validation: Boolean): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
     val joinParameters = genJoinParametersBuilder()
@@ -391,7 +879,7 @@ abstract class HashJoinLikeExecTransformer(
       .append("isNullAwareAntiJoin=").append(isNullAwareAntiJoin).append("\n")
       .append("buildHashTableId=").append(buildHashTableId).append("\n")
     Any.newBuilder
-      .setValue(ByteString.copyFromUtf8(joinParametersStr.toString()))
+      .setValue(ByteString.copyFromUtf8(joinParametersStr.toString))
       .setTypeUrl("/google.protobuf.StringValue")
   }
 
@@ -400,10 +888,9 @@ abstract class HashJoinLikeExecTransformer(
   }
 
   // The output of result projection should be consistent with ShuffledJoin.output
-  private def getResultProjectionOutput(
-                                         leftOutput: Seq[Attribute],
-                                         rightOutput: Seq[Attribute]
-                                       ): (Seq[Attribute], Seq[Attribute]) = {
+  private def getResultProjectionOutput(leftOutput: Seq[Attribute],
+                                        rightOutput: Seq[Attribute])
+    : (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
         (leftOutput, rightOutput)
@@ -462,14 +949,13 @@ object HashJoinLikeExecTransformer {
   }
 }
 
-case class ShuffledHashJoinExecTransformer(
-                                            leftKeys: Seq[Expression],
-                                            rightKeys: Seq[Expression],
-                                            joinType: JoinType,
-                                            buildSide: BuildSide,
-                                            condition: Option[Expression],
-                                            left: SparkPlan,
-                                            right: SparkPlan)
+case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                           rightKeys: Seq[Expression],
+                                           joinType: JoinType,
+                                           buildSide: BuildSide,
+                                           condition: Option[Expression],
+                                           left: SparkPlan,
+                                           right: SparkPlan)
   extends HashJoinLikeExecTransformer(
     leftKeys,
     rightKeys,
@@ -489,15 +975,14 @@ case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
                                     buildSideStructure: Seq[Attribute],
                                     buildHashTableId: String)
 
-case class BroadcastHashJoinExecTransformer(
-                                             leftKeys: Seq[Expression],
-                                             rightKeys: Seq[Expression],
-                                             joinType: JoinType,
-                                             buildSide: BuildSide,
-                                             condition: Option[Expression],
-                                             left: SparkPlan,
-                                             right: SparkPlan,
-                                             isNullAwareAntiJoin: Boolean = false)
+case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                            rightKeys: Seq[Expression],
+                                            joinType: JoinType,
+                                            buildSide: BuildSide,
+                                            condition: Option[Expression],
+                                            left: SparkPlan,
+                                            right: SparkPlan,
+                                            isNullAwareAntiJoin: Boolean = false)
   extends HashJoinLikeExecTransformer(
     leftKeys,
     rightKeys,

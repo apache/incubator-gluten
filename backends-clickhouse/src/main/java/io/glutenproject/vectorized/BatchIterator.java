@@ -38,7 +38,7 @@ public class BatchIterator extends GeneralOutIterator {
 
   private native void nativeClose(long nativeHandle);
 
-  private native MetricsObject nativeFetchMetrics(long nativeHandle);
+  private native Metrics nativeFetchMetrics(long nativeHandle);
 
   @Override
   public boolean hasNextInternal() throws IOException {
@@ -59,7 +59,7 @@ public class BatchIterator extends GeneralOutIterator {
   }
 
   @Override
-  public MetricsObject getMetricsInternal() throws IOException, ClassNotFoundException {
+  public Metrics getMetricsInternal() throws IOException, ClassNotFoundException {
     return nativeFetchMetrics(handle);
   }
 
