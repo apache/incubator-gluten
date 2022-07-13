@@ -26,7 +26,7 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
-#include "arrow/c/Bridge.h"
+#include "arrow/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
