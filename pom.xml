@@ -30,6 +30,7 @@
   </licenses>
 
   <modules>
+    <module>install-deps</module>
     <module>jvm</module>
     <module>shims</module>
   </modules>
