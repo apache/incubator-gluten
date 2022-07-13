@@ -22,7 +22,7 @@
 #include <arrow/type_traits.h>
 
 #include "ArrowTypeUtils.h"
-#include "arrow/c/Bridge.h"
+#include "arrow/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
