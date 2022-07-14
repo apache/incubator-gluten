@@ -53,7 +53,8 @@ class DummyBackend : public ExecBackendBase {
       RETURN_NOT_OK(builder->Finish(&array));
       std::vector<std::shared_ptr<arrow::Field>> ret_types = {
           arrow::field("res", arrow::float64())};
-      auto batch = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
+      auto batch =
+          arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
       auto cArray = std::make_shared<ArrowArray>();
       GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get()));
       return cArray;

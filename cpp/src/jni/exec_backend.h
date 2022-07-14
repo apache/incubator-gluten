@@ -105,7 +105,9 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     return nullptr;
   };
 
-  virtual std::shared_ptr<arrow::Schema> GetOutputSchema() { return nullptr; }
+  virtual std::shared_ptr<arrow::Schema> GetOutputSchema() {
+    return nullptr;
+  }
 
  protected:
   ::substrait::Plan plan_;
