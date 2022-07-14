@@ -25,6 +25,7 @@ import scala.io.Source
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
 object DSV2BenchmarkTest {
 
@@ -43,7 +44,7 @@ object DSV2BenchmarkTest {
       val queryPath = resourcePath + "/queries/"
       // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       // "/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpch-data-sf10", "parquet", 3, false, queryPath + "q01.sql", "",
+      ("/data1/test_output/tpch-data-sf10", "parquet", 1, false, queryPath + "q01.sql", "",
         true, "/data1/gazelle-jni-warehouse")
     }
 
@@ -71,6 +72,8 @@ object DSV2BenchmarkTest {
       .builder()
       .appName("Gluten-Benchmark")
 
+    val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
+      "cmake-build-release/utils/local-engine/libch.so"
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
         .master("local[12]")
@@ -112,24 +115,23 @@ object DSV2BenchmarkTest {
         .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
-        .config(GlutenConfig.GLUTEN_LIB_PATH,
-          "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
-            "cmake-build-release/utils/local-engine/libch.so")
+        .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
+        .config("spark.gluten.sql.columnar.extension.scan.rdd", "false")
         // .config("spark.gluten.sql.columnar.sort", "false")
         // .config("spark.sql.codegen.wholeStage", "false")
         .config("spark.sql.autoBroadcastJoinThreshold", "10MB")
         .config("spark.sql.exchange.reuse", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
         .config("spark.gluten.sql.columnar.coalesce.batches", "true")
-        // .config("spark.gluten.sql.columnar.filescan", "true")
+        .config("spark.gluten.sql.columnar.filescan", "true")
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
         // .config("spark.sql.planChangeLog.level", "info")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
-        // .config("spark.sql.columnVector.offheap.enabled", "true")
+        .config("spark.sql.columnVector.offheap.enabled", "true")
         // .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "10737418240")
@@ -137,6 +139,10 @@ object DSV2BenchmarkTest {
         .config("spark.local.dir", "/data1/gazelle-jni-warehouse/spark_local_dirs")
         .config("spark.executor.heartbeatInterval", "240s")
         .config("spark.network.timeout", "300s")
+        .config("spark.sql.optimizer.dynamicPartitionPruning.enabled", "true")
+        .config("spark.sql.optimizer.dynamicPartitionPruning.useStats", "true")
+        .config("spark.sql.optimizer.dynamicPartitionPruning.fallbackFilterRatio", "0.5")
+        .config("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "true")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -187,11 +193,14 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    testTPCHOne(spark, executedCnt)
+    // testTPCHOne(spark, executedCnt)
+    testSepScanRDD(spark, executedCnt)
     // testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
+    ClickHouseLog.clearCache()
+    // JniLibLoader.unloadNativeLibs(libPath)
     if (stopFlagFile.isEmpty) {
       Thread.sleep(1800000)
     } else {
@@ -225,8 +234,65 @@ object DSV2BenchmarkTest {
            |            ch_lineitem100
            |        WHERE
            |            l_partkey = p_partkey);
+           |
            |""".stripMargin) // .show(30, false)
       df.explain(false)
+      val plan = df.queryExecution.executedPlan
+      val result = df.collect() // .show(100, false)  //.collect()
+      println(result.size)
+      result.foreach(r => println(r.mkString(",")))
+      val tookTime = (System.nanoTime() - startTime) / 1000000
+      println(s"Execute ${i} time, time: ${tookTime}")
+      tookTimeArr += tookTime
+      // Thread.sleep(5000)
+    }
+
+    println(tookTimeArr.mkString(","))
+
+    if (executedCnt >= 10) {
+      import spark.implicits._
+      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+      df.summary().show(100, false)
+    }
+  }
+
+  def testSepScanRDD(spark: SparkSession, executedCnt: Int): Unit = {
+    val tookTimeArr = ArrayBuffer[Long]()
+    for (i <- 1 to executedCnt) {
+      val startTime = System.nanoTime()
+      val df = spark.sql(
+        s"""
+           |    SELECT
+           |        ps_partkey,
+           |        sum(ps_supplycost * ps_availqty) AS value
+           |    FROM
+           |        ch_partsupp01,
+           |        ch_supplier01,
+           |        ch_nation01
+           |    WHERE
+           |        ps_suppkey = s_suppkey
+           |        AND s_nationkey = n_nationkey
+           |        AND n_name = 'GERMANY'
+           |    GROUP BY
+           |        ps_partkey
+           |    HAVING
+           |        sum(ps_supplycost * ps_availqty) > (
+           |            SELECT
+           |                sum(ps_supplycost * ps_availqty) * 0.0001000000
+           |            FROM
+           |                ch_partsupp01,
+           |                ch_supplier01,
+           |                ch_nation01
+           |            WHERE
+           |                ps_suppkey = s_suppkey
+           |                AND s_nationkey = n_nationkey
+           |                AND n_name = 'GERMANY')
+           |    ORDER BY
+           |        value DESC;
+           |
+           |""".stripMargin) // .show(30, false)
+      df.explain(false)
+      val plan = df.queryExecution.executedPlan
       val result = df.collect() // .show(100, false)  //.collect()
       println(result.size)
       result.foreach(r => println(r.mkString(",")))

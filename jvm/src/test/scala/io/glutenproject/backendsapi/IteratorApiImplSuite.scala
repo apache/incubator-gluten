@@ -35,7 +35,8 @@ class IteratorApiImplSuite extends IIteratorApi {
    *
    * @return
    */
-  override def genNativeFilePartition(p: InputPartition,
+  override def genNativeFilePartition(index: Int,
+                                      partitions: Seq[InputPartition],
                                       wsCxt: WholestageTransformContext
                                      ): BaseNativeFilePartition = null
 

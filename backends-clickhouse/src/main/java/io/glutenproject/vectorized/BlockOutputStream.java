@@ -27,6 +27,8 @@ public class BlockOutputStream implements Closeable {
   private final long instance;
   private final OutputStream outputStream;
 
+  private boolean isClosed = false;
+
   public BlockOutputStream(OutputStream outputStream, byte[] buffer) {
     this.outputStream = outputStream;
     this.instance = nativeCreate(outputStream, buffer);
@@ -53,8 +55,16 @@ public class BlockOutputStream implements Closeable {
 
   @Override
   public void close() throws IOException {
-    nativeClose(instance);
-    this.outputStream.flush();
-    this.outputStream.close();
+    if (!isClosed) {
+      nativeClose(instance);
+      this.outputStream.flush();
+      this.outputStream.close();
+      isClosed = true;
+    }
+  }
+
+  @Override
+  protected void finalize() throws Throwable {
+    close();
   }
 }

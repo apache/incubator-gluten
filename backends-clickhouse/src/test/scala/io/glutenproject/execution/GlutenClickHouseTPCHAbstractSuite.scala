@@ -26,7 +26,10 @@ import org.apache.commons.io.FileUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.types.{DoubleType, StructType}
 
 abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSuite with Logging {
 
@@ -58,8 +61,6 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     spark.sparkContext.setLogLevel("WARN")
     createTPCHTables()
   }
-
-  override protected implicit def spark: SparkSession = super.spark
 
   override protected def createTPCHTables(): Unit = {
     val customerData = chTablesPath + "/customer"
@@ -240,32 +241,69 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
-      .set("spark.sql.catalogImplementation", "hive")
+      /* .set("spark.sql.catalogImplementation", "hive")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
-        metaStorePathAbsolute +
-          "/metastore_db"
-      };create=true")
+        metaStorePathAbsolute + "/metastore_db"};create=true") */
   }
 
   protected override def afterAll(): Unit = {
+    ClickHouseLog.clearCache()
     super.afterAll()
     FileUtils.forceDelete(new File(basePath))
+    // init GlutenConfig in the next beforeAll
+    GlutenConfig.ins = null
   }
 
-  protected def runTPCHQuery(queryNum: Int)
+  protected def runTPCHQuery(queryNum: Int, compareResult: Boolean = true)
                             (customCheck: (DataFrame) => Unit): Unit = {
     val sqlNum = "q" + "%02d".format(queryNum)
     val sqlFile = chTpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
     val df = spark.sql(sqlStr)
     val result = df.collect()
+    val schema = df.schema
+    if (schema.exists(_.dataType == DoubleType)) {
+      compareDoubleResult(sqlNum, result, schema)
+    } else {
+      compareResultStr(sqlNum, result)
+    }
+    customCheck(df)
+  }
+
+  protected def compareResultStr(sqlNum: String, result: Array[Row]): Unit = {
     val resultStr = new StringBuffer()
     resultStr.append(result.size).append("\n")
-    result.foreach(r => resultStr.append(r.mkString(",")).append("\n"))
+    result.foreach(r => resultStr.append(r.mkString("|-|")).append("\n"))
     val queryResultStr =
       Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").mkString
     assert(queryResultStr.equals(resultStr.toString))
-    customCheck(df)
+  }
+
+  protected def compareDoubleResult(sqlNum: String,
+                                    result: Array[Row],
+                                    schema: StructType): Unit = {
+    val queryResults = Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"),
+      "UTF-8").getLines()
+    var recordCnt = queryResults.next().toInt
+    assert(result.size == recordCnt)
+    for (row <- result) {
+      assert(queryResults.hasNext)
+      val result = queryResults.next().split("\\|-\\|")
+      var i = 0
+      row.schema.foreach( s => {
+        s match {
+          case d if d.dataType == DoubleType =>
+            val v1 = row.getDouble(i)
+            val v2 = result(i).toDouble
+            assert(Math.abs(v1 - v2) < 0.00001)
+          case _ =>
+            val v1 = row.get(i).toString
+            val v2 = result(i)
+            assert(v1.equals(v2))
+        }
+        i += 1
+      })
+    }
   }
 }

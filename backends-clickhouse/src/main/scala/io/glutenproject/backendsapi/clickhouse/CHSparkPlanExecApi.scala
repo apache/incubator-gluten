@@ -57,12 +57,12 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
 
 
   /**
-    * Generate RowToArrowColumnarExec.
+    * Generate RowToColumnarExec.
     *
     * @param child
     * @return
     */
-  override def genRowToArrowColumnarExec(child: SparkPlan): RowToArrowColumnarExec =
+  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec =
     throw new UnsupportedOperationException(
       "Cannot support RowToArrowColumnarExec operation with ClickHouse backend.")
 
@@ -80,7 +80,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
   /**
     * Generate HashAggregateExecTransformer.
     */
-override def genHashAggregateExecTransformer(
+  override def genHashAggregateExecTransformer(
                                       requiredChildDistributionExpressions: Option[Seq[Expression]],
                                       groupingExpressions: Seq[NamedExpression],
                                       aggregateExpressions: Seq[AggregateExpression],

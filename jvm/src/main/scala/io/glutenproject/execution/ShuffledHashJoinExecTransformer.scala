@@ -68,7 +68,7 @@ abstract class HashJoinLikeExecTransformer(
     "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to build hash map"),
     "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "join time"))
 
-  protected lazy val (buildPlan, streamedPlan) = buildSide match {
+  lazy val (buildPlan, streamedPlan) = buildSide match {
     case BuildLeft => (left, right)
     case BuildRight => (right, left)
   }

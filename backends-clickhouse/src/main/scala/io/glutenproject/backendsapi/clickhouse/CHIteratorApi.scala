@@ -44,34 +44,33 @@ class CHIteratorApi extends IIteratorApi with Logging {
     *
     * @return
     */
-  override def genNativeFilePartition(p: InputPartition,
+  override def genNativeFilePartition(index: Int,
+                                      partitions: Seq[InputPartition],
                                       wsCxt: WholestageTransformContext
                                      ): BaseNativeFilePartition = {
-    p match {
-      case p: NativeMergeTreePartition =>
-        val extensionTableNode =
+    val localFilesNodes = (0 until partitions.size).map(i =>
+      partitions(i) match {
+        case p: NativeMergeTreePartition =>
           ExtensionTableBuilder.makeExtensionTable(p.minParts,
             p.maxParts, p.database, p.table, p.tablePath)
-        wsCxt.substraitContext.setExtensionTableNode(extensionTableNode)
-        logDebug(s"The substrait plan for partition " +
-          s"${p.index}:\n${wsCxt.root.toProtobuf.toString}")
-        p.copySubstraitPlan(wsCxt.root.toProtobuf.toByteArray)
-      case FilePartition(index, files) =>
-        val paths = new java.util.ArrayList[String]()
-        val starts = new java.util.ArrayList[java.lang.Long]()
-        val lengths = new java.util.ArrayList[java.lang.Long]()
-        files.foreach { f =>
-          paths.add(f.filePath)
-          starts.add(java.lang.Long.valueOf(f.start))
-          lengths.add(java.lang.Long.valueOf(f.length))
-        }
-        val localFilesNode = LocalFilesBuilder.makeLocalFiles(
-          index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat())
-        wsCxt.substraitContext.setLocalFilesNode(localFilesNode)
-        val substraitPlan = wsCxt.root.toProtobuf
-        logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
-        NativeFilePartition(index, files, substraitPlan.toByteArray)
-    }
+        case FilePartition(index, files) =>
+          val paths = new java.util.ArrayList[String]()
+          val starts = new java.util.ArrayList[java.lang.Long]()
+          val lengths = new java.util.ArrayList[java.lang.Long]()
+          files.foreach { f =>
+            paths.add(f.filePath)
+            starts.add(java.lang.Long.valueOf(f.start))
+            lengths.add(java.lang.Long.valueOf(f.length))
+          }
+          LocalFilesBuilder.makeLocalFiles(
+            index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat().get(i))
+      }
+    )
+    wsCxt.substraitContext.initLocalFilesNodesIndex(0)
+    wsCxt.substraitContext.setLocalFilesNodes(localFilesNodes)
+    val substraitPlan = wsCxt.root.toProtobuf
+    logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+    NativePartition(index, substraitPlan.toByteArray)
   }
 
 

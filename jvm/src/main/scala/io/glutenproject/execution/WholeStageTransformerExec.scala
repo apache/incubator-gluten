@@ -17,7 +17,8 @@
 
 package io.glutenproject.execution
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
@@ -140,6 +141,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def getChild: SparkPlan = child
 
+  @deprecated
   override def doExecute(): RDD[InternalRow] = {
     // check if BatchScan exists
     val currentOp = checkBatchScanExecTransformerChild()
@@ -150,7 +152,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getPartitions.map(p =>
-        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt))
+        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(-1, null, wsCxt))
       logDebug(
         s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
@@ -184,6 +186,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       substraitContext)
   }
 
+  @deprecated
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
     var currentOp = child
     while (currentOp.isInstanceOf[TransformSupport] &&
@@ -195,7 +198,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       currentOp.isInstanceOf[BasicScanExecTransformer]) {
       currentOp match {
         case op: BatchScanExecTransformer =>
-          op.partitions
           Some(currentOp.asInstanceOf[BatchScanExecTransformer])
         case op: FileSourceScanExecTransformer =>
           Some(currentOp.asInstanceOf[FileSourceScanExecTransformer])
@@ -203,6 +205,42 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     } else {
       None
     }
+  }
+
+  /**
+   * Find all BasicScanExecTransformers in one WholeStageTransformerExec
+   */
+  def checkBatchScanExecTransformerChildren(): Seq[BasicScanExecTransformer] = {
+    val basicScanExecTransformers = new mutable.ListBuffer[BasicScanExecTransformer]()
+
+    def transformChildren(plan: SparkPlan,
+                          basicScanExecTransformers: mutable.ListBuffer[BasicScanExecTransformer]
+                         ): Unit = {
+      if (plan != null && plan.isInstanceOf[TransformSupport]) {
+        if (plan.isInstanceOf[BasicScanExecTransformer]) {
+          basicScanExecTransformers.append(plan.asInstanceOf[BasicScanExecTransformer])
+        }
+        // according to the substrait plan order
+        if (plan.isInstanceOf[HashJoinLikeExecTransformer]) {
+          val shj = plan.asInstanceOf[HashJoinLikeExecTransformer]
+          transformChildren(shj.streamedPlan, basicScanExecTransformers)
+          transformChildren(shj.buildPlan, basicScanExecTransformers)
+        } else {
+          plan.asInstanceOf[TransformSupport].children.foreach(transformChildren(_,
+            basicScanExecTransformers))
+        }
+      }
+    }
+
+    transformChildren(child, basicScanExecTransformers)
+    basicScanExecTransformers.toSeq.map( scan => {
+      scan match {
+        case op: BatchScanExecTransformer =>
+          op.asInstanceOf[BatchScanExecTransformer]
+        case op: FileSourceScanExecTransformer =>
+          op.asInstanceOf[FileSourceScanExecTransformer]
+      }
+    })
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -214,24 +252,34 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     // we should zip all dependent RDDs to current main RDD
     // TODO: Does it still need these parameters?
     val streamedSortPlan = getStreamedLeafPlan
-    val dependentKernels: ListBuffer[ExpressionEvaluator] = ListBuffer()
-    val dependentKernelIterators: ListBuffer[GeneralOutIterator] = ListBuffer()
-    val buildRelationBatchHolder: ListBuffer[ColumnarBatch] = ListBuffer()
+    val dependentKernels: mutable.ListBuffer[ExpressionEvaluator] = mutable.ListBuffer()
+    val dependentKernelIterators: mutable.ListBuffer[GeneralOutIterator] = mutable.ListBuffer()
+    val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
 
     val inputRDDs = columnarInputRDDs
     // Check if BatchScan exists.
-    val currentOp = checkBatchScanExecTransformerChild()
-    if (currentOp.isDefined) {
-      // If containing scan exec transformer, a new RDD is created.
-      val fileScan = currentOp.get
-
-      val wsCxt = doWholestageTransform()
-      // Get and set the file format based on fileScan.
-      wsCxt.substraitContext.setFileFormat(ConverterUtils.getFileFormat(fileScan))
-
+    val basicScanExecTransformer = checkBatchScanExecTransformerChildren()
+    // If containing scan exec transformer, a new RDD is created.
+    if (!basicScanExecTransformer.isEmpty) {
+      // the partition size of the all BasicScanExecTransformer must be the same
+      val partitionLength = basicScanExecTransformer(0).getPartitions.length
+      if (basicScanExecTransformer.exists(_.getPartitions.length != partitionLength)) {
+        throw new RuntimeException(
+          "The partition length of all the scan transformer are not the same.")
+      }
       val startTime = System.nanoTime()
-      val substraitPlanPartition = fileScan.getPartitions.map(p =>
-        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(p, wsCxt))
+      val wsCxt = doWholestageTransform()
+
+      // the file format for each scan exec
+      wsCxt.substraitContext.setFileFormat(
+        basicScanExecTransformer.map(ConverterUtils.getFileFormat(_)).asJava)
+
+      // generate each partition of all scan exec
+      val substraitPlanPartition = (0 until partitionLength).map( i => {
+        val currentPartitions = basicScanExecTransformer.map(_.getPartitions(i))
+        BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(
+          i, currentPartitions, wsCxt)
+      })
       logInfo(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
 
@@ -239,11 +287,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         sparkContext,
         substraitPlanPartition,
         wsCxt.outputAttributes,
-        genFirstNewRDDsForBroadcast(inputRDDs, substraitPlanPartition.size),
+        genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
         updateMetrics)
     } else {
+      val startTime = System.nanoTime()
       val resCtx = doWholestageTransform()
+      logInfo(
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
       logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
 
       val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {

@@ -24,19 +24,28 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Vector;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import scala.Function0;
+import scala.runtime.BoxedUnit;
+
+import org.apache.spark.util.GlutenShutdownManager;
 
 /**
  * LoadXXX methods in the utility prevents reloading of a library internally.
@@ -65,6 +74,14 @@ public class JniLibLoader {
     System.load(libPath);
     LOADED_LIBRARY_PATHS.add(libPath);
     LOG.info("Library {} has been loaded using path-loading method", libPath);
+    // Unload native lib.
+    GlutenShutdownManager.registerUnloadLibShutdownHook(new Function0<BoxedUnit>() {
+      @Override
+      public BoxedUnit apply() {
+        JniLibLoader.unloadNativeLibs(libPath);
+        return BoxedUnit.UNIT;
+      }
+    });
   }
 
   public static void loadFromPath(String libPath) {
@@ -115,6 +132,53 @@ public class JniLibLoader {
 
   public JniLoadTransaction newTransaction() {
     return new JniLoadTransaction();
+  }
+
+  public static synchronized void unloadAllNativeLibs() {
+    LOADED_LIBRARY_PATHS.clear();
+    try {
+      ClassLoader classLoader = JniLibLoader.class.getClassLoader();
+      Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
+      field.setAccessible(true);
+      Vector<Object> libs = (Vector<Object>) field.get(classLoader);
+      Iterator it = libs.iterator();
+      while (it.hasNext()) {
+        Object object = it.next();
+        Method finalize = object.getClass().getDeclaredMethod("finalize");
+        finalize.setAccessible(true);
+        finalize.invoke(object);
+      }
+    } catch (Throwable th) {
+      LOG.error("Unload native library error: ", th);
+    }
+  }
+
+  public static synchronized void unloadNativeLibs(String libName) {
+    LOADED_LIBRARY_PATHS.remove(libName);
+    try {
+      ClassLoader classLoader = JniLibLoader.class.getClassLoader();
+      Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
+      field.setAccessible(true);
+      Vector<Object> libs = (Vector<Object>) field.get(classLoader);
+      Iterator it = libs.iterator();
+      while (it.hasNext()) {
+        Object object = it.next();
+        Field[] fs = object.getClass().getDeclaredFields();
+        for (int k = 0; k < fs.length; k++) {
+          if (fs[k].getName().equals("name")) {
+            fs[k].setAccessible(true);
+            String dllPath = fs[k].get(object).toString();
+            if (dllPath.endsWith(libName)) {
+              Method finalize = object.getClass().getDeclaredMethod("finalize");
+              finalize.setAccessible(true);
+              finalize.invoke(object);
+            }
+          }
+        }
+      }
+    } catch (Throwable th) {
+      LOG.error("Unload native library error: ", th);
+    }
   }
 
   private static final class LoadRequest {

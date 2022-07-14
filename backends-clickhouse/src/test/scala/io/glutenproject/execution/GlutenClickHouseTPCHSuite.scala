@@ -27,7 +27,11 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
+      .set("spark.sql.shuffle.partitions", "5")
+      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
   }
 
   test("TPCH Q1") {
@@ -61,6 +65,10 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(5) { df =>
+        val bhjRes = df.queryExecution.executedPlan.collect {
+          case bhj: BroadcastHashJoinExecTransformer => bhj
+        }
+        assert(bhjRes.size == 0)
       }
     }
   }
@@ -71,12 +79,22 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q7") {
-    runTPCHQuery(7) { df =>
+    withSQLConf(
+      ("spark.sql.shuffle.partitions", "1"),
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      runTPCHQuery(7) { df =>
+      }
     }
   }
 
   test("TPCH Q8") {
-    runTPCHQuery(8) { df =>
+    withSQLConf(
+      ("spark.sql.shuffle.partitions", "1"),
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      runTPCHQuery(8) { df =>
+      }
     }
   }
 
@@ -106,7 +124,12 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q14") {
-    runTPCHQuery(14) { df =>
+    withSQLConf(
+      ("spark.sql.shuffle.partitions", "1"),
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      runTPCHQuery(14) { df =>
+      }
     }
   }
 

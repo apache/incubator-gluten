@@ -35,14 +35,16 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 class ClickHouseAnalysis(session: SparkSession, conf: SQLConf)
   extends Rule[LogicalPlan] with AnalysisHelper with DeltaLogging {
 
-  val useDSV2 = session.sessionState.conf.getConfString(
-    ClickHouseConfig.USE_DATASOURCE_V2, ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2).toBoolean
-
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsDown {
     // This rule falls back to V1 nodes according to 'spark.gluten.sql.columnar.backend.ch.use.v2'
     case dsv2@DataSourceV2Relation(tableV2: ClickHouseTableV2, _, _, _, options) =>
-      if (useDSV2) dsv2
-      else ClickHouseAnalysis.fromV2Relation(tableV2, dsv2, options)
+      if (conf.getConfString(ClickHouseConfig.USE_DATASOURCE_V2,
+        ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2).toBoolean) {
+        dsv2
+      }
+      else {
+        ClickHouseAnalysis.fromV2Relation(tableV2, dsv2, options)
+      }
   }
 }
 
