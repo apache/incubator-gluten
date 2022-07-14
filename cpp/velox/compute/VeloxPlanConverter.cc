@@ -24,7 +24,7 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
-#include "arrow/c/Bridge.h"
+#include "arrow/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
 #include "jni/exec_backend.h"
