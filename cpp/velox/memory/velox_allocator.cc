@@ -96,7 +96,7 @@ class VeloxMemoryAllocatorVariant {
   MemoryAllocator* gluten_alloc_;
 };
 
-// The code was originated from /velox/common/memory/Memory.h
+// The code is originated from /velox/common/memory/Memory.h
 // Removed memory manager.
 template <
     typename Allocator = VeloxMemoryAllocatorVariant,
