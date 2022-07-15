@@ -31,11 +31,14 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
                                pushdownFilters: Seq[Expression] = Seq())
   extends BatchScanExec(output, scan) with BasicScanExecTransformer {
 
+  val enableExtensionScanRDD = GlutenConfig.getConf.enableExtensionScanRDD
+
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_batchscan"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input batches"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output batches"),
+    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
+    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "convert time"),
     "inputSize" -> SQLMetrics.createSizeMetric(sparkContext, "input size in bytes"))
 
   override def filterExprs(): Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
@@ -48,10 +51,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def getPartitions: Seq[InputPartition] = partitions
 
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
+  override def supportsColumnar(): Boolean =
+    super.supportsColumnar && GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+    doExecuteColumnarInternal(enableExtensionScanRDD)
   }
 
   override def equals(other: Any): Boolean = other match {

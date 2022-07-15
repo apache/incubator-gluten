@@ -296,6 +296,8 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
   val columnarWholeStageEnabled: Boolean =
     conf.getBoolean("spark.gluten.sql.columnar.wholestagetransform", defaultValue = true)
+  val enableExtensionScanRDD: Boolean =
+    conf.getBoolean("spark.gluten.sql.columnar.extension.scan.rdd", false)
   val isCH: Boolean = conf
     .get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
     .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
@@ -327,7 +329,10 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       isSupportAdaptive = supportAdaptive(plan)
       val rule = preOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
-      rule(rowGuardOverrides(plan))
+      // rule(rowGuardOverrides(plan))
+      val guardPlan = rowGuardOverrides(plan)
+      val newPlan = rule(guardPlan)
+      newPlan
     } else {
       plan
     }
@@ -345,7 +350,8 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       val rule = postOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
       val tmpPlan = rule(plan)
-      collapseOverrides(tmpPlan)
+      val newPlan = collapseOverrides(tmpPlan)
+      newPlan
     } else {
       plan
     }
@@ -356,7 +362,10 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   def postOverrides: TransformPostOverrides = TransformPostOverrides()
 
   def collapseOverrides: ColumnarCollapseCodegenStages =
-    ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
+    ColumnarCollapseCodegenStages(
+      columnarWholeStageEnabled,
+      isCH,
+      enableExtensionScanRDD)
 
   private def supportAdaptive(plan: SparkPlan): Boolean = {
     // TODO migrate dynamic-partition-pruning onto adaptive execution.

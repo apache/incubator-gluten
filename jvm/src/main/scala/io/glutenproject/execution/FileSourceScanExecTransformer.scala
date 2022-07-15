@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
@@ -52,10 +53,27 @@ class FileSourceScanExecTransformer(
     disableBucketedScan)
     with BasicScanExecTransformer {
 
+  val enableExtensionScanRDD = GlutenConfig.getConf.enableExtensionScanRDD
+
   override lazy val supportsColumnar: Boolean = {
     relation.fileFormat
       .supportBatch(relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
   }
+
+  override lazy val metrics: Map[String, SQLMetric] = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input batches"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output batches"),
+    "inputSize" -> SQLMetrics.createSizeMetric(sparkContext, "input size in bytes"),
+    "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
+    "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
+    "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
+    "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
+    "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read"),
+    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
+    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "convert time"),
+    "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
+    "pruningTime" -> SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"))
 
   override def filterExprs(): Seq[Expression] = dataFilters
 
@@ -99,6 +117,6 @@ class FileSourceScanExecTransformer(
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+    doExecuteColumnarInternal(enableExtensionScanRDD)
   }
 }

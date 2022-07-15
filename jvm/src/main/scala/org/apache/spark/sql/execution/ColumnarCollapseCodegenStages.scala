@@ -32,7 +32,9 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
 
   // This is not strictly needed because the codegen transformation happens after the columnar
   // transformation but just for consistency
-  override def supportsColumnar: Boolean = child.supportsColumnar
+  override def supportsColumnar: Boolean = {
+    child.supportsColumnar
+  }
 
   override def supportCodegen: Boolean = false
 
@@ -107,7 +109,10 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  */
 case class ColumnarCollapseCodegenStages(
                                           columnarWholeStageEnabled: Boolean,
-                                          codegenStageCounter: AtomicInteger = new AtomicInteger(0))
+                                          isCH: Boolean,
+                                          enableExtensionScanRDD: Boolean,
+                                          codegenStageCounter: AtomicInteger = new AtomicInteger(0)
+                                        )
   extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -118,8 +123,17 @@ case class ColumnarCollapseCodegenStages(
     }
   }
 
+  /**
+   * When it's the ClickHouse backend or the extension scan rdd is enable,
+   * BasicScanExecTransformer will not be included in WholeStageTransformerExec.
+   */
+  private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
+    case f: BasicScanExecTransformer if (isCH || enableExtensionScanRDD) => true
+    case _ => false
+  }
+
   private def supportTransform(plan: SparkPlan): Boolean = plan match {
-    case plan: TransformSupport => true
+    case plan: TransformSupport if !isSeparateBasicScanExecTransformer(plan) => true
     case _ => false
   }
 
@@ -137,7 +151,7 @@ case class ColumnarCollapseCodegenStages(
 
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
-      case t: TransformSupport =>
+      case t: TransformSupport if !isSeparateBasicScanExecTransformer(t) =>
         WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
           codegenStageCounter.incrementAndGet())
       case other =>

@@ -215,6 +215,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableCoalesceBatches: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
 
+  val enableExtensionScanRDD: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.extension.scan.rdd", "false").toBoolean
+
   val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.gluten.sql.columnar.numaBinding", "false").toBoolean

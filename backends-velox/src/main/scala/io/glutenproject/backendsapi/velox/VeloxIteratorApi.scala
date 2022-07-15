@@ -25,19 +25,23 @@ import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.vectorized.NativeColumnVectorWriter
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.UserAddedJarUtils
+import org.apache.arrow.vector.types.pojo.Schema
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenNumaBindingInfo
@@ -47,7 +51,6 @@ import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.vectorized._
-import org.apache.arrow.vector.types.pojo.Schema
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
@@ -362,6 +365,42 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     val batchIteratorInstance =
       jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)
+  }
+
+  /**
+   * Convert Spark ColumnarBatch to Native ColumnarBatch.
+   */
+  override def convertToNativeColumnarBatch(inputAttributes: Seq[Attribute],
+                                            ouputAttributes: Seq[Attribute],
+                                            iterator: Iterator[ColumnarBatch],
+                                            numOutputRows: SQLMetric,
+                                            numOutputBatches: SQLMetric,
+                                            scanTime: SQLMetric,
+                                            convertTime: SQLMetric): Iterator[ColumnarBatch] = {
+    throw new UnsupportedOperationException(
+      "Cannot support to convert to Native ColumnarBatch operation.")
+  }
+
+  /**
+   * Generate Native FileScanRDD, currently only for ClickHouse Backend.
+   */
+  override def genNativeFileScanRDD(sparkContext: SparkContext,
+                                    wsCxt: WholestageTransformContext,
+                                    fileFormat: java.lang.Integer,
+                                    inputPartitions: Seq[InputPartition],
+                                    numOutputRows: SQLMetric,
+                                    numOutputBatches: SQLMetric,
+                                    scanTime: SQLMetric): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(
+      "Cannot support to generate Native FileScanRDD.")
+  }
+
+  /**
+   * Generate NativeColumnVectorWriter for NativeColumnVector to write data.
+   */
+  override def genNativeColumnVectorWriter(): NativeColumnVectorWriter = {
+    throw new UnsupportedOperationException(
+      "Cannot support to generate NativeColumnVectorWriter.")
   }
 
   /**

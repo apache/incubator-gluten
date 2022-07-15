@@ -155,6 +155,9 @@ object ExpressionConverter extends Logging {
             ss.len,
             attributeSeq),
           expr)
+      case dynamic: DynamicPruningExpression =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        new DynamicPruningExpressionTransformer(dynamic)
       case u: UnaryExpression =>
         logInfo(s"${expr.getClass} $expr is supported")
         if (!u.isInstanceOf[CheckOverflow] || !u.child.isInstanceOf[Divide]) {

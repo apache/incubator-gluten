@@ -18,6 +18,7 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import scala.collection.JavaConverters._
 
@@ -28,13 +29,15 @@ import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.vectorized._
 
-import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.vectorized.{CHNativeColumnVectorWriter, ConvertColumnVector, NativeColumnVectorWriter, OffHeapColumnVector}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class CHIteratorApi extends IIteratorApi with Logging {
@@ -141,17 +144,17 @@ class CHIteratorApi extends IIteratorApi with Logging {
   : Iterator[ColumnarBatch] = {
     var resIter: GeneralOutIterator = null
     if (loadNative) {
+      val beforeBuild = System.nanoTime()
       val transKernel = new ExpressionEvaluator()
       val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
         new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, inBatchIters, outputAttributes.asJava)
+      pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {
-      // private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
-
       override def hasNext: Boolean = {
         if (loadNative) {
           resIter.hasNext
@@ -194,13 +197,13 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                     ): Iterator[ColumnarBatch] = {
      // scalastyle:on argcount
     GlutenConfig.getConf
+    val beforeBuild = System.nanoTime()
     val transKernel = new ExpressionEvaluator()
     val columnarNativeIterator =
       new java.util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
         new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
-    val beforeBuild = System.nanoTime()
     val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator,
       outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
@@ -273,6 +276,88 @@ class CHIteratorApi extends IIteratorApi with Logging {
     val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
       0L, wsPlan, iterList.toArray);
     new BatchIterator(batchIteratorInstance, outAttrs.asJava)
+  }
+
+  /**
+    * Convert Spark ColumnarBatch to Native ColumnarBatch.
+    */
+  override def convertToNativeColumnarBatch(inputAttributes: Seq[Attribute],
+                                            ouputAttributes: Seq[Attribute],
+                                            iterator: Iterator[ColumnarBatch],
+                                            numOutputRows: SQLMetric,
+                                            numOutputBatches: SQLMetric,
+                                            scanTime: SQLMetric,
+                                            convertTime: SQLMetric): Iterator[ColumnarBatch] = {
+    val convertIter = new Iterator[ColumnarBatch] {
+      var convertTotalTime = 0L
+
+      override def hasNext: Boolean = {
+        val res = iterator.hasNext
+        if (!res) {
+          convertTime += NANOSECONDS.toMillis(convertTotalTime)
+        }
+        res
+      }
+
+      override def next(): ColumnarBatch = {
+        val cb = iterator.next()
+        val startNs = System.nanoTime()
+        // Convert ColumnarVector to NativeColumnarVector
+        val numRows = cb.numRows()
+        val numCols = cb.numCols()
+        (0 until numCols).foreach(i => {
+          if (cb.column(i).isInstanceOf[OffHeapColumnVector]) {
+            val currentVector = cb.column(i).asInstanceOf[OffHeapColumnVector]
+            ConvertColumnVector.convert(currentVector, numCols, numRows);
+          } else {
+            throw new UnsupportedOperationException("Can't support other ColumnarVector type.")
+          }
+        })
+        convertTotalTime += System.nanoTime() - startNs
+        numOutputBatches += 1
+        cb
+      }
+    }
+    while (convertIter.hasNext) {
+      convertIter.next()
+    }
+    Iterator.empty
+  }
+
+  /**
+    * Generate Native FileScanRDD, currently only for ClickHouse Backend.
+    */
+  override def genNativeFileScanRDD(sparkContext: SparkContext,
+                                    wsCxt: WholestageTransformContext,
+                                    fileFormat: java.lang.Integer,
+                                    inputPartitions: Seq[InputPartition],
+                                    numOutputRows: SQLMetric,
+                                    numOutputBatches: SQLMetric,
+                                    scanTime: SQLMetric): RDD[ColumnarBatch] = {
+    val startTime = System.nanoTime()
+    // the file format for each scan exec
+    wsCxt.substraitContext.setFileFormat(Seq(fileFormat).asJava)
+
+    // generate each partition of all scan exec
+    val substraitPlanPartition = (0 until inputPartitions.size).map( i => {
+      genNativeFilePartition(i, Seq(inputPartitions(i)), wsCxt)
+    })
+    logInfo(
+      s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
+    new NativeFileScanColumnarRDD(
+      sparkContext,
+      substraitPlanPartition,
+      wsCxt.outputAttributes,
+      numOutputRows,
+      numOutputBatches,
+      scanTime)
+  }
+
+  /**
+    * Generate NativeColumnVectorWriter for NativeColumnVector to write data.
+    */
+  override def genNativeColumnVectorWriter(): NativeColumnVectorWriter = {
+    new CHNativeColumnVectorWriter()
   }
 
   /**

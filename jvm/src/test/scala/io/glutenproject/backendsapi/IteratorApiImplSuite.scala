@@ -22,11 +22,13 @@ import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformC
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark.{SparkConf, TaskContext}
+import org.apache.spark.{SparkConf, SparkContext, TaskContext}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.vectorized.NativeColumnVectorWriter
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class IteratorApiImplSuite extends IIteratorApi {
@@ -108,6 +110,34 @@ class IteratorApiImplSuite extends IIteratorApi {
                                 jniWrapper: ExpressionEvaluatorJniWrapper,
                                 outAttrs: Seq[Attribute]
                                ): GeneralOutIterator = null
+
+  /**
+   * Convert Spark ColumnarBatch to Native ColumnarBatch.
+   */
+  override def convertToNativeColumnarBatch(inputAttributes: Seq[Attribute],
+                                            ouputAttributes: Seq[Attribute],
+                                            iterator: Iterator[ColumnarBatch],
+                                            numOutputRows: SQLMetric,
+                                            numOutputBatches: SQLMetric,
+                                            scanTime: SQLMetric,
+                                            convertTime: SQLMetric): Iterator[ColumnarBatch] = null
+
+  /**
+   * Generate Native FileScanRDD, currently only for ClickHouse Backend.
+   */
+  override def genNativeFileScanRDD(sparkContext: SparkContext,
+                                    wsCxt: WholestageTransformContext,
+                                    fileFormat: java.lang.Integer,
+                                    inputPartitions: Seq[InputPartition],
+                                    numOutputRows: SQLMetric,
+                                    numOutputBatches: SQLMetric,
+                                    scanTime: SQLMetric
+                                   ): RDD[ColumnarBatch] = null
+
+  /**
+   * Generate NativeColumnVectorWriter for NativeColumnVector to write data.
+   */
+  override def genNativeColumnVectorWriter(): NativeColumnVectorWriter = null
 
   /**
    * Get the backend api name.
