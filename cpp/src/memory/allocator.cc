@@ -175,12 +175,7 @@ int64_t gluten::memory::StdMemoryAllocator::GetBytes() {
   return bytes_;
 }
 
-gluten::memory::MemoryAllocator* gluten::memory::DefaultMemoryAllocator() {
-  static MemoryAllocator* alloc = new StdMemoryAllocator();
-  return alloc;
-}
-
-arrow::Status gluten::memory::WrappedMemoryPool::Allocate(
+arrow::Status gluten::memory::WrappedArrowMemoryPool::Allocate(
     int64_t size,
     uint8_t** out) {
   if (!allocator_->Allocate(size, reinterpret_cast<void**>(out))) {
@@ -191,7 +186,7 @@ arrow::Status gluten::memory::WrappedMemoryPool::Allocate(
   return arrow::Status::OK();
 }
 
-arrow::Status gluten::memory::WrappedMemoryPool::Reallocate(
+arrow::Status gluten::memory::WrappedArrowMemoryPool::Reallocate(
     int64_t old_size,
     int64_t new_size,
     uint8_t** ptr) {
@@ -204,26 +199,36 @@ arrow::Status gluten::memory::WrappedMemoryPool::Reallocate(
   return arrow::Status::OK();
 }
 
-void gluten::memory::WrappedMemoryPool::Free(uint8_t* buffer, int64_t size) {
+void gluten::memory::WrappedArrowMemoryPool::Free(
+    uint8_t* buffer,
+    int64_t size) {
   allocator_->Free(buffer, size);
 }
 
-int64_t gluten::memory::WrappedMemoryPool::bytes_allocated() const {
+int64_t gluten::memory::WrappedArrowMemoryPool::bytes_allocated() const {
   // fixme use self accountant
   return allocator_->GetBytes();
 }
 
-std::string gluten::memory::WrappedMemoryPool::backend_name() const {
+std::string gluten::memory::WrappedArrowMemoryPool::backend_name() const {
   return "gluten allocator";
+}
+
+std::shared_ptr<gluten::memory::MemoryAllocator>
+gluten::memory::DefaultMemoryAllocator() {
+  static std::shared_ptr<MemoryAllocator> alloc =
+      std::make_shared<StdMemoryAllocator>();
+  return alloc;
 }
 
 std::shared_ptr<arrow::MemoryPool> gluten::memory::AsWrappedArrowMemoryPool(
     gluten::memory::MemoryAllocator* allocator) {
-  return std::make_shared<WrappedMemoryPool>(allocator);
+  return std::make_shared<WrappedArrowMemoryPool>(allocator);
 }
 
-arrow::MemoryPool* gluten::memory::GetDefaultWrappedArrowMemoryPool() {
+std::shared_ptr<arrow::MemoryPool>
+gluten::memory::GetDefaultWrappedArrowMemoryPool() {
   static auto static_pool =
-      AsWrappedArrowMemoryPool(gluten::memory::DefaultMemoryAllocator());
-  return static_pool.get();
+      AsWrappedArrowMemoryPool(gluten::memory::DefaultMemoryAllocator().get());
+  return static_pool;
 }

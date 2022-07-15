@@ -50,7 +50,8 @@ class LazyReadIterator {
   arrow::Status Next(std::shared_ptr<ArrowArray>* out);
 
  private:
-  arrow::MemoryPool* pool_ = gluten::memory::GetDefaultWrappedArrowMemoryPool();
+  arrow::MemoryPool* pool_ =
+      gluten::memory::GetDefaultWrappedArrowMemoryPool().get();
   std::shared_ptr<ArrowArrayIterator> array_iter_;
   bool need_process_ = false;
   bool no_next_ = false;

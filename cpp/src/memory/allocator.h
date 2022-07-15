@@ -117,12 +117,10 @@ class StdMemoryAllocator : public MemoryAllocator {
   std::atomic_int64_t bytes_{0};
 };
 
-MemoryAllocator* DefaultMemoryAllocator();
-
 // TODO aligned allocation
-class WrappedMemoryPool : public arrow::MemoryPool {
+class WrappedArrowMemoryPool : public arrow::MemoryPool {
  public:
-  explicit WrappedMemoryPool(MemoryAllocator* allocator)
+  explicit WrappedArrowMemoryPool(MemoryAllocator* allocator)
       : allocator_(allocator) {}
 
   arrow::Status Allocate(int64_t size, uint8_t** out) override;
@@ -140,10 +138,12 @@ class WrappedMemoryPool : public arrow::MemoryPool {
   MemoryAllocator* allocator_;
 };
 
+std::shared_ptr<MemoryAllocator> DefaultMemoryAllocator();
+
 std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(
     MemoryAllocator* allocator);
 
-arrow::MemoryPool* GetDefaultWrappedArrowMemoryPool();
+std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool();
 
 } // namespace memory
 } // namespace gluten
