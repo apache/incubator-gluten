@@ -23,10 +23,7 @@ namespace memory {
 class VeloxMemoryAllocatorVariant {
  public:
   VeloxMemoryAllocatorVariant(MemoryAllocator* gluten_alloc)
-      : gluten_alloc_(gluten_alloc),
-        manager_(std::make_shared<facebook::velox::memory::MemoryManager<
-                     VeloxMemoryAllocatorVariant,
-                     kNoAlignment>>()) {}
+      : gluten_alloc_(gluten_alloc) {}
 
   static std::shared_ptr<VeloxMemoryAllocatorVariant> createDefaultAllocator() {
     static std::shared_ptr<VeloxMemoryAllocatorVariant> velox_alloc =
@@ -97,12 +94,10 @@ class VeloxMemoryAllocatorVariant {
 
  private:
   MemoryAllocator* gluten_alloc_;
-  std::shared_ptr<facebook::velox::memory::
-                      MemoryManager<VeloxMemoryAllocatorVariant, kNoAlignment>>
-      manager_;
 };
 
 // The code was originated from /velox/common/memory/Memory.h
+// Removed memory manager.
 template <
     typename Allocator = VeloxMemoryAllocatorVariant,
     uint16_t ALIGNMENT = kNoAlignment>
