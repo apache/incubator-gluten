@@ -358,7 +358,7 @@ TEST_F(SplitterTest, TestSplitterMemoryLeak) {
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  split_options_.memory_pool = pool.get();
+  split_options_.memory_pool = pool;
   split_options_.write_schema = false;
 
   ARROW_ASSIGN_OR_THROW(
@@ -373,8 +373,6 @@ TEST_F(SplitterTest, TestSplitterMemoryLeak) {
   ASSERT_TRUE(pool->bytes_allocated() == 0);
   splitter_.reset();
   ASSERT_TRUE(pool->bytes_allocated() == 0);
-
-  split_options_.memory_pool = arrow::default_memory_pool();
 }
 
 TEST_F(SplitterTest, TestHashSplitter) {
@@ -526,11 +524,11 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
 }
 
 TEST_F(SplitterTest, TestSpillFailWithOutOfMemory) {
-  auto pool = std::make_unique<MyMemoryPool>(0);
+  auto pool = std::make_shared<MyMemoryPool>(0);
 
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-  split_options_.memory_pool = pool.get();
+  split_options_.memory_pool = pool;
   ARROW_ASSIGN_OR_THROW(
       splitter_, Splitter::Make("rr", schema_, num_partitions, split_options_));
 
