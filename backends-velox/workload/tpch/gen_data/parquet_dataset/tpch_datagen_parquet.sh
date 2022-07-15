@@ -18,5 +18,4 @@ cat tpch_datagen_parquet.scala | ${SPARK_HOME}/bin/spark-shell \
   --conf spark.driver.maxResultSize=4g \
   --conf spark.sql.sources.useV1SourceList=avro \
   --conf spark.sql.shuffle.partitions=224 \
-  --jars /home/sparkuser/jk/benchmarks/tools/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar
-
+  --jars ${spark_sql_perf_jar}
