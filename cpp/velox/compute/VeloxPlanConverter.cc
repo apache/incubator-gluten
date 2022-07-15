@@ -266,8 +266,7 @@ VeloxPlanConverter::GetResultIterator(
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
-  const std::shared_ptr<const core::PlanNode> planNode =
-      getVeloxPlanNode(plan_);
+  planNode_ = getVeloxPlanNode(plan_);
 
   // Scan node can be required.
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
@@ -276,7 +275,7 @@ VeloxPlanConverter::GetResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(
       subVeloxPlanConverter_->splitInfos(),
-      planNode->leafPlanNodeIds(),
+      planNode_->leafPlanNodeIds(),
       scanInfos,
       scanIds,
       streamIds);
@@ -284,12 +283,12 @@ VeloxPlanConverter::GetResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(
-        pool_, planNode, streamIds);
+        pool_, planNode_, streamIds);
     return std::make_shared<gluten::ArrowArrayResultIterator>(
         std::move(wholestageIter));
   }
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, scanIds, scanInfos, streamIds);
+      pool_, planNode_, scanIds, scanInfos, streamIds);
   return std::make_shared<gluten::ArrowArrayResultIterator>(
       std::move(wholestageIter));
 }
@@ -298,8 +297,7 @@ std::shared_ptr<gluten::ArrowArrayResultIterator>
 VeloxPlanConverter::GetResultIterator(
     const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
         setScanInfos) {
-  const std::shared_ptr<const core::PlanNode> planNode =
-      getVeloxPlanNode(plan_);
+  planNode_ = getVeloxPlanNode(plan_);
 
   // In test, use setScanInfos to replace the one got from Substrait.
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
@@ -308,15 +306,29 @@ VeloxPlanConverter::GetResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(
       subVeloxPlanConverter_->splitInfos(),
-      planNode->leafPlanNodeIds(),
+      planNode_->leafPlanNodeIds(),
       scanInfos,
       scanIds,
       streamIds);
 
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode, scanIds, setScanInfos, streamIds);
+      pool_, planNode_, scanIds, setScanInfos, streamIds);
   return std::make_shared<gluten::ArrowArrayResultIterator>(
       std::move(wholestageIter));
+}
+
+std::shared_ptr<arrow::Schema> VeloxPlanConverter::GetOutputSchema() {
+  if (output_schema_ == nullptr) {
+    cacheOutputSchema(planNode_);
+  }
+  return output_schema_;
+}
+
+void VeloxPlanConverter::cacheOutputSchema(
+    const std::shared_ptr<const core::PlanNode>& planNode) {
+  ArrowSchema arrowSchema{};
+  exportToArrow(planNode->outputType(), arrowSchema);
+  GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
 
 void WholeStageResIter::toArrowArray(const RowVectorPtr& rv, ArrowArray& out) {

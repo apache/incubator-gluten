@@ -25,9 +25,6 @@ function(add_velox_benchmark BM_EXEC BM_FILE)
   target_link_libraries(${BM_EXEC} gflags_shared Arrow::parquet velox benchmark::benchmark)
 endfunction()
 
-# Hash join benchmark
-add_velox_benchmark(hash_join_benchmark HashJoinBenchmark.cc)
-
 # Query benchmark
 add_velox_benchmark(query_benchmark QueryBenchmark.cc)
 

@@ -76,14 +76,12 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
         if (srel.has_root()) {
           auto& sroot = srel.root();
           if (sroot.has_input()) {
-            // TODO: remove arrow::Status
             GLUTEN_THROW_NOT_OK(GetIterInputSchemaFromRel(sroot.input()));
           } else {
             throw GlutenException("Expect Rel as input.");
           }
         }
         if (srel.has_rel()) {
-          // TODO: remove arrow::Status
           GLUTEN_THROW_NOT_OK(GetIterInputSchemaFromRel(srel.rel()));
         }
       }
@@ -106,6 +104,10 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter) {
     return nullptr;
   };
+
+  virtual std::shared_ptr<arrow::Schema> GetOutputSchema() {
+    return nullptr;
+  }
 
  protected:
   ::substrait::Plan plan_;
@@ -292,7 +294,7 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
   inline void CheckValid() {
     if (iter_ == nullptr) {
       throw GlutenException(
-          "ArrowArrayResultIterator: the underlying iterator has expired.");
+          "ArrowExecResultIterator: the underlying iterator has expired.");
     }
   }
 
