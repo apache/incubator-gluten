@@ -24,7 +24,7 @@ import scala.language.implicitConversions
 import com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.{ColumnarOverrides, OthersExtensionOverrides, StrategyOverrides}
+import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePreparations, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -118,6 +118,7 @@ private[glutenproject] object GlutenPlugin {
    * Specify all injectors that Gluten is using in following list.
    */
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
+    ColumnarQueryStagePreparations,
     ColumnarOverrides,
     StrategyOverrides,
     OthersExtensionOverrides

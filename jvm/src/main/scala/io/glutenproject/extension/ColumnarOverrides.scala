@@ -46,10 +46,20 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case RowGuard(child: CustomShuffleReaderExec) =>
       replaceWithTransformerPlan(child)
+    case RowGuard(bhj: BroadcastHashJoinExec) =>
+      bhj.withNewChildren(bhj.children.map {
+        // ResuedExchange is not created yet, so we don't need to handle that case.
+        case e: BroadcastExchangeExec =>
+          replaceWithTransformerPlan(RowGuard(e))
+        case other => replaceWithTransformerPlan(other)
+      })
     case plan: RowGuard =>
       val actualPlan = plan.child
       logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")
       actualPlan.withNewChildren(actualPlan.children.map(replaceWithTransformerPlan))
+    case plan if plan.getTagValue(RowGuardTag.key).contains(true) =>
+      // Add RowGuard if the plan has a RowGuardTag.
+      replaceWithTransformerPlan(RowGuard(plan))
     /* case plan: ArrowEvalPythonExec =>
       val columnarChild = replaceWithTransformerPlan(plan.child)
       ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
@@ -281,7 +291,6 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan)
   }
-
 }
 
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {

@@ -167,8 +167,7 @@ abstract class HashJoinLikeExecTransformer(
     if (GlutenConfig.getConf.enableNativeValidation) {
       val validator = new ExpressionEvaluator()
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val result = validator.doValidate(planNode.toProtobuf.toByteArray)
-      result
+      validator.doValidate(planNode.toProtobuf.toByteArray)
     } else {
       true
     }

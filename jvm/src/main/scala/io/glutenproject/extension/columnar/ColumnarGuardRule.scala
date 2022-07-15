@@ -66,8 +66,10 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
   val enableColumnarUnion: Boolean = columnarConf.enableColumnarUnion
   val enableColumnarExpand: Boolean = columnarConf.enableColumnarExpand
   val enableColumnarShuffledHashJoin: Boolean = columnarConf.enableColumnarShuffledHashJoin
-  val enableColumnarBroadcastExchange: Boolean = columnarConf.enableColumnarBroadcastExchange
-  val enableColumnarBroadcastJoin: Boolean = columnarConf.enableColumnarBroadcastJoin
+  val enableColumnarBroadcastExchange: Boolean =
+    columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
+  val enableColumnarBroadcastJoin: Boolean =
+    columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
   val enableColumnarArrowUDF: Boolean = columnarConf.enableColumnarArrowUDF
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -154,7 +156,7 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           transformer.doValidate()
         case plan: BroadcastExchangeExec =>
           // columnar broadcast is enabled only when columnar bhj is enabled.
-          if (!enableColumnarBroadcastJoin) return false
+          if (!enableColumnarBroadcastExchange) return false
           val exec = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
           exec.doValidate()
         case plan: BroadcastHashJoinExec =>
