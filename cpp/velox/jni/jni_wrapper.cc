@@ -23,6 +23,7 @@
 #include "compute/VeloxPlanConverter.h"
 #include "jni/jni_errors.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
+#include "memory/velox_allocator.h"
 
 // #include "jni/jni_common.h"
 
@@ -31,7 +32,7 @@
 
 #include <iostream>
 
-static std::unique_ptr<memory::MemoryPool> veloxPool_;
+static std::shared_ptr<memory::MemoryPool> veloxPool_;
 static std::unordered_map<std::string, std::string> sparkConfs_;
 
 #ifdef __cplusplus
@@ -44,7 +45,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     return JNI_ERR;
   }
   gluten::GetJniErrorsState()->Initialize(env);
-  veloxPool_ = memory::getDefaultScopedMemoryPool();
+  veloxPool_ = gluten::memory::GetDefaultWrappedVeloxMemoryPool();
 #ifdef DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -123,8 +124,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
   // A query context used for function validation.
   std::shared_ptr<core::QueryCtx> queryCtx_{core::QueryCtx::createForTest()};
   // A memory pool used for function validation.
-  std::unique_ptr<memory::MemoryPool> pool_ =
-      memory::getDefaultScopedMemoryPool();
+  std::shared_ptr<memory::MemoryPool> pool_ = veloxPool_;
   // An execution context used for function validation.
   std::unique_ptr<core::ExecCtx> execCtx_ =
       std::make_unique<core::ExecCtx>(pool_.get(), queryCtx_.get());

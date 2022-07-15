@@ -47,8 +47,19 @@ namespace {
 const std::string kHiveConnectorId = "test-hive";
 std::atomic<int32_t> taskSerial;
 } // namespace
-std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx() {
-  return std::make_shared<core::QueryCtx>();
+
+std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
+    memory::MemoryPool* memoryPool) {
+  std::unique_ptr<memory::MemoryPool> ctxRoot =
+      memoryPool->addScopedChild("ctx_root");
+  std::shared_ptr<core::QueryCtx> ctx = std::make_shared<core::QueryCtx>(
+      nullptr,
+      std::make_shared<facebook::velox::core::MemConfig>(),
+      std::unordered_map<std::string, std::shared_ptr<Config>>(),
+      memory::MappedMemory::getInstance(),
+      std::move(ctxRoot),
+      nullptr);
+  return ctx;
 }
 
 // The Init will be called per executor.
@@ -350,6 +361,10 @@ arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
   return std::make_shared<ArrowArray>(out);
 }
 
+memory::MemoryPool* WholeStageResIter::getPool() const {
+  return pool_;
+}
+
 class VeloxPlanConverter::WholeStageResIterFirstStage
     : public WholeStageResIter {
  public:
@@ -399,7 +414,8 @@ class VeloxPlanConverter::WholeStageResIterFirstStage
     // Set task parameters.
     core::PlanFragment planFragment{
         planNode, core::ExecutionStrategy::kUngrouped, 1};
-    std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
+    std::shared_ptr<core::QueryCtx> queryCtx =
+        createNewVeloxQueryCtx(getPool());
     task_ = std::make_shared<exec::Task>(
         fmt::format("gluten task {}", ++taskSerial),
         std::move(planFragment),
@@ -446,7 +462,8 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage
       : WholeStageResIter(pool, planNode), streamIds_(streamIds) {
     core::PlanFragment planFragment{
         planNode, core::ExecutionStrategy::kUngrouped, 1};
-    std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
+    std::shared_ptr<core::QueryCtx> queryCtx =
+        createNewVeloxQueryCtx(getPool());
     task_ = std::make_shared<exec::Task>(
         fmt::format("gluten task {}", ++taskSerial),
         std::move(planFragment),
