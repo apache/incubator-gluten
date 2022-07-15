@@ -22,8 +22,8 @@
 #include "compute/DwrfDatasource.h"
 #include "compute/VeloxPlanConverter.h"
 #include "jni/jni_errors.h"
-#include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 #include "memory/velox_allocator.h"
+#include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 // #include "jni/jni_common.h"
 
