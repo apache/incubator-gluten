@@ -332,7 +332,8 @@ class SubstraitParser::FirstStageResultIterator {
   }
 
  private:
-  arrow::MemoryPool* pool_ = gluten::memory::GetDefaultWrappedArrowMemoryPool();
+  arrow::MemoryPool* pool_ =
+      gluten::memory::GetDefaultWrappedArrowMemoryPool().get();
   std::unique_ptr<arrow::DoubleBuilder> builder_;
   bool has_next_ = true;
   // std::vector<std::shared_ptr<arrow::Array>> res_arrays;

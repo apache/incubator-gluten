@@ -66,7 +66,8 @@ using namespace facebook::velox::exec;
 namespace velox {
 namespace compute {
 
-std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx();
+std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
+    memory::MemoryPool* memoryPool);
 
 class VeloxInitializer {
  public:
@@ -89,6 +90,8 @@ class WholeStageResIter {
 
   std::shared_ptr<exec::Task> task_;
   std::function<void(exec::Task*)> addSplits_;
+
+  memory::MemoryPool* getPool() const;
 
  private:
   /// This method converts Velox RowVector into Arrow Array based on Velox's

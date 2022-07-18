@@ -292,7 +292,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       env, java_reservation_listener_class, "unreserve", "(J)V");
 
   default_memory_allocator_id =
-      reinterpret_cast<jlong>(gluten::memory::DefaultMemoryAllocator());
+      reinterpret_cast<jlong>(gluten::memory::DefaultMemoryAllocator().get());
 
   return JNI_VERSION;
 }
@@ -818,7 +818,8 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
 
   // decompress buffers
   auto options = arrow::ipc::IpcReadOptions::Defaults();
-  options.memory_pool = gluten::memory::GetDefaultWrappedArrowMemoryPool();
+  options.memory_pool =
+      gluten::memory::GetDefaultWrappedArrowMemoryPool().get();
   options.use_threads = false;
   gluten::JniAssertOkOrThrow(
       DecompressBuffers(
@@ -884,7 +885,7 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_createListenableAllocator(
           unreserve_memory_method,
           8L << 10 << 10);
   auto allocator = new gluten::memory::ListenableMemoryAllocator(
-      gluten::memory::DefaultMemoryAllocator(), listener);
+      gluten::memory::DefaultMemoryAllocator().get(), listener);
   return reinterpret_cast<jlong>(allocator);
   JNI_METHOD_END(-1L)
 }
