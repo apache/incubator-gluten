@@ -105,6 +105,13 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
               cSchema.memoryAddress(), cArray.memoryAddress(),
               SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId, wsChild)
 
+              TaskContext.get().addTaskCompletionListener[Unit](_ => {
+                if (!closed) {
+                  jniWrapper.nativeClose(info.instanceID)
+                  closed = true
+                }
+              })
+
             convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
           } finally {
             cArray.close()
@@ -131,12 +138,6 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
               val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
               row.pointTo(null, info.memoryAddress + offset, length.toInt)
               rowId += 1
-              TaskContext.get().addTaskCompletionListener[Unit](_ => {
-                if (!closed) {
-                  jniWrapper.nativeClose(info.instanceID)
-                  closed = true
-                }
-              })
               row
             }
           }
