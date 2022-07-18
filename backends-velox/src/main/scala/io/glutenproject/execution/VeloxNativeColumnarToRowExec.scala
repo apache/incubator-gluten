@@ -19,7 +19,6 @@ package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
@@ -27,13 +26,13 @@ import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
-
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.glutenproject.vectorized.NativeColumnarToRowInfo
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 import org.apache.arrow.c.ArrowArray
 import org.apache.arrow.c.ArrowSchema
+import org.apache.spark.TaskContext
 import org.slf4j.LoggerFactory
 
 class VeloxNativeColumnarToRowExec(child: SparkPlan)
@@ -123,7 +122,7 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
                 jniWrapper.nativeClose(info.instanceID)
                 closed = true
               }
-              return result
+              result
             }
 
             override def next: UnsafeRow = {
@@ -132,6 +131,12 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
               val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
               row.pointTo(null, info.memoryAddress + offset, length.toInt)
               rowId += 1
+              TaskContext.get().addTaskCompletionListener[Unit](_ => {
+                if (!closed) {
+                  jniWrapper.nativeClose(info.instanceID)
+                  closed = true
+                }
+              })
               row
             }
           }
