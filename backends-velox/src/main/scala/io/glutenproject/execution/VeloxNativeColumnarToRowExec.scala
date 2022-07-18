@@ -105,13 +105,6 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
               cSchema.memoryAddress(), cArray.memoryAddress(),
               SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId, wsChild)
 
-              TaskContext.get().addTaskCompletionListener[Unit](_ => {
-                if (!closed) {
-                  jniWrapper.nativeClose(info.instanceID)
-                  closed = true
-                }
-              })
-
             convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
           } finally {
             cArray.close()
@@ -122,6 +115,13 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
             var rowId = 0
             val row = new UnsafeRow(batch.numCols())
             var closed = false
+
+            TaskContext.get().addTaskCompletionListener[Unit](_ => {
+              if (!closed) {
+                jniWrapper.nativeClose(info.instanceID)
+                closed = true
+              }
+            })
 
             override def hasNext: Boolean = {
               val result = rowId < batch.numRows()
