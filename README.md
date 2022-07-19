@@ -88,10 +88,10 @@ If you would like to build Gluten with **ClickHouse** backend, please follow the
 We use Decision Support Benchmark1(TPC-H Like) to evaluate the performance for Gluten project.
 * Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. We change Decimal to Double and Date to String and use DWRF file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline.
 
-The testing environment is using single node with 1TB datasize.
+The testing environment is using single node with 1TB datasize. The result shows a up to 3.48X speedup in Decision Support Benchmark1 with Gluten and Velox backend.
 ![Performance](./docs/image/velox_decision_support_bench1_10query_performance.png)
 
-The testing environment is using a 8-nodes AWS cluster with 1TB datasize.
+The testing environment is using a 8-nodes AWS cluster with 1TB datasize. The result shows a up to 3.63X speedup in Decision Support Benchmark1 with Gluten and Clickhouse backend.
 ![Performance](./docs/image/clickhouse_decision_support_bench1_10query_performance.png)
 
 # Reference
