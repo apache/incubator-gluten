@@ -140,6 +140,10 @@ class SubstraitContext extends Serializable {
     id
   }
 
+  /**
+   * Register a rel to certain operator id.
+   * @param operatorId operator id
+   */
   def registerRelToOperator(operatorId: java.lang.Long): Unit = {
     if (operatorToRelsMap.containsKey(operatorId)) {
       val rels = operatorToRelsMap.get(operatorId)
@@ -152,6 +156,11 @@ class SubstraitContext extends Serializable {
     relId += 1
   }
 
+  /**
+   * Register empty rel list to certain operator id. Used when the computing of a Spark transformer
+   * is omitted.
+   * @param operatorId operator id
+   */
   def registerEmptyRelToOperator(operatorId: java.lang.Long): Unit = {
     if (!operatorToRelsMap.containsKey(operatorId)) {
       val rels = new util.ArrayList[java.lang.Long]()
@@ -159,9 +168,18 @@ class SubstraitContext extends Serializable {
     }
   }
 
+  /**
+   * Return the registered map.
+   * @return
+   */
   def registeredRelMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]] =
     operatorToRelsMap
 
+  /**
+   * Register the join params to certain operator id.
+   * @param operatorId operator id
+   * @param param join params
+   */
   def registerJoinParam(operatorId: java.lang.Long, param: JoinParams): Unit = {
     if (joinParamsMap.containsKey(operatorId)) {
       throw new InvalidParameterException("Join param has already been registered.")
@@ -170,8 +188,17 @@ class SubstraitContext extends Serializable {
     }
   }
 
+  /**
+   * return the registered map
+   * @return
+   */
   def registeredJoinParams: java.util.HashMap[java.lang.Long, JoinParams] = this.joinParamsMap
 
+  /**
+   * Register the aggregation params to certain operator id.
+   * @param operatorId operator id
+   * @param param aggregation params
+   */
   def registerAggregationParam(operatorId: java.lang.Long, param: AggregationParams): Unit = {
     if (aggregationParamsMap.containsKey(operatorId)) {
       throw new InvalidParameterException("Aggregation param has already been registered.")
@@ -180,6 +207,10 @@ class SubstraitContext extends Serializable {
     }
   }
 
+  /**
+   * return the registered map
+   * @return
+   */
   def registeredAggregationParams: java.util.HashMap[java.lang.Long, AggregationParams] =
     this.aggregationParamsMap
 

@@ -408,7 +408,11 @@ void WholeStageResIter::collectMetrics() {
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
-      throw std::runtime_error("Node id is not found.");
+      // TODO: there is missing metrics on certain pattern from Velox.
+      // Workaround this issue temporarily by regarding the missing one as
+      // empty.
+      numOfStats += 1;
+      continue;
     }
     const auto& status = planStats.at(nodeId);
     if (status.isMultiOperatorNode()) {
@@ -422,6 +426,13 @@ void WholeStageResIter::collectMetrics() {
   int metricsIdx = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
+    if (planStats.find(nodeId) == planStats.end()) {
+      // TODO: there is missing metrics on certain pattern from Velox.
+      // Workaround this issue temporarily by regarding the missing one as
+      // empty.
+      metricsIdx += 1;
+      continue;
+    }
     const auto& status = planStats.at(nodeId);
     if (status.isMultiOperatorNode()) {
       // Add each operator status into metrics.

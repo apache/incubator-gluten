@@ -108,7 +108,7 @@ class WholeStageResIter {
   /// array will be the input of Columnar Shuffle or Velox-to-Row.
   void toArrowArray(const RowVectorPtr& rv, ArrowArray& out);
 
-  /// Get all the children plan node ids in postorder traversal.
+  /// Get all the children plan node ids with postorder traversal.
   void getOrderedNodeIds(
       const std::shared_ptr<const core::PlanNode>& planNode,
       std::vector<core::PlanNodeId>& nodeIds);

@@ -423,6 +423,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
    * @param metrics the metrics fetched from native
    * @param metricsIdx the index of metrics
    * @param joinParamsMap the map between operator index and join parameters
+   * @param aggParamsMap the map between operator index and aggregation parameters
    * @return operator index and metrics index
    */
   def updateTransformerMetrics(
@@ -510,6 +511,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   var nativeMetricsUpdated: Boolean = false
+
+  /**
+   * Update metrics fetched from certain iterator to transformers.
+   * @param resIter the iterator to fetch metrics from
+   * @param relMap the map between operator index and its rels
+   * @param joinParamsMap the map between operator index and join parameters
+   * @param aggParamsMap the map between operator index and aggregation parameters
+   */
   def updateNativeMetrics(resIter: GeneralOutIterator,
                           relMap: java.util.HashMap[java.lang.Long,
                             java.util.ArrayList[java.lang.Long]],

@@ -684,7 +684,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   }
 
   private def preProjectionNeeded(keyExprs: Seq[Expression]): Boolean = {
-    keyExprs.forall(_.isInstanceOf[AttributeReference])
+    !keyExprs.forall(_.isInstanceOf[AttributeReference])
   }
 
   private def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
@@ -695,7 +695,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
                                           operatorId: java.lang.Long,
                                           validation: Boolean)
   : (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
-    if (preProjectionNeeded(keyExprs)) {
+    if (!preProjectionNeeded(keyExprs)) {
       // Skip pre-projection if all keys are [AttributeReference]s,
       // which can be directly converted into SelectionNode.
       val keys = keyExprs.map { expr =>
