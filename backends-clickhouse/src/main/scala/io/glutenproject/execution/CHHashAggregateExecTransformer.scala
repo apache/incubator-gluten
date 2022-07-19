@@ -19,7 +19,7 @@ package io.glutenproject.execution
 
 import com.google.protobuf.Any
 import io.glutenproject.expression._
-import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -53,16 +53,20 @@ case class CHHashAggregateExecTransformer(
       case _ =>
         null
     }
+
+    val aggParams = new AggregationParams
+    val operatorId = context.nextOperatorId
+
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
       // are in the one WholeStageTransformer.
       if (child.isInstanceOf[CHHashAggregateExecTransformer] &&
         childCtx.outputAttributes == aggregateResultAttributes) {
-        (getAggRel(context.registeredFunction, childCtx.root),
+        (getAggRel(context, operatorId, aggParams, childCtx.root),
           childCtx.outputAttributes,
           output)
       } else {
-        (getAggRel(context.registeredFunction, childCtx.root),
+        (getAggRel(context, operatorId, aggParams, childCtx.root),
           childCtx.outputAttributes,
           aggregateResultAttributes)
       }
@@ -83,33 +87,42 @@ case class CHHashAggregateExecTransformer(
       val inputIter = LocalFilesBuilder.makeLocalFiles(
         ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
       context.setIteratorNode(iteratorIndex, inputIter)
-      val readRel = RelBuilder.makeReadRel(typeList, nameList, null, context, iteratorIndex)
+      val readRel = RelBuilder.makeReadRel(
+        typeList, nameList, null, iteratorIndex, context, operatorId)
 
-      (getAggRel(context.registeredFunction, readRel), aggregateResultAttributes, output)
+      (getAggRel(context, operatorId, aggParams, readRel), aggregateResultAttributes, output)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)
   }
 
-  override def getAggRel(args: java.lang.Object,
+  override def getAggRel(context: SubstraitContext,
+                         operatorId: Long,
+                         aggParams: AggregationParams,
                          input: RelNode = null,
                          validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val aggRel = if (needsPreProjection) {
-      getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
+      getAggRelWithPreProjection(
+        context, originalInputAttributes, operatorId, input, validation)
     } else {
-      getAggRelWithoutPreProjection(args, aggregateResultAttributes, input, validation)
+      getAggRelWithoutPreProjection(
+        context, aggregateResultAttributes, operatorId, input, validation)
     }
+    // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
+    // AggregateRel.
     if (!needsPostProjection(allAggregateResultAttributes)) {
       aggRel
     } else {
-      applyPostProjection(args, aggRel, validation)
+      applyPostProjection(context, aggRel, operatorId, validation)
     }
   }
 
-  override def getAggRelWithoutPreProjection(args: java.lang.Object,
+  override def getAggRelWithoutPreProjection(context: SubstraitContext,
                                              originalInputAttributes: Seq[Attribute],
+                                             operatorId: Long,
                                              input: RelNode = null,
                                              validation: Boolean): RelNode = {
+    val args = context.registeredFunction
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(expr => {
@@ -150,7 +163,8 @@ case class CHHashAggregateExecTransformer(
       aggregateFunctionList.add(aggFunctionNode)
     })
     if (!validation) {
-      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList)
+      RelBuilder.makeAggregateRel(
+        input, groupingList, aggregateFunctionList, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -159,7 +173,8 @@ case class CHHashAggregateExecTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
-      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, extensionNode)
+      RelBuilder.makeAggregateRel(
+        input, groupingList, aggregateFunctionList, extensionNode, context, operatorId)
     }
   }
 }

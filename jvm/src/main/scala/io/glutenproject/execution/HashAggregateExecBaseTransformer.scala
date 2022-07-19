@@ -415,8 +415,8 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     val aggParams = new AggregationParams
-
     val operatorId = context.nextOperatorId
+
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       (getAggRel(context, operatorId, aggParams, childCtx.root), childCtx.outputAttributes, output)
     } else {

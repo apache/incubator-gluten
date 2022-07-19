@@ -63,7 +63,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
             lengths.add(java.lang.Long.valueOf(f.length))
           }
           LocalFilesBuilder.makeLocalFiles(
-            index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat().get(i))
+            index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat.get(i))
       }
     )
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
@@ -137,6 +137,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
+                                     updateNativeMetrics: GeneralOutIterator => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
     var resIter: GeneralOutIterator = null
@@ -188,6 +189,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      streamedSortPlan: SparkPlan,
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
+                                     updateNativeMetrics: GeneralOutIterator => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]

@@ -257,7 +257,8 @@ case class ClickHouseAppendDataExec(
     for (attr <- queryOutput) {
       nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
     }
-    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, null, substraitContext)
+    val relNode = RelBuilder.makeReadRel(
+      typeNodes, nameList, null, substraitContext, substraitContext.nextOperatorId)
 
     val inputPlanNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode), nameList)
