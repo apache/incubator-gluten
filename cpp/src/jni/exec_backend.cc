@@ -20,8 +20,6 @@
 #include <mutex>
 #include <utility>
 
-#include "compute/substrait_utils.h"
-
 namespace gluten {
 
 static std::function<std::shared_ptr<ExecBackendBase>()> backend_factory;
@@ -36,12 +34,8 @@ void SetBackendFactory(
 
 std::shared_ptr<ExecBackendBase> CreateBackend() {
   if (backend_factory == nullptr) {
-    std::cout
-        << "Execution backend not set. This may due to the backend library not "
-           "loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call."
-           " Will create default backend, which is only served as an example."
-        << std::endl;
-    return std::make_shared<compute::SubstraitParser>();
+    throw std::runtime_error(
+        "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");
   }
   return backend_factory();
 }

@@ -21,8 +21,6 @@
 
 #include <utility>
 
-#include "compute/substrait_utils.h"
-
 namespace gazellecpp {
 namespace compute {
 
