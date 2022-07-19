@@ -22,6 +22,7 @@
 #include <arrow/util/iterator.h>
 
 #include "compute/protobuf_utils.h"
+#include "memory/arrow_memory_pool.h"
 #include "operators/c2r/arrow_columnar_to_row_converter.h"
 #include "substrait/plan.pb.h"
 #include "utils/exception.h"
@@ -46,8 +47,10 @@ class ResultIteratorBase {
 class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
  public:
   virtual ~ExecBackendBase() = default;
-  virtual std::shared_ptr<ArrowArrayResultIterator> GetResultIterator() = 0;
   virtual std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator) = 0;
+  virtual std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator,
       std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) = 0;
 
   /// Parse and cache the plan.
@@ -94,9 +97,10 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   /// used.
   virtual std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
   getColumnarConverter(
+      gluten::memory::MemoryAllocator* allocator,
       std::shared_ptr<arrow::RecordBatch> rb,
-      std::shared_ptr<arrow::MemoryPool> memory_pool,
       bool wsChild) {
+    auto memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
     return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
         rb, memory_pool);
   }

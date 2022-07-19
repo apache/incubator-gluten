@@ -22,7 +22,6 @@
 #include <arrow/ipc/api.h>
 #include <arrow/record_batch.h>
 #include <arrow/util/compression.h>
-#include <arrow/util/iterator.h>
 #include <jni.h>
 #include <jni/dataset/jni_util.h>
 #include <malloc.h>
@@ -363,6 +362,12 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
       reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(plan_arr, 0));
   auto plan_size = env->GetArrayLength(plan_arr);
 
+  auto* allocator =
+      reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+  if (allocator == nullptr) {
+    gluten::JniThrow("Memory pool does not exist or has been closed");
+  }
+
   auto backend = gluten::CreateBackend();
   if (!backend->ParsePlan(plan_data, plan_size)) {
     gluten::JniThrow("Failed to parse plan.");
@@ -385,9 +390,9 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
 
   std::shared_ptr<ArrowArrayResultIterator> res_iter;
   if (input_iters.empty()) {
-    res_iter = backend->GetResultIterator();
+    res_iter = backend->GetResultIterator(allocator);
   } else {
-    res_iter = backend->GetResultIterator(input_iters);
+    res_iter = backend->GetResultIterator(allocator, input_iters);
   }
   return array_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
@@ -465,10 +470,9 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
     gluten::JniThrow("Memory pool does not exist or has been closed");
   }
   auto backend = gluten::CreateBackend();
-  auto memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
       columnar_to_row_converter =
-          backend->getColumnarConverter(rb, memory_pool, wsChild);
+          backend->getColumnarConverter(allocator, rb, wsChild);
   gluten::JniAssertOkOrThrow(
       columnar_to_row_converter->Init(),
       "Native convert columnar to row: Init "

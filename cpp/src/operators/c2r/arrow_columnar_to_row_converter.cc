@@ -58,7 +58,7 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
   }
 
   ARROW_ASSIGN_OR_RAISE(
-      buffer_, AllocateBuffer(total_memory_size, memory_pool_.get()));
+      buffer_, AllocateBuffer(total_memory_size, arrow_pool_.get()));
 
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
 

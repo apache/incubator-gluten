@@ -140,10 +140,5 @@ class WrappedArrowMemoryPool : public arrow::MemoryPool {
 
 std::shared_ptr<MemoryAllocator> DefaultMemoryAllocator();
 
-std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(
-    MemoryAllocator* allocator);
-
-std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool();
-
 } // namespace memory
 } // namespace gluten

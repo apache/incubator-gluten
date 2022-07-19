@@ -28,6 +28,7 @@
 #include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
 #include "jni/exec_backend.h"
+#include "memory/velox_memory_pool.h"
 #include "substrait/algebra.pb.h"
 #include "substrait/capabilities.pb.h"
 #include "substrait/extensions/extensions.pb.h"
@@ -80,7 +81,7 @@ class VeloxInitializer {
 class WholeStageResIter {
  public:
   WholeStageResIter(
-      memory::MemoryPool* pool,
+      std::shared_ptr<memory::MemoryPool> pool,
       std::shared_ptr<const core::PlanNode> planNode)
       : pool_(pool), planNode_(planNode) {}
 
@@ -99,7 +100,7 @@ class WholeStageResIter {
   /// fixed-width data types, but is conducted in String conversion. The output
   /// array will be the input of Columnar Shuffle.
   void toArrowArray(const RowVectorPtr& rv, ArrowArray& out);
-  memory::MemoryPool* pool_;
+  std::shared_ptr<memory::MemoryPool> pool_;
   std::shared_ptr<const core::PlanNode> planNode_;
   // TODO: use the setted one.
   uint64_t batchSize_ = 10000;
@@ -108,31 +109,35 @@ class WholeStageResIter {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter : public gluten::ExecBackendBase {
  public:
-  VeloxPlanConverter(memory::MemoryPool* pool) : pool_(pool) {}
-
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator()
-      override;
+  VeloxPlanConverter() {}
 
   std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator) override;
+
+  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator,
       std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs)
       override;
 
   // Used by unit test and benchmark.
   std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
           scanInfos);
 
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
   getColumnarConverter(
+      gluten::memory::MemoryAllocator* allocator,
       std::shared_ptr<arrow::RecordBatch> rb,
-      std::shared_ptr<arrow::MemoryPool> memory_pool,
       bool wsChild) override {
+    auto arrowPool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
+    auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
     if (wsChild) {
-      return std::make_shared<VeloxToRowConverter>(rb, memory_pool, pool_);
+      return std::make_shared<VeloxToRowConverter>(rb, arrowPool, veloxPool);
     } else {
       // If the child is not Velox output, use Arrow-to-Row conversion instead.
       return std::make_shared<
-          gluten::columnartorow::ArrowColumnarToRowConverter>(rb, memory_pool);
+          gluten::columnartorow::ArrowColumnarToRowConverter>(rb, arrowPool);
     }
   }
 
@@ -186,7 +191,6 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   class WholeStageResIterMiddleStage;
 
-  memory::MemoryPool* pool_;
   int planNodeId_ = 0;
   std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>>
       arrowInputIters_;
@@ -196,7 +200,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter>
       subVeloxPlanConverter_ = std::make_shared<
-          facebook::velox::substrait::SubstraitVeloxPlanConverter>(pool_);
+          facebook::velox::substrait::SubstraitVeloxPlanConverter>(
+          gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
 
   // Cache for tests/benchmark purpose.
   std::shared_ptr<const core::PlanNode> planNode_;

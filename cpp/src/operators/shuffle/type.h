@@ -24,7 +24,7 @@
 
 #include <deque>
 
-#include "memory/allocator.h"
+#include "memory/arrow_memory_pool.h"
 
 namespace gluten {
 namespace shuffle {

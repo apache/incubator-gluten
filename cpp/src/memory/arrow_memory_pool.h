@@ -15,20 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+#pragma once
 
-import java.io.IOException;
+#include "allocator.h"
 
-public class NativeColumnarToRowJniWrapper {
+namespace gluten {
+namespace memory {
 
-  public NativeColumnarToRowJniWrapper() throws IOException {
-    JniWorkspace.getDefault().libLoader().loadEssentials();
-  }
+std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(
+    MemoryAllocator* allocator);
 
-  public native NativeColumnarToRowInfo nativeConvertColumnarToRow(
-      long cSchema, long cArray, long allocatorId, boolean wsChild)
-      throws RuntimeException;
+std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool();
 
-  public native void nativeClose(long instanceID);
-
-}
+} // namespace memory
+} // namespace gluten
