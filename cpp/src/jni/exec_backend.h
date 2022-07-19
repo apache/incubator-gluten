@@ -56,7 +56,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
   bool ParsePlan(const uint8_t* data, int32_t size) {
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
     auto buf = std::make_shared<arrow::Buffer>(data, size);
     auto maybe_plan_json = SubstraitToJSON("Plan", *buf);
     if (maybe_plan_json.status().ok()) {

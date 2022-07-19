@@ -46,7 +46,7 @@ set(root_directory ${PROJECT_BINARY_DIR})
 #
 
 if(DEBUG)
-  add_definitions(-DDEBUG)
+  add_definitions(-DGLUTEN_PRINT_DEBUG)
 endif()
 
 #
