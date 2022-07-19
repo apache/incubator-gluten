@@ -85,9 +85,9 @@ object ConverterUtils extends Logging {
   }
 
   def getResultAttrFromExpr(
-      fieldExpr: Expression,
-      name: String = "None",
-      dataType: Option[DataType] = None): AttributeReference = {
+                             fieldExpr: Expression,
+                             name: String = "None",
+                             dataType: Option[DataType] = None): AttributeReference = {
     fieldExpr match {
       case a: Cast =>
         val c = getResultAttrFromExpr(a.child, name, Some(a.dataType))
@@ -261,6 +261,8 @@ object ConverterUtils extends Logging {
           typedFuncName.concat("date")
         case StringType =>
           typedFuncName.concat("str")
+        case DecimalType() =>
+          typedFuncName.concat("decimal")
         case other =>
           throw new UnsupportedOperationException(s"Type $other not supported.")
       }

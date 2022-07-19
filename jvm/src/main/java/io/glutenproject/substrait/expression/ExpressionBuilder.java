@@ -21,6 +21,8 @@ import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
+import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.DoubleType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
@@ -29,12 +31,9 @@ import org.apache.spark.sql.types.StringType;
 import java.util.ArrayList;
 import java.util.Map;
 
-/**
- * Contains helper functions for constructing substrait relations.
- */
+/** Contains helper functions for constructing substrait relations. */
 public class ExpressionBuilder {
-  private ExpressionBuilder() {
-  }
+  private ExpressionBuilder() {}
 
   public static Long newScalarFunction(Map<String, Long> functionMap, String functionName) {
     if (!functionMap.containsKey(functionName)) {
@@ -90,6 +89,10 @@ public class ExpressionBuilder {
     return new StringListNode(strConstants);
   }
 
+  public static DecimalLiteralNode makeDecimalLiteral(Decimal decimalConstant) {
+    return new DecimalLiteralNode(decimalConstant);
+  }
+
   public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
     if (dataType instanceof IntegerType) {
       if (obj == null) {
@@ -121,6 +124,12 @@ public class ExpressionBuilder {
       } else {
         return makeStringLiteral(obj.toString());
       }
+    } else if (dataType instanceof DecimalType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeDecimal(nullable, 0, 0));
+      } else {
+        return makeDecimalLiteral((Decimal) obj);
+      }
     } else {
       throw new UnsupportedOperationException(
           String.format("Type not supported: %s.", dataType.toString()));
@@ -128,8 +137,7 @@ public class ExpressionBuilder {
   }
 
   public static ScalarFunctionNode makeScalarFunction(
-      Long functionId, ArrayList<ExpressionNode> expressionNodes,
-      TypeNode typeNode) {
+      Long functionId, ArrayList<ExpressionNode> expressionNodes, TypeNode typeNode) {
     return new ScalarFunctionNode(functionId, expressionNodes, typeNode);
   }
 
@@ -137,8 +145,11 @@ public class ExpressionBuilder {
     return new SelectionNode(fieldIdx);
   }
 
-  public static AggregateFunctionNode makeAggregateFunction(Long functionId,
-                ArrayList<ExpressionNode> expressionNodes, String phase, TypeNode outputTypeNode) {
+  public static AggregateFunctionNode makeAggregateFunction(
+      Long functionId,
+      ArrayList<ExpressionNode> expressionNodes,
+      String phase,
+      TypeNode outputTypeNode) {
     return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
   }
 
