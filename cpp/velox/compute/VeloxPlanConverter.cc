@@ -389,8 +389,20 @@ memory::MemoryPool* WholeStageResIter::getPool() const {
 void WholeStageResIter::getOrderedNodeIds(
     const std::shared_ptr<const core::PlanNode>& planNode,
     std::vector<core::PlanNodeId>& nodeIds) {
+  bool isFilterNode = false;
+  if (std::dynamic_pointer_cast<const core::FilterNode>(planNode)) {
+    isFilterNode = true;
+  }
+
   const auto& sourceNodes = planNode->sources();
   for (const auto& sourceNode : sourceNodes) {
+    // Filter over Project are combined into FilterProject operator in Velox.
+    // Metrics are all applied on Project node, and the metrics for Filter node
+    // does not exist.
+    if (isFilterNode &&
+        std::dynamic_pointer_cast<const core::ProjectNode>(sourceNode)) {
+      omittedNodeIds_.insert(planNode->id());
+    }
     getOrderedNodeIds(sourceNode, nodeIds);
   }
   nodeIds.emplace_back(planNode->id());
@@ -408,9 +420,11 @@ void WholeStageResIter::collectMetrics() {
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
-      // TODO: there is missing metrics on certain pattern from Velox.
-      // Workaround this issue temporarily by regarding the missing one as
-      // empty.
+      if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
+        throw std::runtime_error("Node id cannot be found in plan status.");
+      }
+      // Special handing for Filter over Project case. Filter metrics are
+      // omitted.
       numOfStats += 1;
       continue;
     }
@@ -427,9 +441,8 @@ void WholeStageResIter::collectMetrics() {
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
-      // TODO: there is missing metrics on certain pattern from Velox.
-      // Workaround this issue temporarily by regarding the missing one as
-      // empty.
+      // Special handing for Filter over Project case. Filter metrics are
+      // omitted.
       metricsIdx += 1;
       continue;
     }

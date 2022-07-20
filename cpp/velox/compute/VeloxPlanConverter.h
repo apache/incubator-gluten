@@ -122,6 +122,7 @@ class WholeStageResIter {
   uint64_t batchSize_ = 10000;
   std::shared_ptr<Metrics> metrics_ = nullptr;
   std::vector<core::PlanNodeId> orderedNodeIds_;
+  std::unordered_set<core::PlanNodeId> omittedNodeIds_;
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
