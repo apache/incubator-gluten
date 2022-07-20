@@ -110,7 +110,11 @@ public class RelBuilder {
   public static RelNode makeReadRel(ArrayList<Attribute> attributes,
                                     SubstraitContext context,
                                     Long operatorId) {
-    context.registerRelToOperator(operatorId);
+    if (operatorId >= 0) {
+      // If the operator id is negative, will not register the rel to operator.
+      // Currently, only for the special handling in join.
+      context.registerRelToOperator(operatorId);
+    }
     ArrayList<TypeNode> typeList = new ArrayList<>();
     ArrayList<String> nameList = new ArrayList<>();
     ConverterUtils$ converter = ConverterUtils$.MODULE$;

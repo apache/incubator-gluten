@@ -32,7 +32,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.substrait.proto.JoinRel
-import java.util
+import java.{lang, util}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -542,7 +542,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       idx += 1
     }
 
-    if (joinParams.isStreamReadRel) {
+    if (joinParams.isStreamedReadRel) {
       val metrics = joinMetrics.get(idx)
       streamInputRows += metrics.inputRows
       streamInputVectors += metrics.inputVectors
@@ -625,47 +625,43 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
 
   override def doTransform(substraitContext: SubstraitContext): TransformContext = {
 
-    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute]) = {
+    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute], Boolean) = {
       plan match {
         case p: TransformSupport =>
           val transformContext = p.doTransform(substraitContext)
-          (transformContext.root, transformContext.outputAttributes)
+          (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
-          (null, plan.output)
-      }
-    }
-
-    def getReadRel(plan: SparkPlan, operatorId: Long): RelNode = {
-      plan match {
-        case _: TransformSupport =>
-          throw new IllegalArgumentException(s"Plan should not support transform.")
-        case _ =>
-          RelBuilder.makeReadRel(
+          val readRel = RelBuilder.makeReadRel(
             new util.ArrayList[Attribute](plan.output.asJava),
             substraitContext,
-            operatorId)
+            new lang.Long(-1)) /* A special handling in Join to delay the rel registration. */
+          (readRel, plan.output, true)
       }
     }
 
-    var (inputStreamedRelNode, inputStreamedOutput) = transformAndGetOutput(streamedPlan)
-    var (inputBuildRelNode, inputBuildOutput) = transformAndGetOutput(buildPlan)
-
-    val operatorId = substraitContext.nextOperatorId
     val joinParams = new JoinParams
+    val (inputStreamedRelNode, inputStreamedOutput, isStreamedReadRel) =
+      transformAndGetOutput(streamedPlan)
+    joinParams.isStreamedReadRel = isStreamedReadRel
 
-    if (inputStreamedRelNode == null) {
-      joinParams.isStreamReadRel = true
-      inputStreamedRelNode = getReadRel(streamedPlan, operatorId)
+    val (inputBuildRelNode, inputBuildOutput, isBuildReadRel) =
+      transformAndGetOutput(buildPlan)
+    joinParams.isBuildReadRel = isBuildReadRel
+
+    // Get the operator id of this Join.
+    val operatorId = substraitContext.nextOperatorId
+
+    // Register the ReadRel to correct operator Id.
+    if (joinParams.isStreamedReadRel) {
+      substraitContext.registerRelToOperator(operatorId)
     }
-    if (inputBuildRelNode == null) {
-      joinParams.isBuildReadRel = true
-      inputBuildRelNode = getReadRel(buildPlan, operatorId)
+    if(joinParams.isBuildReadRel) {
+      substraitContext.registerRelToOperator(operatorId)
     }
 
     if (preProjectionNeeded(streamedKeyExprs)) {
       joinParams.streamPreProjectionNeeded = true
     }
-
     if (preProjectionNeeded(buildKeyExprs)) {
       joinParams.buildPreProjectionNeeded = true
     }

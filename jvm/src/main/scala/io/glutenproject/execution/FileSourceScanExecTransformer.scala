@@ -19,27 +19,27 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-
+import io.glutenproject.vectorized.OperatorMetrics
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
-class FileSourceScanExecTransformer(
-                                     @transient relation: HadoopFsRelation,
-                                     output: Seq[Attribute],
-                                     requiredSchema: StructType,
-                                     partitionFilters: Seq[Expression],
-                                     optionalBucketSet: Option[BitSet],
-                                     optionalNumCoalescedBuckets: Option[Int],
-                                     dataFilters: Seq[Expression],
-                                     tableIdentifier: Option[TableIdentifier],
-                                     disableBucketedScan: Boolean = false)
+class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
+                                    output: Seq[Attribute],
+                                    requiredSchema: StructType,
+                                    partitionFilters: Seq[Expression],
+                                    optionalBucketSet: Option[BitSet],
+                                    optionalNumCoalescedBuckets: Option[Int],
+                                    dataFilters: Seq[Expression],
+                                    tableIdentifier: Option[TableIdentifier],
+                                    disableBucketedScan: Boolean = false)
   extends FileSourceScanExec(
     relation,
     output,
@@ -51,6 +51,38 @@ class FileSourceScanExecTransformer(
     tableIdentifier,
     disableBucketedScan)
     with BasicScanExecTransformer {
+
+  override lazy val metrics = Map(
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
+    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
+    "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val count: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val cpuNanos: SQLMetric = longMetric("cpuNanos")
+  val blockedWallNanos: SQLMetric = longMetric("blockedWallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
   override lazy val supportsColumnar: Boolean = {
     relation.fileFormat
@@ -100,5 +132,29 @@ class FileSourceScanExecTransformer(
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    outputVectors += outNumBatches
+    outputRows += outNumRows
+  }
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      count += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      cpuNanos += operatorMetrics.cpuNanos
+      blockedWallNanos += operatorMetrics.blockedWallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
   }
 }

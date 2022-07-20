@@ -24,13 +24,13 @@ import io.glutenproject.substrait.ddlplan.InsertOutputNode
 import io.glutenproject.substrait.rel.LocalFilesNode
 
 case class JoinParams() {
-  // Whether the input of stream side is a ReadRel represented iterator.
-  var isStreamReadRel = false
+  // Whether the input of streamed side is a ReadRel represented iterator.
+  var isStreamedReadRel = false
 
-  // Whether preProjection is needed in stream side.
+  // Whether preProjection is needed in streamed side.
   var streamPreProjectionNeeded = false
 
-  // Whether the input of stream side is a ReadRel represented iterator.
+  // Whether the input of build side is a ReadRel represented iterator.
   var isBuildReadRel = false
 
   // Whether preProjection is needed in build side.
