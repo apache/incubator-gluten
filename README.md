@@ -83,6 +83,23 @@ If you would like to build Gluten with **Arrow** backend, please follow the step
 
 If you would like to build Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is devleoped by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
+# Performance
+
+We use Decision Support Benchmark1(TPC-H Like) to evaluate the performance for Gluten project.
+* Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. Firstly we change column data type like Decimal to Double and Date to String. Secondly we use [DWRF](https://github.com/oap-project/gluten/tree/main/backends-velox/workload/tpch) file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline. Thirdly we modify the SQLs to use double and string data type for both Gluten and baseline. backends-velox/workload/tpch has the script to reproduce the performance number for Velox backend.
+
+The testing environment is using single node with 1TB datasize. The result shows a up to 3.48X speedup in Decision Support Benchmark1 with Gluten and Velox backend.
+![Performance](./docs/image/velox_decision_support_bench1_10query_performance.png)
+
+The testing environment is using a 8-nodes AWS cluster with 1TB datasize. The result shows a up to 3.63X speedup in Decision Support Benchmark1 with Gluten and Clickhouse backend.
+![Performance](./docs/image/clickhouse_decision_support_bench1_10query_performance.png)
+
+# Reference
+
+Please check below link for more related information.
+[Gluten Intro at Data AI Summit 2022](https://databricks.com/dataaisummit/session/gazelle-jni-middle-layer-offload-spark-sql-native-engines-execution)
+
 # Contact
 
-rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com; chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
+rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
+chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
