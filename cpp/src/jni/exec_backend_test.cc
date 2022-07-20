@@ -23,13 +23,15 @@ namespace gluten {
 
 class DummyBackend : public ExecBackendBase {
  public:
-  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator() override {
+  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator) override {
     auto res_iter = std::make_shared<ResultIterator>();
     return std::make_shared<ArrowArrayResultIterator>(std::move(res_iter));
   }
   std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator,
       std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) {
-    return GetResultIterator();
+    return GetResultIterator(allocator);
   }
 
  private:
@@ -73,7 +75,8 @@ TEST(TestExecBackend, CreateBackend) {
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->GetResultIterator();
+  auto iter = backend->GetResultIterator(
+      gluten::memory::DefaultMemoryAllocator().get());
   ASSERT_TRUE(iter->HasNext());
   auto next = iter->Next();
   ASSERT_NE(next, nullptr);
