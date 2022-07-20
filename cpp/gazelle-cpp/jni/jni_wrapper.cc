@@ -18,7 +18,6 @@
 #include <jni.h>
 
 #include "compute/substrait_arrow.h"
-#include "compute/substrait_utils.h"
 #include "jni/jni_errors.h"
 
 #ifdef __cplusplus

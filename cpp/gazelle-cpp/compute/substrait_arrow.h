@@ -19,9 +19,9 @@
 
 #include <arrow/engine/substrait/serde.h>
 
-#include <utility>
+#include "jni/exec_backend.h"
 
-#include "compute/substrait_utils.h"
+#include <utility>
 
 namespace gazellecpp {
 namespace compute {
