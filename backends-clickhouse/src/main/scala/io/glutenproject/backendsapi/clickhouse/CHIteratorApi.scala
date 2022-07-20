@@ -28,8 +28,8 @@ import io.glutenproject.execution._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.vectorized._
-
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -305,14 +305,14 @@ class CHIteratorApi extends IIteratorApi with Logging {
         // Convert ColumnarVector to NativeColumnarVector
         val numRows = cb.numRows()
         val numCols = cb.numCols()
-        (0 until numCols).foreach(i => {
+        for (i <- 0 until numCols) {
           if (cb.column(i).isInstanceOf[OffHeapColumnVector]) {
             val currentVector = cb.column(i).asInstanceOf[OffHeapColumnVector]
             ConvertColumnVector.convert(currentVector, numCols, numRows);
           } else {
             throw new UnsupportedOperationException("Can't support other ColumnarVector type.")
           }
-        })
+        }
         convertTotalTime += System.nanoTime() - startNs
         numOutputBatches += 1
         cb

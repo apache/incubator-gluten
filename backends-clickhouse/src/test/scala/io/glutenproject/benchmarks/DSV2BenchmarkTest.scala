@@ -44,7 +44,7 @@ object DSV2BenchmarkTest {
       val queryPath = resourcePath + "/queries/"
       // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       // "/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpch-data-sf10", "parquet", 30, false, queryPath + "q01.sql", "",
+      ("/data1/test_output/tpch-data-sf10", "parquet", 1, false, queryPath + "q01.sql", "",
         true, "/data1/gazelle-jni-warehouse")
     }
 
@@ -76,12 +76,12 @@ object DSV2BenchmarkTest {
       "cmake-build-release/utils/local-engine/libch.so"
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[2]")
+        .master("local[8]")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.sql.shuffle.partitions", 8)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
@@ -119,7 +119,7 @@ object DSV2BenchmarkTest {
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
-        .config("spark.gluten.sql.columnar.extension.scan.rdd", "true")
+        .config("spark.gluten.sql.columnar.extension.scan.rdd", "false")
         // .config("spark.gluten.sql.columnar.sort", "false")
         // .config("spark.sql.codegen.wholeStage", "false")
         .config("spark.sql.autoBroadcastJoinThreshold", "10MB")
@@ -148,6 +148,7 @@ object DSV2BenchmarkTest {
         // .config("spark.sql.columnVector.custom.clazz",
         //   "org.apache.spark.sql.execution.vectorized.PublicOffHeapColumnVector")
         // .config("spark.hadoop.io.file.buffer.size", "524288")
+        .config("spark.sql.codegen.comments", "true")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -179,7 +180,7 @@ object DSV2BenchmarkTest {
     }
     // scalastyle:off println
     println("start to query ... ")
-    // Thread.sleep(20000)
+    Thread.sleep(1000)
 
     // createClickHouseTablesAsSelect(spark)
     // createClickHouseTablesAndInsert(spark)
@@ -199,8 +200,8 @@ object DSV2BenchmarkTest {
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
     // testTPCHOne(spark, executedCnt)
-    testSepScanRDD(spark, executedCnt)
-    // testTPCHAll(spark)
+    // testSepScanRDD(spark, executedCnt)
+    testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
     System.out.println("waiting for finishing")
@@ -270,7 +271,7 @@ object DSV2BenchmarkTest {
            |SELECT
            |    sum(l_extendedprice * l_discount) AS revenue
            |FROM
-           |    lineitem100
+           |    lineitem
            |WHERE
            |    l_shipdate >= date'1994-01-01'
            |    AND l_shipdate < date'1994-01-01' + interval 1 year
@@ -279,6 +280,7 @@ object DSV2BenchmarkTest {
            |""".stripMargin) // .show(30, false)
       df.explain(false)
       val plan = df.queryExecution.executedPlan
+      // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
       println(result.size)
       result.foreach(r => println(r.mkString(",")))
@@ -323,7 +325,7 @@ object DSV2BenchmarkTest {
     val tookTimeArr = ArrayBuffer[Long]()
     val executedCnt = 1
     val executeExplain = false
-    val sqlFilePath = "/data2/tpch-queries-ch/"
+    val sqlFilePath = "/data2/tpch-queries-spark100/"
     for (i <- 1 to 22) {
       if (i != 21) {
         val sqlNum = "q" + "%02d".format(i)
