@@ -41,7 +41,6 @@
 #include <vector>
 
 #include "compute/protobuf_utils.h"
-#include "compute/substrait_utils.h"
 #include "memory/arrow_memory_pool.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
