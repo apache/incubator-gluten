@@ -262,7 +262,7 @@ object ConverterUtils extends Logging {
         case StringType =>
           typedFuncName.concat("str")
         case DecimalType() =>
-          typedFuncName.concat("decimal")
+          typedFuncName.concat("dec")
         case other =>
           throw new UnsupportedOperationException(s"Type $other not supported.")
       }

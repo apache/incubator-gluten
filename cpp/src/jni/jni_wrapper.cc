@@ -129,7 +129,7 @@ class JavaArrowArrayIterator {
                 << std::endl;
       return;
     }
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
     std::cout << "DELETING ITERATOR REF "
               << reinterpret_cast<long>(java_serialized_arrow_array_iterator_)
               << "..." << std::endl;
@@ -142,21 +142,21 @@ class JavaArrowArrayIterator {
     JNIEnv* env;
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
       std::cout << "JNIEnv was not attached to current thread." << std::endl;
 #endif
       if (vm_->AttachCurrentThreadAsDaemon(
               reinterpret_cast<void**>(&env), NULL) != 0) {
         return arrow::Status::Invalid("Failed to attach thread.");
       }
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
       std::cout << "Succeeded attaching current thread." << std::endl;
 #endif
     } else if (getEnvStat != JNI_OK) {
       return arrow::Status::Invalid(
           "JNIEnv was not attached to current thread");
     }
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
     std::cout << "PICKING ITERATOR REF "
               << reinterpret_cast<long>(java_serialized_arrow_array_iterator_)
               << "..." << std::endl;
@@ -204,7 +204,7 @@ class JavaArrowArrayIteratorWrapper {
 std::shared_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
     JavaVM* vm,
     jobject java_serialized_arrow_array_iterator) {
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
   std::cout << "CREATING ITERATOR REF "
             << reinterpret_cast<long>(java_serialized_arrow_array_iterator)
             << "..." << std::endl;
@@ -437,7 +437,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeClose(
     jobject this_obj,
     jlong id) {
   JNI_METHOD_START
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
   auto it = array_iterator_holder_.Lookup(id);
   if (it.use_count() > 2) {
     std::cout << "ArrowArrayResultIterator Id " << id << " use count is "

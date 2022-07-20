@@ -874,7 +874,7 @@ arrow::Result<int32_t> Splitter::SpillLargestPartition(int64_t* size) {
   }
   if (partition_to_spill != -1) {
     RETURN_NOT_OK(SpillPartition(partition_to_spill));
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
     std::cout << "Spilled partition " << std::to_string(partition_to_spill)
               << ", " << std::to_string(max_size) << " bytes released"
               << std::endl;
