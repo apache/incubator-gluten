@@ -273,7 +273,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
   protected def compareResultStr(sqlNum: String, result: Array[Row]): Unit = {
     val resultStr = new StringBuffer()
-    resultStr.append(result.size).append("\n")
+    resultStr.append(result.length).append("\n")
     result.foreach(r => resultStr.append(r.mkString("|-|")).append("\n"))
     val queryResultStr =
       Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").mkString
