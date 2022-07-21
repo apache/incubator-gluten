@@ -44,7 +44,7 @@ ArrowExecBackend::~ArrowExecBackend() {
   if (exec_plan_ != nullptr) {
     exec_plan_->finished().Wait();
   }
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Plan finished" << std::endl;
 #endif
 }
@@ -134,7 +134,7 @@ ArrowExecBackend::GetResultIterator(
   GLUTEN_THROW_NOT_OK(exec_plan_->Validate());
   GLUTEN_THROW_NOT_OK(exec_plan_->StartProducing());
 
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
   std::cout << std::string(50, '#')
             << " produced arrow::ExecPlan:" << std::endl;
   std::cout << exec_plan_->ToString() << std::endl;

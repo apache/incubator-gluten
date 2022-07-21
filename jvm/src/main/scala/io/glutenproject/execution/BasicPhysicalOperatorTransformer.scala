@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import java.util
+
 import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
@@ -30,14 +32,13 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
-import java.util
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -173,9 +174,18 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
         return false
     }
-    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+
+    // For now arrow backend only support scan + filter pattern
+    if (GlutenConfig.getConf.isGazelleBackend) {
+      if (!(child.isInstanceOf[DataSourceScanExec] ||
+        child.isInstanceOf[DataSourceV2ScanExecBase])) {
+        return false
+      }
+    }
+
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
+      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
       val validator = new ExpressionEvaluator()
       validator.doValidate(planNode.toProtobuf.toByteArray)
     } else {

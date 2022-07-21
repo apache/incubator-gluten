@@ -17,6 +17,7 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.GlutenConfig;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
@@ -53,6 +54,11 @@ public class ExpressionEvaluatorJniWrapper {
         loader.loadGlutenLib();
       }
       if (StringUtils.isNotBlank(customBackendLib)) {
+        if (customBackendLib.equals(GlutenConfig.GLUTEN_GAZELLE_BACKEND())) {
+          loader.loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800");
+          loader.loadAndCreateLink("libarrow_dataset.so.800.0.0", "libarrow_dataset.so.800");
+          loader.loadAndCreateLink("libarrow_substrait.so.800.0.0", "libarrow_substrait.so.800");
+        }
         loader.mapAndLoad(customBackendLib);
       }
     }

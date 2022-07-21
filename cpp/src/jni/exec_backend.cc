@@ -26,7 +26,7 @@ static std::function<std::shared_ptr<ExecBackendBase>()> backend_factory;
 
 void SetBackendFactory(
     std::function<std::shared_ptr<ExecBackendBase>()> factory) {
-#ifdef DEBUG
+#ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Set backend factory." << std::endl;
 #endif
   backend_factory = std::move(factory);
