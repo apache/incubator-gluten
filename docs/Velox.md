@@ -15,10 +15,19 @@ export PATH=$JAVA_HOME/bin:$PATH
 ```
 
 
-The script to build Velox backend jars:
+## There are two ways to build Velox backend jars. 
+
+### Use velox source code from [OAP-project/velox](https://github.com/oap-project/velox). The script is shown below.
 
 ```shell script
 mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+```
+
+### Build velox from source code manually. This script will preprocess script named setup-ubuntu.sh in your source code and compile velox. 
+Default Value of compile_velox option is off to avoid compile code repeatedly. Please set 'compile_velox=ON' when you need recompile.
+
+```shell script
+mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
 ```
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  

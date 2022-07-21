@@ -16,7 +16,7 @@ If you wish to automatically build velox from source. The default velox installa
 -Dbuild_velox=ON -Dbuild_velox_from_source=ON
 ```
 
-If you wish to enable Velox backend and you have an existing compiled Velox, please use velox_home to set the path.
+If you wish to enable Velox backend and you have an existing compiled Velox or Velox repo, please use velox_home to set the path.
 
 ```shell script
 -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME}
@@ -56,6 +56,7 @@ Based on the different environment, there are some parameters can be set via -D 
 | backends-clickhouse | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend | false |
 | build_velox | Enable or Disable building the CPP part of Velox backend | OFF |
 | velox_home (only valid when build_velox is ON) | The path to the compiled Velox project. When building Gluten with Velox, if you have an existing Velox, please set it. | /PATH_TO_GLUTEN/tools/build/velox_ep |
+| compile_velox(only valid when velox_home is assigned) | recompile exising Velox use custom compile parameters| OFF |
 | velox_build_type | The build type Velox was built with from source code. Gluten uses this value to locate the binary path of Velox's binary libraries. | release |
 | debug_build | Whether to generate debug binary library from Gluten's C++ codes. | OFF |
 
