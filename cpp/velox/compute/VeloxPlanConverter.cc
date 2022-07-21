@@ -183,7 +183,10 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto arrowStreamNode = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(), outputType, arrowStream, pool_);
+      nextPlanNodeId(),
+      outputType,
+      arrowStream,
+      gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
   subVeloxPlanConverter_->insertInputNode(
       iterIdx, arrowStreamNode, planNodeId_);
 }
@@ -266,13 +269,15 @@ void VeloxPlanConverter::getInfoAndIds(
 }
 
 std::shared_ptr<gluten::ArrowArrayResultIterator>
-VeloxPlanConverter::GetResultIterator() {
+VeloxPlanConverter::GetResultIterator(
+    gluten::memory::MemoryAllocator* allocator) {
   std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs = {};
-  return GetResultIterator(inputs);
+  return GetResultIterator(allocator, inputs);
 }
 
 std::shared_ptr<gluten::ArrowArrayResultIterator>
 VeloxPlanConverter::GetResultIterator(
+    gluten::memory::MemoryAllocator* allocator,
     std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
@@ -291,21 +296,23 @@ VeloxPlanConverter::GetResultIterator(
       scanIds,
       streamIds);
 
+  auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(
-        pool_, planNode_, streamIds);
+        veloxPool, planNode_, streamIds);
     return std::make_shared<gluten::ArrowArrayResultIterator>(
         std::move(wholestageIter));
   }
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode_, scanIds, scanInfos, streamIds);
+      veloxPool, planNode_, scanIds, scanInfos, streamIds);
   return std::make_shared<gluten::ArrowArrayResultIterator>(
       std::move(wholestageIter));
 }
 
 std::shared_ptr<gluten::ArrowArrayResultIterator>
 VeloxPlanConverter::GetResultIterator(
+    gluten::memory::MemoryAllocator* allocator,
     const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
         setScanInfos) {
   planNode_ = getVeloxPlanNode(plan_);
@@ -322,8 +329,9 @@ VeloxPlanConverter::GetResultIterator(
       scanIds,
       streamIds);
 
+  auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
-      pool_, planNode_, scanIds, setScanInfos, streamIds);
+      veloxPool, planNode_, scanIds, setScanInfos, streamIds);
   return std::make_shared<gluten::ArrowArrayResultIterator>(
       std::move(wholestageIter));
 }
@@ -349,9 +357,9 @@ void WholeStageResIter::toArrowArray(const RowVectorPtr& rv, ArrowArray& out) {
   }
 
   RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
-      BaseVector::create(rv->type(), rv->size(), pool_));
+      BaseVector::create(rv->type(), rv->size(), getPool()));
   copy->copy(rv.get(), 0, 0, rv->size());
-  exportToArrow(copy, out, pool_);
+  exportToArrow(copy, out, getPool());
 }
 
 arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
@@ -374,14 +382,14 @@ arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
 }
 
 memory::MemoryPool* WholeStageResIter::getPool() const {
-  return pool_;
+  return pool_.get();
 }
 
 class VeloxPlanConverter::WholeStageResIterFirstStage
     : public WholeStageResIter {
  public:
   WholeStageResIterFirstStage(
-      memory::MemoryPool* pool,
+      std::shared_ptr<memory::MemoryPool> pool,
       const std::shared_ptr<const core::PlanNode>& planNode,
       const std::vector<core::PlanNodeId>& scanNodeIds,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
@@ -468,7 +476,7 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage
     : public WholeStageResIter {
  public:
   WholeStageResIterMiddleStage(
-      memory::MemoryPool* pool,
+      std::shared_ptr<memory::MemoryPool> pool,
       const std::shared_ptr<const core::PlanNode>& planNode,
       const std::vector<core::PlanNodeId>& streamIds)
       : WholeStageResIter(pool, planNode), streamIds_(streamIds) {

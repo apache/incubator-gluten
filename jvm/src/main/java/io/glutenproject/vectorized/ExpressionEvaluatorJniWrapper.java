@@ -79,10 +79,10 @@ public class ExpressionEvaluatorJniWrapper {
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *
-   * @param nativeHandler nativeHandler of this expression
+   * @param allocatorId allocator id
    * @return iterator instance id
    */
-  public native long nativeCreateKernelWithIterator(long nativeHandler,
+  public native long nativeCreateKernelWithIterator(long allocatorId,
                                                     byte[] wsPlan,
                                                     GeneralInIterator[] batchItr
   ) throws RuntimeException;

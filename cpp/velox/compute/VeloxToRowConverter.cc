@@ -64,7 +64,7 @@ arrow::Status VeloxToRowConverter::Init() {
     total_memory_size += lengths_[rowIdx];
   }
   ARROW_ASSIGN_OR_RAISE(
-      buffer_, arrow::AllocateBuffer(total_memory_size, memory_pool_.get()));
+      buffer_, arrow::AllocateBuffer(total_memory_size, arrow_pool_.get()));
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = buffer_->mutable_data();
   return arrow::Status::OK();
@@ -79,7 +79,8 @@ void VeloxToRowConverter::ResumeVeloxVector() {
     if (!status.ok()) {
       throw std::runtime_error("Failed to export from Arrow record batch");
     }
-    VectorPtr vec = importFromArrowAsOwner(c_schema, c_array, pool_);
+    VectorPtr vec =
+        importFromArrowAsOwner(c_schema, c_array, velox_pool_.get());
     vecs_.push_back(vec);
   }
 }

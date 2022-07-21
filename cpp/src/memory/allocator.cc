@@ -220,15 +220,3 @@ gluten::memory::DefaultMemoryAllocator() {
       std::make_shared<StdMemoryAllocator>();
   return alloc;
 }
-
-std::shared_ptr<arrow::MemoryPool> gluten::memory::AsWrappedArrowMemoryPool(
-    gluten::memory::MemoryAllocator* allocator) {
-  return std::make_shared<WrappedArrowMemoryPool>(allocator);
-}
-
-std::shared_ptr<arrow::MemoryPool>
-gluten::memory::GetDefaultWrappedArrowMemoryPool() {
-  static auto static_pool =
-      AsWrappedArrowMemoryPool(gluten::memory::DefaultMemoryAllocator().get());
-  return static_pool;
-}

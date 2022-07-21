@@ -50,12 +50,14 @@ ArrowExecBackend::~ArrowExecBackend() {
 }
 
 std::shared_ptr<gluten::ArrowArrayResultIterator>
-ArrowExecBackend::GetResultIterator() {
+ArrowExecBackend::GetResultIterator(
+    gluten::memory::MemoryAllocator* allocator) {
   return GetResultIterator({});
 }
 
 std::shared_ptr<gluten::ArrowArrayResultIterator>
 ArrowExecBackend::GetResultIterator(
+    gluten::memory::MemoryAllocator* allocator,
     std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {

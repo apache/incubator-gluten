@@ -231,6 +231,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         jni/jni_wrapper.cc
         jni/exec_backend.cc
         memory/allocator.cc
+        memory/arrow_memory_pool.cc
         ${PROTO_SRCS}
         compute/protobuf_utils.cc
         operators/c2r/arrow_columnar_to_row_converter.cc

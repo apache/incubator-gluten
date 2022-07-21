@@ -22,7 +22,7 @@
 #include "compute/DwrfDatasource.h"
 #include "compute/VeloxPlanConverter.h"
 #include "jni/jni_errors.h"
-#include "memory/velox_allocator.h"
+#include "memory/velox_memory_pool.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 // #include "jni/jni_common.h"
@@ -32,7 +32,6 @@
 
 #include <iostream>
 
-static std::shared_ptr<memory::MemoryPool> veloxPool_;
 static std::unordered_map<std::string, std::string> sparkConfs_;
 
 #ifdef __cplusplus
@@ -45,7 +44,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     return JNI_ERR;
   }
   gluten::GetJniErrorsState()->Initialize(env);
-  veloxPool_ = gluten::memory::GetDefaultWrappedVeloxMemoryPool();
 #ifdef DEBUG
   std::cout << "Loaded Velox backend." << std::endl;
 #endif
@@ -55,7 +53,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
-  veloxPool_.reset();
 }
 
 JNIEXPORT void JNICALL
@@ -64,10 +61,8 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     jobject obj,
     jbyteArray planArray) {
   JNI_METHOD_START
-  gluten::SetBackendFactory([] {
-    return std::make_shared<::velox::compute::VeloxPlanConverter>(
-        veloxPool_.get());
-  });
+  gluten::SetBackendFactory(
+      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
 
   if (sparkConfs_.size() == 0) {
     auto planData = reinterpret_cast<const uint8_t*>(
@@ -124,14 +119,15 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
   // A query context used for function validation.
   std::shared_ptr<core::QueryCtx> queryCtx_{core::QueryCtx::createForTest()};
   // A memory pool used for function validation.
-  std::shared_ptr<memory::MemoryPool> pool_ = veloxPool_;
+  std::shared_ptr<memory::MemoryPool> pool =
+      gluten::memory::GetDefaultWrappedVeloxMemoryPool();
   // An execution context used for function validation.
   std::unique_ptr<core::ExecCtx> execCtx_ =
-      std::make_unique<core::ExecCtx>(pool_.get(), queryCtx_.get());
+      std::make_unique<core::ExecCtx>(pool.get(), queryCtx_.get());
 
   auto planValidator = std::make_shared<
       facebook::velox::substrait::SubstraitToVeloxPlanValidator>(
-      pool_.get(), execCtx_.get());
+      pool.get(), execCtx_.get());
   return planValidator->validate(subPlan);
   JNI_METHOD_END(false)
 }
@@ -142,12 +138,14 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jstring file_path,
     jlong c_schema) {
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool =
+      gluten::memory::GetDefaultWrappedVeloxMemoryPool();
   if (c_schema == -1) {
     // Only inspect the schema and not write
     auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
         arrow::dataset::jni::JStringToCString(env, file_path),
         nullptr,
-        veloxPool_.get());
+        pool.get());
     // dwrfDatasource->Init( );
     return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
 
@@ -158,7 +156,7 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
         arrow::dataset::jni::JStringToCString(env, file_path),
         schema,
-        veloxPool_.get());
+        pool.get());
     dwrfDatasource->Init(sparkConfs_);
     return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
   }

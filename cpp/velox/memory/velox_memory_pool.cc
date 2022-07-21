@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "velox_allocator.h"
+#include "velox_memory_pool.h"
 
 namespace gluten {
 namespace memory {
@@ -101,12 +101,11 @@ class VeloxMemoryAllocatorVariant {
 template <
     typename Allocator = VeloxMemoryAllocatorVariant,
     uint16_t ALIGNMENT = kNoAlignment>
-class WrappedVeloxMemoryPoolImpl
-    : public facebook::velox::memory::MemoryPoolBase {
+class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPoolBase {
  public:
   // Should perhaps make this method private so that we only create node through
   // parent.
-  explicit WrappedVeloxMemoryPoolImpl(
+  explicit WrappedVeloxMemoryPool(
       const std::string& name,
       std::weak_ptr<MemoryPool> parent,
       std::shared_ptr<Allocator> allocator,
@@ -265,7 +264,7 @@ class WrappedVeloxMemoryPoolImpl
       std::weak_ptr<MemoryPool> parent,
       const std::string& name,
       int64_t cap) {
-    return std::make_shared<WrappedVeloxMemoryPoolImpl<Allocator, ALIGNMENT>>(
+    return std::make_shared<WrappedVeloxMemoryPool<Allocator, ALIGNMENT>>(
         name, parent, allocator_, cap);
   }
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the
@@ -395,8 +394,7 @@ class WrappedVeloxMemoryPoolImpl
 
 std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
     MemoryAllocator* allocator) {
-  return std::make_shared<
-      WrappedVeloxMemoryPoolImpl<VeloxMemoryAllocatorVariant>>(
+  return std::make_shared<WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>>(
       "wrapped",
       std::weak_ptr<facebook::velox::memory::MemoryPool>(),
       std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
@@ -405,7 +403,7 @@ std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
 std::shared_ptr<facebook::velox::memory::MemoryPool>
 GetDefaultWrappedVeloxMemoryPool() {
   static auto default_pool =
-      std::make_shared<WrappedVeloxMemoryPoolImpl<VeloxMemoryAllocatorVariant>>(
+      std::make_shared<WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>>(
           "root",
           std::weak_ptr<facebook::velox::memory::MemoryPool>(),
           VeloxMemoryAllocatorVariant::createDefaultAllocator());
