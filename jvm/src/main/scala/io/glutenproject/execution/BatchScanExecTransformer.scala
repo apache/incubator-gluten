@@ -18,13 +18,13 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-
+import io.glutenproject.vectorized.OperatorMetrics
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
@@ -32,11 +32,36 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   extends BatchScanExec(output, scan) with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_batchscan"),
-    "inputSize" -> SQLMetrics.createSizeMetric(sparkContext, "input size in bytes"))
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
+    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
+    "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val count: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val cpuNanos: SQLMetric = longMetric("cpuNanos")
+  val blockedWallNanos: SQLMetric = longMetric("blockedWallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
   override def filterExprs(): Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
     scan.asInstanceOf[FileScan].dataFilters ++ pushdownFilters
@@ -80,4 +105,27 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     null
   }
 
+  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    outputVectors += outNumBatches
+    outputRows += outNumRows
+  }
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      count += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      cpuNanos += operatorMetrics.cpuNanos
+      blockedWallNanos += operatorMetrics.blockedWallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
+  }
 }

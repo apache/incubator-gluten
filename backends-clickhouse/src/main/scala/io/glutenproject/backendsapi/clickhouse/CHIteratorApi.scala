@@ -48,7 +48,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                       partitions: Seq[InputPartition],
                                       wsCxt: WholestageTransformContext
                                      ): BaseNativeFilePartition = {
-    val localFilesNodes = (0 until partitions.size).map(i =>
+    val localFilesNodes = partitions.indices.map(i =>
       partitions(i) match {
         case p: NativeMergeTreePartition =>
           ExtensionTableBuilder.makeExtensionTable(p.minParts,
@@ -63,7 +63,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
             lengths.add(java.lang.Long.valueOf(f.length))
           }
           LocalFilesBuilder.makeLocalFiles(
-            index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat().get(i))
+            index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat.get(i))
       }
     )
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
@@ -137,6 +137,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
+                                     updateNativeMetrics: GeneralOutIterator => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
     var resIter: GeneralOutIterator = null
@@ -188,6 +189,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                      streamedSortPlan: SparkPlan,
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
+                                     updateNativeMetrics: GeneralOutIterator => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
                                      dependentKernelIterators: Seq[GeneralOutIterator]
@@ -271,7 +273,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                 outAttrs: Seq[Attribute]
                                ): GeneralOutIterator = {
     val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
-      0L, wsPlan, iterList.toArray);
+      0L, wsPlan, iterList.toArray)
     new BatchIterator(batchIteratorInstance, outAttrs.asJava)
   }
 

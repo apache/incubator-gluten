@@ -71,7 +71,8 @@ trait BasicScanExecTransformer extends TransformSupport {
       _.asInstanceOf[ExpressionTransformer].doTransform(context.registeredFunction))
     val exprNode = filterNodes.orNull
 
-    val relNode = RelBuilder.makeReadRel(typeNodes, nameList, exprNode, context)
+    val relNode = RelBuilder.makeReadRel(
+      typeNodes, nameList, exprNode, context, context.nextOperatorId)
     TransformContext(output, output, relNode)
   }
 }

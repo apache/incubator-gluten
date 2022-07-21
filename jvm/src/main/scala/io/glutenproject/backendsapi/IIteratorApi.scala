@@ -67,6 +67,7 @@ trait IIteratorApi extends IBackendsApi {
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
                             updateMetrics: (Long, Long) => Unit,
+                            updateNativeMetrics: GeneralOutIterator => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch]
 
@@ -86,6 +87,7 @@ trait IIteratorApi extends IBackendsApi {
                             streamedSortPlan: SparkPlan,
                             pipelineTime: SQLMetric,
                             updateMetrics: (Long, Long) => Unit,
+                            updateNativeMetrics: GeneralOutIterator => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
                             dependentKernels: Seq[ExpressionEvaluator],
                             dependentKernelIterators: Seq[GeneralOutIterator])

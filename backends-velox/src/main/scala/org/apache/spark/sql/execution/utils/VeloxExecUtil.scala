@@ -18,13 +18,12 @@
 package org.apache.spark.sql.execution.utils
 
 import scala.collection.JavaConverters._
-
 import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
-
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -142,7 +141,9 @@ object VeloxExecUtil {
             .asInstanceOf[ExpressionTransformer]
             .doTransform(functionMap))
         })
-        val projectRel = RelBuilder.makeProjectRel(null, exprNodeList)
+        val context: SubstraitContext = new SubstraitContext
+        val projectRel = RelBuilder.makeProjectRel(
+          null, exprNodeList, context, context.nextOperatorId)
         new NativePartitioning(
           "hash",
           n,

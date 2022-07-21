@@ -37,7 +37,7 @@
 #include "substrait/plan.pb.h"
 #include "substrait/type.pb.h"
 #include "substrait/type_expressions.pb.h"
-#include "utils/result_iterator.h"
+#include "utils/metrics.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConnector.h"
@@ -83,11 +83,18 @@ class WholeStageResIter {
   WholeStageResIter(
       std::shared_ptr<memory::MemoryPool> pool,
       std::shared_ptr<const core::PlanNode> planNode)
-      : pool_(pool), planNode_(planNode) {}
+      : pool_(pool), planNode_(planNode) {
+    getOrderedNodeIds(planNode_, orderedNodeIds_);
+  }
 
   virtual ~WholeStageResIter() {}
 
   arrow::Result<std::shared_ptr<ArrowArray>> Next();
+
+  std::shared_ptr<Metrics> GetMetrics() {
+    collectMetrics();
+    return metrics_;
+  }
 
   std::shared_ptr<exec::Task> task_;
   std::function<void(exec::Task*)> addSplits_;
@@ -98,12 +105,24 @@ class WholeStageResIter {
   /// This method converts Velox RowVector into Arrow Array based on Velox's
   /// Arrow conversion implementation, in which memcopy is not needed for
   /// fixed-width data types, but is conducted in String conversion. The output
-  /// array will be the input of Columnar Shuffle.
+  /// array will be the input of Columnar Shuffle or Velox-to-Row.
   void toArrowArray(const RowVectorPtr& rv, ArrowArray& out);
+
+  /// Get all the children plan node ids with postorder traversal.
+  void getOrderedNodeIds(
+      const std::shared_ptr<const core::PlanNode>& planNode,
+      std::vector<core::PlanNodeId>& nodeIds);
+
+  /// Collect Velox metrics.
+  void collectMetrics();
+
   std::shared_ptr<memory::MemoryPool> pool_;
   std::shared_ptr<const core::PlanNode> planNode_;
   // TODO: use the setted one.
   uint64_t batchSize_ = 10000;
+  std::shared_ptr<Metrics> metrics_ = nullptr;
+  std::vector<core::PlanNodeId> orderedNodeIds_;
+  std::unordered_set<core::PlanNodeId> omittedNodeIds_;
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
@@ -154,7 +173,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   std::shared_ptr<Metrics> GetMetrics(void* raw_iter) override {
     auto iter = static_cast<WholeStageResIter*>(raw_iter);
-    return nullptr;
+    return iter->GetMetrics();
   }
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;

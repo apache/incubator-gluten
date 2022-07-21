@@ -17,37 +17,46 @@
 
 package io.glutenproject.vectorized
 
+import java.util.concurrent.TimeUnit
+
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
  * properly.
  */
-class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch])
+class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
+                                   pipelineTime: Option[SQLMetric] = None)
   extends Iterator[ColumnarBatch]
     with Logging {
-  var cb: ColumnarBatch = null
+  var cb: ColumnarBatch = _
 
   override def hasNext: Boolean = {
-    itr.hasNext
+    val beforeTime = System.nanoTime()
+    val res = itr.hasNext
+    pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeTime))
+    res
   }
 
-  SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((tc: TaskContext) => {
+  SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((_: TaskContext) => {
     closeCurrentBatch()
   })
 
   override def next(): ColumnarBatch = {
+    val beforeTime = System.nanoTime()
     closeCurrentBatch()
     cb = itr.next()
+    pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeTime))
     cb
   }
 
   private def closeCurrentBatch(): Unit = {
     if (cb != null) {
-      cb.close
+      cb.close()
       cb = null
     }
   }

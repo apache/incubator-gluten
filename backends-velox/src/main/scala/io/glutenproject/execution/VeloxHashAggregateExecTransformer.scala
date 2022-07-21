@@ -19,7 +19,6 @@ package io.glutenproject.execution
 import java.util.ArrayList
 
 import scala.collection.JavaConverters._
-
 import com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -29,6 +28,7 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import java.util
 
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
@@ -121,12 +121,10 @@ case class VeloxHashAggregateExecTransformer(
     false
   }
 
-
   // Return a scalar function node representing row construct function in Velox.
-  private def getRowConstructNode(
-                                   args: java.lang.Object,
-                                   childNodes: util.ArrayList[ExpressionNode],
-                                   rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
+  private def getRowConstructNode(args: java.lang.Object,
+                                  childNodes: util.ArrayList[ExpressionNode],
+                                  rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.ROW_CONSTRUCTOR,
@@ -146,10 +144,12 @@ case class VeloxHashAggregateExecTransformer(
   // Add a projection node before aggregation for row constructing.
   // Currently mainly used for final average.
   // Pre-projection is always not required for final stage.
-  private def getAggRelWithRowConstruct(args: java.lang.Object,
+  private def getAggRelWithRowConstruct(context: SubstraitContext,
                                         originalInputAttributes: Seq[Attribute],
+                                        operatorId: Long,
                                         inputRel: RelNode,
                                         validation: Boolean): RelNode = {
+    val args = context.registeredFunction
     // Create a projection for row construct.
     val exprNodes = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(expr => {
@@ -191,7 +191,7 @@ case class VeloxHashAggregateExecTransformer(
 
     // Create a project rel.
     val projectRel = if (!validation) {
-      RelBuilder.makeProjectRel(inputRel, exprNodes)
+      RelBuilder.makeProjectRel(inputRel, exprNodes, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -200,7 +200,7 @@ case class VeloxHashAggregateExecTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode)
+      RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId)
     }
 
     // Create aggregation rel.
@@ -229,25 +229,40 @@ case class VeloxHashAggregateExecTransformer(
       }
       addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
     })
-    RelBuilder.makeAggregateRel(projectRel, groupingList, aggregateFunctionList)
+    RelBuilder.makeAggregateRel(
+      projectRel, groupingList, aggregateFunctionList, context, operatorId)
   }
 
-  override protected def getAggRel(args: java.lang.Object,
+  override protected def getAggRel(context: SubstraitContext,
+                                   operatorId: Long,
+                                   aggParams: AggregationParams,
                                    input: RelNode = null,
                                    validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val preProjectionNeeded = needsPreProjection
 
     val aggRel = if (preProjectionNeeded) {
-      getAggRelWithPreProjection(args, originalInputAttributes, input, validation)
+      aggParams.preProjectionNeeded = true
+      getAggRelWithPreProjection(
+        context, originalInputAttributes, operatorId, input, validation)
     } else {
       if (rowConstructNeeded) {
-        getAggRelWithRowConstruct(args, originalInputAttributes, input, validation)
+        aggParams.preProjectionNeeded = true
+        getAggRelWithRowConstruct(
+          context, originalInputAttributes, operatorId, input, validation)
       } else {
-        getAggRelWithoutPreProjection(args, originalInputAttributes, input, validation)
+        getAggRelWithoutPreProjection(
+          context, originalInputAttributes, operatorId, input, validation)
       }
     }
 
-    applyPostProjection(args, aggRel, validation)
+    val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
+      aggRel
+    } else {
+      aggParams.postProjectionNeeded = true
+      applyPostProjection(context, aggRel, operatorId, validation)
+    }
+    context.registerAggregationParam(operatorId, aggParams)
+    resRel
   }
 }

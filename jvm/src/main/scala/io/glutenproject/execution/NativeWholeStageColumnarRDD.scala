@@ -20,10 +20,9 @@ package io.glutenproject.execution
 import java.io.Serializable
 
 import scala.collection.mutable
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-
+import io.glutenproject.vectorized.GeneralOutIterator
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -65,9 +64,8 @@ case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
   }
 }
 
-case class FirstZippedPartitionsPartition(
-                                           idx: Int, inputPartition: InputPartition,
-                                           @transient private val rdds: Seq[RDD[_]] = Seq())
+case class FirstZippedPartitionsPartition(idx: Int, inputPartition: InputPartition,
+                                          @transient private val rdds: Seq[RDD[_]] = Seq())
   extends Partition with Serializable {
 
   override val index: Int = idx
@@ -76,13 +74,13 @@ case class FirstZippedPartitionsPartition(
   def partitions: Seq[Partition] = partitionValues
 }
 
-class NativeWholeStageColumnarRDD(
-                                   sc: SparkContext,
-                                   @transient private val inputPartitions: Seq[InputPartition],
-                                   outputAttributes: Seq[Attribute],
-                                   var rdds: Seq[RDD[ColumnarBatch]],
-                                   pipelineTime: SQLMetric,
-                                   val updateMetrics: (Long, Long) => Unit)
+class NativeWholeStageColumnarRDD(sc: SparkContext,
+                                  @transient private val inputPartitions: Seq[InputPartition],
+                                  outputAttributes: Seq[Attribute],
+                                  var rdds: Seq[RDD[ColumnarBatch]],
+                                  pipelineTime: SQLMetric,
+                                  updateMetrics: (Long, Long) => Unit,
+                                  updateNativeMetrics: GeneralOutIterator => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val loadNative: Boolean = GlutenConfig.getConf.loadNative
@@ -98,7 +96,8 @@ class NativeWholeStageColumnarRDD(
         outputAttributes,
         context,
         pipelineTime,
-        updateMetrics)
+        updateMetrics,
+        updateNativeMetrics)
     } else {
       val partitions = split.asInstanceOf[FirstZippedPartitionsPartition].partitions
       val inputIterators = (rdds zip partitions).map {
@@ -111,6 +110,7 @@ class NativeWholeStageColumnarRDD(
         context,
         pipelineTime,
         updateMetrics,
+        updateNativeMetrics,
         inputIterators)
     }
   }

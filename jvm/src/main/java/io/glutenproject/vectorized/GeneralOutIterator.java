@@ -42,7 +42,7 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
     return nextInternal();
   }
 
-  public final MetricsObject getMetrics() throws Exception {
+  public final Metrics getMetrics() throws Exception {
     return getMetricsInternal();
   }
 
@@ -63,6 +63,6 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
 
   protected abstract ColumnarBatch nextInternal() throws Exception;
 
-  protected abstract MetricsObject getMetricsInternal() throws Exception;
+  protected abstract Metrics getMetricsInternal() throws Exception;
 
 }
