@@ -17,8 +17,11 @@
 
 package io.glutenproject.execution
 
+import java.io.File
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ColumnarInputAdapter
+import org.apache.spark.sql.internal.SQLConf
 
 class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
@@ -27,22 +30,70 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    createTPCHTables()
   }
 
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.sql.files.maxPartitionBytes", "1g")
-      .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.sql.shuffle.partitions", "1")
+  override protected def createTPCHTables(): Unit = {
+    Seq(
+      "customer",
+      "lineitem",
+      "nation",
+      "orders",
+      "part",
+      "partsupp",
+      "region",
+      "supplier").foreach { table =>
+      val tableDir = getClass.getResource(resourcePath).getFile
+      val tablePath = new File(tableDir, table).getAbsolutePath
+      val tableDF = spark.read.format(fileFormat).load(tablePath)
+      tableDF.createOrReplaceTempView(table)
+    }
   }
 
-  test("generate hash join plan") {
+  test("generate hash join plan - v1") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {
+      withTable(
+        "customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier") {
+        createTPCHTables()
+        val df = spark.sql(
+          """select l_partkey from
+            | lineitem join part join partsupp
+            | on l_partkey = p_partkey
+            | and l_suppkey = ps_suppkey""".stripMargin)
+        val plan = df.queryExecution.executedPlan
+        val joins = plan.collect {
+          case shj: ShuffledHashJoinExecTransformer => shj
+        }
+        assert(joins.length == 2)
+
+        // Children of Join should be seperated into different `TransformContext`s.
+        assert(joins.forall(_.children.forall(_.isInstanceOf[ColumnarInputAdapter])))
+
+        // WholeStageTransformerExec should be inserted for joins and its children separately.
+        val wholeStages = plan.collect {
+          case wst: WholeStageTransformerExec => wst
+        }
+        assert(wholeStages.length == 5)
+
+        // Join should be in `TransformContext`
+        val countSHJ = wholeStages.map {
+          _.collectFirst {
+            case _: ColumnarInputAdapter => 0
+            case _: ShuffledHashJoinExecTransformer => 1
+          }.getOrElse(0)
+        }.sum
+        assert(countSHJ == 2)
+      }
+    }
+  }
+
+  test("generate hash join plan - v2") {
+    withSQLConf(
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true"),
+      ("spark.sql.sources.useV1SourceList", "avro")) {
+      createTPCHTables()
       val df = spark.sql(
         """select l_partkey from
           | lineitem join part join partsupp
@@ -54,14 +105,11 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
       }
       assert(joins.length == 2)
 
-      // Children of Join should be seperated into different `TransformContext`s.
-      assert(joins.forall(_.children.forall(_.isInstanceOf[ColumnarInputAdapter])))
-
-      // WholeStageTransformerExec should be inserted for joins and its children separately.
+      // The computing is combined into one single whole stage transformer.
       val wholeStages = plan.collect {
         case wst: WholeStageTransformerExec => wst
       }
-      assert(wholeStages.length == 5)
+      assert(wholeStages.length == 1)
 
       // Join should be in `TransformContext`
       val countSHJ = wholeStages.map {
@@ -70,7 +118,7 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
           case _: ShuffledHashJoinExecTransformer => 1
         }.getOrElse(0)
       }.sum
-      assert(countSHJ == 2)
+      assert(countSHJ == 1)
     }
   }
 }
