@@ -86,6 +86,7 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
             cb = nativeBlock.toColumnarBatch
             cb.asInstanceOf[T]
           } else {
+            nativeBlock.close()
             this.close()
             throw new EOFException
           }

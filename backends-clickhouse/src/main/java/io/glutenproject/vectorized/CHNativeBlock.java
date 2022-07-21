@@ -48,8 +48,6 @@ public class CHNativeBlock {
     return blockAddress;
   }
 
-  ;
-
   private native int nativeNumColumns(long blockAddress);
 
   public int numColumns() {

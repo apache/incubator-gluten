@@ -25,8 +25,10 @@ import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -367,6 +369,20 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     val batchIteratorInstance =
       jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)
+  }
+
+  /**
+   * Generate Native FileScanRDD, currently only for ClickHouse Backend.
+   */
+  override def genNativeFileScanRDD(sparkContext: SparkContext,
+                                    wsCxt: WholestageTransformContext,
+                                    fileFormat: java.lang.Integer,
+                                    inputPartitions: Seq[InputPartition],
+                                    numOutputRows: SQLMetric,
+                                    numOutputBatches: SQLMetric,
+                                    scanTime: SQLMetric): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(
+      "Cannot support to generate Native FileScanRDD.")
   }
 
   /**

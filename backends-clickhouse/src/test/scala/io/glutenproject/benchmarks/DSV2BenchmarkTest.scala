@@ -76,12 +76,12 @@ object DSV2BenchmarkTest {
       "cmake-build-release/utils/local-engine/libch.so"
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[12]")
-        .config("spark.driver.memory", "8G")
-        .config("spark.driver.memoryOverhead", "2G")
+        .master("local[8]")
+        .config("spark.driver.memory", "30G")
+        .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions", 12)
+        .config("spark.sql.shuffle.partitions", 8)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
@@ -91,7 +91,7 @@ object DSV2BenchmarkTest {
         .config("spark.sql.sources.ignoreDataLocality", "true")
         .config("spark.sql.parquet.enableVectorizedReader", "true")
         // .config("spark.sql.sources.useV1SourceList", "avro")
-        .config("spark.memory.fraction", "0.3")
+        .config("spark.memory.fraction", "0.6")
         .config("spark.memory.storageFraction", "0.3")
         // .config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
@@ -119,22 +119,22 @@ object DSV2BenchmarkTest {
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
-        .config("spark.gluten.sql.columnar.extension.scan.rdd", "false")
+        // .config("spark.gluten.sql.columnar.extension.scan.rdd", "false")
         // .config("spark.gluten.sql.columnar.sort", "false")
         // .config("spark.sql.codegen.wholeStage", "false")
         .config("spark.sql.autoBroadcastJoinThreshold", "10MB")
         .config("spark.sql.exchange.reuse", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
         .config("spark.gluten.sql.columnar.coalesce.batches", "true")
-        .config("spark.gluten.sql.columnar.filescan", "true")
+        // .config("spark.gluten.sql.columnar.filescan", "true")
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
         // .config("spark.sql.planChangeLog.level", "info")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
-        // .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
+        .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
-        .config("spark.memory.offHeap.size", "10737418240")
+        .config("spark.memory.offHeap.size", "21474836480")
         .config("spark.shuffle.sort.bypassMergeThreshold", "20")
         .config("spark.local.dir", "/data1/gazelle-jni-warehouse/spark_local_dirs")
         .config("spark.executor.heartbeatInterval", "240s")
@@ -143,6 +143,12 @@ object DSV2BenchmarkTest {
         .config("spark.sql.optimizer.dynamicPartitionPruning.useStats", "true")
         .config("spark.sql.optimizer.dynamicPartitionPruning.fallbackFilterRatio", "0.5")
         .config("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "true")
+        // .config("spark.sql.parquet.footer.use.old.api", "false")
+        // .config("spark.sql.fileMetaCache.parquet.enabled", "true")
+        // .config("spark.sql.columnVector.custom.clazz",
+        //   "org.apache.spark.sql.execution.vectorized.PublicOffHeapColumnVector")
+        // .config("spark.hadoop.io.file.buffer.size", "524288")
+        .config("spark.sql.codegen.comments", "true")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
@@ -174,7 +180,6 @@ object DSV2BenchmarkTest {
     }
     // scalastyle:off println
     println("start to query ... ")
-    // Thread.sleep(20000)
 
     // createClickHouseTablesAsSelect(spark)
     // createClickHouseTablesAndInsert(spark)
@@ -193,8 +198,8 @@ object DSV2BenchmarkTest {
     // createTempView(spark, "/data1/test_output/tpch-data-sf10", "parquet")
     // createGlobalTempView(spark)
     // testJoinIssue(spark)
-    // testTPCHOne(spark, executedCnt)
-    testSepScanRDD(spark, executedCnt)
+    testTPCHOne(spark, executedCnt)
+    // testSepScanRDD(spark, executedCnt)
     // testTPCHAll(spark)
     // benchmarkTPCH(spark, executedCnt)
 
@@ -219,25 +224,19 @@ object DSV2BenchmarkTest {
       val df = spark.sql(
         s"""
            |SELECT
-           |    sum(l_extendedprice) / 7.0 AS avg_yearly
+           |    sum(l_extendedprice * l_discount) AS revenue
            |FROM
-           |    ch_lineitem100,
-           |    ch_part100
+           |    ch_lineitem100
            |WHERE
-           |    p_partkey = l_partkey
-           |    AND p_brand = 'Brand#23'
-           |    AND p_container = 'MED BOX'
-           |    AND l_quantity < (
-           |        SELECT
-           |            0.2 * avg(l_quantity)
-           |        FROM
-           |            ch_lineitem100
-           |        WHERE
-           |            l_partkey = p_partkey);
+           |    l_shipdate >= date'1994-01-01'
+           |    AND l_shipdate < date'1994-01-01' + interval 1 year
+           |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+           |    AND l_quantity < 24;
            |
            |""".stripMargin) // .show(30, false)
       df.explain(false)
       val plan = df.queryExecution.executedPlan
+      // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
       println(result.size)
       result.foreach(r => println(r.mkString(",")))
@@ -262,37 +261,25 @@ object DSV2BenchmarkTest {
       val startTime = System.nanoTime()
       val df = spark.sql(
         s"""
-           |    SELECT
-           |        ps_partkey,
-           |        sum(ps_supplycost * ps_availqty) AS value
-           |    FROM
-           |        ch_partsupp01,
-           |        ch_supplier01,
-           |        ch_nation01
-           |    WHERE
-           |        ps_suppkey = s_suppkey
-           |        AND s_nationkey = n_nationkey
-           |        AND n_name = 'GERMANY'
-           |    GROUP BY
-           |        ps_partkey
-           |    HAVING
-           |        sum(ps_supplycost * ps_availqty) > (
-           |            SELECT
-           |                sum(ps_supplycost * ps_availqty) * 0.0001000000
-           |            FROM
-           |                ch_partsupp01,
-           |                ch_supplier01,
-           |                ch_nation01
-           |            WHERE
-           |                ps_suppkey = s_suppkey
-           |                AND s_nationkey = n_nationkey
-           |                AND n_name = 'GERMANY')
-           |    ORDER BY
-           |        value DESC;
+           |SELECT /*+ SHUFFLE_HASH(ch_lineitem100) */
+           |    100.00 * sum(
+           |        CASE WHEN p_type LIKE 'PROMO%' THEN
+           |            l_extendedprice * (1 - l_discount)
+           |        ELSE
+           |            0
+           |        END) / sum(l_extendedprice * (1 - l_discount)) AS promo_revenue
+           |FROM
+           |    ch_lineitem100,
+           |    ch_part100
+           |WHERE
+           |    l_partkey = p_partkey
+           |    AND l_shipdate >= date'1995-09-01'
+           |    AND l_shipdate < date'1995-09-01' + interval 1 month;
            |
            |""".stripMargin) // .show(30, false)
       df.explain(false)
       val plan = df.queryExecution.executedPlan
+      // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
       println(result.size)
       result.foreach(r => println(r.mkString(",")))
@@ -337,7 +324,7 @@ object DSV2BenchmarkTest {
     val tookTimeArr = ArrayBuffer[Long]()
     val executedCnt = 1
     val executeExplain = false
-    val sqlFilePath = "/data2/tpch-queries-ch/"
+    val sqlFilePath = "/data2/tpch-queries-ch100/"
     for (i <- 1 to 22) {
       if (i != 21) {
         val sqlNum = "q" + "%02d".format(i)

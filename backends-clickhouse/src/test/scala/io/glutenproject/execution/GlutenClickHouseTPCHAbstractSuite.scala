@@ -19,17 +19,13 @@ package io.glutenproject.execution
 
 import java.io.File
 
-import scala.io.Source
-
 import io.glutenproject.GlutenConfig
 import org.apache.commons.io.FileUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
-import org.apache.spark.sql.types.{DoubleType, StructType}
 
 abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSuite with Logging {
 
@@ -42,10 +38,10 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
   protected val warehouse: String = basePath + "/spark-warehouse"
   protected val metaStorePathAbsolute: String = basePath + "/meta"
-  protected val chTablesPath: String = basePath + "/tpch-data-ch"
 
-  protected val chTpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  protected val queriesResults: String = rootPath + "queries-output"
+  protected val tablesPath: String
+  protected val tpchQueries: String
+  protected val queriesResults: String
 
   override def beforeAll(): Unit = {
     // prepare working paths
@@ -56,14 +52,14 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     FileUtils.forceMkdir(basePathDir)
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
-    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(chTablesPath))
+    FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
     spark.sparkContext.setLogLevel("WARN")
     createTPCHTables()
   }
 
   override protected def createTPCHTables(): Unit = {
-    val customerData = chTablesPath + "/customer"
+    val customerData = tablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
     spark.sql(
       s"""
@@ -82,7 +78,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${customerData}'
          |""".stripMargin)
 
-    val lineitemData = chTablesPath + "/lineitem"
+    val lineitemData = tablesPath + "/lineitem"
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
     spark.sql(
       s"""
@@ -109,7 +105,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${lineitemData}'
          |""".stripMargin)
 
-    val nationData = chTablesPath + "/nation"
+    val nationData = tablesPath + "/nation"
     spark.sql(s"DROP TABLE IF EXISTS nation")
     spark.sql(
       s"""
@@ -124,7 +120,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${nationData}'
          |""".stripMargin)
 
-    val regionData = chTablesPath + "/region"
+    val regionData = tablesPath + "/region"
     spark.sql(s"DROP TABLE IF EXISTS region")
     spark.sql(
       s"""
@@ -138,7 +134,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${regionData}'
          |""".stripMargin)
 
-    val ordersData = chTablesPath + "/order"
+    val ordersData = tablesPath + "/order"
     spark.sql(s"DROP TABLE IF EXISTS orders")
     spark.sql(
       s"""
@@ -158,7 +154,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${ordersData}'
          |""".stripMargin)
 
-    val partData = chTablesPath + "/part"
+    val partData = tablesPath + "/part"
     spark.sql(s"DROP TABLE IF EXISTS part")
     spark.sql(
       s"""
@@ -178,7 +174,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${partData}'
          |""".stripMargin)
 
-    val partsuppData = chTablesPath + "/partsupp"
+    val partsuppData = tablesPath + "/partsupp"
     spark.sql(s"DROP TABLE IF EXISTS partsupp")
     spark.sql(
       s"""
@@ -194,7 +190,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${partsuppData}'
          |""".stripMargin)
 
-    val supplierData = chTablesPath + "/supplier"
+    val supplierData = tablesPath + "/supplier"
     spark.sql(s"DROP TABLE IF EXISTS supplier")
     spark.sql(
       s"""
@@ -253,5 +249,13 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     FileUtils.forceDelete(new File(basePath))
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null
+  }
+
+  override protected def runTPCHQuery(queryNum: Int,
+                                      tpchQueries: String = tpchQueries,
+                                      queriesResults: String = queriesResults,
+                                      compareResult: Boolean = true)
+                                     (customCheck: DataFrame => Unit): Unit = {
+    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
   }
 }

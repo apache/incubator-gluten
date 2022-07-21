@@ -20,6 +20,7 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.vectorized.OperatorMetrics
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -65,6 +66,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
     "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
     "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
+    "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "total scan time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
@@ -131,7 +133,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+    doExecuteColumnarInternal()
   }
 
   override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
