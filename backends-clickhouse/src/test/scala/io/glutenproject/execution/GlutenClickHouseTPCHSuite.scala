@@ -35,19 +35,19 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q1") {
-    runTPCHQuery(1) { df =>
+    runTPCHQuery(1, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q2") {
-    runTPCHQuery(2) { df =>
+    runTPCHQuery(2, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q3") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(3) { df =>
+      runTPCHQuery(3, chTpchQueries, queriesResults) { df =>
         val shjBuildLeft = df.queryExecution.executedPlan.collect {
           case shj: ShuffledHashJoinExecTransformer if shj.buildSide == BuildLeft => shj
         }
@@ -57,24 +57,24 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q4") {
-    runTPCHQuery(4) { df =>
+    runTPCHQuery(4, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q5") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(5) { df =>
+      runTPCHQuery(5, chTpchQueries, queriesResults) { df =>
         val bhjRes = df.queryExecution.executedPlan.collect {
           case bhj: BroadcastHashJoinExecTransformer => bhj
         }
-        assert(bhjRes.size == 0)
+        assert(bhjRes.isEmpty)
       }
     }
   }
 
   test("TPCH Q6") {
-    runTPCHQuery(6) { df =>
+    runTPCHQuery(6, chTpchQueries, queriesResults) { df =>
     }
   }
 
@@ -83,7 +83,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(7) { df =>
+      runTPCHQuery(7, chTpchQueries, queriesResults) { df =>
       }
     }
   }
@@ -93,33 +93,33 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(8) { df =>
+      runTPCHQuery(8, chTpchQueries, queriesResults) { df =>
       }
     }
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9) { df =>
+    runTPCHQuery(9, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q10") {
-    runTPCHQuery(10) { df =>
+    runTPCHQuery(10, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11) { df =>
+    runTPCHQuery(11, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q12") {
-    runTPCHQuery(12) { df =>
+    runTPCHQuery(12, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q13") {
-    runTPCHQuery(13) { df =>
+    runTPCHQuery(13, chTpchQueries, queriesResults) { df =>
     }
   }
 
@@ -128,25 +128,25 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(14) { df =>
+      runTPCHQuery(14, chTpchQueries, queriesResults) { df =>
       }
     }
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) { df =>
+    runTPCHQuery(15, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16) { df =>
+    runTPCHQuery(16, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q17") {
     withSQLConf(
       ("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(17) { df =>
+      runTPCHQuery(17, chTpchQueries, queriesResults) { df =>
       }
     }
   }
@@ -154,23 +154,23 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   test("TPCH Q18") {
     withSQLConf(
       ("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(18) { df =>
+      runTPCHQuery(18, chTpchQueries, queriesResults) { df =>
       }
     }
   }
 
   test("TPCH Q19") {
-    runTPCHQuery(19) { df =>
+    runTPCHQuery(19, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q20") {
-    runTPCHQuery(20) { df =>
+    runTPCHQuery(20, chTpchQueries, queriesResults) { df =>
     }
   }
 
   test("TPCH Q22") {
-    runTPCHQuery(22) { df =>
+    runTPCHQuery(22, chTpchQueries, queriesResults) { df =>
     }
   }
 

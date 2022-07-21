@@ -20,8 +20,11 @@ package io.glutenproject.execution
 import java.io.File
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, QueryTest}
+import org.apache.spark.sql.{DataFrame, QueryTest, Row}
 import org.apache.spark.sql.test.SharedSparkSession
+import org.apache.spark.sql.types.{DoubleType, StructType}
+
+import scala.io.Source
 
 abstract class WholeStageTransformerSuite extends QueryTest with SharedSparkSession {
 
@@ -58,5 +61,62 @@ abstract class WholeStageTransformerSuite extends QueryTest with SharedSparkSess
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.gluten.sql.columnar.backend.lib", backend)
       .set("spark.default.parallelism", "1")
+  }
+
+  protected def compareResultStr(sqlNum: String, result: Array[Row],
+                                 queriesResults: String): Unit = {
+    val resultStr = new StringBuffer()
+    resultStr.append(result.length).append("\n")
+    result.foreach(r => resultStr.append(r.mkString("|-|")).append("\n"))
+    val queryResultStr =
+      Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").mkString
+    assert(queryResultStr.equals(resultStr.toString))
+  }
+
+  protected def compareDoubleResult(sqlNum: String,
+                                    result: Array[Row],
+                                    schema: StructType,
+                                    queriesResults: String): Unit = {
+    val queryResults = Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"),
+      "UTF-8").getLines()
+    var recordCnt = queryResults.next().toInt
+    assert(result.size == recordCnt)
+    for (row <- result) {
+      assert(queryResults.hasNext)
+      val result = queryResults.next().split("\\|-\\|")
+      var i = 0
+      row.schema.foreach( s => {
+        s match {
+          case d if d.dataType == DoubleType =>
+            val v1 = row.getDouble(i)
+            val v2 = result(i).toDouble
+            assert(Math.abs(v1 - v2) < 0.00001)
+          case _ =>
+            val v1 = row.get(i).toString
+            val v2 = result(i)
+            assert(v1.equals(v2))
+        }
+        i += 1
+      })
+    }
+  }
+
+  protected def runTPCHQuery(queryNum: Int, tpchQueries: String,
+                             queriesResults: String, compareResult: Boolean = true)
+                            (customCheck: DataFrame => Unit): Unit = {
+    val sqlNum = "q" + "%02d".format(queryNum)
+    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
+    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+    val df = spark.sql(sqlStr)
+    val result = df.collect()
+    if (compareResult) {
+      val schema = df.schema
+      if (schema.exists(_.dataType == DoubleType)) {
+        compareDoubleResult(sqlNum, result, schema, queriesResults)
+      } else {
+        compareResultStr(sqlNum, result, queriesResults)
+      }
+    }
+    customCheck(df)
   }
 }
