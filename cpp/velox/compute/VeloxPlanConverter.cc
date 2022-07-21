@@ -389,19 +389,19 @@ memory::MemoryPool* WholeStageResIter::getPool() const {
 void WholeStageResIter::getOrderedNodeIds(
     const std::shared_ptr<const core::PlanNode>& planNode,
     std::vector<core::PlanNodeId>& nodeIds) {
-  bool isFilterNode = false;
-  if (std::dynamic_pointer_cast<const core::FilterNode>(planNode)) {
-    isFilterNode = true;
+  bool isProjectNode = false;
+  if (std::dynamic_pointer_cast<const core::ProjectNode>(planNode)) {
+    isProjectNode = true;
   }
 
   const auto& sourceNodes = planNode->sources();
   for (const auto& sourceNode : sourceNodes) {
-    // Filter over Project are combined into FilterProject operator in Velox.
+    // Filter over Project are mapped into FilterProject operator in Velox.
     // Metrics are all applied on Project node, and the metrics for Filter node
     // does not exist.
-    if (isFilterNode &&
-        std::dynamic_pointer_cast<const core::ProjectNode>(sourceNode)) {
-      omittedNodeIds_.insert(planNode->id());
+    if (isProjectNode &&
+        std::dynamic_pointer_cast<const core::FilterNode>(sourceNode)) {
+      omittedNodeIds_.insert(sourceNode->id());
     }
     getOrderedNodeIds(sourceNode, nodeIds);
   }
@@ -421,6 +421,11 @@ void WholeStageResIter::collectMetrics() {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
+#ifdef DEBUG
+        std::cout << "Not found node id: " << nodeId << std::endl;
+        std::cout << "Plan Node: " << std::endl
+                  << planNode_->toString(true, true) << std::endl;
+#endif
         throw std::runtime_error("Node id cannot be found in plan status.");
       }
       // Special handing for Filter over Project case. Filter metrics are
