@@ -261,7 +261,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     // If containing scan exec transformer, a new RDD is created.
     if (basicScanExecTransformer.nonEmpty) {
       // the partition size of the all BasicScanExecTransformer must be the same
-      val partitionLength = basicScanExecTransformer.head.getPartitions.length
+      val partitionLength = basicScanExecTransformer(0).getPartitions.size
       if (basicScanExecTransformer.exists(_.getPartitions.length != partitionLength)) {
         throw new RuntimeException(
           "The partition length of all the scan transformer are not the same.")

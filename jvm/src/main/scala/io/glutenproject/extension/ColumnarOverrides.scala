@@ -356,7 +356,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   def postOverrides: TransformPostOverrides = TransformPostOverrides()
 
   def collapseOverrides: ColumnarCollapseCodegenStages =
-    ColumnarCollapseCodegenStages(columnarWholeStageEnabled)
+    ColumnarCollapseCodegenStages(columnarWholeStageEnabled, isCH)
 
   private def supportAdaptive(plan: SparkPlan): Boolean = {
     // TODO migrate dynamic-partition-pruning onto adaptive execution.

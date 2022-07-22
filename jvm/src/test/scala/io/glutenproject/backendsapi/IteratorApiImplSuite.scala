@@ -22,7 +22,8 @@ import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformC
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark.{SparkConf, TaskContext}
+import org.apache.spark.{SparkConf, SparkContext, TaskContext}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -109,6 +110,17 @@ class IteratorApiImplSuite extends IIteratorApi {
                                 iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper,
                                 outAttrs: Seq[Attribute]): GeneralOutIterator = null
+
+  /**
+   * Generate Native FileScanRDD, currently only for ClickHouse Backend.
+   */
+  override def genNativeFileScanRDD(sparkContext: SparkContext,
+                                    wsCxt: WholestageTransformContext,
+                                    fileFormat: Integer,
+                                    inputPartitions: Seq[InputPartition],
+                                    numOutputRows: SQLMetric,
+                                    numOutputBatches: SQLMetric,
+                                    scanTime: SQLMetric): RDD[ColumnarBatch] = null
 
   /**
    * Get the backend api name.

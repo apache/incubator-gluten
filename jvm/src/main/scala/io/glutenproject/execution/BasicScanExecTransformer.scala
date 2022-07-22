@@ -18,15 +18,19 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
+
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.vectorized.ExpressionEvaluator
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BasicScanExecTransformer extends TransformSupport {
 
@@ -35,6 +39,34 @@ trait BasicScanExecTransformer extends TransformSupport {
   def outputAttributes(): Seq[Attribute]
 
   def getPartitions: Seq[InputPartition]
+
+  def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
+    val numOutputRows = longMetric("outputRows")
+    val numOutputVectors = longMetric("outputVectors")
+    val scanTime = longMetric("scanTime")
+    val substraitContext = new SubstraitContext
+    val transformContext = doTransform(substraitContext)
+    val outNames = new java.util.ArrayList[String]()
+    for (attr <- outputAttributes()) {
+      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
+    }
+    val planNode =
+      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformContext.root), outNames)
+    val fileFormat = ConverterUtils.getFileFormat(this)
+
+    BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
+      sparkContext,
+      WholestageTransformContext(outputAttributes(),
+        outputAttributes(),
+        planNode,
+        substraitContext),
+      fileFormat,
+      getPartitions,
+      numOutputRows,
+      numOutputVectors,
+      scanTime
+    )
+  }
 
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
