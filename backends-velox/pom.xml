@@ -21,7 +21,7 @@
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
         <velox.build_cpp>${build_cpp}</velox.build_cpp>
         <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
-        <velox.cpp_tests>${cpp_benchmarks}</velox.cpp_tests>
+        <velox.cpp_benchmarks>${cpp_benchmarks}</velox.cpp_benchmarks>
         <velox.build_arrow>OFF</velox.build_arrow>
         <velox.static_arrow>${static_arrow}</velox.static_arrow>
         <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>

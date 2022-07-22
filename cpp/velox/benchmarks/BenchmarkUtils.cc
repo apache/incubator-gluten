@@ -30,7 +30,7 @@
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
-DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
+DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
 
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
@@ -44,10 +44,9 @@ std::string getExampleFilePath(const std::string& fileName) {
       "cpp/velox/benchmarks", "data/" + fileName);
 }
 
-void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool) {
-  gluten::SetBackendFactory([=] {
-    return std::make_shared<::velox::compute::VeloxPlanConverter>(pool);
-  });
+void InitVeloxBackend() {
+  gluten::SetBackendFactory(
+      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
   auto veloxInitializer =
       std::make_shared<::velox::compute::VeloxInitializer>();
 }

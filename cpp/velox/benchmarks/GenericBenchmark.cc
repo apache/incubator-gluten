@@ -19,14 +19,16 @@
 #include <arrow/util/range.h>
 #include <benchmark/benchmark.h>
 #include <gflags/gflags.h>
+#include <velox/exec/PlanNodeStats.h>
+
+#include <chrono>
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
 #include "jni/exec_backend.h"
 #include "utils/exception.h"
 
-using GetInputFunc =
-    std::shared_ptr<gluten::ArrowArrayResultIterator>(const std::string&);
+#include <thread>
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
@@ -34,6 +36,8 @@ auto BM_Generic = [](::benchmark::State& state,
                      GetInputFunc* getInputIterator) {
   if (FLAGS_cpu != -1) {
     setCpu(FLAGS_cpu);
+  } else {
+    setCpu(state.thread_index());
   }
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto maybePlan = getPlanFromFile(filePath);
@@ -43,21 +47,29 @@ auto BM_Generic = [](::benchmark::State& state,
   }
   auto plan = std::move(maybePlan).ValueOrDie();
 
+  auto backend = gluten::CreateBackend();
+  std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputIters;
+  std::transform(
+      input_files.cbegin(),
+      input_files.cend(),
+      std::back_inserter(inputIters),
+      getInputIterator);
+  std::vector<BatchIteratorWrapper*> inputItersRaw;
+  std::transform(
+      inputIters.begin(),
+      inputIters.end(),
+      std::back_inserter(inputItersRaw),
+      [](std::shared_ptr<gluten::ArrowArrayResultIterator> iter) {
+        return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
+      });
+
+  auto startTime = std::chrono::steady_clock::now();
+  backend->ParsePlan(plan->data(), plan->size());
+  auto resultIter = backend->GetResultIterator(
+      gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
+  auto outputSchema = backend->GetOutputSchema();
+
   for (auto _ : state) {
-    state.PauseTiming();
-    auto backend = gluten::CreateBackend();
-    std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputIters;
-    std::transform(
-        input_files.cbegin(),
-        input_files.cend(),
-        std::back_inserter(inputIters),
-        getInputIterator);
-
-    state.ResumeTiming();
-    backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(std::move(inputIters));
-    auto outputSchema = backend->GetOutputSchema();
-
     while (resultIter->HasNext()) {
       auto array = resultIter->Next();
       if (FLAGS_print_result) {
@@ -71,39 +83,64 @@ auto BM_Generic = [](::benchmark::State& state,
         state.ResumeTiming();
       }
     }
+  }
 
-    auto* rawIter =
-        static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
-    const auto& task = rawIter->task_;
-    auto taskStats = task->taskStats();
-    for (const auto& pStat : taskStats.pipelineStats) {
-      for (const auto& opStat : pStat.operatorStats) {
-        if (opStat.operatorType != "N/A") {
-          // ${pipelineId}_${operatorId}_${planNodeId}_${operatorType}_${metric}
-          // Different operators may have same planNodeId, e.g. HashBuild and
-          // HashProbe from same HashNode.
-          const auto& opId = std::to_string(opStat.pipelineId) + "_" +
-              std::to_string(opStat.operatorId) + "_" + opStat.planNodeId +
-              "_" + opStat.operatorType;
-          state.counters[opId + "_addInputTiming"] = benchmark::Counter(
-              opStat.addInputTiming.cpuNanos,
-              benchmark::Counter::Flags::kAvgIterations);
-          state.counters[opId + "_getOutputTiming"] = benchmark::Counter(
-              opStat.getOutputTiming.cpuNanos,
-              benchmark::Counter::Flags::kAvgIterations);
-          state.counters[opId + "_finishTiming"] = benchmark::Counter(
-              opStat.finishTiming.cpuNanos,
-              benchmark::Counter::Flags::kAvgIterations);
-        }
+  auto endTime = std::chrono::steady_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
+          .count();
+  auto collectBatchTime = std::accumulate(
+      inputItersRaw.begin(),
+      inputItersRaw.end(),
+      0,
+      [](int64_t sum, BatchIteratorWrapper* iter) {
+        return sum + iter->GetCollectBatchTime();
+      });
+  duration -= collectBatchTime;
+
+  state.counters["collect_batch_time"] = benchmark::Counter(
+      collectBatchTime,
+      benchmark::Counter::kAvgIterations,
+      benchmark::Counter::OneK::kIs1000);
+  state.counters["elapsed_time"] = benchmark::Counter(
+      duration,
+      benchmark::Counter::kAvgIterations,
+      benchmark::Counter::OneK::kIs1000);
+
+  auto* rawIter =
+      static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
+  const auto& task = rawIter->task_;
+  const auto& planNode = rawIter->planNode_;
+  auto statsStr = ::facebook::velox::exec::printPlanWithStats(
+      *planNode, task->taskStats(), true);
+  std::cout << statsStr << std::endl;
+
+  auto taskStats = task->taskStats();
+  for (const auto& pStat : taskStats.pipelineStats) {
+    for (const auto& opStat : pStat.operatorStats) {
+      if (opStat.operatorType != "N/A") {
+        // ${pipelineId}_${operatorId}_${planNodeId}_${operatorType}_${metric}
+        // Different operators may have same planNodeId, e.g. HashBuild and
+        // HashProbe from same HashNode.
+        const auto& opId = std::to_string(opStat.pipelineId) + "_" +
+            std::to_string(opStat.operatorId) + "_" + opStat.planNodeId + "_" +
+            opStat.operatorType;
+        state.counters[opId + "_addInputTiming"] = benchmark::Counter(
+            opStat.addInputTiming.cpuNanos,
+            benchmark::Counter::Flags::kAvgIterations);
+        state.counters[opId + "_getOutputTiming"] = benchmark::Counter(
+            opStat.getOutputTiming.cpuNanos,
+            benchmark::Counter::Flags::kAvgIterations);
+        state.counters[opId + "_finishTiming"] = benchmark::Counter(
+            opStat.finishTiming.cpuNanos,
+            benchmark::Counter::Flags::kAvgIterations);
       }
     }
   }
 };
 
 int main(int argc, char** argv) {
-  std::unique_ptr<facebook::velox::memory::MemoryPool> veloxPool =
-      facebook::velox::memory::getDefaultScopedMemoryPool();
-  InitVeloxBackend(veloxPool.get());
+  InitVeloxBackend();
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -113,12 +150,18 @@ int main(int argc, char** argv) {
     inputFiles.emplace_back(argv[i]);
   }
 
-#define GENERIC_BENCHMARK(NAME, FUNC)                        \
-  ::benchmark::RegisterBenchmark(                            \
-      NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
-      ->Threads(FLAGS_threads)                               \
-      ->MeasureProcessCPUTime()                              \
-      ->UseRealTime();
+#define GENERIC_BENCHMARK(NAME, FUNC)                                     \
+  do {                                                                    \
+    auto* bm = ::benchmark::RegisterBenchmark(                            \
+                   NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
+                   ->MeasureProcessCPUTime()                              \
+                   ->UseRealTime();                                       \
+    if (FLAGS_threads > 0) {                                              \
+      bm->Threads(FLAGS_threads);                                         \
+    } else {                                                              \
+      bm->ThreadRange(1, std::thread::hardware_concurrency());            \
+    }                                                                     \
+  } while (0)
 
   GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);
   GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
