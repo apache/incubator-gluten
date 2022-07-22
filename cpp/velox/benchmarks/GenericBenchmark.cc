@@ -19,6 +19,7 @@
 #include <arrow/util/range.h>
 #include <benchmark/benchmark.h>
 #include <gflags/gflags.h>
+#include <velox/exec/PlanNodeStats.h>
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
@@ -55,7 +56,8 @@ auto BM_Generic = [](::benchmark::State& state,
 
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(std::move(inputIters));
+    auto resultIter = backend->GetResultIterator(
+        gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
     auto outputSchema = backend->GetOutputSchema();
 
     while (resultIter->HasNext()) {
@@ -75,6 +77,11 @@ auto BM_Generic = [](::benchmark::State& state,
     auto* rawIter =
         static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
     const auto& task = rawIter->task_;
+    const auto& planNode = rawIter->planNode_;
+    auto statsStr = ::facebook::velox::exec::printPlanWithStats(
+        *planNode, task->taskStats(), true);
+    std::cout << statsStr << std::endl;
+
     auto taskStats = task->taskStats();
     for (const auto& pStat : taskStats.pipelineStats) {
       for (const auto& opStat : pStat.operatorStats) {
@@ -101,9 +108,7 @@ auto BM_Generic = [](::benchmark::State& state,
 };
 
 int main(int argc, char** argv) {
-  std::unique_ptr<facebook::velox::memory::MemoryPool> veloxPool =
-      facebook::velox::memory::getDefaultScopedMemoryPool();
-  InitVeloxBackend(veloxPool.get());
+  InitVeloxBackend();
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 

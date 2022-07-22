@@ -46,7 +46,8 @@ auto BM = [](::benchmark::State& state,
             gluten::CreateBackend());
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(scanInfos);
+    auto resultIter = backend->GetResultIterator(
+        gluten::memory::DefaultMemoryAllocator().get(), scanInfos);
     auto outputSchema = backend->GetOutputSchema();
     while (resultIter->HasNext()) {
       auto array = resultIter->Next();
@@ -61,9 +62,7 @@ auto BM = [](::benchmark::State& state,
 };
 
 int main(int argc, char** argv) {
-  std::unique_ptr<memory::MemoryPool> veloxPool =
-      memory::getDefaultScopedMemoryPool();
-  InitVeloxBackend(veloxPool.get());
+  InitVeloxBackend();
   ::benchmark::Initialize(&argc, argv);
   // Threads cannot work well, use ThreadRange instead.
   // The multi-thread performance is not correct.

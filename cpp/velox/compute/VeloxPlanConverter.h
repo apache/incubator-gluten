@@ -96,6 +96,7 @@ class WholeStageResIter {
     return metrics_;
   }
 
+  std::shared_ptr<const core::PlanNode> planNode_;
   std::shared_ptr<exec::Task> task_;
   std::function<void(exec::Task*)> addSplits_;
 
@@ -117,7 +118,6 @@ class WholeStageResIter {
   void collectMetrics();
 
   std::shared_ptr<memory::MemoryPool> pool_;
-  std::shared_ptr<const core::PlanNode> planNode_;
   // TODO: use the setted one.
   uint64_t batchSize_ = 10000;
   std::shared_ptr<Metrics> metrics_ = nullptr;

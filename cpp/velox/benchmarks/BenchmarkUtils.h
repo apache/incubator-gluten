@@ -34,7 +34,7 @@ DECLARE_int32(cpu);
 DECLARE_int32(threads);
 
 /// Initilize the Velox backend.
-void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool);
+void InitVeloxBackend();
 
 /// Get the location of a file in this project.
 std::string getExampleFilePath(const std::string& fileName);

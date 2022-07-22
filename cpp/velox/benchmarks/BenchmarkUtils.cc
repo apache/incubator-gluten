@@ -44,10 +44,9 @@ std::string getExampleFilePath(const std::string& fileName) {
       "cpp/velox/benchmarks", "data/" + fileName);
 }
 
-void InitVeloxBackend(facebook::velox::memory::MemoryPool* pool) {
-  gluten::SetBackendFactory([=] {
-    return std::make_shared<::velox::compute::VeloxPlanConverter>(pool);
-  });
+void InitVeloxBackend() {
+  gluten::SetBackendFactory(
+      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
   auto veloxInitializer =
       std::make_shared<::velox::compute::VeloxInitializer>();
 }
