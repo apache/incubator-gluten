@@ -8,6 +8,13 @@ Velox use the script setup-ubuntu.sh to install all dependency libraries, but Ar
 apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev
 ```
 
+Also we need to setup the JAVA_HOME env.
+```shell script
+export JAVA_HOME=path/to/java/home
+export PATH=$JAVA_HOME/bin:$PATH
+```
+
+
 The script to build Velox backend jars:
 
 ```shell script
@@ -48,3 +55,8 @@ Both Parquet and ORC datasets are sf1024.
 |---------------- | ----------- | ------------- | ------------- |
 | TPC-H Q6 | 13.6 | 21.6  | 34.9 |
 | TPC-H Q1 | 26.1 | 76.7 | 84.9 |
+
+# External reference setup
+
+TO ease your first hand experience of using Gluten, we have setup an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com
+
