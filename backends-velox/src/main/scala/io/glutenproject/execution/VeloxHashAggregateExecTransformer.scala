@@ -32,7 +32,7 @@ import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.{ByteType, DataType, IntegerType, LongType, ShortType}
 
 case class VeloxHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
@@ -64,8 +64,8 @@ case class VeloxHashAggregateExecTransformer(
           case Partial =>
             // Will use sum and count to replace partial avg.
             assert(childrenNodeList.size() == 1, "Partial Average expects one child node.")
-            val inputType = aggregateFunction.inputAggBufferAttributes.head.dataType
-            val inputNullable = aggregateFunction.inputAggBufferAttributes.head.nullable
+            val inputType = aggregateFunction.children.head.dataType
+            val inputNullable = aggregateFunction.children.head.nullable
 
             val sumNode = ExpressionBuilder.makeAggregateFunction(
               ExpressionBuilder.newScalarFunction(
@@ -74,7 +74,7 @@ case class VeloxHashAggregateExecTransformer(
                   .makeFuncName(ConverterUtils.SUM, Seq(inputType), FunctionConfig.OPT)),
               childrenNodeList,
               modeToKeyWord(aggregateMode),
-              ConverterUtils.getTypeNode(inputType, inputNullable))
+              getSumResultTypeNode(inputType, inputNullable))
             aggregateNodeList.add(sumNode)
 
             val countNode = ExpressionBuilder.makeAggregateFunction(
@@ -103,6 +103,22 @@ case class VeloxHashAggregateExecTransformer(
           modeToKeyWord(aggregateMode),
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
         aggregateNodeList.add(aggFunctionNode)
+    }
+  }
+
+  /**
+   * Get the result type of sum aggregation with accumulation.
+   * @param inputType the input type of sum aggregation.
+   * @param nullable the input nullable of sum aggregation.
+   * @return
+   */
+  private def getSumResultTypeNode(inputType: DataType, nullable: Boolean): TypeNode = {
+    inputType match {
+      case ByteType | ShortType | IntegerType | LongType =>
+        // The middle type and final type are both long type in Velox.
+        ConverterUtils.getTypeNode(LongType, nullable)
+      case _ =>
+        ConverterUtils.getTypeNode(inputType, nullable)
     }
   }
 
