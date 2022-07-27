@@ -22,6 +22,7 @@ import java.util
 
 import io.glutenproject.substrait.ddlplan.InsertOutputNode
 import io.glutenproject.substrait.rel.LocalFilesNode
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 case class JoinParams() {
   // Whether the input of streamed side is a ReadRel represented iterator.
@@ -71,15 +72,15 @@ class SubstraitContext extends Serializable {
   private var localFilesNodesIndex: java.lang.Integer = new java.lang.Integer(0)
   private var localFilesNodes: Seq[java.io.Serializable] = _
   private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
-  private var fileFormat: java.util.List[java.lang.Integer] =
-    new java.util.ArrayList[java.lang.Integer]()
+  private var fileFormat: java.util.List[ReadFileFormat] =
+    new java.util.ArrayList[ReadFileFormat]()
   private var insertOutputNode: InsertOutputNode = _
   private var operatorId: java.lang.Long = new java.lang.Long(0)
   private var relId: java.lang.Long = new java.lang.Long(0)
 
-  def getFileFormat: java.util.List[java.lang.Integer] = this.fileFormat
+  def getFileFormat: java.util.List[ReadFileFormat] = this.fileFormat
 
-  def setFileFormat(format: java.util.List[java.lang.Integer]): Unit = {
+  def setFileFormat(format: java.util.List[ReadFileFormat]): Unit = {
     this.fileFormat = format
   }
 

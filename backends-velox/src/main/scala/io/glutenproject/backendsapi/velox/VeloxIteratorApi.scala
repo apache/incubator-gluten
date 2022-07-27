@@ -22,7 +22,6 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
@@ -40,7 +39,6 @@ import org.apache.spark.sql.vectorized.ColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.UserAddedJarUtils
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IIteratorApi
@@ -48,6 +46,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
 
@@ -376,7 +375,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    */
   override def genNativeFileScanRDD(sparkContext: SparkContext,
                                     wsCxt: WholestageTransformContext,
-                                    fileFormat: java.lang.Integer,
+                                    fileFormat: ReadFileFormat,
                                     inputPartitions: Seq[InputPartition],
                                     numOutputRows: SQLMetric,
                                     numOutputBatches: SQLMetric,

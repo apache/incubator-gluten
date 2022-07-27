@@ -19,7 +19,7 @@ package io.glutenproject.expression
 
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
-
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -84,10 +84,9 @@ object ConverterUtils extends Logging {
     ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id
   }
 
-  def getResultAttrFromExpr(
-                             fieldExpr: Expression,
-                             name: String = "None",
-                             dataType: Option[DataType] = None): AttributeReference = {
+  def getResultAttrFromExpr(fieldExpr: Expression,
+                            name: String = "None",
+                            dataType: Option[DataType] = None): AttributeReference = {
     fieldExpr match {
       case a: Cast =>
         val c = getResultAttrFromExpr(a.child, name, Some(a.dataType))
@@ -223,7 +222,7 @@ object ConverterUtils extends Logging {
     POWERS_OF_10(pow)
   }
 
-  // This method is used to specify the function arg.
+  // This enum is used to specify the function arg.
   object FunctionConfig extends Enumeration {
     type Config = Value
     val REQ, OPT, NON = Value
@@ -289,21 +288,21 @@ object ConverterUtils extends Logging {
     }
   }
 
-  def getFileFormat(scan: BasicScanExecTransformer): java.lang.Integer = {
+  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = {
     scan match {
       case f: BatchScanExecTransformer =>
         f.scan.getClass.getSimpleName match {
-          case "OrcScan" => 2
-          case "ParquetScan" => 1
-          case "DwrfScan" => 3
-          case _ => -1
+          case "OrcScan" => ReadFileFormat.OrcReadFormat
+          case "ParquetScan" => ReadFileFormat.ParquetReadFormat
+          case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+          case _ => ReadFileFormat.UnknownFormat
         }
       case f: FileSourceScanExecTransformer =>
         f.relation.fileFormat.getClass.getSimpleName match {
-          case "OrcFileFormat" => 2
-          case "ParquetFileFormat" => 1
-          case "DwrfFileFormat" => 3
-          case _ => -1
+          case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
+          case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+          case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
+          case _ => ReadFileFormat.UnknownFormat
         }
       case other =>
         throw new UnsupportedOperationException(s"$other not supported.")
