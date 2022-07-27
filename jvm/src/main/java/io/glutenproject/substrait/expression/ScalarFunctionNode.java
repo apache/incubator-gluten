@@ -19,7 +19,7 @@ package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.Expression;
-
+import io.substrait.proto.FunctionArgument;
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -41,7 +41,9 @@ public class ScalarFunctionNode implements ExpressionNode, Serializable {
         Expression.ScalarFunction.newBuilder();
     scalarBuilder.setFunctionReference(functionId.intValue());
     for (ExpressionNode expressionNode : expressionNodes) {
-      scalarBuilder.addArgs(expressionNode.toProtobuf());
+      FunctionArgument.Builder functionArgument = FunctionArgument.newBuilder();
+      functionArgument.setValue(expressionNode.toProtobuf());
+      scalarBuilder.addArguments(functionArgument.build());
     }
     scalarBuilder.setOutputType(typeNode.toProtobuf());
 

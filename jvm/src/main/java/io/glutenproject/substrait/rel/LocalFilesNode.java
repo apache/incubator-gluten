@@ -28,12 +28,21 @@ public class LocalFilesNode implements Serializable {
   private final ArrayList<Long> starts = new ArrayList<>();
   private final ArrayList<Long> lengths = new ArrayList<>();
 
-  private int fileFormat = -1;
+  // The format of file to read.
+  public enum ReadFileFormat {
+    ParquetReadFormat(),
+    ArrowReadFormat(),
+    OrcReadFormat(),
+    DwrfReadFormat(),
+    UnknownFormat()
+  }
+
+  private ReadFileFormat fileFormat = ReadFileFormat.UnknownFormat;
   private Boolean iterAsInput = false;
 
   LocalFilesNode(Integer index, ArrayList<String> paths,
                  ArrayList<Long> starts, ArrayList<Long> lengths,
-                 int fileFormat) {
+                 ReadFileFormat fileFormat) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
@@ -69,7 +78,25 @@ public class LocalFilesNode implements Serializable {
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
-      fileBuilder.setFormat(ReadRel.LocalFiles.FileOrFiles.FileFormat.forNumber(fileFormat));
+      switch (fileFormat) {
+        case ParquetReadFormat:
+          ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
+              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder().build();
+          fileBuilder.setParquet(parquetReadOptions);
+          break;
+        case OrcReadFormat:
+          ReadRel.LocalFiles.FileOrFiles.OrcReadOptions orcReadOptions =
+              ReadRel.LocalFiles.FileOrFiles.OrcReadOptions.newBuilder().build();
+          fileBuilder.setOrc(orcReadOptions);
+          break;
+        case DwrfReadFormat:
+          ReadRel.LocalFiles.FileOrFiles.DwrfReadOptions dwrfReadOptions =
+              ReadRel.LocalFiles.FileOrFiles.DwrfReadOptions.newBuilder().build();
+          fileBuilder.setDwrf(dwrfReadOptions);
+          break;
+        default:
+          break;
+      }
       localFilesBuilder.addItems(fileBuilder.build());
     }
     return localFilesBuilder.build();

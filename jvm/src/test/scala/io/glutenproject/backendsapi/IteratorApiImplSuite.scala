@@ -20,8 +20,8 @@ package io.glutenproject.backendsapi
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
 import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
-
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -116,7 +116,7 @@ class IteratorApiImplSuite extends IIteratorApi {
    */
   override def genNativeFileScanRDD(sparkContext: SparkContext,
                                     wsCxt: WholestageTransformContext,
-                                    fileFormat: Integer,
+                                    fileFormat: ReadFileFormat,
                                     inputPartitions: Seq[InputPartition],
                                     numOutputRows: SQLMetric,
                                     numOutputBatches: SQLMetric,

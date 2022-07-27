@@ -29,6 +29,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.ddlplan.{DllNode, DllTransformContext, InsertOutputBuilder, InsertPlanNode}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.SnowflakeIdWorker
 
 import org.apache.spark.{Partition, SparkEnv, SparkException, TaskContext}
@@ -217,7 +218,7 @@ case class ClickHouseAppendDataExec(
           lengths.add(files.head.length)
           val localFilesNode =
             LocalFilesBuilder.makeLocalFiles(
-              index, paths, starts, lengths, -1)
+              index, paths, starts, lengths, ReadFileFormat.UnknownFormat)
           val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
             SnowflakeIdWorker.getInstance().nextId(),
             database, tableName, tablePath)
