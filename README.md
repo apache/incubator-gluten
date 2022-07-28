@@ -36,15 +36,15 @@ A simple example of execution flow is as below chart. The transformer operator t
 
 ![Overview](./docs/image/flow.png)
 
-# Issues to Solve
+# Issues to Solve and status
 
 The code is still not completely cleaned now. The work is still WIP.
 
-Not all the operators and functions are added. Our initial plan is to pass TPCH Q6, Q1 and Q14. Then whole TPCH, then TPCDS.
+Not all the operators and functions are added. 22 queries of TPCH can pass. We are working on TPCDS queries.
 
-Operator stat info is pretty useful to understand Spark's execution status. With this design we can only collect info for transform operator which is a combination of operators. We need to find ways to send native operators' stat info to Spark driver.
+Operator stat info is pretty useful to understand Spark's execution status. Velox metrics are already added to Spark metric list for Velox backend. More info about Velox's stat can be found here: https://facebookincubator.github.io/velox/develop/debugging/print-plan-with-stats.html
 
-Memory management is an essential feature in Spark. It's even more important to Spark Native runtime. Unlike JVM, not all OOM error can be captured which leads to ugly segment fault error in strange places like JNI call. We need to register each (large) memory allocation in executor's memory management service. Spark can control the memory used in each task. We implemented this in Gazelle-plugin. We will port the function to Gluten but need to define a set of APIs the native library can call back.
+Memory management is an essential feature in Spark. It's even more important to Spark Native runtime. Unlike JVM, not all OOM error can be captured which leads to ugly segment fault error in strange places like JNI call. We need to register each (large) memory allocation in executor's memory management service. Spark can control the memory used in each task. We have implemented the memory pool which apply for block of memory from Spark's memory management before real allocation. Memory allocation in Velox backend is already tracked.
 
 Spark's RDD cache is columnar batch based. In Gazelle-plugin, we use the arrow record batch directly without any memcpy. We can build the same functionality in Gluten.
 
