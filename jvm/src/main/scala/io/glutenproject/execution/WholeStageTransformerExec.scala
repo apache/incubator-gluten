@@ -392,8 +392,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
     var count: Long = 0
     var wallNanos: Long = 0
-    var cpuNanos: Long = 0
-    var blockedWallNanos: Long = 0
     var peakMemoryBytes: Long = 0
     var numMemoryAllocations: Long = 0
 
@@ -403,15 +401,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val metrics = metricsIterator.next()
       count += metrics.count
       wallNanos += metrics.wallNanos
-      cpuNanos += metrics.cpuNanos
-      blockedWallNanos += metrics.blockedWallNanos
       peakMemoryBytes = peakMemoryBytes.max(metrics.peakMemoryBytes)
       numMemoryAllocations += metrics.numMemoryAllocations
     }
 
     new OperatorMetrics(inputRows, inputVectors, inputBytes, rawInputRows, rawInputBytes,
-      outputRows, outputVectors, outputBytes, count, wallNanos, cpuNanos, blockedWallNanos,
-      peakMemoryBytes, numMemoryAllocations)
+      outputRows, outputVectors, outputBytes, count, wallNanos, peakMemoryBytes, numMemoryAllocations)
   }
 
 

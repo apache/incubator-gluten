@@ -32,9 +32,7 @@ struct Metrics {
   // CpuWallTiming
   long* count;
   long* wallNanos;
-  long* cpuNanos;
 
-  long* blockedWallNanos;
   long* peakMemoryBytes;
   long* numMemoryAllocations;
 
@@ -49,8 +47,6 @@ struct Metrics {
     outputBytes = new long[numMetrics]();
     count = new long[numMetrics]();
     wallNanos = new long[numMetrics]();
-    cpuNanos = new long[numMetrics]();
-    blockedWallNanos = new long[numMetrics]();
     peakMemoryBytes = new long[numMetrics]();
     numMemoryAllocations = new long[numMetrics]();
   }
@@ -66,8 +62,6 @@ struct Metrics {
     delete[] outputBytes;
     delete[] count;
     delete[] wallNanos;
-    delete[] cpuNanos;
-    delete[] blockedWallNanos;
     delete[] peakMemoryBytes;
     delete[] numMemoryAllocations;
   }

@@ -28,8 +28,6 @@ public class Metrics {
   public long[] outputBytes;
   public long[] count;
   public long[] wallNanos;
-  public long[] cpuNanos;
-  public long[] blockedWallNanos;
   public long[] peakMemoryBytes;
   public long[] numMemoryAllocations;
 
@@ -38,8 +36,7 @@ public class Metrics {
    */
   public Metrics(long[] inputRows, long[] inputVectors, long[] inputBytes, long[] rawInputRows,
                  long[] rawInputBytes, long[] outputRows, long[] outputVectors, long[] outputBytes,
-                 long[] count, long[] wallNanos, long[] cpuNanos, long[] blockedWallNanos,
-                 long[] peakMemoryBytes, long[] numMemoryAllocations) {
+                 long[] count, long[] wallNanos, long[] peakMemoryBytes, long[] numMemoryAllocations) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -50,8 +47,6 @@ public class Metrics {
     this.outputBytes = outputBytes;
     this.count = count;
     this.wallNanos = wallNanos;
-    this.cpuNanos = cpuNanos;
-    this.blockedWallNanos = blockedWallNanos;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
   }
@@ -72,8 +67,6 @@ public class Metrics {
             outputBytes[index],
             count[index],
             wallNanos[index],
-            cpuNanos[index],
-            blockedWallNanos[index],
             peakMemoryBytes[index],
             numMemoryAllocations[index]);
   }

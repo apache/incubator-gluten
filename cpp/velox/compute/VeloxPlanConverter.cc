@@ -469,8 +469,6 @@ void WholeStageResIter::collectMetrics() {
         metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
         metrics_->count[metricsIdx] = entry.second->cpuWallTiming.count;
         metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
-        metrics_->cpuNanos[metricsIdx] = entry.second->cpuWallTiming.cpuNanos;
-        metrics_->blockedWallNanos[metricsIdx] = entry.second->blockedWallNanos;
         metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
         metrics_->numMemoryAllocations[metricsIdx] =
             entry.second->numMemoryAllocations;
@@ -487,8 +485,6 @@ void WholeStageResIter::collectMetrics() {
       metrics_->outputBytes[metricsIdx] = status.outputBytes;
       metrics_->count[metricsIdx] = status.cpuWallTiming.count;
       metrics_->wallNanos[metricsIdx] = status.cpuWallTiming.wallNanos;
-      metrics_->cpuNanos[metricsIdx] = status.cpuWallTiming.cpuNanos;
-      metrics_->blockedWallNanos[metricsIdx] = status.blockedWallNanos;
       metrics_->peakMemoryBytes[metricsIdx] = status.peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = status.numMemoryAllocations;
       metricsIdx += 1;

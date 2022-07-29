@@ -64,8 +64,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
-    "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
     "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "total scan time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
@@ -81,8 +79,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   val outputBytes: SQLMetric = longMetric("outputBytes")
   val count: SQLMetric = longMetric("count")
   val wallNanos: SQLMetric = longMetric("wallNanos")
-  val cpuNanos: SQLMetric = longMetric("cpuNanos")
-  val blockedWallNanos: SQLMetric = longMetric("blockedWallNanos")
   val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
   val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
@@ -153,8 +149,6 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       outputBytes += operatorMetrics.outputBytes
       count += operatorMetrics.count
       wallNanos += operatorMetrics.wallNanos
-      cpuNanos += operatorMetrics.cpuNanos
-      blockedWallNanos += operatorMetrics.blockedWallNanos
       peakMemoryBytes += operatorMetrics.peakMemoryBytes
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
     }
