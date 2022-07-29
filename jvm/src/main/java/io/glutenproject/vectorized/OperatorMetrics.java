@@ -34,9 +34,10 @@ public class OperatorMetrics {
   /**
    * Create an instance for operator metrics.
    */
-  public OperatorMetrics(long inputRows, long inputVectors, long inputBytes, long rawInputRows,
-                         long rawInputBytes, long outputRows, long outputVectors, long outputBytes,
-                         long count, long wallNanos, long peakMemoryBytes, long numMemoryAllocations) {
+  public OperatorMetrics(
+      long inputRows, long inputVectors, long inputBytes, long rawInputRows,
+      long rawInputBytes, long outputRows, long outputVectors, long outputBytes,
+      long count, long wallNanos, long peakMemoryBytes, long numMemoryAllocations) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;

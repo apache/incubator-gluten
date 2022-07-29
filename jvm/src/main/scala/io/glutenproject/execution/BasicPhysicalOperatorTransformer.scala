@@ -60,7 +60,7 @@ abstract class FilterExecBaseTransformer(condition: Expression,
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_filter"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
@@ -290,7 +290,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_project"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))

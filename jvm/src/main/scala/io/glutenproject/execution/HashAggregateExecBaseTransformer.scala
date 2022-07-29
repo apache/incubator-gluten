@@ -70,7 +70,7 @@ abstract class HashAggregateExecBaseTransformer(
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_input"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"),
@@ -94,7 +94,7 @@ abstract class HashAggregateExecBaseTransformer(
     "preProjectionCount" -> SQLMetrics.createMetric(
       sparkContext, "preProjection cpu wall time count"),
     "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "preProjection cpu wall nanos"),
+      sparkContext, "totaltime_preProjection"),
     "preProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "preProjection peak memory bytes"),
     "preProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -119,7 +119,7 @@ abstract class HashAggregateExecBaseTransformer(
     "aggCount" -> SQLMetrics.createMetric(
       sparkContext, "aggregation cpu wall time count"),
     "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "aggregation cpu wall nanos"),
+      sparkContext, "totaltime_aggregation"),
     "aggPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "aggregation peak memory bytes"),
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -144,7 +144,7 @@ abstract class HashAggregateExecBaseTransformer(
     "postProjectionCount" -> SQLMetrics.createMetric(
       sparkContext, "postProjection cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "postProjection cpu wall nanos"),
+      sparkContext, "totaltime_postProjection"),
     "postProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "postProjection peak memory bytes"),
     "postProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(

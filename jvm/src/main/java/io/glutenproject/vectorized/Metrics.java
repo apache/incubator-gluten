@@ -34,9 +34,10 @@ public class Metrics {
   /**
    * Create an instance for native metrics.
    */
-  public Metrics(long[] inputRows, long[] inputVectors, long[] inputBytes, long[] rawInputRows,
-                 long[] rawInputBytes, long[] outputRows, long[] outputVectors, long[] outputBytes,
-                 long[] count, long[] wallNanos, long[] peakMemoryBytes, long[] numMemoryAllocations) {
+  public Metrics(
+      long[] inputRows, long[] inputVectors, long[] inputBytes, long[] rawInputRows,
+      long[] rawInputBytes, long[] outputRows, long[] outputVectors, long[] outputBytes,
+      long[] count, long[] wallNanos, long[] peakMemoryBytes, long[] numMemoryAllocations) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;

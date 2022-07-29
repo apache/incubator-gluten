@@ -80,7 +80,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "streamCount" -> SQLMetrics.createMetric(
       sparkContext, "stream side cpu wall time count"),
     "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "stream side cpu wall nanos"),
+      sparkContext, "totaltime_stream_input"),
     "streamPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "stream side peak memory bytes"),
     "streamNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -105,7 +105,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "streamPreProjectionCount" -> SQLMetrics.createMetric(
       sparkContext, "stream preProjection cpu wall time count"),
     "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "stream preProjection cpu wall nanos"),
+      sparkContext, "totaltime_stream_preProjection"),
     "streamPreProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "stream preProjection peak memory bytes"),
     "streamPreProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -130,7 +130,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "buildCount" -> SQLMetrics.createMetric(
       sparkContext, "build side cpu wall time count"),
     "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "build side cpu wall nanos"),
+      sparkContext, "totaltime_build_input"),
     "buildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "build side peak memory bytes"),
     "buildNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -155,7 +155,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "buildPreProjectionCount" -> SQLMetrics.createMetric(
       sparkContext, "build preProjection cpu wall time count"),
     "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "build preProjection cpu wall nanos"),
+      sparkContext, "totaltime_build_preProjection"),
     "buildPreProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "build preProjection peak memory bytes"),
     "buildPreProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -180,7 +180,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "hashBuildCount" -> SQLMetrics.createMetric(
       sparkContext, "hash build cpu wall time count"),
     "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "hash build cpu wall nanos"),
+      sparkContext, "totaltime_hashbuild"),
     "hashBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "hash build peak memory bytes"),
     "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -205,7 +205,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "hashProbeCount" -> SQLMetrics.createMetric(
       sparkContext, "hash probe cpu wall time count"),
     "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "hash probe cpu wall nanos"),
+      sparkContext, "totaltime_hashprobe"),
     "hashProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "hash probe peak memory bytes"),
     "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -230,7 +230,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "postProjectionCount" -> SQLMetrics.createMetric(
       sparkContext, "postProjection cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "postProjection cpu wall nanos"),
+      sparkContext, "totaltime_postProjection"),
     "postProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "postProjection peak memory bytes"),
     "postProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(

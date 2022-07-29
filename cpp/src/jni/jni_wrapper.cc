@@ -266,7 +266,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/Metrics;");
   metrics_builder_constructor = GetMethodIDOrError(
-      env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serialized_arrow_array_iterator_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/ArrowInIterator;");

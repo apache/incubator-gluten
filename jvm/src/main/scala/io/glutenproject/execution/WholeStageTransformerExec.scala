@@ -405,8 +405,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       numMemoryAllocations += metrics.numMemoryAllocations
     }
 
-    new OperatorMetrics(inputRows, inputVectors, inputBytes, rawInputRows, rawInputBytes,
-      outputRows, outputVectors, outputBytes, count, wallNanos, peakMemoryBytes, numMemoryAllocations)
+    new OperatorMetrics(
+      inputRows, inputVectors, inputBytes, rawInputRows, rawInputBytes, outputRows, outputVectors,
+      outputBytes, count, wallNanos, peakMemoryBytes, numMemoryAllocations)
   }
 
 
