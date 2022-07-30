@@ -33,7 +33,7 @@ Considering current Velox does not fully support Decimal and Date data type, the
 
 ### Submit the Spark SQL job
 
-Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_dwrf.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries before you run the testing. 
+Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_dwrf.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_dwrf.scala before you run the testing. 
 ```
 var dwrf_file_path = "/PATH/TO/TPCH_DWRF_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
