@@ -4,6 +4,9 @@ import java.io.File
 import java.util.Arrays
 import sys.process._
 
+//Configurations:
+var dwrf_file_path = "/PATH/TO/TPCH_DWRF_PATH"
+var gluten_root = "/PATH/TO/GLUTEN"
 
 def time[R](block: => R): R = {
     val t0 = System.nanoTime()
@@ -14,14 +17,14 @@ def time[R](block: => R): R = {
 }
 
 //Read TPC-H Table from DWRF files
-val lineitem = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/lineitem")
-val part = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/part")
-val orders = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/orders")
-val customer = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/customer")
-val supplier = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/supplier")
-val partsupp = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/partsupp")
-val region = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/region")
-val nation = spark.read.format("dwrf").load("file:///PATH/TO/TPCH_DWRF_PATH/nation")
+val lineitem = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/lineitem")
+val part = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/part")
+val orders = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/orders")
+val customer = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/customer")
+val supplier = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/supplier")
+val partsupp = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/partsupp")
+val region = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/region")
+val nation = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/nation")
 
 //Create DWRF based TPC-H Table View
 lineitem.createOrReplaceTempView("lineitem")
@@ -44,7 +47,7 @@ def getListOfFiles(dir: String):List[File] = {
          List[File]()
      }
 }
-val fileLists = getListOfFiles("/PATH/TO/TPCH_QUERIES/")
+val fileLists = getListOfFiles(gluten_root + "/backends-velox/workload/tpch/tpch.queries.updated/")
 val sorted = fileLists.sortBy {
        f => f.getName match {
        case name =>
