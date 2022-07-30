@@ -34,11 +34,15 @@ class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
   extends Iterator[ColumnarBatch]
     with Logging {
   var cb: ColumnarBatch = _
+  var scanTime = 0L
 
   override def hasNext: Boolean = {
     val beforeTime = System.nanoTime()
     val res = itr.hasNext
-    pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeTime))
+    scanTime += System.nanoTime() - beforeTime
+    if (!res) {
+      pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(scanTime))
+    }
     res
   }
 
@@ -50,7 +54,7 @@ class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
     val beforeTime = System.nanoTime()
     closeCurrentBatch()
     cb = itr.next()
-    pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeTime))
+    scanTime += System.nanoTime() - beforeTime
     cb
   }
 
