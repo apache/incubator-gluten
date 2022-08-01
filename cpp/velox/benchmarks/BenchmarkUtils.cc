@@ -35,6 +35,8 @@ DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
 
+std::unordered_map<std::string, std::string> confMap;
+
 std::string getExampleFilePath(const std::string& fileName) {
   std::filesystem::path path(fileName);
   if (path.is_absolute()) {
@@ -45,8 +47,9 @@ std::string getExampleFilePath(const std::string& fileName) {
 }
 
 void InitVeloxBackend() {
-  gluten::SetBackendFactory(
-      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
+  gluten::SetBackendFactory([] {
+    return std::make_shared<::velox::compute::VeloxPlanConverter>(confMap);
+  });
   auto veloxInitializer =
       std::make_shared<::velox::compute::VeloxInitializer>();
 }

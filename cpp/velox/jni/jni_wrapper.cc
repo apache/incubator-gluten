@@ -19,20 +19,56 @@
 #include <folly/system/ThreadName.h>
 #include <jni.h>
 
+#include <jni/jni_common.h>
 #include "compute/DwrfDatasource.h"
 #include "compute/VeloxPlanConverter.h"
 #include "jni/jni_errors.h"
 #include "memory/velox_memory_pool.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
-// #include "jni/jni_common.h"
-
-#include <jni/dataset/jni_util.h>
-#include <jni/jni_common.h>
-
 #include <iostream>
 
 static std::unordered_map<std::string, std::string> sparkConfs_;
+
+// Extract Spark confs from Substrait plan and set them to the conf map.
+void setUpConfMap(JNIEnv* env, jobject obj, jbyteArray planArray) {
+  if (sparkConfs_.size() != 0) {
+    return;
+  }
+
+  auto planData =
+      reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planSize = env->GetArrayLength(planArray);
+  ::substrait::Plan subPlan;
+  ParseProtobuf(planData, planSize, &subPlan);
+
+  if (subPlan.has_advanced_extensions()) {
+    auto extension = subPlan.advanced_extensions();
+    if (extension.has_enhancement()) {
+      const auto& enhancement = extension.enhancement();
+      ::substrait::Expression expression;
+      if (!enhancement.UnpackTo(&expression)) {
+        std::string error_message =
+            "Can't Unapck the Any object to Expression Literal when passing the spark "
+            "conf to velox";
+        gluten::JniThrow(error_message);
+      }
+      if (expression.has_literal()) {
+        auto literal = expression.literal();
+        if (literal.has_map()) {
+          auto literal_map = literal.map();
+          auto size = literal_map.key_values_size();
+          for (auto i = 0; i < size; i++) {
+            ::substrait::Expression_Literal_Map_KeyValue keyValue =
+                literal_map.key_values(i);
+            sparkConfs_.emplace(
+                keyValue.key().string(), keyValue.value().string());
+          }
+        }
+      }
+    }
+  }
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,44 +97,10 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     jobject obj,
     jbyteArray planArray) {
   JNI_METHOD_START
-  gluten::SetBackendFactory(
-      [] { return std::make_shared<::velox::compute::VeloxPlanConverter>(); });
-
-  if (sparkConfs_.size() == 0) {
-    auto planData = reinterpret_cast<const uint8_t*>(
-        env->GetByteArrayElements(planArray, 0));
-    auto planSize = env->GetArrayLength(planArray);
-    ::substrait::Plan subPlan;
-    ParseProtobuf(planData, planSize, &subPlan);
-
-    if (subPlan.has_advanced_extensions()) {
-      auto extension = subPlan.advanced_extensions();
-      if (extension.has_enhancement()) {
-        const auto& enhancement = extension.enhancement();
-        ::substrait::Expression expression;
-        if (!enhancement.UnpackTo(&expression)) {
-          std::string error_message =
-              "Can't Unapck the Any object to Expression Literal when passing the spark "
-              "conf to velox";
-          gluten::JniThrow(error_message);
-        }
-        if (expression.has_literal()) {
-          auto literal = expression.literal();
-          if (literal.has_map()) {
-            auto literal_map = literal.map();
-            auto size = literal_map.key_values_size();
-            for (auto i = 0; i < size; i++) {
-              ::substrait::Expression_Literal_Map_KeyValue keyValue =
-                  literal_map.key_values(i);
-              sparkConfs_.emplace(
-                  keyValue.key().string(), keyValue.value().string());
-            }
-          }
-        }
-      }
-    }
-  }
-
+  setUpConfMap(env, obj, planArray);
+  gluten::SetBackendFactory([] {
+    return std::make_shared<::velox::compute::VeloxPlanConverter>(sparkConfs_);
+  });
   static auto veloxInitializer =
       std::make_shared<::velox::compute::VeloxInitializer>();
   JNI_METHOD_END()
@@ -143,22 +145,17 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
   if (c_schema == -1) {
     // Only inspect the schema and not write
     auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
-        arrow::dataset::jni::JStringToCString(env, file_path),
-        nullptr,
-        pool.get());
+        JStringToCString(env, file_path), nullptr, pool.get());
     // dwrfDatasource->Init( );
-    return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
-
+    return CreateNativeRef(dwrfDatasource);
   } else {
     std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
         arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
     auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
-        arrow::dataset::jni::JStringToCString(env, file_path),
-        schema,
-        pool.get());
+        JStringToCString(env, file_path), schema, pool.get());
     dwrfDatasource->Init(sparkConfs_);
-    return arrow::dataset::jni::CreateNativeRef(dwrfDatasource);
+    return CreateNativeRef(dwrfDatasource);
   }
 }
 
@@ -168,11 +165,10 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jlong instanceId) {
   JNI_METHOD_START
-  auto dwrfDatasource = arrow::dataset::jni::RetrieveNativeInstance<
-      ::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource =
+      RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
   auto schema = dwrfDatasource->InspectSchema();
-  return std::move(arrow::dataset::jni::ToSchemaByteArray(env, schema))
-      .ValueOrDie();
+  return ToSchemaByteArray(env, schema);
   JNI_METHOD_END(nullptr)
 }
 
@@ -182,11 +178,10 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jlong instanceId) {
   JNI_METHOD_START
-  auto dwrfDatasource = arrow::dataset::jni::RetrieveNativeInstance<
-      ::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource =
+      RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
   dwrfDatasource->Close();
-  arrow::dataset::jni::ReleaseNativeRef<::velox::compute::DwrfDatasource>(
-      instanceId);
+  ReleaseNativeRef<::velox::compute::DwrfDatasource>(instanceId);
   JNI_METHOD_END()
 }
 
@@ -203,8 +198,8 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
           reinterpret_cast<struct ArrowArray*>(c_array),
           reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
-  auto dwrfDatasource = arrow::dataset::jni::RetrieveNativeInstance<
-      ::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource =
+      RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
   dwrfDatasource->Write(rb);
   JNI_METHOD_END()
 }

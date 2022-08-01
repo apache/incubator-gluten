@@ -23,7 +23,6 @@
 #include <arrow/record_batch.h>
 #include <arrow/util/compression.h>
 #include <jni.h>
-#include <jni/dataset/jni_util.h>
 #include <malloc.h>
 
 #include <iostream>
@@ -164,16 +163,16 @@ class JavaArrowArrayIterator {
     if (!env->CallBooleanMethod(
             java_serialized_arrow_array_iterator_,
             serialized_arrow_array_iterator_hasNext)) {
-      RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
+      CheckException(env);
       return nullptr; // stream ended
     }
-    RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
+    CheckException(env);
     ArrowArray c_array{};
     env->CallObjectMethod(
         java_serialized_arrow_array_iterator_,
         serialized_arrow_array_iterator_next,
         reinterpret_cast<jlong>(&c_array));
-    RETURN_NOT_OK(arrow::dataset::jni::CheckException(env));
+    CheckException(env);
     auto array = std::make_shared<ArrowArray>(c_array);
     return array;
   }
@@ -267,7 +266,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/Metrics;");
   metrics_builder_constructor = GetMethodIDOrError(
-      env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serialized_arrow_array_iterator_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/ArrowInIterator;");
@@ -448,13 +447,12 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
   auto inputVectors = env->NewLongArray(numMetrics);
   auto inputBytes = env->NewLongArray(numMetrics);
   auto rawInputRows = env->NewLongArray(numMetrics);
+  auto rawInputBytes = env->NewLongArray(numMetrics);
   auto outputRows = env->NewLongArray(numMetrics);
   auto outputVectors = env->NewLongArray(numMetrics);
   auto outputBytes = env->NewLongArray(numMetrics);
   auto count = env->NewLongArray(numMetrics);
   auto wallNanos = env->NewLongArray(numMetrics);
-  auto cpuNanos = env->NewLongArray(numMetrics);
-  auto blockedWallNanos = env->NewLongArray(numMetrics);
   auto peakMemoryBytes = env->NewLongArray(numMetrics);
   auto numMemoryAllocations = env->NewLongArray(numMetrics);
 
@@ -463,15 +461,14 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
     env->SetLongArrayRegion(inputVectors, 0, numMetrics, metrics->inputVectors);
     env->SetLongArrayRegion(inputBytes, 0, numMetrics, metrics->inputBytes);
     env->SetLongArrayRegion(rawInputRows, 0, numMetrics, metrics->rawInputRows);
+    env->SetLongArrayRegion(
+        rawInputBytes, 0, numMetrics, metrics->rawInputBytes);
     env->SetLongArrayRegion(outputRows, 0, numMetrics, metrics->outputRows);
     env->SetLongArrayRegion(
         outputVectors, 0, numMetrics, metrics->outputVectors);
     env->SetLongArrayRegion(outputBytes, 0, numMetrics, metrics->outputBytes);
     env->SetLongArrayRegion(count, 0, numMetrics, metrics->count);
     env->SetLongArrayRegion(wallNanos, 0, numMetrics, metrics->wallNanos);
-    env->SetLongArrayRegion(cpuNanos, 0, numMetrics, metrics->cpuNanos);
-    env->SetLongArrayRegion(
-        blockedWallNanos, 0, numMetrics, metrics->blockedWallNanos);
     env->SetLongArrayRegion(
         peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
     env->SetLongArrayRegion(
@@ -485,13 +482,12 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
       inputVectors,
       inputBytes,
       rawInputRows,
+      rawInputBytes,
       outputRows,
       outputVectors,
       outputBytes,
       count,
       wallNanos,
-      cpuNanos,
-      blockedWallNanos,
       peakMemoryBytes,
       numMemoryAllocations);
   JNI_METHOD_END(nullptr)

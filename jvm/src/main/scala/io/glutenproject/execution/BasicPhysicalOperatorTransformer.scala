@@ -60,9 +60,7 @@ abstract class FilterExecBaseTransformer(condition: Expression,
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
-    "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_filter"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
@@ -77,8 +75,6 @@ abstract class FilterExecBaseTransformer(condition: Expression,
   val outputBytes: SQLMetric = longMetric("outputBytes")
   val count: SQLMetric = longMetric("count")
   val wallNanos: SQLMetric = longMetric("wallNanos")
-  val cpuNanos: SQLMetric = longMetric("cpuNanos")
-  val blockedWallNanos: SQLMetric = longMetric("blockedWallNanos")
   val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
   val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
@@ -138,8 +134,6 @@ abstract class FilterExecBaseTransformer(condition: Expression,
       outputBytes += operatorMetrics.outputBytes
       count += operatorMetrics.count
       wallNanos += operatorMetrics.wallNanos
-      cpuNanos += operatorMetrics.cpuNanos
-      blockedWallNanos += operatorMetrics.blockedWallNanos
       peakMemoryBytes += operatorMetrics.peakMemoryBytes
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
     }
@@ -296,9 +290,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
     "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu wall nanos"),
-    "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu nanos"),
-    "blockedWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "block wall nanos"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_project"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
@@ -313,8 +305,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   val outputBytes: SQLMetric = longMetric("outputBytes")
   val count: SQLMetric = longMetric("count")
   val wallNanos: SQLMetric = longMetric("wallNanos")
-  val cpuNanos: SQLMetric = longMetric("cpuNanos")
-  val blockedWallNanos: SQLMetric = longMetric("blockedWallNanos")
   val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
   val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
@@ -390,8 +380,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       outputBytes += operatorMetrics.outputBytes
       count += operatorMetrics.count
       wallNanos += operatorMetrics.wallNanos
-      cpuNanos += operatorMetrics.cpuNanos
-      blockedWallNanos += operatorMetrics.blockedWallNanos
       peakMemoryBytes += operatorMetrics.peakMemoryBytes
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
     }
