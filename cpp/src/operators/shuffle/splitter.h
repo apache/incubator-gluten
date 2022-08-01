@@ -245,6 +245,8 @@ class Splitter {
 
   // Check whether support AVX512 instructions
   bool support_avx512_;
+  // options
+  SplitOptions options_;
   // partid
   std::vector<int32_t> partition_buffer_size_;
   // partid, value is reducer batch's offset, output rb rownum < 64k
@@ -308,7 +310,6 @@ class Splitter {
 
   int32_t num_partitions_;
   std::shared_ptr<arrow::Schema> schema_;
-  SplitOptions options_;
 
   // write options for tiny batches
   arrow::ipc::IpcWriteOptions tiny_bach_write_options_;
