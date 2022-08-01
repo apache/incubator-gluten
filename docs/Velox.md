@@ -17,13 +17,13 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 ## Velox home directory
 
-### The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
+The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
 
 ```shell script
 mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
 
-### You can also clone the Velox source to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
+You can also clone the Velox source to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
 
 ```shell script
 mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
