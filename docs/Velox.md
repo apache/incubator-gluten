@@ -36,7 +36,7 @@ Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is clone
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
 
-## Test TPC-H Q1 and Q6 on Gluten with Velox backend
+## Test TPC-H on Gluten with Velox backend
 
 ### Data preparation
 
