@@ -120,7 +120,6 @@ object DSV2BenchmarkTest {
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
         .config("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "true")
-        // .config("spark.gluten.sql.columnar.extension.scan.rdd", "false")
         // .config("spark.gluten.sql.columnar.sort", "false")
         // .config("spark.sql.codegen.wholeStage", "false")
         .config("spark.sql.autoBroadcastJoinThreshold", "10MB")
