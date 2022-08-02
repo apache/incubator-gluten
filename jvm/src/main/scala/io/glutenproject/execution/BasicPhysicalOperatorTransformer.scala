@@ -20,8 +20,10 @@ package io.glutenproject.execution
 import java.util
 
 import scala.collection.JavaConverters._
+
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
@@ -30,7 +32,6 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 
 import org.apache.spark.SparkConf

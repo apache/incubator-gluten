@@ -27,7 +27,7 @@ import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -127,7 +127,8 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   /**
    * Create broadcast relation for BroadcastExchangeExec
    */
-  override def createBroadcastRelation(child: SparkPlan,
+  override def createBroadcastRelation(mode: BroadcastMode,
+                                       child: SparkPlan,
                                        numOutputRows: SQLMetric,
                                        dataSize: SQLMetric): BuildSideRelation = null
 

@@ -23,10 +23,14 @@ import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.vectorized.StorageJoinBuilder
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ClickHouseBuildSideRelation(output: Seq[Attribute], batches: Array[Array[Byte]])
+case class ClickHouseBuildSideRelation(mode: BroadcastMode,
+                                       output: Seq[Attribute],
+                                       batches: Array[Array[Byte]])
   extends BuildSideRelation with Logging {
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
@@ -42,5 +46,15 @@ case class ClickHouseBuildSideRelation(output: Seq[Attribute], batches: Array[Ar
     // Build the hash table
     storageJoinBuilder.build()
     this
+  }
+
+  /**
+    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
+    * @return
+    */
+  override def transform(key: Expression): Array[InternalRow] = {
+    val allBatches = batches.flatten
+    // convert broadcasted value to Array[InternalRow].
+    Array.empty
   }
 }

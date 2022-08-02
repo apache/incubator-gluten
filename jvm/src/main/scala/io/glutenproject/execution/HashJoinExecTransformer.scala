@@ -17,10 +17,14 @@
 
 package io.glutenproject.execution
 
+import java.{lang, util}
+
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
+
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression}
 import io.glutenproject.expression._
@@ -32,7 +36,6 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.substrait.proto.JoinRel
-import java.{lang, util}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -43,7 +46,7 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin, ShuffledJoin}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.types.{BooleanType, DataType, NullType}
+import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**

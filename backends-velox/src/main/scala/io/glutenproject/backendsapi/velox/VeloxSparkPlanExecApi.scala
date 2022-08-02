@@ -20,6 +20,7 @@ package io.glutenproject.backendsapi.velox
 import scala.collection.mutable.ArrayBuffer
 
 import com.intel.oap.spark.sql.DwrfWriteExtension.{DummyRule, DwrfWritePostRule, SimpleColumnarRule, SimpleStrategy}
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxHashAggregateExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
@@ -35,7 +36,7 @@ import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan, VeloxBuildSideRelation}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
@@ -168,10 +169,10 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   /**
    * Create broadcast relation for BroadcastExchangeExec
    */
-  override def createBroadcastRelation(
-                                        child: SparkPlan,
-                                        numOutputRows: SQLMetric,
-                                        dataSize: SQLMetric): BuildSideRelation = {
+  override def createBroadcastRelation(mode: BroadcastMode,
+                                       child: SparkPlan,
+                                       numOutputRows: SQLMetric,
+                                       dataSize: SQLMetric): BuildSideRelation = {
     val countsAndBytes = child
       .executeColumnar()
       .mapPartitions { iter =>
@@ -201,7 +202,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
     numOutputRows += countsAndBytes.map(_._1).sum
     dataSize += rawSize
 
-    VeloxBuildSideRelation(child.output, batches)
+    VeloxBuildSideRelation(mode, child.output, batches)
   }
 
   /**

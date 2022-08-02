@@ -20,11 +20,15 @@ package org.apache.spark.sql.execution
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.expression.ArrowConverterUtils
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class VeloxBuildSideRelation(output: Seq[Attribute], batches: Array[Array[Byte]])
+case class VeloxBuildSideRelation(mode: BroadcastMode,
+                                  output: Seq[Attribute],
+                                  batches: Array[Array[Byte]])
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
@@ -33,4 +37,13 @@ case class VeloxBuildSideRelation(output: Seq[Attribute], batches: Array[Array[B
 
   override def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext
                              ): VeloxBuildSideRelation = this
+
+  /**
+   * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
+   * @return
+   */
+  override def transform(key: Expression): Array[InternalRow] = {
+    // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
+    Array.empty
+  }
 }

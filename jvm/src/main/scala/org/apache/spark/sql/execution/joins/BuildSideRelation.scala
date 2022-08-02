@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.execution.BroadCastHashJoinContext
 
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BuildSideRelation extends Serializable {
@@ -27,6 +29,12 @@ trait BuildSideRelation extends Serializable {
    * Deserialized relation from broadcasted value
    */
   def deserialized: Iterator[ColumnarBatch]
+
+  /**
+   * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
+   * @return
+   */
+  def transform(key: Expression): Array[InternalRow]
 
   /**
    * Returns a read-only copy of this, to be safely used in current thread.
