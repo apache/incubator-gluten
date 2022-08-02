@@ -86,6 +86,9 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>>
 static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
     decompression_schema_holder_;
 
+static arrow::jni::ConcurrentMap<
+    std::shared_ptr<GlutenColumnarBatch>> gluten_columnarbatch_holder_;
+
 std::shared_ptr<ArrowArrayResultIterator> GetArrayIterator(
     JNIEnv* env,
     jlong id) {
@@ -575,6 +578,54 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeClose(
     jlong instance_id) {
   JNI_METHOD_START
   columnar_to_row_converter_holder_.Erase(instance_id);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jstring JNICALL
+Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getType(
+    JNIEnv* env,
+    jobject,
+    long handle) {
+  JNI_METHOD_START
+  std::shared_ptr<GlutenColumnarBatch> batch =
+      gluten_columnarbatch_holder_.Lookup(handle);
+  return env->NewStringUTF(batch->GetType().c_str());
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumColumns(
+    JNIEnv* env,
+    jobject,
+    long handle) {
+  JNI_METHOD_START
+  std::shared_ptr<GlutenColumnarBatch> batch =
+      gluten_columnarbatch_holder_.Lookup(handle);
+  return batch->GetNumColumns();
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumRows(
+    JNIEnv* env,
+    jobject,
+    long handle) {
+  JNI_METHOD_START
+  std::shared_ptr<GlutenColumnarBatch> batch =
+      gluten_columnarbatch_holder_.Lookup(handle);
+  return batch->GetNumRows();
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_close(
+    JNIEnv* env,
+    jobject,
+    long handle) {
+  JNI_METHOD_START
+  std::shared_ptr<GlutenColumnarBatch> batch =
+      gluten_columnarbatch_holder_.Lookup(handle);
+  batch->ReleasePayload();
   JNI_METHOD_END()
 }
 
