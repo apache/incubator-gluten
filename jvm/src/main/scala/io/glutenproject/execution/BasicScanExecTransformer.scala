@@ -23,6 +23,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.vectorized.ExpressionEvaluator
@@ -30,6 +31,7 @@ import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BasicScanExecTransformer extends TransformSupport {
@@ -39,6 +41,8 @@ trait BasicScanExecTransformer extends TransformSupport {
   def outputAttributes(): Seq[Attribute]
 
   def getPartitions: Seq[InputPartition]
+
+  def getPartitionSchemas: StructType
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("outputRows")
@@ -91,9 +95,16 @@ trait BasicScanExecTransformer extends TransformSupport {
   override def doTransform(context: SubstraitContext): TransformContext = {
     val output = outputAttributes()
     val typeNodes = ConverterUtils.getTypeNodeFromAttributes(output)
+    val partitionSchemas = getPartitionSchemas
     val nameList = new java.util.ArrayList[String]()
+    val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
     for (attr <- output) {
       nameList.add(attr.name)
+      if (partitionSchemas.exists(_.name.equals(attr.name))) {
+        columnTypeNodes.add(new ColumnTypeNode(1))
+      } else {
+        columnTypeNodes.add(new ColumnTypeNode(0))
+      }
     }
     // Will put all filter expressions into an AND expression
     val transformer = filterExprs()
@@ -104,7 +115,7 @@ trait BasicScanExecTransformer extends TransformSupport {
     val exprNode = filterNodes.orNull
 
     val relNode = RelBuilder.makeReadRel(
-      typeNodes, nameList, exprNode, context, context.nextOperatorId)
+      typeNodes, nameList, columnTypeNodes, exprNode, context, context.nextOperatorId)
     TransformContext(output, output, relNode)
   }
 }

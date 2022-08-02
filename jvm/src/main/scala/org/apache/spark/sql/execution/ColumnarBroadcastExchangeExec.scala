@@ -62,6 +62,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
           interruptOnCancel = true)
 
         val relation = BackendsApiManager.getSparkPlanExecApiInstance.createBroadcastRelation(
+          mode,
           child,
           longMetric("numOutputRows"),
           longMetric("dataSize"))

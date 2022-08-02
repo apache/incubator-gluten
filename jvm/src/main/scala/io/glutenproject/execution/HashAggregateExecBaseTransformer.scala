@@ -17,20 +17,22 @@
 
 package io.glutenproject.execution
 
+import java.util
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
+
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
-import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitContext}
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
-import java.util
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._

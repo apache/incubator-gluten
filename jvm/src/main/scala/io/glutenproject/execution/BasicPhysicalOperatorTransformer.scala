@@ -20,8 +20,10 @@ package io.glutenproject.execution
 import java.util
 
 import scala.collection.JavaConverters._
+
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
@@ -30,7 +32,6 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 
 import org.apache.spark.SparkConf
@@ -586,11 +587,14 @@ object FilterHandler {
     case fileSourceScan: FileSourceScanExec =>
       val leftFilters =
         getLeftFilters(fileSourceScan.dataFilters, flattenCondition(plan.condition))
+      // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
+      val newPartitionFilters =
+        ExpressionConverter.transformDynamicPruningExpr(fileSourceScan.partitionFilters)
       new FileSourceScanExecTransformer(
         fileSourceScan.relation,
         fileSourceScan.output,
         fileSourceScan.requiredSchema,
-        fileSourceScan.partitionFilters,
+        newPartitionFilters,
         fileSourceScan.optionalBucketSet,
         fileSourceScan.optionalNumCoalescedBuckets,
         fileSourceScan.dataFilters ++ leftFilters,

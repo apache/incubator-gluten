@@ -55,7 +55,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
             .asInstanceOf[ExpressionTransformer]
             .doTransform(substraitContext.registeredFunction)
           if (!node.isInstanceOf[SelectionNode]) {
-            logInfo("Expressions are not supported in HashPartitioning.")
+            logDebug("Expressions are not supported in HashPartitioning.")
             false
           } else {
             true

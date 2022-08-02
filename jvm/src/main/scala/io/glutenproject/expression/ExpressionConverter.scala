@@ -17,8 +17,13 @@
 
 package io.glutenproject.expression
 
+import io.glutenproject.execution.WholeStageTransformerExec
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution.{BaseSubqueryExec, ColumnarBroadcastExchangeExec,
+  ColumnarSubqueryBroadcastExec, InSubqueryExec, SubqueryBroadcastExec}
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.types.DecimalType
 
 object ExpressionConverter extends Logging {
@@ -201,6 +206,7 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           expr)
       case expr =>
+        logDebug(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
           s"${expr.getClass} or ${expr} is not currently supported.")
     }
@@ -238,7 +244,34 @@ object ExpressionConverter extends Logging {
       case b: BinaryExpression =>
         containsSubquery(b.left) || containsSubquery(b.right)
       case expr =>
+        logDebug(s"${expr.getClass} | ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
           s" --> ${expr.getClass} | ${expr} is not currently supported.")
     }
+
+  /**
+   * Transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in DynamicPruningExpression.
+   *
+   * @param partitionFilters
+   * @return
+   */
+  def transformDynamicPruningExpr(partitionFilters: Seq[Expression]): Seq[Expression] = {
+    partitionFilters.map(filter => filter match {
+      case dynamicPruning: DynamicPruningExpression =>
+        dynamicPruning.transform {
+          // Lookup inside subqueries for duplicate exchanges
+          case in: InSubqueryExec if in.plan.isInstanceOf[SubqueryBroadcastExec] =>
+            val newIn = in.plan.transform {
+              case exchange: BroadcastExchangeExec =>
+                val wholeStageTransformerExec = exchange.find(
+                  _.isInstanceOf[WholeStageTransformerExec]).get
+                ColumnarBroadcastExchangeExec(exchange.mode, wholeStageTransformerExec)
+            }.asInstanceOf[SubqueryBroadcastExec]
+            val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
+              newIn.name, newIn.index, newIn.buildKeys, newIn.child)
+            in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
+        }
+      case e: Expression => e
+    })
+  }
 }

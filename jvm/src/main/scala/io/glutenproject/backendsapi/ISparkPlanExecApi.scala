@@ -27,7 +27,7 @@ import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -110,10 +110,10 @@ trait ISparkPlanExecApi extends IBackendsApi {
   /**
    * Create broadcast relation for BroadcastExchangeExec
    */
-  def createBroadcastRelation(
-                               child: SparkPlan,
-                               numOutputRows: SQLMetric,
-                               dataSize: SQLMetric): BuildSideRelation
+  def createBroadcastRelation(mode: BroadcastMode,
+                              child: SparkPlan,
+                              numOutputRows: SQLMetric,
+                              dataSize: SQLMetric): BuildSideRelation
 
   /**
    * Generate extended DataSourceV2 Strategy.

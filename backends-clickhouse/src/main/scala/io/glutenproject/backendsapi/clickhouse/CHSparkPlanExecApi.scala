@@ -31,7 +31,7 @@ import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
@@ -148,7 +148,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
   /**
     * Create broadcast relation for BroadcastExchangeExec
     */
-  override def createBroadcastRelation(child: SparkPlan,
+  override def createBroadcastRelation(mode: BroadcastMode,
+                                       child: SparkPlan,
                                        numOutputRows: SQLMetric,
                                        dataSize: SQLMetric): BuildSideRelation = {
     val countsAndBytes = child
@@ -175,7 +176,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
     }
     numOutputRows += countsAndBytes.map(_._1).sum
     dataSize += rawSize
-    ClickHouseBuildSideRelation(child.output, batches)
+    ClickHouseBuildSideRelation(mode, child.output, batches)
   }
 
   /**

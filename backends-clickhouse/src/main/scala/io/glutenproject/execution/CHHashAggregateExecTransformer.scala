@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import java.util
+
 import com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
@@ -24,7 +26,6 @@ import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
-import java.util
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -80,7 +81,14 @@ case class CHHashAggregateExecTransformer(
       val nameList = new util.ArrayList[String]()
       for (attr <- aggregateResultAttributes) {
         typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+        val colName = if (aggregateAttributes.exists(_ == attr)) {
+          // ConverterUtils.genColumnNameWithExprId(attr) +
+          //   "#Partial#" + ConverterUtils.getShortAttributeName(attr)
+          ConverterUtils.genColumnNameWithExprId(attr)
+        } else {
+          ConverterUtils.genColumnNameWithExprId(attr)
+        }
+        nameList.add(colName)
       }
       // The iterator index will be added in the path of LocalFiles.
       val iteratorIndex: Long = context.nextIteratorIndex

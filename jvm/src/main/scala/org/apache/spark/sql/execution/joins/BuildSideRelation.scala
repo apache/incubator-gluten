@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.execution.BroadCastHashJoinContext
 
+import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BuildSideRelation extends Serializable {
@@ -27,6 +29,23 @@ trait BuildSideRelation extends Serializable {
    * Deserialized relation from broadcasted value
    */
   def deserialized: Iterator[ColumnarBatch]
+
+  def broadcastMode: BroadcastMode
+
+  /**
+   * Convert broadcasted value to Iterator[InternalRow].
+   * @return
+   */
+  def convertColumnarToInternalRow: (Long, Iterator[InternalRow])
+
+  /**
+   * Use BroadcastMode to transform Iterator[InternalRow] to HashedRelation.
+   * @return
+   */
+  def transform: HashedRelation = {
+    val (numRows, input) = convertColumnarToInternalRow
+    broadcastMode.asInstanceOf[HashedRelationBroadcastMode].transform(input, Some(numRows))
+  }
 
   /**
    * Returns a read-only copy of this, to be safely used in current thread.
