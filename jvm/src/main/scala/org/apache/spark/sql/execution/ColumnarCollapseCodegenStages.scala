@@ -107,7 +107,7 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  */
 case class ColumnarCollapseCodegenStages(
                                           columnarWholeStageEnabled: Boolean,
-                                          isCH: Boolean,
+                                          separateScanRDDForCH: Boolean,
                                           codegenStageCounter: AtomicInteger =
                                           new AtomicInteger(0))
   extends Rule[SparkPlan] {
@@ -125,7 +125,7 @@ case class ColumnarCollapseCodegenStages(
    * BasicScanExecTransformer will not be included in WholeStageTransformerExec.
    */
   private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
-    case f: BasicScanExecTransformer if isCH => true
+    case f: BasicScanExecTransformer if separateScanRDDForCH => true
     case _ => false
   }
 

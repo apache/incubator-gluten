@@ -15,7 +15,9 @@ export PATH=$JAVA_HOME/bin:$PATH
 ```
 
 
-The script to build Velox backend jars:
+## Velox home directory
+
+The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
 
 ```shell script
 mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
@@ -27,12 +29,20 @@ On error "Could not resolve dependencies for project io.glutenproject:backends-v
 $ cd tools/build/arrow_ep/java
 $ mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=${ARROW_HOME}/cpp/release-build/release/ -DskipTests -Dcheckstyle.skip
 ```
+You can also clone the Velox source to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
+
+```shell script
+mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
+```
+
+## Arrow home directory
+
+Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not.
 
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
 
-## Test TPC-H powertest on Gluten with Velox backend
-
+## Test TPC-H on Gluten with Velox backend
 ### Data preparation
 
 Parquet format still have performance issue in Velox. We use dwrf format instead. Refer to [Test TPCH on Velox backend](../backends-velox/workload/tpch/README.md) for How to convert parquet to dwrf format during data generation.
