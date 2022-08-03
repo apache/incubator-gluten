@@ -17,7 +17,6 @@
 
 package io.glutenproject.columnarbatch;
 
-import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -25,94 +24,108 @@ import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.types.UTF8String;
 
-public class GlutenDummyVector extends ColumnVector {
+public class GlutenIndicatorVector extends ColumnVector {
+  private final long nativeHandle;
 
-  protected GlutenDummyVector(DataType type) {
+  protected GlutenIndicatorVector(long nativeHandle) {
     super(DataTypes.NullType);
+    this.nativeHandle = nativeHandle;
+  }
+
+  public String getType() {
+    return ColumnarBatchJniWrapper.INSTANCE.getType(nativeHandle);
+  }
+
+  public long getNumColumns() {
+    return ColumnarBatchJniWrapper.INSTANCE.getNumColumns(nativeHandle);
+  }
+
+  public long getNumRows() {
+    return ColumnarBatchJniWrapper.INSTANCE.getNumRows(nativeHandle);
   }
 
   @Override
   public void close() {
-
+    ColumnarBatchJniWrapper.INSTANCE.close(nativeHandle);
   }
 
   @Override
   public boolean hasNull() {
-    return false;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public int numNulls() {
-    return 0;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public boolean isNullAt(int rowId) {
-    return false;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public boolean getBoolean(int rowId) {
-    return false;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public byte getByte(int rowId) {
-    return 0;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public short getShort(int rowId) {
-    return 0;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public int getInt(int rowId) {
-    return 0;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public long getLong(int rowId) {
-    return 0;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public float getFloat(int rowId) {
-    return 0;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public double getDouble(int rowId) {
-    return 0;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public ColumnarArray getArray(int rowId) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public ColumnarMap getMap(int ordinal) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public Decimal getDecimal(int rowId, int precision, int scale) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public UTF8String getUTF8String(int rowId) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public byte[] getBinary(int rowId) {
-    return new byte[0];
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public ColumnVector getChild(int ordinal) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 }

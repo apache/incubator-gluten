@@ -17,10 +17,24 @@
 
 package io.glutenproject.columnarbatch;
 
+import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 public class GlutenColumnarBatches {
   public ColumnarBatch create(long nativeHandle) {
-    // todo
+    final GlutenIndicatorVector iv = new GlutenIndicatorVector(nativeHandle);
+    int numColumns = Math.toIntExact(iv.getNumColumns());
+    int numRows = Math.toIntExact(iv.getNumRows());
+    if (numColumns == 0) {
+      return new ColumnarBatch(new ColumnVector[0], numRows);
+    }
+    final ColumnVector[] columnVectors = new ColumnVector[numColumns];
+    columnVectors[0] = iv;
+    long numPlaceholders = numColumns - 1;
+    for (int i = 0; i < numPlaceholders; i++) {
+      final GlutenPlaceholderVector pv = new GlutenPlaceholderVector();
+      columnVectors[i + 1] = pv;
+    }
+    return new ColumnarBatch(columnVectors, numRows);
   }
 }
