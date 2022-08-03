@@ -1,5 +1,6 @@
-# llvm-7.0: 
-Arrow Gandiva depends on LLVM, and I noticed current version strictly depends on llvm7.0 if you installed any other version rather than 7.0, it will fail.
+# llvm-7.0 - llvm 14.0
+Arrow Gandiva depends on LLVM, and I noticed current version strictly depends on llvm7.0-llvm14.0. On Ubuntu20, you may install arrow-10.0 from apt. Here is the steps to compile llvm7.0 for example.
+
 ``` shell
 wget http://releases.llvm.org/7.0.1/llvm-7.0.1.src.tar.xz
 tar xf llvm-7.0.1.src.tar.xz

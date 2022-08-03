@@ -48,6 +48,13 @@ $ mvn clean package -Pfull-scala-compiler -Pbackends-gazelle -DskipTests -Dcheck
 $ popd
 ```
 
+On error "Could not resolve dependencies for project io.glutenproject:backends-velox:jar:1.0.0-snapshot: Could not find artifact org.apache.arrow:arrow-c-data:jar:8.0.0-gluten-SNAPSHOT", it's because the arrow-c-data.jar isn't installed into ~/.m2. You may refer to https://github.com/oap-project/gluten/blob/main/docs/ArrowInstallation.md and run the mvn command in arrow/java directory, then re-run above mvn command
+
+```bash
+$ cd tools/build/arrow_ep/java
+$ mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=${ARROW_HOME}/cpp/release-build/release/ -DskipTests -Dcheckstyle.skip
+```
+
 ### Enabling Arrow Bckend at Runtime
 
 In addition to your cutomized Spark configurations, extra configurations for enabling Gluten with
