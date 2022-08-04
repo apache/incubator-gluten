@@ -76,13 +76,15 @@ public class ArrowColumnarBatches {
     final long handle = iv.getNativeHandle();
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
          ArrowArray cArray = ArrowArray.allocateNew(allocator)) {
-      ColumnarBatchJniWrapper.INSTANCE.exportToArrow(handle, cSchema.memoryAddress(), cArray.memoryAddress());
+      ColumnarBatchJniWrapper.INSTANCE.exportToArrow(handle, cSchema.memoryAddress(),
+              cArray.memoryAddress());
       ColumnarBatch output = ArrowAbiUtil.importToSparkColumnarBatch(allocator, cSchema, cArray);
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
       GlutenIndicatorVector giv = (GlutenIndicatorVector) input.column(0);
-      VeloxImplicitClass.ArrowColumnarBatchRetainer retainer = new VeloxImplicitClass.ArrowColumnarBatchRetainer(output);
+      VeloxImplicitClass.ArrowColumnarBatchRetainer retainer =
+              new VeloxImplicitClass.ArrowColumnarBatchRetainer(output);
       for (long i = 0; i < (giv.refCnt() - 1); i++) {
         retainer.retain();
       }
@@ -105,8 +107,8 @@ public class ArrowColumnarBatches {
     if (input.numCols() == 0) {
       return input;
     }
-    try (final ArrowArray cArray = ArrowArray.allocateNew(allocator);
-         final ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
+    try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
+         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextArrowAllocator(), input,
           cSchema, cArray);
       long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),

@@ -51,7 +51,6 @@ jobs:
           cd /home/sparkuser/tpcds/
           bash tpcds.sh
 
-
   velox-backend-test:
     runs-on: sr404-self-hosted
     steps:

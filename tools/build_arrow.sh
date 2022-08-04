@@ -2,8 +2,6 @@
 
 set -eu
 
-NPROC=$(nproc)
-
 TESTS=OFF
 BUILD_ARROW=OFF
 STATIC_ARROW=OFF
@@ -47,75 +45,83 @@ echo $CURRENT_DIR
 cd ${CURRENT_DIR}
 
 if [ $BUILD_ARROW == "ON" ]; then
-if [ -d build/arrow_ep ]; then
-    rm -r build/arrow_ep
-fi
+  if [ -d build/arrow_ep ]; then
+      rm -r build/arrow_ep
+  fi
 
-if [ -d build/arrow_install ]; then
-    rm -r build/arrow_install
-fi
-echo "Building Arrow from Source ..."
-mkdir -p build
-cd build
-ARROW_PREFIX="${CURRENT_DIR}/build" # Use build directory as ARROW_PREFIX
-ARROW_SOURCE_DIR="${ARROW_PREFIX}/arrow_ep"
-ARROW_INSTALL_DIR="${ARROW_PREFIX}/arrow_install"
+  if [ -d build/arrow_install ]; then
+      rm -r build/arrow_install
+  fi
+  echo "Building Arrow from Source ..."
+  mkdir -p build
+  cd build
+  ARROW_PREFIX="${CURRENT_DIR}/build" # Use build directory as ARROW_PREFIX
+  ARROW_SOURCE_DIR="${ARROW_PREFIX}/arrow_ep"
+  ARROW_INSTALL_DIR="${ARROW_PREFIX}/arrow_install"
 
-echo "ARROW_PREFIX=${ARROW_PREFIX}"
-echo "ARROW_SOURCE_DIR=${ARROW_SOURCE_DIR}"
-mkdir -p $ARROW_SOURCE_DIR
-mkdir -p $ARROW_ROOT
-git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
-pushd $ARROW_SOURCE_DIR
+  echo "ARROW_PREFIX=${ARROW_PREFIX}"
+  echo "ARROW_SOURCE_DIR=${ARROW_SOURCE_DIR}"
+  mkdir -p $ARROW_SOURCE_DIR
+  mkdir -p $ARROW_ROOT
+  git clone https://github.com/jinchengchenghh/arrow.git -b gluten-main $ARROW_SOURCE_DIR
+  pushd $ARROW_SOURCE_DIR
 
-mkdir -p java/c/build
-pushd java/c/build
-cmake ..
-cmake --build .
-popd
- 
-cmake -DARROW_BUILD_STATIC=OFF \
-        -DARROW_BUILD_SHARED=ON \
-        -DARROW_COMPUTE=ON \
-        -DARROW_SUBSTRAIT=ON \
-        -DARROW_S3=ON \
-        -DARROW_GANDIVA_JAVA=ON \
-        -DARROW_GANDIVA=ON \
-        -DARROW_PARQUET=ON \
-        -DARROW_ORC=OFF \
-        -DARROW_HDFS=ON \
-        -DARROW_BOOST_USE_SHARED=OFF \
-        -DARROW_JNI=ON \
-        -DARROW_DATASET=ON \
-        -DARROW_WITH_PROTOBUF=ON \
-        -DARROW_PROTOBUF_USE_SHARED=OFF \
-        -DARROW_WITH_SNAPPY=ON \
-        -DARROW_WITH_LZ4=ON \
-        -DARROW_WITH_ZSTD=OFF \
-        -DARROW_WITH_BROTLI=OFF \
-        -DARROW_WITH_ZLIB=OFF \
-        -DARROW_WITH_FASTPFOR=OFF \
-        -DARROW_FILESYSTEM=ON \
-        -DARROW_JSON=ON \
-        -DARROW_CSV=ON \
-        -DARROW_FLIGHT=OFF \
-        -DARROW_JEMALLOC=ON \
-        -DARROW_SIMD_LEVEL=AVX2 \
-        -DARROW_RUNTIME_SIMD_LEVEL=MAX \
-        -DARROW_DEPENDENCY_SOURCE=BUNDLED \
-        -Dre2_SOURCE=AUTO \
-        -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
-        -DCMAKE_INSTALL_LIBDIR=lib \
-        cpp
+  mkdir -p java/build
+  pushd java/build
+  cmake \
+      -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR/lib \
+      ..
+  cmake --build . --target install
+  popd
 
-make -j$NPROC
+  mkdir -p cpp/build
+  pushd cpp/build
+  cmake -G Ninja \
+        -DARROW_BUILD_STATIC=OFF \
+          -DARROW_COMPUTE=ON \
+          -DARROW_CSV=ON \
+          -DARROW_DATASET=ON \
+          -DARROW_FILESYSTEM=ON \
+          -DARROW_JSON=ON \
+          -DARROW_PARQUET=ON \
+          -DARROW_SUBSTRAIT=ON \
+          -DARROW_WITH_BROTLI=ON \
+          -DARROW_WITH_BZ2=ON \
+          -DARROW_WITH_LZ4=ON \
+          -DARROW_WITH_RE2=ON \
+          -DARROW_WITH_SNAPPY=ON \
+          -DARROW_WITH_UTF8PROC=ON \
+          -DARROW_WITH_ZLIB=ON \
+          -DARROW_WITH_ZSTD=ON \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DARROW_BUILD_SHARED=ON \
+          -DARROW_SUBSTRAIT=ON \
+          -DARROW_S3=ON \
+          -DARROW_GANDIVA_JAVA=ON \
+          -DARROW_GANDIVA=ON \
+          -DARROW_ORC=OFF \
+          -DARROW_HDFS=ON \
+          -DARROW_BOOST_USE_SHARED=OFF \
+          -DARROW_JNI=ON \
+          -DARROW_WITH_PROTOBUF=ON \
+          -DARROW_PROTOBUF_USE_SHARED=OFF \
+          -DARROW_FLIGHT=OFF \
+          -DARROW_JEMALLOC=ON \
+          -DARROW_SIMD_LEVEL=AVX2 \
+          -DARROW_RUNTIME_SIMD_LEVEL=MAX \
+          -DARROW_DEPENDENCY_SOURCE=BUNDLED \
+          -Dre2_SOURCE=AUTO \
+          -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          ..
+  cmake --build . --target install
+  popd
 
-make install
-
-cd java
-mvn clean install -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip
-echo "Finish to build Arrow from Source !!!"
+  cd java
+  mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -P arrow-jni -pl gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -Dmaven.test.skip=true -Dcheckstyle.skip \
+      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
+  echo "Finish to build Arrow from Source !!!"
 else
-echo "Use ARROW_ROOT as Arrow Library Path"
-echo "ARROW_ROOT=${ARROW_ROOT}"
+  echo "Use ARROW_ROOT as Arrow Library Path"
+  echo "ARROW_ROOT=${ARROW_ROOT}"
 fi
