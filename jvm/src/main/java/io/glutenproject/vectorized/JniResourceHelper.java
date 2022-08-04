@@ -57,22 +57,27 @@ public class JniResourceHelper {
       workDir = System.getProperty("java.io.tmpdir");
     }
     final String folderToLoad = "include";
-    final URLConnection urlConnection = JniResourceHelper.class.getClassLoader()
-        .getResource("include").openConnection();
-    if (urlConnection instanceof JarURLConnection) {
-      final JarFile jarFile = ((JarURLConnection) urlConnection).getJarFile();
-      extractResourcesToDirectory(jarFile, folderToLoad,
-          workDir + "/" + "nativesql_include");
-    } else {
-      // For Maven test only
-      String path = urlConnection.getURL().toString();
-      if (urlConnection.getURL().toString().startsWith("file:")) {
-        // remove the prefix of "file:" from includePath
-        path = urlConnection.getURL().toString().substring(5);
+    final URL connResource = JniResourceHelper.class.getClassLoader()
+        .getResource("include");
+    if (connResource != null) {
+      final URLConnection urlConnection = connResource.openConnection();
+      if (urlConnection instanceof JarURLConnection) {
+        final JarFile jarFile = ((JarURLConnection) urlConnection).getJarFile();
+        extractResourcesToDirectory(jarFile, folderToLoad,
+            workDir + "/" + "nativesql_include");
+      } else {
+        // For Maven test only
+        String path = urlConnection.getURL().toString();
+        if (urlConnection.getURL().toString().startsWith("file:")) {
+          // remove the prefix of "file:" from includePath
+          path = urlConnection.getURL().toString().substring(5);
+        }
+        final File folder = new File(path);
+        copyResourcesToDirectory(urlConnection,
+            workDir + "/" + "nativesql_include", folder);
       }
-      final File folder = new File(path);
-      copyResourcesToDirectory(urlConnection,
-          workDir + "/" + "nativesql_include", folder);
+    } else {
+      LOG.info("There is no include dir in jars.");
     }
   }
 
