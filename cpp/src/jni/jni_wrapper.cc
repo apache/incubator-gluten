@@ -35,6 +35,7 @@
 #include "jni/exec_backend.h"
 #include "jni/jni_common.h"
 #include "jni/jni_errors.h"
+#include "memory/columnar_batch.h"
 #include "operators/c2r/columnar_to_row_base.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/exception.h"
@@ -87,7 +88,8 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
     decompression_schema_holder_;
 
 static arrow::jni::ConcurrentMap<
-    std::shared_ptr<GlutenColumnarBatch>> gluten_columnarbatch_holder_;
+    std::shared_ptr<gluten::memory::GlutenColumnarBatch>>
+    gluten_columnarbatch_holder_;
 
 std::shared_ptr<ArrowArrayResultIterator> GetArrayIterator(
     JNIEnv* env,
@@ -587,7 +589,7 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getType(
     jobject,
     long handle) {
   JNI_METHOD_START
-  std::shared_ptr<GlutenColumnarBatch> batch =
+  std::shared_ptr<gluten::memory::GlutenColumnarBatch> batch =
       gluten_columnarbatch_holder_.Lookup(handle);
   return env->NewStringUTF(batch->GetType().c_str());
   JNI_METHOD_END(nullptr)
@@ -599,7 +601,7 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumColumns(
     jobject,
     long handle) {
   JNI_METHOD_START
-  std::shared_ptr<GlutenColumnarBatch> batch =
+  std::shared_ptr<gluten::memory::GlutenColumnarBatch> batch =
       gluten_columnarbatch_holder_.Lookup(handle);
   return batch->GetNumColumns();
   JNI_METHOD_END(-1L)
@@ -611,7 +613,7 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getNumRows(
     jobject,
     long handle) {
   JNI_METHOD_START
-  std::shared_ptr<GlutenColumnarBatch> batch =
+  std::shared_ptr<gluten::memory::GlutenColumnarBatch> batch =
       gluten_columnarbatch_holder_.Lookup(handle);
   return batch->GetNumRows();
   JNI_METHOD_END(-1L)
@@ -623,7 +625,7 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_close(
     jobject,
     long handle) {
   JNI_METHOD_START
-  std::shared_ptr<GlutenColumnarBatch> batch =
+  std::shared_ptr<gluten::memory::GlutenColumnarBatch> batch =
       gluten_columnarbatch_holder_.Lookup(handle);
   batch->ReleasePayload();
   JNI_METHOD_END()

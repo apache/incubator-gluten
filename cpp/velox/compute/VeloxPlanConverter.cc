@@ -636,5 +636,18 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage
   std::vector<core::PlanNodeId> streamIds_;
 };
 
+void GlutenVeloxColumnarBatch::ReleasePayload() {
+
+}
+
+std::string GlutenVeloxColumnarBatch::GetType() {
+  return std::string();
+}
+
+std::shared_ptr<arrow::RecordBatch> GlutenVeloxColumnarBatch::toArrowBatch() {
+  // todo
+  return std::shared_ptr<arrow::RecordBatch>();
+}
+
 } // namespace compute
 } // namespace velox

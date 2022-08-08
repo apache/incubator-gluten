@@ -608,35 +608,3 @@ class SparkAllocationListener : public gluten::memory::AllocationListener {
   int64_t max_bytes_reserved_ = 0L;
   std::mutex mutex_;
 };
-
-class GlutenColumnarBatch {
- public:
-  GlutenColumnarBatch(
-      int32_t NumColumns,
-      int32_t NumRows,
-      uintptr_t PayloadAddress)
-      : numColumns(NumColumns),
-        numRows(NumRows),
-        payloadAddress(PayloadAddress) {}
-
-  uintptr_t GetPayloadAddress() const {
-    return payloadAddress;
-  }
-
-  int32_t GetNumColumns() const {
-    return numColumns;
-  }
-
-  int32_t GetNumRows() const {
-    return numRows;
-  }
-
-  virtual void ReleasePayload() = 0;
-
-  virtual std::string GetType() = 0;
-
- private:
-  int32_t numColumns;
-  int32_t numRows;
-  uintptr_t payloadAddress;
-};

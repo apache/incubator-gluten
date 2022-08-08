@@ -28,6 +28,7 @@
 #include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
 #include "jni/exec_backend.h"
+#include "memory/columnar_batch.h"
 #include "memory/velox_memory_pool.h"
 #include "substrait/algebra.pb.h"
 #include "substrait/capabilities.pb.h"
@@ -76,6 +77,23 @@ class VeloxInitializer {
     Init();
   }
   void Init();
+};
+
+class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
+ public:
+  GlutenVeloxColumnarBatch(
+      int32_t numColumns,
+      int32_t numRows,
+      RowVectorPtr rowVector)
+      : gluten::memory::GlutenColumnarBatch(numColumns, numRows),
+        rowVector_(rowVector) {}
+
+  void ReleasePayload() override;
+  std::string GetType() override;
+  std::shared_ptr<arrow::RecordBatch> toArrowBatch() override;
+
+ private:
+  RowVectorPtr rowVector_;
 };
 
 class WholeStageResIter {
