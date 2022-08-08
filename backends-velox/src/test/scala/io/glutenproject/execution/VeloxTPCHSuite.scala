@@ -116,9 +116,9 @@ abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("TPC-H q7") {
-    runTPCHQuery(7, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
-  }
+//  test("TPC-H q7") {
+//    runTPCHQuery(7, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+//  }
 
   test("TPC-H q7 - bhj enable") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "30M")) {

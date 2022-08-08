@@ -22,6 +22,7 @@ import org.apache.arrow.util.Collections2;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
@@ -56,7 +57,7 @@ public class CompressedVectorLoader extends VectorLoader {
       // in the record batch.
       // So here we remove the codec parameter when call the loadBuffers() method in VectorLoader.
       // And the decompress function is done in ShuffleDecompressionJniWrapper#decompress() method.
-      loadBuffers(fieldVector, fieldVector.getField(), buffers, nodes);
+      loadBuffers(fieldVector, fieldVector.getField(), buffers, nodes, NoCompressionCodec.INSTANCE);
     }
     root.setRootRowCount(recordBatch.getLength());
     if (nodes.hasNext() || buffers.hasNext()) {

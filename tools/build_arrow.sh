@@ -65,7 +65,7 @@ echo "ARROW_PREFIX=${ARROW_PREFIX}"
 echo "ARROW_SOURCE_DIR=${ARROW_SOURCE_DIR}"
 mkdir -p $ARROW_SOURCE_DIR
 mkdir -p $ARROW_ROOT
-git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
+git clone https://github.com/jinchengchenghh/arrow.git -b public $ARROW_SOURCE_DIR
 pushd $ARROW_SOURCE_DIR
 
 mkdir -p java/c/build
@@ -73,7 +73,9 @@ pushd java/c/build
 cmake ..
 cmake --build .
 popd
- 
+
+mkdir -p cpp/build
+pushd cpp/build
 cmake -DARROW_BUILD_STATIC=OFF \
         -DARROW_BUILD_SHARED=ON \
         -DARROW_COMPUTE=ON \
@@ -106,11 +108,9 @@ cmake -DARROW_BUILD_STATIC=OFF \
         -Dre2_SOURCE=AUTO \
         -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        cpp
-
-make -j$NPROC
-
-make install
+        ..
+cmake --build . --target install
+popd
 
 cd java
 mvn clean install -P arrow-jni -pl gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip
