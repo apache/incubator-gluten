@@ -186,6 +186,35 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  ignore("test 'select count(*) from table'") {
+    // currently, it can't support 'select count(*)' for non-partitioned tables.
+    val df = spark.sql(
+      """
+        |select count(*) from lineitem
+        |""".stripMargin)
+    val result = df.collect()
+  }
+
+  test("test 'select count(*)'") {
+    val df = spark.sql(
+      """
+        |select count(*) from lineitem
+        |where l_quantity < 24
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 275436L)
+  }
+
+  test("test 'select count(1)'") {
+    val df = spark.sql(
+      """
+        |select count(1) from lineitem
+        |where l_quantity < 20
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 227302L)
+  }
+
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
