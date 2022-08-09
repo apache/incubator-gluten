@@ -522,20 +522,24 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
                           aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams])
     : Unit = {
     if (nativeMetricsUpdated) return
-    val metrics = resIter.getMetrics
-    val numNativeMetrics = metrics.inputRows.length
-    if (numNativeMetrics == 0) return
-    if (child == null) return
+    try {
+      val metrics = resIter.getMetrics
+      val numNativeMetrics = metrics.inputRows.length
+      if (numNativeMetrics == 0) return
+      if (child == null) return
 
-    updateTransformerMetrics(
-      child.asInstanceOf[TransformSupport],
-      relMap,
-      new java.lang.Long(relMap.size() - 1),
-      metrics,
-      numNativeMetrics - 1,
-      joinParamsMap,
-      aggParamsMap)
-
+      updateTransformerMetrics(
+        child.asInstanceOf[TransformSupport],
+        relMap,
+        new java.lang.Long(relMap.size() - 1),
+        metrics,
+        numNativeMetrics - 1,
+        joinParamsMap,
+        aggParamsMap)
+    } catch {
+      case e: Throwable =>
+        logWarning(s"Updating native metrics failed due to ${e.getCause}.")
+    }
     nativeMetricsUpdated = true
   }
 

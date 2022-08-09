@@ -392,6 +392,12 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         null
     }
     val operatorId = context.nextOperatorId
+    if (projectList == null || projectList.isEmpty) {
+      // The computing for this project is not needed.
+      context.registerEmptyRelToOperator(operatorId)
+      return childCtx
+    }
+
     val currRel = if (childCtx != null) {
       getRelNode(
         context, projectList, child.output, operatorId, childCtx.root, validation = false)
@@ -406,10 +412,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       getRelNode(
         context, projectList, child.output, operatorId, readRel, validation = false)
     }
+    assert(currRel != null, "Project Rel should be valid")
 
-    if (currRel == null) {
-      return childCtx
-    }
     val inputAttributes = if (childCtx != null) {
       // Use the outputAttributes of child context as inputAttributes.
       childCtx.outputAttributes
@@ -430,29 +434,25 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
                  input: RelNode,
                  validation: Boolean): RelNode = {
     val args = context.registeredFunction
-    if (projectList == null || projectList.isEmpty) {
-      input
+    val columnarProjExprs: Seq[Expression] = projectList.map(expr => {
+      ExpressionConverter
+        .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
+    })
+    val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
+    for (expr <- columnarProjExprs) {
+      projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
+    }
+    if (!validation) {
+      RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId)
     } else {
-      val columnarProjExprs: Seq[Expression] = projectList.map(expr => {
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
-      })
-      val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
-      for (expr <- columnarProjExprs) {
-        projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
-      if (!validation) {
-        RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId)
-      } else {
-        // Use a extension node to send the input types through Substrait plan for validation.
-        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-        for (attr <- originalInputAttributes) {
-          inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        }
-        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-          Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
-        RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode, context, operatorId)
-      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+      RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode, context, operatorId)
     }
   }
 
