@@ -628,6 +628,7 @@ Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_close(
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> batch =
       gluten_columnarbatch_holder_.Lookup(handle);
   batch->ReleasePayload();
+  gluten_columnarbatch_holder_.Erase(handle);
   JNI_METHOD_END()
 }
 

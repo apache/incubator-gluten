@@ -367,7 +367,8 @@ void WholeStageResIter::toArrowArray(const RowVectorPtr& rv, ArrowArray& out) {
   exportToArrow(copy, out, getPool());
 }
 
-arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
+arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>>
+WholeStageResIter::Next() {
   addSplits_(task_.get());
   if (task_->isFinished()) {
     return nullptr;
@@ -380,10 +381,7 @@ arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
   if (numRows == 0) {
     return nullptr;
   }
-
-  ArrowArray out;
-  toArrowArray(vector, out);
-  return std::make_shared<ArrowArray>(out);
+  return std::make_shared<GlutenVeloxColumnarBatch>(vector);
 }
 
 memory::MemoryPool* WholeStageResIter::getPool() const {
@@ -637,16 +635,29 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage
 };
 
 void GlutenVeloxColumnarBatch::ReleasePayload() {
-
+  rowVector_.reset();
 }
 
 std::string GlutenVeloxColumnarBatch::GetType() {
-  return std::string();
+  return "velox";
 }
 
-std::shared_ptr<arrow::RecordBatch> GlutenVeloxColumnarBatch::toArrowBatch() {
-  // todo
-  return std::shared_ptr<arrow::RecordBatch>();
+std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportToArrow() {
+  ArrowArray out;
+  // Make sure to load lazy vector if not loaded already.
+  for (auto& child : rowVector_->children()) {
+    child->loadedVector();
+  }
+
+  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(BaseVector::create(
+      rowVector_->type(),
+      rowVector_->size(),
+      gluten::memory::GetDefaultWrappedVeloxMemoryPool().get()));
+  copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
+  facebook::velox::exportToArrow(
+      copy, out, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
+
+  return std::make_shared<ArrowArray>(out);
 }
 
 } // namespace compute

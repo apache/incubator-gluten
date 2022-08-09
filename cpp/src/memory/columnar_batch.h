@@ -41,7 +41,7 @@ class GlutenColumnarBatch {
 
   virtual std::string GetType() = 0;
 
-  virtual std::shared_ptr<arrow::RecordBatch> toArrowBatch() = 0;
+  virtual std::shared_ptr<ArrowArray> exportToArrow() = 0;
 
  private:
   int32_t numColumns;

@@ -81,16 +81,15 @@ class VeloxInitializer {
 
 class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
  public:
-  GlutenVeloxColumnarBatch(
-      int32_t numColumns,
-      int32_t numRows,
-      RowVectorPtr rowVector)
-      : gluten::memory::GlutenColumnarBatch(numColumns, numRows),
+  GlutenVeloxColumnarBatch(RowVectorPtr rowVector)
+      : gluten::memory::GlutenColumnarBatch(
+            rowVector->childrenSize(),
+            rowVector->size()),
         rowVector_(rowVector) {}
 
   void ReleasePayload() override;
   std::string GetType() override;
-  std::shared_ptr<arrow::RecordBatch> toArrowBatch() override;
+  std::shared_ptr<ArrowArray> exportToArrow() override;
 
  private:
   RowVectorPtr rowVector_;
@@ -108,7 +107,7 @@ class WholeStageResIter {
 
   virtual ~WholeStageResIter() {}
 
-  arrow::Result<std::shared_ptr<ArrowArray>> Next();
+  arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>> Next();
 
   std::shared_ptr<Metrics> GetMetrics() {
     collectMetrics();
