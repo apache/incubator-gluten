@@ -17,17 +17,16 @@
 
 #include <memory>
 
+#include "arrow/c/helpers.h"
+
 #pragma once
 
 namespace gluten {
 namespace memory {
 class GlutenColumnarBatch {
  public:
-  GlutenColumnarBatch(
-      int32_t numColumns,
-      int32_t numRows)
-      : numColumns(numColumns),
-        numRows(numRows) {}
+  GlutenColumnarBatch(int32_t numColumns, int32_t numRows)
+      : numColumns(numColumns), numRows(numRows) {}
 
   int32_t GetNumColumns() const {
     return numColumns;
@@ -46,6 +45,28 @@ class GlutenColumnarBatch {
  private:
   int32_t numColumns;
   int32_t numRows;
+};
+
+class GlutenArrowArrayColumnarBatch : public GlutenColumnarBatch {
+ public:
+  GlutenArrowArrayColumnarBatch(const ArrowArray& cArray)
+      : GlutenColumnarBatch(cArray.n_children, cArray.length),
+        cArray_(cArray) {}
+
+  void ReleasePayload() override{
+    ArrowArrayRelease(&cArray_);
+  }
+
+  std::string GetType() override {
+    return "arrow_array";
+  }
+
+  std::shared_ptr<ArrowArray> exportToArrow() override {
+    return std::make_shared<ArrowArray>(cArray_);
+  }
+
+ private:
+  ArrowArray cArray_;
 };
 
 } // namespace memory

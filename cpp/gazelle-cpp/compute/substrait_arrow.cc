@@ -49,16 +49,16 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::ArrowArrayResultIterator>
+std::shared_ptr<gluten::GlutenResultIterator>
 ArrowExecBackend::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator) {
   return GetResultIterator({});
 }
 
-std::shared_ptr<gluten::ArrowArrayResultIterator>
+std::shared_ptr<gluten::GlutenResultIterator>
 ArrowExecBackend::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs) {
+    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
     throw gluten::GlutenException(
@@ -146,7 +146,7 @@ ArrowExecBackend::GetResultIterator(
   auto sink_iter =
       std::make_shared<ArrowExecResultIterator>(output_schema, std::move(iter));
 
-  return std::make_shared<gluten::ArrowArrayResultIterator>(
+  return std::make_shared<gluten::GlutenResultIterator>(
       std::move(sink_iter), shared_from_this());
 }
 

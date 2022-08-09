@@ -161,16 +161,16 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       const std::unordered_map<std::string, std::string>& confMap)
       : confMap_(confMap) {}
 
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator) override;
 
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs)
+      std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs)
       override;
 
   // Used by unit test and benchmark.
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
           scanInfos);
@@ -240,7 +240,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   std::unordered_map<std::string, std::string> confMap_;
 
-  std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>>
+  std::vector<std::shared_ptr<gluten::GlutenResultIterator>>
       arrowInputIters_;
 
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =

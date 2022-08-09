@@ -76,8 +76,8 @@ static arrow::jni::ConcurrentMap<
     std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
     columnar_to_row_converter_holder_;
 
-using gluten::ArrowArrayResultIterator;
-static arrow::jni::ConcurrentMap<std::shared_ptr<ArrowArrayResultIterator>>
+using gluten::GlutenResultIterator;
+static arrow::jni::ConcurrentMap<std::shared_ptr<GlutenResultIterator>>
     array_iterator_holder_;
 
 using gluten::shuffle::SplitOptions;
@@ -91,9 +91,7 @@ static arrow::jni::ConcurrentMap<
     std::shared_ptr<gluten::memory::GlutenColumnarBatch>>
     gluten_columnarbatch_holder_;
 
-std::shared_ptr<ArrowArrayResultIterator> GetArrayIterator(
-    JNIEnv* env,
-    jlong id) {
+std::shared_ptr<GlutenResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
   auto handler = array_iterator_holder_.Lookup(id);
   if (!handler) {
     std::string error_message = "invalid handler id " + std::to_string(id);
@@ -142,7 +140,7 @@ class JavaArrowArrayIterator {
     vm_->DetachCurrentThread();
   }
 
-  arrow::Result<std::shared_ptr<ArrowArray>> Next() {
+  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() {
     JNIEnv* env;
     int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
     if (getEnvStat == JNI_EDETACHED) {
@@ -178,28 +176,13 @@ class JavaArrowArrayIterator {
         serialized_arrow_array_iterator_next,
         reinterpret_cast<jlong>(&c_array));
     CheckException(env);
-    auto array = std::make_shared<ArrowArray>(c_array);
-    return array;
+    return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
+        c_array);
   }
 
  private:
   JavaVM* vm_;
   jobject java_serialized_arrow_array_iterator_;
-};
-
-// TODO: make sure deleted
-class JavaArrowArrayIteratorWrapper {
- public:
-  explicit JavaArrowArrayIteratorWrapper(
-      std::shared_ptr<JavaArrowArrayIterator> delegated)
-      : delegated_(std::move(delegated)) {}
-
-  arrow::Result<std::shared_ptr<ArrowArray>> Next() {
-    return delegated_->Next();
-  }
-
- private:
-  std::shared_ptr<JavaArrowArrayIterator> delegated_;
 };
 
 // See Java class
@@ -379,7 +362,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
 
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
-  std::vector<std::shared_ptr<ArrowArrayResultIterator>> input_iters;
+  std::vector<std::shared_ptr<GlutenResultIterator>> input_iters;
   if (iters_len > 0) {
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
@@ -388,11 +371,11 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
       jobject ref_iter = env->NewGlobalRef(iter);
       auto array_iter = MakeJavaArrowArrayIterator(vm, ref_iter);
       input_iters.push_back(
-          std::make_shared<ArrowArrayResultIterator>(std::move(array_iter)));
+          std::make_shared<GlutenResultIterator>(std::move(array_iter)));
     }
   }
 
-  std::shared_ptr<ArrowArrayResultIterator> res_iter;
+  std::shared_ptr<GlutenResultIterator> res_iter;
   if (input_iters.empty()) {
     res_iter = backend->GetResultIterator(allocator);
   } else {
@@ -428,6 +411,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
   if (!iter->HasNext()) {
     return false;
   }
+  // todo
   ArrowArrayMove(
       std::move(iter->Next().get()),
       reinterpret_cast<struct ArrowArray*>(c_array));

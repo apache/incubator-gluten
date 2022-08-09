@@ -30,8 +30,9 @@
 #include "utils/metrics.h"
 namespace gluten {
 
-using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
-class ArrowArrayResultIterator;
+using GlutenIterator =
+    arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
+class GlutenResultIterator;
 
 template <typename T>
 class ResultIteratorBase {
@@ -47,11 +48,11 @@ class ResultIteratorBase {
 class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
  public:
   virtual ~ExecBackendBase() = default;
-  virtual std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator) = 0;
-  virtual std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) = 0;
+      std::vector<std::shared_ptr<GlutenResultIterator>> inputs) = 0;
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
@@ -225,7 +226,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   }
 };
 
-class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
+class GlutenResultIterator
+    : public ResultIteratorBase<memory::GlutenColumnarBatch> {
  public:
   /// \brief Iterator may be constructed from any type which has a member
   /// function with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
@@ -235,12 +237,11 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
   /// output, it can hold the backend to tie their lifetimes, which can be used
   /// when the production of the iterator relies on the backend.
   template <typename T>
-  explicit ArrowArrayResultIterator(
+  explicit GlutenResultIterator(
       std::shared_ptr<T> iter,
       std::shared_ptr<ExecBackendBase> backend = nullptr)
       : raw_iter_(iter.get()),
-        iter_(
-            std::make_unique<ArrowArrayIterator>(Wrapper<T>(std::move(iter)))),
+        iter_(std::make_unique<GlutenIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),
         backend_(std::move(backend)) {}
 
@@ -250,7 +251,7 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
     return next_ != nullptr;
   }
 
-  std::shared_ptr<ArrowArray> Next() override {
+  std::shared_ptr<memory::GlutenColumnarBatch> Next() override {
     CheckValid();
     GetNext();
     return std::move(next_);
@@ -260,7 +261,7 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
   /// called, the caller should take it's ownership, and
   /// ArrowArrayResultIterator will no longer have access to the underlying
   /// iterator.
-  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
+  std::shared_ptr<GlutenIterator> ToArrowArrayIterator() {
     return std::move(iter_);
   }
 
@@ -282,7 +283,7 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
    public:
     explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
 
-    arrow::Result<std::shared_ptr<ArrowArray>> Next() {
+    arrow::Result<std::shared_ptr<memory::GlutenColumnarBatch>> Next() {
       return ptr_->Next();
     }
 
@@ -291,8 +292,8 @@ class ArrowArrayResultIterator : public ResultIteratorBase<ArrowArray> {
   };
 
   void* raw_iter_;
-  std::unique_ptr<ArrowArrayIterator> iter_;
-  std::shared_ptr<ArrowArray> next_;
+  std::unique_ptr<GlutenIterator> iter_;
+  std::shared_ptr<memory::GlutenColumnarBatch> next_;
   std::shared_ptr<ExecBackendBase> backend_;
 
   inline void CheckValid() {

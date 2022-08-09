@@ -32,12 +32,12 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
 
   ~ArrowExecBackend() override;
 
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator) override;
 
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs)
+      std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs)
       override;
 
  private:
