@@ -240,8 +240,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   std::unordered_map<std::string, std::string> confMap_;
 
-  std::vector<std::shared_ptr<gluten::GlutenResultIterator>>
-      arrowInputIters_;
+  std::vector<std::shared_ptr<gluten::GlutenResultIterator>> arrowInputIters_;
 
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
