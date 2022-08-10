@@ -29,7 +29,7 @@
 #include "utils/exception.h"
 #include "utils/metrics.h"
 namespace gluten {
-
+using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
 using GlutenIterator =
     arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
 class GlutenResultIterator;
@@ -261,8 +261,16 @@ class GlutenResultIterator
   /// called, the caller should take it's ownership, and
   /// ArrowArrayResultIterator will no longer have access to the underlying
   /// iterator.
-  std::shared_ptr<GlutenIterator> ToArrowArrayIterator() {
-    return std::move(iter_);
+  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
+    ArrowArrayIterator itr = arrow::MakeMapIterator(
+        [](std::shared_ptr<memory::GlutenColumnarBatch> b)
+            -> std::shared_ptr<ArrowArray> {
+          return std::shared_ptr<ArrowArray>(b->exportToArrow());
+        },
+        std::move(*iter_));
+    ArrowArrayIterator* itr_ptr = nullptr;
+    *itr_ptr = std::move(itr);
+    return std::shared_ptr<ArrowArrayIterator>(itr_ptr);
   }
 
   // For testing and benchmarking.
