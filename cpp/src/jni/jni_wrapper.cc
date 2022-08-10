@@ -413,7 +413,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
   }
   // todo
   ArrowArrayMove(
-      std::move(iter->Next().get()),
+      iter->Next()->exportToArrow().get(),
       reinterpret_cast<struct ArrowArray*>(c_array));
   return true;
   JNI_METHOD_END(false)

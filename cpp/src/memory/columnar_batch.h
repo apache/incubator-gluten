@@ -53,7 +53,7 @@ class GlutenArrowArrayColumnarBatch : public GlutenColumnarBatch {
       : GlutenColumnarBatch(cArray.n_children, cArray.length),
         cArray_(cArray) {}
 
-  void ReleasePayload() override{
+  void ReleasePayload() override {
     ArrowArrayRelease(&cArray_);
   }
 
