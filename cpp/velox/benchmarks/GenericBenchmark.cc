@@ -48,7 +48,7 @@ auto BM_Generic = [](::benchmark::State& state,
   auto plan = std::move(maybePlan).ValueOrDie();
 
   auto backend = gluten::CreateBackend();
-  std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputIters;
+  std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputIters;
   std::transform(
       input_files.cbegin(),
       input_files.cend(),
@@ -59,7 +59,7 @@ auto BM_Generic = [](::benchmark::State& state,
       inputIters.begin(),
       inputIters.end(),
       std::back_inserter(inputItersRaw),
-      [](std::shared_ptr<gluten::ArrowArrayResultIterator> iter) {
+      [](std::shared_ptr<gluten::GlutenResultIterator> iter) {
         return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
       });
 
@@ -71,7 +71,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
   for (auto _ : state) {
     while (resultIter->HasNext()) {
-      auto array = resultIter->Next();
+      auto array = resultIter->Next()->exportToArrow();
       if (FLAGS_print_result) {
         state.PauseTiming();
         auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
