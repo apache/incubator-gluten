@@ -253,7 +253,7 @@ ArrowExecResultIterator::Next() {
   GLUTEN_ASSIGN_OR_THROW(auto exec_batch, iter_.Next());
   if (exec_batch.has_value()) {
     GLUTEN_ASSIGN_OR_THROW(auto batch, exec_batch->ToRecordBatch(schema_));
-    ArrowArray array;
+    ArrowArray array{};
     GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, &array));
     return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
         array);
