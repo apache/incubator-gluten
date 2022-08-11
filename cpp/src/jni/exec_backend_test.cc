@@ -23,21 +23,21 @@ namespace gluten {
 
 class DummyBackend : public ExecBackendBase {
  public:
-  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator) override {
     auto res_iter = std::make_shared<ResultIterator>();
-    return std::make_shared<ArrowArrayResultIterator>(std::move(res_iter));
+    return std::make_shared<GlutenResultIterator>(std::move(res_iter));
   }
-  std::shared_ptr<ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ArrowArrayResultIterator>> inputs) {
+      std::vector<std::shared_ptr<GlutenResultIterator>> inputs) {
     return GetResultIterator(allocator);
   }
 
  private:
   class ResultIterator {
    public:
-    arrow::Result<std::shared_ptr<ArrowArray>> Next() {
+    arrow::Result<std::shared_ptr<memory::GlutenColumnarBatch>> Next() {
       if (!has_next_) {
         return nullptr;
       }
@@ -57,9 +57,10 @@ class DummyBackend : public ExecBackendBase {
           arrow::field("res", arrow::float64())};
       auto batch =
           arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
-      auto cArray = std::make_shared<ArrowArray>();
-      GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get()));
-      return cArray;
+      ArrowArray cArray{};
+      GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, &cArray));
+      return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
+          cArray);
     }
 
    private:
