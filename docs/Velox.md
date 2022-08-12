@@ -15,29 +15,51 @@ export PATH=$JAVA_HOME/bin:$PATH
 ```
 
 
-The script to build Velox backend jars:
+## Velox home directory
+
+The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
 
 ```shell script
 mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
 
+On error "Could not resolve dependencies for project io.glutenproject:backends-velox:jar:1.0.0-snapshot: Could not find artifact org.apache.arrow:arrow-c-data:jar:8.0.0-gluten-SNAPSHOT", it's because the arrow-c-data.jar isn't installed into ~/.m2. You may refer to https://github.com/oap-project/gluten/blob/main/docs/ArrowInstallation.md and run the mvn command in arrow/java directory, then re-run above mvn command
+
+```bash
+$ cd tools/build/arrow_ep/java
+$ mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=${ARROW_HOME}/cpp/release-build/release/ -DskipTests -Dcheckstyle.skip
+```
+You can also clone the Velox source to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
+
+```shell script
+mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
+```
+
+## Arrow home directory
+
+Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not.
+
+
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
 
-## Test TPC-H Q1 and Q6 on Gluten with Velox backend
-
+## Test TPC-H on Gluten with Velox backend
 ### Data preparation
 
-Parquet format still have performance issue in Velox. We use dwrf format instead. Refer to backends-velox/workload/tpch for data generation.
+Parquet format still have performance issue in Velox. We use dwrf format instead. Refer to [Test TPCH on Velox backend](../backends-velox/workload/tpch/README.md) for How to convert parquet to dwrf format during data generation.
 
-Considering Velox's support for Decimal and Date are not fully ready, the script transforms Decimal to Double and Date to String. As a result, we need to modify the TPCH queries a bit. You can find them here: backends-velox/workload/tpch/tpch.queries.updated
+Considering current Velox does not fully support Decimal and Date data type, the [datagen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.scala) transforms "Decimal-to-Double" and "Date-to-String". As a result, we need to modify the TPCH queries a bit. You can find the [modified TPC-H queries](../backends-velox/workload/tpch/tpch.queries.updated/).
 
 ### Submit the Spark SQL job
 
-
-Submit test script from spark-shell.
+Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_dwrf.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_dwrf.scala before you run the testing. 
+```
+var dwrf_file_path = "/PATH/TO/TPCH_DWRF_PATH"
+var gluten_root = "/PATH/TO/GLUTEN"
+```
+Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
 ```shell script
-cat tpch_q6.scala | spark-shell --name tpch_velox_q6 --master yarn --deploy-mode client --conf spark.plugins=io.glutenproject.GlutenPlugin --conf --conf spark.gluten.sql.columnar.backend.lib=velox --conf spark.driver.extraClassPath=${gluten_jvm_jar} --conf spark.executor.extraClassPath=${gluten_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
+cat tpch_dwrf.scala | spark-shell --name tpch_powertest_velox --master yarn --deploy-mode client --conf spark.plugins=io.glutenproject.GlutenPlugin --conf --conf spark.gluten.sql.columnar.backend.lib=velox --conf spark.driver.extraClassPath=${gluten_jvm_jar} --conf spark.executor.extraClassPath=${gluten_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
 ```
 
 ### Result

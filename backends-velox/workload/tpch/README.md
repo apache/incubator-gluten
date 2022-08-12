@@ -11,3 +11,4 @@ And then please refer to the scripts in ./gen_data/dwrf_dataset/ directory to co
 
 ## Test Queries
 We provided the test queries in ./tpch.queries.updated directory, which changed all DATE feilds to STRING since DATE type is not well supported in Gluten with Velox backend.
+We also provided a scala code in ./run_tpch/ directory about how to run TPC-H queries.
