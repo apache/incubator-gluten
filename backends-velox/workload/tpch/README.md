@@ -31,8 +31,10 @@ And then please refer to the scripts in ./gen_data/dwrf_dataset/ directory to co
 In tpch_convert_parquet_dwrf.sh, spark configures should be set according to the system.
 
 ```
- --executor-cores 8                                      \
- --num-executors 14                                       \
+export GLUTEN_HOME=/home/sparkuser/workspace/workspace/Gluten_Perf_ICX/
+...
+--executor-cores 8                                      \
+--num-executors 14                                       \
 ```
 
 In tpch_convert_parquet_dwrf.scala, the table path should be configured.
