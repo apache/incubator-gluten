@@ -9,7 +9,7 @@ val rootDir = "/PATH/TO/TPCH_PARQUET_PATH" // root directory of location to crea
 val dbgenDir = "/PATH/TO/TPCH_DBGEN" // location of dbgen
 
 val tables = new TPCHTables(spark.sqlContext,
-    dbgenDir = dbgenDir
+    dbgenDir = dbgenDir,
     scaleFactor = scaleFactor,
     useDoubleForDecimal = true, // true to replace DecimalType with DoubleType
     useStringForDate = true) // true to replace DateType with StringType
