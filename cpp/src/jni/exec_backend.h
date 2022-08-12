@@ -268,7 +268,7 @@ class GlutenResultIterator
           return std::shared_ptr<ArrowArray>(b->exportToArrow());
         },
         std::move(*iter_));
-    ArrowArrayIterator* itr_ptr = nullptr;
+    ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
     *itr_ptr = std::move(itr);
     return std::shared_ptr<ArrowArrayIterator>(itr_ptr);
   }
