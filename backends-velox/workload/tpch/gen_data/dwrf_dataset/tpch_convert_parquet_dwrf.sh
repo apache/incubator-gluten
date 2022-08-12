@@ -1,6 +1,6 @@
 batchsize=20480
 
-export GLUTEN_HOME=/home/sparkuser/jk/projects/gluten/
+export GLUTEN_HOME=/PATH/TO/gluten/
 export GLUTEN_JVM_JAR=${GLUTEN_HOME}/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar
 SPARK_HOME=/home/sparkuser/spark/
 
