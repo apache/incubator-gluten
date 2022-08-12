@@ -12,6 +12,7 @@ spark_sql_perf_jar=/PATH/TO/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar
 ...
   --num-executors 14 
   --executor-cores 8 
+  --conf spark.sql.shuffle.partitions=224 
 ...
 ```
 
