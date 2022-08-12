@@ -1,7 +1,7 @@
 
 batchsize=10240
 SPARK_HOME=/home/sparkuser/spark/
-spark_sql_perf_jar=/home/sparkuser/jars/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar
+spark_sql_perf_jar=/PATH/TO/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar
 cat tpch_datagen_parquet.scala | ${SPARK_HOME}/bin/spark-shell \
   --num-executors 14 \
   --name tpch_gen_parquet \
