@@ -31,7 +31,7 @@ val nation_dwrf_path = "file://" + dwrf_file_path + "/nation"
 val orders_dwrf_path = "file://" + dwrf_file_path + "/orders"
 val part_dwrf_path = "file://" + dwrf_file_path + "/part"
 val partsupp_dwrf_path = "file://" + dwrf_file_path + "/partsupp"
-val region_path_path = "file://" + dwrf_file_path + "/region"
+val region_dwrf_path = "file://" + dwrf_file_path + "/region"
 val supplier_dwrf_path = "file://" + dwrf_file_path + "/supplier"
 
 lineitem.write.mode("append").format("dwrf").save(lineitem_dwrf_path)
