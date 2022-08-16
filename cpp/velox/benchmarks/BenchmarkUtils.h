@@ -27,8 +27,8 @@
 #include <thread>
 #include <utility>
 
+#include "compute/exec_backend.h"
 #include "compute/protobuf_utils.h"
-#include "jni/exec_backend.h"
 #include "velox/common/memory/Memory.h"
 
 DECLARE_bool(print_result);

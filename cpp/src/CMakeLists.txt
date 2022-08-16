@@ -229,7 +229,7 @@ add_definitions(-DNATIVESQL_SRC_PATH="${root_directory}/releases")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 set(SPARK_COLUMNAR_PLUGIN_SRCS
         jni/jni_wrapper.cc
-        jni/exec_backend.cc
+        compute/exec_backend.cc
         memory/allocator.cc
         memory/arrow_memory_pool.cc
         ${PROTO_SRCS}
@@ -285,7 +285,7 @@ else() #
 endif()
 
 if(BUILD_TESTS)
-  add_test_case(exec_backend_test SOURCES jni/exec_backend_test.cc)
+  add_test_case(exec_backend_test SOURCES compute/exec_backend_test.cc)
 endif()
 
 if(DEFINED ENV{HADOOP_HOME})

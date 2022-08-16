@@ -27,7 +27,7 @@
 #include "arrow/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
-#include "jni/exec_backend.h"
+#include "compute/exec_backend.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"

@@ -25,7 +25,7 @@
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
-#include "jni/exec_backend.h"
+#include "compute/exec_backend.h"
 #include "utils/exception.h"
 
 #include <thread>

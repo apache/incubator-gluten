@@ -27,7 +27,7 @@
 
 #include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
-#include "jni/exec_backend.h"
+#include "compute/exec_backend.h"
 #include "memory/columnar_batch.h"
 #include "memory/velox_memory_pool.h"
 #include "substrait/algebra.pb.h"
