@@ -28,6 +28,7 @@
 #include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
 #include "jni/exec_backend.h"
+#include "memory/columnar_batch.h"
 #include "memory/velox_memory_pool.h"
 #include "substrait/algebra.pb.h"
 #include "substrait/capabilities.pb.h"
@@ -78,6 +79,22 @@ class VeloxInitializer {
   void Init();
 };
 
+class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
+ public:
+  GlutenVeloxColumnarBatch(RowVectorPtr rowVector)
+      : gluten::memory::GlutenColumnarBatch(
+            rowVector->childrenSize(),
+            rowVector->size()),
+        rowVector_(rowVector) {}
+
+  void ReleasePayload() override;
+  std::string GetType() override;
+  std::shared_ptr<ArrowArray> exportToArrow() override;
+
+ private:
+  RowVectorPtr rowVector_;
+};
+
 class WholeStageResIter {
  public:
   WholeStageResIter(
@@ -90,7 +107,7 @@ class WholeStageResIter {
 
   virtual ~WholeStageResIter() {}
 
-  arrow::Result<std::shared_ptr<ArrowArray>> Next();
+  arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>> Next();
 
   std::shared_ptr<Metrics> GetMetrics() {
     collectMetrics();
@@ -144,16 +161,16 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       const std::unordered_map<std::string, std::string>& confMap)
       : confMap_(confMap) {}
 
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator) override;
 
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs)
+      std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs)
       override;
 
   // Used by unit test and benchmark.
-  std::shared_ptr<gluten::ArrowArrayResultIterator> GetResultIterator(
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
           scanInfos);
@@ -223,8 +240,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   std::unordered_map<std::string, std::string> confMap_;
 
-  std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>>
-      arrowInputIters_;
+  std::vector<std::shared_ptr<gluten::GlutenResultIterator>> arrowInputIters_;
 
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();

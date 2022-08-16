@@ -120,15 +120,15 @@ std::shared_ptr<arrow::RecordBatchReader> createReader(
   return recordBatchReader;
 }
 
-std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchVector(
+std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(
     const std::string& path) {
-  return std::make_shared<gluten::ArrowArrayResultIterator>(
+  return std::make_shared<gluten::GlutenResultIterator>(
       std::make_shared<BatchVectorIterator>(path));
 }
 
-std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchStream(
+std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(
     const std::string& path) {
-  return std::make_shared<gluten::ArrowArrayResultIterator>(
+  return std::make_shared<gluten::GlutenResultIterator>(
       std::make_shared<BatchStreamIterator>(path));
 }
 

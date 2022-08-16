@@ -273,17 +273,17 @@ void VeloxPlanConverter::getInfoAndIds(
   }
 }
 
-std::shared_ptr<gluten::ArrowArrayResultIterator>
+std::shared_ptr<gluten::GlutenResultIterator>
 VeloxPlanConverter::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator) {
-  std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs = {};
+  std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs = {};
   return GetResultIterator(allocator, inputs);
 }
 
-std::shared_ptr<gluten::ArrowArrayResultIterator>
+std::shared_ptr<gluten::GlutenResultIterator>
 VeloxPlanConverter::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<gluten::ArrowArrayResultIterator>> inputs) {
+    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
@@ -306,16 +306,16 @@ VeloxPlanConverter::GetResultIterator(
     // Source node is not required.
     auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(
         veloxPool, planNode_, streamIds, confMap_);
-    return std::make_shared<gluten::ArrowArrayResultIterator>(
+    return std::make_shared<gluten::GlutenResultIterator>(
         std::move(wholestageIter), shared_from_this());
   }
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
-  return std::make_shared<gluten::ArrowArrayResultIterator>(
+  return std::make_shared<gluten::GlutenResultIterator>(
       std::move(wholestageIter), shared_from_this());
 }
 
-std::shared_ptr<gluten::ArrowArrayResultIterator>
+std::shared_ptr<gluten::GlutenResultIterator>
 VeloxPlanConverter::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator,
     const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
@@ -337,7 +337,7 @@ VeloxPlanConverter::GetResultIterator(
   auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
   auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(
       veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
-  return std::make_shared<gluten::ArrowArrayResultIterator>(
+  return std::make_shared<gluten::GlutenResultIterator>(
       std::move(wholestageIter), shared_from_this());
 }
 
@@ -367,7 +367,8 @@ void WholeStageResIter::toArrowArray(const RowVectorPtr& rv, ArrowArray& out) {
   exportToArrow(copy, out, getPool());
 }
 
-arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
+arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>>
+WholeStageResIter::Next() {
   addSplits_(task_.get());
   if (task_->isFinished()) {
     return nullptr;
@@ -380,10 +381,7 @@ arrow::Result<std::shared_ptr<ArrowArray>> WholeStageResIter::Next() {
   if (numRows == 0) {
     return nullptr;
   }
-
-  ArrowArray out;
-  toArrowArray(vector, out);
-  return std::make_shared<ArrowArray>(out);
+  return std::make_shared<GlutenVeloxColumnarBatch>(vector);
 }
 
 memory::MemoryPool* WholeStageResIter::getPool() const {
@@ -635,6 +633,32 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage
   bool noMoreSplits_ = false;
   std::vector<core::PlanNodeId> streamIds_;
 };
+
+void GlutenVeloxColumnarBatch::ReleasePayload() {
+  rowVector_.reset();
+}
+
+std::string GlutenVeloxColumnarBatch::GetType() {
+  return "velox";
+}
+
+std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportToArrow() {
+  ArrowArray out;
+  // Make sure to load lazy vector if not loaded already.
+  for (auto& child : rowVector_->children()) {
+    child->loadedVector();
+  }
+
+  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(BaseVector::create(
+      rowVector_->type(),
+      rowVector_->size(),
+      gluten::memory::GetDefaultWrappedVeloxMemoryPool().get()));
+  copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
+  facebook::velox::exportToArrow(
+      copy, out, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
+
+  return std::make_shared<ArrowArray>(out);
+}
 
 } // namespace compute
 } // namespace velox

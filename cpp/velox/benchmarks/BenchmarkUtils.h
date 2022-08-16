@@ -36,7 +36,7 @@ DECLARE_int32(cpu);
 DECLARE_int32(threads);
 
 using GetInputFunc =
-    std::shared_ptr<gluten::ArrowArrayResultIterator>(const std::string&);
+    std::shared_ptr<gluten::GlutenResultIterator>(const std::string&);
 
 /// Initilize the Velox backend.
 void InitVeloxBackend();
@@ -65,7 +65,8 @@ class BatchIteratorWrapper {
 
   virtual ~BatchIteratorWrapper() = default;
 
-  virtual arrow::Result<std::shared_ptr<ArrowArray>> Next() = 0;
+  virtual arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>>
+  Next() = 0;
 
   void CreateReader() {
     ::parquet::ArrowReaderProperties properties =
@@ -106,13 +107,15 @@ class BatchVectorIterator : public BatchIteratorWrapper {
 #endif
   }
 
-  arrow::Result<std::shared_ptr<ArrowArray>> Next() override {
+  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next()
+      override {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }
-    auto cArray = std::make_shared<ArrowArray>();
-    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(**iter_++, cArray.get()));
-    return cArray;
+    ArrowArray cArray{};
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(**iter_++, &cArray));
+    return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
+        cArray);
   }
 
  private:
@@ -136,25 +139,27 @@ class BatchStreamIterator : public BatchIteratorWrapper {
     CreateReader();
   }
 
-  arrow::Result<std::shared_ptr<ArrowArray>> Next() override {
+  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next()
+      override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
     if (batch == nullptr) {
       return nullptr;
     }
-    auto cArray = std::make_shared<ArrowArray>();
-    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get()));
+    ArrowArray cArray{};
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, &cArray));
     collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
                              std::chrono::steady_clock::now() - startTime)
                              .count();
-    return cArray;
+    return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
+        cArray);
   }
 };
 
-std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchVector(
+std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(
     const std::string& path);
 
-std::shared_ptr<gluten::ArrowArrayResultIterator> getInputFromBatchStream(
+std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(
     const std::string& path);
 
 void setCpu(uint32_t cpuindex);
