@@ -32,7 +32,7 @@ import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.types.{ByteType, DataType, IntegerType, LongType, ShortType}
+import org.apache.spark.sql.types.{DoubleType, LongType}
 
 case class VeloxHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
@@ -50,6 +50,67 @@ case class VeloxHashAggregateExecTransformer(
     resultExpressions,
     child) {
 
+  /**
+   * Returns whether extracting subfield from struct is needed.
+   * True when the intermediate type of Velox aggregation is a compound type.
+   * @return extracting needed or not.
+   */
+  def extractStructNeeded(): Boolean = {
+    for (expr <- aggregateExpressions) {
+      val aggregateFunction = expr.aggregateFunction
+      aggregateFunction match {
+        // TODO: also handle stddev.
+        case _: Average =>
+          expr.mode match {
+            case Partial =>
+              return true
+            case _ =>
+          }
+        case _ =>
+      }
+    }
+    false
+  }
+
+  /**
+   * Add a projection after aggregation to extract subfields from Struct.
+   * @param context the Substrait context
+   * @param aggRel the aggregation rel
+   * @param operatorId the operator id
+   * @return a project rel
+   */
+  def applyExtractStruct(context: SubstraitContext,
+                         aggRel: RelNode,
+                         operatorId: Long): RelNode = {
+    val expressionNodes = new util.ArrayList[ExpressionNode]()
+    var colIdx = 0
+    while (colIdx < groupingExpressions.size) {
+      val groupingExpr: ExpressionNode = ExpressionBuilder.makeSelection(colIdx)
+      expressionNodes.add(groupingExpr)
+      colIdx += 1
+    }
+
+    for (expr <- aggregateExpressions) {
+      expr.mode match {
+        case Partial =>
+        case _ =>
+          throw new UnsupportedOperationException(s"${expr.mode} not supported.")
+      }
+      expr.aggregateFunction match {
+        case _: Average =>
+          // Select sum from Velox Struct.
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
+          // Select count from Velox Struct.
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
+          colIdx += 1
+        case _ =>
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx))
+          colIdx += 1
+      }
+    }
+    RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId)
+  }
+
   // Create aggregate function node and add to list.
   override protected def addFunctionNode(
     args: java.lang.Object,
@@ -64,28 +125,18 @@ case class VeloxHashAggregateExecTransformer(
           case Partial =>
             // Will use sum and count to replace partial avg.
             assert(childrenNodeList.size() == 1, "Partial Average expects one child node.")
-            val inputType = aggregateFunction.children.head.dataType
-            val inputNullable = aggregateFunction.children.head.nullable
 
-            val sumNode = ExpressionBuilder.makeAggregateFunction(
-              ExpressionBuilder.newScalarFunction(
-                functionMap,
-                ConverterUtils
-                  .makeFuncName(ConverterUtils.SUM, Seq(inputType), FunctionConfig.OPT)),
+            // Use struct type to represent Velox Row(DOUBLE, BIGINT).
+            val structTypeNodes = new util.ArrayList[TypeNode]()
+            structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+            structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+
+            val avgNode = ExpressionBuilder.makeAggregateFunction(
+              AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
               modeToKeyWord(aggregateMode),
-              getSumResultTypeNode(inputType, inputNullable))
-            aggregateNodeList.add(sumNode)
-
-            val countNode = ExpressionBuilder.makeAggregateFunction(
-              ExpressionBuilder.newScalarFunction(
-                functionMap,
-                ConverterUtils
-                  .makeFuncName(ConverterUtils.COUNT, Seq(inputType), FunctionConfig.OPT)),
-              childrenNodeList,
-              modeToKeyWord(aggregateMode),
-              ConverterUtils.getTypeNode(LongType, nullable = true) /* return type for count */)
-            aggregateNodeList.add(countNode)
+              TypeBuilder.makeStruct(structTypeNodes))
+            aggregateNodeList.add(avgNode)
           case Final =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
@@ -103,22 +154,6 @@ case class VeloxHashAggregateExecTransformer(
           modeToKeyWord(aggregateMode),
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
         aggregateNodeList.add(aggFunctionNode)
-    }
-  }
-
-  /**
-   * Get the result type of sum aggregation with accumulation.
-   * @param inputType the input type of sum aggregation.
-   * @param nullable the input nullable of sum aggregation.
-   * @return
-   */
-  private def getSumResultTypeNode(inputType: DataType, nullable: Boolean): TypeNode = {
-    inputType match {
-      case ByteType | ShortType | IntegerType | LongType =>
-        // The middle type and final type are both long type in Velox.
-        ConverterUtils.getTypeNode(LongType, nullable)
-      case _ =>
-        ConverterUtils.getTypeNode(inputType, nullable)
     }
   }
 
@@ -249,6 +284,15 @@ case class VeloxHashAggregateExecTransformer(
       projectRel, groupingList, aggregateFunctionList, context, operatorId)
   }
 
+  /**
+   * Create and return the Rel for the this aggregation.
+   * @param context the Substrait context
+   * @param operatorId the operator id
+   * @param aggParams the params for aggregation mainly used for metrics updating
+   * @param input tht input rel node
+   * @param validation whether this is for native validation
+   * @return the rel node for this aggregation
+   */
   override protected def getAggRel(context: SubstraitContext,
                                    operatorId: Long,
                                    aggParams: AggregationParams,
@@ -257,7 +301,7 @@ case class VeloxHashAggregateExecTransformer(
     val originalInputAttributes = child.output
     val preProjectionNeeded = needsPreProjection
 
-    val aggRel = if (preProjectionNeeded) {
+    var aggRel = if (preProjectionNeeded) {
       aggParams.preProjectionNeeded = true
       getAggRelWithPreProjection(
         context, originalInputAttributes, operatorId, input, validation)
@@ -270,6 +314,10 @@ case class VeloxHashAggregateExecTransformer(
         getAggRelWithoutPreProjection(
           context, originalInputAttributes, operatorId, input, validation)
       }
+    }
+
+    if (!validation && extractStructNeeded()) {
+      aggRel = applyExtractStruct(context, aggRel, operatorId)
     }
 
     val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
