@@ -76,12 +76,12 @@ object DSV2TPCDSBenchmarkTest {
     // val libPath = "/usr/local/clickhouse/lib/libch.so"
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[12]")
+        .master("local[6]")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions", 1)
+        .config("spark.sql.shuffle.partitions", 6)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
@@ -245,7 +245,7 @@ object DSV2TPCDSBenchmarkTest {
   def testTPCDSOne(spark: SparkSession, executedCnt: Int): Unit = {
     spark.sql(
       s"""
-         |use tpcdsdb;
+         |use default;
          |""".stripMargin).show(1000, false)
 
     val tookTimeArr = ArrayBuffer[Long]()
@@ -256,7 +256,39 @@ object DSV2TPCDSBenchmarkTest {
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      val df = spark.sql(sqlStr) // .show(30, false)
+      val df = spark.sql(
+        s"""
+           |SELECT
+           |    l_shipmode,
+           |    sum(
+           |        CASE WHEN o_orderpriority = '1-URGENT'
+           |            OR o_orderpriority = '2-HIGH' THEN
+           |            1
+           |        ELSE
+           |            0
+           |        END) AS high_line_count,
+           |    sum(
+           |        CASE WHEN o_orderpriority <> '1-URGENT'
+           |            AND o_orderpriority <> '2-HIGH' THEN
+           |            1
+           |        ELSE
+           |            0
+           |        END) AS low_line_count
+           |FROM
+           |    orders,
+           |    lineitem
+           |WHERE
+           |    o_orderkey = l_orderkey
+           |    AND l_shipmode IN ('MAIL', 'SHIP')
+           |    AND l_commitdate < l_receiptdate
+           |    AND l_shipdate < l_commitdate
+           |    AND l_receiptdate >= date'1994-01-01' AND l_receiptdate < date'1994-01-01' + interval 1 year
+           |GROUP BY
+           |    l_shipmode
+           |ORDER BY
+           |    l_shipmode;
+           |
+           |""".stripMargin) // .show(30, false)
       df.explain(false)
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen

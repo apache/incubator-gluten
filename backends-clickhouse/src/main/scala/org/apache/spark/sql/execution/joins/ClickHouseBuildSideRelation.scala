@@ -27,7 +27,7 @@ import io.glutenproject.vectorized.{BlockNativeConverter, BlockNativeReader, CHN
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -51,14 +51,11 @@ case class ClickHouseBuildSideRelation(mode: BroadcastMode,
     this
   }
 
-  override def broadcastMode: BroadcastMode = mode
-
   /**
-    * Convert broadcasted value to Iterator[InternalRow].
-    *
+    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
     * @return
     */
-  override def convertColumnarToInternalRow: (Long, Iterator[InternalRow]) = {
+  override def transform(key: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
     val reader = new BlockNativeReader(new ByteArrayInputStream(allBatches))
     val blocks = mutable.MutableList[Long]()
@@ -114,7 +111,7 @@ case class ClickHouseBuildSideRelation(mode: BroadcastMode,
         row
       }
     }
-    // convert broadcasted value to Iterator[InternalRow] with row num.
-    (total_rows, iter)
+    // convert broadcasted value to Array[InternalRow].
+    iter.toArray
   }
 }

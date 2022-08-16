@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.expression.ArrowConverterUtils
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -38,15 +38,12 @@ case class VeloxBuildSideRelation(mode: BroadcastMode,
   override def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext
                              ): VeloxBuildSideRelation = this
 
-  override def broadcastMode: BroadcastMode = mode
-
   /**
-   * Convert broadcasted value to Iterator[InternalRow].
-   *
+   * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
    * @return
    */
-  override def convertColumnarToInternalRow: (Long, Iterator[InternalRow]) = {
-    // convert batches: Array[Array[Byte]] to Iterator[InternalRow] with row num.
-    (0, Iterator.empty)
+  override def transform(key: Expression): Array[InternalRow] = {
+    // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
+    Array.empty
   }
 }

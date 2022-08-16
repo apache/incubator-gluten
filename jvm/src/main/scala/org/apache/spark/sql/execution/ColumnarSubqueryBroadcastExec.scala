@@ -73,29 +73,28 @@ case class ColumnarSubqueryBroadcastExec(name: String,
         } else {
           child
         }
-        val broadcastRelation = if (exchangeChild.isInstanceOf[BroadcastExchangeExec]) {
-          exchangeChild.executeBroadcast[HashedRelation]().value
-        } else {
-          // transform Iterator[ColumnarBatch] to Iterator[InternalRow]
-          exchangeChild.executeBroadcast[BuildSideRelation]().value.transform
-        }
-        val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
-          (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
-        } else {
-          (broadcastRelation.keys(),
-            BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
-        }
+        val rows = if (exchangeChild.isInstanceOf[BroadcastExchangeExec]) {
+          val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
+          val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
+            (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
+          } else {
+            (broadcastRelation.keys(),
+              BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+          }
 
-        val proj = UnsafeProjection.create(expr)
-        val keyIter = iter.map(proj).map(_.copy())
-
-        val rows = keyIter.toArray[InternalRow].distinct
+          val proj = UnsafeProjection.create(expr)
+          val keyIter = iter.map(proj).map(_.copy())
+          keyIter.toArray[InternalRow].distinct
+        } else {
+          val expr = HashJoin.extractKeyExprAt(buildKeys, index)
+          // transform broadcasted columnar value to Arrya[InternalRow] by key
+          exchangeChild.executeBroadcast[BuildSideRelation].value.transform(expr)
+        }
         val beforeBuild = System.nanoTime()
         longMetric("collectTime") += (beforeBuild - beforeCollect) / 1000000
         val dataSize = rows.map(_.asInstanceOf[UnsafeRow].getSizeInBytes).sum
         longMetric("dataSize") += dataSize
         SQLMetrics.postDriverMetricUpdates(sparkContext, executionId, metrics.values.toSeq)
-
         rows
       }
     }(SubqueryBroadcastExec.executionContext)
