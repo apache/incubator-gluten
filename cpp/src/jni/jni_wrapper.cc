@@ -30,9 +30,9 @@
 #include <string>
 #include <utility>
 
+#include "compute/exec_backend.h"
 #include "compute/protobuf_utils.h"
 #include "jni/concurrent_map.h"
-#include "jni/exec_backend.h"
 #include "jni/jni_common.h"
 #include "jni/jni_errors.h"
 #include "memory/columnar_batch.h"

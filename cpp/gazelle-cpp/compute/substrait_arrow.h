@@ -19,7 +19,7 @@
 
 #include <arrow/engine/substrait/serde.h>
 
-#include "jni/exec_backend.h"
+#include "compute/exec_backend.h"
 
 #include <utility>
 

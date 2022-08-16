@@ -24,7 +24,7 @@
 #include <arrow/dataset/scanner.h>
 #include <arrow/util/async_generator.h>
 
-#include "jni/exec_backend.h"
+#include "compute/exec_backend.h"
 
 namespace gazellecpp {
 namespace compute {
