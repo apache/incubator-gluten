@@ -51,7 +51,7 @@ class AddTransformer(left: Expression, right: Expression, original: Expression)
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -80,7 +80,7 @@ class SubtractTransformer(left: Expression, right: Expression, original: Express
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -109,7 +109,7 @@ class MultiplyTransformer(left: Expression, right: Expression, original: Express
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -139,7 +139,7 @@ class DivideTransformer(left: Expression, right: Expression,
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable = true)
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }

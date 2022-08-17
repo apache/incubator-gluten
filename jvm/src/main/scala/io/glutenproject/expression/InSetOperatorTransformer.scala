@@ -40,7 +40,7 @@ class InSetTransformer(value: Expression, hset: Set[Any], original: Expression)
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
-    InSetOperatorTransformer.toTransformer(args, value, leftNode, hset)
+    InSetOperatorTransformer.toTransformer(args, value, leftNode, hset, original.nullable)
   }
 }
 
@@ -56,7 +56,8 @@ object InSetOperatorTransformer {
   def toTransformer(args: java.lang.Object,
                     value: Expression,
                     leftNode: ExpressionNode,
-                    values: Set[Any]): ExpressionNode = {
+                    values: Set[Any],
+                    outputNullable: Boolean): ExpressionNode = {
     val expressionNodes = Lists.newArrayList(leftNode.asInstanceOf[ExpressionNode])
     val listNode = value.dataType match {
       case _: IntegerType =>
@@ -89,7 +90,7 @@ object InSetOperatorTransformer {
       ConverterUtils.IN, Seq(value.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
-    val typeNode = TypeBuilder.makeBoolean(false)
+    val typeNode = TypeBuilder.makeBoolean(outputNullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }

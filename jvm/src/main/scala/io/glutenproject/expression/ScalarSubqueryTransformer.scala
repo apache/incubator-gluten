@@ -56,7 +56,7 @@ class ScalarSubqueryTransformer(
       // If there is no rows returned, the result should be null.
       null
     }
-    ExpressionBuilder.makeLiteral(result, dataType, nullable)
+    ExpressionBuilder.makeLiteral(result, dataType, result == null)
   }
 
   override def dataType: DataType = query.dataType

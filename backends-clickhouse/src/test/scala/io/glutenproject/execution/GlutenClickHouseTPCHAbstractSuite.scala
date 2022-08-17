@@ -29,6 +29,8 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
 abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSuite with Logging {
 
+  protected val createNullableTables = false
+
   override protected val backend: String = "ch"
   override protected val resourcePath: String = "tpch-data-ch"
   override protected val fileFormat: String = "parquet"
@@ -55,10 +57,176 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
     spark.sparkContext.setLogLevel("WARN")
-    createTPCHTables()
+    if (createNullableTables) {
+      createTPCHNullableTables()
+    } else {
+      createTPCHTables()
+    }
   }
 
   override protected def createTPCHTables(): Unit = {
+    val customerData = tablesPath + "/customer"
+    spark.sql(s"DROP TABLE IF EXISTS customer")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
+         | c_custkey    bigint not null,
+         | c_name       string not null,
+         | c_address    string not null,
+         | c_nationkey  bigint not null,
+         | c_phone      string not null,
+         | c_acctbal    double not null,
+         | c_mktsegment string not null,
+         | c_comment    string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${customerData}'
+         |""".stripMargin)
+
+    val lineitemData = tablesPath + "/lineitem"
+    spark.sql(s"DROP TABLE IF EXISTS lineitem")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
+         | l_orderkey      bigint not null,
+         | l_partkey       bigint not null,
+         | l_suppkey       bigint not null,
+         | l_linenumber    bigint not null,
+         | l_quantity      double not null,
+         | l_extendedprice double not null,
+         | l_discount      double not null,
+         | l_tax           double not null,
+         | l_returnflag    string not null,
+         | l_linestatus    string not null,
+         | l_shipdate      date not null,
+         | l_commitdate    date not null,
+         | l_receiptdate   date not null,
+         | l_shipinstruct  string not null,
+         | l_shipmode      string not null,
+         | l_comment       string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${lineitemData}'
+         |""".stripMargin)
+
+    val nationData = tablesPath + "/nation"
+    spark.sql(s"DROP TABLE IF EXISTS nation")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS nation (
+         | n_nationkey bigint not null,
+         | n_name      string not null,
+         | n_regionkey bigint not null,
+         | n_comment   string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${nationData}'
+         |""".stripMargin)
+
+    val regionData = tablesPath + "/region"
+    spark.sql(s"DROP TABLE IF EXISTS region")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS region (
+         | r_regionkey bigint not null,
+         | r_name      string not null,
+         | r_comment   string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${regionData}'
+         |""".stripMargin)
+
+    val ordersData = tablesPath + "/order"
+    spark.sql(s"DROP TABLE IF EXISTS orders")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
+         | o_orderkey      bigint not null,
+         | o_custkey       bigint not null,
+         | o_orderstatus   string not null,
+         | o_totalprice    double not null,
+         | o_orderdate     date not null,
+         | o_orderpriority string not null,
+         | o_clerk         string not null,
+         | o_shippriority  bigint not null,
+         | o_comment       string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${ordersData}'
+         |""".stripMargin)
+
+    val partData = tablesPath + "/part"
+    spark.sql(s"DROP TABLE IF EXISTS part")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS part (
+         | p_partkey     bigint not null,
+         | p_name        string not null,
+         | p_mfgr        string not null,
+         | p_brand       string not null,
+         | p_type        string not null,
+         | p_size        bigint not null,
+         | p_container   string not null,
+         | p_retailprice double not null,
+         | p_comment     string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${partData}'
+         |""".stripMargin)
+
+    val partsuppData = tablesPath + "/partsupp"
+    spark.sql(s"DROP TABLE IF EXISTS partsupp")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp (
+         | ps_partkey    bigint not null,
+         | ps_suppkey    bigint not null,
+         | ps_availqty   bigint not null,
+         | ps_supplycost double not null,
+         | ps_comment    string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${partsuppData}'
+         |""".stripMargin)
+
+    val supplierData = tablesPath + "/supplier"
+    spark.sql(s"DROP TABLE IF EXISTS supplier")
+    spark.sql(
+      s"""
+         | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
+         | s_suppkey   bigint not null,
+         | s_name      string not null,
+         | s_address   string not null,
+         | s_nationkey bigint not null,
+         | s_phone     string not null,
+         | s_acctbal   double not null,
+         | s_comment   string not null)
+         | USING clickhouse
+         | TBLPROPERTIES (engine='MergeTree'
+         |                )
+         | LOCATION '${supplierData}'
+         |""".stripMargin)
+
+    val result = spark.sql(
+      s"""
+         | show tables;
+         |""".stripMargin).collect()
+    assert(result.size == 8)
+  }
+
+  protected def createTPCHNullableTables(): Unit = {
+    spark.sql(
+      s"""
+         |CREATE DATABASE IF NOT EXISTS tpch_nullable
+         |""".stripMargin)
+    spark.sql("use tpch_nullable")
     val customerData = tablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
     spark.sql(
@@ -237,8 +405,8 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
-      /* .set("spark.sql.catalogImplementation", "hive")
       .set("spark.sql.warehouse.dir", warehouse)
+      /* .set("spark.sql.catalogImplementation", "hive")
       .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
         metaStorePathAbsolute + "/metastore_db"};create=true") */
   }

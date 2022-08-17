@@ -33,13 +33,15 @@ class CloseableCHColumnBatchIterator(itr: Iterator[ColumnarBatch],
                                     ) extends Iterator[ColumnarBatch] with Logging {
   var cb: ColumnarBatch = null
   var scanTime = 0L
+  var scanTimeAdded = false
 
   override def hasNext: Boolean = {
     val beforeTime = System.nanoTime()
     val res = itr.hasNext
     scanTime += System.nanoTime() - beforeTime
-    if (!res) {
+    if (!res && pipelineTime.nonEmpty && !scanTimeAdded) {
       pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(scanTime))
+      scanTimeAdded = true
     }
     res
   }

@@ -68,7 +68,7 @@ class EndsWithTransformer(left: Expression, right: Expression, original: Express
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeBoolean(false)
+    val typeNode = TypeBuilder.makeBoolean(nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -97,7 +97,7 @@ class StartsWithTransformer(left: Expression, right: Expression, original: Expre
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeBoolean(false)
+    val typeNode = TypeBuilder.makeBoolean(nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -125,7 +125,7 @@ class LikeTransformer(left: Expression, right: Expression, original: Expression)
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
@@ -154,7 +154,7 @@ class ContainsTransformer(left: Expression, right: Expression, original: Express
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeBoolean(false)
+    val typeNode = TypeBuilder.makeBoolean(nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
 

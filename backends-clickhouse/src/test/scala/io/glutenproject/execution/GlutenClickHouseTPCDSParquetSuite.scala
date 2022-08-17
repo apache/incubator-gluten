@@ -45,4 +45,35 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     val result = df.collect()
     assert(result(0).getLong(0) == 100000L)
   }
+
+  test("test reading from partitioned table") {
+    val df = spark.sql(
+      """
+        |select count(*)
+        |  from store_sales
+        |  where ss_quantity between 1 and 20
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 550458L)
+  }
+
+  test("test reading from partitioned table with partition column filter") {
+    val df = spark.sql(
+      """
+        |select avg(ss_net_paid_inc_tax)
+        |  from store_sales
+        |  where ss_quantity between 1 and 20
+        |  and ss_sold_date_sk = 2452635
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getDouble(0) == 379.21313271604936)
+  }
+
+  test("TPCDS Q9") {
+    withSQLConf(
+      ("spark.gluten.sql.columnar.columnartorow", "true")) {
+      runTPCDSQuery(9) { df =>
+      }
+    }
+  }
 }

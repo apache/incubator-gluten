@@ -52,7 +52,8 @@ class SubStringTransformer(str: Expression, pos: Expression, len: Expression, or
       strNode.asInstanceOf[ExpressionNode],
       posNode.asInstanceOf[ExpressionNode],
       lenNode.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeString(false)
+    // Substring inherits NullIntolerant, the output is nullable
+    val typeNode = TypeBuilder.makeString(true)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }

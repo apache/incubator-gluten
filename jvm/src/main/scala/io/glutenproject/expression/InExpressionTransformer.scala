@@ -38,7 +38,7 @@ class InTransformer(value: Expression, list: Seq[Expression], original: Expressi
       value.asInstanceOf[Literal].value
     }).toSet
 
-    InSetOperatorTransformer.toTransformer(args, value, leftNode, values)
+    InSetOperatorTransformer.toTransformer(args, value, leftNode, values, original.nullable)
   }
 }
 
