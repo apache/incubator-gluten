@@ -1,0 +1,45 @@
+{
+    "relations": [
+      {
+        "root": {
+          "input": {
+            "read": {
+              "common": {
+                "direct": {}
+              },
+              "baseSchema": {
+                "names": [
+                  "l_partkey",
+                  "l_extendedprice"
+                ],
+                "struct": {
+                  "types": [
+                    {
+                      "fp64": {
+                        "nullability": "NULLABILITY_REQUIRED"
+                      }
+                    },
+                    {
+                      "fp64": {
+                        "nullability": "NULLABILITY_NULLABLE"
+                      }
+                    }
+                  ]
+                }
+              },
+              "localFiles": {
+                "items": [
+                    {
+                      "uriFile": "iterator:0"
+                    }
+                  ]
+              }
+            }
+          },
+          "names": [
+            "l_partkey#138"
+          ]
+        }
+      }
+    ]
+  }
