@@ -52,7 +52,7 @@ ArrowExecBackend::~ArrowExecBackend() {
 std::shared_ptr<gluten::GlutenResultIterator>
 ArrowExecBackend::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator) {
-  return GetResultIterator(nullptr, {});
+  return GetResultIterator(allocator, {});
 }
 
 std::shared_ptr<gluten::GlutenResultIterator>
