@@ -81,7 +81,8 @@ case class VeloxHashAggregateExecTransformer(
    */
   def applyExtractStruct(context: SubstraitContext,
                          aggRel: RelNode,
-                         operatorId: Long): RelNode = {
+                         operatorId: Long,
+                         validation: Boolean): RelNode = {
     val expressionNodes = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
@@ -108,7 +109,13 @@ case class VeloxHashAggregateExecTransformer(
           colIdx += 1
       }
     }
-    RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId)
+    if (!validation) {
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId)
+    } else {
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(getPartialAggOutTypes).toProtobuf))
+      RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId)
+    }
   }
 
   // Create aggregate function node and add to list.
@@ -155,6 +162,40 @@ case class VeloxHashAggregateExecTransformer(
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
         aggregateNodeList.add(aggFunctionNode)
     }
+  }
+
+  /**
+   * Return the output types after partial avg through Velox.
+   * @return
+   */
+  def getPartialAggOutTypes: java.util.ArrayList[TypeNode] = {
+    val typeNodeList = new java.util.ArrayList[TypeNode]()
+    groupingExpressions.foreach(expression => {
+      typeNodeList.add(ConverterUtils.getTypeNode(expression.dataType, expression.nullable))
+    })
+    // TODO: consider stddev here.
+    aggregateExpressions.foreach(expression => {
+      val aggregateFunction = expression.aggregateFunction
+      aggregateFunction match {
+        case _: Average =>
+          expression.mode match {
+            case Partial =>
+              val structTypeNodes = new util.ArrayList[TypeNode]()
+              structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+              structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+              typeNodeList.add(TypeBuilder.makeStruct(structTypeNodes))
+            case Final =>
+              typeNodeList.add(
+                ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+            case other =>
+              throw new UnsupportedOperationException(s"$other is not supported.")
+          }
+        case _ =>
+          typeNodeList.add(
+            ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+      }
+    })
+    typeNodeList
   }
 
   // Return whether the outputs partial aggregation should be combined for Velox computing.
@@ -316,8 +357,9 @@ case class VeloxHashAggregateExecTransformer(
       }
     }
 
-    if (!validation && extractStructNeeded()) {
-      aggRel = applyExtractStruct(context, aggRel, operatorId)
+    if (extractStructNeeded()) {
+      aggParams.extractionNeeded = true
+      aggRel = applyExtractStruct(context, aggRel, operatorId, validation)
     }
 
     val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
