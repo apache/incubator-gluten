@@ -22,6 +22,7 @@ import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.JoinRel;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
@@ -95,6 +96,16 @@ public class RelBuilder {
                                     Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new ReadRelNode(types, names, context, filter, null);
+  }
+
+  public static RelNode makeReadRel(ArrayList<TypeNode> types,
+                                    ArrayList<String> names,
+                                    ArrayList<ColumnTypeNode> columnTypeNodes,
+                                    ExpressionNode filter,
+                                    SubstraitContext context,
+                                    Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new ReadRelNode(types, names, context, filter, null, columnTypeNodes);
   }
 
   public static RelNode makeReadRel(ArrayList<TypeNode> types,

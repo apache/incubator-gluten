@@ -26,6 +26,7 @@ import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
@@ -70,6 +71,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[InputPartition] = partitions
+
+  override def getPartitionSchemas: StructType = scan match {
+    case fileScan: FileScan => fileScan.readPartitionSchema
+    case _ => new StructType()
+  }
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 

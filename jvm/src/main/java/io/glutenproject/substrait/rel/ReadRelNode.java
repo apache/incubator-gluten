@@ -1,20 +1,40 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.glutenproject.substrait.rel;
+
+import java.io.Serializable;
+import java.util.ArrayList;
 
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.NamedStruct;
+import io.substrait.proto.PartitionColumns;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-
 public class ReadRelNode implements RelNode, Serializable {
   private final ArrayList<TypeNode> types = new ArrayList<>();
   private final ArrayList<String> names = new ArrayList<>();
+  private final ArrayList<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
   private final SubstraitContext context;
   private final ExpressionNode filterNode;
   private final Long iteratorIndex;
@@ -26,6 +46,17 @@ public class ReadRelNode implements RelNode, Serializable {
     this.context = context;
     this.filterNode = filterNode;
     this.iteratorIndex = iteratorIndex;
+  }
+
+  ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
+              SubstraitContext context, ExpressionNode filterNode, Long iteratorIndex,
+              ArrayList<ColumnTypeNode> columnTypeNodes) {
+    this.types.addAll(types);
+    this.names.addAll(names);
+    this.context = context;
+    this.filterNode = filterNode;
+    this.iteratorIndex = iteratorIndex;
+    this.columnTypeNodes.addAll(columnTypeNodes);
   }
 
   @Override
@@ -41,6 +72,13 @@ public class ReadRelNode implements RelNode, Serializable {
     nStructBuilder.setStruct(structBuilder.build());
     for (String name : names) {
       nStructBuilder.addNames(name);
+    }
+    if (!columnTypeNodes.isEmpty()) {
+      PartitionColumns.Builder partitionColumnsBuilder = PartitionColumns.newBuilder();
+      for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
+        partitionColumnsBuilder.addColumnType(columnTypeNode.toProtobuf());
+      }
+      nStructBuilder.setPartitionColumns(partitionColumnsBuilder.build());
     }
     ReadRel.Builder readBuilder = ReadRel.newBuilder();
     readBuilder.setCommon(relCommonBuilder.build());
