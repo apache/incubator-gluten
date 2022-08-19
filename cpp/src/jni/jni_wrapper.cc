@@ -254,7 +254,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/Metrics;");
   metrics_builder_constructor = GetMethodIDOrError(
-      env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env,
+      metrics_builder_class,
+      "<init>",
+      "([J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serialized_arrow_array_iterator_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/ArrowInIterator;");
@@ -444,6 +447,9 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
   auto wallNanos = env->NewLongArray(numMetrics);
   auto peakMemoryBytes = env->NewLongArray(numMetrics);
   auto numMemoryAllocations = env->NewLongArray(numMetrics);
+  auto numDynamicFiltersProduced = env->NewLongArray(numMetrics);
+  auto numDynamicFiltersAccepted = env->NewLongArray(numMetrics);
+  auto numReplacedWithDynamicFilterRows = env->NewLongArray(numMetrics);
 
   if (metrics) {
     env->SetLongArrayRegion(inputRows, 0, numMetrics, metrics->inputRows);
@@ -462,6 +468,21 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
         peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
     env->SetLongArrayRegion(
         numMemoryAllocations, 0, numMetrics, metrics->numMemoryAllocations);
+    env->SetLongArrayRegion(
+        numDynamicFiltersProduced,
+        0,
+        numMetrics,
+        metrics->numDynamicFiltersProduced);
+    env->SetLongArrayRegion(
+        numDynamicFiltersAccepted,
+        0,
+        numMetrics,
+        metrics->numDynamicFiltersAccepted);
+    env->SetLongArrayRegion(
+        numReplacedWithDynamicFilterRows,
+        0,
+        numMetrics,
+        metrics->numReplacedWithDynamicFilterRows);
   }
 
   return env->NewObject(
@@ -478,7 +499,10 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
       count,
       wallNanos,
       peakMemoryBytes,
-      numMemoryAllocations);
+      numMemoryAllocations,
+      numDynamicFiltersProduced,
+      numDynamicFiltersAccepted,
+      numReplacedWithDynamicFilterRows);
   JNI_METHOD_END(nullptr)
 }
 

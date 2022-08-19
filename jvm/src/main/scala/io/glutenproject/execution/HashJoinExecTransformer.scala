@@ -213,6 +213,10 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       sparkContext, "hash probe peak memory bytes"),
     "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe memory allocations"),
+    "hashProbeReplacedWithDynamicFilterRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe replaced with dynamic filter rows"),
+    "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
+      sparkContext, "number of hash probe dynamic filters produced"),
 
     "postProjectionInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of postProjection input rows"),
@@ -326,6 +330,15 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   val hashProbePeakMemoryBytes: SQLMetric = longMetric("hashProbePeakMemoryBytes")
   val hashProbeNumMemoryAllocations: SQLMetric = longMetric("hashProbeNumMemoryAllocations")
 
+  // The number of rows which were passed through without any processing
+  // after filter was pushed down.
+  val hashProbeReplacedWithDynamicFilterRows: SQLMetric =
+    longMetric("hashProbeReplacedWithDynamicFilterRows")
+
+  // The number of dynamic filters this join generated for push down.
+  val hashProbeDynamicFiltersProduced: SQLMetric =
+    longMetric("hashProbeDynamicFiltersProduced")
+
   val postProjectionInputRows: SQLMetric = longMetric("postProjectionInputRows")
   val postProjectionInputVectors: SQLMetric = longMetric("postProjectionInputVectors")
   val postProjectionInputBytes: SQLMetric = longMetric("postProjectionInputBytes")
@@ -421,6 +434,8 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     hashProbeWallNanos += hashProbeMetrics.wallNanos
     hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
     hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
+    hashProbeReplacedWithDynamicFilterRows += hashProbeMetrics.numReplacedWithDynamicFilterRows
+    hashProbeDynamicFiltersProduced += hashProbeMetrics.numDynamicFiltersProduced
     idx += 1
 
     // HashBuild

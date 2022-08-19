@@ -30,6 +30,9 @@ public class Metrics {
   public long[] wallNanos;
   public long[] peakMemoryBytes;
   public long[] numMemoryAllocations;
+  public long[] numDynamicFiltersProduced;
+  public long[] numDynamicFiltersAccepted;
+  public long[] numReplacedWithDynamicFilterRows;
 
   /**
    * Create an instance for native metrics.
@@ -37,7 +40,9 @@ public class Metrics {
   public Metrics(
       long[] inputRows, long[] inputVectors, long[] inputBytes, long[] rawInputRows,
       long[] rawInputBytes, long[] outputRows, long[] outputVectors, long[] outputBytes,
-      long[] count, long[] wallNanos, long[] peakMemoryBytes, long[] numMemoryAllocations) {
+      long[] count, long[] wallNanos, long[] peakMemoryBytes, long[] numMemoryAllocations,
+      long[] numDynamicFiltersProduced, long[] numDynamicFiltersAccepted,
+      long[] numReplacedWithDynamicFilterRows) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -50,6 +55,9 @@ public class Metrics {
     this.wallNanos = wallNanos;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
+    this.numDynamicFiltersProduced = numDynamicFiltersProduced;
+    this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
+    this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
   }
 
   public OperatorMetrics getOperatorMetrics(int index) {
@@ -58,17 +66,20 @@ public class Metrics {
     }
 
     return new OperatorMetrics(
-            inputRows[index],
-            inputVectors[index],
-            inputBytes[index],
-            rawInputRows[index],
-            rawInputBytes[index],
-            outputRows[index],
-            outputVectors[index],
-            outputBytes[index],
-            count[index],
-            wallNanos[index],
-            peakMemoryBytes[index],
-            numMemoryAllocations[index]);
+        inputRows[index],
+        inputVectors[index],
+        inputBytes[index],
+        rawInputRows[index],
+        rawInputBytes[index],
+        outputRows[index],
+        outputVectors[index],
+        outputBytes[index],
+        count[index],
+        wallNanos[index],
+        peakMemoryBytes[index],
+        numMemoryAllocations[index],
+        numDynamicFiltersProduced[index],
+        numDynamicFiltersAccepted[index],
+        numReplacedWithDynamicFilterRows[index]);
   }
 }
