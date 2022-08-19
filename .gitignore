@@ -61,3 +61,8 @@ scalastyle-output.xml
 cpp/**/benchmarks/**/*
 !cpp/**/benchmarks/**/
 !cpp/**/benchmarks/**/*.*
+
+# Generated C++ example executables
+cpp/**/example/**/*
+!cpp/**/example/**/
+!cpp/**/example/**/*.*

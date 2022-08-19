@@ -119,7 +119,7 @@ ArrowExecBackend::GetResultIterator(
             arrow::compute::ProjectNodeOptions(std::move(fields))));
   }
 
-  auto output_schema = node->output_schema();
+  output_schema_ = node->output_schema();
 
   // Add sink node. It's added after constructing plan from decls because sink
   // node doesn't have output schema.
@@ -139,15 +139,19 @@ ArrowExecBackend::GetResultIterator(
             << " produced arrow::ExecPlan:" << std::endl;
   std::cout << exec_plan_->ToString() << std::endl;
   std::cout << "Execplan output schema:" << std::endl
-            << output_schema->ToString() << std::endl;
+            << output_schema_->ToString() << std::endl;
 #endif
 
   auto iter = arrow::MakeGeneratorIterator(std::move(sink_gen));
-  auto sink_iter =
-      std::make_shared<ArrowExecResultIterator>(output_schema, std::move(iter));
+  auto sink_iter = std::make_shared<ArrowExecResultIterator>(
+      allocator, output_schema_, std::move(iter));
 
   return std::make_shared<gluten::GlutenResultIterator>(
       std::move(sink_iter), shared_from_this());
+}
+
+std::shared_ptr<arrow::Schema> ArrowExecBackend::GetOutputSchema() {
+  return output_schema_;
 }
 
 void ArrowExecBackend::PushDownFilter() {
@@ -252,7 +256,74 @@ std::shared_ptr<gluten::memory::GlutenColumnarBatch>
 ArrowExecResultIterator::Next() {
   GLUTEN_ASSIGN_OR_THROW(auto exec_batch, iter_.Next());
   if (exec_batch.has_value()) {
-    GLUTEN_ASSIGN_OR_THROW(auto batch, exec_batch->ToRecordBatch(schema_));
+    cur_ = std::move(exec_batch.value());
+    arrow::ArrayDataVector columns(schema_->num_fields());
+    for (size_t i = 0; i < columns.size(); ++i) {
+      auto type = schema_->field(i)->type();
+      auto layout = type->layout();
+      const arrow::Datum& value = cur_.values[i];
+      if (value.is_array()) {
+        auto array = value.make_array();
+        if (array->offset() == 0) {
+          columns[i] = array->data();
+        } else {
+          auto offset = array->offset();
+          DCHECK_EQ(offset % 8, 0);
+
+          const auto& in_data = array->data();
+          DCHECK_EQ(in_data->buffers.size(), layout.buffers.size());
+          std::vector<std::shared_ptr<arrow::Buffer>> out_buffers(
+              in_data->buffers.size());
+
+          // Process null bitmap
+          DCHECK_GT(layout.buffers.size(), 0);
+          DCHECK_EQ(layout.buffers[0].kind, arrow::DataTypeLayout::BITMAP);
+          if (in_data->buffers[0] == nullptr) {
+            out_buffers[0] = nullptr;
+          } else {
+            out_buffers[0] = std::make_shared<arrow::Buffer>(
+                in_data->buffers[0]->data() + (offset >> 3),
+                arrow::bit_util::BytesForBits(in_data->length));
+          }
+
+          // Process data/offset buffer
+          if (layout.buffers.size() > 1) {
+            DCHECK_EQ(
+                layout.buffers[1].kind, arrow::DataTypeLayout::FIXED_WIDTH);
+            auto byte_width = layout.buffers[1].byte_width;
+            if (in_data->buffers[1] == nullptr) {
+              out_buffers[1] = nullptr;
+            } else {
+              out_buffers[1] = std::make_shared<arrow::Buffer>(
+                  in_data->buffers[1]->data() + offset * byte_width,
+                  in_data->length * byte_width);
+            }
+          }
+
+          // Process data buffer for variable length types
+          if (layout.buffers.size() > 2) {
+            DCHECK_EQ(
+                layout.buffers[2].kind, arrow::DataTypeLayout::VARIABLE_WIDTH);
+            out_buffers[2] = in_data->buffers[2];
+          }
+
+          columns[i] = arrow::ArrayData::Make(
+              type,
+              array->length(),
+              std::move(out_buffers),
+              array->null_count(),
+              0);
+        }
+      } else {
+        GLUTEN_ASSIGN_OR_THROW(
+            auto scalar,
+            MakeArrayFromScalar(
+                *value.scalar(), cur_.length, memory_pool_.get()));
+        columns[i] = scalar->data();
+      }
+    }
+    auto batch = arrow::RecordBatch::Make(schema_, cur_.length, columns);
+
     ArrowArray array{};
     GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, &array));
     return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(

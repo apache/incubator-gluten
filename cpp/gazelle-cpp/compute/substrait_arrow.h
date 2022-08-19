@@ -40,9 +40,12 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
       std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs)
       override;
 
+  std::shared_ptr<arrow::Schema> GetOutputSchema() override;
+
  private:
   std::shared_ptr<arrow::compute::Declaration> decl_;
   std::shared_ptr<arrow::compute::ExecPlan> exec_plan_;
+  std::shared_ptr<arrow::Schema> output_schema_;
 
   void ReplaceSourceDecls(
       std::vector<arrow::compute::Declaration> source_decls);
@@ -55,15 +58,20 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
 class ArrowExecResultIterator {
  public:
   ArrowExecResultIterator(
+      gluten::memory::MemoryAllocator* allocator,
       std::shared_ptr<arrow::Schema> schema,
       arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter)
-      : schema_(std::move(schema)), iter_(std::move(iter)) {}
+      : memory_pool_(gluten::memory::AsWrappedArrowMemoryPool(allocator)),
+        schema_(std::move(schema)),
+        iter_(std::move(iter)) {}
 
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> Next();
 
  private:
+  std::shared_ptr<arrow::MemoryPool> memory_pool_;
   std::shared_ptr<arrow::Schema> schema_;
   arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter_;
+  arrow::compute::ExecBatch cur_;
 };
 
 void Initialize();
