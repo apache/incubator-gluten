@@ -140,6 +140,11 @@ class WholeStageResIter {
   /// Collect Velox metrics.
   void collectMetrics();
 
+  /// Return the sum of one runtime metric.
+  int64_t sumOfRuntimeMetric(
+      const std::unordered_map<std::string, RuntimeMetric>& runtimeStats,
+      const std::string& metricId) const;
+
   std::shared_ptr<memory::MemoryPool> pool_;
 
   std::shared_ptr<Metrics> metrics_ = nullptr;

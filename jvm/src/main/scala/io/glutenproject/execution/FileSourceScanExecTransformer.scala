@@ -75,7 +75,9 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     "pruningTime" ->
       SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"))
+      sparkContext, "number of memory allocations"),
+    "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
+      sparkContext, "number of dynamic filters accepted"))
 
   val inputRows: SQLMetric = longMetric("inputRows")
   val inputVectors: SQLMetric = longMetric("inputVectors")
@@ -89,6 +91,9 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   val wallNanos: SQLMetric = longMetric("wallNanos")
   val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
   val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
+  // Number of dynamic filters received.
+  val numDynamicFiltersAccepted: SQLMetric = longMetric("numDynamicFiltersAccepted")
 
   override lazy val supportsColumnar: Boolean = {
     relation.fileFormat
@@ -162,6 +167,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       wallNanos += operatorMetrics.wallNanos
       peakMemoryBytes += operatorMetrics.peakMemoryBytes
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
     }
   }
 

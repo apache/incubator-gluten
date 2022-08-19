@@ -49,7 +49,10 @@ const std::string kHiveConnectorId = "test-hive";
 const std::string kSparkBatchSizeKey =
     "spark.sql.execution.arrow.maxRecordsPerBatch";
 const std::string kVeloxPreferredBatchSize = "preferred_output_batch_size";
-
+const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
+const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
+const std::string kReplacedWithDynamicFilterRows =
+    "replacedWithDynamicFilterRows";
 std::atomic<int32_t> taskSerial;
 } // namespace
 
@@ -435,12 +438,7 @@ void WholeStageResIter::collectMetrics() {
       numOfStats += 1;
       continue;
     }
-    const auto& status = planStats.at(nodeId);
-    if (status.isMultiOperatorNode()) {
-      numOfStats += status.operatorStats.size();
-    } else {
-      numOfStats += 1;
-    }
+    numOfStats += planStats.at(nodeId).operatorStats.size();
   }
 
   metrics_ = std::make_shared<Metrics>(numOfStats);
@@ -454,40 +452,41 @@ void WholeStageResIter::collectMetrics() {
       continue;
     }
     const auto& status = planStats.at(nodeId);
-    if (status.isMultiOperatorNode()) {
-      // Add each operator status into metrics.
-      for (const auto& entry : status.operatorStats) {
-        metrics_->inputRows[metricsIdx] = entry.second->inputRows;
-        metrics_->inputVectors[metricsIdx] = entry.second->inputVectors;
-        metrics_->inputBytes[metricsIdx] = entry.second->inputBytes;
-        metrics_->rawInputRows[metricsIdx] = entry.second->rawInputRows;
-        metrics_->rawInputBytes[metricsIdx] = entry.second->rawInputBytes;
-        metrics_->outputRows[metricsIdx] = entry.second->outputRows;
-        metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
-        metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
-        metrics_->count[metricsIdx] = entry.second->cpuWallTiming.count;
-        metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
-        metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
-        metrics_->numMemoryAllocations[metricsIdx] =
-            entry.second->numMemoryAllocations;
-        metricsIdx += 1;
-      }
-    } else {
-      metrics_->inputRows[metricsIdx] = status.inputRows;
-      metrics_->inputVectors[metricsIdx] = status.inputVectors;
-      metrics_->inputBytes[metricsIdx] = status.inputBytes;
-      metrics_->rawInputRows[metricsIdx] = status.rawInputRows;
-      metrics_->rawInputBytes[metricsIdx] = status.rawInputBytes;
-      metrics_->outputRows[metricsIdx] = status.outputRows;
-      metrics_->outputVectors[metricsIdx] = status.outputVectors;
-      metrics_->outputBytes[metricsIdx] = status.outputBytes;
-      metrics_->count[metricsIdx] = status.cpuWallTiming.count;
-      metrics_->wallNanos[metricsIdx] = status.cpuWallTiming.wallNanos;
-      metrics_->peakMemoryBytes[metricsIdx] = status.peakMemoryBytes;
-      metrics_->numMemoryAllocations[metricsIdx] = status.numMemoryAllocations;
+    // Add each operator status into metrics.
+    for (const auto& entry : status.operatorStats) {
+      metrics_->inputRows[metricsIdx] = entry.second->inputRows;
+      metrics_->inputVectors[metricsIdx] = entry.second->inputVectors;
+      metrics_->inputBytes[metricsIdx] = entry.second->inputBytes;
+      metrics_->rawInputRows[metricsIdx] = entry.second->rawInputRows;
+      metrics_->rawInputBytes[metricsIdx] = entry.second->rawInputBytes;
+      metrics_->outputRows[metricsIdx] = entry.second->outputRows;
+      metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
+      metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
+      metrics_->count[metricsIdx] = entry.second->cpuWallTiming.count;
+      metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
+      metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
+      metrics_->numMemoryAllocations[metricsIdx] =
+          entry.second->numMemoryAllocations;
+      metrics_->numDynamicFiltersProduced[metricsIdx] = sumOfRuntimeMetric(
+          entry.second->customStats, kDynamicFiltersProduced);
+      metrics_->numDynamicFiltersAccepted[metricsIdx] = sumOfRuntimeMetric(
+          entry.second->customStats, kDynamicFiltersAccepted);
+      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
+          sumOfRuntimeMetric(
+              entry.second->customStats, kReplacedWithDynamicFilterRows);
       metricsIdx += 1;
     }
   }
+}
+
+int64_t WholeStageResIter::sumOfRuntimeMetric(
+    const std::unordered_map<std::string, RuntimeMetric>& runtimeStats,
+    const std::string& metricId) const {
+  if (runtimeStats.size() == 0 ||
+      runtimeStats.find(metricId) == runtimeStats.end()) {
+    return 0;
+  }
+  return runtimeStats.at(metricId).sum;
 }
 
 void WholeStageResIter::setConfToQueryContext(

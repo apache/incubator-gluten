@@ -47,7 +47,9 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "total scan time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"))
+      sparkContext, "number of memory allocations"),
+    "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
+      sparkContext, "number of dynamic filters accepted"))
 
   val inputRows: SQLMetric = longMetric("inputRows")
   val inputVectors: SQLMetric = longMetric("inputVectors")
@@ -61,6 +63,9 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
   val wallNanos: SQLMetric = longMetric("wallNanos")
   val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
   val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
+  // Number of dynamic filters received.
+  val numDynamicFiltersAccepted: SQLMetric = longMetric("numDynamicFiltersAccepted")
 
   override def filterExprs(): Seq[Expression] = if (scan.isInstanceOf[FileScan]) {
     scan.asInstanceOf[FileScan].dataFilters ++ pushdownFilters
@@ -128,6 +133,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
       wallNanos += operatorMetrics.wallNanos
       peakMemoryBytes += operatorMetrics.peakMemoryBytes
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
     }
   }
 }
