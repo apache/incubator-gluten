@@ -250,7 +250,7 @@ object DSV2TPCDSBenchmarkTest {
            |count(1) as cnt
            |from store_returns
            |,date_dim
-           |where sr_returned_date_sk - 2 = d_date_sk + 1
+           |where sr_returned_date_sk = d_date_sk
            |and d_year = 2000
            |and sr_customer_sk is not null
            |and sr_store_sk is not null

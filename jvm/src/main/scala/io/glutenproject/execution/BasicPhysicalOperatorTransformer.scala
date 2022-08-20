@@ -585,11 +585,14 @@ object FilterHandler {
     case fileSourceScan: FileSourceScanExec =>
       val leftFilters =
         getLeftFilters(fileSourceScan.dataFilters, flattenCondition(plan.condition))
+      // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
+      val newPartitionFilters =
+        ExpressionConverter.transformDynamicPruningExpr(fileSourceScan.partitionFilters)
       new FileSourceScanExecTransformer(
         fileSourceScan.relation,
         fileSourceScan.output,
         fileSourceScan.requiredSchema,
-        fileSourceScan.partitionFilters,
+        newPartitionFilters,
         fileSourceScan.optionalBucketSet,
         fileSourceScan.optionalNumCoalescedBuckets,
         fileSourceScan.dataFilters ++ leftFilters,

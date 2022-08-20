@@ -19,8 +19,11 @@ package org.apache.spark.sql.execution.joins
 
 import java.io.ByteArrayInputStream
 
+import scala.collection.JavaConverters._
+
 import io.glutenproject.execution.BroadCastHashJoinContext
-import io.glutenproject.vectorized.StorageJoinBuilder
+import io.glutenproject.utils.PlanNodesUtil
+import io.glutenproject.vectorized.{ExpressionBuilder, StorageJoinBuilder}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
@@ -30,7 +33,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ClickHouseBuildSideRelation(mode: BroadcastMode,
                                        output: Seq[Attribute],
-                                       batches: Array[Array[Byte]])
+                                       batches: Array[Array[Byte]],
+                                       newBuildKeys: Seq[Expression] = Seq.empty)
   extends BuildSideRelation with Logging {
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
@@ -42,7 +46,9 @@ case class ClickHouseBuildSideRelation(mode: BroadcastMode,
       s"${broadCastContext.buildHashTableId} = ${allBatches.size}")
     val storageJoinBuilder = new StorageJoinBuilder(
       new ByteArrayInputStream(allBatches),
-      broadCastContext)
+      broadCastContext,
+      output.asJava,
+      newBuildKeys.asJava)
     // Build the hash table
     storageJoinBuilder.build()
     this
@@ -52,9 +58,14 @@ case class ClickHouseBuildSideRelation(mode: BroadcastMode,
     * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
     * @return
     */
-  override def transform(key: Expression): Array[InternalRow] = {
+  override def transform(keys: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
+
+    val expressionBuilder = new ExpressionBuilder(
+      new ByteArrayInputStream(allBatches),
+      PlanNodesUtil.genProjectionsPlanNode(Seq(keys), output)
+    )
     // convert broadcasted value to Array[InternalRow].
-    Array.empty
+    expressionBuilder.transform()
   }
 }
