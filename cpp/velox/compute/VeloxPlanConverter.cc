@@ -24,7 +24,7 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
-#include "arrow/Bridge.h"
+#include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
 #include "compute/exec_backend.h"
@@ -57,6 +57,9 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
     memory::MemoryPool* memoryPool) {
   std::unique_ptr<memory::MemoryPool> ctxRoot =
       memoryPool->addScopedChild("ctx_root");
+  static const auto kUnlimited = std::numeric_limits<int64_t>::max();
+  ctxRoot->setMemoryUsageTracker(
+      memory::MemoryUsageTracker::create(kUnlimited, kUnlimited, kUnlimited));
   std::shared_ptr<core::QueryCtx> ctx = std::make_shared<core::QueryCtx>(
       nullptr,
       std::make_shared<facebook::velox::core::MemConfig>(),
@@ -80,6 +83,7 @@ void VeloxInitializer::Init() {
           connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, nullptr);
   registerConnector(hiveConnector);
+  // parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
@@ -351,7 +355,12 @@ std::shared_ptr<arrow::Schema> VeloxPlanConverter::GetOutputSchema() {
 void VeloxPlanConverter::cacheOutputSchema(
     const std::shared_ptr<const core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
-  exportToArrow(planNode->outputType(), arrowSchema);
+  exportToArrow(
+      BaseVector::create(
+          planNode->outputType(),
+          0,
+          gluten::memory::GetDefaultWrappedVeloxMemoryPool().get()),
+      arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
 
@@ -436,7 +445,7 @@ void WholeStageResIter::collectMetrics() {
       continue;
     }
     const auto& status = planStats.at(nodeId);
-    if (status.isMultiOperatorNode()) {
+    if (status.isMultiOperatorTypeNode()) {
       numOfStats += status.operatorStats.size();
     } else {
       numOfStats += 1;
@@ -454,7 +463,7 @@ void WholeStageResIter::collectMetrics() {
       continue;
     }
     const auto& status = planStats.at(nodeId);
-    if (status.isMultiOperatorNode()) {
+    if (status.isMultiOperatorTypeNode()) {
       // Add each operator status into metrics.
       for (const auto& entry : status.operatorStats) {
         metrics_->inputRows[metricsIdx] = entry.second->inputRows;

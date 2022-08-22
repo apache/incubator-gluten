@@ -35,13 +35,13 @@ bool gluten::memory::ListenableMemoryAllocator::AllocateZeroFilled(
     int64_t nmemb,
     int64_t size,
     void** out) {
-  listener_->AllocationChanged(size);
+  listener_->AllocationChanged(size * nmemb);
   bool succeed = delegated_->AllocateZeroFilled(nmemb, size, out);
   if (!succeed) {
-    listener_->AllocationChanged(-size);
+    listener_->AllocationChanged(-size * nmemb);
   }
   if (succeed) {
-    bytes_ += size;
+    bytes_ += size * nmemb;
   }
   return succeed;
 }

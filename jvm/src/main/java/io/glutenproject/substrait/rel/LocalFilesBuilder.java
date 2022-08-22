@@ -25,7 +25,7 @@ public class LocalFilesBuilder {
 
   public static LocalFilesNode makeLocalFiles(Integer index, ArrayList<String> paths,
                                               ArrayList<Long> starts, ArrayList<Long> lengths,
-                                              int fileFormat) {
+                                              LocalFilesNode.ReadFileFormat fileFormat) {
     return new LocalFilesNode(index, paths, starts, lengths, fileFormat);
   }
 

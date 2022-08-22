@@ -17,10 +17,10 @@
 
 #include "protobuf_utils.h"
 
+#include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/util/type_resolver.h>
 #include <google/protobuf/util/type_resolver_util.h>
-
 #include <fstream>
 #include <iostream>
 #include <string>

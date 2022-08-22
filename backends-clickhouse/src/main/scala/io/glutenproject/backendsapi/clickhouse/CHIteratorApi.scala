@@ -26,6 +26,7 @@ import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized._
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
@@ -284,7 +285,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
     */
   override def genNativeFileScanRDD(sparkContext: SparkContext,
                                     wsCxt: WholestageTransformContext,
-                                    fileFormat: java.lang.Integer,
+                                    fileFormat: ReadFileFormat,
                                     inputPartitions: Seq[InputPartition],
                                     numOutputRows: SQLMetric,
                                     numOutputBatches: SQLMetric,
@@ -294,7 +295,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
     wsCxt.substraitContext.setFileFormat(Seq(fileFormat).asJava)
 
     // generate each partition of all scan exec
-    val substraitPlanPartition = (0 until inputPartitions.size).map( i => {
+    val substraitPlanPartition = inputPartitions.indices.map(i => {
       genNativeFilePartition(i, Seq(inputPartitions(i)), wsCxt)
     })
     logInfo(

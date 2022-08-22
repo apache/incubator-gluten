@@ -18,7 +18,7 @@
 #include "BenchmarkUtils.h"
 
 #include <velox/dwio/common/Options.h>
-#include <velox/dwio/dwrf/test/utils/DataFiles.h>
+#include <velox/dwio/common/tests/utils/DataFiles.h>
 
 #include <boost/filesystem.hpp>
 #include <cstdlib>

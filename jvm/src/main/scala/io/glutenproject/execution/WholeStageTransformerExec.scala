@@ -35,16 +35,14 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class TransformContext(
-                             inputAttributes: Seq[Attribute],
-                             outputAttributes: Seq[Attribute],
-                             root: RelNode)
+case class TransformContext(inputAttributes: Seq[Attribute],
+                            outputAttributes: Seq[Attribute],
+                            root: RelNode)
 
-case class WholestageTransformContext(
-                                       inputAttributes: Seq[Attribute],
-                                       outputAttributes: Seq[Attribute],
-                                       root: PlanNode,
-                                       substraitContext: SubstraitContext = null)
+case class WholestageTransformContext(inputAttributes: Seq[Attribute],
+                                      outputAttributes: Seq[Attribute],
+                                      root: PlanNode,
+                                      substraitContext: SubstraitContext = null)
 
 trait TransformSupport extends SparkPlan {
 
