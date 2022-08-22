@@ -29,12 +29,17 @@ struct Metrics {
   long* outputVectors;
   long* outputBytes;
 
-  // CpuWallTiming
+  // CpuWallTiming.
   long* count;
   long* wallNanos;
 
   long* peakMemoryBytes;
   long* numMemoryAllocations;
+
+  // Runtime metrics.
+  long* numDynamicFiltersProduced;
+  long* numDynamicFiltersAccepted;
+  long* numReplacedWithDynamicFilterRows;
 
   Metrics(int size) : numMetrics(size) {
     inputRows = new long[numMetrics]();
@@ -49,6 +54,9 @@ struct Metrics {
     wallNanos = new long[numMetrics]();
     peakMemoryBytes = new long[numMetrics]();
     numMemoryAllocations = new long[numMetrics]();
+    numDynamicFiltersProduced = new long[numMetrics]();
+    numDynamicFiltersAccepted = new long[numMetrics]();
+    numReplacedWithDynamicFilterRows = new long[numMetrics]();
   }
 
   ~Metrics() {
