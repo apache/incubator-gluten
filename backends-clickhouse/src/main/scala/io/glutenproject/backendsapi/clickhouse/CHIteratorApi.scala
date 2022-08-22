@@ -167,9 +167,6 @@ class CHIteratorApi extends IIteratorApi with Logging {
       }
 
       override def next(): Any = {
-        if (!hasNext) {
-          throw new java.util.NoSuchElementException("End of stream")
-        }
         val cb = resIter.next()
         updateMetrics(1, cb.numRows())
         cb

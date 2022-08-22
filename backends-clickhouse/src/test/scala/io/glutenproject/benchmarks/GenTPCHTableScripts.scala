@@ -33,6 +33,8 @@ object GenTPCHTableScripts {
     val tablePrefix = "chdb."
     val tableSuffix = "1000"
 
+    val notNullStr = " not null"
+
     val customerTbl = "customer"
     val lineitemTbl = "lineitem"
     val nationTbl = "nation"
@@ -59,14 +61,14 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix} (
-         | c_custkey    bigint,
-         | c_name       string,
-         | c_address    string,
-         | c_nationkey  bigint,
-         | c_phone      string,
-         | c_acctbal    double,
-         | c_mktsegment string,
-         | c_comment    string)
+         | c_custkey    bigint ${notNullStr},
+         | c_name       string ${notNullStr},
+         | c_address    string ${notNullStr},
+         | c_nationkey  bigint ${notNullStr},
+         | c_phone      string ${notNullStr},
+         | c_acctbal    double ${notNullStr},
+         | c_mktsegment string ${notNullStr},
+         | c_comment    string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
@@ -83,22 +85,22 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix} (
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string)
+         | l_orderkey      bigint ${notNullStr},
+         | l_partkey       bigint ${notNullStr},
+         | l_suppkey       bigint ${notNullStr},
+         | l_linenumber    bigint ${notNullStr},
+         | l_quantity      double ${notNullStr},
+         | l_extendedprice double ${notNullStr},
+         | l_discount      double ${notNullStr},
+         | l_tax           double ${notNullStr},
+         | l_returnflag    string ${notNullStr},
+         | l_linestatus    string ${notNullStr},
+         | l_shipdate      date ${notNullStr},
+         | l_commitdate    date ${notNullStr},
+         | l_receiptdate   date ${notNullStr},
+         | l_shipinstruct  string ${notNullStr},
+         | l_shipmode      string ${notNullStr},
+         | l_comment       string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
@@ -115,10 +117,10 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix} (
-         | n_nationkey bigint,
-         | n_name      string,
-         | n_regionkey bigint,
-         | n_comment   string)
+         | n_nationkey bigint ${notNullStr},
+         | n_name      string ${notNullStr},
+         | n_regionkey bigint ${notNullStr},
+         | n_comment   string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
@@ -135,9 +137,9 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix} (
-         | r_regionkey bigint,
-         | r_name      string,
-         | r_comment   string)
+         | r_regionkey bigint ${notNullStr},
+         | r_name      string ${notNullStr},
+         | r_comment   string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
@@ -154,15 +156,15 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix} (
-         | o_orderkey      bigint,
-         | o_custkey       bigint,
-         | o_orderstatus   string,
-         | o_totalprice    double,
-         | o_orderdate     date,
-         | o_orderpriority string,
-         | o_clerk         string,
-         | o_shippriority  bigint,
-         | o_comment       string)
+         | o_orderkey      bigint ${notNullStr},
+         | o_custkey       bigint ${notNullStr},
+         | o_orderstatus   string ${notNullStr},
+         | o_totalprice    double ${notNullStr},
+         | o_orderdate     date ${notNullStr},
+         | o_orderpriority string ${notNullStr},
+         | o_clerk         string ${notNullStr},
+         | o_shippriority  bigint ${notNullStr},
+         | o_comment       string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
@@ -179,15 +181,15 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix} (
-         | p_partkey     bigint,
-         | p_name        string,
-         | p_mfgr        string,
-         | p_brand       string,
-         | p_type        string,
-         | p_size        bigint,
-         | p_container   string,
-         | p_retailprice double,
-         | p_comment     string)
+         | p_partkey     bigint ${notNullStr},
+         | p_name        string ${notNullStr},
+         | p_mfgr        string ${notNullStr},
+         | p_brand       string ${notNullStr},
+         | p_type        string ${notNullStr},
+         | p_size        bigint ${notNullStr},
+         | p_container   string ${notNullStr},
+         | p_retailprice double ${notNullStr},
+         | p_comment     string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
@@ -204,11 +206,11 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix} (
-         | ps_partkey    bigint,
-         | ps_suppkey    bigint,
-         | ps_availqty   bigint,
-         | ps_supplycost double,
-         | ps_comment    string)
+         | ps_partkey    bigint ${notNullStr},
+         | ps_suppkey    bigint ${notNullStr},
+         | ps_availqty   bigint ${notNullStr},
+         | ps_supplycost double ${notNullStr},
+         | ps_comment    string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )
@@ -225,13 +227,13 @@ object GenTPCHTableScripts {
     println(
       s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix} (
-         | s_suppkey   bigint,
-         | s_name      string,
-         | s_address   string,
-         | s_nationkey bigint,
-         | s_phone     string,
-         | s_acctbal   double,
-         | s_comment   string)
+         | s_suppkey   bigint ${notNullStr},
+         | s_name      string ${notNullStr},
+         | s_address   string ${notNullStr},
+         | s_nationkey bigint ${notNullStr},
+         | s_phone     string ${notNullStr},
+         | s_acctbal   double ${notNullStr},
+         | s_comment   string ${notNullStr})
          | USING clickhouse
          | TBLPROPERTIES (engine='MergeTree'
          |                )

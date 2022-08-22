@@ -94,7 +94,7 @@ trait ExtractDateTransformer extends ExpressionTransformer {
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val fieldNode = ExpressionBuilder.makeStringLiteral(getField)
     val expressNodes = Lists.newArrayList(fieldNode, childNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(getDataType, false)
+    val typeNode = ConverterUtils.getTypeNode(getDataType, getChild.nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }

@@ -32,6 +32,20 @@ object DSV2TPCDSBenchmarkTest {
 
   def main(args: Array[String]): Unit = {
 
+    val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
+      "cmake-build-release/utils/local-engine/libch.so"
+    // val libPath = "/usr/local/clickhouse/lib/libch.so"
+    val thrdCnt = 12
+    val shufflePartitions = 12
+    val shuffleManager = "sort"
+    // val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
+    val ioCompressionCodec = "SNAPPY"
+    val columnarColumnToRow = "true"
+    val useV2 = "false"
+    val separateScanRDD = "true"
+    val coalesceBatches = "true"
+    val broadcastThreshold = "10MB"
+    val sparkLocalDir = "/data1/gazelle-jni-warehouse/spark_local_dirs"
     val (parquetFilesPath, fileFormat,
     executedCnt, configed, sqlFilePath, stopFlagFile,
     createTable, metaRootPath) = if (args.length > 0) {
@@ -71,17 +85,14 @@ object DSV2TPCDSBenchmarkTest {
       .builder()
       .appName("Gluten-TPCDS-Benchmark")
 
-    val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
-      "cmake-build-release/utils/local-engine/libch.so"
-    // val libPath = "/usr/local/clickhouse/lib/libch.so"
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master("local[6]")
+        .master(s"local[${thrdCnt}]")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
-        .config("spark.sql.shuffle.partitions", 6)
+        .config("spark.sql.shuffle.partitions", shufflePartitions)
         .config("spark.sql.adaptive.enabled", "false")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
@@ -97,9 +108,9 @@ object DSV2TPCDSBenchmarkTest {
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
-        // .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+        .config("spark.shuffle.manager", shuffleManager)
         .config("spark.shuffle.compress", "true")
-        .config("spark.io.compression.codec", "SNAPPY")
+        .config("spark.io.compression.codec", ioCompressionCodec)
         .config("spark.io.compression.zstd.bufferSize", "32k")
         .config("spark.io.compression.zstd.level", "1")
         .config("spark.io.compression.zstd.bufferPool.enabled", "true")
@@ -113,23 +124,23 @@ object DSV2TPCDSBenchmarkTest {
         .config("spark.databricks.delta.properties.defaults.checkpointInterval", 5)
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
         // .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
-        .config("spark.gluten.sql.columnar.columnartorow", "false")
+        .config("spark.gluten.sql.columnar.columnartorow", columnarColumnToRow)
         .config("spark.gluten.sql.columnar.backend.lib", "ch")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+        .config("spark.gluten.sql.columnar.backend.ch.use.v2", useV2)
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
         .config("spark.gluten.sql.enable.native.validation", "false")
-        .config("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "true")
+        .config("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", separateScanRDD)
         // .config("spark.gluten.sql.columnar.sort", "false")
         // .config("spark.sql.codegen.wholeStage", "false")
-        .config("spark.sql.autoBroadcastJoinThreshold", "100MB")
+        .config("spark.sql.autoBroadcastJoinThreshold", broadcastThreshold)
         .config("spark.sql.exchange.reuse", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
-        .config("spark.gluten.sql.columnar.coalesce.batches", "true")
+        .config("spark.gluten.sql.columnar.coalesce.batches", coalesceBatches)
         // .config("spark.gluten.sql.columnar.filescan", "true")
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
@@ -140,7 +151,7 @@ object DSV2TPCDSBenchmarkTest {
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "21474836480")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
-        .config("spark.local.dir", "/data1/gazelle-jni-warehouse/spark_local_dirs")
+        .config("spark.local.dir", sparkLocalDir)
         .config("spark.executor.heartbeatInterval", "240s")
         .config("spark.network.timeout", "300s")
         .config("spark.sql.optimizer.dynamicPartitionPruning.enabled", "true")
@@ -190,37 +201,12 @@ object DSV2TPCDSBenchmarkTest {
          |""".stripMargin).show(1000, false)
     spark.sql(
       s"""
-         |use tpcdsdb_decimal;
-         |""".stripMargin).show(1000, false)
-    spark.sql(
-      s"""
-         |show tables;
-         |""".stripMargin).show(1000, false)
-    spark.sql(
-      s"""
-         |use default;
-         |""".stripMargin).show(1000, false)
-    spark.sql(
-      s"""
-         |show tables;
-         |""".stripMargin).show(1000, false)
-    spark.sql(
-      s"""
-         |use tpcdsdb1;
-         |""".stripMargin).show(1000, false)
-    spark.sql(
-      s"""
-         |show tables;
-         |""".stripMargin).show(1000, false)
-    spark.sql(
-      s"""
          |use tpcdsdb;
          |""".stripMargin).show(1000, false)
     spark.sql(
       s"""
          |show tables;
          |""".stripMargin).show(1000, false) */
-
 
     testTPCDSOne(spark, executedCnt)
     // testTPCDSAll(spark)
@@ -256,22 +242,7 @@ object DSV2TPCDSBenchmarkTest {
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      val df = spark.sql(
-        s"""
-           |select sr_customer_sk as ctr_customer_sk
-           |,sr_store_sk as ctr_store_sk,
-           |count(1) as cnt
-           |from store_returns
-           |,date_dim
-           |where sr_returned_date_sk = d_date_sk
-           |and d_year = 2000
-           |and sr_customer_sk is not null
-           |and sr_store_sk is not null
-           |group by sr_customer_sk
-           |,sr_store_sk
-           |order by cnt desc
-           |limit 20
-           |""".stripMargin) // .show(30, false)
+      val df = spark.sql(sqlStr) // .show(30, false)
       df.explain(false)
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen

@@ -42,7 +42,7 @@ class IsNotNullTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NOT_NULL, Seq(child.dataType)))
     val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -62,7 +62,7 @@ class IsNullTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(child.dataType)))
     val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeBoolean(true)
+    val typeNode = TypeBuilder.makeBoolean(original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -83,7 +83,7 @@ class NotTransformer(child: Expression, original: Expression)
       ConverterUtils.NOT, Seq(child.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeBoolean(false)
+    val typeNode = TypeBuilder.makeBoolean(original.nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
@@ -158,7 +158,7 @@ class CastTransformer(
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable = true)
+    val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
     ExpressionBuilder.makeCast(typeNode, child_node.asInstanceOf[ExpressionNode])
   }
 }

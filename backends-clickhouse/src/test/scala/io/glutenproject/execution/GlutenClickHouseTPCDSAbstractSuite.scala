@@ -36,6 +36,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
 
   override protected val backend: String = "ch"
   override protected val resourcePath: String = "/home/changchen/tpcds-sf1-data/"
+  // override protected val resourcePath: String = "/data1/test_output/tpcds-data-sf1/"
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -76,6 +77,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       spark.sql(sql).show(10, false)
     }
     spark.sql("use tpcdsdb;")
+    val result = spark.sql(
+      s"""
+         | show tables;
+         |""".stripMargin).collect()
+    assert(result.size == 24)
   }
 
   override protected def sparkConf: SparkConf = {
@@ -100,8 +106,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
+      .set("spark.sql.warehouse.dir", warehouse)
     /* .set("spark.sql.catalogImplementation", "hive")
-    .set("spark.sql.warehouse.dir", warehouse)
     .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
       metaStorePathAbsolute + "/metastore_db"};create=true") */
   }

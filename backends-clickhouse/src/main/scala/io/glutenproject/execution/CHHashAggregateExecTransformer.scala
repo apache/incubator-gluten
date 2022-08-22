@@ -30,6 +30,7 @@ import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.exchange.Exchange
 
 case class CHHashAggregateExecTransformer(
                                      requiredChildDistributionExpressions: Option[Seq[Expression]],
@@ -79,16 +80,27 @@ case class CHHashAggregateExecTransformer(
       // which is different from the Velox and Gazelle.
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
-      for (attr <- aggregateResultAttributes) {
-        typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        val colName = if (aggregateAttributes.exists(_ == attr)) {
-          ConverterUtils.genColumnNameWithExprId(attr) +
-            "#Partial#" + ConverterUtils.getShortAttributeName(attr)
-        } else {
-          ConverterUtils.genColumnNameWithExprId(attr)
+      // When the child is file scan operator
+      val (inputAttrs, outputAttrs) = if (child.find(_.isInstanceOf[Exchange]).isEmpty) {
+        for (attr <- child.output) {
+          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+          nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
         }
-        nameList.add(colName)
+        (child.output, aggregateResultAttributes)
+      } else {
+        for (attr <- aggregateResultAttributes) {
+          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+          val colName = if (aggregateAttributes.exists(_ == attr)) {
+            ConverterUtils.genColumnNameWithExprId(attr) +
+              "#Partial#" + ConverterUtils.getShortAttributeName(attr)
+          } else {
+            ConverterUtils.genColumnNameWithExprId(attr)
+          }
+          nameList.add(colName)
+        }
+        (aggregateResultAttributes, output)
       }
+
       // The iterator index will be added in the path of LocalFiles.
       val iteratorIndex: Long = context.nextIteratorIndex
       val inputIter = LocalFilesBuilder.makeLocalFiles(
@@ -97,7 +109,7 @@ case class CHHashAggregateExecTransformer(
       val readRel = RelBuilder.makeReadRel(
         typeList, nameList, null, iteratorIndex, context, operatorId)
 
-      (getAggRel(context, operatorId, aggParams, readRel), aggregateResultAttributes, output)
+      (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)
   }

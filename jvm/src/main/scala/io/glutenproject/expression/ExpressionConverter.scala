@@ -46,7 +46,7 @@ object ExpressionConverter extends Logging {
         } else {
           val b = bindReference.asInstanceOf[BoundReference]
           new AttributeReferenceTransformer(
-            a.name, b.ordinal, a.dataType, a.nullable, a.metadata)(a.exprId, a.qualifier)
+            a.name, b.ordinal, a.dataType, b.nullable, a.metadata)(a.exprId, a.qualifier)
         }
       case l: Literal =>
         logInfo(s"${expr.getClass} ${expr} is supported")

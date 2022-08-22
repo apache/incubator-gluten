@@ -32,6 +32,7 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 
 import org.apache.spark.SparkConf
@@ -399,9 +400,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       return childCtx
     }
 
-    val currRel = if (childCtx != null) {
-      getRelNode(
-        context, projectList, child.output, operatorId, childCtx.root, validation = false)
+    val (currRel, inputAttributes) = if (childCtx != null) {
+      (getRelNode(
+        context, projectList, child.output, operatorId, childCtx.root, validation = false),
+        childCtx.outputAttributes)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
@@ -410,18 +412,14 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      getRelNode(
-        context, projectList, child.output, operatorId, readRel, validation = false)
+      (getRelNode(
+        context, projectList, child.output, operatorId, readRel, validation = false),
+        child.output)
     }
     assert(currRel != null, "Project Rel should be valid")
 
-    val inputAttributes = if (childCtx != null) {
-      // Use the outputAttributes of child context as inputAttributes.
-      childCtx.outputAttributes
-    } else {
-      child.output
-    }
-    TransformContext(inputAttributes, output, currRel)
+    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
+    TransformContext(inputAttributes, outputAttrs, currRel)
   }
 
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
