@@ -35,8 +35,8 @@ import org.apache.spark.sql.types.DoubleType
 abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
 
   override protected val backend: String = "ch"
-  override protected val resourcePath: String = "/home/changchen/tpcds-sf1-data/"
-  // override protected val resourcePath: String = "/data1/test_output/tpcds-data-sf1/"
+  // override protected val resourcePath: String = "/home/changchen/tpcds-sf1-data/"
+  override protected val resourcePath: String = "/data1/test_output/tpcds-data-sf1/"
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath
