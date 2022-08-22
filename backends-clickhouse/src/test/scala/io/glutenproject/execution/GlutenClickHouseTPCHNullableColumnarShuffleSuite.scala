@@ -20,7 +20,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 
-class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val createNullableTables = true
   override protected val resourcePath: String = "tpch-data-ch-nullable"
@@ -34,8 +34,8 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
     */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.shuffle.manager", "sort")
-      .set("spark.io.compression.codec", "SNAPPY")
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")

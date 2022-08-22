@@ -38,9 +38,9 @@ object DSV2BenchmarkTest {
     // val libPath = "/usr/local/clickhouse/lib/libch.so"
     val thrdCnt = 12
     val shufflePartitions = 12
-    val shuffleManager = "sort"
-    // val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
-    val ioCompressionCodec = "SNAPPY"
+    // val shuffleManager = "sort"
+    val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
+    val ioCompressionCodec = "LZ4"
     val columnarColumnToRow = "true"
     val useV2 = "false"
     val separateScanRDD = "true"
@@ -145,6 +145,7 @@ object DSV2BenchmarkTest {
         // .config("spark.gluten.sql.columnar.filescan", "true")
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
+        .config("spark.sql.shuffledHashJoinFactor", "3")
         // .config("spark.sql.planChangeLog.level", "info")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
@@ -372,12 +373,12 @@ object DSV2BenchmarkTest {
   def testTPCHAll(spark: SparkSession): Unit = {
     spark.sql(
       s"""
-         |use default;
+         |use tpch_nullable;
          |""".stripMargin).show(1000, false)
     val tookTimeArr = ArrayBuffer[Long]()
     val executedCnt = 1
     val executeExplain = false
-    val sqlFilePath = "/data2/tpch-queries-spark100/"
+    val sqlFilePath = "/data2/tpch-queries-ch100/"
     for (i <- 1 to 22) {
       if (i != 21) {
         val sqlNum = "q" + "%02d".format(i)
