@@ -106,7 +106,9 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
         rb, memory_pool);
   }
 
-  virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter) {
+  virtual std::shared_ptr<Metrics> GetMetrics(
+      void* raw_iter,
+      int64_t exportNanos) {
     return nullptr;
   };
 
@@ -280,9 +282,17 @@ class GlutenResultIterator
 
   std::shared_ptr<Metrics> GetMetrics() {
     if (backend_) {
-      return backend_->GetMetrics(raw_iter_);
+      return backend_->GetMetrics(raw_iter_, exportNanos_);
     }
     return nullptr;
+  }
+
+  void setExportNanos(int64_t exportNanos) {
+    exportNanos_ = exportNanos;
+  }
+
+  int64_t getExportNanos() {
+    return exportNanos_;
   }
 
  private:
@@ -303,6 +313,7 @@ class GlutenResultIterator
   std::unique_ptr<GlutenIterator> iter_;
   std::shared_ptr<memory::GlutenColumnarBatch> next_;
   std::shared_ptr<ExecBackendBase> backend_;
+  int64_t exportNanos_;
 
   inline void CheckValid() {
     if (iter_ == nullptr) {

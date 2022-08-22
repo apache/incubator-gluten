@@ -257,7 +257,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       env,
       metrics_builder_class,
       "<init>",
-      "([J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      "([J[J[J[J[J[J[J[J[J[J[J[J[JJ[J[J)V");
 
   serialized_arrow_array_iterator_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/ArrowInIterator;");
@@ -414,10 +414,12 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeNext(
   if (!iter->HasNext()) {
     return false;
   }
+
+  auto batch = iter->Next();
+  auto array = batch->exportToArrow();
+  iter->setExportNanos(batch->getExportNanos());
   // todo
-  ArrowArrayMove(
-      iter->Next()->exportToArrow().get(),
-      reinterpret_cast<struct ArrowArray*>(c_array));
+  ArrowArrayMove(array.get(), reinterpret_cast<struct ArrowArray*>(c_array));
   return true;
   JNI_METHOD_END(false)
 }
@@ -498,6 +500,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
       outputBytes,
       count,
       wallNanos,
+      metrics->veloxToArrow,
       peakMemoryBytes,
       numMemoryAllocations,
       numDynamicFiltersProduced,

@@ -26,6 +26,7 @@ import io.glutenproject.expression._
 import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitContext}
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.glutenproject.vectorized._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -447,7 +448,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         // Therefore, fetch one more suite of metrics here.
         operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
         curMetricsIdx -= 1
-        joinTransformer.updateJoinMetrics(operatorMetrics, joinParamsMap.get(operatorIdx))
+        joinTransformer.updateJoinMetrics(operatorMetrics, metrics.getSingleMetrics,
+          joinParamsMap.get(operatorIdx))
 
         var newOperatorIdx: java.lang.Long = operatorIdx - 1
         var newMetricsIdx: Int = curMetricsIdx

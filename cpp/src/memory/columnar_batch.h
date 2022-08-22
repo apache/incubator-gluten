@@ -42,9 +42,16 @@ class GlutenColumnarBatch {
 
   virtual std::shared_ptr<ArrowArray> exportToArrow() = 0;
 
+  virtual int64_t getExportNanos() const {
+    return exportNanos_;
+  };
+
  private:
   int32_t numColumns;
   int32_t numRows;
+
+ protected:
+  int64_t exportNanos_;
 };
 
 class GlutenArrowArrayColumnarBatch : public GlutenColumnarBatch {

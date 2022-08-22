@@ -33,6 +33,7 @@ public class Metrics {
   public long[] numDynamicFiltersProduced;
   public long[] numDynamicFiltersAccepted;
   public long[] numReplacedWithDynamicFilterRows;
+  public SingleMetric singleMetric = new SingleMetric();
 
   /**
    * Create an instance for native metrics.
@@ -40,7 +41,7 @@ public class Metrics {
   public Metrics(
       long[] inputRows, long[] inputVectors, long[] inputBytes, long[] rawInputRows,
       long[] rawInputBytes, long[] outputRows, long[] outputVectors, long[] outputBytes,
-      long[] count, long[] wallNanos, long[] peakMemoryBytes, long[] numMemoryAllocations,
+      long[] count, long[] wallNanos, long veloxToArrow, long[] peakMemoryBytes, long[] numMemoryAllocations,
       long[] numDynamicFiltersProduced, long[] numDynamicFiltersAccepted,
       long[] numReplacedWithDynamicFilterRows) {
     this.inputRows = inputRows;
@@ -53,6 +54,7 @@ public class Metrics {
     this.outputBytes = outputBytes;
     this.count = count;
     this.wallNanos = wallNanos;
+    this.singleMetric.veloxToArrow = veloxToArrow;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
     this.numDynamicFiltersProduced = numDynamicFiltersProduced;
@@ -81,5 +83,13 @@ public class Metrics {
         numDynamicFiltersProduced[index],
         numDynamicFiltersAccepted[index],
         numReplacedWithDynamicFilterRows[index]);
+  }
+
+  public SingleMetric getSingleMetrics() {
+    return singleMetric;
+  }
+
+  public static class SingleMetric {
+    public long veloxToArrow;
   }
 }

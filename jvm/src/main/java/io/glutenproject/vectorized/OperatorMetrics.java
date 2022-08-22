@@ -28,6 +28,7 @@ public class OperatorMetrics {
   public long outputBytes;
   public long count;
   public long wallNanos;
+
   public long peakMemoryBytes;
   public long numMemoryAllocations;
   public long numDynamicFiltersProduced;
