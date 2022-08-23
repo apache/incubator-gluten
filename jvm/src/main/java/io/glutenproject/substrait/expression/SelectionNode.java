@@ -20,7 +20,6 @@ package io.glutenproject.substrait.expression;
 import io.substrait.proto.Expression;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 
 public class SelectionNode implements ExpressionNode, Serializable {
   private final Integer fieldIdx;
