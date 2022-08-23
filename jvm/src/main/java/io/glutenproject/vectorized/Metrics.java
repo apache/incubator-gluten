@@ -41,7 +41,8 @@ public class Metrics {
   public Metrics(
       long[] inputRows, long[] inputVectors, long[] inputBytes, long[] rawInputRows,
       long[] rawInputBytes, long[] outputRows, long[] outputVectors, long[] outputBytes,
-      long[] count, long[] wallNanos, long veloxToArrow, long[] peakMemoryBytes, long[] numMemoryAllocations,
+      long[] count, long[] wallNanos, long veloxToArrow, long[] peakMemoryBytes,
+      long[] numMemoryAllocations,
       long[] numDynamicFiltersProduced, long[] numDynamicFiltersAccepted,
       long[] numReplacedWithDynamicFilterRows) {
     this.inputRows = inputRows;
