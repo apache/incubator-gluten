@@ -18,7 +18,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
-
+import io.glutenproject.GlutenConfig
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -30,13 +30,17 @@ import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeAdaptor, Columna
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
+
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import org.apache.spark.SparkEnv
+import org.apache.spark.sql.execution.datasources.arrow.ArrowFileFormat
 
 object VeloxColumnarRules {
   case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
@@ -53,6 +57,13 @@ object VeloxColumnarRules {
           case command: InsertIntoHadoopFsRelationCommand =>
             if (command.fileFormat.isInstanceOf[DwrfFileFormat]) {
               rc.withNewChildren(Array(ColumnarToFakeRowAdaptor(child)))
+            } else if (SparkEnv.get.conf.get(GlutenConfig.GLUTEN_BACKEND_LIB)
+              .equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND) &&
+              command.fileFormat.isInstanceOf[ParquetFileFormat]) {
+
+              val new_rc = rc.withNewChildren(Array(ColumnarToFakeRowAdaptor(child)))
+              val new_cmd = command.copy(fileFormat = new ArrowFileFormat())
+              new_rc.asInstanceOf[DataWritingCommandExec].copy(cmd = new_cmd)
             } else {
               plan.withNewChildren(plan.children.map(apply))
             }
@@ -75,6 +86,24 @@ object VeloxColumnarRules {
                   rc.withNewChildren(
                     Array(ColumnarToFakeRowAdaptor(new VeloxRowToArrowColumnarExec(child))))
               }
+            } else if (SparkEnv.get.conf.get(GlutenConfig.GLUTEN_BACKEND_LIB)
+              .equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND) &&
+              command.fileFormat.isInstanceOf[ParquetFileFormat]) {
+              val new_rc = child match {
+                case c: AdaptiveSparkPlanExec =>
+                  rc.withNewChildren(
+                    Array(
+                      AdaptiveSparkPlanExec(
+                        ColumnarToFakeRowAdaptor(c.inputPlan),
+                        c.context,
+                        c.preprocessingRules,
+                        c.isSubquery)))
+                case other =>
+                  rc.withNewChildren(
+                    Array(ColumnarToFakeRowAdaptor(new VeloxRowToArrowColumnarExec(child))))
+              }
+              val new_cmd = command.copy(fileFormat = new ArrowFileFormat())
+              new_rc.asInstanceOf[DataWritingCommandExec].copy(cmd = new_cmd)
             } else {
               plan.withNewChildren(plan.children.map(apply))
             }

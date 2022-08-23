@@ -206,6 +206,14 @@
             <!--scope>provided</scope-->
         </dependency>
         <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-dataset</artifactId>
+            <version>${arrow.version}</version>
+
+            <!--scope>provided</scope-->
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.arrow.gandiva</groupId>
             <artifactId>arrow-gandiva</artifactId>
             <version>${arrow.version}</version>
