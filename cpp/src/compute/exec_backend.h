@@ -266,9 +266,7 @@ class GlutenResultIterator
   std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
     ArrowArrayIterator itr = arrow::MakeMapIterator(
         [](std::shared_ptr<memory::GlutenColumnarBatch> b)
-            -> std::shared_ptr<ArrowArray> {
-          return std::shared_ptr<ArrowArray>(b->exportToArrow());
-        },
+            -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
         std::move(*iter_));
     ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
     *itr_ptr = std::move(itr);

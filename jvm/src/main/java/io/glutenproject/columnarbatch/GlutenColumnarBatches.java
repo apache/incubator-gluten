@@ -17,12 +17,18 @@
 
 package io.glutenproject.columnarbatch;
 
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-public class GlutenColumnarBatches {
-  public ColumnarBatch create(long nativeHandle) {
-    final GlutenIndicatorVector iv = new GlutenIndicatorVector(nativeHandle);
+public final class GlutenColumnarBatches {
+
+  private GlutenColumnarBatches() {
+
+  }
+
+  public static ColumnarBatch create(StructType schema, long nativeHandle) {
+    final GlutenIndicatorVector iv = new GlutenIndicatorVector(schema, nativeHandle);
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
     if (numColumns == 0) {
@@ -36,5 +42,30 @@ public class GlutenColumnarBatches {
       columnVectors[i + 1] = pv;
     }
     return new ColumnarBatch(columnVectors, numRows);
+  }
+
+  public static long getNativeHandle(ColumnarBatch batch) {
+    if (!isIntermediateColumnarBatch(batch)) {
+      throw new UnsupportedOperationException("batch is not intermediate Gluten batch");
+    }
+    GlutenIndicatorVector iv = (GlutenIndicatorVector) batch.column(0);
+    return iv.getNativeHandle();
+  }
+
+  public static boolean isIntermediateColumnarBatch(ColumnarBatch batch) {
+    if (batch.numCols() == 0) {
+      return false;
+    }
+    ColumnVector col0 = batch.column(0);
+    if (!(col0 instanceof GlutenIndicatorVector)) {
+      return false;
+    }
+    for (int i = 1; i < batch.numCols(); i++) {
+      ColumnVector col = batch.column(i);
+      if (!(col instanceof GlutenPlaceholderVector)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

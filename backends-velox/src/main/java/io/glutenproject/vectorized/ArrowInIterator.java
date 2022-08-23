@@ -19,6 +19,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.utils.ArrowAbiUtil;
 import org.apache.arrow.c.ArrowArray;
+import org.apache.arrow.c.ArrowSchema;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -30,10 +31,11 @@ public class ArrowInIterator extends GeneralInIterator {
     super(delegated);
   }
 
-  public void next(long cArrayAddress) {
+  public void next(long cArrayAddress, long cSchemaAddress) {
     final ColumnarBatch batch = nextColumnarBatch();
     final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
+    final ArrowSchema cSchema = ArrowSchema.wrap(cSchemaAddress);
     ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextArrowAllocator(), batch,
-        null, cArray);
+        cSchema, cArray);
   }
 }

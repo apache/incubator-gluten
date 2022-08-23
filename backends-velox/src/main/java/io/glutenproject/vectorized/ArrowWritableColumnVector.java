@@ -329,7 +329,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
   }
 
   public long refCnt() {
-    return vector.getDataBuffer().refCnt();
+    return refCnt.get();
   }
 
   @Override

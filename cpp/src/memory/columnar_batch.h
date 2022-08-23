@@ -28,6 +28,8 @@ class GlutenColumnarBatch {
   GlutenColumnarBatch(int32_t numColumns, int32_t numRows)
       : numColumns(numColumns), numRows(numRows) {}
 
+  virtual ~GlutenColumnarBatch() = default;
+
   int32_t GetNumColumns() const {
     return numColumns;
   }
@@ -36,11 +38,11 @@ class GlutenColumnarBatch {
     return numRows;
   }
 
-  virtual void ReleasePayload() = 0;
-
   virtual std::string GetType() = 0;
 
-  virtual std::shared_ptr<ArrowArray> exportToArrow() = 0;
+  virtual std::shared_ptr<ArrowArray> exportArrowArray() = 0;
+
+  virtual std::shared_ptr<ArrowSchema> exportArrowSchema() = 0;
 
   virtual int64_t getExportNanos() const {
     return exportNanos_;
@@ -54,26 +56,32 @@ class GlutenColumnarBatch {
   int64_t exportNanos_;
 };
 
-class GlutenArrowArrayColumnarBatch : public GlutenColumnarBatch {
+class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
  public:
-  GlutenArrowArrayColumnarBatch(const ArrowArray& cArray)
-      : GlutenColumnarBatch(cArray.n_children, cArray.length),
-        cArray_(cArray) {}
+  GlutenArrowCStructColumnarBatch(
+      std::unique_ptr<ArrowSchema> cSchema,
+      std::unique_ptr<ArrowArray> cArray)
+      : GlutenColumnarBatch(cArray->n_children, cArray->length),
+        cSchema_(std::move(cSchema)),
+        cArray_(std::move(cArray)) {}
 
-  void ReleasePayload() override {
-    ArrowArrayRelease(&cArray_);
-  }
+  ~GlutenArrowCStructColumnarBatch() override {}
 
   std::string GetType() override {
     return "arrow_array";
   }
 
-  std::shared_ptr<ArrowArray> exportToArrow() override {
-    return std::make_shared<ArrowArray>(cArray_);
+  std::shared_ptr<ArrowSchema> exportArrowSchema() override {
+    return cSchema_;
+  }
+
+  std::shared_ptr<ArrowArray> exportArrowArray() override {
+    return cArray_;
   }
 
  private:
-  ArrowArray cArray_;
+  std::shared_ptr<ArrowSchema> cSchema_;
+  std::shared_ptr<ArrowArray> cArray_;
 };
 
 } // namespace memory

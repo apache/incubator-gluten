@@ -17,6 +17,7 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.columnarbatch.GlutenColumnarBatches;
 import io.glutenproject.expression.ArrowConverterUtils;
 import io.glutenproject.utils.ArrowAbiUtil;
 import org.apache.arrow.c.ArrowArray;
@@ -25,6 +26,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 import scala.collection.JavaConverters;
 
@@ -32,11 +34,10 @@ import java.io.IOException;
 import java.util.List;
 
 public class ArrowOutIterator extends GeneralOutIterator {
-  private transient Schema schema;
 
   private native boolean nativeHasNext(long nativeHandle);
 
-  private native boolean nativeNext(long nativeHandle, long cArray);
+  private native long nativeNext(long nativeHandle);
 
   private native long nativeCHNext(long nativeHandle);
 
@@ -46,8 +47,6 @@ public class ArrowOutIterator extends GeneralOutIterator {
 
   public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
     super(instance_id, outAttrs);
-    this.schema = ArrowConverterUtils.toArrowSchema(
-        JavaConverters.asScalaIteratorConverter(outAttrs.iterator()).asScala().toSeq());
   }
 
   @Override
@@ -57,14 +56,11 @@ public class ArrowOutIterator extends GeneralOutIterator {
 
   @Override
   public ColumnarBatch nextInternal() throws IOException {
-    final BufferAllocator allocator = SparkMemoryUtils.contextArrowAllocator();
-    try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
-         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      if (!nativeNext(handle, cArray.memoryAddress())) {
-        return null; // stream ended
-      }
-      return ArrowAbiUtil.importToSparkColumnarBatch(allocator, schema, cArray);
+    long batchHandle = nativeNext(handle);
+    if (batchHandle == -1L) {
+      return null; // stream ended
     }
+    return GlutenColumnarBatches.create(schema, batchHandle);
   }
 
   @Override

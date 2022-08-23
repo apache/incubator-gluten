@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.utils
 
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
+
 import scala.collection.JavaConverters._
 import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
@@ -68,7 +70,10 @@ object VeloxExecUtil {
           // Internally, RangePartitioner runs a job on the RDD that samples keys to compute
           // partition bounds. To get accurate samples, we need to copy the mutable keys.
           iter.flatMap(batch => {
-            val rows = batch.rowIterator.asScala
+            val rows =
+              ArrowColumnarBatches
+                .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+                .rowIterator.asScala
             val projection =
               UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
             val mutablePair = new MutablePair[InternalRow, Null]()
@@ -97,6 +102,9 @@ object VeloxExecUtil {
       CloseablePairedColumnarBatchIterator {
         cbIter
           .filter(cb => cb.numRows != 0 && cb.numCols != 0)
+          .map {
+            cb => ArrowColumnarBatches.ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+          }
           .map { cb =>
             val startTime = System.nanoTime()
             val pidVec = ArrowWritableColumnVector
@@ -108,7 +116,10 @@ object VeloxExecUtil {
               pidVec.putInt(i, pid)
             }
 
-            val newColumns = (pidVec +: (0 until cb.numCols).map(cb.column)).toArray
+            val newColumns = (pidVec +: (0 until cb.numCols).map(
+              ArrowColumnarBatches
+                .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+                  cb).column)).toArray
             newColumns.foreach(
               _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(cb.numRows))
             computePidTime.add(System.nanoTime() - startTime)
@@ -184,12 +195,15 @@ object VeloxExecUtil {
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) =>
             cbIter.map { cb =>
+              val acb = ArrowColumnarBatches
+                .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+                  cb)
               (0 until cb.numCols).foreach(
-                cb.column(_)
+                acb.column(_)
                   .asInstanceOf[ArrowWritableColumnVector]
                   .getValueVector
-                  .setValueCount(cb.numRows))
-              (0, cb)
+                  .setValueCount(acb.numRows))
+              (0, acb)
             },
           isOrderSensitive = isOrderSensitive)
     }
@@ -239,7 +253,9 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
       logDebug("Close appended partition id vector")
       cur match {
         case (_, cb: ColumnarBatch) =>
-          cb.column(0).asInstanceOf[ArrowWritableColumnVector].close()
+          ArrowColumnarBatches
+            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+              cb).column(0).asInstanceOf[ArrowWritableColumnVector].close()
       }
       cur = null
     }

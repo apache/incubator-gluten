@@ -19,7 +19,6 @@ package io.glutenproject.backendsapi.velox
 
 import java.util
 import java.util.concurrent.TimeUnit
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.InterruptibleIterator
@@ -42,6 +41,7 @@ import org.apache.spark.util.UserAddedJarUtils
 import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IIteratorApi
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.substrait.plan.PlanNode
@@ -145,8 +145,9 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           // chendi: We need make sure target FieldTypes are exactly the same as src
           val expected_output_arrow_fields = if (batchesToAppend.size > 0) {
             (0 until batchesToAppend(0).numCols).map(i => {
-              batchesToAppend(0)
-                .column(i)
+              ArrowColumnarBatches
+                .ensureLoaded(
+                  SparkMemoryUtils.contextArrowAllocator(), batchesToAppend(0)).column(i)
                 .asInstanceOf[ArrowWritableColumnVector]
                 .getValueVector
                 .getField
