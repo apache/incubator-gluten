@@ -127,6 +127,31 @@ abstract class HashAggregateExecBaseTransformer(
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of aggregation memory allocations"),
 
+    "extractionInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of extraction input rows"),
+    "extractionInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of extraction input vectors"),
+    "extractionInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of extraction input bytes"),
+    "extractionRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of extraction raw input rows"),
+    "extractionRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of extraction raw input bytes"),
+    "extractionOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of extraction output rows"),
+    "extractionOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of extraction output vectors"),
+    "extractionOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of extraction output bytes"),
+    "extractionCount" -> SQLMetrics.createMetric(
+      sparkContext, "extraction cpu wall time count"),
+    "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime_extraction"),
+    "extractionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "extraction peak memory bytes"),
+    "extractionNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of extraction memory allocations"),
+
     "postProjectionInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of postProjection input rows"),
     "postProjectionInputVectors" -> SQLMetrics.createMetric(
@@ -195,6 +220,20 @@ abstract class HashAggregateExecBaseTransformer(
   val aggWallNanos: SQLMetric = longMetric("aggWallNanos")
   val aggPeakMemoryBytes: SQLMetric = longMetric("aggPeakMemoryBytes")
   val aggNumMemoryAllocations: SQLMetric = longMetric("aggNumMemoryAllocations")
+
+  val extractionInputRows: SQLMetric = longMetric("extractionInputRows")
+  val extractionInputVectors: SQLMetric = longMetric("extractionInputVectors")
+  val extractionInputBytes: SQLMetric = longMetric("extractionInputBytes")
+  val extractionRawInputRows: SQLMetric = longMetric("extractionRawInputRows")
+  val extractionRawInputBytes: SQLMetric = longMetric("extractionRawInputBytes")
+  val extractionOutputRows: SQLMetric = longMetric("extractionOutputRows")
+  val extractionOutputVectors: SQLMetric = longMetric("extractionOutputVectors")
+  val extractionOutputBytes: SQLMetric = longMetric("extractionOutputBytes")
+  val extractionCount: SQLMetric = longMetric("extractionCount")
+  val extractionWallNanos: SQLMetric = longMetric("extractionWallNanos")
+  val extractionPeakMemoryBytes: SQLMetric = longMetric("extractionPeakMemoryBytes")
+  val extractionNumMemoryAllocations: SQLMetric =
+    longMetric("extractionNumMemoryAllocations")
 
   val postProjectionInputRows: SQLMetric = longMetric("postProjectionInputRows")
   val postProjectionInputVectors: SQLMetric = longMetric("postProjectionInputVectors")
@@ -283,6 +322,23 @@ abstract class HashAggregateExecBaseTransformer(
       postProjectionWallNanos += metrics.wallNanos
       postProjectionPeakMemoryBytes += metrics.peakMemoryBytes
       postProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
+
+    if (aggParams.extractionNeeded) {
+      val metrics = aggregationMetrics.get(idx)
+      extractionInputRows += metrics.inputRows
+      extractionInputVectors += metrics.inputVectors
+      extractionInputBytes += metrics.inputBytes
+      extractionRawInputRows += metrics.rawInputRows
+      extractionRawInputBytes += metrics.rawInputBytes
+      extractionOutputRows += metrics.outputRows
+      extractionOutputVectors += metrics.outputVectors
+      extractionOutputBytes += metrics.outputBytes
+      extractionCount += metrics.count
+      extractionWallNanos += metrics.wallNanos
+      extractionPeakMemoryBytes += metrics.peakMemoryBytes
+      extractionNumMemoryAllocations += metrics.numMemoryAllocations
       idx += 1
     }
 

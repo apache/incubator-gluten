@@ -23,16 +23,34 @@ import java.io.Serializable;
 
 public class SelectionNode implements ExpressionNode, Serializable {
   private final Integer fieldIdx;
+  private final Integer childFieldIdx;
 
   SelectionNode(Integer fieldIdx) {
     this.fieldIdx = fieldIdx;
+    this.childFieldIdx = null;
+  }
+
+  SelectionNode(Integer fieldIdx, Integer childFieldIdx) {
+    this.fieldIdx = fieldIdx;
+    this.childFieldIdx = childFieldIdx;
   }
 
   @Override
   public Expression toProtobuf() {
     Expression.ReferenceSegment.StructField.Builder structBuilder =
         Expression.ReferenceSegment.StructField.newBuilder();
-    structBuilder.setField(fieldIdx.intValue());
+    structBuilder.setField(fieldIdx);
+
+    // Handle the child field indices.
+    if (childFieldIdx != null) {
+      Expression.ReferenceSegment.StructField.Builder childStructBuilder =
+          Expression.ReferenceSegment.StructField.newBuilder();
+      childStructBuilder.setField(childFieldIdx);
+      Expression.ReferenceSegment.Builder childRefBuilder =
+          Expression.ReferenceSegment.newBuilder();
+      childRefBuilder.setStructField(childStructBuilder.build());
+      structBuilder.setChild(childRefBuilder.build());
+    }
 
     Expression.ReferenceSegment.Builder refBuilder =
         Expression.ReferenceSegment.newBuilder();

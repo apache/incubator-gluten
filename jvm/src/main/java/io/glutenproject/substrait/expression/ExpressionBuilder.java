@@ -145,6 +145,10 @@ public class ExpressionBuilder {
     return new SelectionNode(fieldIdx);
   }
 
+  public static SelectionNode makeSelection(Integer fieldIdx, Integer childFieldIdx) {
+    return new SelectionNode(fieldIdx, childFieldIdx);
+  }
+
   public static AggregateFunctionNode makeAggregateFunction(
       Long functionId,
       ArrayList<ExpressionNode> expressionNodes,

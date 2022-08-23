@@ -48,6 +48,9 @@ case class AggregationParams() {
   // Whether preProjection is needed.
   var preProjectionNeeded = false
 
+  // Whether extraction from intermediate struct is needed.
+  var extractionNeeded = false
+
   // Whether postProjection is needed.
   var postProjectionNeeded = false
 }
