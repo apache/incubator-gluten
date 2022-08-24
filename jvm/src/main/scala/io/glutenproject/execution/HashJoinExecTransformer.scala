@@ -18,13 +18,10 @@
 package io.glutenproject.execution
 
 import java.{lang, util}
-
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
-
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression}
 import io.glutenproject.expression._
@@ -34,9 +31,9 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.substrait.proto.JoinRel
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -84,6 +81,8 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       sparkContext, "stream side cpu wall time count"),
     "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
       sparkContext, "totaltime_stream_input"),
+    "streamVeloxToArrow" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime_velox_to_arrow_converter"),
     "streamPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
       sparkContext, "stream side peak memory bytes"),
     "streamNumMemoryAllocations" -> SQLMetrics.createMetric(
@@ -258,6 +257,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   val streamOutputBytes: SQLMetric = longMetric("streamOutputBytes")
   val streamCount: SQLMetric = longMetric("streamCount")
   val streamWallNanos: SQLMetric = longMetric("streamWallNanos")
+  val streamVeloxToArrow: SQLMetric = longMetric("streamVeloxToArrow")
   val streamPeakMemoryBytes: SQLMetric = longMetric("streamPeakMemoryBytes")
   val streamNumMemoryAllocations: SQLMetric = longMetric("streamNumMemoryAllocations")
 
@@ -401,6 +401,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   }
 
   def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
+                        singleMetrics: SingleMetric,
                         joinParams: JoinParams): Unit = {
     var idx = 0
     if (joinParams.postProjectionNeeded) {
@@ -516,6 +517,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       streamOutputBytes += metrics.outputBytes
       streamCount += metrics.count
       streamWallNanos += metrics.wallNanos
+      streamVeloxToArrow += singleMetrics.veloxToArrow
       streamPeakMemoryBytes += metrics.peakMemoryBytes
       streamNumMemoryAllocations += metrics.numMemoryAllocations
       idx += 1

@@ -32,6 +32,7 @@ struct Metrics {
   // CpuWallTiming.
   long* count;
   long* wallNanos;
+  long veloxToArrow;
 
   long* peakMemoryBytes;
   long* numMemoryAllocations;

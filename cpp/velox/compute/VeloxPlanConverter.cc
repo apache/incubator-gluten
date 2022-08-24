@@ -367,18 +367,6 @@ void VeloxPlanConverter::cacheOutputSchema(
   GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
 
-void WholeStageResIter::toArrowArray(const RowVectorPtr& rv, ArrowArray& out) {
-  // Make sure to load lazy vector if not loaded already.
-  for (auto& child : rv->children()) {
-    child->loadedVector();
-  }
-
-  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
-      BaseVector::create(rv->type(), rv->size(), getPool()));
-  copy->copy(rv.get(), 0, 0, rv->size());
-  exportToArrow(copy, out, getPool());
-}
-
 arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>>
 WholeStageResIter::Next() {
   addSplits_(task_.get());
@@ -651,6 +639,7 @@ std::string GlutenVeloxColumnarBatch::GetType() {
 }
 
 std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportToArrow() {
+  auto startTime = std::chrono::steady_clock::now();
   ArrowArray out;
   // Make sure to load lazy vector if not loaded already.
   for (auto& child : rowVector_->children()) {
@@ -665,6 +654,11 @@ std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportToArrow() {
   facebook::velox::exportToArrow(
       copy, out, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
 
+  auto endTime = std::chrono::steady_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
+          .count();
+  exportNanos_ += duration;
   return std::make_shared<ArrowArray>(out);
 }
 

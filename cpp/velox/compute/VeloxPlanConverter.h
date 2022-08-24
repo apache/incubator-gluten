@@ -89,6 +89,10 @@ class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
 
   void ReleasePayload() override;
   std::string GetType() override;
+  /// This method converts Velox RowVector into Arrow Array based on Velox's
+  /// Arrow conversion implementation, in which memcopy is not needed for
+  /// fixed-width data types, but is conducted in String conversion. The output
+  /// array will be the input of Columnar Shuffle or Velox-to-Row.
   std::shared_ptr<ArrowArray> exportToArrow() override;
 
  private:
@@ -109,8 +113,9 @@ class WholeStageResIter {
 
   arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>> Next();
 
-  std::shared_ptr<Metrics> GetMetrics() {
+  std::shared_ptr<Metrics> GetMetrics(int64_t exportNanos) {
     collectMetrics();
+    metrics_->veloxToArrow = exportNanos;
     return metrics_;
   }
 
@@ -126,12 +131,6 @@ class WholeStageResIter {
   std::shared_ptr<const core::PlanNode> planNode_;
 
  private:
-  /// This method converts Velox RowVector into Arrow Array based on Velox's
-  /// Arrow conversion implementation, in which memcopy is not needed for
-  /// fixed-width data types, but is conducted in String conversion. The output
-  /// array will be the input of Columnar Shuffle or Velox-to-Row.
-  void toArrowArray(const RowVectorPtr& rv, ArrowArray& out);
-
   /// Get all the children plan node ids with postorder traversal.
   void getOrderedNodeIds(
       const std::shared_ptr<const core::PlanNode>& planNode,
@@ -148,6 +147,7 @@ class WholeStageResIter {
   std::shared_ptr<memory::MemoryPool> pool_;
 
   std::shared_ptr<Metrics> metrics_ = nullptr;
+  int64_t metricVeloxToArrowNanos_ = 0;
 
   /// All the children plan node ids with postorder traversal.
   std::vector<core::PlanNodeId> orderedNodeIds_;
@@ -207,9 +207,10 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       std::vector<core::PlanNodeId>& scanIds,
       std::vector<core::PlanNodeId>& streamIds);
 
-  std::shared_ptr<Metrics> GetMetrics(void* raw_iter) override {
+  std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos)
+      override {
     auto iter = static_cast<WholeStageResIter*>(raw_iter);
-    return iter->GetMetrics();
+    return iter->GetMetrics(exportNanos);
   }
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
