@@ -658,9 +658,7 @@ std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportToArrow() {
   }
 
   RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(BaseVector::create(
-      rowVector_->type(),
-      rowVector_->size(),
-      rowVector_->pool()));
+      rowVector_->type(), rowVector_->size(), rowVector_->pool()));
   copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
   facebook::velox::exportToArrow(
       copy, out, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
