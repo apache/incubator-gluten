@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.arrow
 
 import io.glutenproject.utils.ArrowAbiUtil
+
 import org.apache.arrow.c.ArrowArray
 
 import java.lang
@@ -27,6 +28,7 @@ import java.util.UUID
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
+
 import org.apache.spark.sql.execution.datasources.arrow.ArrowWriteQueue.EOS_ARROW_ARRAY
 import org.apache.spark.sql.execution.datasources.arrow.ArrowWriteQueue.ScannerImpl
 import org.apache.arrow.dataset.file.DatasetFileWriter

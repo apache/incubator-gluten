@@ -18,6 +18,7 @@
 package io.glutenproject.utils
 
 import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
+
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, CDataDictionaryProvider, Data}

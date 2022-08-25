@@ -20,7 +20,9 @@ package org.apache.spark.sql.execution.datasources.velox
 
 import java.io.IOException
 
+
 import org.apache.spark.sql.VeloxColumnarRules._
+
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
 import io.glutenproject.vectorized.NativeColumnarToRowInfo

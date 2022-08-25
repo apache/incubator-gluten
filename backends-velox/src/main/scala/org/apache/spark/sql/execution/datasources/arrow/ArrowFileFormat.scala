@@ -17,8 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.arrow
 
-import com.intel.oap.spark.sql.DwrfWriteExtension.FakeRow
 import io.glutenproject.utils.ArrowAbiUtil
+
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
 import org.apache.hadoop.fs.FileStatus
@@ -32,6 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.sql.OtherWriteExtension.FakeRow
 
 class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
