@@ -828,9 +828,9 @@ arrow::Status Splitter::DoSplit(const arrow::RecordBatch& rb) {
   for (auto col = 0; col < fixed_width_array_idx_.size(); ++col) {
     auto col_idx = fixed_width_array_idx_[col];
     size_per_row += arrow::bit_width(column_type_id_[col]->id()) / 8;
-    if (rb.column_data(col_idx)->GetNullCount() != 0) {
+    // if (rb.column_data(col_idx)->GetNullCount() != 0) {
       input_fixed_width_has_null_[col] = true;
-    }
+    // }
   }
 
   int64_t prealloc_row_cnt =
@@ -1144,14 +1144,14 @@ arrow::Status Splitter::SplitFixedWidthValidityBuffer(const arrow::RecordBatch& 
   for (auto col = 0; col < fixed_width_array_idx_.size(); ++col) {
     auto col_idx = fixed_width_array_idx_[col];
     auto& dst_addrs = partition_fixed_width_validity_addrs_[col];
-    if (rb.column_data(col_idx)->GetNullCount() == 0) {
-      for (auto pid = 0; pid < num_partitions_; ++pid) {
-        if (partition_id_cnt_[pid] > 0 && dst_addrs[pid] != nullptr) {
-          arrow::bit_util::SetBitsTo(dst_addrs[pid], partition_buffer_idx_base_[pid],
-                                     partition_id_cnt_[pid], true);
-        }
-      }
-    } else {
+    // if (rb.column_data(col_idx)->GetNullCount() == 0) {
+    //   for (auto pid = 0; pid < num_partitions_; ++pid) {
+    //     if (partition_id_cnt_[pid] > 0 && dst_addrs[pid] != nullptr) {
+    //       arrow::bit_util::SetBitsTo(dst_addrs[pid], partition_buffer_idx_base_[pid],
+    //                                  partition_id_cnt_[pid], true);
+    //     }
+    //   }
+    // } else {
       for (auto pid = 0; pid < num_partitions_; ++pid) {
         if (partition_id_cnt_[pid] > 0 && dst_addrs[pid] == nullptr) {
           // init bitmap if it's null
@@ -1182,7 +1182,7 @@ arrow::Status Splitter::SplitFixedWidthValidityBuffer(const arrow::RecordBatch& 
             << (dst_offset & 7);
         partition_buffer_idx_offset_[pid]++;
       }
-    }
+    // }
   }
   return arrow::Status::OK();
 }
