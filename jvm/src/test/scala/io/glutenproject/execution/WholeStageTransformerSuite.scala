@@ -20,13 +20,13 @@ package io.glutenproject.execution
 import java.io.File
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, QueryTest, Row}
+import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
 
 import scala.io.Source
 
-abstract class WholeStageTransformerSuite extends QueryTest with SharedSparkSession {
+abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSparkSession {
 
   protected val backend: String
   protected val resourcePath: String
@@ -38,7 +38,7 @@ abstract class WholeStageTransformerSuite extends QueryTest with SharedSparkSess
     super.beforeAll()
   }
 
-  protected def createTPCHTables(): Unit = {
+  protected def createTPCHNotNullTables(): Unit = {
     TPCHTables = Seq(
       "customer",
       "lineitem",

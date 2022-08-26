@@ -45,7 +45,7 @@ class GlutenClickHouseTPCHParquetAQESuite extends GlutenClickHouseTPCHAbstractSu
       .set("spark.sql.adaptive.enabled", "true")
   }
 
-  override protected def createTPCHTables(): Unit = {
+  override protected def createTPCHNotNullTables(): Unit = {
     createTPCHParquetTables(tablesPath)
   }
 

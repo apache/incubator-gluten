@@ -18,15 +18,16 @@
 package io.glutenproject.execution
 
 import java.io.File
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 import org.apache.commons.io.FileUtils
-
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.catalyst.util.stackTraceToString
+import org.apache.spark.sql.{AnalysisException, GlutenQueryTest, DataFrame, QueryTest, Row}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+
+import scala.io.Source
 
 abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSuite with Logging {
 
@@ -61,15 +62,14 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     if (createNullableTables) {
       createTPCHNullableTables()
     } else {
-      createTPCHTables()
+      createTPCHNotNullTables()
     }
   }
 
-  override protected def createTPCHTables(): Unit = {
+  override protected def createTPCHNotNullTables(): Unit = {
     val customerData = tablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
          | c_custkey    bigint not null,
          | c_name       string not null,
@@ -87,8 +87,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val lineitemData = tablesPath + "/lineitem"
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
          | l_orderkey      bigint not null,
          | l_partkey       bigint not null,
@@ -114,8 +113,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val nationData = tablesPath + "/nation"
     spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS nation (
          | n_nationkey bigint not null,
          | n_name      string not null,
@@ -129,8 +127,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val regionData = tablesPath + "/region"
     spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS region (
          | r_regionkey bigint not null,
          | r_name      string not null,
@@ -143,8 +140,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val ordersData = tablesPath + "/order"
     spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
          | o_orderkey      bigint not null,
          | o_custkey       bigint not null,
@@ -163,8 +159,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val partData = tablesPath + "/part"
     spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS part (
          | p_partkey     bigint not null,
          | p_name        string not null,
@@ -183,8 +178,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val partsuppData = tablesPath + "/partsupp"
     spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp (
          | ps_partkey    bigint not null,
          | ps_suppkey    bigint not null,
@@ -199,8 +193,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val supplierData = tablesPath + "/supplier"
     spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
          | s_suppkey   bigint not null,
          | s_name      string not null,
@@ -215,23 +208,20 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${supplierData}'
          |""".stripMargin)
 
-    val result = spark.sql(
-      s"""
+    val result = spark.sql(s"""
          | show tables;
          |""".stripMargin).collect()
     assert(result.size == 8)
   }
 
   protected def createTPCHNullableTables(): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |CREATE DATABASE IF NOT EXISTS tpch_nullable
          |""".stripMargin)
     spark.sql("use tpch_nullable")
     val customerData = tablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
          | c_custkey    bigint,
          | c_name       string,
@@ -249,8 +239,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val lineitemData = tablesPath + "/lineitem"
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
          | l_orderkey      bigint,
          | l_partkey       bigint,
@@ -276,8 +265,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val nationData = tablesPath + "/nation"
     spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS nation (
          | n_nationkey bigint,
          | n_name      string,
@@ -291,8 +279,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val regionData = tablesPath + "/region"
     spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS region (
          | r_regionkey bigint,
          | r_name      string,
@@ -305,8 +292,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val ordersData = tablesPath + "/order"
     spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
          | o_orderkey      bigint,
          | o_custkey       bigint,
@@ -325,8 +311,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val partData = tablesPath + "/part"
     spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS part (
          | p_partkey     bigint,
          | p_name        string,
@@ -345,8 +330,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val partsuppData = tablesPath + "/partsupp"
     spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp (
          | ps_partkey    bigint,
          | ps_suppkey    bigint,
@@ -361,8 +345,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
 
     val supplierData = tablesPath + "/supplier"
     spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
          | s_suppkey   bigint,
          | s_name      string,
@@ -377,8 +360,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
          | LOCATION '${supplierData}'
          |""".stripMargin)
 
-    val result = spark.sql(
-      s"""
+    val result = spark.sql(s"""
          | show tables;
          |""".stripMargin).collect()
     assert(result.size == 8)
@@ -524,7 +506,8 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set("spark.sql.catalog.spark_catalog",
+      .set(
+        "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")
@@ -540,7 +523,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
-      /* .set("spark.sql.catalogImplementation", "hive")
+    /* .set("spark.sql.catalogImplementation", "hive")
       .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
         metaStorePathAbsolute + "/metastore_db"};create=true") */
   }
@@ -548,16 +531,43 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
   protected override def afterAll(): Unit = {
     ClickHouseLog.clearCache()
     super.afterAll()
-    FileUtils.forceDelete(new File(basePath))
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null
   }
 
-  override protected def runTPCHQuery(queryNum: Int,
-                                      tpchQueries: String = tpchQueries,
-                                      queriesResults: String = queriesResults,
-                                      compareResult: Boolean = true)
-                                     (customCheck: DataFrame => Unit): Unit = {
+  override protected def runTPCHQuery(
+      queryNum: Int,
+      tpchQueries: String = tpchQueries,
+      queriesResults: String = queriesResults,
+      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
   }
+
+  /**
+   * run a query with native engine as well as vanilla spark
+   * then compare the result set for correctness check
+   */
+  protected def compareTPCHQueryAgainstVanillaSpark(
+      queryNum: Int,
+      tpchQueries: String, customCheck: DataFrame => Unit): Unit = {
+    val sqlNum = "q" + "%02d".format(queryNum)
+    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
+    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+    var expected: Seq[Row] = null;
+    withSQLConf(vanillaSparkConfs(): _*) {
+      val df = spark.sql(sqlStr)
+      expected = df.collect()
+    }
+    val df = spark.sql(sqlStr)
+    checkAnswer(df,expected)
+    customCheck(df)
+  }
+
+  protected def vanillaSparkConfs(): Seq[(String, String)] = {
+    List(
+      ("spark.gluten.sql.enable.native.engine", "false"))
+  }
+
+
+
 }

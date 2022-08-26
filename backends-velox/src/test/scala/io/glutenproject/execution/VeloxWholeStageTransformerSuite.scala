@@ -32,7 +32,7 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
     super.beforeAll()
   }
 
-  override protected def createTPCHTables(): Unit = {
+  override protected def createTPCHNotNullTables(): Unit = {
     Seq(
       "customer",
       "lineitem",
@@ -56,7 +56,7 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {
       withTable(
         "customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier") {
-        createTPCHTables()
+        createTPCHNotNullTables()
         val df = spark.sql(
           """select l_partkey from
             | lineitem join part join partsupp
@@ -98,7 +98,7 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
       ("spark.sql.adaptive.enabled", "false"),
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true"),
       ("spark.sql.sources.useV1SourceList", "avro")) {
-      createTPCHTables()
+      createTPCHNotNullTables()
       val df = spark.sql(
         """select l_partkey from
           | lineitem join part join partsupp
