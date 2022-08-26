@@ -29,6 +29,7 @@ import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /** Contains helper functions for constructing substrait relations. */
@@ -164,4 +165,10 @@ public class ExpressionBuilder {
   public static StringMapNode makeStringMap(Map<String, String> values) {
     return new StringMapNode(values);
   }
+
+  public static SingularOrListNode makeSingularOrListNode(ExpressionNode value,
+                                                          List<ExpressionNode> expressionNodes) {
+    return new SingularOrListNode(value, expressionNodes);
+  }
+
 }

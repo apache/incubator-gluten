@@ -119,4 +119,12 @@ abstract class WholeStageTransformerSuite extends QueryTest with SharedSparkSess
     }
     customCheck(df)
   }
+
+  protected def runSql(sql: String)
+                            (customCheck: DataFrame => Unit): Seq[Row] = {
+    val df = spark.sql(sql)
+    val result = df.collect()
+    customCheck(df)
+    result
+  }
 }

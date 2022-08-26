@@ -17,13 +17,11 @@
 
 package io.glutenproject.expression
 
+import java.util
+
 import scala.collection.JavaConverters._
 
-import com.google.common.collect.Lists
-import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import java.util
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
@@ -40,7 +38,7 @@ class InSetTransformer(value: Expression, hset: Set[Any], original: Expression)
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
-    InSetOperatorTransformer.toTransformer(args, value, leftNode, hset, original.nullable)
+    InSetOperatorTransformer.toTransformer(value, leftNode, hset)
   }
 }
 
@@ -53,12 +51,10 @@ object InSetOperatorTransformer {
       throw new UnsupportedOperationException(s"not currently supported: $other.")
   }
 
-  def toTransformer(args: java.lang.Object,
-                    value: Expression,
+  def toTransformer(value: Expression,
                     leftNode: ExpressionNode,
-                    values: Set[Any],
-                    outputNullable: Boolean): ExpressionNode = {
-    val expressionNodes = Lists.newArrayList(leftNode.asInstanceOf[ExpressionNode])
+                    values: Set[Any]): ExpressionNode = {
+    val expressionNodes = new util.ArrayList[ExpressionNode]()
     val listNode = value.dataType match {
       case _: IntegerType =>
         val valueList = new util.ArrayList[java.lang.Integer](values.map(value =>
@@ -85,13 +81,6 @@ object InSetOperatorTransformer {
     }
     expressionNodes.add(listNode)
 
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(
-      ConverterUtils.IN, Seq(value.dataType), FunctionConfig.OPT)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-
-    val typeNode = TypeBuilder.makeBoolean(outputNullable)
-
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
   }
 }
