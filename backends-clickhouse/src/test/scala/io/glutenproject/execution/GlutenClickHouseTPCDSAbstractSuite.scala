@@ -63,7 +63,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     createTPCDSTables()
   }
 
-  override protected def createTPCHTables(): Unit = {}
+  override protected def createTPCHNotNullTables(): Unit = {}
 
   protected def createTPCDSTables(): Unit = {
     val parquetTables = GenTPCDSTableScripts.genTPCDSParquetTables(
