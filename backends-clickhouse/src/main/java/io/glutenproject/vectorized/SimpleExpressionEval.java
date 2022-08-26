@@ -18,7 +18,10 @@
 package io.glutenproject.vectorized;
 
 import java.io.InputStream;
+import java.util.Iterator;
 
+import io.glutenproject.execution.ColumnarNativeIterator;
+import io.glutenproject.substrait.expression.ExpressionBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,26 +30,40 @@ import io.substrait.proto.Plan;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
-public class ExpressionBuilder {
+public class SimpleExpressionEval implements AutoCloseable, Iterator<Long> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExpressionBuilder.class);
 
-  private InputStream in;
+  private final Long instance;
 
-  private PlanNode planNode;
-
-  public ExpressionBuilder(InputStream in,
-                           PlanNode planNode) {
-    this.in = in;
-    this.planNode = planNode;
-  }
-
-  private native InternalRow[] nativeBuild(InputStream in,
-                                           byte[] substraitPlan);
-
-  public InternalRow[] transform() {
+  public SimpleExpressionEval(ColumnarNativeIterator block_stream,
+                              PlanNode planNode) {
     Plan plan = planNode.toProtobuf();
     LOG.debug("ExpressionBuilder exec plan: " + plan.toString());
-    return nativeBuild(in, plan.toByteArray());
+    byte[] plan_data = plan.toByteArray();
+    instance = createNativeInstance(block_stream, plan_data);
+  }
+
+  private static native long createNativeInstance(ColumnarNativeIterator block_stream, byte[] plan);
+
+  private static native void nativeClose(long instance);
+
+  private static native boolean nativeHasNext(long instance);
+
+  private static native long nativeNext(long instance);
+
+  @Override
+  public boolean hasNext() {
+    return nativeHasNext(instance);
+  }
+
+  @Override
+  public Long next() {
+    return nativeNext(instance);
+  }
+
+  @Override
+  public void close() throws Exception {
+    nativeClose(instance);
   }
 }
