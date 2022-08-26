@@ -20,11 +20,10 @@ package org.apache.spark.sql.execution.joins
 import java.io.ByteArrayInputStream
 
 import scala.collection.JavaConverters._
-import scala.collection.TraversableOnce.MonadOps
 
 import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeIterator}
 import io.glutenproject.utils.PlanNodesUtil
-import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock, CHStreamReader, IteratorWrapper, SimpleExpressionEval, StorageJoinBuilder}
+import io.glutenproject.vectorized._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
@@ -59,9 +58,9 @@ case class ClickHouseBuildSideRelation(
   }
 
   /**
-   * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
-   * @return
-   */
+    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
+    * @return
+    */
   override def transform(keys: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
     // native block reader

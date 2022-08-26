@@ -17,29 +17,25 @@
 
 package io.glutenproject.vectorized;
 
-import java.io.InputStream;
 import java.util.Iterator;
 
-import io.glutenproject.execution.ColumnarNativeIterator;
-import io.glutenproject.substrait.expression.ExpressionBuilder;
+import io.substrait.proto.Plan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.glutenproject.execution.ColumnarNativeIterator;
 import io.glutenproject.substrait.plan.PlanNode;
-import io.substrait.proto.Plan;
-
-import org.apache.spark.sql.catalyst.InternalRow;
 
 public class SimpleExpressionEval implements AutoCloseable, Iterator<Long> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ExpressionBuilder.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SimpleExpressionEval.class);
 
   private final Long instance;
 
   public SimpleExpressionEval(ColumnarNativeIterator block_stream,
                               PlanNode planNode) {
     Plan plan = planNode.toProtobuf();
-    LOG.debug("ExpressionBuilder exec plan: " + plan.toString());
+    LOG.debug("SimpleExpressionEval exec plan: " + plan.toString());
     byte[] plan_data = plan.toByteArray();
     instance = createNativeInstance(block_stream, plan_data);
   }

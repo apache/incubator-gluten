@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
 
 class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
@@ -35,6 +36,9 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+      // Currently, it can not support to read multiple partitioned file in one task.
+      .set("spark.sql.files.maxPartitionBytes", "134217728")
+      .set("spark.sql.files.openCostInBytes", "134217728")
   }
 
   test("test 'select count(*)'") {
@@ -84,6 +88,26 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     withSQLConf(
       ("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery(9) { df =>
+      }
+    }
+  }
+
+  test("TPCDS Q21") {
+    withSQLConf(
+      ("spark.gluten.sql.columnar.columnartorow", "true")) {
+      runTPCDSQuery(21) { df =>
+        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
+            case _: DynamicPruningExpression => true
+            case _ => false
+          }
+          case _ => false
+        }
+        assert(foundDynamicPruningExpr.nonEmpty == true)
+        val dynamicPruningExpression = foundDynamicPruningExpr.get
+          .asInstanceOf[FileSourceScanExecTransformer].partitionFilters.filter(
+          FileSourceScanExecTransformer.isDynamicPruningFilter)
+        assert(dynamicPruningExpression.nonEmpty)
       }
     }
   }
