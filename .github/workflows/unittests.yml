@@ -23,7 +23,7 @@ on:
 jobs:
 
   arrow-backend-test:
-    runs-on: ubuntu-latest
+    runs-on: sr404-self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.8
@@ -55,24 +55,16 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Install Googletest
-        run: |
-          sudo apt-get install -y libgtest-dev
-          cd /usr/src/gtest
-          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
-          sudo make -j$(nproc)
-          sudo apt-get install -y google-mock
       - name: Install Gluten Arrow-backend
         run: |
-          mvn clean package -Pbackends-gazelle -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
-      - name: Run unit tests
+          mvn clean package -Pbackends-velox -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
+          cp backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar /tmp/gluten_jars/
+      - name: Run TPCDS q82,q85,q37,q60,q26
         run: |
-          cd cpp/
-          mkdir -p build
-          cd build
-          cmake .. -DBUILD_ARROW=0 -DBUILD_TESTS=1
-          make -j$(nproc)
-          ctest
+          cd /home/sparkuser/tpcds/
+          bash tpcds.sh
+
 
   velox-backend-test:
     runs-on: sr404-self-hosted
