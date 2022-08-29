@@ -33,13 +33,14 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFacto
  * Physical plan node for scanning a batch of data from a data source v2.
  */
 case class BatchScanExec(output: Seq[AttributeReference],
-                         @transient scan: Scan) extends DataSourceV2ScanExecBase {
+                         @transient scan: Scan,
+                         runtimeFilters: Seq[Expression]) extends DataSourceV2ScanExecBase {
 
   @transient lazy val batch = scan.toBatch
   @transient override lazy val partitions: Seq[InputPartition] = batch.planInputPartitions()
   override lazy val readerFactory: PartitionReaderFactory = batch.createReaderFactory()
   override lazy val inputRDD: RDD[InternalRow] = {
-    new DataSourceRDD(sparkContext, partitions, readerFactory, supportsColumnar)
+    new DataSourceRDD(sparkContext, partitions, readerFactory, supportsColumnar, null)
   }
 
   // TODO: unify the equal/hashCode implementation for all data source v2 query plans.

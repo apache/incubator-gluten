@@ -102,4 +102,7 @@ case class SortExecTransformer(
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(s"ColumnarSortExec doesn't support doExecute")
   }
+
+  override protected def withNewChildInternal(newChild: SparkPlan): SortExecTransformer =
+    copy(child = newChild)
 }

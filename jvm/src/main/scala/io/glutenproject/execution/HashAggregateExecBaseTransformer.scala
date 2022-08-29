@@ -688,7 +688,7 @@ abstract class HashAggregateExecBaseTransformer(
       val mode = exp.mode
       val aggregateFunc = exp.aggregateFunction
       aggregateFunc match {
-        case Average(_) =>
+        case Average(_, _) =>
           mode match {
             case Partial =>
               val avg = aggregateFunc.asInstanceOf[Average]
@@ -712,7 +712,7 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case Sum(_) =>
+        case Sum(_, _) =>
           mode match {
             case Partial | PartialMerge =>
               val sum = aggregateFunc.asInstanceOf[Sum]
@@ -888,7 +888,7 @@ abstract class HashAggregateExecBaseTransformer(
     if (!needsPostProjection(allAggregateResultAttributes)) {
       aggRel
     } else {
-      applyPostProjection(context, aggRel, operatorId, validation)
+    applyPostProjection(context, aggRel, operatorId, validation)
     }
   }
 }

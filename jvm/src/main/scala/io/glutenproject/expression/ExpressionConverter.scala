@@ -188,7 +188,7 @@ object ExpressionConverter extends Logging {
         }
       case s: org.apache.spark.sql.execution.ScalarSubquery =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        new ScalarSubqueryTransformer(s)
+        new ScalarSubqueryTransformer(s.plan, s.exprId, s)
       case c: Concat =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         val exprs = c.children.map { expr =>

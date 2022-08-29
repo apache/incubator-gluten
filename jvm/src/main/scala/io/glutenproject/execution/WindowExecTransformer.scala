@@ -128,4 +128,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()
   }
+
+  override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
+    copy(child = newChild)
 }

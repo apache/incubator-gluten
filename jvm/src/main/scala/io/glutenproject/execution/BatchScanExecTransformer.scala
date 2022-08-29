@@ -30,8 +30,9 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
+                               runtimeFilters: Seq[Expression],
                                pushdownFilters: Seq[Expression] = Seq())
-  extends BatchScanExec(output, scan) with BasicScanExecTransformer {
+  extends BatchScanExec(output, scan, runtimeFilters) with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
     "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),

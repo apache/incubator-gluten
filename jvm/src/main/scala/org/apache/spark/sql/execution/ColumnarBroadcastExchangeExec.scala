@@ -52,7 +52,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
   @transient
   private[sql] lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] = {
     SQLExecution.withThreadLocalCaptured[broadcast.Broadcast[Any]](
-      sqlContext.sparkSession,
+      session,
       BroadcastExchangeExec.executionContext) {
       try {
         // Setup a job group here so later it may get cancelled by groupId if necessary.
@@ -161,6 +161,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
           ex)
     }
   }
+  override protected def withNewChildInternal(newChild: SparkPlan): ColumnarBroadcastExchangeExec =
+    copy(child = newChild)
 }
 
 class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPlan)

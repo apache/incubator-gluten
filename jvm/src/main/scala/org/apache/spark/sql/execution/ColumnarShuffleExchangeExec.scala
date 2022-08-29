@@ -145,6 +145,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     cachedShuffleRDD
   }
 
+  override protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeExec =
+    copy(child = newChild)
 }
 
 class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioning,

@@ -46,6 +46,56 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+trait ColumnarShuffledJoin extends BaseJoinExec {
+  def isSkewJoin: Boolean
+
+  override def nodeName: String = {
+    if (isSkewJoin) super.nodeName + "(skew=true)" else super.nodeName
+  }
+
+  override def requiredChildDistribution: Seq[Distribution] = {
+    if (isSkewJoin) {
+      // We re-arrange the shuffle partitions to deal with skew join, and the new children
+      // partitioning doesn't satisfy `HashClusteredDistribution`.
+      UnspecifiedDistribution :: UnspecifiedDistribution :: Nil
+    } else {
+      HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
+    }
+  }
+
+  override def outputPartitioning: Partitioning = joinType match {
+    case _: InnerLike =>
+      PartitioningCollection(Seq(left.outputPartitioning, right.outputPartitioning))
+    case LeftOuter => left.outputPartitioning
+    case RightOuter => right.outputPartitioning
+    case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
+    case LeftExistence(_) => left.outputPartitioning
+    case x =>
+      throw new IllegalArgumentException(
+        s"ShuffledJoin should not take $x as the JoinType")
+  }
+
+  override def output: Seq[Attribute] = {
+    joinType match {
+      case _: InnerLike =>
+        left.output ++ right.output
+      case LeftOuter =>
+        left.output ++ right.output.map(_.withNullability(true))
+      case RightOuter =>
+        left.output.map(_.withNullability(true)) ++ right.output
+      case FullOuter =>
+        (left.output ++ right.output).map(_.withNullability(true))
+      case j: ExistenceJoin =>
+        left.output :+ j.exists
+      case LeftExistence(_) =>
+        left.output
+      case x =>
+        throw new IllegalArgumentException(
+          s"${getClass.getSimpleName} not take $x as the JoinType")
+    }
+  }
+}
+
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
@@ -58,7 +108,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
                                            right: SparkPlan)
   extends BaseJoinExec
     with TransformSupport
-    with ShuffledJoin {
+    with ColumnarShuffledJoin {
 
   override lazy val metrics = Map(
     "streamInputRows" -> SQLMetrics.createMetric(
@@ -355,6 +405,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
 
   val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
   val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
+  def isSkewJoin: Boolean = false
 
   lazy val (buildPlan, streamedPlan) = buildSide match {
     case BuildLeft => (left, right)
@@ -926,6 +977,10 @@ case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
   }
+
+  override protected def withNewChildrenInternal(
+      newLeft: SparkPlan, newRight: SparkPlan): ShuffledHashJoinExecTransformer =
+    copy(left = newLeft, right = newRight)
 }
 
 case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
@@ -1011,4 +1066,7 @@ case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     }
     streamedRDD :+ buildRDD
   }
+  override protected def withNewChildrenInternal(
+    newLeft: SparkPlan, newRight: SparkPlan): BroadcastHashJoinExecTransformer =
+  copy(left = newLeft, right = newRight)
 }

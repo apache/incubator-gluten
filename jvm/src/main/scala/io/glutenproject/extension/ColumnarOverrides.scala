@@ -45,7 +45,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
-    case RowGuard(child: CustomShuffleReaderExec) =>
+    case RowGuard(child: AQEShuffleReadExec) =>
       replaceWithTransformerPlan(child)
     case RowGuard(bhj: BroadcastHashJoinExec) =>
       bhj.withNewChildren(bhj.children.map {
@@ -66,7 +66,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
     case plan: BatchScanExec =>
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      new BatchScanExecTransformer(plan.output, plan.scan)
+      new BatchScanExecTransformer(plan.output, plan.scan, plan.runtimeFilters)
     case plan: FileSourceScanExec =>
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
       new FileSourceScanExecTransformer(
@@ -182,23 +182,23 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         left,
         right,
         isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-    case plan: CustomShuffleReaderExec if columnarConf.enableColumnarShuffle =>
+    case plan: AQEShuffleReadExec if columnarConf.enableColumnarShuffle =>
       plan.child match {
         case shuffle: ColumnarShuffleExchangeAdaptor =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          CoalesceBatchesExec(ColumnarCustomShuffleReaderExec(plan.child, plan.partitionSpecs))
-        case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          CoalesceBatchesExec(ColumnarCustomShuffleReaderExec(plan.child, plan.partitionSpecs))
-        case ShuffleQueryStageExec(_, reused: ReusedExchangeExec) =>
-          reused match {
-            case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
-              logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-              CoalesceBatchesExec(
-                ColumnarCustomShuffleReaderExec(plan.child, plan.partitionSpecs))
-            case _ =>
-              plan
-          }
+          CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+        // case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
+        //   logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        //   CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+        // case ShuffleQueryStageExec(_, reused: ReusedExchangeExec) =>
+        //   reused match {
+        //     case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
+        //       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        //       CoalesceBatchesExec(
+        //         ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+        //     case _ =>
+        //       plan
+        //   }
         case _ =>
           plan
       }
