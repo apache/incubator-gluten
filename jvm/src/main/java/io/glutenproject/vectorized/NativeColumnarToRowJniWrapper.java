@@ -26,7 +26,7 @@ public class NativeColumnarToRowJniWrapper {
   }
 
   public native NativeColumnarToRowInfo nativeConvertColumnarToRow(
-      long batchHandle, long allocatorId, boolean wsChild)
+      long batchHandle, long allocatorId)
       throws RuntimeException;
 
   public native void nativeClose(long instanceID);

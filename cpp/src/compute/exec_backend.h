@@ -96,12 +96,19 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
-  virtual std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
+  virtual arrow::Result<
+      std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
   getColumnarConverter(
       gluten::memory::MemoryAllocator* allocator,
-      std::shared_ptr<arrow::RecordBatch> rb,
-      bool wsChild) {
+      std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb) {
     auto memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
+    std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
+    std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
+    ARROW_ASSIGN_OR_RAISE(
+        std::shared_ptr<arrow::RecordBatch> rb,
+        arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+    ArrowSchemaRelease(c_schema.get());
+    ArrowArrayRelease(c_array.get());
     return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
         rb, memory_pool);
   }

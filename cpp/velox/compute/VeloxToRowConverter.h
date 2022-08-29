@@ -34,10 +34,13 @@ class VeloxToRowConverter
     : public gluten::columnartorow::ColumnarToRowConverterBase {
  public:
   VeloxToRowConverter(
-      const std::shared_ptr<arrow::RecordBatch>& rb,
+      RowVectorPtr rv,
       std::shared_ptr<arrow::MemoryPool> arrow_pool,
       std::shared_ptr<memory::MemoryPool> velox_pool)
-      : ColumnarToRowConverterBase(rb, arrow_pool), velox_pool_(velox_pool) {}
+      : ColumnarToRowConverterBase(),
+        rv_(rv),
+        arrow_pool_(arrow_pool),
+        velox_pool_(velox_pool) {}
 
   arrow::Status Init() override;
 
@@ -46,6 +49,8 @@ class VeloxToRowConverter
  private:
   void ResumeVeloxVector();
 
+  RowVectorPtr rv_;
+  std::shared_ptr<arrow::MemoryPool> arrow_pool_;
   std::shared_ptr<memory::MemoryPool> velox_pool_;
   std::vector<VectorPtr> vecs_;
   std::shared_ptr<arrow::Schema> schema_;

@@ -551,18 +551,11 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
     JNIEnv* env,
     jobject,
     jlong batch_handle,
-    jlong allocator_id,
-    jboolean wsChild) {
+    jlong allocator_id) {
   JNI_METHOD_START
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb =
       gluten_columnarbatch_holder_.Lookup(batch_handle);
-  std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
-  std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
-  std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(
-      arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
-  ArrowSchemaRelease(c_schema.get());
-  ArrowArrayRelease(c_array.get());
-  int64_t num_rows = rb->num_rows();
+  int64_t num_rows = cb->GetNumRows();
   // convert the record batch to spark unsafe row.
   auto* allocator =
       reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
@@ -571,8 +564,8 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   }
   auto backend = gluten::CreateBackend();
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
-      columnar_to_row_converter =
-          backend->getColumnarConverter(allocator, rb, wsChild);
+      columnar_to_row_converter = gluten::JniGetOrThrow(
+          backend->getColumnarConverter(allocator, cb));
   gluten::JniAssertOkOrThrow(
       columnar_to_row_converter->Init(),
       "Native convert columnar to row: Init "

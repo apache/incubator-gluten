@@ -106,7 +106,7 @@ case class VeloxNativeColumnarToRowExec(child: SparkPlan)
           val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
           info = jniWrapper.nativeConvertColumnarToRow(
             batchHandle,
-            SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId, wsChild)
+            SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId)
 
           convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 

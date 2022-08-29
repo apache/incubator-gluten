@@ -27,7 +27,7 @@ class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
   ArrowColumnarToRowConverter(
       std::shared_ptr<arrow::RecordBatch> rb,
       std::shared_ptr<arrow::MemoryPool> memory_pool)
-      : ColumnarToRowConverterBase(rb, memory_pool) {}
+      : ColumnarToRowConverterBase(), rb_(rb), arrow_pool_(memory_pool) {}
 
   arrow::Status Init() override;
 
@@ -42,6 +42,9 @@ class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
       int64_t num_rows,
       std::vector<int64_t>& offsets,
       std::vector<int64_t>& buffer_cursor);
+
+  std::shared_ptr<arrow::RecordBatch> rb_;
+  std::shared_ptr<arrow::MemoryPool> arrow_pool_;
 };
 
 } // namespace columnartorow

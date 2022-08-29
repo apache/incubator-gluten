@@ -31,8 +31,8 @@ namespace velox {
 namespace compute {
 
 arrow::Status VeloxToRowConverter::Init() {
-  num_rows_ = rb_->num_rows();
-  num_cols_ = rb_->num_columns();
+  num_rows_ = rv_->size();
+  num_cols_ = rv_->childrenSize();
   schema_ = rb_->schema();
   // The input is Arrow batch. We need to resume Velox Vector here.
   ResumeVeloxVector();

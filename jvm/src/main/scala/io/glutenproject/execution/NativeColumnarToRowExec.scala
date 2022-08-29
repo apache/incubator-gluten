@@ -30,9 +30,6 @@ abstract class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowTr
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
     "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert")
   )
-  // A flag used to check whether child is wholestage transformer.
-  // Different backends may have different behaviours according to this flag.
-  val wsChild = child.isInstanceOf[WholeStageTransformerExec]
 
   def doValidate(): Boolean = {
     try {
