@@ -543,31 +543,4 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
   }
 
-  /**
-   * run a query with native engine as well as vanilla spark
-   * then compare the result set for correctness check
-   */
-  protected def compareTPCHQueryAgainstVanillaSpark(
-      queryNum: Int,
-      tpchQueries: String, customCheck: DataFrame => Unit): Unit = {
-    val sqlNum = "q" + "%02d".format(queryNum)
-    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
-    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    var expected: Seq[Row] = null;
-    withSQLConf(vanillaSparkConfs(): _*) {
-      val df = spark.sql(sqlStr)
-      expected = df.collect()
-    }
-    val df = spark.sql(sqlStr)
-    checkAnswer(df,expected)
-    customCheck(df)
-  }
-
-  protected def vanillaSparkConfs(): Seq[(String, String)] = {
-    List(
-      ("spark.gluten.sql.enable.native.engine", "false"))
-  }
-
-
-
 }

@@ -63,8 +63,10 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       .set("spark.default.parallelism", "1")
   }
 
-  protected def compareResultStr(sqlNum: String, result: Array[Row],
-                                 queriesResults: String): Unit = {
+  protected def compareResultStr(
+      sqlNum: String,
+      result: Array[Row],
+      queriesResults: String): Unit = {
     val resultStr = new StringBuffer()
     resultStr.append(result.length).append("\n")
     result.foreach(r => resultStr.append(r.mkString("|-|")).append("\n"))
@@ -73,19 +75,20 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     assert(queryResultStr.equals(resultStr.toString))
   }
 
-  protected def compareDoubleResult(sqlNum: String,
-                                    result: Array[Row],
-                                    schema: StructType,
-                                    queriesResults: String): Unit = {
-    val queryResults = Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"),
-      "UTF-8").getLines()
+  protected def compareDoubleResult(
+      sqlNum: String,
+      result: Array[Row],
+      schema: StructType,
+      queriesResults: String): Unit = {
+    val queryResults =
+      Source.fromFile(new File(queriesResults + "/" + sqlNum + ".out"), "UTF-8").getLines()
     var recordCnt = queryResults.next().toInt
     assert(result.size == recordCnt)
     for (row <- result) {
       assert(queryResults.hasNext)
       val result = queryResults.next().split("\\|-\\|")
       var i = 0
-      row.schema.foreach( s => {
+      row.schema.foreach(s => {
         s match {
           case d if d.dataType == DoubleType =>
             val v1 = row.getDouble(i)
@@ -101,9 +104,11 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     }
   }
 
-  protected def runTPCHQuery(queryNum: Int, tpchQueries: String,
-                             queriesResults: String, compareResult: Boolean = true)
-                            (customCheck: DataFrame => Unit): Unit = {
+  protected def runTPCHQuery(
+      queryNum: Int,
+      tpchQueries: String,
+      queriesResults: String,
+      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     val sqlNum = "q" + "%02d".format(queryNum)
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
@@ -120,6 +125,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     customCheck(df)
   }
 
+
   protected def runSql(sql: String)
                             (customCheck: DataFrame => Unit): Seq[Row] = {
     val df = spark.sql(sql)
@@ -127,4 +133,30 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     customCheck(df)
     result
   }
+  
+  /**
+    * run a query with native engine as well as vanilla spark
+    * then compare the result set for correctness check
+    */
+  protected def compareTPCHQueryAgainstVanillaSpark(
+      queryNum: Int,
+      tpchQueries: String,
+      customCheck: DataFrame => Unit): Unit = {
+    val sqlNum = "q" + "%02d".format(queryNum)
+    val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
+    val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+    var expected: Seq[Row] = null;
+    withSQLConf(vanillaSparkConfs(): _*) {
+      val df = spark.sql(sqlStr)
+      expected = df.collect()
+    }
+    val df = spark.sql(sqlStr)
+    checkAnswer(df, expected)
+    customCheck(df)
+  }
+
+  protected def vanillaSparkConfs(): Seq[(String, String)] = {
+    List(("spark.gluten.sql.enable.native.engine", "false"))
+  }
 }
+
