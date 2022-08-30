@@ -253,7 +253,7 @@ case class VeloxHashAggregateExecTransformer(
     for (aggregateExpression <- aggregateExpressions) {
       val functionInputAttributes = aggregateExpression.aggregateFunction.inputAggBufferAttributes
       aggregateExpression.aggregateFunction match {
-        case Average(_) =>
+        case Average(_, _) =>
           aggregateExpression.mode match {
             case Final =>
               assert(
@@ -308,7 +308,7 @@ case class VeloxHashAggregateExecTransformer(
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
-        case Average(_) =>
+        case Average(_, _) =>
           // Only occupies one column due to sum and count are combined by previous projection.
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
@@ -371,4 +371,8 @@ case class VeloxHashAggregateExecTransformer(
     context.registerAggregationParam(operatorId, aggParams)
     resRel
   }
+  override protected def withNewChildInternal(newChild: SparkPlan)
+    : VeloxHashAggregateExecTransformer = {
+      copy(child = newChild)
+    }
 }

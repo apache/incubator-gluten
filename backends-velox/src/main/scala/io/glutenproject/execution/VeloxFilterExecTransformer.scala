@@ -116,4 +116,6 @@ case class VeloxFilterExecTransformer(condition: Expression,
       leftFilters.reduceLeftOption(And).orNull
     }
   }
+  override protected def withNewChildInternal(newChild: SparkPlan): VeloxFilterExecTransformer =
+    copy(child = newChild)
 }
