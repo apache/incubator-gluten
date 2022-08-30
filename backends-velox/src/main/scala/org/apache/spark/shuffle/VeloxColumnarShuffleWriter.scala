@@ -100,7 +100,7 @@ class VeloxColumnarShuffleWriter[K, V](
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
       shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId,
-                                                      partitionLengths, null, null)
+                                                      partitionLengths, Array[Long](), null)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }
@@ -215,7 +215,7 @@ class VeloxColumnarShuffleWriter[K, V](
         dep.shuffleId,
         mapId,
         partitionLengths,
-        null,
+        Array[Long](),
         dataTmp)
     } finally {
       if (dataTmp.exists() && !dataTmp.delete()) {

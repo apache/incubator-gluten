@@ -118,7 +118,7 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
       comment = commentOpt)
 
     val withDb = verifyTableAndSolidify(tableDesc, None)
-    ParquetSchemaConverter.checkFieldNames(tableDesc.schema.fieldNames)
+    ParquetSchemaConverter.checkFieldNames(tableDesc.schema)
 
     // TODO: Generate WriteClickHouseTableCommand
     // val writer = sourceQuery.map { df =>
