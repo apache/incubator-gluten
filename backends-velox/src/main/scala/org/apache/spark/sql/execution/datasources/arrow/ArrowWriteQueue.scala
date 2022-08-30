@@ -114,6 +114,7 @@ object ArrowWriteQueue {
                 throw new RuntimeException("ArrowWriter: Timeout waiting for data")
               }
               if (currentArray == EOS_ARROW_ARRAY) {
+                EOS_ARROW_ARRAY.release()
                 return false
               }
               ArrowAbiUtil.importIntoVectorSchemaRoot(
