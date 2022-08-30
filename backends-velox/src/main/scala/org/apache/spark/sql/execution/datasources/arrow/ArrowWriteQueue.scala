@@ -55,7 +55,8 @@ class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: Str
     val fileName = matcher.group(2)
 
     try {
-      DatasetFileWriter.write(scanner, fileFormat, dirURI, Array(), 1, "{i}_" + fileName)
+      DatasetFileWriter.write(SparkMemoryUtils.contextArrowAllocator(),
+        scanner, fileFormat, dirURI, Array(), 1, "{i}_" + fileName)
     } catch {
       case e: Throwable =>
         writeException.set(e)
