@@ -61,7 +61,7 @@ class ExportedArrayStreamByArray {
       // End of stream
       ArrowArrayMarkReleased(out_array);
     } else {
-      ArrowArrayMove(std::move(array.get()), out_array);
+      ArrowArrayMove(array.get(), out_array);
     }
     return Status::OK();
   }

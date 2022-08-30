@@ -19,10 +19,9 @@ package io.glutenproject.expression
 
 import java.io._
 import java.nio.channels.Channels
-
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
 import org.apache.arrow.flatbuf.MessageHeader
@@ -37,14 +36,13 @@ import org.apache.arrow.vector.ipc.message._
 import org.apache.arrow.vector.types.TimeUnit
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.DateTimeConstants
 import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils, SparkVectorUtils}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 
 object ArrowConverterUtils extends Logging {
 
@@ -78,7 +76,9 @@ object ArrowConverterUtils extends Logging {
 
     iter.foreach { columnarBatch =>
       val vectors = (0 until columnarBatch.numCols)
-        .map(i => columnarBatch.column(i).asInstanceOf[ArrowWritableColumnVector])
+        .map(i => ArrowColumnarBatches
+          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), columnarBatch)
+          .column(i).asInstanceOf[ArrowWritableColumnVector])
         .toList
       try {
         if (schema == null) {

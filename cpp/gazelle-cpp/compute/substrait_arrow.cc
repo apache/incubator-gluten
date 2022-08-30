@@ -324,10 +324,12 @@ ArrowExecResultIterator::Next() {
     }
     auto batch = arrow::RecordBatch::Make(schema_, cur_.length, columns);
 
-    ArrowArray array{};
-    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, &array));
-    return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
-        array);
+    std::unique_ptr<ArrowSchema> c_schema = std::make_unique<ArrowSchema>();
+    std::unique_ptr<ArrowArray> c_array = std::make_unique<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(
+        arrow::ExportRecordBatch(*batch, c_array.get(), c_schema.get()));
+    return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
+        std::move(c_schema), std::move(c_array));
   }
   return nullptr;
 }

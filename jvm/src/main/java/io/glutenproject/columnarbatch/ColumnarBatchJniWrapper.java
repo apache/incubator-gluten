@@ -32,5 +32,9 @@ public class ColumnarBatchJniWrapper {
 
   public native long getNumRows(long handle);
 
+  public native long createWithArrowArray(long cSchema, long cArray);
+
+  public native void exportToArrow(long handle, long cSchema, long cArray);
+
   public native void close(long handle);
 }

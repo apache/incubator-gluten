@@ -87,16 +87,18 @@ class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
             rowVector->size()),
         rowVector_(rowVector) {}
 
-  void ReleasePayload() override;
+  ~GlutenVeloxColumnarBatch() override;
+
   std::string GetType() override;
-  /// This method converts Velox RowVector into Arrow Array based on Velox's
-  /// Arrow conversion implementation, in which memcopy is not needed for
-  /// fixed-width data types, but is conducted in String conversion. The output
-  /// array will be the input of Columnar Shuffle or Velox-to-Row.
-  std::shared_ptr<ArrowArray> exportToArrow() override;
+
+  std::shared_ptr<ArrowSchema> exportArrowSchema() override;
+  std::shared_ptr<ArrowArray> exportArrowArray() override;
 
  private:
+  void EnsureFlattened();
+
   RowVectorPtr rowVector_;
+  RowVectorPtr flattened_ = nullptr;
 };
 
 class WholeStageResIter {

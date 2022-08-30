@@ -50,7 +50,7 @@ auto BM = [](::benchmark::State& state,
         gluten::memory::DefaultMemoryAllocator().get(), scanInfos);
     auto outputSchema = backend->GetOutputSchema();
     while (resultIter->HasNext()) {
-      auto array = resultIter->Next()->exportToArrow();
+      auto array = resultIter->Next()->exportArrowArray();
       auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
       if (!maybeBatch.ok()) {
         state.SkipWithError(maybeBatch.status().message().c_str());

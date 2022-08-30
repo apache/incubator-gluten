@@ -19,17 +19,31 @@ package io.glutenproject.columnarbatch;
 
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.types.UTF8String;
 
-public class GlutenIndicatorVector extends ColumnVector {
-  private final long nativeHandle;
+import java.util.concurrent.atomic.AtomicLong;
 
-  protected GlutenIndicatorVector(long nativeHandle) {
+public class GlutenIndicatorVector extends ColumnVector {
+  private final StructType schema;
+  private final long nativeHandle;
+  private final AtomicLong refCnt = new AtomicLong(1L);
+
+  protected GlutenIndicatorVector(StructType schema, long nativeHandle) {
     super(DataTypes.NullType);
+    this.schema = schema;
     this.nativeHandle = nativeHandle;
+  }
+
+  public StructType getSchema() {
+    return schema;
+  }
+
+  public long getNativeHandle() {
+    return nativeHandle;
   }
 
   public String getType() {
@@ -44,9 +58,27 @@ public class GlutenIndicatorVector extends ColumnVector {
     return ColumnarBatchJniWrapper.INSTANCE.getNumRows(nativeHandle);
   }
 
+  public long refCnt() {
+    return refCnt.get();
+  }
+
+  public void retain() {
+    refCnt.getAndIncrement();
+  }
+
   @Override
   public void close() {
-    ColumnarBatchJniWrapper.INSTANCE.close(nativeHandle);
+    if (refCnt.get() == 0) {
+      // TODO use stronger restriction (IllegalStateException probably)
+      return;
+    }
+    if (refCnt.decrementAndGet() == 0) {
+      ColumnarBatchJniWrapper.INSTANCE.close(nativeHandle);
+    }
+  }
+
+  public boolean isClosed() {
+    return refCnt.get() == 0;
   }
 
   @Override

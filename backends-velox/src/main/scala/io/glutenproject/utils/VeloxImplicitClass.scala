@@ -17,9 +17,10 @@
 
 package io.glutenproject.utils
 
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.vector.util.VectorBatchAppender
-
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object VeloxImplicitClass {
@@ -27,16 +28,22 @@ object VeloxImplicitClass {
   implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
     def retain(): Unit = {
       (0 until cb.numCols).toList.foreach(i =>
-        cb.column(i).asInstanceOf[ArrowWritableColumnVector].retain())
+        ArrowColumnarBatches
+          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+          .column(i).asInstanceOf[ArrowWritableColumnVector].retain())
     }
   }
 
   def coalesce(targetBatch: ColumnarBatch, batchesToAppend: List[ColumnarBatch]): Unit = {
     (0 until targetBatch.numCols).toList.foreach { i =>
       val targetVector =
-        targetBatch.column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
+        ArrowColumnarBatches
+          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), targetBatch)
+          .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
       val vectorsToAppend = batchesToAppend.map { cb =>
-        cb.column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
+        ArrowColumnarBatches
+          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+          .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
       }
       VectorBatchAppender.batchAppend(targetVector, vectorsToAppend: _*)
     }

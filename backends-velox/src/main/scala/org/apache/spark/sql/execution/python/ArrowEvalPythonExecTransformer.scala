@@ -18,15 +18,16 @@
 package org.apache.spark.sql.execution.python
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution.{TransformContext, TransformSupport}
 import io.glutenproject.substrait.SubstraitContext
-
 import org.apache.spark.TaskContext
 import org.apache.spark.api.python.ChainedPythonFunctions
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
@@ -102,7 +103,9 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
       pythonRunnerConf).compute(batchIter, context.partitionId(), context)
 
     columnarBatchIter.map { batch =>
-      val actualDataTypes = (0 until batch.numCols()).map(i => batch.column(i).dataType())
+      val actualDataTypes = (0 until batch.numCols()).map(i => ArrowColumnarBatches
+        .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+          batch).column(i).dataType())
       assert(outputTypes == actualDataTypes, "Invalid schema from arrow_udf: " +
         s"expected ${outputTypes.mkString(", ")}, got ${actualDataTypes.mkString(", ")}")
       batch

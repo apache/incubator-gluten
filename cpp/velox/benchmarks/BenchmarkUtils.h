@@ -112,10 +112,12 @@ class BatchVectorIterator : public BatchIteratorWrapper {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }
-    ArrowArray cArray{};
-    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(**iter_++, &cArray));
-    return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
-        cArray);
+    std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
+    std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(
+        arrow::ExportRecordBatch(**iter_++, cArray.get(), cSchema.get()));
+    return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
+        std::move(cSchema), std::move(cArray));
   }
 
  private:
@@ -146,13 +148,15 @@ class BatchStreamIterator : public BatchIteratorWrapper {
     if (batch == nullptr) {
       return nullptr;
     }
-    ArrowArray cArray{};
-    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, &cArray));
+    std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
+    std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(
+        arrow::ExportRecordBatch(*batch, cArray.get(), cSchema.get()));
     collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
                              std::chrono::steady_clock::now() - startTime)
                              .count();
-    return std::make_shared<gluten::memory::GlutenArrowArrayColumnarBatch>(
-        cArray);
+    return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
+        std::move(cSchema), std::move(cArray));
   }
 };
 

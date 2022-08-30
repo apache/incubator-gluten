@@ -19,6 +19,9 @@ package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
@@ -32,6 +35,7 @@ import io.glutenproject.vectorized.NativeColumnarToRowInfo
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 import org.apache.arrow.c.ArrowArray
 import org.apache.arrow.c.ArrowSchema
+
 import org.apache.spark.TaskContext
 import org.slf4j.LoggerFactory
 
@@ -83,33 +87,28 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
           logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
           Iterator.empty
         } else if (this.output.isEmpty || (batch.numCols() > 0 &&
-          !batch.column(0).isInstanceOf[ArrowWritableColumnVector])) {
+          !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
+          !batch.column(0).isInstanceOf[GlutenIndicatorVector])) {
           // Fallback to ColumnarToRow
           val localOutput = this.output
           numInputBatches += 1
           numOutputRows += batch.numRows()
 
           val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-          batch.rowIterator().asScala.map(toUnsafe)
+          ArrowColumnarBatches
+            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+            .rowIterator().asScala.map(toUnsafe)
         } else {
-          val allocator = SparkMemoryUtils.contextArrowAllocator()
-          val cArray = ArrowArray.allocateNew(allocator)
-          val cSchema = ArrowSchema.allocateNew(allocator)
           var info: NativeColumnarToRowInfo = null
-          try {
-            ArrowAbiUtil.exportFromSparkColumnarBatch(
-              SparkMemoryUtils.contextArrowAllocator(), batch, cSchema, cArray)
-            val beforeConvert = System.nanoTime()
+          val beforeConvert = System.nanoTime()
+          val offloaded =
+            ArrowColumnarBatches.ensureOffloaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+          val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
+          info = jniWrapper.nativeConvertColumnarToRow(
+            batchHandle,
+            SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId, wsChild)
 
-            info = jniWrapper.nativeConvertColumnarToRow(
-              cSchema.memoryAddress(), cArray.memoryAddress(),
-              SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId, wsChild)
-
-            convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
-          } finally {
-            cArray.close()
-            cSchema.close()
-          }
+          convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 
           new Iterator[InternalRow] {
             var rowId = 0

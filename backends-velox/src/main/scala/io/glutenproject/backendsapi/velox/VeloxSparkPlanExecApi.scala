@@ -18,15 +18,14 @@
 package io.glutenproject.backendsapi.velox
 
 import scala.collection.mutable.ArrayBuffer
-
 import com.intel.oap.spark.sql.DwrfWriteExtension.{DummyRule, DwrfWritePostRule, SimpleColumnarRule, SimpleStrategy}
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxHashAggregateExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
-
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -38,6 +37,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan, VeloxBuildSideRelation}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -181,10 +181,13 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
 
         while (iter.hasNext) {
           val batch = iter.next
-          (0 until batch.numCols).foreach(i =>
-            batch.column(i).asInstanceOf[ArrowWritableColumnVector].retain())
-          _numRows += batch.numRows
-          _input += batch
+          val acb = ArrowColumnarBatches
+            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+          (0 until acb.numCols).foreach(i => {
+            acb.column(i).asInstanceOf[ArrowWritableColumnVector].retain()
+          })
+          _numRows += acb.numRows
+          _input += acb
         }
         val bytes = ArrowConverterUtils.convertToNetty(_input.toArray)
         _input.foreach(_.close)

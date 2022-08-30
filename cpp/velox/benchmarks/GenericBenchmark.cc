@@ -71,7 +71,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
   for (auto _ : state) {
     while (resultIter->HasNext()) {
-      auto array = resultIter->Next()->exportToArrow();
+      auto array = resultIter->Next()->exportArrowArray();
       if (FLAGS_print_result) {
         state.PauseTiming();
         auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);

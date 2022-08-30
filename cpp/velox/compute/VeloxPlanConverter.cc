@@ -630,36 +630,51 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage
   std::vector<core::PlanNodeId> streamIds_;
 };
 
-void GlutenVeloxColumnarBatch::ReleasePayload() {
-  rowVector_.reset();
-}
+GlutenVeloxColumnarBatch::~GlutenVeloxColumnarBatch() = default;
 
 std::string GlutenVeloxColumnarBatch::GetType() {
   return "velox";
 }
 
-std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportToArrow() {
+void GlutenVeloxColumnarBatch::EnsureFlattened() {
+  if (flattened_ != nullptr) {
+    return;
+  }
   auto startTime = std::chrono::steady_clock::now();
-  ArrowArray out;
   // Make sure to load lazy vector if not loaded already.
   for (auto& child : rowVector_->children()) {
     child->loadedVector();
   }
 
+  // Perform copy to flatten dictionary vectors.
   RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(BaseVector::create(
       rowVector_->type(),
       rowVector_->size(),
       gluten::memory::GetDefaultWrappedVeloxMemoryPool().get()));
   copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
-  facebook::velox::exportToArrow(
-      copy, out, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
-
+  flattened_ = copy;
   auto endTime = std::chrono::steady_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
           .count();
   exportNanos_ += duration;
-  return std::make_shared<ArrowArray>(out);
+}
+
+std::shared_ptr<ArrowSchema> GlutenVeloxColumnarBatch::exportArrowSchema() {
+  std::shared_ptr<ArrowSchema> out = std::make_shared<ArrowSchema>();
+  EnsureFlattened();
+  facebook::velox::exportToArrow(flattened_, *out);
+  return out;
+}
+
+std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportArrowArray() {
+  std::shared_ptr<ArrowArray> out = std::make_shared<ArrowArray>();
+  EnsureFlattened();
+  facebook::velox::exportToArrow(
+      flattened_,
+      *out,
+      gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
+  return out;
 }
 
 } // namespace compute

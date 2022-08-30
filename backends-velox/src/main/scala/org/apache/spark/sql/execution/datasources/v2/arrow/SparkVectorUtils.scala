@@ -17,20 +17,22 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
-import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 
+import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.memory.ArrowBuf
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch}
-
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object SparkVectorUtils {
 
   def estimateSize(columnarBatch: ColumnarBatch): Long = {
     val cols = (0 until columnarBatch.numCols).toList.map(i =>
-      columnarBatch.column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector())
+      ArrowColumnarBatches
+        .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+          columnarBatch).column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector())
     val nodes = new java.util.ArrayList[ArrowFieldNode]()
     val buffers = new java.util.ArrayList[ArrowBuf]()
     cols.foreach(vector => {
@@ -41,13 +43,18 @@ object SparkVectorUtils {
 
   def toFieldVectorList(cb: ColumnarBatch): List[FieldVector] = {
     (0 until cb.numCols).toList.map(i =>
-      cb.column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector.asInstanceOf[FieldVector])
+      ArrowColumnarBatches
+        .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+          cb)
+        .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector.asInstanceOf[FieldVector])
   }
 
   def toArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
     val numRowsInBatch = columnarBatch.numRows()
     val cols = (0 until columnarBatch.numCols).toList.map(i =>
-      columnarBatch.column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector)
+      ArrowColumnarBatches
+        .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), columnarBatch)
+        .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector)
     toArrowRecordBatch(numRowsInBatch, cols)
   }
 
