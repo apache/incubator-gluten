@@ -1,5 +1,3 @@
-package org.apache.spark.sql
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,9 +15,11 @@ package org.apache.spark.sql
  * limitations under the License.
  */
 
+package org.apache.spark.sql
+
 /**
  * Why we need a GlutenQueryTest when we already have QueryTest?
- * 1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare(java.lang.Object, java.lang.Object) compare double
+ * 1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.util._
@@ -380,7 +380,7 @@ object GlutenQueryTest extends Assertions {
       compare(a.toSeq, b.toSeq)
     // 0.0 == -0.0, turn float/double to bits before comparison, to distinguish 0.0 and -0.0.
     case (a: Double, b: Double) =>
-      //java.lang.Double.doubleToRawLongBits(a) == java.lang.Double.doubleToRawLongBits(b)
+      // java.lang.Double.doubleToRawLongBits(a) == java.lang.Double.doubleToRawLongBits(b)
       Math.abs(a - b) < 0.00001
     case (a: Float, b: Float) =>
       java.lang.Float.floatToRawIntBits(a) == java.lang.Float.floatToRawIntBits(b)
