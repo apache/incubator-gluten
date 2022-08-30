@@ -24,8 +24,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>spark-sql-columnar-shims-spark311</artifactId>
-  <name>${project.name.prefix} Shims for Spark 3.1.1</name>
+  <artifactId>spark-sql-columnar-shims-spark321</artifactId>
+  <name>${project.name.prefix} Shims for Spark 3.2.1</name>
   <packaging>jar</packaging>
 
   <build>
@@ -89,7 +89,7 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_${scala.binary.version}</artifactId>
-      <version>${spark311.version}</version>
+      <version>${spark321.version}</version>
     <scope>provided</scope>
     </dependency>
   </dependencies>

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package io.glutenproject.sql.shims.spark311
+package io.glutenproject.sql.shims.spark321
 
 import io.glutenproject.sql.shims.{SparkShims, ShimDescriptor}
 
-class Spark311Shims extends SparkShims {
+class Spark321Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 }

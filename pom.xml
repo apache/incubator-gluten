@@ -64,7 +64,7 @@
     <project.prefix>spark-sql-columnar</project.prefix>
     <project.name.prefix>Gluten</project.name.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
-    <spark311.version>3.2.1</spark311.version>
+    <spark321.version>3.2.1</spark321.version>
   </properties>
 
   <profiles>
@@ -78,9 +78,9 @@
       </properties>
     </profile>
     <profile>
-        <id>spark-3.1.1</id>
+        <id>spark-3.2.1</id>
         <properties>
-            <spark.version>${spark311.version}</spark.version>
+            <spark.version>${spark321.version}</spark.version>
         </properties>
     </profile>
     <profile>

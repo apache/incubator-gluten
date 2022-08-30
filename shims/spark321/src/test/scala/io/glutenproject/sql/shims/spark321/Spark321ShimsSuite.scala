@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package io.glutenproject.sql.shims.spark311
+package io.glutenproject.sql.shims.spark321
 
 import io.glutenproject.sql.shims.{SparkShims, SparkShimLoader, SparkShimDescriptor}
 
 import org.scalatest.FunSuite;
 
-class Spark311ShimsSuite extends FunSuite {
-  val descriptor = SparkShimDescriptor(3, 1, 1)
+class Spark321ShimsSuite extends FunSuite {
+  val descriptor = SparkShimDescriptor(3, 2, 1)
   test("Spark shims descriptor") {
     val sparkShims: SparkShims = new SparkShimProvider().createShim
     assert(sparkShims.getShimDescriptor === descriptor)
