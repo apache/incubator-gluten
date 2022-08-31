@@ -564,8 +564,8 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   }
   auto backend = gluten::CreateBackend();
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
-      columnar_to_row_converter = gluten::JniGetOrThrow(
-          backend->getColumnarConverter(allocator, cb));
+      columnar_to_row_converter =
+          gluten::JniGetOrThrow(backend->getColumnarConverter(allocator, cb));
   gluten::JniAssertOkOrThrow(
       columnar_to_row_converter->Init(),
       "Native convert columnar to row: Init "
