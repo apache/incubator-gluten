@@ -25,6 +25,8 @@
 #include <arrow/type.h>
 #include <arrow/util/bit_util.h>
 
+#include <boost/align.hpp>
+
 #include "gandiva/decimal_type_util.h"
 
 namespace gluten {
@@ -43,27 +45,30 @@ class ColumnarToRowConverterBase {
   uint8_t* GetBufferAddress() {
     return buffer_address_;
   }
-  const std::vector<int64_t>& GetOffsets() {
+  const std::vector<int32_t>& GetOffsets() {
     return offsets_;
   }
-  const std::vector<int64_t>& GetLengths() {
+  const std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>&
+  GetLengths() {
     return lengths_;
   }
 
  protected:
+  bool support_avx512_;
   std::shared_ptr<arrow::MemoryPool> arrow_pool_;
-  std::vector<int64_t> buffer_cursor_;
+  std::vector<int32_t> buffer_cursor_;
   std::shared_ptr<arrow::Buffer> buffer_;
-  int64_t nullBitsetWidthInBytes_;
-  int64_t num_cols_;
-  int64_t num_rows_;
+  int32_t nullBitsetWidthInBytes_;
+  int32_t num_cols_;
+  int32_t num_rows_;
   uint8_t* buffer_address_;
-  std::vector<int64_t> offsets_;
-  std::vector<int64_t> lengths_;
+  std::vector<int32_t> offsets_;
+  std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>
+      lengths_;
 
   int64_t CalculateBitSetWidthInBytes(int32_t numFields);
 
-  int64_t RoundNumberOfBytesToNearestWord(int64_t numBytes);
+  int32_t RoundNumberOfBytesToNearestWord(int32_t numBytes);
 
   int64_t CalculatedFixeSizePerRow(
       std::shared_ptr<arrow::Schema> schema,
@@ -97,6 +102,22 @@ class ColumnarToRowConverterBase {
 
   /// This method refer to the BigInterger#toByteArray() method in Java side.
   std::array<uint8_t, 16> ToByteArray(arrow::Decimal128 value, int32_t* length);
+
+  arrow::Status FillBuffer(
+      int32_t& row_start,
+      int32_t batch_rows,
+      std::vector<std::vector<const uint8_t*>>& dataptrs,
+      std::vector<uint8_t> nullvec,
+      uint8_t* buffer_address,
+      std::vector<int32_t>& offsets,
+      std::vector<int32_t>& buffer_cursor,
+      int32_t& num_cols,
+      int32_t& num_rows,
+      int32_t& nullBitsetWidthInBytes,
+      std::vector<arrow::Type::type>& typevec,
+      std::vector<uint8_t>& typewidth,
+      std::vector<std::shared_ptr<arrow::Array>>& arrays,
+      bool support_avx512);
 };
 
 } // namespace columnartorow
