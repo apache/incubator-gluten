@@ -48,13 +48,6 @@ jobs:
           key: ${{ github.job }}-ccache
           restore-keys: |
             ${{ github.job }}-ccache
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
       - name: Install Gluten Arrow-backend
         run: |
           mvn clean package -Pbackends-velox -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
