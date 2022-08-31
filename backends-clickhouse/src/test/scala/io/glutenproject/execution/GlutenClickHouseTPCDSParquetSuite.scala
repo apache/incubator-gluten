@@ -69,6 +69,17 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     assert(result(0).getDouble(0) == 379.21313271604936)
   }
 
+  test("test select avg(int), avg(long)") {
+    val testSql =
+      """
+        |select avg(cs_item_sk), avg(cs_order_number)
+        |  from catalog_sales
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getDouble(0) == 8998.463336886734)
+    assert(result(0).getDouble(1) == 80037.12727449503)
+  }
+
   test("TPCDS Q9") {
     withSQLConf(
       ("spark.gluten.sql.columnar.columnartorow", "true")) {

@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import java.util
+import java.util.Locale
 
 import com.google.protobuf.Any
 import io.glutenproject.expression._
@@ -89,14 +90,31 @@ case class CHHashAggregateExecTransformer(
         (child.output, aggregateResultAttributes)
       } else {
         for (attr <- aggregateResultAttributes) {
-          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
           val colName = if (aggregateAttributes.exists(_ == attr)) {
+            // for aggregate func
             ConverterUtils.genColumnNameWithExprId(attr) +
               "#Partial#" + ConverterUtils.getShortAttributeName(attr)
           } else {
+            // for group by cols
             ConverterUtils.genColumnNameWithExprId(attr)
           }
           nameList.add(colName)
+          // In final stage, when the output attr is the output of the avg func,
+          // CH needs to get the original data type as input type.
+          if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
+            val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
+            val originalType = if (originalExpr.isDefined &&
+              originalExpr.get.asInstanceOf[AggregateExpression]
+                .aggregateFunction.isInstanceOf[Average]) {
+              originalExpr.get.asInstanceOf[AggregateExpression].aggregateFunction
+                .asInstanceOf[Average].child.dataType
+            } else {
+              attr.dataType
+            }
+            typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
+          } else {
+            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+          }
         }
         (aggregateResultAttributes, output)
       }
