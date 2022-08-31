@@ -102,22 +102,6 @@ class ColumnarToRowConverterBase {
 
   /// This method refer to the BigInterger#toByteArray() method in Java side.
   std::array<uint8_t, 16> ToByteArray(arrow::Decimal128 value, int32_t* length);
-
-  arrow::Status FillBuffer(
-      int32_t& row_start,
-      int32_t batch_rows,
-      std::vector<std::vector<const uint8_t*>>& dataptrs,
-      std::vector<uint8_t> nullvec,
-      uint8_t* buffer_address,
-      std::vector<int32_t>& offsets,
-      std::vector<int32_t>& buffer_cursor,
-      int32_t& num_cols,
-      int32_t& num_rows,
-      int32_t& nullBitsetWidthInBytes,
-      std::vector<arrow::Type::type>& typevec,
-      std::vector<uint8_t>& typewidth,
-      std::vector<std::shared_ptr<arrow::Array>>& arrays,
-      bool support_avx512);
 };
 
 } // namespace columnartorow

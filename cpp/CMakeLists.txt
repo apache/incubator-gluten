@@ -18,6 +18,8 @@
 cmake_minimum_required(VERSION 3.16)
 message(STATUS "Building using CMake version: ${CMAKE_VERSION}")
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native") 
+
 # The set(CACHE) command does not remove any normal variable of the same name from the current scope
 # https://cmake.org/cmake/help/latest/policy/CMP0126.html
 if(POLICY CMP0126)
