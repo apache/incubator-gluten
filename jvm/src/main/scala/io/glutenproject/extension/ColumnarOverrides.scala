@@ -187,18 +187,18 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         case shuffle: ColumnarShuffleExchangeAdaptor =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-        // case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
-        //   logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        //   CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-        // case ShuffleQueryStageExec(_, reused: ReusedExchangeExec) =>
-        //   reused match {
-        //     case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
-        //       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        //       CoalesceBatchesExec(
-        //         ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-        //     case _ =>
-        //       plan
-        //   }
+        case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor, _) =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+        case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
+          reused match {
+            case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
+              logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+              CoalesceBatchesExec(
+                ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+            case _ =>
+              plan
+          }
         case _ =>
           plan
       }
@@ -243,7 +243,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
     case plan: ColumnarToRowExec =>
       if (columnarConf.enableNativeColumnarToRow) {
         val child = replaceWithTransformerPlan(plan.child)
-        logDebug(s"ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
+        logInfo(s"AAAA: ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
         val nativeConversion =
           BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
         if (nativeConversion.doValidate()) {
