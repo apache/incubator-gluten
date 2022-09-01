@@ -18,6 +18,7 @@
 #pragma once
 
 #include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
 #include <arrow/record_batch.h>
 #include <arrow/util/iterator.h>
 
