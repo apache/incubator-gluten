@@ -17,6 +17,8 @@
 
 package io.glutenproject.backendsapi.clickhouse
 
+import scala.collection.mutable.ArrayBuffer
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
@@ -28,14 +30,14 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BoundReference, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarRule, ProjectExec, SparkPlan, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
@@ -152,7 +154,35 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
                                        child: SparkPlan,
                                        numOutputRows: SQLMetric,
                                        dataSize: SQLMetric): BuildSideRelation = {
-    val countsAndBytes = child
+    val hashedRelationBroadcastMode = mode.asInstanceOf[HashedRelationBroadcastMode]
+    val (newChild, newOutput, newBuildKeys) = if (hashedRelationBroadcastMode.key
+      .forall(k => k.isInstanceOf[AttributeReference] || k.isInstanceOf[BoundReference])) {
+      (child, child.output, Seq.empty[Expression])
+    } else {
+      // pre projection in case of expression join keys
+      val buildKeys = hashedRelationBroadcastMode.key
+      val appendedProjections = new ArrayBuffer[NamedExpression]()
+      val preProjectionBuildKeys = buildKeys.zipWithIndex.map { case (e, idx) =>
+        e match {
+          case b: BoundReference => child.output(b.ordinal)
+          case o: Expression =>
+            val newExpr = Alias(o, "col_" + idx)()
+            appendedProjections += newExpr
+            newExpr
+        }
+      }
+      val newChild = child match {
+        case wf: WholeStageTransformerExec =>
+          wf.withNewChildren(Seq(ProjectExecTransformer(
+            child.output ++ appendedProjections.toSeq,
+            wf.child)))
+        case w: WholeStageCodegenExec =>
+          w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections.toSeq, w.child)))
+      }
+      (newChild, (child.output ++ appendedProjections.toSeq).map(_.toAttribute),
+        preProjectionBuildKeys)
+    }
+    val countsAndBytes = newChild
       .executeColumnar()
       .mapPartitions { iter =>
         var _numRows: Long = 0
@@ -176,7 +206,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
     }
     numOutputRows += countsAndBytes.map(_._1).sum
     dataSize += rawSize
-    ClickHouseBuildSideRelation(mode, child.output, batches)
+    ClickHouseBuildSideRelation(mode, newOutput, batches, newBuildKeys)
   }
 
   /**

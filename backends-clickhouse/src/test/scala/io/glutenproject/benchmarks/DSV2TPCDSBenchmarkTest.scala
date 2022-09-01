@@ -144,7 +144,7 @@ object DSV2TPCDSBenchmarkTest {
         // .config("spark.gluten.sql.columnar.filescan", "true")
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
-        .config("spark.sql.shuffledHashJoinFactor", "2")
+        .config("spark.sql.shuffledHashJoinFactor", "3")
         // .config("spark.sql.planChangeLog.level", "info")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
@@ -202,11 +202,11 @@ object DSV2TPCDSBenchmarkTest {
          |""".stripMargin).show(1000, false)
     spark.sql(
       s"""
-         |use tpcdsdb;
+         |use tpcdsdb1;
          |""".stripMargin).show(1000, false)
     spark.sql(
       s"""
-         |show tables;
+         |desc formatted inventory;
          |""".stripMargin).show(1000, false) */
 
     testTPCDSOne(spark, executedCnt)
@@ -237,34 +237,20 @@ object DSV2TPCDSBenchmarkTest {
 
     val tookTimeArr = ArrayBuffer[Long]()
     val sqlFilePath = "/data2/tpcds-data-gen/tpcds10-queries/"
-    val execNum = 9
+    val execNum = 21
     val sqlNum = "q" + execNum + ".sql"
     val sqlFile = sqlFilePath + sqlNum
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      val df = spark.sql(
-        s"""
-           |select sr_customer_sk as ctr_customer_sk
-           |,sr_store_sk as ctr_store_sk,
-           |count(1) as cnt
-           |from store_returns
-           |,date_dim
-           |where sr_returned_date_sk - 2 = d_date_sk + 1
-           |and d_year = 2000
-           |and sr_customer_sk is not null
-           |and sr_store_sk is not null
-           |group by sr_customer_sk
-           |,sr_store_sk
-           |order by cnt desc
-           |limit 20
-           |""".stripMargin) // .show(30, false)
+      val df = spark.sql(sqlStr) // .show(30, false)
       df.explain(false)
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
       println(result.size)
-      result.foreach(r => println(r.mkString(",")))
+      // result.foreach(r => println(r.mkString(",")))
+      result.foreach(r => println(r.mkString("|-|")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute ${i} time, time: ${tookTime}")
       tookTimeArr += tookTime

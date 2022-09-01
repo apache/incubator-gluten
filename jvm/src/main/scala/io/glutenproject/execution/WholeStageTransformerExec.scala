@@ -26,7 +26,6 @@ import io.glutenproject.expression._
 import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitContext}
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
-import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.glutenproject.vectorized._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow

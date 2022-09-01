@@ -20,6 +20,7 @@ package io.glutenproject.extension
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
 
 import org.apache.spark.SparkConf
@@ -72,7 +73,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         plan.relation,
         plan.output,
         plan.requiredSchema,
-        plan.partitionFilters,
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters),
         plan.optionalBucketSet,
         plan.optionalNumCoalescedBuckets,
         plan.dataFilters,
