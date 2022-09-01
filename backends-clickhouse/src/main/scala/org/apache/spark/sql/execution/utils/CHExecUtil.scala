@@ -49,6 +49,7 @@ object CHExecUtil {
     case "Short" => ShortType
     case "String" => StringType
     case "Binary" => BinaryType
+    case "Boolean" => BooleanType
   }
   // scalastyle:off argcount
   def genShuffleDependency(rdd: RDD[ColumnarBatch],
