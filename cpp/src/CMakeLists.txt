@@ -28,6 +28,8 @@ set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(TESTS "Build the tests" OFF)
