@@ -24,6 +24,7 @@
 #include "ArrowTypeUtils.h"
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
+#include "arrow/c/helpers.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
 
@@ -37,6 +38,7 @@ arrow::Status VeloxToRowConverter::Init() {
   facebook::velox::exportToArrow(rv_, c_schema);
   ARROW_ASSIGN_OR_RAISE(
       std::shared_ptr<arrow::Schema> schema, arrow::ImportSchema(&c_schema));
+  ArrowSchemaRelease(&c_schema);
   if (num_cols_ != schema->num_fields()) {
     return arrow::Status::Invalid(
         "Mismatch: num_cols_ != schema->num_fields()");
