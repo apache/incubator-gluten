@@ -648,9 +648,7 @@ void GlutenVeloxColumnarBatch::EnsureFlattened() {
 
   // Perform copy to flatten dictionary vectors.
   RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(BaseVector::create(
-      rowVector_->type(),
-      rowVector_->size(),
-      gluten::memory::GetDefaultWrappedVeloxMemoryPool().get()));
+      rowVector_->type(), rowVector_->size(), rowVector_->pool()));
   copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
   flattened_ = copy;
   auto endTime = std::chrono::steady_clock::now();
