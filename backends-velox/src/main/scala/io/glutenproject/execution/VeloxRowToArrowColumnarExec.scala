@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeRow}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils.UnsafeItr
@@ -28,6 +31,7 @@ import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.{TaskContext, broadcast}
 
 import io.glutenproject.vectorized._
 
@@ -235,7 +239,8 @@ object RowToColumnConverter {
  * populate with [[RowToColumnConverter]], but the performance requirements are different and it
  * would only be to reduce code.
  */
-class VeloxRowToArrowColumnarExec(child: SparkPlan) extends RowToArrowColumnarExec(child = child) {
+case class VeloxRowToArrowColumnarExec(child: SparkPlan)
+  extends RowToArrowColumnarExec(child = child) with UnaryExecNode {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
@@ -284,13 +289,23 @@ class VeloxRowToArrowColumnarExec(child: SparkPlan) extends RowToArrowColumnarEx
     }
   }
 
-  override def hashCode(): Int = super.hashCode()
+  override def output: Seq[Attribute] = child.output
 
-  override def equals(other: Any): Boolean = other match {
-    case that: VeloxRowToArrowColumnarExec =>
-      (that canEqual this) && super.equals(that)
-    case _ => false
+  override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+
+  override def supportsColumnar: Boolean = true
+
+  // For spark 3.2.
+  protected def withNewChildInternal(newChild: SparkPlan): VeloxRowToArrowColumnarExec =
+    copy(child = newChild)
+
+  override def doExecute(): RDD[InternalRow] = {
+    child.execute()
   }
 
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[VeloxRowToArrowColumnarExec]
+  override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
+    child.executeBroadcast()
+  }
 }
