@@ -679,5 +679,10 @@ RowVectorPtr GlutenVeloxColumnarBatch::getRowVector() const {
   return rowVector_;
 }
 
+RowVectorPtr GlutenVeloxColumnarBatch::getFlattenedRowVector() {
+  EnsureFlattened();
+  return flattened_;
+}
+
 } // namespace compute
 } // namespace velox
