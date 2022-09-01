@@ -58,6 +58,12 @@ int64_t ColumnarToRowConverterBase::CalculatedFixeSizePerRow(
   return fixed_size + decimal_cols_size;
 }
 
+int64_t ColumnarToRowConverterBase::GetFieldOffset(
+    int64_t nullBitsetWidthInBytes,
+    int32_t index) {
+  return nullBitsetWidthInBytes + 8L * index;
+}
+
 void ColumnarToRowConverterBase::BitSet(
     uint8_t* buffer_address,
     int32_t index) {
