@@ -197,7 +197,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
         std::dynamic_pointer_cast<GlutenVeloxColumnarBatch>(cb);
     if (veloxBatch != nullptr) {
       return std::make_shared<VeloxToRowConverter>(
-          veloxBatch->getF(), arrowPool, veloxPool);
+          veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
     }
     // If the child is not Velox output, use Arrow-to-Row conversion instead.
     std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
