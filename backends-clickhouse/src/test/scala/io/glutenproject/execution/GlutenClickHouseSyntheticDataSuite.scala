@@ -50,7 +50,9 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     super.beforeAll()
-    spark.sparkContext.setLogLevel("WARN")
+    //spark.sparkContext.setLogLevel("WARN")
+
+    prepareTables()
   }
 
   override protected def sparkConf: SparkConf = {
@@ -95,29 +97,27 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
     GlutenConfig.ins = null
   }
 
-  test("test all data types all agg") {
-    var sqlStr: String = null
-    var expected: Seq[Row] = null;
-    withSQLConf(vanillaSparkConfs(): _*) {
-      //val customerData = tablesPath + "/table_all_types_all_agg"
-      spark.sql(s"DROP TABLE IF EXISTS table_all_types_all_agg")
+  val supportedTypes = {
+    //aggregator on "float"/"byte"/short"/"string" are not supported in gluten yet
+    //        "byte" ::
+    //          "short" ::
+    "int" ::
+      "bigint" ::
+      //          "float" ::
+      "double" ::
+      "date" ::
+      //          "string" ::
+      "boolean" ::
+      Nil
+  }
 
-      val supportedTypes = {
-        //aggregator on "float"/"byte"/short"/"string" are not supported in gluten yet
-//        "byte" ::
-//          "short" ::
-        "int" ::
-          "bigint" ::
-//          "float" ::
-          "double" ::
-          "date" ::
-//          "string" ::
-          "boolean" ::
-          Nil
-      }
+  def prepareTables(): Unit = {
+    withSQLConf(vanillaSparkConfs(): _*) {
+      spark.sql(s"DROP TABLE IF EXISTS table_all_types")
+
       val fields = supportedTypes.map(x => s"c_${x} ${x}").mkString(",")
       val ddl =
-        s"CREATE TABLE IF NOT EXISTS table_all_types_all_agg ( $fields )  USING PARQUET " //LOCATION '${customerData}'"
+        s"CREATE TABLE IF NOT EXISTS table_all_types ( $fields )  USING PARQUET " //LOCATION '${customerData}'"
       println(s"the ddl is: $ddl")
       spark.sql(ddl);
 
@@ -126,8 +126,8 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
 
       val source = Seq(
         (
-//          Some(Byte.MinValue),
-//          Some(Short.MinValue),
+          //          Some(Byte.MinValue),
+          //          Some(Short.MinValue),
           Some(Int.MinValue),
           Some(Long.MinValue),
           //Some(Float.MinValue),
@@ -136,8 +136,8 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
           //Some("a"),
           Some(false)),
         (
-//          Some(Byte.MaxValue),
-//          Some(Short.MaxValue),
+          //          Some(Byte.MaxValue),
+          //          Some(Short.MaxValue),
           Some(Int.MaxValue),
           Some(Long.MaxValue),
           //Some(Float.MaxValue),
@@ -145,13 +145,19 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
           Some(LocalDate.of(2070, 1, 1)),
           //Some("Z"),
           Some(true))
-//        (None, None, None, None)
+        //(None, None, None, None, None)
       )
       //val df_source = spark.sparkContext.parallelize(source).toDF()
       val df_source = source.toDF()
-      df_source.createOrReplaceTempView("source_data")
-      spark.sql("insert into table_all_types_all_agg select * from source_data")
+      df_source.createOrReplaceTempView("table_all_types_temp")
+      spark.sql("insert into table_all_types select * from table_all_types_temp")
+    }
+  }
 
+  test("test all data types all agg") {
+    var sqlStr: String = null
+    var expected: Seq[Row] = null;
+    withSQLConf(vanillaSparkConfs(): _*) {
       val supportedAggs = "count" :: "avg" :: "sum" :: "min" :: "max" :: Nil
       val selected = supportedAggs
         .flatMap(agg => {
@@ -173,8 +179,38 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
             "avg(c_bigint)").contains(x)
         })
         .mkString(",")
-      sqlStr = s"select $selected from table_all_types_all_agg"
+      sqlStr = s"select $selected from table_all_types"
       println(s"query sql is: $sqlStr")
+
+      val df = spark.sql(sqlStr)
+      expected = df.collect()
+    }
+    val df = spark.sql(sqlStr)
+    checkAnswer(df, expected)
+  }
+
+  test("test data function in https://github.com/Kyligence/ClickHouse/issues/88") {
+    var sqlStr: String = null
+    var expected: Seq[Row] = null;
+
+    val x = spark
+    import x.implicits._
+
+    withSQLConf(vanillaSparkConfs(): _*) {
+      spark.sql("drop table if exists test_table")
+      spark.sql("create table if not exists test_table(c_date date) using parquet")
+      Seq(LocalDate.of(2020, 1, 1), LocalDate.of(1970, 1, 1))
+        .toDF("c_date")
+        .createOrReplaceTempView("test_table_temp")
+      spark.sql("insert into test_table select * from test_table_temp")
+
+      sqlStr = s"""
+           |select cast(c_date as date) as a, cast ('1998-04-08' as date) as b
+           |   from test_table
+           |   where c_date between (cast ('1998-04-08' as date) - interval '30' day)
+           |                    and (cast ('1998-04-08' as date) + interval '30' day)
+           |order by a desc
+           |""".stripMargin
 
       val df = spark.sql(sqlStr)
       expected = df.collect()
