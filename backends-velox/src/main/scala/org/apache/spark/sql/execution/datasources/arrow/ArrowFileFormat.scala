@@ -17,8 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.arrow
 
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.utils.ArrowAbiUtil
-
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
 import org.apache.hadoop.fs.FileStatus
@@ -64,6 +64,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
             val allocator = SparkMemoryUtils.contextArrowAllocator()
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
+            ArrowColumnarBatches.ensureLoaded(allocator, batch)
             ArrowAbiUtil.exportFromSparkColumnarBatch(
               allocator, batch, cSchema, cArray)
             writeQueue.enqueue(cArray)
