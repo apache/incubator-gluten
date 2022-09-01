@@ -675,5 +675,9 @@ std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportArrowArray() {
   return out;
 }
 
+RowVectorPtr GlutenVeloxColumnarBatch::getRowVector() const {
+  return rowVector_;
+}
+
 } // namespace compute
 } // namespace velox
