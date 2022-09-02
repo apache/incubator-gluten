@@ -18,7 +18,6 @@
 package com.intel.oap.spark.sql
 
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -31,11 +30,16 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
+import org.apache.spark.sql.execution.UnaryExecNode
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
-object DwrfWriteExtension {
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
+
+object VeloxColumnarRules {
   case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
     extends ColumnarRule {
     override def preColumnarTransitions: Rule[SparkPlan] = pre
@@ -160,6 +164,37 @@ object DwrfWriteExtension {
     // For spark 3.2.
     protected def withNewChildInternal(newChild: SparkPlan): ColumnarToFakeRowAdaptor =
       copy(child = newChild)
+  }
+
+  case class VeloxLoadArrowData(child: SparkPlan) extends UnaryExecNode {
+
+    override protected def doExecute(): RDD[InternalRow] = {
+      throw new UnsupportedOperationException(
+        "VeloxLoadArrowData does not support the execute() code path.")
+    }
+
+    override def nodeName: String = "VeloxLoadArrowData"
+
+    override def supportsColumnar: Boolean = true
+
+
+    override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+      child.executeColumnar().mapPartitions { itr =>
+        itr.map { cb =>
+          ArrowColumnarBatches.ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+        }
+      }
+    }
+
+    override def output: Seq[Attribute] = {
+      child.output
+    }
+  }
+
+  case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
+      case ColumnarToRowExec(child) => ColumnarToRowExec(VeloxLoadArrowData(child))
+    }
   }
 
   object DummyRule extends Rule[SparkPlan] {

@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.datasources.velox
 
 import java.io.IOException
 
-import com.intel.oap.spark.sql.DwrfWriteExtension.FakeRow
+import com.intel.oap.spark.sql.VeloxColumnarRules.FakeRow
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
 import io.glutenproject.vectorized.NativeColumnarToRowInfo
