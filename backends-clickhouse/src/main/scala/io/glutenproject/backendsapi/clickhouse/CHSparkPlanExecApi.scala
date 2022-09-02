@@ -266,46 +266,40 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
   }
 
   /**
-    * Generate extended DataSourceV2 Strategy.
+    * Generate extended DataSourceV2 Strategies.
     * Currently only for ClickHouse backend.
     *
     * @return
     */
-  override def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy = {
-    CHDataSourceV2Strategy(spark)
+  override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = {
+    List(spark => CHDataSourceV2Strategy(spark))
   }
 
   /**
-    * Generate extended Analyzer.
+    * Generate extended Analyzers.
     * Currently only for ClickHouse backend.
     *
     * @return
     */
-  override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = {
-    new ClickHouseAnalysis(spark, conf)
+  override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
+    List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
   }
 
   /**
-    * Generate extended Rule.
+    * Generate extended Rules.
     * Currently only for Velox backend.
     *
     * @return
     */
-  override def genExtendedRule(spark: SparkSession): ColumnarRule = {
-    throw new UnsupportedOperationException(
-      "Cannot support extending Rule for ClickHouse backend.")
-  }
+  override def genExtendedColumnarRules(): List[SparkSession => ColumnarRule] = List()
 
   /**
-    * Generate extended Strategy.
+    * Generate extended Strategies.
     * Currently only for Velox backend.
     *
     * @return
     */
-  override def genExtendedStrategy(): Strategy = {
-    throw new UnsupportedOperationException(
-      "Cannot support extending Strategy for ClickHouse backend.")
-  }
+  override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
 
   /**
     * Get the backend api name.

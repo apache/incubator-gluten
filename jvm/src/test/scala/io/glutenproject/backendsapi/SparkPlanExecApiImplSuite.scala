@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution.{FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
 import io.glutenproject.expression.AliasBaseTransformer
+
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -32,7 +33,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -134,12 +134,12 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
 
 
   /**
-   * Generate extended DataSourceV2 Strategy.
+   * Generate extended DataSourceV2 Strategies.
    * Currently only for ClickHouse backend.
    *
    * @return
    */
-  override def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy = null
+  override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = List()
 
   /**
    * Get the backend api name.
@@ -157,26 +157,27 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
                                        dataSize: SQLMetric): BuildSideRelation = null
 
   /**
-   * Generate extended Analyzer.
+   * Generate extended Analyzers.
    * Currently only for ClickHouse backend.
    *
    * @return
    */
-  override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = null
+  override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] =
+    List()
 
   /**
-   * Generate extended Rule.
+   * Generate extended Rules.
    * Currently only for Velox backend.
    *
    * @return
    */
-  override def genExtendedRule(spark: SparkSession): ColumnarRule = null
+  override def genExtendedColumnarRules(): List[SparkSession => ColumnarRule] = List()
 
   /**
-   * Generate extended Strategy.
+   * Generate extended Strategies.
    * Currently only for Velox backend.
    *
    * @return
    */
-  override def genExtendedStrategy(): Strategy = null
+  override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
 }
