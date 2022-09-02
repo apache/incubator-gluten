@@ -49,9 +49,10 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
     }
   }
 
-  ignore("generate hash join plan - v1") {
+  test("generate hash join plan - v1") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.sql.adaptive.enabled", "false"),
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {
       withTable(
         "customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier") {
@@ -91,9 +92,10 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
     }
   }
 
-  ignore("generate hash join plan - v2") {
+  test("generate hash join plan - v2") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.sql.adaptive.enabled", "false"),
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true"),
       ("spark.sql.sources.useV1SourceList", "avro")) {
       createTPCHTables()
