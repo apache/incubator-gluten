@@ -74,20 +74,21 @@ jobs:
       - run: sudo apt-get install -y llvm clang
       - run: sudo apt-get install -y libdwarf-dev
       - run: sudo apt-get install -y libre2-dev
-      - name: ccache cache files
-        uses: actions/cache@v2
-        with:
-          path: ~/.ccache
-          key: ${{ github.job }}-ccache
-          restore-keys: |
-            ${{ github.job }}-ccache
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      #  no need to cache these as it's running on self host server
+      #- name: ccache cache files
+      #  uses: actions/cache@v2
+      #  with:
+      #    path: ~/.ccache
+      #    key: ${{ github.job }}-ccache
+      #    restore-keys: |
+      #      ${{ github.job }}-ccache
+      #- name: Cache local Maven repository
+      #  uses: actions/cache@v2
+      #  with:
+      #    path: ~/.m2/repository
+      #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+      #    restore-keys: |
+      #      ${{ runner.os }}-maven-
       - name: Install Googletest
         run: |
           sudo apt-get install -y libgtest-dev
