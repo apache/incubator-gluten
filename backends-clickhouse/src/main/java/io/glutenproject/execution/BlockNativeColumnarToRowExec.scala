@@ -23,11 +23,12 @@ import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 
-class BlockNativeColumnarToRowExec(child: SparkPlan)
+case class BlockNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
   override def nodeName: String = "BlockNativeColumnarToRowExec"
 
@@ -116,4 +117,18 @@ class BlockNativeColumnarToRowExec(child: SparkPlan)
   }
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BlockNativeColumnarToRowExec]
+
+  override def inputRDDs(): Seq[RDD[InternalRow]] = {
+    // Hack because of type erasure
+    Seq(child.executeColumnar().asInstanceOf[RDD[InternalRow]])
+  }
+
+  override def output: Seq[Attribute] = child.output
+
+  protected def doProduce(ctx: CodegenContext): String = {
+    throw new RuntimeException("Codegen is not supported!")
+  }
+
+  protected def withNewChildInternal(newChild: SparkPlan): BlockNativeColumnarToRowExec =
+    copy(child = newChild)
 }

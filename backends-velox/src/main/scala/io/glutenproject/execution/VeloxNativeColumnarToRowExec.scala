@@ -154,14 +154,17 @@ case class VeloxNativeColumnarToRowExec(child: SparkPlan)
   }
 
   override def hashCode(): Int = super.hashCode()
+
   override def inputRDDs(): Seq[RDD[InternalRow]] = {
     Seq(child.executeColumnar().asInstanceOf[RDD[InternalRow]]) // Hack because of type erasure
   }
 
   override def output: Seq[Attribute] = child.output
+
   protected def doProduce(ctx: CodegenContext): String = {
     throw new RuntimeException("Codegen is not supported!")
   }
+
   protected def withNewChildInternal(newChild: SparkPlan): VeloxNativeColumnarToRowExec =
     copy(child = newChild)
 }

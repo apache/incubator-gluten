@@ -35,9 +35,13 @@
   </modules>
 
   <properties>
+    <spark32.version>3.2.2</spark32.version>
+    <delta2.version>2.0.0</delta2.version>
+    <delta1.version>1.2.1</delta1.version>
     <scala.version>2.12.10</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <spark.version>3.2.2</spark.version>
+    <delta.version>${delta1.version}</delta.version>
     <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>${hadoop.version}</hadoop.version>
@@ -64,7 +68,6 @@
     <project.prefix>spark-sql-columnar</project.prefix>
     <project.name.prefix>Gluten</project.name.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
-    <spark322.version>3.2.2</spark322.version>
   </properties>
 
   <profiles>
@@ -74,13 +77,15 @@
           <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
-          <spark.version>${spark322.version}</spark.version>
+        <spark.version>${spark32.version}</spark.version>
+        <delta.version>${delta1.version}</delta.version>
       </properties>
     </profile>
     <profile>
-        <id>spark-3.2.2</id>
+        <id>spark-3.2</id>
         <properties>
-            <spark.version>${spark322.version}</spark.version>
+          <spark.version>${spark32.version}</spark.version>
+          <delta.version>${delta1.version}</delta.version>
         </properties>
     </profile>
     <profile>
@@ -321,7 +326,7 @@
       <dependency>
         <groupId>io.delta</groupId>
         <artifactId>delta-core_${scala.binary.version}</artifactId>
-        <version>1.0.1</version>
+        <version>${delta.version}</version>
         <scope>provided</scope>
         <exclusions>
           <exclusion>

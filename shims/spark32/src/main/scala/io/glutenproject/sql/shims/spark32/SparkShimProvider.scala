@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.glutenproject.sql.shims.spark322
+package io.glutenproject.sql.shims.spark32
 
 import io.glutenproject.sql.shims.{SparkShims, SparkShimDescriptor}
 
@@ -25,7 +25,7 @@ object SparkShimProvider {
 
 class SparkShimProvider extends io.glutenproject.sql.shims.SparkShimProvider {
   def createShim: SparkShims = {
-    new Spark322Shims()
+    new Spark32Shims()
   }
 
   def matches(version: String): Boolean = {

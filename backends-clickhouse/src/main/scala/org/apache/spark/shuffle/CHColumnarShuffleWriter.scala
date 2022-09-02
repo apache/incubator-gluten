@@ -19,12 +19,10 @@ package org.apache.spark.shuffle
 
 import java.io.IOException
 
-import scala.collection.mutable.ArrayBuffer
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
 
-import org.apache.spark._
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -116,7 +114,7 @@ class CHColumnarShuffleWriter[K, V](
           .split(nativeSplitter, cb.numRows, block)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
-        writeMetrics.incRecordsWritten(1)
+        writeMetrics.incRecordsWritten(cb.numRows)
       }
     }
     val startTime = System.nanoTime()
@@ -127,6 +125,7 @@ class CHColumnarShuffleWriter[K, V](
     dep.compressTime.add(splitResult.getTotalCompressTime)
     dep.computePidTime.add(splitResult.getTotalComputePidTime)
     dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
+    dep.dataSize.add(splitResult.getTotalBytesWritten)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime)
 
@@ -145,11 +144,7 @@ class CHColumnarShuffleWriter[K, V](
       }
     }
 
-    // fixme workaround: to store uncompressed sizes on the rhs of (maybe) compressed sizes
-    val unionPartitionLengths = ArrayBuffer[Long]()
-    unionPartitionLengths ++= partitionLengths
-    unionPartitionLengths ++= rawPartitionLengths
-    mapStatus = MapStatus(blockManager.shuffleServerId, unionPartitionLengths.toArray, mapId)
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {

@@ -29,11 +29,13 @@ import org.apache.spark.serializer.{DeserializationStream, SerializationStream, 
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class CHColumnarBatchSerializer(readBatchNumRows: SQLMetric, numOutputRows: SQLMetric)
+class CHColumnarBatchSerializer(readBatchNumRows: SQLMetric,
+                                numOutputRows: SQLMetric,
+                                dataSize: SQLMetric)
   extends Serializer with Serializable {
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
-    new CHColumnarBatchSerializerInstance(readBatchNumRows, numOutputRows)
+    new CHColumnarBatchSerializerInstance(readBatchNumRows, numOutputRows, dataSize)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = true
@@ -41,7 +43,8 @@ class CHColumnarBatchSerializer(readBatchNumRows: SQLMetric, numOutputRows: SQLM
 
 
 private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
-                                                numOutputRows: SQLMetric)
+                                                numOutputRows: SQLMetric,
+                                                dataSize: SQLMetric)
   extends SerializerInstance
     with Logging {
 
@@ -76,20 +79,21 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
             cb = null
           }
 
-          val nativeBlock = reader.next()
-          if (nativeBlock.numRows() > 0) {
-            val numRows = nativeBlock.numRows()
-            logDebug(s"Read ColumnarBatch of ${numRows} rows")
-
-            numBatchesTotal += 1
-            numRowsTotal += numRows
-            cb = nativeBlock.toColumnarBatch
-            cb.asInstanceOf[T]
-          } else {
-            nativeBlock.close()
-            this.close()
-            throw new EOFException
+          var nativeBlock = reader.next()
+          while(nativeBlock.numRows() == 0) {
+            if (nativeBlock.numColumns() == 0) {
+              this.close()
+              throw new EOFException
+            }
+            nativeBlock = reader.next()
           }
+          val numRows = nativeBlock.numRows()
+          logDebug(s"Read ColumnarBatch of ${numRows} rows")
+
+          numBatchesTotal += 1
+          numRowsTotal += numRows
+          cb = nativeBlock.toColumnarBatch
+          cb.asInstanceOf[T]
         } else {
           reader = new CHStreamReader(in, isUseColumnarShufflemanager)
           readValue()
@@ -121,7 +125,8 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
   override def serializeStream(out: OutputStream): SerializationStream = new SerializationStream {
     private[this] var writeBuffer: Array[Byte] = new Array[Byte](4096)
     private[this] var dOut: BlockOutputStream =
-      new BlockOutputStream(new DataOutputStream(new BufferedOutputStream(out)), writeBuffer)
+      new BlockOutputStream(
+        new DataOutputStream(new BufferedOutputStream(out)), writeBuffer, dataSize)
 
     override def writeKey[T: ClassTag](key: T): SerializationStream = {
       // The key is only needed on the map side when computing partition ids. It does not need to

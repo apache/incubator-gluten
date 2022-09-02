@@ -154,13 +154,13 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Run ClickHouse Backend unit tests
+      - name: Check ClickHouse Backend lib
         run: |
           ls -alt /usr/local/clickhouse/lib/libch.so
-      - name: Run Gluten + ClickHouse Backend unit tests
+      - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2
 
   formatting-check:
     name: Formatting Check

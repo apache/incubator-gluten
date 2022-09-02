@@ -17,9 +17,6 @@
 
 package io.glutenproject.execution
 
-import java.{lang, util}
-import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
@@ -31,8 +28,8 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
+import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.substrait.proto.JoinRel
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -41,10 +38,14 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin, ShuffledJoin}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.{lang, util}
+import scala.collection.JavaConverters._
+import scala.util.control.Breaks.{break, breakable}
 
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
@@ -1066,6 +1067,7 @@ case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     }
     streamedRDD :+ buildRDD
   }
+
   override protected def withNewChildrenInternal(
     newLeft: SparkPlan, newRight: SparkPlan): BroadcastHashJoinExecTransformer =
   copy(left = newLeft, right = newRight)

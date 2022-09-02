@@ -18,13 +18,10 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.ScalarSubquery
-import org.apache.spark.sql.execution.{ExecSubqueryExpression, BaseSubqueryExec}
+import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
 import org.apache.spark.sql.types._
 
 class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
@@ -47,16 +44,22 @@ class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
     }
     ExpressionBuilder.makeLiteral(result, dataType, result == null)
   }
+
   override def eval(input: InternalRow): Any = {
     throw new UnsupportedOperationException(s"This operator doesn't support eval().")
   }
+
   override def updateResult(): Unit = {
     throw new UnsupportedOperationException(s"This operator doesn't support updateResult().")
   }
+
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     throw new UnsupportedOperationException(s"This operator doesn't support doGenCode().")
   }
+
   override def withNewPlan(query: BaseSubqueryExec): ScalarSubquery = copy(plan = query)
+
   override def dataType: DataType = plan.schema.fields.head.dataType
+
   override def nullable: Boolean = true
 }

@@ -53,7 +53,9 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numOutputRows" -> SQLMetrics
       .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
+
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
+
   // 'mapOutputStatisticsFuture' is only needed when enable AQE.
   @transient lazy val mapOutputStatisticsFuture: Future[MapOutputStatistics] = {
     if (inputColumnarRDD.getNumPartitions == 0) {
@@ -62,6 +64,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       sparkContext.submitMapStage(columnarShuffleDependency)
     }
   }
+
   /**
    * A [[ShuffleDependency]] that will partition rows of its child based on
    * the partitioning scheme defined in `newPartitioning`. Those partitions of
@@ -84,6 +87,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       longMetric("compressTime"),
       longMetric("prepareTime"))
   }
+
   // 'shuffleDependency' is only needed when enable AQE. Columnar shuffle will
   // use 'columnarShuffleDependency'
   @transient
@@ -98,16 +102,21 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
     override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
   }
+
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
+
   private[sql] lazy val readMetrics =
     SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
+
   //  super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer =
     BackendsApiManager.getSparkPlanExecApiInstance
       .createColumnarBatchSerializer(schema,
         longMetric("avgReadBatchNumRows"),
-        longMetric("numOutputRows"))
+        longMetric("numOutputRows"),
+        longMetric("dataSize"))
+
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override def nodeName: String = "ColumnarExchange"
@@ -168,7 +177,9 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numOutputRows" -> SQLMetrics
       .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
+
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
+
   // 'mapOutputStatisticsFuture' is only needed when enable AQE.
   @transient override lazy val mapOutputStatisticsFuture: Future[MapOutputStatistics] = {
     if (inputColumnarRDD.getNumPartitions == 0) {
@@ -177,6 +188,7 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
       sparkContext.submitMapStage(columnarShuffleDependency)
     }
   }
+
   /**
    * A [[ShuffleDependency]] that will partition rows of its child based on
    * the partitioning scheme defined in `newPartitioning`. Those partitions of
@@ -199,6 +211,7 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
       longMetric("compressTime"),
       longMetric("prepareTime"))
   }
+
   // 'shuffleDependency' is only needed when enable AQE.
   // Columnar shuffle will use 'columnarShuffleDependency'
   @transient
@@ -213,15 +226,20 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
 
     override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
   }
+
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
+
   private[sql] lazy val readMetrics =
     SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
+
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
     .createColumnarBatchSerializer(schema,
       longMetric("avgReadBatchNumRows"),
-      longMetric("numOutputRows"))
+      longMetric("numOutputRows"),
+      longMetric("dataSize"))
+
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override def nodeName: String = "ColumnarExchange"
@@ -230,14 +248,17 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
   override def numMappers: Int = shuffleDependency.rdd.getNumPartitions
 
   override def numPartitions: Int = shuffleDependency.partitioner.numPartitions
+
   override def runtimeStatistics: Statistics = {
     val dataSize = metrics("dataSize").value
     val rowCount = metrics(SQLShuffleWriteMetricsReporter.SHUFFLE_RECORDS_WRITTEN).value
     Statistics(dataSize, Some(rowCount))
   }
+
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[ColumnarBatch] = {
     cachedShuffleRDD
   }
+
   override def stringArgs: Iterator[Any] =
     super.stringArgs ++ Iterator(s"[id=#$id]")
 

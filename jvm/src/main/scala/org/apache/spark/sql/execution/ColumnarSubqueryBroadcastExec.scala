@@ -21,7 +21,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.util.ThreadUtils
@@ -73,7 +74,13 @@ case class ColumnarSubqueryBroadcastExec(name: String,
         } else {
           child
         }
-        val rows = if (exchangeChild.isInstanceOf[BroadcastExchangeExec]) {
+        val rows = if (exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
+          exchangeChild.isInstanceOf[ColumnarBroadcastExchangeAdaptor] ||
+          exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]) {
+          // transform broadcasted columnar value to Arrya[InternalRow] by key
+          exchangeChild.executeBroadcast[BuildSideRelation].value
+            .transform(buildKeys(index)).distinct
+        } else {
           val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
           val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
             (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
@@ -85,10 +92,6 @@ case class ColumnarSubqueryBroadcastExec(name: String,
           val proj = UnsafeProjection.create(expr)
           val keyIter = iter.map(proj).map(_.copy())
           keyIter.toArray[InternalRow].distinct
-        } else {
-          // transform broadcasted columnar value to Arrya[InternalRow] by key
-          exchangeChild.executeBroadcast[BuildSideRelation].value
-            .transform(buildKeys(index)).distinct
         }
         val beforeBuild = System.nanoTime()
         longMetric("collectTime") += (beforeBuild - beforeCollect) / 1000000
@@ -114,6 +117,7 @@ case class ColumnarSubqueryBroadcastExec(name: String,
   }
 
   override def stringArgs: Iterator[Any] = super.stringArgs ++ Iterator(s"[id=#$id]")
+
   protected def withNewChildInternal(newChild: SparkPlan): ColumnarSubqueryBroadcastExec =
     copy(child = newChild)
 }

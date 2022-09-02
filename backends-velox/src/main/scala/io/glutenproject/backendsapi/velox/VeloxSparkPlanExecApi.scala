@@ -50,6 +50,14 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
 
   /**
+   * Whether support gluten for current SparkPlan
+   *
+   * @return
+   */
+  override def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean =
+    nativeEngineEnabled
+
+  /**
    * Generate NativeColumnarToRowExec.
    *
    * @param child
@@ -162,7 +170,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   override def createColumnarBatchSerializer(
                                               schema: StructType,
                                               readBatchNumRows: SQLMetric,
-                                              numOutputRows: SQLMetric): Serializer = {
+                                              numOutputRows: SQLMetric,
+                                              dataSize: SQLMetric): Serializer = {
     new ArrowColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
   }
 

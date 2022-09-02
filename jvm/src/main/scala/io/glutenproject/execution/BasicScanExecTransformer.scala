@@ -31,6 +31,7 @@ import io.glutenproject.vectorized.ExpressionEvaluator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.InSubqueryExec
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -117,5 +118,9 @@ trait BasicScanExecTransformer extends TransformSupport {
     val relNode = RelBuilder.makeReadRel(
       typeNodes, nameList, columnTypeNodes, exprNode, context, context.nextOperatorId)
     TransformContext(output, output, relNode)
+  }
+
+  def executeInSubqueryForDynamicPruningExpression(inSubquery: InSubqueryExec): Unit = {
+    if (!inSubquery.values().isDefined) inSubquery.updateResult()
   }
 }

@@ -19,6 +19,8 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
+import org.apache.spark.sql.execution.{ReusedSubqueryExec, ScalarSubquery, SubqueryExec}
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
@@ -88,6 +90,18 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     withSQLConf(
       ("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery(9) { df =>
+        var countSubqueryExec = 0
+        var countReuseSubqueryExec = 0
+        df.queryExecution.executedPlan.transformAllExpressions {
+          case s@ScalarSubquery(_: SubqueryExec, _) =>
+            countSubqueryExec = countSubqueryExec + 1
+            s
+          case s@ScalarSubquery(_: ReusedSubqueryExec, _) =>
+            countReuseSubqueryExec = countReuseSubqueryExec + 1
+            s
+        }
+        assert(countSubqueryExec == 15)
+        assert(countReuseSubqueryExec == 0)
       }
     }
   }
@@ -104,10 +118,34 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
           case _ => false
         }
         assert(foundDynamicPruningExpr.nonEmpty == true)
-        val dynamicPruningExpression = foundDynamicPruningExpr.get
-          .asInstanceOf[FileSourceScanExecTransformer].partitionFilters.filter(
-          FileSourceScanExecTransformer.isDynamicPruningFilter)
-        assert(dynamicPruningExpression.nonEmpty)
+
+        val reuseExchange = df.queryExecution.executedPlan.find {
+          case r: ReusedExchangeExec => true
+          case _ => false
+        }
+        assert(reuseExchange.nonEmpty == true)
+      }
+    }
+  }
+
+  test("TPCDS Q21 with non-separated scan rdd") {
+    withSQLConf(
+      ("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
+      runTPCDSQuery(21) { df =>
+        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
+            case _: DynamicPruningExpression => true
+            case _ => false
+          }
+          case _ => false
+        }
+        assert(foundDynamicPruningExpr.nonEmpty == true)
+
+        val reuseExchange = df.queryExecution.executedPlan.find {
+          case r: ReusedExchangeExec => true
+          case _ => false
+        }
+        assert(reuseExchange.nonEmpty == true)
       }
     }
   }
