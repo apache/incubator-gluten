@@ -71,16 +71,16 @@
         </activation>
         <modules>
           <module>common</module>
-          <module>spark321</module>
+          <module>spark322</module>
         </modules>
     </profile>
     <profile>
-        <id>spark-3.2.1</id>
+        <id>spark-3.2.2</id>
         <properties>
         </properties>
         <modules>
           <module>common</module>
-          <module>spark321</module>
+          <module>spark322</module>
         </modules>
     </profile>
   </profiles>
