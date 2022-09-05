@@ -22,6 +22,36 @@ on:
 
 jobs:
 
+  arrow-backend-test:
+    runs-on: sr404-self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+          java-package: jdk
+      - run: sudo swapoff -a
+      - run: free
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y cmake ccache build-essential
+      - run: sudo apt-get install -y maven
+      - run: sudo apt-get install -y libboost-all-dev libcurl4-openssl-dev
+      - run: sudo apt-get install -y libssl-dev
+      - run: sudo apt-get install -y libz-dev
+      - run: sudo apt-get install -y llvm clang
+      - name: Install Gluten Arrow-backend
+        run: |
+          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
+          cp backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar /tmp/gluten_jars/
+      - name: Run TPCDS q82,q85,q37,q60,q26
+        run: |
+          cd /home/sparkuser/tpcds/
+          bash tpcds.sh
+
+
   velox-backend-test:
     runs-on: sr404-self-hosted
     steps:
@@ -44,20 +74,21 @@ jobs:
       - run: sudo apt-get install -y llvm clang
       - run: sudo apt-get install -y libdwarf-dev
       - run: sudo apt-get install -y libre2-dev
-      - name: ccache cache files
-        uses: actions/cache@v2
-        with:
-          path: ~/.ccache
-          key: ${{ github.job }}-ccache
-          restore-keys: |
-            ${{ github.job }}-ccache
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      #  no need to cache these as it's running on self host server
+      #- name: ccache cache files
+      #  uses: actions/cache@v2
+      #  with:
+      #    path: ~/.ccache
+      #    key: ${{ github.job }}-ccache
+      #    restore-keys: |
+      #      ${{ github.job }}-ccache
+      #- name: Cache local Maven repository
+      #  uses: actions/cache@v2
+      #  with:
+      #    path: ~/.m2/repository
+      #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+      #    restore-keys: |
+      #      ${{ runner.os }}-maven-
       - name: Install Googletest
         run: |
           sudo apt-get install -y libgtest-dev
@@ -67,7 +98,7 @@ jobs:
           sudo apt-get install -y google-mock
       - name: Install Gluten Velox-backend
         run: |
-          mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
+          mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
           mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
