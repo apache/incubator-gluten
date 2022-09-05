@@ -22,25 +22,14 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.ScalarSubquery
+import org.apache.spark.sql.execution.{ExecSubqueryExpression, BaseSubqueryExec}
 import org.apache.spark.sql.types._
 
-class ScalarSubqueryTransformer(
-                                 query: ScalarSubquery)
-  extends Expression with ExpressionTransformer {
-  override def children: Seq[Expression] = Nil
-
-  override def toString: String = query.toString
-
-  override def eval(input: InternalRow): Any = query.eval(input)
-
-  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = query.doGenCode(ctx, ev)
-
-  override def canEqual(that: Any): Boolean = query.canEqual(that)
-
-  override def productArity: Int = query.productArity
-
-  override def productElement(n: Int): Any = query.productElement(n)
+class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
+                                query: ScalarSubquery)
+  extends ScalarSubquery(plan, exprId) with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // the first column in first row from `query`.
@@ -58,8 +47,16 @@ class ScalarSubqueryTransformer(
     }
     ExpressionBuilder.makeLiteral(result, dataType, result == null)
   }
-
-  override def dataType: DataType = query.dataType
-
+  override def eval(input: InternalRow): Any = {
+    throw new UnsupportedOperationException(s"This operator doesn't support eval().")
+  }
+  override def updateResult(): Unit = {
+    throw new UnsupportedOperationException(s"This operator doesn't support updateResult().")
+  }
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doGenCode().")
+  }
+  override def withNewPlan(query: BaseSubqueryExec): ScalarSubquery = copy(plan = query)
+  override def dataType: DataType = plan.schema.fields.head.dataType
   override def nullable: Boolean = true
 }

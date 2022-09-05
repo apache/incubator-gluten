@@ -14,21 +14,10 @@
  * limitations under the License.
  */
 
-package io.glutenproject.sql.shims.spark311
+package io.glutenproject.sql.shims.spark322
 
-import io.glutenproject.sql.shims.{SparkShims, SparkShimDescriptor}
+import io.glutenproject.sql.shims.{SparkShims, ShimDescriptor}
 
-object SparkShimProvider {
-  val DESCRIPTOR = SparkShimDescriptor(3, 1, 1)
-  val DESCRIPTOR_STRINGS = Seq(s"$DESCRIPTOR")
-}
-
-class SparkShimProvider extends io.glutenproject.sql.shims.SparkShimProvider {
-  def createShim: SparkShims = {
-    new Spark311Shims()
-  }
-
-  def matches(version: String): Boolean = {
-    SparkShimProvider.DESCRIPTOR_STRINGS.contains(version)
-  }  
+class Spark322Shims extends SparkShims {
+  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 }

@@ -43,7 +43,7 @@ case class ColumnarSubqueryBroadcastExec(name: String,
     val key = buildKeys(index)
     val name = key match {
       case n: NamedExpression => n.name
-      case Cast(n: NamedExpression, _, _) => n.name
+      case Cast(n: NamedExpression, _, _, _) => n.name
       case _ => "key"
     }
     Seq(AttributeReference(name, key.dataType, key.nullable)())
@@ -65,7 +65,7 @@ case class ColumnarSubqueryBroadcastExec(name: String,
     Future {
       // This will run in another thread. Set the execution id so that we can connect these jobs
       // with the correct execution.
-      SQLExecution.withExecutionId(sqlContext.sparkSession, executionId) {
+      SQLExecution.withExecutionId(session, executionId) {
         val beforeCollect = System.nanoTime()
 
         val exchangeChild = if (child.isInstanceOf[ReusedExchangeExec]) {
@@ -114,4 +114,6 @@ case class ColumnarSubqueryBroadcastExec(name: String,
   }
 
   override def stringArgs: Iterator[Any] = super.stringArgs ++ Iterator(s"[id=#$id]")
+  protected def withNewChildInternal(newChild: SparkPlan): ColumnarSubqueryBroadcastExec =
+    copy(child = newChild)
 }

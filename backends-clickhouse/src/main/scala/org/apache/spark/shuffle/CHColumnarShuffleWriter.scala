@@ -85,7 +85,8 @@ class CHColumnarShuffleWriter[K, V](
       jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper]
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeIndexFileAndCommit(dep.shuffleId, mapId, partitionLengths, null)
+      shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId, partitionLengths,
+                                                      Array[Long](), null)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }
@@ -132,10 +133,11 @@ class CHColumnarShuffleWriter[K, V](
     partitionLengths = splitResult.getPartitionLengths
     rawPartitionLengths = splitResult.getRawPartitionLengths
     try {
-      shuffleBlockResolver.writeIndexFileAndCommit(
+      shuffleBlockResolver.writeMetadataFileAndCommit(
         dep.shuffleId,
         mapId,
         partitionLengths,
+        Array[Long](),
         dataTmp)
     } finally {
       if (dataTmp.exists() && !dataTmp.delete()) {

@@ -596,4 +596,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         rdd
     }
   }
+  override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformerExec =
+    copy(child = newChild)(transformStageId)
 }

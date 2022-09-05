@@ -19,10 +19,11 @@ package io.glutenproject.execution
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
+import org.apache.spark.sql.execution.{CodegenSupport, ColumnarToRowTransition, SparkPlan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
-abstract class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExec(child = child) {
+abstract class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowTransition
+  with CodegenSupport {
 
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

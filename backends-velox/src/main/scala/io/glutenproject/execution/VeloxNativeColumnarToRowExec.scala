@@ -24,8 +24,8 @@ import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatch
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
-import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
@@ -39,7 +39,7 @@ import org.apache.arrow.c.ArrowSchema
 import org.apache.spark.TaskContext
 import org.slf4j.LoggerFactory
 
-class VeloxNativeColumnarToRowExec(child: SparkPlan)
+case class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
   private val LOG = LoggerFactory.getLogger(classOf[VeloxNativeColumnarToRowExec])
 
@@ -154,5 +154,15 @@ class VeloxNativeColumnarToRowExec(child: SparkPlan)
   }
 
   override def hashCode(): Int = super.hashCode()
+  override def inputRDDs(): Seq[RDD[InternalRow]] = {
+    Seq(child.executeColumnar().asInstanceOf[RDD[InternalRow]]) // Hack because of type erasure
+  }
+
+  override def output: Seq[Attribute] = child.output
+  protected def doProduce(ctx: CodegenContext): String = {
+    throw new RuntimeException("Codegen is not supported!")
+  }
+  protected def withNewChildInternal(newChild: SparkPlan): VeloxNativeColumnarToRowExec =
+    copy(child = newChild)
 }
 
