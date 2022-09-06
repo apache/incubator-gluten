@@ -37,6 +37,15 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
+
+  /**
+   * Whether support gluten for current SparkPlan
+   *
+   * @return
+   */
+  override def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean =
+    nativeEngineEnabled
+
   /**
    * Generate NativeColumnarToRowExec.
    *
@@ -106,7 +115,8 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    */
   override def createColumnarBatchSerializer(schema: StructType,
                                              readBatchNumRows: SQLMetric,
-                                             numOutputRows: SQLMetric): Serializer = null
+                                             numOutputRows: SQLMetric,
+                                             dataSize: SQLMetric): Serializer = null
 
 
   /**

@@ -521,6 +521,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
+
   override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan])
       : UnionExecTransformer =
     copy(children = newChildren)
@@ -612,7 +613,10 @@ object FilterHandler {
         case scan: FileScan =>
           val leftFilters =
             getLeftFilters(scan.dataFilters, flattenCondition(plan.condition))
-          new BatchScanExecTransformer(batchScan.output, batchScan.scan, leftFilters)
+          val newPartitionFilters =
+            ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters)
+          new BatchScanExecTransformer(batchScan.output, scan,
+            leftFilters ++ newPartitionFilters)
         case _ =>
           throw new UnsupportedOperationException(
             s"${batchScan.scan.getClass.toString} is not supported.")

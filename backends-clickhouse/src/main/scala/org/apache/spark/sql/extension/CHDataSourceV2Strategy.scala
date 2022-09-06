@@ -53,11 +53,11 @@ case class CHDataSourceV2Strategy(spark: SparkSession) extends Strategy {
       }
 
     case AppendData(r: DataSourceV2Relation, query,
-    writeOptions, _) if r.table.isInstanceOf[ClickHouseTableV2] =>
+    writeOptions, _, Some(write)) if r.table.isInstanceOf[ClickHouseTableV2] =>
       r.table.asWritable match {
         case v2 =>
           ClickHouseAppendDataExec(v2, writeOptions.asOptions, planLater(query),
-            refreshCache(r)) :: Nil
+            write, refreshCache(r)) :: Nil
       }
 
     case _ => Nil

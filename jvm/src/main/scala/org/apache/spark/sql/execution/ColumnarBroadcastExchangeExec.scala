@@ -45,11 +45,14 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
     "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_broadcastExchange"),
     "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
     "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast"))
+
   @transient
   lazy val promise = Promise[broadcast.Broadcast[Any]]()
+
   @transient
   lazy val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
     promise.future
+
   @transient
   private[sql] lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] = {
     SQLExecution.withThreadLocalCaptured[broadcast.Broadcast[Any]](
@@ -107,6 +110,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
       }
     }
   }
+
   // Shouldn't be used.
   val buildKeyExprs: Seq[Expression] = mode match {
     case hashRelationMode: HashedRelationBroadcastMode =>
@@ -115,7 +119,9 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
       throw new UnsupportedOperationException(
         s"ColumnarBroadcastExchange only support HashRelationMode")
   }
+
   private[sql] val runId: UUID = UUID.randomUUID
+
   @transient
   private val timeout: Long = SQLConf.get.broadcastTimeout
 
@@ -162,6 +168,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
           ex)
     }
   }
+
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarBroadcastExchangeExec =
     copy(child = newChild)
 }
@@ -169,17 +176,24 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
 case class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPlan)
   extends BroadcastExchangeLike {
   val plan: ColumnarBroadcastExchangeExec = new ColumnarBroadcastExchangeExec(mode, child)
+
   override lazy val metrics: Map[String, SQLMetric] = plan.metrics
+
   @transient
   lazy override val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
     plan.completionFuture
+
   @transient
   override lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] =
     plan.relationFuture
+
   @transient
   private lazy val promise = plan.promise
+
   override val runId: UUID = plan.runId
+
   val buildKeyExprs: Seq[Expression] = plan.buildKeyExprs
+
   @transient
   private val timeout: Long = SQLConf.get.broadcastTimeout
 

@@ -31,7 +31,7 @@ import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.execution.command.RunnableCommand
+import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.types.StructType
 
@@ -56,7 +56,7 @@ case class CreateClickHouseTableCommand(
                              operation: TableCreationModes.CreationMode = TableCreationModes.Create,
                              tableByPath: Boolean = false,
                              override val output: Seq[Attribute] = Nil)
-  extends RunnableCommand
+  extends LeafRunnableCommand
     with DeltaLogging {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {

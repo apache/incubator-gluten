@@ -23,16 +23,14 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
 
-import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
-import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -66,7 +64,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
     case plan: BatchScanExec =>
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      new BatchScanExecTransformer(plan.output, plan.scan, plan.runtimeFilters)
+      val newPartitionFilters =
+        ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
+      new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
     case plan: FileSourceScanExec =>
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
       new FileSourceScanExecTransformer(
@@ -238,18 +238,20 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>
       replaceWithTransformerPlan(child)
+    case ColumnarToRowExec(child: BroadcastQueryStageExec) =>
+      replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
     case plan: ColumnarToRowExec =>
       if (columnarConf.enableNativeColumnarToRow) {
         val child = replaceWithTransformerPlan(plan.child)
-        logInfo(s"AAAA: ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
+        logDebug(s"ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
         val nativeConversion =
           BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
         if (nativeConversion.doValidate()) {
           nativeConversion
         } else {
-          logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
+          logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
           plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
         }
       } else {
@@ -295,17 +297,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 }
 
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
-  val columnarWholeStageEnabled: Boolean =
-    conf.getBoolean("spark.gluten.sql.columnar.wholestagetransform", defaultValue = true)
-  val isCH: Boolean = conf
-    .get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-    .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-  val separateScanRDDForCH: Boolean = isCH && conf
-    .getBoolean(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD,
-      GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT)
   var isSupportAdaptive: Boolean = true
-
-  def conf: SparkConf = session.sparkContext.getConf
 
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -314,20 +306,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   def preOverrides: TransformPreOverrides = TransformPreOverrides()
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => {
-    // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
-    // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
-    // For example:
-    //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
-    //   import spark.implicits._
-    //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-    //   df.summary().show(100, false)
-    val chSupported = isCH && nativeEngineEnabled &&
-      !plan.isInstanceOf[SerializeFromObjectExec] &&
-      !plan.isInstanceOf[ObjectHashAggregateExec] &&
-      !plan.isInstanceOf[V2CommandExec]
+    val supportedGluten = BackendsApiManager.getSparkPlanExecApiInstance.supportedGluten(
+      nativeEngineEnabled,
+      plan)
 
-    val otherSupported = !isCH && nativeEngineEnabled
-    if (chSupported || otherSupported) {
+    if (supportedGluten) {
       isSupportAdaptive = supportAdaptive(plan)
       val rule = preOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
@@ -338,14 +321,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    // TODO: same as above.
-    val chSupported = isCH && nativeEngineEnabled &&
-      !plan.isInstanceOf[SerializeFromObjectExec] &&
-      !plan.isInstanceOf[ObjectHashAggregateExec] &&
-      !plan.isInstanceOf[V2CommandExec]
+    val supportedGluten = BackendsApiManager.getSparkPlanExecApiInstance.supportedGluten(
+      nativeEngineEnabled,
+      plan)
 
-    val otherSupported = !isCH && nativeEngineEnabled
-    if (chSupported || otherSupported) {
+    if (supportedGluten) {
       val rule = postOverrides
       rule.setAdaptiveSupport(isSupportAdaptive)
       val tmpPlan = rule(plan)
@@ -360,7 +340,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   def postOverrides: TransformPostOverrides = TransformPostOverrides()
 
   def collapseOverrides: ColumnarCollapseCodegenStages =
-    ColumnarCollapseCodegenStages(columnarWholeStageEnabled, separateScanRDDForCH)
+    ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf)
 
   private def supportAdaptive(plan: SparkPlan): Boolean = {
     // TODO migrate dynamic-partition-pruning onto adaptive execution.
@@ -371,7 +351,6 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
     }
     isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled && (sanityCheck(plan) &&
       !plan.logicalLink.exists(_.isStreaming) &&
-      !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
       plan.children.forall(supportAdaptive)))
   }
 

@@ -20,6 +20,7 @@ package io.glutenproject.execution
 import java.io.File
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.utils.UTSystemParameters
 import org.apache.commons.io.FileUtils
 
 import org.apache.spark.SparkConf
@@ -383,6 +384,139 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     assert(result.size == 8)
   }
 
+  protected def createTPCHParquetTables(parquetTablePath: String): Unit = {
+    val customerData = parquetTablePath + "/customer"
+    spark.sql(s"DROP TABLE IF EXISTS customer")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS customer (
+         | c_custkey    bigint,
+         | c_name       string,
+         | c_address    string,
+         | c_nationkey  bigint,
+         | c_phone      string,
+         | c_acctbal    double,
+         | c_mktsegment string,
+         | c_comment    string)
+         | USING PARQUET LOCATION '${customerData}'
+         |""".stripMargin)
+
+    val lineitemData = parquetTablePath + "/lineitem"
+    spark.sql(s"DROP TABLE IF EXISTS lineitem")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS lineitem (
+         | l_orderkey      bigint,
+         | l_partkey       bigint,
+         | l_suppkey       bigint,
+         | l_linenumber    bigint,
+         | l_quantity      double,
+         | l_extendedprice double,
+         | l_discount      double,
+         | l_tax           double,
+         | l_returnflag    string,
+         | l_linestatus    string,
+         | l_shipdate      date,
+         | l_commitdate    date,
+         | l_receiptdate   date,
+         | l_shipinstruct  string,
+         | l_shipmode      string,
+         | l_comment       string)
+         | USING PARQUET LOCATION '${lineitemData}'
+         |""".stripMargin)
+
+    val nationData = parquetTablePath + "/nation"
+    spark.sql(s"DROP TABLE IF EXISTS nation")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS nation (
+         | n_nationkey bigint,
+         | n_name      string,
+         | n_regionkey bigint,
+         | n_comment   string)
+         | USING PARQUET LOCATION '${nationData}'
+         |""".stripMargin)
+
+    val regionData = parquetTablePath + "/region"
+    spark.sql(s"DROP TABLE IF EXISTS region")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS region (
+         | r_regionkey bigint,
+         | r_name      string,
+         | r_comment   string)
+         | USING PARQUET LOCATION '${regionData}'
+         |""".stripMargin)
+
+    val ordersData = parquetTablePath + "/order"
+    spark.sql(s"DROP TABLE IF EXISTS orders")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS orders (
+         | o_orderkey      bigint,
+         | o_custkey       bigint,
+         | o_orderstatus   string,
+         | o_totalprice    double,
+         | o_orderdate     date,
+         | o_orderpriority string,
+         | o_clerk         string,
+         | o_shippriority  bigint,
+         | o_comment       string)
+         | USING PARQUET LOCATION '${ordersData}'
+         |""".stripMargin)
+
+    val partData = parquetTablePath + "/part"
+    spark.sql(s"DROP TABLE IF EXISTS part")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS part (
+         | p_partkey     bigint,
+         | p_name        string,
+         | p_mfgr        string,
+         | p_brand       string,
+         | p_type        string,
+         | p_size        bigint,
+         | p_container   string,
+         | p_retailprice double,
+         | p_comment     string)
+         | USING PARQUET LOCATION '${partData}'
+         |""".stripMargin)
+
+    val partsuppData = parquetTablePath + "/partsupp"
+    spark.sql(s"DROP TABLE IF EXISTS partsupp")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS partsupp (
+         | ps_partkey    bigint,
+         | ps_suppkey    bigint,
+         | ps_availqty   bigint,
+         | ps_supplycost double,
+         | ps_comment    string)
+         | USING PARQUET LOCATION '${partsuppData}'
+         |""".stripMargin)
+
+    val supplierData = parquetTablePath + "/supplier"
+    spark.sql(s"DROP TABLE IF EXISTS supplier")
+    spark.sql(
+      s"""
+         | CREATE TABLE IF NOT EXISTS supplier (
+         | s_suppkey   bigint,
+         | s_name      string,
+         | s_address   string,
+         | s_nationkey bigint,
+         | s_phone     string,
+         | s_acctbal   double,
+         | s_comment   string)
+         | USING PARQUET LOCATION '${supplierData}'
+         |""".stripMargin)
+
+    val result = spark.sql(
+      s"""
+         | show tables;
+         |""".stripMargin).collect()
+    assert(result.size == 8)
+  }
+
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.files.maxPartitionBytes", "1g")
@@ -400,7 +534,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")

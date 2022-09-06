@@ -35,8 +35,8 @@ import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions._
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.connector.write._
-import org.apache.spark.sql.delta.{DeltaErrors, DeltaLog, DeltaTableIdentifier, DeltaTableUtils, DeltaTimeTravelSpec, GeneratedColumn, Snapshot}
-import org.apache.spark.sql.delta.actions.{AddFile, SingleAction}
+import org.apache.spark.sql.delta.{ColumnWithDefaultExprUtils, DeltaColumnMapping, DeltaErrors, DeltaFileFormat, DeltaLog, DeltaTableIdentifier, DeltaTableUtils, DeltaTimeTravelSpec, Snapshot}
+import org.apache.spark.sql.delta.actions.{AddFile, Metadata, SingleAction}
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.{DeltaDataSource, DeltaSQLConf}
@@ -61,16 +61,20 @@ case class ClickHouseTableV2(
                               catalogTable: Option[CatalogTable] = None,
                               tableIdentifier: Option[String] = None,
                               timeTravelOpt: Option[DeltaTimeTravelSpec] = None,
-                              options: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty())
+                              options: Map[String, String] = Map.empty,
+                              cdcOptions: CaseInsensitiveStringMap =
+                              CaseInsensitiveStringMap.empty())
   extends Table
     with SupportsWrite
     with SupportsRead
     with V2TableWithV1Fallback
+    with DeltaFileFormat
     with DeltaLogging {
 
   // The loading of the DeltaLog is lazy in order to reduce the amount of FileSystem calls,
   // in cases where we will fallback to the V1 behavior.
-  lazy val deltaLog: DeltaLog = ClickHouseLog.forTable(spark, rootPath)
+  lazy val deltaLog: DeltaLog = ClickHouseLog.forTable(spark, rootPath, options)
+
   lazy val snapshot: Snapshot = {
     timeTravelSpec.map { spec =>
       val (version, accessType) = DeltaTableUtils.resolveTimeTravelVersion(
@@ -84,22 +88,28 @@ case class ClickHouseTableV2(
       deltaLog.getSnapshotAt(version)
     }.getOrElse(updateSnapshot())
   }
+
+  protected def metadata = if (snapshot == null) Metadata() else snapshot.metadata
+
   private lazy val (rootPath, partitionFilters, timeTravelByPath) = {
     if (catalogTable.isDefined) {
       // Fast path for reducing path munging overhead
       (new Path(catalogTable.get.location), Nil, None)
     } else {
-      DeltaDataSource.parsePathIdentifier(spark, path.toString)
+      DeltaDataSource.parsePathIdentifier(spark, path.toString, options)
     }
   }
+
   private lazy val timeTravelSpec: Option[DeltaTimeTravelSpec] = {
     if (timeTravelOpt.isDefined && timeTravelByPath.isDefined) {
       throw DeltaErrors.multipleTimeTravelSyntaxUsed
     }
     timeTravelOpt.orElse(timeTravelByPath)
   }
+
   private lazy val tableSchema: StructType =
-    GeneratedColumn.removeGenerationExpressions(snapshot.schema)
+    DeltaColumnMapping.dropColumnMappingMetadata(
+      ColumnWithDefaultExprUtils.removeDefaultExpressions(snapshot.schema))
 
   def getTableIdentifierIfExists: Option[TableIdentifier] = tableIdentifier.map(
     spark.sessionState.sqlParser.parseTableIdentifier)
@@ -159,6 +169,7 @@ case class ClickHouseTableV2(
     * paths.
     */
   def toBaseRelation: BaseRelation = {
+    snapshot
     if (!deltaLog.tableExists) {
       val id = catalogTable.map(ct => DeltaTableIdentifier(table = Some(ct.identifier)))
         .getOrElse(DeltaTableIdentifier(path = Some(path.toString)))
@@ -168,7 +179,7 @@ case class ClickHouseTableV2(
       path.toString, snapshot, partitionFilters)
 
     createV1Relation(
-      partitionPredicates, Some(snapshot), timeTravelSpec.isDefined, options)
+      partitionPredicates, Some(snapshot), timeTravelSpec.isDefined, cdcOptions)
   }
 
   /**
@@ -191,13 +202,20 @@ case class ClickHouseTableV2(
     var bucketSpec: Option[BucketSpec] = None
     new HadoopFsRelation(
       fileIndex,
-      partitionSchema = snapshotToUse.metadata.partitionSchema,
-      dataSchema = GeneratedColumn.removeGenerationExpressions(
-        SchemaUtils.dropNullTypeColumns(snapshotToUse.metadata.schema)
-      ),
+      partitionSchema = DeltaColumnMapping.dropColumnMappingMetadata(
+        snapshotToUse.metadata.partitionSchema),
+      // We pass all table columns as `dataSchema` so that Spark will preserve the partition column
+      // locations. Otherwise, for any partition columns not in `dataSchema`, Spark would just
+      // append them to the end of `dataSchema`
+      dataSchema = DeltaColumnMapping.dropColumnMappingMetadata(
+        ColumnWithDefaultExprUtils.removeDefaultExpressions(
+          SchemaUtils.dropNullTypeColumns(snapshotToUse.metadata.schema))),
       bucketSpec = bucketSpec,
-      snapshotToUse.fileFormat,
-      snapshotToUse.metadata.format.options)(spark) with InsertableRelation {
+      fileFormat(snapshotToUse.metadata),
+      // `metadata.format.options` is not set today. Even if we support it in future, we shouldn't
+      // store any file system options since they may contain credentials. Hence, it will never
+      // conflict with `DeltaLog.options`.
+      snapshotToUse.metadata.format.options ++ options)(spark) with InsertableRelation {
       def insert(data: DataFrame, overwrite: Boolean): Unit = {
         val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
         // Insert MergeTree data through DataSource V1

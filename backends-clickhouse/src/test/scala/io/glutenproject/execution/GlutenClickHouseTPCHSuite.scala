@@ -41,7 +41,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   test("TPCH Q1") {
     runTPCHQuery(1) { df =>
       val scanExec = df.queryExecution.executedPlan.collect {
-        case scanExec: BasicScanExecTransformer => true
+        case scanExec: BasicScanExecTransformer => scanExec
       }
       assert(scanExec.size == 1)
     }

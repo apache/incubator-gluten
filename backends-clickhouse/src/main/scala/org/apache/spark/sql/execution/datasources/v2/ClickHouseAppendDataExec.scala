@@ -40,7 +40,7 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.catalog.SupportsWrite
-import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, Write, WriterCommitMessage}
 import org.apache.spark.sql.delta.{DeltaOperations, DeltaOptions, OptimisticTransaction}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.commands.DeltaCommand
@@ -58,9 +58,10 @@ case class ClickHouseAppendDataExec(
                                      table: SupportsWrite,
                                      writeOptions: CaseInsensitiveStringMap,
                                      query: SparkPlan,
+                                     write: Write,
                                      refreshCache: () => Unit
                                    ) extends V2TableWriteExec
-  with BatchWriteHelper with ImplicitMetadataOperation with DeltaCommand {
+  with ImplicitMetadataOperation with DeltaCommand {
 
   override protected val canMergeSchema: Boolean = false
 
@@ -80,7 +81,7 @@ case class ClickHouseAppendDataExec(
     writeOptions.asCaseSensitiveMap().asScala.toSeq: _*).toMap, sparkSession.sessionState.conf)
 
   override protected def run(): Seq[InternalRow] = {
-    val writtenRows = writeWithV2(newWriteBuilder().buildForBatch())
+    val writtenRows = writeWithV2(write.toBatch)
     refreshCache()
     writtenRows
   }
@@ -191,7 +192,7 @@ case class ClickHouseAppendDataExec(
       val basicWriteJobStatsTracker = new BasicWriteJobStatsTracker(
         new SerializableConfiguration(sparkSession.sessionState.newHadoopConf()),
         BasicWriteJobStatsTracker.metrics)
-      txn.registerSQLMetrics(sparkSession, basicWriteJobStatsTracker.metrics)
+      txn.registerSQLMetrics(sparkSession, basicWriteJobStatsTracker.driverSideMetrics)
       statsTrackers.append(basicWriteJobStatsTracker)
     }
 
@@ -273,6 +274,9 @@ case class ClickHouseAppendDataExec(
       dllNode,
       substraitContext)
   }
+
+  override protected def withNewChildInternal(newChild: SparkPlan): ClickHouseAppendDataExec =
+    copy(query = newChild)
 }
 
 object CHDataWritingSparkTask extends Logging {

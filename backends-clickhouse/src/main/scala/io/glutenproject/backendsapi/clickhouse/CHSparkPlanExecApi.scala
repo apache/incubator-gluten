@@ -35,7 +35,11 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, ProjectExec, SparkPlan, WholeStageCodegenExec}
+import org.apache.spark.sql.delta.DeltaLogFileIndex
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
+import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -45,7 +49,37 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class CHSparkPlanExecApi extends ISparkPlanExecApi {
+class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper {
+
+  /**
+    * Whether support gluten for current SparkPlan
+    *
+    * @return
+    */
+  override def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean = {
+    // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
+    // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
+    // For example:
+    //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
+    //   import spark.implicits._
+    //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+    //   df.summary().show(100, false)
+
+    def includedDeltaOperator(scanExec: FileSourceScanExec): Boolean = {
+      scanExec.relation.location.isInstanceOf[DeltaLogFileIndex]
+    }
+
+    val includedUnsupportedPlans = collect(plan) {
+      case s: SerializeFromObjectExec => true
+      case d: DeserializeToObjectExec => true
+      case o: ObjectHashAggregateExec => true
+      case f: FileSourceScanExec => includedDeltaOperator(f)
+      case v2CommandExec: V2CommandExec => true
+      case commandResultExec: CommandResultExec => true
+    }
+
+    nativeEngineEnabled && !includedUnsupportedPlans.filter(_ == true).nonEmpty
+  }
 
   /**
     * Generate NativeColumnarToRowExec.
@@ -54,9 +88,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
     * @return
     */
   override def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec = {
-    new BlockNativeColumnarToRowExec(child);
+    BlockNativeColumnarToRowExec(child);
   }
-
 
   /**
     * Generate RowToColumnarExec.
@@ -142,8 +175,9 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
     */
   override def createColumnarBatchSerializer(schema: StructType,
                                              readBatchNumRows: SQLMetric,
-                                             numOutputRows: SQLMetric): Serializer = {
-    new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows)
+                                             numOutputRows: SQLMetric,
+                                             dataSize: SQLMetric): Serializer = {
+    new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize)
   }
 
 
@@ -171,13 +205,20 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi {
             newExpr
         }
       }
+
       val newChild = child match {
-        case wf: WholeStageTransformerExec =>
-          wf.withNewChildren(Seq(ProjectExecTransformer(
+        case wt: WholeStageTransformerExec =>
+          wt.withNewChildren(Seq(ProjectExecTransformer(
             child.output ++ appendedProjections.toSeq,
-            wf.child)))
+            wt.child)))
         case w: WholeStageCodegenExec =>
           w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections.toSeq, w.child)))
+        case c: CoalesceBatchesExec =>
+          // when aqe is open
+          // TODO: remove this after pushdowning preprojection
+          WholeStageTransformerExec(
+            ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
+            ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
       }
       (newChild, (child.output ++ appendedProjections.toSeq).map(_.toAttribute),
         preProjectionBuildKeys)

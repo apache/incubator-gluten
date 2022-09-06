@@ -39,6 +39,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 trait ISparkPlanExecApi extends IBackendsApi {
 
   /**
+   * Whether support gluten for current SparkPlan
+   * @return
+   */
+  def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean
+
+  /**
    * Generate NativeColumnarToRowExec.
    *
    * @param child
@@ -104,8 +110,10 @@ trait ISparkPlanExecApi extends IBackendsApi {
    *
    * @return
    */
-  def createColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
-                                    numOutputRows: SQLMetric): Serializer
+  def createColumnarBatchSerializer(schema: StructType,
+                                    readBatchNumRows: SQLMetric,
+                                    numOutputRows: SQLMetric,
+                                    dataSize: SQLMetric): Serializer
 
   /**
    * Create broadcast relation for BroadcastExchangeExec

@@ -90,9 +90,14 @@ object ClickHouseLog {
 
   /** Helper for creating a log for the table. */
   def forTable(spark: SparkSession, table: CatalogTable, clock: Clock): DeltaLog = {
-    val log = DeltaLog.apply(spark, new Path(new Path(table.location),
+    DeltaLog.apply(spark, new Path(new Path(table.location),
       ClickHouseConfig.METADATA_DIR), clock)
-    log
+  }
+
+  /** Helper for creating a log when it stored at the root of the data. */
+  def forTable(spark: SparkSession, dataPath: Path, options: Map[String, String]): DeltaLog = {
+    DeltaLog.apply(spark, new Path(dataPath, ClickHouseConfig.METADATA_DIR),
+      options, new SystemClock)
   }
 
   // TODO: use the default path "_delta_log" as metadata path

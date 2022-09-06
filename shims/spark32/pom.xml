@@ -24,8 +24,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>spark-sql-columnar-shims-spark322</artifactId>
-  <name>${project.name.prefix} Shims for Spark 3.2.2</name>
+  <artifactId>spark-sql-columnar-shims-spark32</artifactId>
+  <name>${project.name.prefix} Shims for Spark 3.2</name>
   <packaging>jar</packaging>
 
   <build>
@@ -89,7 +89,7 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_${scala.binary.version}</artifactId>
-      <version>${spark322.version}</version>
+      <version>${spark32.version}</version>
     <scope>provided</scope>
     </dependency>
   </dependencies>
