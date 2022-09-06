@@ -38,7 +38,6 @@ arrow::Status VeloxToRowConverter::Init() {
   facebook::velox::exportToArrow(rv_, c_schema);
   ARROW_ASSIGN_OR_RAISE(
       std::shared_ptr<arrow::Schema> schema, arrow::ImportSchema(&c_schema));
-  ArrowSchemaRelease(&c_schema);
   if (num_cols_ != schema->num_fields()) {
     return arrow::Status::Invalid(
         "Mismatch: num_cols_ != schema->num_fields()");
