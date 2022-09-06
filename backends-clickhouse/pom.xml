@@ -17,6 +17,8 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
+        <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
+        <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
     </properties>
 
     <dependencies>
@@ -302,6 +304,12 @@
                         <goals>
                             <goal>test</goal>
                         </goals>
+                        <configuration>
+                            <systemProperties>
+                                <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
+                                <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
+                            </systemProperties>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

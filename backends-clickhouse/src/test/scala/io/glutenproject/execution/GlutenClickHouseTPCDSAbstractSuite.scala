@@ -24,6 +24,7 @@ import scala.io.Source
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.benchmarks.GenTPCDSTableScripts
+import io.glutenproject.utils.UTSystemParameters
 import org.apache.commons.io.FileUtils
 
 import org.apache.spark.SparkConf
@@ -35,8 +36,7 @@ import org.apache.spark.sql.types.DoubleType
 abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
 
   override protected val backend: String = "ch"
-  override protected val resourcePath: String = "/home/changchen/tpcds-sf1-data/"
-  // override protected val resourcePath: String = "/data1/test_output/tpcds-data-sf1/"
+  override protected val resourcePath: String = UTSystemParameters.getTpcdsDataPath() + "/"
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -101,7 +101,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")

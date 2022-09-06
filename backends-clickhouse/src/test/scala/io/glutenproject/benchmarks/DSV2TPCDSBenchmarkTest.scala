@@ -120,9 +120,9 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.memory.fraction", "0.6")
         .config("spark.memory.storageFraction", "0.3")
         // .config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
-        /* .config("spark.plugins", "io.glutenproject.GlutenPlugin")
+        .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.sql.catalog.spark_catalog",
-          "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog") */
+          "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.shuffle.manager", shuffleManager)
         .config("spark.shuffle.compress", "true")
         .config("spark.io.compression.codec", ioCompressionCodec)
@@ -253,7 +253,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     val tookTimeArr = ArrayBuffer[Long]()
     val sqlFilePath = "/data2/tpcds-data-gen/tpcds10-queries/"
-    val execNum = 9
+    val execNum = 21
     val sqlNum = "q" + execNum + ".sql"
     val sqlFile = sqlFilePath + sqlNum
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString

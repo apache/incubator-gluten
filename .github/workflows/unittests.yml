@@ -160,7 +160,7 @@ jobs:
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
 
   formatting-check:
     name: Formatting Check

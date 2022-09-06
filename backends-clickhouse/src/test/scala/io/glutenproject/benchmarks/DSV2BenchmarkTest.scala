@@ -29,6 +29,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 
 // scalastyle:off
 object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
@@ -265,6 +266,9 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
     val buildSides = collect(executedPlan) {
       case s: ShuffledHashJoinExecTransformer => "Shuffle-" + s.buildSide.toString
       case b: BroadcastHashJoinExecTransformer => "Broadcast-" + b.buildSide.toString
+      case os: ShuffledHashJoinExec => "Shuffle-" + os.buildSide.toString
+      case ob: BroadcastHashJoinExec => "Broadcast-" + ob.buildSide.toString
+      case sm: SortMergeJoinExec => "SortMerge-Join"
     }
     println(buildSides.mkString(" -- "))
   }
