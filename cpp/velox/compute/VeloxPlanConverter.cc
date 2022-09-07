@@ -86,8 +86,8 @@ void VeloxInitializer::Init() {
           connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, nullptr);
   registerConnector(hiveConnector);
-  // parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
-  parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
+  parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
+  // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   functions::prestosql::registerAllScalarFunctions();
