@@ -189,6 +189,9 @@ object VeloxColumnarRules {
     override def output: Seq[Attribute] = {
       child.output
     }
+
+    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+      copy(child = newChild)
   }
 
   case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
