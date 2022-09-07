@@ -174,7 +174,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.memory.offHeap.size", "21474836480")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
         .config("spark.local.dir", sparkLocalDir)
-        .config("spark.executor.heartbeatInterval", "240s")
+        .config("spark.executor.heartbeatInterval", "30s")
         .config("spark.network.timeout", "300s")
         .config("spark.sql.optimizer.dynamicPartitionPruning.enabled", "true")
         .config("spark.sql.optimizer.dynamicPartitionPruning.useStats", "true")
@@ -283,27 +283,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
       val startTime = System.nanoTime()
       val df = spark.sql(
         s"""
-           |SELECT
-           |    l_returnflag,
-           |    l_linestatus,
-           |    sum(l_quantity) AS sum_qty,
-           |    sum(l_extendedprice) AS sum_base_price,
-           |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-           |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-           |    avg(l_quantity) AS avg_qty,
-           |    avg(l_extendedprice) AS avg_price,
-           |    avg(l_discount) AS avg_disc,
-           |    count(*) AS count_order
-           |FROM
-           |    ch_lineitem
-           |WHERE
-           |    l_shipdate <= date'1998-09-02' - interval 1 day
-           |GROUP BY
-           |    l_returnflag,
-           |    l_linestatus
-           |ORDER BY
-           |    l_returnflag,
-           |    l_linestatus;
+           |select count(l_orderkey) from ch_lineitem where l_shipdate = date'1994-01-01'
            |""".stripMargin) // .show(30, false)
       // df.queryExecution.debug.codegen
       // df.explain(false)
@@ -401,7 +381,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
     val tookTimeArr = ArrayBuffer[Long]()
     val executedCnt = 1
     val executeExplain = false
-    val sqlFilePath = "/data2/tpch-queries-spark/"
+    val sqlFilePath = "/data2/tpch-queries-spark100-nohint/"
     for (i <- 1 to 22) {
       if (i != 21) {
         val sqlNum = "q" + "%02d".format(i)

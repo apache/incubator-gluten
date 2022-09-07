@@ -169,7 +169,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.memory.offHeap.size", "21474836480")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
         .config("spark.local.dir", sparkLocalDir)
-        .config("spark.executor.heartbeatInterval", "240s")
+        .config("spark.executor.heartbeatInterval", "30s")
         .config("spark.network.timeout", "300s")
         .config("spark.sql.optimizer.dynamicPartitionPruning.enabled", "true")
         .config("spark.sql.optimizer.dynamicPartitionPruning.useStats", "true")
