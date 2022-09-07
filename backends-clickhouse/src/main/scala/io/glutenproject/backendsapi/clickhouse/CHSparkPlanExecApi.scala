@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -30,7 +31,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BoundReference, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BoundReference, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
@@ -46,7 +47,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper {
@@ -131,6 +132,20 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       initialInputBufferOffset,
       resultExpressions,
       child)
+
+  /**
+    * Generate Alias transformer.
+    *
+    * @param child : The computation being performed
+    * @param name  : The name to be associated with the result of computing.
+    * @param exprId
+    * @param qualifier
+    * @param explicitMetadata
+    * @return a transformer for alias
+    */
+  def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
+                          qualifier: Seq[String], explicitMetadata: Option[Metadata])
+  : AliasBaseTransformer = new AliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
 
   /**
     * Generate ShuffleDependency for ColumnarShuffleExchangeExec.

@@ -18,13 +18,13 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution.{FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
-
+import io.glutenproject.expression.AliasBaseTransformer
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
@@ -83,6 +83,20 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
      initialInputBufferOffset: Int,
      resultExpressions: Seq[NamedExpression],
      child: SparkPlan): HashAggregateExecBaseTransformer = null
+
+  /**
+   * Generate Alias transformer.
+   *
+   * @param child The computation being performed
+   * @param name The name to be associated with the result of computing.
+   * @param exprId
+   * @param qualifier
+   * @param explicitMetadata
+   * @return a transformer for alias
+   */
+  def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
+                          qualifier: Seq[String], explicitMetadata: Option[Metadata])
+  : AliasBaseTransformer = null
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.

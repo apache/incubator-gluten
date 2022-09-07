@@ -33,11 +33,12 @@ object ExpressionConverter extends Logging {
     expr match {
       case a: Alias =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        new AliasTransformer(
-          replaceWithExpressionTransformer(
-            a.child,
-            attributeSeq),
-          a.name)(a.exprId, a.qualifier, a.explicitMetadata)
+        BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
+          replaceWithExpressionTransformer(a.child, attributeSeq),
+          a.name,
+          a.exprId,
+          a.qualifier,
+          a.explicitMetadata)
       case a: AttributeReference =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         if (attributeSeq == null) {
