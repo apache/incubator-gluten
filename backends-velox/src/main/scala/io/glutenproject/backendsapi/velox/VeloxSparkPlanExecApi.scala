@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi.velox
 
 import scala.collection.mutable.ArrayBuffer
 
-import com.intel.oap.spark.sql.VeloxColumnarRules._
+import org.apache.spark.sql.VeloxColumnarRules._
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
