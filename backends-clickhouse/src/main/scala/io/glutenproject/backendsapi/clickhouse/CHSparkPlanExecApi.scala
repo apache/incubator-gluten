@@ -98,9 +98,9 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
     * @param child
     * @return
     */
-  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec =
-    throw new UnsupportedOperationException(
-      "Cannot support RowToArrowColumnarExec operation with ClickHouse backend.")
+  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec = {
+    new RowToCHNativeColumnarExec(child)
+  }
 
   /**
     * Generate FilterExecTransformer.

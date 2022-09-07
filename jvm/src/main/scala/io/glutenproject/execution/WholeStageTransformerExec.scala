@@ -95,9 +95,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
   val sparkConf = sparkContext.getConf
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val enableColumnarSortMergeJoinLazyRead: Boolean = {
+  val enableColumnarSortMergeJoinLazyRead: Boolean =
     GlutenConfig.getConf.enableColumnarSortMergeJoinLazyRead
-  }
 
   override def output: Seq[Attribute] = child.output
 
@@ -301,7 +300,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val resCtx = doWholestageTransform()
       logInfo(
         s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
-      logInfo(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
+      logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>
         updateNativeMetrics(
