@@ -140,20 +140,21 @@ jobs:
       - run: free
       - run: sudo apt-get update
       - run: sudo apt-get install -y maven
-      - name: ccache cache files
-        uses: actions/cache@v2
-        with:
-          path: ~/.ccache
-          key: ${{ github.job }}-ccache
-          restore-keys: |
-            ${{ github.job }}-ccache
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      #  no need to cache these as it's running on self host server
+      #- name: ccache cache files
+      #  uses: actions/cache@v2
+      #  with:
+      #    path: ~/.ccache
+      #    key: ${{ github.job }}-ccache
+      #    restore-keys: |
+      #      ${{ github.job }}-ccache
+      #- name: Cache local Maven repository
+      #  uses: actions/cache@v2
+      #  with:
+      #    path: ~/.m2/repository
+      #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+      #    restore-keys: |
+      #      ${{ runner.os }}-maven-
       - name: Check ClickHouse Backend lib
         run: |
           ls -alt /usr/local/clickhouse/lib/libch.so
