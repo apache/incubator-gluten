@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.intel.oap.spark.sql
+package org.apache.spark.sql
 
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
 import org.apache.spark.rdd.RDD
