@@ -27,6 +27,7 @@
 
 #include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
+#include "arrow/c/bridge.h"
 #include "compute/exec_backend.h"
 #include "memory/columnar_batch.h"
 #include "memory/velox_memory_pool.h"
@@ -93,6 +94,9 @@ class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
 
   std::shared_ptr<ArrowSchema> exportArrowSchema() override;
   std::shared_ptr<ArrowArray> exportArrowArray() override;
+
+  RowVectorPtr getRowVector() const;
+  RowVectorPtr getFlattenedRowVector();
 
  private:
   void EnsureFlattened();
@@ -182,20 +186,29 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
           scanInfos);
 
-  std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
+  arrow::Result<
+      std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
   getColumnarConverter(
       gluten::memory::MemoryAllocator* allocator,
-      std::shared_ptr<arrow::RecordBatch> rb,
-      bool wsChild) override {
+      std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb) override {
     auto arrowPool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
     auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
-    if (wsChild) {
-      return std::make_shared<VeloxToRowConverter>(rb, arrowPool, veloxPool);
-    } else {
-      // If the child is not Velox output, use Arrow-to-Row conversion instead.
-      return std::make_shared<
-          gluten::columnartorow::ArrowColumnarToRowConverter>(rb, arrowPool);
+    std::shared_ptr<GlutenVeloxColumnarBatch> veloxBatch =
+        std::dynamic_pointer_cast<GlutenVeloxColumnarBatch>(cb);
+    if (veloxBatch != nullptr) {
+      return std::make_shared<VeloxToRowConverter>(
+          veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
     }
+    // If the child is not Velox output, use Arrow-to-Row conversion instead.
+    std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
+    std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
+    ARROW_ASSIGN_OR_RAISE(
+        std::shared_ptr<arrow::RecordBatch> rb,
+        arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+    ArrowSchemaRelease(c_schema.get());
+    ArrowArrayRelease(c_array.get());
+    return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
+        rb, arrowPool);
   }
 
   /// Separate the scan ids and stream ids, and get the scan infos.
