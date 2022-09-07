@@ -133,11 +133,15 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     customCheck(df)
     result
   }
-  
+
   /**
-    * run a query with native engine as well as vanilla spark
-    * then compare the result set for correctness check
-    */
+   * run a query with native engine as well as vanilla spark
+   * then compare the result set for correctness check
+   *
+   * @param queryNum
+   * @param tpchQueries
+   * @param customCheck
+   */
   protected def compareTPCHQueryAgainstVanillaSpark(
       queryNum: Int,
       tpchQueries: String,

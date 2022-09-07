@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.NANOSECONDS
 
 import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 
@@ -28,9 +27,10 @@ import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 
+
 case class BlockNativeColumnarToRowExec(child: SparkPlan)
-  extends NativeColumnarToRowExec(child = child) {
-  override def nodeName: String = "BlockNativeColumnarToRowExec"
+    extends NativeColumnarToRowExec(child = child) {
+  override def nodeName: String = "CHNativeColumnarToRow"
 
   override def supportCodegen: Boolean = false
 
@@ -78,7 +78,7 @@ case class BlockNativeColumnarToRowExec(child: SparkPlan)
           val blockAddress = nativeBlock
             .orElseThrow(() => new IllegalStateException("Logic error"))
             .blockAddress()
-          val info = jniWrapper.converColumarToRow(blockAddress)
+          val info = jniWrapper.convertColumnarToRow(blockAddress)
 
           convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 
@@ -115,6 +115,8 @@ case class BlockNativeColumnarToRowExec(child: SparkPlan)
       (that canEqual this) && super.equals(that)
     case _ => false
   }
+
+  override def hashCode(): Int = super.hashCode()
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BlockNativeColumnarToRowExec]
 

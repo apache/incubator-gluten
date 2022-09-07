@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
+package io.glutenproject.execution;
 
-package io.glutenproject.vectorized;
+import java.util.Iterator;
 
-import io.glutenproject.execution.SparkRowIterator;
-import io.glutenproject.row.SparkRowInfo;
+public class SparkRowIterator implements Iterator<byte[]> {
 
-public class BlockNativeConverter {
+    private final scala.collection.Iterator<byte[]> delegated;
 
+    public SparkRowIterator(scala.collection.Iterator<byte[]> delegated) {
+        this.delegated = delegated;
+    }
 
-    //for ch columnar -> spark row
-    public native SparkRowInfo convertColumnarToRow(long blockAddress);
+    @Override
+    public boolean hasNext() {
+        return delegated.hasNext();
+    }
 
-    //for ch columnar -> spark row
-    public native void freeMemory(long address, long size);
-
-    //for spark row -> ch columnar
-    public native long convertSparkRowsToCHColumn(
-            SparkRowIterator iter, String[] names, String[] types, boolean[] isNullables);
-
-    //for spark row -> ch columnar
-    public native void freeBlock(long blockAddress);
+    @Override
+    public byte[] next() {
+        return delegated.next();
+    }
 }

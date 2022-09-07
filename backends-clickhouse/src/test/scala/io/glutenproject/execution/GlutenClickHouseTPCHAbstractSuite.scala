@@ -18,16 +18,16 @@
 package io.glutenproject.execution
 
 import java.io.File
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 import org.apache.commons.io.FileUtils
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.util.stackTraceToString
-import org.apache.spark.sql.{AnalysisException, GlutenQueryTest, DataFrame, QueryTest, Row}
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
-import scala.io.Source
 
 abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSuite with Logging {
 
