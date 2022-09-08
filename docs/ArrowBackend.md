@@ -53,8 +53,8 @@ ArrowBackend should be added.
 
 | Configuration | Value | Comment |
 | --- | --- | --- |
-| spark.driver.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar |  |
-| spark.executor.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar |  |
+| spark.driver.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar |  |
+| spark.executor.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar |  |
 | spark.plugins | io.glutenproject.GlutenPlugin |  |
 | spark.gluten.sql.columnar.backend.lib | gazelle_cpp |  |
 | spark.shuffle.manager | org.apache.spark.shuffle.sort.ColumnarShuffleManager |  |

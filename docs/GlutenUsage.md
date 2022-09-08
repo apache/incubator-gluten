@@ -72,8 +72,8 @@ spark.plugins io.glutenproject.GlutenPlugin
 spark.gluten.sql.columnar.backend.lib ${BACKEND}
 spark.sql.sources.useV1SourceList avro
 spark.memory.offHeap.size 20g
-spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
+spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-SNAPSHOT-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-SNAPSHOT-jar-with-dependencies.jar
 ```
 ${BACKEND} can be velox or clickhouse, refer [Velox.md](https://github.com/oap-project/gluten/blob/main/docs/Velox.md}) and [ClickHouse.md](https://github.com/oap-project/gluten/blob/main/docs/ClickHouse.md) to get more detail.
 
