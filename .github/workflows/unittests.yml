@@ -121,7 +121,7 @@ jobs:
           git clone -b wip-tpc-ds https://github.com/zhztheplayer/gluten-it.git gluten-it
           cd gluten-it
           mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
-          java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.h.Tpc \
+          java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
 
