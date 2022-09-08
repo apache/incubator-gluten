@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution.{FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
 import io.glutenproject.expression.AliasBaseTransformer
+
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -32,7 +33,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -138,34 +138,34 @@ trait ISparkPlanExecApi extends IBackendsApi {
                               dataSize: SQLMetric): BuildSideRelation
 
   /**
-   * Generate extended DataSourceV2 Strategy.
+   * Generate extended DataSourceV2 Strategies.
    * Currently only for ClickHouse backend.
    *
    * @return
    */
-  def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy
+  def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy]
 
   /**
-   * Generate extended Analyzer.
+   * Generate extended Analyzers.
    * Currently only for ClickHouse backend.
    *
    * @return
    */
-  def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan]
+  def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]]
 
   /**
-   * Generate extended Strategy.
+   * Generate extended Strategies.
    * Currently only for Velox backend.
    *
    * @return
    */
-  def genExtendedStrategy(): Strategy
+  def genExtendedStrategies(): List[SparkSession => Strategy]
 
   /**
-   * Generate extended Rule.
+   * Generate extended Rules.
    * Currently only for Velox backend.
    *
    * @return
    */
-  def genExtendedRule(spark: SparkSession): ColumnarRule
+  def genExtendedColumnarRules(): List[SparkSession => ColumnarRule]
 }
