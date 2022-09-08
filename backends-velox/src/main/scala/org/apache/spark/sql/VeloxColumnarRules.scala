@@ -18,6 +18,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -25,17 +26,15 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
-import org.apache.spark.sql.execution.{ColumnarRule, ColumnarToRowExec, ColumnarToRowTransition, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeAdaptor, ColumnarRule, ColumnarShuffleExchangeAdaptor, ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
-import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
-
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 
@@ -196,6 +195,10 @@ object VeloxColumnarRules {
 
   case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
+      case c2r @ ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
+        c2r // AdaptiveSparkPlanExec.scala:536
+      case c2r @ ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>
+        c2r // AdaptiveSparkPlanExec.scala:546
       case ColumnarToRowExec(child) => ColumnarToRowExec(VeloxLoadArrowData(child))
     }
   }
