@@ -32,21 +32,36 @@ object DSV2ColumnarBenchmarkTest {
 
   def main(args: Array[String]): Unit = {
 
-    val (parquetFilesPath, fileFormat,
-    executedCnt, configed, sqlFilePath, stopFlagFile,
-    createTable, metaRootPath) = if (args.length > 0) {
+    val (
+      parquetFilesPath,
+      fileFormat,
+      executedCnt,
+      configed,
+      sqlFilePath,
+      stopFlagFile,
+      createTable,
+      metaRootPath) = if (args.length > 0) {
       (args(0), args(1), args(2).toInt, true, args(3), args(4), args(5).toBoolean, args(6))
     } else {
       val rootPath = this.getClass.getResource("/").getPath
       val resourcePath = rootPath + "../../../src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
-      (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
+      (
+        new File(dataPath).getAbsolutePath,
+        "parquet",
+        1,
+        false,
+        queryPath + "q06.sql",
+        "",
+        true,
         "/tmp/gluten-warehouse")
     }
 
     val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
-      (metaRootPath + "/spark-warehouse", metaRootPath + "/meta",
+      (
+        metaRootPath + "/spark-warehouse",
+        metaRootPath + "/meta",
         metaRootPath + "/meta/metastore_db")
     } else {
       ("/tmp/spark-warehouse", "/tmp/meta", "/tmp/meta/metastore_db")
@@ -89,7 +104,8 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.memory.storageFraction", "0.3")
         // .config("spark.sql.parquet.columnarReaderBatchSize", "20000")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
-        .config("spark.sql.catalog.spark_catalog",
+        .config(
+          "spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.databricks.delta.maxSnapshotLineageLength", 20)
         .config("spark.databricks.delta.snapshotPartitions", 1)
@@ -100,8 +116,7 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.gluten.sql.columnar.columnartorow", "false")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
-        .config(GlutenConfig.GLUTEN_LIB_PATH,
-          "/usr/local/clickhouse/lib/libch.so")
+        .config(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "true")
         // .config("spark.sql.planChangeLog.level", "info")
         .config("spark.sql.columnVector.offheap.enabled", "true")
@@ -110,8 +125,10 @@ object DSV2ColumnarBenchmarkTest {
         .config("spark.io.compression.codec", "LZ4")
 
       if (!warehouse.isEmpty) {
-        sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
-          .config("javax.jdo.option.ConnectionURL",
+        sessionBuilderTmp1
+          .config("spark.sql.warehouse.dir", warehouse)
+          .config(
+            "javax.jdo.option.ConnectionURL",
             s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
           .enableHiveSupport()
       } else {
@@ -150,20 +167,19 @@ object DSV2ColumnarBenchmarkTest {
     System.out.println("finished")
   }
 
-  def createClickHouseTables(spark: SparkSession,
-                             parquetFilesPath: String, fileFormat: String): Unit = {
-    spark.sql(
-      """
+  def createClickHouseTables(
+      spark: SparkSession,
+      parquetFilesPath: String,
+      fileFormat: String): Unit = {
+    spark.sql("""
         | show databases
         |""".stripMargin).show(100, false)
 
-    spark.sql(
-      """
+    spark.sql("""
         | show tables
         |""".stripMargin).show(100, false)
 
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | USE default
          |""".stripMargin).show(100, false)
 
@@ -174,8 +190,7 @@ object DSV2ColumnarBenchmarkTest {
     println("Creating a table")
     // PARTITIONED BY (age)
     // engine='MergeTree' or engine='Parquet'
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS $tableName (
          | l_orderkey      bigint,
          | l_partkey       bigint,
@@ -198,26 +213,22 @@ object DSV2ColumnarBenchmarkTest {
          |                )
          |""".stripMargin)
 
-    spark.sql(
-      """
+    spark.sql("""
         | show tables
         |""".stripMargin).show(100, false)
 
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | desc formatted ${tableName}
          |""".stripMargin).show(100, false)
 
   }
 
   def createLocationClickHouseTable(spark: SparkSession): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | USE default
          |""".stripMargin).show(100, false)
 
-    spark.sql(
-      """
+    spark.sql("""
         | show tables
         |""".stripMargin).show(100, false)
 
@@ -227,8 +238,7 @@ object DSV2ColumnarBenchmarkTest {
     // Create a table
     // PARTITIONED BY (age)
     // engine='MergeTree' or engine='Parquet'
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS ch_clickhouse (
          | l_orderkey      bigint,
          | l_partkey       bigint,
@@ -252,38 +262,31 @@ object DSV2ColumnarBenchmarkTest {
          | LOCATION '/home/saber/Documents/data/mergetree'
          |""".stripMargin)
 
-    spark.sql(
-      """
+    spark.sql("""
         | show tables
         |""".stripMargin).show(100, false)
   }
 
   def refreshClickHouseTable(spark: SparkSession): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | refresh table ${tableName}
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | desc formatted ${tableName}
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | refresh table ch_clickhouse
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | desc formatted ch_clickhouse
          |""".stripMargin).show(100, false)
   }
 
-  def selectLocationClickHouseTable(spark: SparkSession, executedCnt: Int,
-                                    sql: String): Unit = {
+  def selectLocationClickHouseTable(spark: SparkSession, executedCnt: Int, sql: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      spark.sql(
-        s"""
+      spark.sql(s"""
            |SELECT
            |    sum(l_extendedprice * l_discount) AS revenue
            |FROM
@@ -307,13 +310,11 @@ object DSV2ColumnarBenchmarkTest {
     df.summary().show(100, false)
   }
 
-  def selectClickHouseTable(spark: SparkSession, executedCnt: Int,
-                            sql: String): Unit = {
+  def selectClickHouseTable(spark: SparkSession, executedCnt: Int, sql: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      spark.sql(
-        s"""
+      spark.sql(s"""
            |SELECT
            |    sum(l_extendedprice * l_discount) AS revenue
            |FROM

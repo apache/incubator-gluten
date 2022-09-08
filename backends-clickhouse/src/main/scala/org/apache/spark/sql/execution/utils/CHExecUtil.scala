@@ -21,7 +21,12 @@ import scala.collection.JavaConverters._
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.{BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
+import io.glutenproject.vectorized.{
+  BlockSplitIterator,
+  CHNativeBlock,
+  CloseablePartitionedBlockIterator,
+  NativePartitioning
+}
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
 import org.apache.spark.ShuffleDependency
@@ -52,20 +57,20 @@ object CHExecUtil {
     case "Boolean" => BooleanType
   }
   // scalastyle:off argcount
-  def genShuffleDependency(rdd: RDD[ColumnarBatch],
-                           outputAttributes: Seq[Attribute],
-                           newPartitioning: Partitioning,
-                           serializer: Serializer,
-                           writeMetrics: Map[String, SQLMetric],
-                           dataSize: SQLMetric,
-                           bytesSpilled: SQLMetric,
-                           numInputRows: SQLMetric,
-                           computePidTime: SQLMetric,
-                           splitTime: SQLMetric,
-                           spillTime: SQLMetric,
-                           compressTime: SQLMetric,
-                           prepareTime: SQLMetric
-                          ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+  def genShuffleDependency(
+      rdd: RDD[ColumnarBatch],
+      outputAttributes: Seq[Attribute],
+      newPartitioning: Partitioning,
+      serializer: Serializer,
+      writeMetrics: Map[String, SQLMetric],
+      dataSize: SQLMetric,
+      bytesSpilled: SQLMetric,
+      numInputRows: SQLMetric,
+      computePidTime: SQLMetric,
+      splitTime: SQLMetric,
+      spillTime: SQLMetric,
+      compressTime: SQLMetric,
+      prepareTime: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     val nativePartitioning: NativePartitioning = newPartitioning match {
       case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte])
@@ -77,11 +82,7 @@ object CHExecUtil {
             val attr = ConverterUtils.getAttrFromExpr(expr)
             ConverterUtils.genColumnNameWithExprId(attr)
         }
-        new NativePartitioning(
-          "hash",
-          n,
-          null,
-          fields.mkString(",").getBytes)
+        new NativePartitioning("hash", n, null, fields.mkString(",").getBytes)
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
@@ -98,10 +99,7 @@ object CHExecUtil {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(
-              (_, cbIter) =>
-                cbIter.map { cb =>
-                  (0, cb)
-                },
+              (_, cbIter) => cbIter.map { cb => (0, cb) },
               isOrderSensitive = isOrderSensitive)
         }
       } else {
@@ -122,10 +120,17 @@ object CHExecUtil {
                 options.setName("hash")
                 val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
                   val splitIterator = new BlockSplitIterator(
-                    cbIter.map(cb =>
-                      CHNativeBlock.fromColumnarBatch(cb)
-                        .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
-                        .blockAddress().asInstanceOf[java.lang.Long]).asJava, options)
+                    cbIter
+                      .map(
+                        cb =>
+                          CHNativeBlock
+                            .fromColumnarBatch(cb)
+                            .orElseThrow(() =>
+                              new IllegalStateException("unsupported columnar batch"))
+                            .blockAddress()
+                            .asInstanceOf[java.lang.Long])
+                      .asJava,
+                    options)
 
                   override def hasNext: Boolean = splitIterator.hasNext
 
@@ -144,10 +149,17 @@ object CHExecUtil {
                 options.setName("rr")
                 val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
                   val splitIterator = new BlockSplitIterator(
-                    cbIter.map(cb =>
-                      CHNativeBlock.fromColumnarBatch(cb)
-                        .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
-                        .blockAddress().asInstanceOf[java.lang.Long]).asJava, options)
+                    cbIter
+                      .map(
+                        cb =>
+                          CHNativeBlock
+                            .fromColumnarBatch(cb)
+                            .orElseThrow(() =>
+                              new IllegalStateException("unsupported columnar batch"))
+                            .blockAddress()
+                            .asInstanceOf[java.lang.Long])
+                      .asJava,
+                    options)
 
                   override def hasNext: Boolean = splitIterator.hasNext
 
@@ -166,10 +178,17 @@ object CHExecUtil {
                 options.setName("rr")
                 val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
                   val splitIterator = new BlockSplitIterator(
-                    cbIter.map(cb =>
-                      CHNativeBlock.fromColumnarBatch(cb)
-                        .orElseThrow(() => new IllegalStateException("unsupported columnar batch"))
-                        .blockAddress().asInstanceOf[java.lang.Long]).asJava, options)
+                    cbIter
+                      .map(
+                        cb =>
+                          CHNativeBlock
+                            .fromColumnarBatch(cb)
+                            .orElseThrow(() =>
+                              new IllegalStateException("unsupported columnar batch"))
+                            .blockAddress()
+                            .asInstanceOf[java.lang.Long])
+                      .asJava,
+                    options)
 
                   override def hasNext: Boolean = splitIterator.hasNext
 
@@ -191,8 +210,7 @@ object CHExecUtil {
         rddWithpartitionKey,
         new PartitionIdPassthrough(newPartitioning.numPartitions),
         serializer,
-        shuffleWriterProcessor =
-          ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
+        shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
         dataSize = dataSize,
         bytesSpilled = bytesSpilled,

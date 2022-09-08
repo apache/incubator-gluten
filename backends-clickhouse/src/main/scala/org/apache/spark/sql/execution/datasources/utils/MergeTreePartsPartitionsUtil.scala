@@ -27,8 +27,9 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouse
 
 object MergeTreePartsPartitionsUtil {
 
-  def getPartsPartitions(sparkSession: SparkSession,
-                         table: ClickHouseTableV2): Seq[InputPartition] = {
+  def getPartsPartitions(
+      sparkSession: SparkSession,
+      table: ClickHouseTableV2): Seq[InputPartition] = {
     val maxSplitBytes = sparkSession.sessionState.conf.filesMaxPartitionBytes
     val partsFiles = table.listFiles()
 
@@ -44,8 +45,14 @@ object MergeTreePartsPartitionsUtil {
     /** Close the current partition and move to the next. */
     def closePartition(): Unit = {
       if (currentMinPartsNum > 0L && currentMaxPartsNum >= currentMinPartsNum) {
-        val newPartition = NativeMergeTreePartition(partitions.size, engine, database, tableName,
-          tablePath, currentMinPartsNum, currentMaxPartsNum + 1)
+        val newPartition = NativeMergeTreePartition(
+          partitions.size,
+          engine,
+          database,
+          tableName,
+          tablePath,
+          currentMinPartsNum,
+          currentMaxPartsNum + 1)
         partitions += newPartition
       }
       currentMinPartsNum = -1L

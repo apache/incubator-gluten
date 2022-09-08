@@ -26,12 +26,14 @@ object UTSystemParameters {
   val TPCDS_DATA_PATH_DEFAULT_VALUE = "/data/tpcds-data-sf1"
 
   def getClickHouseLibPath(): String = {
-    System.getProperty(UTSystemParameters.CLICKHOUSE_LIB_PATH_KEY,
+    System.getProperty(
+      UTSystemParameters.CLICKHOUSE_LIB_PATH_KEY,
       UTSystemParameters.CLICKHOUSE_LIB_PATH_DEFAULT_VALUE)
   }
 
   def getTpcdsDataPath(): String = {
-    System.getProperty(UTSystemParameters.TPCDS_DATA_PATH_KEY,
+    System.getProperty(
+      UTSystemParameters.TPCDS_DATA_PATH_KEY,
       UTSystemParameters.TPCDS_DATA_PATH_DEFAULT_VALUE)
   }
 }

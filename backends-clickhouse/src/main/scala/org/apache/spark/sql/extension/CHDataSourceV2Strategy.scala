@@ -20,7 +20,12 @@ package org.apache.spark.sql.extension
 import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.plans.logical.{AppendData, CreateTableAsSelect, CreateV2Table, LogicalPlan}
+import org.apache.spark.sql.catalyst.plans.logical.{
+  AppendData,
+  CreateTableAsSelect,
+  CreateV2Table,
+  LogicalPlan
+}
 import org.apache.spark.sql.connector.catalog.{CatalogV2Util, StagingTableCatalog}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2._
@@ -33,13 +38,13 @@ case class CHDataSourceV2Strategy(spark: SparkSession) extends Strategy {
   import DataSourceV2Implicits._
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
-    case CreateV2Table(catalog, ident, schema, parts,
-    props, ifNotExists) if catalog.isInstanceOf[ClickHouseSparkCatalog] =>
+    case CreateV2Table(catalog, ident, schema, parts, props, ifNotExists)
+        if catalog.isInstanceOf[ClickHouseSparkCatalog] =>
       val propsWithOwner = CatalogV2Util.withDefaultOwnership(props)
       CreateTableExec(catalog, ident, schema, parts, propsWithOwner, ifNotExists) :: Nil
 
-    case CreateTableAsSelect(catalog, ident, parts, query,
-    props, options, ifNotExists) if catalog.isInstanceOf[ClickHouseSparkCatalog] =>
+    case CreateTableAsSelect(catalog, ident, parts, query, props, options, ifNotExists)
+        if catalog.isInstanceOf[ClickHouseSparkCatalog] =>
       val propsWithOwner = CatalogV2Util.withDefaultOwnership(props)
       val writeOptions = new CaseInsensitiveStringMap(options.asJava)
       catalog match {
@@ -48,16 +53,27 @@ case class CHDataSourceV2Strategy(spark: SparkSession) extends Strategy {
           //  propsWithOwner, writeOptions, ifNotExists) :: Nil
           Nil
         case _ =>
-          CreateTableAsSelectExec(catalog, ident, parts, query, planLater(query),
-            propsWithOwner, writeOptions, ifNotExists) :: Nil
+          CreateTableAsSelectExec(
+            catalog,
+            ident,
+            parts,
+            query,
+            planLater(query),
+            propsWithOwner,
+            writeOptions,
+            ifNotExists) :: Nil
       }
 
-    case AppendData(r: DataSourceV2Relation, query,
-    writeOptions, _, Some(write)) if r.table.isInstanceOf[ClickHouseTableV2] =>
+    case AppendData(r: DataSourceV2Relation, query, writeOptions, _, Some(write))
+        if r.table.isInstanceOf[ClickHouseTableV2] =>
       r.table.asWritable match {
         case v2 =>
-          ClickHouseAppendDataExec(v2, writeOptions.asOptions, planLater(query),
-            write, refreshCache(r)) :: Nil
+          ClickHouseAppendDataExec(
+            v2,
+            writeOptions.asOptions,
+            planLater(query),
+            write,
+            refreshCache(r)) :: Nil
       }
 
     case _ => Nil

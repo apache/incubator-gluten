@@ -29,11 +29,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 class CHColumnarShuffleWriter[K, V](
-                                     shuffleBlockResolver: IndexShuffleBlockResolver,
-                                     handle: BaseShuffleHandle[K, V, V],
-                                     mapId: Long,
-                                     writeMetrics: ShuffleWriteMetricsReporter)
-  extends ShuffleWriter[K, V]
+    shuffleBlockResolver: IndexShuffleBlockResolver,
+    handle: BaseShuffleHandle[K, V, V],
+    mapId: Long,
+    writeMetrics: ShuffleWriteMetricsReporter)
+    extends ShuffleWriter[K, V]
     with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
@@ -83,8 +83,12 @@ class CHColumnarShuffleWriter[K, V](
       jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper]
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId, partitionLengths,
-                                                      Array[Long](), null)
+      shuffleBlockResolver.writeMetadataFileAndCommit(
+        dep.shuffleId,
+        mapId,
+        partitionLengths,
+        Array[Long](),
+        null)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }

@@ -17,12 +17,16 @@
 
 package io.glutenproject.execution
 
-case class NativeMergeTreePartition(index: Int, engine: String,
-                                    database: String,
-                                    table: String, tablePath: String,
-                                    minParts: Long, maxParts: Long,
-                                    substraitPlan: Array[Byte] = Array.empty[Byte])
-  extends BaseNativeFilePartition {
+case class NativeMergeTreePartition(
+    index: Int,
+    engine: String,
+    database: String,
+    table: String,
+    tablePath: String,
+    minParts: Long,
+    maxParts: Long,
+    substraitPlan: Array[Byte] = Array.empty[Byte])
+    extends BaseNativeFilePartition {
   override def preferredLocations(): Array[String] = {
     Array.empty[String]
   }
@@ -31,4 +35,3 @@ case class NativeMergeTreePartition(index: Int, engine: String,
     this.copy(substraitPlan = newSubstraitPlan)
   }
 }
-

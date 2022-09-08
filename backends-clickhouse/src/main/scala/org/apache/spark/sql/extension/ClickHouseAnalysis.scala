@@ -33,16 +33,20 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 class ClickHouseAnalysis(session: SparkSession, conf: SQLConf)
-  extends Rule[LogicalPlan] with AnalysisHelper with DeltaLogging {
+    extends Rule[LogicalPlan]
+    with AnalysisHelper
+    with DeltaLogging {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsDown {
     // This rule falls back to V1 nodes according to 'spark.gluten.sql.columnar.backend.ch.use.v2'
-    case dsv2@DataSourceV2Relation(tableV2: ClickHouseTableV2, _, _, _, options) =>
-      if (conf.getConfString(ClickHouseConfig.USE_DATASOURCE_V2,
-        ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2).toBoolean) {
+    case dsv2 @ DataSourceV2Relation(tableV2: ClickHouseTableV2, _, _, _, options) =>
+      if (conf
+            .getConfString(
+              ClickHouseConfig.USE_DATASOURCE_V2,
+              ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
+            .toBoolean) {
         dsv2
-      }
-      else {
+      } else {
         ClickHouseAnalysis.fromV2Relation(tableV2, dsv2, options)
       }
   }
@@ -50,16 +54,17 @@ class ClickHouseAnalysis(session: SparkSession, conf: SQLConf)
 
 object ClickHouseAnalysis {
   def unapply(plan: LogicalPlan): Option[LogicalRelation] = plan match {
-    case dsv2@DataSourceV2Relation(d: ClickHouseTableV2, _, _, _, options) =>
+    case dsv2 @ DataSourceV2Relation(d: ClickHouseTableV2, _, _, _, options) =>
       Some(fromV2Relation(d, dsv2, options))
-    case lr@ClickHouseTable(_) => Some(lr)
+    case lr @ ClickHouseTable(_) => Some(lr)
     case _ => None
   }
 
   // convert 'DataSourceV2Relation' to 'LogicalRelation'
-  def fromV2Relation(tableV2: ClickHouseTableV2,
-                     v2Relation: DataSourceV2Relation,
-                     options: CaseInsensitiveStringMap): LogicalRelation = {
+  def fromV2Relation(
+      tableV2: ClickHouseTableV2,
+      v2Relation: DataSourceV2Relation,
+      options: CaseInsensitiveStringMap): LogicalRelation = {
     val relation = tableV2.withOptions(options.asScala.toMap).toBaseRelation
     val output = v2Relation.output
 

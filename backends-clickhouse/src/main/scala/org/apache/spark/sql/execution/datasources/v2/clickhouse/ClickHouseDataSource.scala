@@ -40,9 +40,9 @@ class ClickHouseDataSource extends DataSourceRegister with TableProvider {
   def inferSchema: StructType = new StructType() // empty
 
   override def getTable(
-                         schema: StructType,
-                         partitioning: Array[Transform],
-                         properties: java.util.Map[String, String]): Table = {
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: java.util.Map[String, String]): Table = {
     val options = new CaseInsensitiveStringMap(properties)
     val path = options.get("path")
     if (path == null) throw DeltaErrors.pathNotSpecifiedException

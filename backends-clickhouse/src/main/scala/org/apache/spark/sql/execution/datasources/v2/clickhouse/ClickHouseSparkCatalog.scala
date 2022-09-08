@@ -26,29 +26,45 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.analysis.{NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
+import org.apache.spark.sql.catalyst.analysis.{
+  NoSuchDatabaseException,
+  NoSuchNamespaceException,
+  NoSuchTableException
+}
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog._
-import org.apache.spark.sql.connector.expressions.{BucketTransform, FieldReference, IdentityTransform, Transform}
+import org.apache.spark.sql.connector.expressions.{
+  BucketTransform,
+  FieldReference,
+  IdentityTransform,
+  Transform
+}
 import org.apache.spark.sql.delta.DeltaTableIdentifier.gluePermissionError
 import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetSchemaConverter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.commands.CreateClickHouseTableCommand
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.{CHDataSourceUtils, ScanMergeTreePartsUtils}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.{
+  CHDataSourceUtils,
+  ScanMergeTreePartsUtils
+}
 import org.apache.spark.sql.types.StructType
 
-class ClickHouseSparkCatalog extends DelegatingCatalogExtension
-  with StagingTableCatalog
-  with SupportsPathIdentifier
-  with Logging {
+class ClickHouseSparkCatalog
+    extends DelegatingCatalogExtension
+    with StagingTableCatalog
+    with SupportsPathIdentifier
+    with Logging {
 
   val spark = SparkSession.active
 
-  override def createTable(ident: Identifier, schema: StructType, partitions: Array[Transform],
-                           properties: util.Map[String, String]): Table = {
+  override def createTable(
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      properties: util.Map[String, String]): Table = {
     if (CHDataSourceUtils.isClickHouseDataSourceName(getProvider(properties))) {
       createClickHouseTable(
         ident,
@@ -64,27 +80,27 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
   }
 
   /**
-    * Creates a ClickHouse table
-    *
-    * @param ident              The identifier of the table
-    * @param schema             The schema of the table
-    * @param partitions         The partition transforms for the table
-    * @param allTableProperties The table properties that configure the behavior of the table or
-    *                           provide information about the table
-    * @param writeOptions       Options specific to the write during table creation or replacement
-    * @param sourceQuery        A query if this CREATE request came from a CTAS or RTAS
-    * @param operation          The specific table creation mode, whether this is a
-    *                           Create/Replace/Create or
-    *                           Replace
-    */
+   * Creates a ClickHouse table
+   *
+   * @param ident              The identifier of the table
+   * @param schema             The schema of the table
+   * @param partitions         The partition transforms for the table
+   * @param allTableProperties The table properties that configure the behavior of the table or
+   *                           provide information about the table
+   * @param writeOptions       Options specific to the write during table creation or replacement
+   * @param sourceQuery        A query if this CREATE request came from a CTAS or RTAS
+   * @param operation          The specific table creation mode, whether this is a
+   *                           Create/Replace/Create or
+   *                           Replace
+   */
   private def createClickHouseTable(
-                                     ident: Identifier,
-                                     schema: StructType,
-                                     partitions: Array[Transform],
-                                     allTableProperties: util.Map[String, String],
-                                     writeOptions: Map[String, String],
-                                     sourceQuery: Option[DataFrame],
-                                     operation: TableCreationModes.CreationMode): Table = {
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      allTableProperties: util.Map[String, String],
+      writeOptions: Map[String, String],
+      sourceQuery: Option[DataFrame],
+      operation: TableCreationModes.CreationMode): Table = {
     val tableProperties = ClickHouseConfig.validateConfigurations(allTableProperties)
     val (partitionColumns, maybeBucketSpec) = convertTransforms(partitions)
     var newSchema = schema
@@ -98,7 +114,8 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
       Option(allTableProperties.get("location"))
     }
     val locUriOpt = location.map(CatalogUtils.stringToURI)
-    val storage = DataSource.buildStorageFormatFromOptions(writeOptions)
+    val storage = DataSource
+      .buildStorageFormatFromOptions(writeOptions)
       .copy(locationUri = locUriOpt)
     val tableType =
       if (location.isDefined) CatalogTableType.EXTERNAL else CatalogTableType.MANAGED
@@ -153,7 +170,6 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
       case IdentityTransform(FieldReference(Seq(col))) =>
         identityCols += col
 
-
       case BucketTransform(numBuckets, FieldReference(Seq(col))) =>
         bucketSpec = Some(BucketSpec(numBuckets, col :: Nil, Nil))
 
@@ -166,22 +182,25 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
 
   /** Performs checks on the parameters provided for table creation for a ClickHouse table. */
   private def verifyTableAndSolidify(
-                                      tableDesc: CatalogTable,
-                                      query: Option[LogicalPlan]): CatalogTable = {
+      tableDesc: CatalogTable,
+      query: Option[LogicalPlan]): CatalogTable = {
 
     if (tableDesc.bucketSpec.isDefined) {
       throw new UnsupportedOperationException("Do not support Bucketing")
     }
 
-    val schema = query.map { plan =>
-      assert(tableDesc.schema.isEmpty, "Can't specify table schema in CTAS.")
-      plan.schema.asNullable
-    }.getOrElse(tableDesc.schema)
+    val schema = query
+      .map { plan =>
+        assert(tableDesc.schema.isEmpty, "Can't specify table schema in CTAS.")
+        plan.schema.asNullable
+      }
+      .getOrElse(tableDesc.schema)
 
     PartitioningUtils.validatePartitionColumn(
       schema,
       tableDesc.partitionColumnNames,
-      caseSensitive = false) // Delta is case insensitive
+      caseSensitive = false
+    ) // Delta is case insensitive
 
     val db = tableDesc.identifier.database.getOrElse(catalog.getCurrentDatabase)
     val tableIdentWithDB = tableDesc.identifier.copy(database = Some(db))
@@ -204,8 +223,9 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
           s"${table.identifier} is a view. You may not write data into a view.")
       }
       if (!CHDataSourceUtils.isClickHouseTable(oldTable.provider)) {
-        throw new AnalysisException(s"${table.identifier} is not a ClickHouse table. Please drop " +
-          s"this table first if you would like to recreate it.")
+        throw new AnalysisException(
+          s"${table.identifier} is not a ClickHouse table. Please drop " +
+            s"this table first if you would like to recreate it.")
       }
       Some(oldTable)
     } else {
@@ -221,13 +241,13 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
     try {
       loadTable(ident) match {
         case v: ClickHouseTableV2 =>
-          ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(spark.sessionState.newHadoopConf(),
+          ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(
+            spark.sessionState.newHadoopConf(),
             v)
           v.refresh()
       }
       super.invalidateTable(ident)
-    }
-    catch {
+    } catch {
       case ignored: NoSuchTableException =>
       // ignore if the table doesn't exist, it is not cached
     }
@@ -246,11 +266,13 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
       }
     } catch {
       case _: NoSuchDatabaseException | _: NoSuchNamespaceException | _: NoSuchTableException
-        if isPathIdentifier(ident) =>
+          if isPathIdentifier(ident) =>
         newDeltaPathTable(ident)
       case e: AnalysisException if gluePermissionError(e) && isPathIdentifier(ident) =>
-        logWarning("Received an access denied error from Glue. Assuming this " +
-          s"identifier ($ident) is path based.", e)
+        logWarning(
+          "Received an access denied error from Glue. Assuming this " +
+            s"identifier ($ident) is path based.",
+          e)
         newDeltaPathTable(ident)
     }
   }
@@ -259,27 +281,35 @@ class ClickHouseSparkCatalog extends DelegatingCatalogExtension
     ClickHouseTableV2(spark, new Path(ident.name()))
   }
 
-  override def stageCreate(ident: Identifier, schema: StructType, partitions: Array[Transform],
-                           properties: util.Map[String, String]): StagedTable = {
+  override def stageCreate(
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      properties: util.Map[String, String]): StagedTable = {
     throw new UnsupportedOperationException("Do not support stageCreate currently.")
   }
 
-  override def stageReplace(ident: Identifier, schema: StructType, partitions: Array[Transform],
-                            properties: util.Map[String, String]): StagedTable = {
+  override def stageReplace(
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      properties: util.Map[String, String]): StagedTable = {
     throw new UnsupportedOperationException("Do not support stageReplace currently.")
   }
 
-  override def stageCreateOrReplace(ident: Identifier, schema: StructType,
-                                    partitions: Array[Transform],
-                                    properties: util.Map[String, String]): StagedTable = {
+  override def stageCreateOrReplace(
+      ident: Identifier,
+      schema: StructType,
+      partitions: Array[Transform],
+      properties: util.Map[String, String]): StagedTable = {
     throw new UnsupportedOperationException("Do not support stageCreateOrReplace currently.")
   }
 }
 
 /**
-  * A trait for handling table access through clickhouse.`/some/path`. This is a stop-gap solution
-  * until PathIdentifiers are implemented in Apache Spark.
-  */
+ * A trait for handling table access through clickhouse.`/some/path`. This is a stop-gap solution
+ * until PathIdentifiers are implemented in Apache Spark.
+ */
 trait SupportsPathIdentifier extends TableCatalog {
   self: ClickHouseSparkCatalog =>
 
@@ -308,7 +338,7 @@ trait SupportsPathIdentifier extends TableCatalog {
 
   private def hasClickHouseNamespace(ident: Identifier): Boolean = {
     ident.namespace().length == 1 &&
-      CHDataSourceUtils.isClickHouseDataSourceName(ident.namespace().head)
+    CHDataSourceUtils.isClickHouseDataSourceName(ident.namespace().head)
   }
 
   protected def isPathIdentifier(table: CatalogTable): Boolean = {
