@@ -877,7 +877,7 @@ object GenTPCDSTableScripts {
       tableSuffix)
 
     // scalastyle:off println
-    println(res.mkString("\n\n"))
+    // println(res.mkString("\n\n"))
     // scalastyle:on println
     res
   }
@@ -1312,7 +1312,7 @@ object GenTPCDSTableScripts {
       tableSuffix)
 
     // scalastyle:off println
-    println(res.mkString("\n\n"))
+    // println(res.mkString("\n\n"))
     // scalastyle:on println
     res
   }
