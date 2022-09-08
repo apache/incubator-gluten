@@ -32,14 +32,15 @@ import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitions
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.types.StructType
 
-case class ClickHouseFileIndex(override val spark: SparkSession,
-                               override val deltaLog: DeltaLog,
-                               override val path: Path,
-                               table: ClickHouseTableV2,
-                               snapshotAtAnalysis: Snapshot,
-                               partitionFilters: Seq[Expression] = Nil,
-                               isTimeTravelQuery: Boolean = false)
-  extends TahoeFileIndex(spark, deltaLog, path) {
+case class ClickHouseFileIndex(
+    override val spark: SparkSession,
+    override val deltaLog: DeltaLog,
+    override val path: Path,
+    table: ClickHouseTableV2,
+    snapshotAtAnalysis: Snapshot,
+    partitionFilters: Seq[Expression] = Nil,
+    isTimeTravelQuery: Boolean = false)
+    extends TahoeFileIndex(spark, deltaLog, path) {
 
   override val sizeInBytes: Long = table.listFiles().map(_.bytesOnDisk).sum
 
@@ -56,8 +57,8 @@ case class ClickHouseFileIndex(override val spark: SparkSession,
   }
 
   override def matchingFiles(
-                              partitionFilters: Seq[Expression],
-                              dataFilters: Seq[Expression]): Seq[AddFile] = {
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[AddFile] = {
     Seq.empty[AddFile]
   }
 
@@ -65,18 +66,21 @@ case class ClickHouseFileIndex(override val spark: SparkSession,
     table.listFiles().map(_.path).toArray
   }
 
-  override def listFiles(partitionFilters: Seq[Expression],
-                         dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
-    table.listFiles().map(parts => {
-      val fileStats = new FileStatus(
-        /* length */ parts.bytesOnDisk,
-        /* isDir */ false,
-        /* blockReplication */ 0,
-        /* blockSize */ 1,
-        /* modificationTime */ parts.modificationTime,
-        absolutePath(parts.path))
-      PartitionDirectory(new GenericInternalRow(Array.empty[Any]), Seq(fileStats))
-    })
+  override def listFiles(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
+    table
+      .listFiles()
+      .map(parts => {
+        val fileStats = new FileStatus(
+          /* length */ parts.bytesOnDisk,
+          /* isDir */ false,
+          /* blockReplication */ 0,
+          /* blockSize */ 1,
+          /* modificationTime */ parts.modificationTime,
+          absolutePath(parts.path))
+        PartitionDirectory(new GenericInternalRow(Array.empty[Any]), Seq(fileStats))
+      })
   }
 
   def partsPartitions: Seq[InputPartition] =

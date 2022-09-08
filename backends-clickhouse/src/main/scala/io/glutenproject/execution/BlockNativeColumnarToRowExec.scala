@@ -27,7 +27,6 @@ import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 
-
 case class BlockNativeColumnarToRowExec(child: SparkPlan)
     extends NativeColumnarToRowExec(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"

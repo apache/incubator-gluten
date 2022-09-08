@@ -22,15 +22,16 @@ import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
 import org.apache.spark.sql.execution.{ReusedSubqueryExec, ScalarSubquery, SubqueryExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
-class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseTPCDSAbstractSuite {
+class GlutenClickHouseTPCDSParquetColumnarShuffleSuite
+    extends GlutenClickHouseTPCDSAbstractSuite {
 
   override protected val tpcdsQueries: String =
     rootPath + "../../../../jvm/src/test/resources/tpcds-queries"
   override protected val queriesResults: String = rootPath + "tpcds-queries-output"
 
   /**
-    * Run Gluten + ClickHouse Backend with SortShuffleManager
-    */
+   * Run Gluten + ClickHouse Backend with SortShuffleManager
+   */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -44,8 +45,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("test reading from partitioned table") {
-    val df = spark.sql(
-      """
+    val df = spark.sql("""
         |select count(*)
         |  from store_sales
         |  where ss_quantity between 1 and 20
@@ -55,8 +55,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("test reading from partitioned table with partition column filter") {
-    val df = spark.sql(
-      """
+    val df = spark.sql("""
         |select avg(ss_net_paid_inc_tax)
         |  from store_sales
         |  where ss_quantity between 1 and 20
@@ -78,16 +77,15 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCDS Q9") {
-    withSQLConf(
-      ("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery(9) { df =>
         var countSubqueryExec = 0
         var countReuseSubqueryExec = 0
         df.queryExecution.executedPlan.transformAllExpressions {
-          case s@ScalarSubquery(_: SubqueryExec, _) =>
+          case s @ ScalarSubquery(_: SubqueryExec, _) =>
             countSubqueryExec = countSubqueryExec + 1
             s
-          case s@ScalarSubquery(_: ReusedSubqueryExec, _) =>
+          case s @ ScalarSubquery(_: ReusedSubqueryExec, _) =>
             countReuseSubqueryExec = countReuseSubqueryExec + 1
             s
         }
@@ -98,14 +96,14 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCDS Q21") {
-    withSQLConf(
-      ("spark.gluten.sql.columnar.columnartorow", "true")) {
+    withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery(21) { df =>
         val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
-            case _: DynamicPruningExpression => true
-            case _ => false
-          }
+          case f: FileSourceScanExecTransformer =>
+            f.partitionFilters.exists {
+              case _: DynamicPruningExpression => true
+              case _ => false
+            }
           case _ => false
         }
         assert(foundDynamicPruningExpr.nonEmpty == true)
@@ -120,14 +118,14 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCDS Q21 with non-separated scan rdd") {
-    withSQLConf(
-      ("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
+    withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
       runTPCDSQuery(21) { df =>
         val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-          case f: FileSourceScanExecTransformer => f.partitionFilters.exists {
-            case _: DynamicPruningExpression => true
-            case _ => false
-          }
+          case f: FileSourceScanExecTransformer =>
+            f.partitionFilters.exists {
+              case _: DynamicPruningExpression => true
+              case _ => false
+            }
           case _ => false
         }
         assert(foundDynamicPruningExpr.nonEmpty == true)

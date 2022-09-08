@@ -25,14 +25,22 @@ import scala.reflect.ClassTag
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
+import org.apache.spark.serializer.{
+  DeserializationStream,
+  SerializationStream,
+  Serializer,
+  SerializerInstance
+}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class CHColumnarBatchSerializer(readBatchNumRows: SQLMetric,
-                                numOutputRows: SQLMetric,
-                                dataSize: SQLMetric)
-  extends Serializer with Serializable {
+class CHColumnarBatchSerializer(
+    readBatchNumRows: SQLMetric,
+    numOutputRows: SQLMetric,
+    dataSize: SQLMetric)
+    extends Serializer
+    with Serializable {
+
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
     new CHColumnarBatchSerializerInstance(readBatchNumRows, numOutputRows, dataSize)
@@ -41,11 +49,11 @@ class CHColumnarBatchSerializer(readBatchNumRows: SQLMetric,
   override def supportsRelocationOfSerializedObjects: Boolean = true
 }
 
-
-private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
-                                                numOutputRows: SQLMetric,
-                                                dataSize: SQLMetric)
-  extends SerializerInstance
+private class CHColumnarBatchSerializerInstance(
+    readBatchNumRows: SQLMetric,
+    numOutputRows: SQLMetric,
+    dataSize: SQLMetric)
+    extends SerializerInstance
     with Logging {
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
@@ -80,7 +88,7 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
           }
 
           var nativeBlock = reader.next()
-          while(nativeBlock.numRows() == 0) {
+          while (nativeBlock.numRows() == 0) {
             if (nativeBlock.numColumns() == 0) {
               this.close()
               throw new EOFException
@@ -126,7 +134,9 @@ private class CHColumnarBatchSerializerInstance(readBatchNumRows: SQLMetric,
     private[this] var writeBuffer: Array[Byte] = new Array[Byte](4096)
     private[this] var dOut: BlockOutputStream =
       new BlockOutputStream(
-        new DataOutputStream(new BufferedOutputStream(out)), writeBuffer, dataSize)
+        new DataOutputStream(new BufferedOutputStream(out)),
+        writeBuffer,
+        dataSize)
 
     override def writeKey[T: ClassTag](key: T): SerializationStream = {
       // The key is only needed on the map side when computing partition ids. It does not need to

@@ -542,19 +542,19 @@ object GenTPCDSTableScripts {
        |  web_tax_percentage       double
        |""".stripMargin
 
-  def main(args: Array[String]): Unit = {
-  }
+  def main(args: Array[String]): Unit = {}
 
-  def genTPCDSMergeTreeTables(dbName: String,
-                              dataPathRoot: String,
-                              tablePrefix: String,
-                              tableSuffix: String): Unit = {
-  }
+  def genTPCDSMergeTreeTables(
+      dbName: String,
+      dataPathRoot: String,
+      tablePrefix: String,
+      tableSuffix: String): Unit = {}
 
-  def genTPCDSParquetTables(dbName: String,
-                            dataPathRoot: String,
-                            tablePrefix: String,
-                            tableSuffix: String): ArrayBuffer[String] = {
+  def genTPCDSParquetTables(
+      dbName: String,
+      dataPathRoot: String,
+      tablePrefix: String,
+      tableSuffix: String): ArrayBuffer[String] = {
     val catalogSalesTbl = "catalog_sales"
     val catalogSalesPartitionCols = "PARTITIONED BY (cs_sold_date_sk)"
 
@@ -637,124 +637,244 @@ object GenTPCDSTableScripts {
     res += s"""use ${dbName};"""
 
     // catalog_sales
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      catalogSalesTbl, catalogSalesFields, catalogSalesPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      catalogSalesTbl,
+      catalogSalesFields,
+      catalogSalesPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // catalog_returns
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      catalogReturnsTbl, catalogReturnsFields, catalogReturnsPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      catalogReturnsTbl,
+      catalogReturnsFields,
+      catalogReturnsPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // inventory
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      inventoryTbl, inventoryFields, inventoryPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      inventoryTbl,
+      inventoryFields,
+      inventoryPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // store_sales
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      storeSalesTbl, storeSalesFields, storeSalesPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      storeSalesTbl,
+      storeSalesFields,
+      storeSalesPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // store_returns
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      storeReturnsTbl, storeReturnsFields, storeReturnsPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      storeReturnsTbl,
+      storeReturnsFields,
+      storeReturnsPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // web_sales
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      webSalesTbl, webSalesFields, webSalesPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      webSalesTbl,
+      webSalesFields,
+      webSalesPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // web_returns
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      webReturnsTbl, webReturnsFields, webReturnsPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      webReturnsTbl,
+      webReturnsFields,
+      webReturnsPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // call_center
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      callCenterTbl, callCenterFields, callCenterPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      callCenterTbl,
+      callCenterFields,
+      callCenterPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // catalog_page
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      catalogPageTbl, catalogPageFields, catalogPagePartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      catalogPageTbl,
+      catalogPageFields,
+      catalogPagePartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // customer
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      customerTbl, customerFields, customerPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      customerTbl,
+      customerFields,
+      customerPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // customer_address
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      customerAddressTbl, customerAddressFields, customerAddressPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      customerAddressTbl,
+      customerAddressFields,
+      customerAddressPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // customer_demographics
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      customerDemographicsTbl, customerDemographicsFields, customerDemographicsPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      customerDemographicsTbl,
+      customerDemographicsFields,
+      customerDemographicsPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // date_dim
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      dateDimTbl, dateDimFields, dateDimPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      dateDimTbl,
+      dateDimFields,
+      dateDimPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // household_demographics
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      householdDemographicsTbl, householdDemographicsFields, householdDemographicsPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      householdDemographicsTbl,
+      householdDemographicsFields,
+      householdDemographicsPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // income_band
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      incomeBandTbl, incomeBandFields, incomeBandPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      incomeBandTbl,
+      incomeBandFields,
+      incomeBandPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // item
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      itemTbl, itemFields, itemPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      itemTbl,
+      itemFields,
+      itemPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // promotion
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      promotionTbl, promotionFields, promotionPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      promotionTbl,
+      promotionFields,
+      promotionPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // reason
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      reasonTbl, reasonFields, reasonPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      reasonTbl,
+      reasonFields,
+      reasonPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // ship_mode
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      shipModeTbl, shipModeFields, shipModePartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      shipModeTbl,
+      shipModeFields,
+      shipModePartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // store
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      storeTbl, storeFields, storePartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      storeTbl,
+      storeFields,
+      storePartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // time_dim
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      timeDimTbl, timeDimFields, timeDimPartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      timeDimTbl,
+      timeDimFields,
+      timeDimPartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // warehouse
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      warehouseTbl, warehouseFields, warehousePartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      warehouseTbl,
+      warehouseFields,
+      warehousePartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // web_page
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      webPageTbl, webPageFields, webPagePartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      webPageTbl,
+      webPageFields,
+      webPagePartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // web_site
-    genOneTPCDSParquetTableSQL(res, dataPathRoot,
-      webSiteTbl, webSiteFields, webSitePartitionCols,
-      tablePrefix, tableSuffix)
+    genOneTPCDSParquetTableSQL(
+      res,
+      dataPathRoot,
+      webSiteTbl,
+      webSiteFields,
+      webSitePartitionCols,
+      tablePrefix,
+      tableSuffix)
 
     // scalastyle:off println
     println(res.mkString("\n\n"))
@@ -762,14 +882,14 @@ object GenTPCDSTableScripts {
     res
   }
 
-  def genOneTPCDSParquetTableSQL(res: ArrayBuffer[String],
-                                 dataPathRoot: String,
-                                 tblName: String,
-                                 tblFields: String,
-                                 tblPartitionCols: String,
-                                 tablePrefix: String,
-                                 tableSuffix: String
-                                ): Unit = {
+  def genOneTPCDSParquetTableSQL(
+      res: ArrayBuffer[String],
+      dataPathRoot: String,
+      tblName: String,
+      tblFields: String,
+      tblPartitionCols: String,
+      tablePrefix: String,
+      tableSuffix: String): Unit = {
     // scalastyle:off println
     println(s"start to generate sqls for table ${tblName}")
     // scalastyle:on println
@@ -790,12 +910,13 @@ object GenTPCDSTableScripts {
     }
   }
 
-  def genTPCDSCSV2ParquetSQL(dbName: String,
-                             parquetDbName: String,
-                             csvPathRoot: String,
-                             parquetPathRoot: String,
-                             tablePrefix: String,
-                             tableSuffix: String): ArrayBuffer[String] = {
+  def genTPCDSCSV2ParquetSQL(
+      dbName: String,
+      parquetDbName: String,
+      csvPathRoot: String,
+      parquetPathRoot: String,
+      tablePrefix: String,
+      tableSuffix: String): ArrayBuffer[String] = {
     val catalogSalesTbl = "catalog_sales"
     val catalogSalesParts = "/*+ REPARTITION(1) */"
     val catalogSalesPartitionCols = "PARTITIONED BY (cs_sold_date_sk)"
@@ -903,124 +1024,292 @@ object GenTPCDSTableScripts {
     res += s"""use ${dbName};"""
 
     // catalog_sales
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      catalogSalesTbl, catalogSalesFields, catalogSalesPartitionCols, catalogSalesParts,
-      tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      catalogSalesTbl,
+      catalogSalesFields,
+      catalogSalesPartitionCols,
+      catalogSalesParts,
+      tablePrefix,
+      tableSuffix)
 
     // catalog_returns
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      catalogReturnsTbl, catalogReturnsFields, catalogReturnsPartitionCols,
-      catalogReturnsParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      catalogReturnsTbl,
+      catalogReturnsFields,
+      catalogReturnsPartitionCols,
+      catalogReturnsParts,
+      tablePrefix,
+      tableSuffix)
 
     // inventory
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      inventoryTbl, inventoryFields, inventoryPartitionCols,
-      inventoryParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      inventoryTbl,
+      inventoryFields,
+      inventoryPartitionCols,
+      inventoryParts,
+      tablePrefix,
+      tableSuffix)
 
     // store_sales
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      storeSalesTbl, storeSalesFields, storeSalesPartitionCols,
-      storeSalesParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      storeSalesTbl,
+      storeSalesFields,
+      storeSalesPartitionCols,
+      storeSalesParts,
+      tablePrefix,
+      tableSuffix)
 
     // store_returns
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      storeReturnsTbl, storeReturnsFields, storeReturnsPartitionCols,
-      storeReturnsParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      storeReturnsTbl,
+      storeReturnsFields,
+      storeReturnsPartitionCols,
+      storeReturnsParts,
+      tablePrefix,
+      tableSuffix)
 
     // web_sales
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      webSalesTbl, webSalesFields, webSalesPartitionCols,
-      webSalesParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      webSalesTbl,
+      webSalesFields,
+      webSalesPartitionCols,
+      webSalesParts,
+      tablePrefix,
+      tableSuffix)
 
     // web_returns
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      webReturnsTbl, webReturnsFields, webReturnsPartitionCols,
-      webReturnsParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      webReturnsTbl,
+      webReturnsFields,
+      webReturnsPartitionCols,
+      webReturnsParts,
+      tablePrefix,
+      tableSuffix)
 
     // call_center
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      callCenterTbl, callCenterFields, callCenterPartitionCols,
-      callCenterParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      callCenterTbl,
+      callCenterFields,
+      callCenterPartitionCols,
+      callCenterParts,
+      tablePrefix,
+      tableSuffix)
 
     // catalog_page
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      catalogPageTbl, catalogPageFields, catalogPagePartitionCols,
-      catalogPageParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      catalogPageTbl,
+      catalogPageFields,
+      catalogPagePartitionCols,
+      catalogPageParts,
+      tablePrefix,
+      tableSuffix)
 
     // customer
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      customerTbl, customerFields, customerPartitionCols,
-      customerParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      customerTbl,
+      customerFields,
+      customerPartitionCols,
+      customerParts,
+      tablePrefix,
+      tableSuffix)
 
     // customer_address
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      customerAddressTbl, customerAddressFields, customerAddressPartitionCols,
-      customerAddressParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      customerAddressTbl,
+      customerAddressFields,
+      customerAddressPartitionCols,
+      customerAddressParts,
+      tablePrefix,
+      tableSuffix)
 
     // customer_demographics
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      customerDemographicsTbl, customerDemographicsFields, customerDemographicsPartitionCols,
-      customerDemographicsParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      customerDemographicsTbl,
+      customerDemographicsFields,
+      customerDemographicsPartitionCols,
+      customerDemographicsParts,
+      tablePrefix,
+      tableSuffix)
 
     // date_dim
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      dateDimTbl, dateDimFields, dateDimPartitionCols,
-      dateDimParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      dateDimTbl,
+      dateDimFields,
+      dateDimPartitionCols,
+      dateDimParts,
+      tablePrefix,
+      tableSuffix)
 
     // household_demographics
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      householdDemographicsTbl, householdDemographicsFields, householdDemographicsPartitionCols,
-      householdDemographicsParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      householdDemographicsTbl,
+      householdDemographicsFields,
+      householdDemographicsPartitionCols,
+      householdDemographicsParts,
+      tablePrefix,
+      tableSuffix)
 
     // income_band
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      incomeBandTbl, incomeBandFields, incomeBandPartitionCols,
-      incomeBandParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      incomeBandTbl,
+      incomeBandFields,
+      incomeBandPartitionCols,
+      incomeBandParts,
+      tablePrefix,
+      tableSuffix)
 
     // item
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      itemTbl, itemFields, itemPartitionCols,
-      itemParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      itemTbl,
+      itemFields,
+      itemPartitionCols,
+      itemParts,
+      tablePrefix,
+      tableSuffix)
 
     // promotion
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      promotionTbl, promotionFields, promotionPartitionCols,
-      promotionParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      promotionTbl,
+      promotionFields,
+      promotionPartitionCols,
+      promotionParts,
+      tablePrefix,
+      tableSuffix)
 
     // reason
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      reasonTbl, reasonFields, reasonPartitionCols,
-      reasonParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      reasonTbl,
+      reasonFields,
+      reasonPartitionCols,
+      reasonParts,
+      tablePrefix,
+      tableSuffix)
 
     // ship_mode
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      shipModeTbl, shipModeFields, shipModePartitionCols,
-      shipModeParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      shipModeTbl,
+      shipModeFields,
+      shipModePartitionCols,
+      shipModeParts,
+      tablePrefix,
+      tableSuffix)
 
     // store
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      storeTbl, storeFields, storePartitionCols,
-      storeParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      storeTbl,
+      storeFields,
+      storePartitionCols,
+      storeParts,
+      tablePrefix,
+      tableSuffix)
 
     // time_dim
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      timeDimTbl, timeDimFields, timeDimPartitionCols,
-      timeDimParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      timeDimTbl,
+      timeDimFields,
+      timeDimPartitionCols,
+      timeDimParts,
+      tablePrefix,
+      tableSuffix)
 
     // warehouse
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      warehouseTbl, warehouseFields, warehousePartitionCols,
-      warehouseParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      warehouseTbl,
+      warehouseFields,
+      warehousePartitionCols,
+      warehouseParts,
+      tablePrefix,
+      tableSuffix)
 
     // web_page
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      webPageTbl, webPageFields, webPagePartitionCols,
-      webPageParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      webPageTbl,
+      webPageFields,
+      webPagePartitionCols,
+      webPageParts,
+      tablePrefix,
+      tableSuffix)
 
     // web_site
-    genOneTPCDSCSV2ParquetSQL(res, csvPathRoot, parquetPathRoot,
-      webSiteTbl, webSiteFields, webSitePartitionCols,
-      webSiteParts, tablePrefix, tableSuffix)
+    genOneTPCDSCSV2ParquetSQL(
+      res,
+      csvPathRoot,
+      parquetPathRoot,
+      webSiteTbl,
+      webSiteFields,
+      webSitePartitionCols,
+      webSiteParts,
+      tablePrefix,
+      tableSuffix)
 
     // scalastyle:off println
     println(res.mkString("\n\n"))
@@ -1028,16 +1317,16 @@ object GenTPCDSTableScripts {
     res
   }
 
-  def genOneTPCDSCSV2ParquetSQL(res: ArrayBuffer[String],
-                                csvPathRoot: String,
-                                parquetPathRoot: String,
-                                tblName: String,
-                                tblFields: String,
-                                tblPartitionCols: String,
-                                tblParts: String,
-                                tablePrefix: String,
-                                tableSuffix: String
-                               ): Unit = {
+  def genOneTPCDSCSV2ParquetSQL(
+      res: ArrayBuffer[String],
+      csvPathRoot: String,
+      parquetPathRoot: String,
+      tblName: String,
+      tblFields: String,
+      tblPartitionCols: String,
+      tblParts: String,
+      tablePrefix: String,
+      tableSuffix: String): Unit = {
     // scalastyle:off println
     println(s"start to generate sqls for table ${tblName}")
     // scalastyle:on println

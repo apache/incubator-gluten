@@ -48,9 +48,15 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
     val broadcastThreshold = "10MB" // 100KB  10KB
     val adaptiveEnabled = "true"
     val sparkLocalDir = "/data1/gazelle-jni-warehouse/spark_local_dirs"
-    val (parquetFilesPath, fileFormat,
-    executedCnt, configed, sqlFilePath, stopFlagFile,
-    createTable, metaRootPath) = if (args.length > 0) {
+    val (
+      parquetFilesPath,
+      fileFormat,
+      executedCnt,
+      configed,
+      sqlFilePath,
+      stopFlagFile,
+      createTable,
+      metaRootPath) = if (args.length > 0) {
       (args(0), args(1), args(2).toInt, true, args(3), args(4), args(5).toBoolean, args(6))
     } else {
       val rootPath = this.getClass.getResource("/").getPath
@@ -59,12 +65,21 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       val queryPath = resourcePath + "/queries/"
       // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       // "/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpcds-data-sf10", "parquet", 1, false, queryPath + "q01.sql", "",
-        true, "/data1/gazelle-jni-warehouse")
+      (
+        "/data1/test_output/tpcds-data-sf10",
+        "parquet",
+        1,
+        false,
+        queryPath + "q01.sql",
+        "",
+        true,
+        "/data1/gazelle-jni-warehouse")
     }
 
     val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
-      (metaRootPath + "/spark-warehouse", metaRootPath + "/meta",
+      (
+        metaRootPath + "/spark-warehouse",
+        metaRootPath + "/meta",
         metaRootPath + "/meta/metastore_db")
     } else {
       ("/tmp/spark-warehouse", "/tmp/meta", "/tmp/meta/metastore_db")
@@ -121,7 +136,8 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.memory.storageFraction", "0.3")
         // .config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
-        .config("spark.sql.catalog.spark_catalog",
+        .config(
+          "spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.shuffle.manager", shuffleManager)
         .config("spark.shuffle.compress", "true")
@@ -185,8 +201,10 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.ui.retainedStages", "5000")
 
       if (!warehouse.isEmpty) {
-        sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
-          .config("javax.jdo.option.ConnectionURL",
+        sessionBuilderTmp1
+          .config("spark.sql.warehouse.dir", warehouse)
+          .config(
+            "javax.jdo.option.ConnectionURL",
             s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
           .enableHiveSupport()
       } else {
@@ -246,8 +264,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
   }
 
   def testTPCDSOne(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb;
          |""".stripMargin).show(1000, false)
 
@@ -285,8 +302,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
   }
 
   def testTPCDSAll(spark: SparkSession): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb;
          |""".stripMargin).show(1000, false)
 
@@ -339,8 +355,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
   }
 
   def testTPCDSDecimalOne(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb_decimal;
          |""".stripMargin).show(1000, false)
 
@@ -375,8 +390,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
   }
 
   def testTPCDSDecimalAll(spark: SparkSession): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb_decimal;
          |""".stripMargin).show(1000, false)
 
@@ -430,16 +444,14 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
   }
 
   def benchmarkTPCH(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb;
          |""".stripMargin).show(1000, false)
 
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      val df = spark.sql(
-        s"""
+      val df = spark.sql(s"""
            |
            |""".stripMargin) // .show(30, false)
       // df.explain(false)
@@ -478,14 +490,12 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       "tpcdsdb_decimal",
       "/data1/test_output/tpcds-data-sf10-decimal/",
       "",
-      ""
-    )
+      "")
     val parquetTables = GenTPCDSTableScripts.genTPCDSParquetTables(
       "tpcdsdb",
       "/data1/test_output/tpcds-data-sf10/",
       "",
-      ""
-    )
+      "")
 
     for (sql <- csv2Parquet) {
       println(s"execute: ${sql}")
@@ -493,26 +503,20 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
     }
   }
 
-  def createClickHouseTables(spark: SparkSession): Unit = {
-  }
-
+  def createClickHouseTables(spark: SparkSession): Unit = {}
 
   def refreshClickHouseTable(spark: SparkSession): Unit = {
     val tableName = ""
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | refresh table ${tableName}
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | desc formatted ${tableName}
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | refresh table ch_clickhouse
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | desc formatted ch_clickhouse
          |""".stripMargin).show(100, false)
   }

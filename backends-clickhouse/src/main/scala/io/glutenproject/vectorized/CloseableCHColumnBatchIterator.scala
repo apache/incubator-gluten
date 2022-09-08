@@ -25,12 +25,14 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
-  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
-  * properly.
-  */
-class CloseableCHColumnBatchIterator(itr: Iterator[ColumnarBatch],
-                                     pipelineTime: Option[SQLMetric] = None
-                                    ) extends Iterator[ColumnarBatch] with Logging {
+ * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
+ * properly.
+ */
+class CloseableCHColumnBatchIterator(
+    itr: Iterator[ColumnarBatch],
+    pipelineTime: Option[SQLMetric] = None)
+    extends Iterator[ColumnarBatch]
+    with Logging {
   var cb: ColumnarBatch = null
   var scanTime = 0L
   var scanTimeAdded = false

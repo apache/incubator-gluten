@@ -24,19 +24,23 @@ import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{
+  Attribute,
+  SortOrder,
+  UnsafeProjection,
+  UnsafeRow
+}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-
 /**
-  * this class is only for test use, not yet suggested to use in non-test code
-  * the performance is not optimized
-  *
-  * @param child
-  *
-  */
+ * this class is only for test use, not yet suggested to use in non-test code
+ * the performance is not optimized
+ *
+ * @param child
+ *
+ */
 case class RowToCHNativeColumnarExec(child: SparkPlan)
     extends RowToArrowColumnarExec(child = child) {
 

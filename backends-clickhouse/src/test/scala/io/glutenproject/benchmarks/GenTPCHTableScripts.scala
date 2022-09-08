@@ -45,8 +45,7 @@ object GenTPCHTableScripts {
     val partsuppTbl = "partsupp"
     val supplierTbl = "supplier"
 
-    println(
-      s"""
+    println(s"""
          |CREATE DATABASE IF NOT EXISTS ${dbName}
          |WITH DBPROPERTIES (engine='MergeTree');
          |""".stripMargin)
@@ -54,12 +53,10 @@ object GenTPCHTableScripts {
     println("")
 
     // customer
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix} (
          | c_custkey    bigint ${notNullStr},
          | c_name       string ${notNullStr},
@@ -78,12 +75,10 @@ object GenTPCHTableScripts {
     println("")
 
     // lineitem
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix} (
          | l_orderkey      bigint ${notNullStr},
          | l_partkey       bigint ${notNullStr},
@@ -110,12 +105,10 @@ object GenTPCHTableScripts {
     println("")
 
     // nation
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix} (
          | n_nationkey bigint ${notNullStr},
          | n_name      string ${notNullStr},
@@ -130,12 +123,10 @@ object GenTPCHTableScripts {
     println("")
 
     // region
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix} (
          | r_regionkey bigint ${notNullStr},
          | r_name      string ${notNullStr},
@@ -149,12 +140,10 @@ object GenTPCHTableScripts {
     println("")
 
     // orders
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix} (
          | o_orderkey      bigint ${notNullStr},
          | o_custkey       bigint ${notNullStr},
@@ -174,12 +163,10 @@ object GenTPCHTableScripts {
     println("")
 
     // part
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix} (
          | p_partkey     bigint ${notNullStr},
          | p_name        string ${notNullStr},
@@ -199,12 +186,10 @@ object GenTPCHTableScripts {
     println("")
 
     // partsupp
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix} (
          | ps_partkey    bigint ${notNullStr},
          | ps_suppkey    bigint ${notNullStr},
@@ -220,12 +205,10 @@ object GenTPCHTableScripts {
     println("")
 
     // supplier
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix} (
          | s_suppkey   bigint ${notNullStr},
          | s_name      string ${notNullStr},
@@ -262,8 +245,7 @@ object GenTPCHTableScripts {
     val partsuppTbl = "partsupp"
     val supplierTbl = "supplier"
 
-    println(
-      s"""
+    println(s"""
          |CREATE DATABASE IF NOT EXISTS ${dbName}
          |WITH DBPROPERTIES (engine='Parquet');
          |""".stripMargin)
@@ -271,12 +253,10 @@ object GenTPCHTableScripts {
     println("")
 
     // customer
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix} (
          | c_custkey    bigint,
          | c_name       string,
@@ -292,12 +272,10 @@ object GenTPCHTableScripts {
     println("")
 
     // lineitem
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix} (
          | l_orderkey      bigint,
          | l_partkey       bigint,
@@ -321,12 +299,10 @@ object GenTPCHTableScripts {
     println("")
 
     // nation
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix} (
          | n_nationkey bigint,
          | n_name      string,
@@ -338,12 +314,10 @@ object GenTPCHTableScripts {
     println("")
 
     // region
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix} (
          | r_regionkey bigint,
          | r_name      string,
@@ -354,12 +328,10 @@ object GenTPCHTableScripts {
     println("")
 
     // orders
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix} (
          | o_orderkey      bigint,
          | o_custkey       bigint,
@@ -376,12 +348,10 @@ object GenTPCHTableScripts {
     println("")
 
     // part
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix} (
          | p_partkey     bigint,
          | p_name        string,
@@ -398,12 +368,10 @@ object GenTPCHTableScripts {
     println("")
 
     // partsupp
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix} (
          | ps_partkey    bigint,
          | ps_suppkey    bigint,
@@ -416,12 +384,10 @@ object GenTPCHTableScripts {
     println("")
 
     // supplier
-    println(
-      s"""
+    println(s"""
          |DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};
          |""".stripMargin)
-    println(
-      s"""
+    println(s"""
          |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix} (
          | s_suppkey   bigint,
          | s_name      string,
@@ -470,8 +436,7 @@ object GenTPCHTableScripts {
 
     // customer
     println(s"""DROP TABLE IF EXISTS ${customerTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${customerTbl}_csv (
          | c_custkey    bigint,
          | c_name       string,
@@ -489,8 +454,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + customerTbl}'
@@ -501,8 +465,7 @@ object GenTPCHTableScripts {
 
     // lineitem
     println(s"""DROP TABLE IF EXISTS ${lineitemTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${lineitemTbl}_csv (
          | l_orderkey      bigint,
          | l_partkey       bigint,
@@ -528,8 +491,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + lineitemTbl}'
@@ -540,8 +502,7 @@ object GenTPCHTableScripts {
 
     // nation
     println(s"""DROP TABLE IF EXISTS ${nationTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${nationTbl}_csv (
          | n_nationkey bigint,
          | n_name      string,
@@ -555,8 +516,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + nationTbl}'
@@ -567,8 +527,7 @@ object GenTPCHTableScripts {
 
     // region
     println(s"""DROP TABLE IF EXISTS ${regionTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${regionTbl}_csv (
          | r_regionkey bigint,
          | r_name      string,
@@ -581,8 +540,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + regionTbl}'
@@ -593,8 +551,7 @@ object GenTPCHTableScripts {
 
     // orders
     println(s"""DROP TABLE IF EXISTS ${ordersTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${ordersTbl}_csv (
          | o_orderkey      bigint,
          | o_custkey       bigint,
@@ -613,8 +570,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + ordersPath}'
@@ -625,8 +581,7 @@ object GenTPCHTableScripts {
 
     // part
     println(s"""DROP TABLE IF EXISTS ${partTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${partTbl}_csv (
          | p_partkey     bigint,
          | p_name        string,
@@ -645,8 +600,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + partTbl}'
@@ -657,8 +611,7 @@ object GenTPCHTableScripts {
 
     // partsupp
     println(s"""DROP TABLE IF EXISTS ${partsuppTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${partsuppTbl}_csv (
          | ps_partkey    bigint,
          | ps_suppkey    bigint,
@@ -673,8 +626,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + partsuppTbl}'
@@ -685,8 +637,7 @@ object GenTPCHTableScripts {
 
     // supplier
     println(s"""DROP TABLE IF EXISTS ${supplierTbl}_csv;""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${supplierTbl}_csv (
          | s_suppkey   bigint,
          | s_name      string,
@@ -703,8 +654,7 @@ object GenTPCHTableScripts {
          | );
          |""".stripMargin)
     println(s"""DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};""")
-    println(
-      s"""
+    println(s"""
          |CREATE TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix}
          | STORED AS PARQUET
          | LOCATION '${parquetPathRoot + supplierTbl}'

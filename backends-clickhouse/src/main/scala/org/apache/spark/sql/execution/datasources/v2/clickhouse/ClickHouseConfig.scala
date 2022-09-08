@@ -38,8 +38,8 @@ object ClickHouseConfig {
   val CLICKHOUSE_WAREHOUSE_DIR = "spark.gluten.sql.columnar.backend.ch.warehouse.dir"
 
   /**
-    * Validates specified configurations and returns the normalized key -> value map.
-    */
+   * Validates specified configurations and returns the normalized key -> value map.
+   */
   def validateConfigurations(allProperties: util.Map[String, String]): Map[String, String] = {
     val configurations = scala.collection.mutable.Map[String, String]()
     allProperties.asScala.foreach(configurations += _)

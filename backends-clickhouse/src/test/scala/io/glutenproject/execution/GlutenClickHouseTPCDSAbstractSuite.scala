@@ -33,7 +33,9 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.types.DoubleType
 
-abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
+abstract class GlutenClickHouseTPCDSAbstractSuite
+    extends WholeStageTransformerSuite
+    with Logging {
 
   override protected val backend: String = "ch"
   override protected val resourcePath: String = UTSystemParameters.getTpcdsDataPath() + "/"
@@ -66,19 +68,14 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
   override protected def createTPCHNotNullTables(): Unit = {}
 
   protected def createTPCDSTables(): Unit = {
-    val parquetTables = GenTPCDSTableScripts.genTPCDSParquetTables(
-      "tpcdsdb",
-      resourcePath,
-      "",
-      ""
-    )
+    val parquetTables =
+      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", resourcePath, "", "")
 
     for (sql <- parquetTables) {
       spark.sql(sql).show(10, false)
     }
     spark.sql("use tpcdsdb;")
-    val result = spark.sql(
-      s"""
+    val result = spark.sql(s"""
          | show tables;
          |""".stripMargin).collect()
     assert(result.size == 24)
@@ -91,7 +88,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set("spark.sql.catalog.spark_catalog",
+      .set(
+        "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")
@@ -120,11 +118,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     GlutenConfig.ins = null
   }
 
-  protected def runTPCDSQuery(queryNum: Int,
-                              tpcdsQueries: String = tpcdsQueries,
-                              queriesResults: String = queriesResults,
-                              compareResult: Boolean = true)
-                             (customCheck: DataFrame => Unit): Unit = {
+  protected def runTPCDSQuery(
+      queryNum: Int,
+      tpcdsQueries: String = tpcdsQueries,
+      queriesResults: String = queriesResults,
+      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     val sqlStrArr = new ArrayBuffer[String]()
     if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
       var sqlNum = "q" + "%d".format(queryNum) + "-1"

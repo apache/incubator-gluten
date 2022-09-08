@@ -19,19 +19,24 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper,
-  AQEShuffleReadExec, ColumnarAQEShuffleReadExec}
+import org.apache.spark.sql.execution.adaptive.{
+  AdaptiveSparkPlanExec,
+  AdaptiveSparkPlanHelper,
+  AQEShuffleReadExec,
+  ColumnarAQEShuffleReadExec
+}
 
-class GlutenClickHouseColumnarShuffleAQESuite extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+class GlutenClickHouseColumnarShuffleAQESuite
+    extends GlutenClickHouseTPCHAbstractSuite
+    with AdaptiveSparkPlanHelper {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   /**
-    * Run Gluten + ClickHouse Backend with ColumnarShuffleManager
-    */
+   * Run Gluten + ClickHouse Backend with ColumnarShuffleManager
+   */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -50,7 +55,8 @@ class GlutenClickHouseColumnarShuffleAQESuite extends GlutenClickHouseTPCHAbstra
       }
       assert(customShuffleReaderExecs.size == 1)
       val coalescedPartitionSpec = customShuffleReaderExecs(0)
-        .partitionSpecs(0).asInstanceOf[CoalescedPartitionSpec]
+        .partitionSpecs(0)
+        .asInstanceOf[CoalescedPartitionSpec]
       assert(coalescedPartitionSpec.startReducerIndex == 0)
       assert(coalescedPartitionSpec.endReducerIndex == 4)
 
@@ -59,55 +65,47 @@ class GlutenClickHouseColumnarShuffleAQESuite extends GlutenClickHouseTPCHAbstra
       }
       assert(colCustomShuffleReaderExecs.size == 1)
       val coalescedPartitionSpec1 = colCustomShuffleReaderExecs(0)
-        .partitionSpecs(0).asInstanceOf[CoalescedPartitionSpec]
+        .partitionSpecs(0)
+        .asInstanceOf[CoalescedPartitionSpec]
       assert(coalescedPartitionSpec1.startReducerIndex == 0)
       assert(coalescedPartitionSpec1.endReducerIndex == 5)
     }
   }
 
   test("TPCH Q2") {
-    runTPCHQuery(2) { df =>
-    }
+    runTPCHQuery(2) { df => }
   }
 
   test("TPCH Q3") {
-    runTPCHQuery(3) { df =>
-    }
+    runTPCHQuery(3) { df => }
   }
 
   test("TPCH Q4") {
-    runTPCHQuery(4) { df =>
-    }
+    runTPCHQuery(4) { df => }
   }
 
   test("TPCH Q5") {
-    runTPCHQuery(5) { df =>
-    }
+    runTPCHQuery(5) { df => }
   }
 
   test("TPCH Q6") {
-    runTPCHQuery(6) { df =>
-    }
+    runTPCHQuery(6) { df => }
   }
 
   test("TPCH Q7") {
-    runTPCHQuery(7) { df =>
-    }
+    runTPCHQuery(7) { df => }
   }
 
   test("TPCH Q8") {
-    runTPCHQuery(8) { df =>
-    }
+    runTPCHQuery(8) { df => }
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9) { df =>
-    }
+    runTPCHQuery(9) { df => }
   }
 
   test("TPCH Q10") {
-    runTPCHQuery(10) { df =>
-    }
+    runTPCHQuery(10) { df => }
   }
 
   test("TPCH Q11") {
@@ -121,18 +119,15 @@ class GlutenClickHouseColumnarShuffleAQESuite extends GlutenClickHouseTPCHAbstra
   }
 
   test("TPCH Q12") {
-    runTPCHQuery(12) { df =>
-    }
+    runTPCHQuery(12) { df => }
   }
 
   test("TPCH Q13") {
-    runTPCHQuery(13) { df =>
-    }
+    runTPCHQuery(13) { df => }
   }
 
   test("TPCH Q14") {
-    runTPCHQuery(14) { df =>
-    }
+    runTPCHQuery(14) { df => }
   }
 
   test("TPCH Q15") {
@@ -146,28 +141,23 @@ class GlutenClickHouseColumnarShuffleAQESuite extends GlutenClickHouseTPCHAbstra
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16) { df =>
-    }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
-    runTPCHQuery(17) { df =>
-    }
+    runTPCHQuery(17) { df => }
   }
 
   test("TPCH Q18") {
-    runTPCHQuery(18) { df =>
-    }
+    runTPCHQuery(18) { df => }
   }
 
   test("TPCH Q19") {
-    runTPCHQuery(19) { df =>
-    }
+    runTPCHQuery(19) { df => }
   }
 
   test("TPCH Q20") {
-    runTPCHQuery(20) { df =>
-    }
+    runTPCHQuery(20) { df => }
   }
 
   test("TPCH Q22") {
