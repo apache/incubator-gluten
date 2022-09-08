@@ -55,7 +55,7 @@ class ArrowParquetWriteSuite extends WholeStageTransformerSuite{
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 
-  test("Parquet Write test") {
+  ignore("Parquet Write test") {
     val path = getClass.getResource(resourcePath).getFile
     val df = spark.read.format(fileFormat).load(path)
     df.write.mode("append").format(fileFormat).save(writePath)

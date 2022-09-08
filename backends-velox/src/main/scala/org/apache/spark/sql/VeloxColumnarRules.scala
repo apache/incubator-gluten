@@ -42,11 +42,8 @@ import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.execution.datasources.arrow.ArrowFileFormat
 
-<<<<<<< HEAD:backends-velox/src/main/scala/org/apache/spark/sql/VeloxColumnarRules.scala
+
 object VeloxColumnarRules {
-=======
-object OtherWriteExtension {
->>>>>>> code formt and rename DWRFWriteExtension to OtherWriteExtension:backends-velox/src/main/scala/org/apache/spark/sql/OtherWriteExtension.scala
   case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
     extends ColumnarRule {
     override def preColumnarTransitions: Rule[SparkPlan] = pre

@@ -32,7 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.OtherWriteExtension.FakeRow
+import org.apache.spark.sql.VeloxColumnarRules.FakeRow
 
 class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 

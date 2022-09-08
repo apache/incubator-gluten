@@ -17,12 +17,11 @@
 
 package io.glutenproject.backendsapi.velox
 
-<<<<<<< HEAD
+
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.sql.VeloxColumnarRules._
-=======
->>>>>>> code formt and rename DWRFWriteExtension to OtherWriteExtension
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
@@ -36,7 +35,6 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.OtherWriteExtension.{DummyRule, OtherWritePostRule, SimpleColumnarRule, SimpleStrategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
