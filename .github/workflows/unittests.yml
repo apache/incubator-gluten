@@ -118,7 +118,7 @@ jobs:
 
       - name: TPC-H Parquet SF1.0 local
         run: |
-          git clone -b wip-tpc-ds https://github.com/zhztheplayer/gluten-it.git gluten-it
+          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
           cd gluten-it
           mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
