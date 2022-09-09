@@ -20,14 +20,14 @@ package io.glutenproject.execution
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression}
+import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression, makeIsNullExpression}
 import io.glutenproject.expression._
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.{AggregateRelNode, ProjectRelNode, RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.substrait.proto.JoinRel
@@ -42,8 +42,8 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import java.{lang, util}
+
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
@@ -431,12 +431,19 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
-    case LeftOuter | RightOuter =>
+    case LeftOuter =>
       JoinRel.JoinType.JOIN_TYPE_LEFT
+    case RightOuter =>
+      JoinRel.JoinType.JOIN_TYPE_RIGHT
     case LeftSemi =>
       JoinRel.JoinType.JOIN_TYPE_SEMI
     case LeftAnti =>
-      JoinRel.JoinType.JOIN_TYPE_ANTI
+      if (!antiJoinWorkaroundNeeded) {
+        JoinRel.JoinType.JOIN_TYPE_ANTI
+      } else {
+        // Use Left to replace Anti as a workaround.
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      }
     case _ =>
       // TODO: Support cross join with Cross Rel
       // TODO: Support existence join
@@ -669,7 +676,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     if (joinParams.isStreamedReadRel) {
       substraitContext.registerRelToOperator(operatorId)
     }
-    if(joinParams.isBuildReadRel) {
+    if (joinParams.isBuildReadRel) {
       substraitContext.registerRelToOperator(operatorId)
     }
 
@@ -695,6 +702,18 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
 
   private def preProjectionNeeded(keyExprs: Seq[Expression]): Boolean = {
     !keyExprs.forall(_.isInstanceOf[AttributeReference])
+  }
+
+  /**
+   * Returns whether a workaround for Anti join is needed. True for 'not exists' semantics.
+   * For SHJ, always returns true for Anti join.
+   * For BHJ, only when isNullAwareAntiJoin is disabled, true is returned.
+   */
+  def antiJoinWorkaroundNeeded: Boolean = {
+    joinType match {
+      case LeftAnti => true
+      case _ => false
+    }
   }
 
   private def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
@@ -757,6 +776,52 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
+  /**
+   * Use a workaround for Anti join with 'not exists' semantics.
+   * Firstly, add an aggregation rel over build rel to make the build keys distinct.
+   * Secondly, add a project rel over the aggregation rel to append a column of true constant.
+   * Then, this project rel is returned and will be used as the input rel for join build side.
+   * @param buildInfo: the original build keys, build rel and build outputs.
+   * @param context: Substrait context.
+   * @param operatorId: operator id of this join.
+   * @return original build keys, new build rel and build outputs.
+   */
+  private def createSpecialRelForAntiBuild(
+      buildInfo: (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]),
+      context: SubstraitContext,
+      operatorId: java.lang.Long,
+      validation: Boolean):
+      (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
+    // Create an Aggregation Rel over build Rel.
+    val groupingNodes = new util.ArrayList[ExpressionNode]()
+    var colIdx = 0
+    buildInfo._3.foreach(_ => {
+      groupingNodes.add(ExpressionBuilder.makeSelection(colIdx))
+      colIdx += 1
+    })
+    val aggNode = RelBuilder.makeAggregateRel(
+      buildInfo._2,
+      groupingNodes,
+      new util.ArrayList[AggregateFunctionNode](),
+      context,
+      operatorId)
+    // Create a Project Rel over Aggregation Rel.
+    val expressionNodes = groupingNodes
+    // Append a new column of true constant.
+    expressionNodes.add(ExpressionBuilder.makeBooleanLiteral(true))
+    val projectNode = RelBuilder.makeProjectRel(
+      aggNode,
+      expressionNodes,
+      createExtensionNode(buildInfo._3, validation),
+      context,
+      operatorId)
+    (
+      buildInfo._1,
+      projectNode,
+      buildInfo._3 :+ AttributeReference(s"constant_true", BooleanType)()
+    )
+  }
+
 
   private def createJoinRel(inputStreamedRelNode: RelNode,
                             inputBuildRelNode: RelNode,
@@ -775,14 +840,23 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       operatorId,
       validation)
 
-    val (buildKeys, buildRelNode, buildOutput) = createPreProjectionIfNeeded(
-      buildKeyExprs,
-      inputBuildRelNode,
-      inputBuildOutput,
-      streamedOutput ++ inputBuildOutput,
-      substraitContext,
-      operatorId,
-      validation)
+    val (buildKeys, buildRelNode, buildOutput) = {
+      val (keys, relNode, output) = createPreProjectionIfNeeded(
+        buildKeyExprs,
+        inputBuildRelNode,
+        inputBuildOutput,
+        streamedOutput ++ inputBuildOutput,
+        substraitContext,
+        operatorId,
+        validation)
+      if (!antiJoinWorkaroundNeeded) {
+        (keys, relNode, output)
+      } else {
+        // Use a workaround for Anti join.
+        createSpecialRelForAntiBuild(
+          (keys, relNode, output), substraitContext, operatorId, validation)
+      }
+    }
 
     // Combine join keys to make a single expression.
     val joinExpressionNode = (streamedKeys zip buildKeys).map {
@@ -801,15 +875,31 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
 
     // Create JoinRel.
-    val joinRel = RelBuilder.makeJoinRel(
-      streamedRelNode,
-      buildRelNode,
-      substraitJoinType,
-      joinExpressionNode,
-      postJoinFilter.orNull,
-      createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
-      substraitContext,
-      operatorId)
+    val joinRel = {
+      val joinNode = RelBuilder.makeJoinRel(
+        streamedRelNode,
+        buildRelNode,
+        substraitJoinType,
+        joinExpressionNode,
+        postJoinFilter.orNull,
+        createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
+        substraitContext,
+        operatorId)
+      if (!antiJoinWorkaroundNeeded) {
+        joinNode
+      } else {
+        // Use an isNulll filter to select the rows needed by Anti join from Left join outputs.
+        val isNullFilter = makeIsNullExpression(
+          ExpressionBuilder.makeSelection(streamedOutput.size + buildOutput.size - 1),
+          substraitContext.registeredFunction)
+        RelBuilder.makeFilterRel(
+          joinNode,
+          isNullFilter,
+          createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
+          substraitContext,
+          operatorId)
+      }
+    }
 
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
     val resultProjection = buildSide match {
@@ -957,6 +1047,18 @@ object HashJoinLikeExecTransformer {
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
+
+  def makeIsNullExpression(childNode: ExpressionNode,
+                           functionMap: java.util.HashMap[String, java.lang.Long])
+    : ExpressionNode = {
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap, ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(BooleanType)))
+
+    ExpressionBuilder.makeScalarFunction(
+      functionId,
+      Lists.newArrayList(childNode),
+      TypeBuilder.makeBoolean(true))
+  }
 }
 
 case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
@@ -1005,6 +1107,26 @@ case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     condition,
     left,
     right) {
+
+  /**
+   * Returns whether a workaround for Anti join is needed. True for 'not exists' semantics.
+   * For SHJ, always returns true for Anti join.
+   * For BHJ, only when isNullAwareAntiJoin is disabled, true is returned.
+   */
+  override def antiJoinWorkaroundNeeded: Boolean = {
+    joinType match {
+      case LeftAnti =>
+        if (isNullAwareAntiJoin) {
+          false
+        } else {
+          // Velox's Anti semantics are matched with the case when isNullAwareAntiJoin is enabled.
+          // So a workaround is needed if isNullAwareAntiJoin is disabled.
+          true
+        }
+      case _ =>
+        false
+    }
+  }
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id
