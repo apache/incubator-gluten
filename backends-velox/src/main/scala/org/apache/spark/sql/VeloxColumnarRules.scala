@@ -19,6 +19,7 @@ package org.apache.spark.sql
 
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
 import io.glutenproject.GlutenConfig
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -36,12 +37,8 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
-
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.execution.datasources.arrow.ArrowFileFormat
-
 
 object VeloxColumnarRules {
   case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])

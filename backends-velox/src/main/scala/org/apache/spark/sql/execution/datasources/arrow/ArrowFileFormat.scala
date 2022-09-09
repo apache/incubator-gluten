@@ -19,11 +19,15 @@ package org.apache.spark.sql.execution.datasources.arrow
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.utils.ArrowAbiUtil
+
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
+
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+
 import org.apache.parquet.hadoop.codec.CodecConfig
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}

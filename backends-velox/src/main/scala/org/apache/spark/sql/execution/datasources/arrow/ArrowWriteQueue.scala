@@ -19,8 +19,6 @@ package org.apache.spark.sql.execution.datasources.arrow
 
 import io.glutenproject.utils.ArrowAbiUtil
 
-import org.apache.arrow.c.ArrowArray
-
 import java.lang
 import java.net.URI
 import java.util.Collections
@@ -31,14 +29,16 @@ import java.util.regex.Pattern
 
 import org.apache.spark.sql.execution.datasources.arrow.ArrowWriteQueue.EOS_ARROW_ARRAY
 import org.apache.spark.sql.execution.datasources.arrow.ArrowWriteQueue.ScannerImpl
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+
 import org.apache.arrow.dataset.file.DatasetFileWriter
 import org.apache.arrow.dataset.file.FileFormat
 import org.apache.arrow.dataset.scanner.Scanner
 import org.apache.arrow.dataset.scanner.ScanTask
 import org.apache.arrow.vector.ipc.ArrowReader
 import org.apache.arrow.vector.types.pojo.Schema
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+import org.apache.arrow.c.ArrowArray
 
 class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: String)
   extends AutoCloseable with Logging {

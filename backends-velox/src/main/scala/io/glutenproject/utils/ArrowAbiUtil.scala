@@ -27,6 +27,7 @@ import org.apache.arrow.vector.{FieldVector, VectorLoader, VectorSchemaRoot, Vec
 import org.apache.arrow.vector.dictionary.DictionaryProvider
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
+
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 object ArrowAbiUtil {
