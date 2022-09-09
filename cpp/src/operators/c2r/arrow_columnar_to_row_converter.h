@@ -49,7 +49,7 @@ class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
       std::vector<uint8_t>& typewidth,
       std::vector<std::shared_ptr<arrow::Array>>& arrays,
       bool support_avx512);
-      
+
   std::shared_ptr<arrow::RecordBatch> rb_;
 };
 
