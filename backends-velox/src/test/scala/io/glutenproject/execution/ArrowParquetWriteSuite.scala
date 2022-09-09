@@ -21,7 +21,9 @@ import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
 
 import java.io.File
+import io.glutenproject.tags.SkipTestTags
 
+@SkipTestTags
 class ArrowParquetWriteSuite extends WholeStageTransformerSuite{
   override protected val backend: String = "gazelle_cpp"
   override protected val resourcePath: String = "/tpch-data-parquet-arrow/data"
@@ -55,7 +57,7 @@ class ArrowParquetWriteSuite extends WholeStageTransformerSuite{
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 
-  ignore("Parquet Write test") {
+  test("Parquet Write test") {
     val path = getClass.getResource(resourcePath).getFile
     val df = spark.read.format(fileFormat).load(path)
     df.write.mode("append").format(fileFormat).save(writePath)
