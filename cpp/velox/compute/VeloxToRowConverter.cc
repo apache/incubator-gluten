@@ -157,7 +157,8 @@ arrow::Status VeloxToRowConverter::Write() {
                 buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx],
                 value,
                 length);
-            int64_t offset_and_size = (buffer_cursor_[row_idx] << 32) | length;
+            int64_t offset_and_size =
+                ((int64_t)buffer_cursor_[row_idx] << 32) | length;
             // Write the offset and size.
             memcpy(
                 buffer_address_ + offsets_[row_idx] + field_offset,
