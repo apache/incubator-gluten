@@ -76,6 +76,20 @@ Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its 
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
 
+## High-Bandwidth Memory (HBM) support
+
+Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It requires [Memkind library](http://memkind.github.io/memkind/) to be installed. Please follow memkind's [readme](https://github.com/memkind/memkind#memkind) to build and install all the dependencies and the library. 
+
+To enable this feature in Gluten, users only need to add `-Denable_hbm=ON` to the maven build command. Here's an example:
+```
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Denable_hbm=ON
+```
+
+Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.
+
+During testing, we found that it is possible that HBM is detected but not being used at runtime. The workaround is to set `MEMKIND_HBW_NODES` enviroment variable in the runtime environment. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`
+
+
 ## Test TPC-H on Gluten with Velox backend
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
