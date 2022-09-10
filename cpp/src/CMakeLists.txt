@@ -258,7 +258,7 @@ if(ENABLE_HBM)
   target_link_libraries(spark_columnar_jni PUBLIC ${MEMKIND_LIBRARY})
   add_definitions(-DGLUTEN_ENABLE_HBM)
   if(BUILD_TESTS)
-    add_test_case(hbw_allocator_test SOURCES memory/hbw_allocator_test.cc)
+    add_test_case(hbw_allocator_test SOURCES tests/hbw_allocator_test.cc)
   endif()
 endif()
 
