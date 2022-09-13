@@ -25,7 +25,7 @@ val rootDir = "/PATH/TO/TPCH_PARQUET_PATH" // root directory of location to crea
 val dbgenDir = "/PATH/TO/TPCH_DBGEN" // location of dbgen
 ```
 
-Currently, Gluten with Velox can support Parquet and DWRF format.
+Currently, Gluten with Velox can support both Parquet and DWRF file format and three compression codec including snappy, gzip, zstd.
 Below step, to convert Parquet to DWRF, is an optional if you are using Parquet format to run the testing.
 
 ### Convert the Parquet dataset to DWRF dataset(OPTIONAL)
