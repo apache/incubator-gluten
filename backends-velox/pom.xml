@@ -37,6 +37,19 @@
         <velox.debug_build>${debug_build}</velox.debug_build>
     </properties>
 
+    <profiles>
+       <profile>
+	  <id>backends-gazelle</id>
+          <dependencies>
+           <dependency>
+              <groupId>org.apache.arrow</groupId>
+              <artifactId>arrow-dataset</artifactId>
+              <version>${arrow.version}</version>
+            </dependency>
+	  </dependencies>
+       </profile>
+    </profiles>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.spark</groupId>
