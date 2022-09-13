@@ -48,4 +48,4 @@ val dwrf_file_path = "/PATH/TO/TPCH_DWRF_PATH"
 
 ## Test Queries
 We provided the test queries in ./tpch.queries.updated directory, which changed all DATE feilds to STRING since DATE type is not well supported in Gluten with Velox backend.
-We also provided a scala code in ./run_tpch/ directory about how to run TPC-H queries. Please notice if you are using dwrf test, please remember to set the file format to dwrf in the code.
+We also provided a scala code in ./run_tpch/ directory about how to run TPC-H queries. Please note if you are using dwrf test, please remember to set the file format to dwrf in the code.
