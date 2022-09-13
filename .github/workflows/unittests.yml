@@ -43,7 +43,7 @@ jobs:
       - run: sudo apt-get install -y llvm clang
       - name: Install Gluten Arrow-backend
         run: |
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
           cp backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar /tmp/gluten_jars/
       - name: Run TPCDS q82,q85,q37,q60,q26
@@ -101,7 +101,7 @@ jobs:
           mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
-          mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
+          mvn test -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
           cd cpp/
           mkdir -p build
           cd build

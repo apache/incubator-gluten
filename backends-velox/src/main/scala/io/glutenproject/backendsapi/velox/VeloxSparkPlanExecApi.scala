@@ -19,7 +19,6 @@ package io.glutenproject.backendsapi.velox
 
 import scala.collection.mutable.ArrayBuffer
 
-import org.apache.spark.sql.VeloxColumnarRules._
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
@@ -32,6 +31,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
+import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
@@ -256,7 +256,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarRules(): List[SparkSession => ColumnarRule] = {
-    List(spark => SimpleColumnarRule(DummyRule, DwrfWritePostRule(spark)),
+    List(spark => SimpleColumnarRule(DummyRule, OtherWritePostRule(spark)),
       _ => SimpleColumnarRule(DummyRule, LoadBeforeColumnarToRow()))
   }
 

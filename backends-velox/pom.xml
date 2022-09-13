@@ -48,6 +48,18 @@
             </dependency>
 	  </dependencies>
        </profile>
+
+        <profile>
+            <id>backends-velox</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-dataset</artifactId>
+                    <version>${arrow.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
     </profiles>
 
     <dependencies>
@@ -205,6 +217,7 @@
             </exclusions>
             <!--scope>provided</scope-->
         </dependency>
+
         <dependency>
             <groupId>org.apache.arrow.gandiva</groupId>
             <artifactId>arrow-gandiva</artifactId>
@@ -454,7 +467,8 @@
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <configuration>
                     <testFailureIgnore>false</testFailureIgnore>
-                    <junitxml>.</junitxml>
+		    <junitxml>.</junitxml>
+	            <tagsToInclude>${tagsToInclude}</tagsToInclude>
                 </configuration>
                 <executions>
                     <execution>

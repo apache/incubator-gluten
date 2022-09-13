@@ -24,12 +24,19 @@ import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, VectorLoader, VectorSchemaRoot, VectorUnloader}
+import org.apache.arrow.vector.dictionary.DictionaryProvider
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
 
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 object ArrowAbiUtil {
+
+  def importIntoVectorSchemaRoot(allocator: BufferAllocator,
+                                 array: ArrowArray, root: VectorSchemaRoot,
+                                 provider: DictionaryProvider): Unit = {
+    Data.importIntoVectorSchemaRoot(allocator, array, root, provider)
+  }
 
   def importToArrowRecordBatch(allocator: BufferAllocator,
                                cSchema: ArrowSchema, cArray: ArrowArray): ArrowRecordBatch = {

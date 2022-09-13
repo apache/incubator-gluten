@@ -15,36 +15,35 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.datasources.velox
+package org.apache.spark.sql.execution.datasources.arrow
 
-import java.io.IOException
-
-import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
-import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
-import io.glutenproject.vectorized.NativeColumnarToRowInfo
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.utils.ArrowAbiUtil
 
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
+import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
 
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+
 import org.apache.parquet.hadoop.codec.CodecConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkVectorUtils}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.VeloxColumnarRules._
+import org.apache.spark.sql.VeloxColumnarRules.FakeRow
 
-class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializable {
+class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
   override def inferSchema(sparkSession: SparkSession,
                            options: Map[String, String],
                            files: Seq[FileStatus]): Option[StructType] = {
-    VeloxDatasourceUtil.readSchema(files)
+    ArrowUtils.readSchema(files)
   }
 
   override def prepareWrite(sparkSession: SparkSession,
@@ -54,26 +53,14 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
 
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
-        CodecConfig.from(context).getCodec.getExtension + ".dwrf"
+        CodecConfig.from(context).getCodec.getExtension + ".parquet"
       }
 
       override def newInstance(path: String, dataSchema: StructType,
                                context: TaskAttemptContext): OutputWriter = {
         val originPath = path
         val arrowSchema = ArrowUtils.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
-        val cSchema = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator)
-        var instanceId = -1L
-        val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
-        try {
-          ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator, arrowSchema, cSchema)
-          instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath,
-            cSchema.memoryAddress())
-        } catch {
-          case e: IOException =>
-            throw new RuntimeException(e)
-        } finally {
-          cSchema.close()
-        }
+        val writeQueue = new ArrowWriteQueue(arrowSchema, ParquetFileFormat.PARQUET, originPath)
 
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
@@ -81,21 +68,14 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
             val allocator = SparkMemoryUtils.contextArrowAllocator()
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
-            var info: NativeColumnarToRowInfo = null
-            try {
-              ArrowAbiUtil.exportFromSparkColumnarBatch(
-                SparkMemoryUtils.contextArrowAllocator(), batch, cSchema, cArray)
-
-              dwrfDatasourceJniWrapper.write(instanceId, cSchema.memoryAddress(),
-                cArray.memoryAddress())
-            } finally {
-              cArray.close()
-              cSchema.close()
-            }
+            ArrowColumnarBatches.ensureLoaded(allocator, batch)
+            ArrowAbiUtil.exportFromSparkColumnarBatch(
+              allocator, batch, cSchema, cArray)
+            writeQueue.enqueue(cArray)
           }
 
           override def close(): Unit = {
-            dwrfDatasourceJniWrapper.close(instanceId)
+            writeQueue.close()
           }
 
           // Do NOT add override keyword for compatibility on spark 3.1.
@@ -109,5 +89,5 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
 
   override def supportBatch(sparkSession: SparkSession, dataSchema: StructType): Boolean = true
 
-  override def shortName(): String = "dwrf"
+  override def shortName(): String = "arrow"
 }
