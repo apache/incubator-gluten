@@ -17,31 +17,41 @@
 
 package io.glutenproject.execution
 
+import java.io.File
+
 class ArrowWholeStageTransformerSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "gazelle_cpp"
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = ""
   override protected val fileFormat: String = "parquet"
+
+  override protected def createTPCHNotNullTables(): Unit = {
+    val rootPath = this.getClass.getResource("/").getPath
+    val tableDir = rootPath + "../../../../jvm/src/test/resources/tpch-data"
+    val tablePath = new File(tableDir, "lineitem").getAbsolutePath
+    val tableDF = spark.read.format(fileFormat).load(tablePath)
+    tableDF.createOrReplaceTempView("lineitem")
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    createTPCHTables()
+    createTPCHNotNullTables()
   }
 
   test("test scan non-fallback") {
     val df = spark.sql("select * from lineitem")
     val plan = df.queryExecution.executedPlan
     val transformers = plan.collect {
-      case t : TransformSupport => t
+      case t: TransformSupport => t
     }
     assert(transformers.length == 2)
     df.count()
   }
 
-  test("test scan-filter non-fallback") {
+  test("test scan-filter fallback") {
     val df = spark.sql("select max(l_partkey) from lineitem where l_partkey is not null")
     val plan = df.queryExecution.executedPlan
     val transformers = plan.collect {
-      case t : TransformSupport => t
+      case t: TransformSupport => t
     }
     assert(transformers.length == 3)
   }
