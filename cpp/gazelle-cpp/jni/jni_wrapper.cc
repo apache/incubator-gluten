@@ -80,7 +80,10 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
       relation.has_root() ? relation.root().input() : relation.rel();
   switch (rel.rel_type_case()) {
     case substrait::Rel::RelTypeCase::kRead:
-    case substrait::Rel::RelTypeCase::kFilter:
+      const auto& read = rel.read();
+      if (read.has_filter()) {
+        return false;
+      }
       return true;
     default:
       return false;
