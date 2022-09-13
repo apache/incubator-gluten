@@ -35,6 +35,7 @@
         <velox.velox_home>${velox_home}</velox.velox_home>
         <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
         <velox.debug_build>${debug_build}</velox.debug_build>
+        <velox.backend_type>${backend_type}</velox.backend_type>
     </properties>
 
     <profiles>
@@ -332,6 +333,7 @@
                                 <argument>${velox.velox_build_type}</argument>
                                 <argument>${velox.debug_build}</argument>
                                 <argument>${velox.cpp_benchmarks}</argument>
+                                <argument>${velox.backend_type}</argument>
                             </arguments>
                         </configuration>
                     </execution>

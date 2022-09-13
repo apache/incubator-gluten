@@ -20,6 +20,7 @@ package io.glutenproject
 import java.util.{Collections, Objects}
 
 import scala.language.implicitConversions
+
 import com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -27,7 +28,7 @@ import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePreparat
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, JniLibLoader}
 import java.util
 
 import org.apache.spark.{SparkConf, SparkContext}
@@ -164,6 +165,7 @@ private[glutenproject] object GlutenPlugin {
         customGlutenLib,
         customBackendLib,
         conf.getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
+      JniLibLoader.BACKEND_NAME = customBackendLib
       if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
         // Initialize the native backend with spark confs.
         initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)

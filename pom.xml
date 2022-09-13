@@ -154,6 +154,9 @@
       <modules>
         <module>backends-clickhouse</module>
       </modules>
+      <properties>
+        <backend_type>clickhouse</backend_type>
+      </properties>
     </profile>
     <profile>
       <id>backends-velox</id>
@@ -163,6 +166,9 @@
       <modules>
         <module>backends-velox</module>
       </modules>
+      <properties>
+        <backend_type>velox</backend_type>
+      </properties>
     </profile>
     <profile>
       <id>backends-gazelle</id>
@@ -172,6 +178,9 @@
       <modules>
         <module>backends-velox</module>
       </modules>
+      <properties>
+        <backend_type>gazelle_cpp</backend_type>
+      </properties>
     </profile>
   </profiles>
 
