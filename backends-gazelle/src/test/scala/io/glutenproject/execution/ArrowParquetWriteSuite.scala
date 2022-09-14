@@ -21,12 +21,10 @@ import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
 
 import java.io.File
-import io.glutenproject.tags.SkipTestTags
 
-@SkipTestTags
 class ArrowParquetWriteSuite extends WholeStageTransformerSuite{
   override protected val backend: String = "gazelle_cpp"
-  override protected val resourcePath: String = "/tpch-data-parquet-arrow/data"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath

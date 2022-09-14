@@ -9,36 +9,47 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>backends-velox</artifactId>
+    <artifactId>backends-gazelle</artifactId>
     <packaging>jar</packaging>
-    <name>Gluten-Backends-Velox</name>
+    <name>Gluten-Backends-Gazelle</name>
 
     <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
         <cpp.dir>../cpp/</cpp.dir>
         <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-        <velox.build_cpp>${build_cpp}</velox.build_cpp>
-        <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
-        <velox.cpp_benchmarks>${cpp_benchmarks}</velox.cpp_benchmarks>
-        <velox.build_arrow>OFF</velox.build_arrow>
-        <velox.static_arrow>${static_arrow}</velox.static_arrow>
-        <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
-        <velox.arrow_root>${arrow_root}</velox.arrow_root>
-        <velox.arrow.bfs.dir>${arrow.bfs.dir}</velox.arrow.bfs.dir>
-        <velox.build_jemalloc>${build_jemalloc}</velox.build_jemalloc>
-        <velox.build_gazelle_cpp>${build_gazelle_cpp}</velox.build_gazelle_cpp>
-        <velox.build_velox>${build_velox}</velox.build_velox>
-        <velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
-        <velox.compile_velox>${compile_velox}</velox.compile_velox>
-        <velox.velox_home>${velox_home}</velox.velox_home>
-        <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
-        <velox.debug_build>${debug_build}</velox.debug_build>
-        <velox.backend_type>${backend_type}</velox.backend_type>
+        <gazelle.build_cpp>${build_cpp}</gazelle.build_cpp>
+        <gazelle.cpp_tests>${cpp_tests}</gazelle.cpp_tests>
+        <gazelle.cpp_benchmarks>${cpp_benchmarks}</gazelle.cpp_benchmarks>
+        <gazelle.build_arrow>OFF</gazelle.build_arrow>
+        <gazelle.build_protobuf>${build_protobuf}</gazelle.build_protobuf>
+        <gazelle.static_arrow>${static_arrow}</gazelle.static_arrow>
+        <gazelle.arrow_root>${arrow_root}</gazelle.arrow_root>
+        <gazelle.arrow.bfs.dir>${arrow.bfs.dir}</gazelle.arrow.bfs.dir>
+        <gazelle.build_jemalloc>${build_jemalloc}</gazelle.build_jemalloc>
+        <gazelle.build_gazelle_cpp>${build_gazelle_cpp}</gazelle.build_gazelle_cpp>
+        <gazelle.build_velox>${build_velox}</gazelle.build_velox>
+        <gazelle.debug_build>${debug_build}</gazelle.debug_build>
+        <gazelle.backend_type>${backend_type}</gazelle.backend_type>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>io.glutenproject</groupId>
+            <artifactId>backends-velox</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-dataset</artifactId>
+            <version>${arrow8.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
@@ -55,110 +66,15 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>spark-sql-columnar-shims-common</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>gluten-jvm</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>gluten-jvm</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_${scala.binary.version}</artifactId>
-            <version>1.13.5</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>${scala.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_${scala.binary.version}</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>2.23.4</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatestplus</groupId>
-            <artifactId>scalatestplus-mockito_2.12</artifactId>
-            <version>1.0.0-M2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatestplus</groupId>
-            <artifactId>scalatestplus-scalacheck_2.12</artifactId>
-            <version>3.1.0.0-RC2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.11.0</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>${arrow-memory.artifact}</artifactId>
-            <version>${arrow.version}</version>
+            <version>${arrow8.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-core</artifactId>
-            <version>${arrow.version}</version>
+            <version>${arrow8.version}</version>
             <scope>compile</scope>
             <exclusions>
                 <exclusion>
@@ -175,7 +91,7 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
-            <version>${arrow.version}</version>
+            <version>${arrow8.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
@@ -191,7 +107,7 @@
         <dependency>
             <groupId>org.apache.arrow.gandiva</groupId>
             <artifactId>arrow-gandiva</artifactId>
-            <version>${arrow.version}</version>
+            <version>${arrow8.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
@@ -211,7 +127,7 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-c-data</artifactId>
-            <version>${arrow.version}</version>
+            <version>${arrow8.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.arrow</groupId>
@@ -223,21 +139,6 @@
                 </exclusion>
             </exclusions>
             <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_${scala.binary.version}</artifactId>
-            <type>test-jar</type>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <type>test-jar</type>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-            <type>test-jar</type>
         </dependency>
     </dependencies>
 
@@ -259,26 +160,6 @@
                 <version>1.6.0</version>
                 <executions>
                     <execution>
-                        <id>Build velox</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>bash</executable>
-                            <arguments>
-                                <argument>${velox.script.dir}/build_velox.sh</argument>
-                                <argument>
-                                    --build_velox_from_source=${velox.build_velox_from_source}
-                                </argument>
-                                <argument>
-                                    --compile_velox=${velox.compile_velox}
-                                </argument>
-                                <argument>${velox.velox_home}</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
                         <id>Build cpp</id>
                         <phase>generate-resources</phase>
                         <goals>
@@ -288,21 +169,21 @@
                             <executable>bash</executable>
                             <arguments>
                                 <argument>${cpp.dir}/compile.sh</argument>
-                                <argument>${velox.build_cpp}</argument>
-                                <argument>${velox.cpp_tests}</argument>
-                                <argument>${velox.build_arrow}</argument>
-                                <argument>${velox.static_arrow}</argument>
-                                <argument>${velox.build_protobuf}</argument>
-                                <argument>${velox.arrow_root}</argument>
-                                <argument>${velox.arrow.bfs.dir}</argument>
-                                <argument>${velox.build_jemalloc}</argument>
-                                <argument>${velox.build_gazelle_cpp}</argument>
-                                <argument>${velox.build_velox}</argument>
-                                <argument>${velox.velox_home}</argument>
-                                <argument>${velox.velox_build_type}</argument>
-                                <argument>${velox.debug_build}</argument>
-                                <argument>${velox.cpp_benchmarks}</argument>
-                                <argument>${velox.backend_type}</argument>
+                                <argument>${gazelle.build_cpp}</argument>
+                                <argument>${gazelle.cpp_tests}</argument>
+                                <argument>${gazelle.build_arrow}</argument>
+                                <argument>${gazelle.static_arrow}</argument>
+                                <argument>${gazelle.build_protobuf}</argument>
+                                <argument>${gazelle.arrow_root}</argument>
+                                <argument>${gazelle.arrow.bfs.dir}</argument>
+                                <argument>${gazelle.build_jemalloc}</argument>
+                                <argument>${gazelle.build_gazelle_cpp}</argument>
+                                <argument>${gazelle.build_velox}</argument>
+                                <argument>/</argument>
+                                <argument>release</argument>
+                                <argument>${gazelle.debug_build}</argument>
+                                <argument>${gazelle.cpp_benchmarks}</argument>
+                                <argument>${gazelle.backend_type}</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -312,31 +193,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.0.1</version>
-            </plugin>
-            <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-                <version>4.3.0</version>
-                <configuration>
-                    <recompileMode>${scala.recompile.mode}</recompileMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>scala-compile-first</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>scala-test-compile</id>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -438,8 +294,7 @@
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <configuration>
                     <testFailureIgnore>false</testFailureIgnore>
-		    <junitxml>.</junitxml>
-	            <tagsToInclude>${tagsToInclude}</tagsToInclude>
+                    <junitxml>.</junitxml>
                 </configuration>
                 <executions>
                     <execution>

@@ -15,30 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.datasources.arrow
-
-import io.glutenproject.utils.ArrowAbiUtil
+package org.apache.spark.sql.execution.datasource.arrow
 
 import java.lang
 import java.net.URI
-import java.util.Collections
-import java.util.UUID
+import java.util.{Collections, UUID}
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
-import org.apache.spark.sql.execution.datasources.arrow.ArrowWriteQueue.EOS_ARROW_ARRAY
-import org.apache.spark.sql.execution.datasources.arrow.ArrowWriteQueue.ScannerImpl
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
-
-import org.apache.arrow.dataset.file.DatasetFileWriter
-import org.apache.arrow.dataset.file.FileFormat
-import org.apache.arrow.dataset.scanner.Scanner
-import org.apache.arrow.dataset.scanner.ScanTask
+import io.glutenproject.utils.ArrowAbiUtil
+import org.apache.arrow.c.ArrowArray
+import org.apache.arrow.dataset.file.{DatasetFileWriter, FileFormat}
+import org.apache.arrow.dataset.scanner.{Scanner, ScanTask}
 import org.apache.arrow.vector.ipc.ArrowReader
 import org.apache.arrow.vector.types.pojo.Schema
-import org.apache.arrow.c.ArrowArray
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.execution.datasource.arrow.ArrowWriteQueue.{EOS_ARROW_ARRAY, ScannerImpl}
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 
 class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: String)
   extends AutoCloseable with Logging {
