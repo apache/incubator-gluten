@@ -155,8 +155,9 @@ jobs:
       #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
       #    restore-keys: |
       #      ${{ runner.os }}-maven-
-      - name: Check ClickHouse Backend lib
+      - name: Install and Check ClickHouse Backend lib
         run: |
+          wget -O /usr/local/clickhouse/lib/libch.so /usr/https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
           ls -alt /usr/local/clickhouse/lib/libch.so
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
