@@ -43,8 +43,6 @@
     <spark.version>3.2.2</spark.version>
     <delta.version>${delta1.version}</delta.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
-    <arrow.version>10.0.0-SNAPSHOT</arrow.version>
-    <arrow8.version>8.0.0-gluten-SNAPSHOT</arrow8.version>
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -169,6 +167,7 @@
       </modules>
       <properties>
         <backend_type>velox</backend_type>
+        <arrow.version>10.0.0-SNAPSHOT</arrow.version>
       </properties>
     </profile>
     <profile>
@@ -177,10 +176,12 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
+        <module>backends-velox</module>
         <module>backends-gazelle</module>
       </modules>
       <properties>
         <backend_type>gazelle_cpp</backend_type>
+        <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
       </properties>
     </profile>
   </profiles>
