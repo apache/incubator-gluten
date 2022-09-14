@@ -46,6 +46,9 @@ jobs:
           mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
           cp backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar /tmp/gluten_jars/
+      - name: Run unit tests
+        run: |
+          mvn test -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle
       - name: Run TPCDS q82,q85,q37,q60,q26
         run: |
           cd /home/sparkuser/tpcds/

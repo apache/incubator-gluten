@@ -22,7 +22,7 @@ import org.apache.spark.SparkConf
 
 import java.io.File
 
-class ArrowParquetWriteSuite extends WholeStageTransformerSuite{
+class ArrowParquetWriteSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "gazelle_cpp"
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"

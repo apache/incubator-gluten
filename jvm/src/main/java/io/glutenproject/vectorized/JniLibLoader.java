@@ -122,6 +122,8 @@ public class JniLibLoader {
     if (BACKEND_NAME.equals(GlutenConfig.GLUTEN_GAZELLE_BACKEND())) {
       LOG.info("Load gazelle backend arrow lib");
       newTransaction()
+          .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800")
+          .loadAndCreateLink("libgandiva.so.800.0.0", "libgandiva.so.800")
           .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800")
           .loadAndCreateLink("libarrow_dataset.so.800.0.0", "libarrow_dataset.so.800")
           .loadAndCreateLink("libarrow_substrait.so.800.0.0", "libarrow_substrait.so.800")

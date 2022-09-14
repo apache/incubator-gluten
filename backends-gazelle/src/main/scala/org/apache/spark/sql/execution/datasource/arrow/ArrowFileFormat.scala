@@ -32,8 +32,9 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.{ArrowUtils, GazelleArrowUtils}
+import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.VeloxColumnarRules.FakeRow
+import org.apache.spark.sql.utils.GazelleArrowUtils
 
 class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
