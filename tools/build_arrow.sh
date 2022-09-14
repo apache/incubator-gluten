@@ -97,13 +97,13 @@ function compile_velox_arrow {
     popd
 
     cd java
-    mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -P arrow-jni -pl gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -Dmaven.test.skip=true -Dcheckstyle.skip \
+    mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
         -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
 }
 
 function compile_gazelle_arrow {
     echo "Compile gazelle arrow branch"
-    git clone https://github.com/jinchengchenghh/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
+    git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
 
     mkdir -p java/c/build
