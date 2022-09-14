@@ -41,12 +41,6 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.sql.execution.datasources.arrow.ArrowFileFormat
 
 object VeloxColumnarRules {
-  case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
-    extends ColumnarRule {
-    override def preColumnarTransitions: Rule[SparkPlan] = pre
-
-    override def postColumnarTransitions: Rule[SparkPlan] = post
-  }
 
   case class OtherWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan match {

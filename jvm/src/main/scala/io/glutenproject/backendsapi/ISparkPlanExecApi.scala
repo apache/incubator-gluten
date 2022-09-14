@@ -162,10 +162,18 @@ trait ISparkPlanExecApi extends IBackendsApi {
   def genExtendedStrategies(): List[SparkSession => Strategy]
 
   /**
-   * Generate extended Rules.
+   * Generate extended columnar pre-rules.
    * Currently only for Velox backend.
    *
    * @return
    */
-  def genExtendedColumnarRules(): List[SparkSession => ColumnarRule]
+  def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]]
+
+  /**
+   * Generate extended columnar post-rules.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
 }

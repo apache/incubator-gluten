@@ -31,7 +31,5 @@ object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
         .foreach(extensions.injectPlannerStrategy)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedStrategies()
         .foreach(extensions.injectPlannerStrategy)
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarRules()
-        .foreach(extensions.injectColumnar)
   }
 }
