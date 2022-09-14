@@ -157,7 +157,12 @@ jobs:
       #      ${{ runner.os }}-maven-
       - name: Install and Check ClickHouse Backend lib
         run: |
-          wget -O /usr/local/clickhouse/lib/libch.so /usr/https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
+          new_md5=$(curl https://devopsnexus.kyligence.io/service/rest/v1/search/assets | jq -r '.items[0].checksum.md5') 
+          old_md5=$(md5sum /usr/local/clickhouse/lib/libch.so | awk '{print $1}')
+          if [ "$new_md5" != "$old_md5" ];then
+            wget -O /usr/local/clickhouse/lib/libch.so.new https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
+            mv /usr/local/clickhouse/lib/libch.so.new /usr/local/clickhouse/lib/libch.so          
+          fi
           ls -alt /usr/local/clickhouse/lib/libch.so
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
