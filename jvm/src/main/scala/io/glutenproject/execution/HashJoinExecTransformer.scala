@@ -239,6 +239,56 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash build memory allocations"),
 
+    "antiDistinctInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation input rows"),
+    "antiDistinctInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation input vectors"),
+    "antiDistinctInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti join distinct aggregation input bytes"),
+    "antiDistinctRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation raw input rows"),
+    "antiDistinctRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti join distinct aggregation raw input bytes"),
+    "antiDistinctOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation output rows"),
+    "antiDistinctOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation output vectors"),
+    "antiDistinctOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti join distinct aggregation output bytes"),
+    "antiDistinctCount" -> SQLMetrics.createMetric(
+      sparkContext, "anti join distinct aggregation cpu wall time count"),
+    "antiDistinctWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime_anti_join_distinct_aggregation"),
+    "antiDistinctPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "anti join distinct aggregation peak memory bytes"),
+    "antiDistinctNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation memory allocations"),
+
+    "antiProjectInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project input rows"),
+    "antiProjectInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project input vectors"),
+    "antiProjectInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti project input bytes"),
+    "antiProjectRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project raw input rows"),
+    "antiProjectRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti project raw input bytes"),
+    "antiProjectOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project output rows"),
+    "antiProjectOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project output vectors"),
+    "antiProjectOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti project output bytes"),
+    "antiProjectCount" -> SQLMetrics.createMetric(
+      sparkContext, "anti project cpu wall time count"),
+    "antiProjectWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime_anti_project"),
+    "antiProjectPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "anti project peak memory bytes"),
+    "antiProjectNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project memory allocations"),
+
     "hashProbeInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe input rows"),
     "hashProbeInputVectors" -> SQLMetrics.createMetric(
@@ -368,6 +418,38 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
   val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
 
+  /**
+   * The metrics of build side distinct aggregation, relating to the special handling for Anti join.
+   */
+  val antiDistinctInputRows: SQLMetric = longMetric("antiDistinctInputRows")
+  val antiDistinctInputVectors: SQLMetric = longMetric("antiDistinctInputVectors")
+  val antiDistinctInputBytes: SQLMetric = longMetric("antiDistinctInputBytes")
+  val antiDistinctRawInputRows: SQLMetric = longMetric("antiDistinctRawInputRows")
+  val antiDistinctRawInputBytes: SQLMetric = longMetric("antiDistinctRawInputBytes")
+  val antiDistinctOutputRows: SQLMetric = longMetric("antiDistinctOutputRows")
+  val antiDistinctOutputVectors: SQLMetric = longMetric("antiDistinctOutputVectors")
+  val antiDistinctOutputBytes: SQLMetric = longMetric("antiDistinctOutputBytes")
+  val antiDistinctCount: SQLMetric = longMetric("antiDistinctCount")
+  val antiDistinctWallNanos: SQLMetric = longMetric("antiDistinctWallNanos")
+  val antiDistinctPeakMemoryBytes: SQLMetric = longMetric("antiDistinctPeakMemoryBytes")
+  val antiDistinctNumMemoryAllocations: SQLMetric = longMetric("antiDistinctNumMemoryAllocations")
+
+  /**
+   * The metrics of build side extra projection, relating to the special handling for Anti join.
+   */
+  val antiProjectInputRows: SQLMetric = longMetric("antiProjectInputRows")
+  val antiProjectInputVectors: SQLMetric = longMetric("antiProjectInputVectors")
+  val antiProjectInputBytes: SQLMetric = longMetric("antiProjectInputBytes")
+  val antiProjectRawInputRows: SQLMetric = longMetric("antiProjectRawInputRows")
+  val antiProjectRawInputBytes: SQLMetric = longMetric("antiProjectRawInputBytes")
+  val antiProjectOutputRows: SQLMetric = longMetric("antiProjectOutputRows")
+  val antiProjectOutputVectors: SQLMetric = longMetric("antiProjectOutputVectors")
+  val antiProjectOutputBytes: SQLMetric = longMetric("antiProjectOutputBytes")
+  val antiProjectCount: SQLMetric = longMetric("antiProjectCount")
+  val antiProjectWallNanos: SQLMetric = longMetric("antiProjectWallNanos")
+  val antiProjectPeakMemoryBytes: SQLMetric = longMetric("antiProjectPeakMemoryBytes")
+  val antiProjectNumMemoryAllocations: SQLMetric = longMetric("antiProjectNumMemoryAllocations")
+
   val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
   val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
   val hashProbeInputBytes: SQLMetric = longMetric("hashProbeInputBytes")
@@ -480,6 +562,12 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       idx += 1
     }
 
+    if (antiJoinWorkaroundNeeded) {
+      // Filter of isNull over project are mapped into FilterProject operator in Velox.
+      // Therefore, the filter metrics are empty and no need to be updated.
+      idx += 1
+    }
+
     // HashProbe
     val hashProbeMetrics = joinMetrics.get(idx)
     hashProbeInputRows += hashProbeMetrics.inputRows
@@ -513,6 +601,38 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
     hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
     idx += 1
+
+    if (antiJoinWorkaroundNeeded) {
+      var metrics = joinMetrics.get(idx)
+      antiProjectInputRows += metrics.inputRows
+      antiProjectInputVectors += metrics.inputVectors
+      antiProjectInputBytes += metrics.inputBytes
+      antiProjectRawInputRows += metrics.rawInputRows
+      antiProjectRawInputBytes += metrics.rawInputBytes
+      antiProjectOutputRows += metrics.outputRows
+      antiProjectOutputVectors += metrics.outputVectors
+      antiProjectOutputBytes += metrics.outputBytes
+      antiProjectCount += metrics.count
+      antiProjectWallNanos += metrics.wallNanos
+      antiProjectPeakMemoryBytes += metrics.peakMemoryBytes
+      antiProjectNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+
+      metrics = joinMetrics.get(idx)
+      antiDistinctInputRows += metrics.inputRows
+      antiDistinctInputVectors += metrics.inputVectors
+      antiDistinctInputBytes += metrics.inputBytes
+      antiDistinctRawInputRows += metrics.rawInputRows
+      antiDistinctRawInputBytes += metrics.rawInputBytes
+      antiDistinctOutputRows += metrics.outputRows
+      antiDistinctOutputVectors += metrics.outputVectors
+      antiDistinctOutputBytes += metrics.outputBytes
+      antiDistinctCount += metrics.count
+      antiDistinctWallNanos += metrics.wallNanos
+      antiDistinctPeakMemoryBytes += metrics.peakMemoryBytes
+      antiDistinctNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
 
     if (joinParams.buildPreProjectionNeeded) {
       val metrics = joinMetrics.get(idx)
