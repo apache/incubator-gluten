@@ -18,7 +18,6 @@
 package io.glutenproject.memory;
 
 import org.apache.arrow.memory.AllocationListener;
-import org.apache.arrow.memory.AllocationOutcome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,20 +36,7 @@ public class SparkManagedAllocationListener implements AllocationListener, AutoC
 
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
-  public static class MemoryTrace {
-    public String action;
-    public long size;
-    public String stack;
-    public MemoryTrace(String action, long size, String stack) {
-      this.action = action;
-      this.size = size;
-      this.stack = stack;
-    }
 
-    public void print() {
-      LOG.warn(this.action + " " + this.size + "\n" + this.stack);
-    }
-  }
   public SparkManagedAllocationListener(NativeSQLMemoryConsumer consumer,
                                         NativeSQLMemoryMetrics metrics) {
     this.consumer = consumer;
@@ -109,12 +95,6 @@ public class SparkManagedAllocationListener implements AllocationListener, AutoC
       blocksReserved = newBlocksReserved;
       return requiredBlocks;
     }
-  }
-
-  @Override
-  public boolean onFailedAllocation(long size, AllocationOutcome outcome) {
-    LOG.warn("Spark managed memory allocation failed");
-    return false;
   }
 
   @Override

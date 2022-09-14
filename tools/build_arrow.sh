@@ -42,7 +42,7 @@ done
 
 function compile_velox_arrow {
     echo "Compile velox arrow branch"
-    git clone https://github.com/jinchengchenghh/arrow.git -b gluten-main $ARROW_SOURCE_DIR
+    git clone https://github.com/oap-project/arrow.git -b backend_velox_main $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
 
     mkdir -p java/build
@@ -103,7 +103,7 @@ function compile_velox_arrow {
 
 function compile_gazelle_arrow {
     echo "Compile gazelle arrow branch"
-    git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
+    git clone https://github.com/jinchengchenghh/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
 
     mkdir -p java/c/build
@@ -151,7 +151,7 @@ function compile_gazelle_arrow {
     make install
 
     cd java
-    mvn clean install -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip
+    mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip -Dmaven.gitcommitid.skip=true
 }
 
 echo "CMAKE Arguments:"
@@ -189,9 +189,8 @@ if [ $BUILD_ARROW == "ON" ]; then
     compile_velox_arrow
   else # gazelle
     compile_gazelle_arrow
-  fi;
+  fi
 
-  
   echo "Finish to build Arrow from Source !!!"
 else
   echo "Use ARROW_ROOT as Arrow Library Path"

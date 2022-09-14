@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-message(STATUS "BACKEND is: ${BACKEND_TYPE}")
+
 if(${BACKEND_TYPE} STREQUAL "velox")
   set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1000")
   set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1000.0.0")
