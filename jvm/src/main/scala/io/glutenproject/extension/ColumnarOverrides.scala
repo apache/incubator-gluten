@@ -296,12 +296,12 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   // while creating the rules. At this time SQLConf may not be there yet.
 
   def preOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List(_ => TransformGuardRule(),
-      _ => TransformPreOverrides()) :::
+    List((_: SparkSession) => TransformGuardRule(),
+      (_: SparkSession) => TransformPreOverrides()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
 
   def postOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List(_ => TransformPostOverrides()) :::
+    List((_: SparkSession) => TransformPostOverrides()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
 
