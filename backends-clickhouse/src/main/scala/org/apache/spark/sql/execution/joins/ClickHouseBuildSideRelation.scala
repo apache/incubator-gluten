@@ -93,7 +93,7 @@ case class ClickHouseBuildSideRelation(
         if (batch.numRows == 0) {
           Iterator.empty
         } else {
-          val info = converter.converColumarToRow(block)
+          val info = converter.convertColumnarToRow(block)
 
           new Iterator[InternalRow] {
             var rowId = 0

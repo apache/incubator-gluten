@@ -15,15 +15,13 @@
  * limitations under the License.
  */
 
-
 package io.glutenproject.vectorized;
 
 import io.glutenproject.row.SparkRowInfo;
 
 public class BlockNativeConverter {
 
+	public native SparkRowInfo convertColumnarToRow(long blockAddress);
 
-  public native SparkRowInfo converColumarToRow(long blockAddress);
-
-  public native void freeMemory(long address, long size);
+	public native void freeMemory(long address, long size);
 }

@@ -77,7 +77,7 @@ class BlockNativeColumnarToRowExec(child: SparkPlan)
           val blockAddress = nativeBlock
             .orElseThrow(() => new IllegalStateException("Logic error"))
             .blockAddress()
-          val info = jniWrapper.converColumarToRow(blockAddress)
+          val info = jniWrapper.convertColumnarToRow(blockAddress)
 
           convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 
