@@ -513,10 +513,11 @@ trait HashJoinLikeExecTransformer
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
-    case LeftOuter =>
+    case LeftOuter | RightOuter =>
+      // The right side is required to be used for building hash table in Substrait plan.
+      // Therefore, for RightOuter Join, the left and right relations are exchanged and the
+      // join type is reverted.
       JoinRel.JoinType.JOIN_TYPE_LEFT
-    case RightOuter =>
-      JoinRel.JoinType.JOIN_TYPE_RIGHT
     case LeftSemi =>
       JoinRel.JoinType.JOIN_TYPE_SEMI
     case LeftAnti =>
