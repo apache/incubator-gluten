@@ -50,8 +50,9 @@ object CHExecUtil {
     case "String" => StringType
     case "Binary" => BinaryType
     case "Boolean" => BooleanType
-    case "Timestamp" => TimestampType 
+    case "Timestamp" => TimestampType
   }
+
   // scalastyle:off argcount
   def genShuffleDependency(rdd: RDD[ColumnarBatch],
                            outputAttributes: Seq[Attribute],
