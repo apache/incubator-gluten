@@ -40,186 +40,186 @@ import org.apache.spark.sql.internal.SQLConf
 // The plan with a row guard on the top of it will not be converted.
 case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
-  var isSupportAdaptive: Boolean = true
 
-  def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
-    case RowGuard(child: AQEShuffleReadExec) =>
-      replaceWithTransformerPlan(child)
-    case RowGuard(bhj: BroadcastHashJoinExec) =>
-      bhj.withNewChildren(bhj.children.map {
-        // ResuedExchange is not created yet, so we don't need to handle that case.
-        case e: BroadcastExchangeExec =>
-          replaceWithTransformerPlan(RowGuard(e))
-        case other => replaceWithTransformerPlan(other)
-      })
-    case plan: RowGuard =>
-      val actualPlan = plan.child
-      logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")
-      actualPlan.withNewChildren(actualPlan.children.map(replaceWithTransformerPlan))
-    case plan if plan.getTagValue(RowGuardTag.key).contains(true) =>
-      // Add RowGuard if the plan has a RowGuardTag.
-      replaceWithTransformerPlan(RowGuard(plan))
-    /* case plan: ArrowEvalPythonExec =>
-      val columnarChild = replaceWithTransformerPlan(plan.child)
-      ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
-    case plan: BatchScanExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      val newPartitionFilters =
-        ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
-      new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
-    case plan: FileSourceScanExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      new FileSourceScanExecTransformer(
-        plan.relation,
-        plan.output,
-        plan.requiredSchema,
-        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters),
-        plan.optionalBucketSet,
-        plan.optionalNumCoalescedBuckets,
-        plan.dataFilters,
-        plan.tableIdentifier,
-        plan.disableBucketedScan)
-    case plan: CoalesceExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      CoalesceExecTransformer(plan.numPartitions, replaceWithTransformerPlan(plan.child))
-    case plan: InMemoryTableScanExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      ColumnarInMemoryTableScanExec(plan.attributes, plan.predicates, plan.relation)
-    case plan: ProjectExec =>
-      val columnarChild = replaceWithTransformerPlan(plan.child)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      ProjectExecTransformer(plan.projectList, columnarChild)
-    case plan: FilterExec =>
-      // Push down the left conditions in Filter into Scan.
-      val newChild =
-        if (plan.child.isInstanceOf[FileSourceScanExec] ||
-          plan.child.isInstanceOf[BatchScanExec]) {
-          FilterHandler.applyFilterPushdownToScan(plan)
-        } else {
-          replaceWithTransformerPlan(plan.child)
-        }
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      BackendsApiManager.getSparkPlanExecApiInstance
-        .genFilterExecTransformer(plan.condition, newChild)
-    case plan: HashAggregateExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      BackendsApiManager.getSparkPlanExecApiInstance
-        .genHashAggregateExecTransformer(
-          plan.requiredChildDistributionExpressions,
-          plan.groupingExpressions,
-          plan.aggregateExpressions,
-          plan.aggregateAttributes,
-          plan.initialInputBufferOffset,
-          plan.resultExpressions,
-          child)
-    case plan: UnionExec =>
-      val children = plan.children.map(replaceWithTransformerPlan)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      UnionExecTransformer(children)
-    case plan: ExpandExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      ExpandExecTransformer(plan.projections, plan.output, child)
-    case plan: SortExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
-    case plan: ShuffleExchangeExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
-        columnarConf.enableColumnarShuffle) {
-        if (isSupportAdaptive) {
-          ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
-        } else {
-          CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
-        }
-      } else {
-        plan.withNewChildren(Seq(child))
-      }
-    case plan: ShuffledHashJoinExec =>
-      val left = replaceWithTransformerPlan(plan.left)
-      val right = replaceWithTransformerPlan(plan.right)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      ShuffledHashJoinExecTransformer(
-        plan.leftKeys,
-        plan.rightKeys,
-        plan.joinType,
-        plan.buildSide,
-        plan.condition,
-        left,
-        right)
-    case plan: SortMergeJoinExec =>
-      val left = replaceWithTransformerPlan(plan.left)
-      val right = replaceWithTransformerPlan(plan.right)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      SortMergeJoinExecTransformer(
-        plan.leftKeys,
-        plan.rightKeys,
-        plan.joinType,
-        plan.condition,
-        left,
-        right,
-        plan.isSkewJoin)
-    case plan: BroadcastExchangeExec =>
-      val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      if (isSupportAdaptive) {
-        ColumnarBroadcastExchangeAdaptor(plan.mode, child)
-      } else {
-        ColumnarBroadcastExchangeExec(plan.mode, child)
-      }
-    case plan: BroadcastHashJoinExec =>
-      val left = replaceWithTransformerPlan(plan.left)
-      val right = replaceWithTransformerPlan(plan.right)
-      BroadcastHashJoinExecTransformer(
-        plan.leftKeys,
-        plan.rightKeys,
-        plan.joinType,
-        plan.buildSide,
-        plan.condition,
-        left,
-        right,
-        isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-    case plan: AQEShuffleReadExec if columnarConf.enableColumnarShuffle =>
-      plan.child match {
-        case shuffle: ColumnarShuffleExchangeAdaptor =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-        case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor, _) =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-        case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
-          reused match {
-            case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
-              logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-              CoalesceBatchesExec(
-                ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
-            case _ =>
-              plan
+  def replaceWithTransformerPlan(plan: SparkPlan, isSupportAdaptive: Boolean): SparkPlan = {
+    plan match {
+      case RowGuard(child: AQEShuffleReadExec) =>
+        replaceWithTransformerPlan(child, isSupportAdaptive)
+      case RowGuard(bhj: BroadcastHashJoinExec) =>
+        bhj.withNewChildren(bhj.children.map {
+          // ResuedExchange is not created yet, so we don't need to handle that case.
+          case e: BroadcastExchangeExec =>
+            replaceWithTransformerPlan(RowGuard(e), isSupportAdaptive)
+          case other => replaceWithTransformerPlan(other, isSupportAdaptive)
+        })
+      case plan: RowGuard =>
+        val actualPlan = plan.child
+        logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")
+        actualPlan.withNewChildren(
+          actualPlan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+      case plan if plan.getTagValue(RowGuardTag.key).contains(true) =>
+        // Add RowGuard if the plan has a RowGuardTag.
+        replaceWithTransformerPlan(RowGuard(plan), isSupportAdaptive)
+      /* case plan: ArrowEvalPythonExec =>
+        val columnarChild = replaceWithTransformerPlan(plan.child)
+        ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
+      case plan: BatchScanExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        val newPartitionFilters =
+          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
+        new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
+      case plan: FileSourceScanExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        new FileSourceScanExecTransformer(
+          plan.relation,
+          plan.output,
+          plan.requiredSchema,
+          ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters),
+          plan.optionalBucketSet,
+          plan.optionalNumCoalescedBuckets,
+          plan.dataFilters,
+          plan.tableIdentifier,
+          plan.disableBucketedScan)
+      case plan: CoalesceExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        CoalesceExecTransformer(
+          plan.numPartitions, replaceWithTransformerPlan(plan.child, isSupportAdaptive))
+      case plan: InMemoryTableScanExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        ColumnarInMemoryTableScanExec(plan.attributes, plan.predicates, plan.relation)
+      case plan: ProjectExec =>
+        val columnarChild = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        ProjectExecTransformer(plan.projectList, columnarChild)
+      case plan: FilterExec =>
+        // Push down the left conditions in Filter into Scan.
+        val newChild =
+          if (plan.child.isInstanceOf[FileSourceScanExec] ||
+            plan.child.isInstanceOf[BatchScanExec]) {
+            FilterHandler.applyFilterPushdownToScan(plan)
+          } else {
+            replaceWithTransformerPlan(plan.child, isSupportAdaptive)
           }
-        case _ =>
-          plan
-      }
-    case plan: WindowExec =>
-      WindowExecTransformer(
-        plan.windowExpression,
-        plan.partitionSpec,
-        plan.orderSpec,
-        replaceWithTransformerPlan(plan.child))
-    case p =>
-      logDebug(s"Transformation for ${p.getClass} is currently not supported.")
-      val children = plan.children.map(replaceWithTransformerPlan)
-      p.withNewChildren(children)
-  }
-
-  def setAdaptiveSupport(enable: Boolean): Unit = {
-    isSupportAdaptive = enable
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genFilterExecTransformer(plan.condition, newChild)
+      case plan: HashAggregateExec =>
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genHashAggregateExecTransformer(
+            plan.requiredChildDistributionExpressions,
+            plan.groupingExpressions,
+            plan.aggregateExpressions,
+            plan.aggregateAttributes,
+            plan.initialInputBufferOffset,
+            plan.resultExpressions,
+            child)
+      case plan: UnionExec =>
+        val children = plan.children.map(
+          replaceWithTransformerPlan(_, isSupportAdaptive))
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        UnionExecTransformer(children)
+      case plan: ExpandExec =>
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        ExpandExecTransformer(plan.projections, plan.output, child)
+      case plan: SortExec =>
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
+      case plan: ShuffleExchangeExec =>
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
+          columnarConf.enableColumnarShuffle) {
+          if (isSupportAdaptive) {
+            ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
+          } else {
+            CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
+          }
+        } else {
+          plan.withNewChildren(Seq(child))
+        }
+      case plan: ShuffledHashJoinExec =>
+        val left = replaceWithTransformerPlan(plan.left, isSupportAdaptive)
+        val right = replaceWithTransformerPlan(plan.right, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        ShuffledHashJoinExecTransformer(
+          plan.leftKeys,
+          plan.rightKeys,
+          plan.joinType,
+          plan.buildSide,
+          plan.condition,
+          left,
+          right)
+      case plan: SortMergeJoinExec =>
+        val left = replaceWithTransformerPlan(plan.left, isSupportAdaptive)
+        val right = replaceWithTransformerPlan(plan.right, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        SortMergeJoinExecTransformer(
+          plan.leftKeys,
+          plan.rightKeys,
+          plan.joinType,
+          plan.condition,
+          left,
+          right,
+          plan.isSkewJoin)
+      case plan: BroadcastExchangeExec =>
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        if (isSupportAdaptive) {
+          ColumnarBroadcastExchangeAdaptor(plan.mode, child)
+        } else {
+          ColumnarBroadcastExchangeExec(plan.mode, child)
+        }
+      case plan: BroadcastHashJoinExec =>
+        val left = replaceWithTransformerPlan(plan.left, isSupportAdaptive)
+        val right = replaceWithTransformerPlan(plan.right, isSupportAdaptive)
+        BroadcastHashJoinExecTransformer(
+          plan.leftKeys,
+          plan.rightKeys,
+          plan.joinType,
+          plan.buildSide,
+          plan.condition,
+          left,
+          right,
+          isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
+      case plan: AQEShuffleReadExec if columnarConf.enableColumnarShuffle =>
+        plan.child match {
+          case shuffle: ColumnarShuffleExchangeAdaptor =>
+            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+            CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+          case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor, _) =>
+            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+            CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+          case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
+            reused match {
+              case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeAdaptor) =>
+                logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+                CoalesceBatchesExec(
+                  ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+              case _ =>
+                plan
+            }
+          case _ =>
+            plan
+        }
+      case plan: WindowExec =>
+        WindowExecTransformer(
+          plan.windowExpression,
+          plan.partitionSpec,
+          plan.orderSpec,
+          replaceWithTransformerPlan(plan.child, isSupportAdaptive))
+      case p =>
+        logDebug(s"Transformation for ${p.getClass} is currently not supported.")
+        val children = plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive))
+        p.withNewChildren(children)
+    }
   }
 
   def apply(plan: SparkPlan): SparkPlan = {
-    replaceWithTransformerPlan(plan)
+    replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
   }
 }
 
@@ -227,7 +227,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 // into columnar implementations.
 case class TransformPostOverrides() extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getSessionConf
-  var isSupportAdaptive: Boolean = true
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
@@ -287,10 +286,6 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       p.withNewChildren(children)
   }
 
-  def setAdaptiveSupport(enable: Boolean): Unit = {
-    isSupportAdaptive = enable
-  }
-
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan)
   }
@@ -301,9 +296,16 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
-  def rowGuardOverrides: TransformGuardRule = TransformGuardRule()
 
-  def preOverrides: TransformPreOverrides = TransformPreOverrides()
+  def preOverrides: List[SparkSession => Rule[SparkPlan]] =
+    List((_: SparkSession) => TransformGuardRule(),
+      (_: SparkSession) => TransformPreOverrides()) :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
+
+  def postOverrides: List[SparkSession => Rule[SparkPlan]] =
+    List((_: SparkSession) => TransformPostOverrides()) :::
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
+      List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan => {
     val supportedGluten = BackendsApiManager.getSparkPlanExecApiInstance.supportedGluten(
@@ -311,10 +313,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       plan)
 
     if (supportedGluten) {
-      isSupportAdaptive = supportAdaptive(plan)
-      val rule = preOverrides
-      rule.setAdaptiveSupport(isSupportAdaptive)
-      rule(rowGuardOverrides(plan))
+      var overridden: SparkPlan = plan
+      preOverrides.foreach { r =>
+        overridden = r(session)(overridden)
+      }
+      overridden
     } else {
       plan
     }
@@ -326,10 +329,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       plan)
 
     if (supportedGluten) {
-      val rule = postOverrides
-      rule.setAdaptiveSupport(isSupportAdaptive)
-      val tmpPlan = rule(plan)
-      collapseOverrides(tmpPlan)
+      var overridden: SparkPlan = plan
+      postOverrides.foreach { r =>
+        overridden = r(session)(overridden)
+      }
+      overridden
     } else {
       plan
     }
@@ -337,12 +341,14 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   def nativeEngineEnabled: Boolean = GlutenConfig.getSessionConf.enableNativeEngine
 
-  def postOverrides: TransformPostOverrides = TransformPostOverrides()
+}
 
-  def collapseOverrides: ColumnarCollapseCodegenStages =
-    ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf)
+object ColumnarOverrides extends GlutenSparkExtensionsInjector {
 
-  private def supportAdaptive(plan: SparkPlan): Boolean = {
+  def sanityCheck(plan: SparkPlan): Boolean =
+    plan.logicalLink.isDefined
+
+  def supportAdaptive(plan: SparkPlan): Boolean = {
     // TODO migrate dynamic-partition-pruning onto adaptive execution.
     // Only QueryStage will have Exchange as Leaf Plan
     val isLeafPlanExchange = plan match {
@@ -354,11 +360,6 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       plan.children.forall(supportAdaptive)))
   }
 
-  private def sanityCheck(plan: SparkPlan): Boolean =
-    plan.logicalLink.isDefined
-}
-
-object ColumnarOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectColumnar(ColumnarOverrideRules)
   }

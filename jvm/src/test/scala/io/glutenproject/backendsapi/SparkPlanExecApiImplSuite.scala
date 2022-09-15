@@ -165,13 +165,6 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] =
     List()
 
-  /**
-   * Generate extended Rules.
-   * Currently only for Velox backend.
-   *
-   * @return
-   */
-  override def genExtendedColumnarRules(): List[SparkSession => ColumnarRule] = List()
 
   /**
    * Generate extended Strategies.
@@ -180,4 +173,20 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+
+  /**
+   * Generate extended columnar pre-rules.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  /**
+   * Generate extended columnar post-rules.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 }
