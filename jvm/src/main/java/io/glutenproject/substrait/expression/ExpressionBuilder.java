@@ -174,5 +174,4 @@ public class ExpressionBuilder {
                                                           List<ExpressionNode> expressionNodes) {
     return new SingularOrListNode(value, expressionNodes);
   }
-
 }
