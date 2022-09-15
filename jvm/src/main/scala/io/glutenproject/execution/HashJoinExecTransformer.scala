@@ -20,14 +20,13 @@ package io.glutenproject.execution
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression, makeIsNullExpression}
 import io.glutenproject.expression._
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
-import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.{AggregateRelNode, ProjectRelNode, RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.substrait.proto.JoinRel
@@ -910,9 +909,10 @@ trait HashJoinLikeExecTransformer
     // Combine join keys to make a single expression.
     val joinExpressionNode = (streamedKeys zip buildKeys).map {
       case ((leftKey, leftType), (rightKey, rightType)) =>
-        makeEqualToExpression(
+        HashJoinLikeExecTransformer.makeEqualToExpression(
           leftKey, leftType, rightKey, rightType, substraitContext.registeredFunction)
-    }.reduce((l, r) => makeAndExpression(l, r, substraitContext.registeredFunction))
+    }.reduce((l, r) =>
+      HashJoinLikeExecTransformer.makeAndExpression(l, r, substraitContext.registeredFunction))
 
     // Create post-join filter, which will be computed in hash join.
     val postJoinFilter = condition.map {
