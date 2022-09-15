@@ -147,14 +147,15 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           exec.doValidate()
         case plan: ShuffledHashJoinExec =>
           if (!enableColumnarShuffledHashJoin) return false
-          val transformer = ShuffledHashJoinExecTransformer(
-            plan.leftKeys,
-            plan.rightKeys,
-            plan.joinType,
-            plan.buildSide,
-            plan.condition,
-            plan.left,
-            plan.right)
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genShuffledHashJoinExecTransformer(
+              plan.leftKeys,
+              plan.rightKeys,
+              plan.joinType,
+              plan.buildSide,
+              plan.condition,
+              plan.left,
+              plan.right)
           transformer.doValidate()
         case plan: BroadcastExchangeExec =>
           // columnar broadcast is enabled only when columnar bhj is enabled.
@@ -163,7 +164,8 @@ case class TransformGuardRule() extends Rule[SparkPlan] {
           exec.doValidate()
         case plan: BroadcastHashJoinExec =>
           if (!enableColumnarBroadcastJoin) return false
-          val transformer = BroadcastHashJoinExecTransformer(
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+          .genBroadcastHashJoinExecTransformer(
             plan.leftKeys,
             plan.rightKeys,
             plan.joinType,

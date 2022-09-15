@@ -100,16 +100,10 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
-abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
-                                           rightKeys: Seq[Expression],
-                                           joinType: JoinType,
-                                           buildSide: BuildSide,
-                                           condition: Option[Expression],
-                                           left: SparkPlan,
-                                           right: SparkPlan)
-  extends BaseJoinExec
-    with TransformSupport
-    with ColumnarShuffledJoin {
+trait HashJoinLikeExecTransformer
+  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin {
+
+  def joinBuildSide: BuildSide
 
   override lazy val metrics = Map(
     "streamInputRows" -> SQLMetrics.createMetric(
@@ -490,7 +484,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
   def isSkewJoin: Boolean = false
 
-  lazy val (buildPlan, streamedPlan) = buildSide match {
+  lazy val (buildPlan, streamedPlan) = joinBuildSide match {
     case BuildLeft => (left, right)
     case BuildRight => (right, left)
   }
@@ -501,14 +495,20 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       "Join keys from two sides should have same types")
     val lkeys = HashJoin.rewriteKeyExpr(leftKeys)
     val rkeys = HashJoin.rewriteKeyExpr(rightKeys)
-    buildSide match {
+    joinBuildSide match {
       case BuildLeft => (lkeys, rkeys)
       case BuildRight => (rkeys, lkeys)
     }
   }
 
+  /**
+   * Returns whether a workaround for Anti join is needed.
+   * True for 'not exists' semantics on Velox backend.
+   */
+  def antiJoinWorkaroundNeeded: Boolean = false
+
   // Direct output order of substrait join operation
-  private val substraitJoinType = joinType match {
+  protected val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
@@ -520,12 +520,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     case LeftSemi =>
       JoinRel.JoinType.JOIN_TYPE_SEMI
     case LeftAnti =>
-      if (!antiJoinWorkaroundNeeded) {
-        JoinRel.JoinType.JOIN_TYPE_ANTI
-      } else {
-        // Use Left to replace Anti as a workaround.
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      }
+      JoinRel.JoinType.JOIN_TYPE_ANTI
     case _ =>
       // TODO: Support cross join with Cross Rel
       // TODO: Support existence join
@@ -703,7 +698,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
-  override def outputPartitioning: Partitioning = buildSide match {
+  override def outputPartitioning: Partitioning = joinBuildSide match {
     case BuildLeft =>
       joinType match {
         case _: InnerLike | RightOuter => right.outputPartitioning
@@ -824,19 +819,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     !keyExprs.forall(_.isInstanceOf[AttributeReference])
   }
 
-  /**
-   * Returns whether a workaround for Anti join is needed. True for 'not exists' semantics.
-   * For SHJ, always returns true for Anti join.
-   * For BHJ, only when isNullAwareAntiJoin is disabled, true is returned.
-   */
-  def antiJoinWorkaroundNeeded: Boolean = {
-    joinType match {
-      case LeftAnti => true
-      case _ => false
-    }
-  }
-
-  private def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
+  protected def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
                                           inputNode: RelNode,
                                           inputNodeOutput: Seq[Attribute],
                                           joinOutput: Seq[Attribute],
@@ -896,54 +879,8 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
-  /**
-   * Use a workaround for Anti join with 'not exists' semantics.
-   * Firstly, add an aggregation rel over build rel to make the build keys distinct.
-   * Secondly, add a project rel over the aggregation rel to append a column of true constant.
-   * Then, this project rel is returned and will be used as the input rel for join build side.
-   * @param buildInfo: the original build keys, build rel and build outputs.
-   * @param context: Substrait context.
-   * @param operatorId: operator id of this join.
-   * @return original build keys, new build rel and build outputs.
-   */
-  private def createSpecialRelForAntiBuild(
-      buildInfo: (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]),
-      context: SubstraitContext,
-      operatorId: java.lang.Long,
-      validation: Boolean):
-      (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
-    // Create an Aggregation Rel over build Rel.
-    val groupingNodes = new util.ArrayList[ExpressionNode]()
-    var colIdx = 0
-    buildInfo._3.foreach(_ => {
-      groupingNodes.add(ExpressionBuilder.makeSelection(colIdx))
-      colIdx += 1
-    })
-    val aggNode = RelBuilder.makeAggregateRel(
-      buildInfo._2,
-      groupingNodes,
-      new util.ArrayList[AggregateFunctionNode](),
-      context,
-      operatorId)
-    // Create a Project Rel over Aggregation Rel.
-    val expressionNodes = groupingNodes
-    // Append a new column of true constant.
-    expressionNodes.add(ExpressionBuilder.makeBooleanLiteral(true))
-    val projectNode = RelBuilder.makeProjectRel(
-      aggNode,
-      expressionNodes,
-      createExtensionNode(buildInfo._3, validation),
-      context,
-      operatorId)
-    (
-      buildInfo._1,
-      projectNode,
-      buildInfo._3 :+ AttributeReference(s"constant_true", BooleanType)()
-    )
-  }
 
-
-  private def createJoinRel(inputStreamedRelNode: RelNode,
+  protected def createJoinRel(inputStreamedRelNode: RelNode,
                             inputBuildRelNode: RelNode,
                             inputStreamedOutput: Seq[Attribute],
                             inputBuildOutput: Seq[Attribute],
@@ -960,23 +897,14 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       operatorId,
       validation)
 
-    val (buildKeys, buildRelNode, buildOutput) = {
-      val (keys, relNode, output) = createPreProjectionIfNeeded(
-        buildKeyExprs,
-        inputBuildRelNode,
-        inputBuildOutput,
-        streamedOutput ++ inputBuildOutput,
-        substraitContext,
-        operatorId,
-        validation)
-      if (!antiJoinWorkaroundNeeded) {
-        (keys, relNode, output)
-      } else {
-        // Use a workaround for Anti join.
-        createSpecialRelForAntiBuild(
-          (keys, relNode, output), substraitContext, operatorId, validation)
-      }
-    }
+    val (buildKeys, buildRelNode, buildOutput) = createPreProjectionIfNeeded(
+      buildKeyExprs,
+      inputBuildRelNode,
+      inputBuildOutput,
+      streamedOutput ++ inputBuildOutput,
+      substraitContext,
+      operatorId,
+      validation)
 
     // Combine join keys to make a single expression.
     val joinExpressionNode = (streamedKeys zip buildKeys).map {
@@ -995,34 +923,18 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
 
     // Create JoinRel.
-    val joinRel = {
-      val joinNode = RelBuilder.makeJoinRel(
-        streamedRelNode,
-        buildRelNode,
-        substraitJoinType,
-        joinExpressionNode,
-        postJoinFilter.orNull,
-        createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
-        substraitContext,
-        operatorId)
-      if (!antiJoinWorkaroundNeeded) {
-        joinNode
-      } else {
-        // Use an isNulll filter to select the rows needed by Anti join from Left join outputs.
-        val isNullFilter = makeIsNullExpression(
-          ExpressionBuilder.makeSelection(streamedOutput.size + buildOutput.size - 1),
-          substraitContext.registeredFunction)
-        RelBuilder.makeFilterRel(
-          joinNode,
-          isNullFilter,
-          createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
-          substraitContext,
-          operatorId)
-      }
-    }
+    val joinRel = RelBuilder.makeJoinRel(
+      streamedRelNode,
+      buildRelNode,
+      substraitJoinType,
+      joinExpressionNode,
+      postJoinFilter.orNull,
+      createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
+      substraitContext,
+      operatorId)
 
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
-    val resultProjection = buildSide match {
+    val resultProjection = joinBuildSide match {
       case BuildLeft =>
         val (leftOutput, rightOutput) =
           getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
@@ -1049,7 +961,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   private def createTransformContext(rel: RelNode,
                                      inputStreamedOutput: Seq[Attribute],
                                      inputBuildOutput: Seq[Attribute]): TransformContext = {
-    val inputAttributes = buildSide match {
+    val inputAttributes = joinBuildSide match {
       case BuildLeft => inputBuildOutput ++ inputStreamedOutput
       case BuildRight => inputStreamedOutput ++ inputBuildOutput
     }
@@ -1064,8 +976,8 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf)
   }
 
-  private def createExtensionNode(output: Seq[Attribute],
-                                  validation: Boolean): AdvancedExtensionNode = {
+  protected def createExtensionNode(output: Seq[Attribute],
+                                    validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.
     if (validation) {
       ExtensionBuilder.makeAdvancedExtension(
@@ -1075,7 +987,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
-  private def createJoinExtensionNode(output: Seq[Attribute],
+  protected def createJoinExtensionNode(output: Seq[Attribute],
                                       validation: Boolean): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
@@ -1108,7 +1020,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   }
 
   // The output of result projection should be consistent with ShuffledJoin.output
-  private def getResultProjectionOutput(leftOutput: Seq[Attribute],
+  protected def getResultProjectionOutput(leftOutput: Seq[Attribute],
                                         rightOutput: Seq[Attribute])
     : (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
@@ -1181,29 +1093,20 @@ object HashJoinLikeExecTransformer {
   }
 }
 
-case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                           rightKeys: Seq[Expression],
-                                           joinType: JoinType,
-                                           buildSide: BuildSide,
-                                           condition: Option[Expression],
-                                           left: SparkPlan,
-                                           right: SparkPlan)
-  extends HashJoinLikeExecTransformer(
-    leftKeys,
-    rightKeys,
-    joinType,
-    buildSide,
-    condition,
-    left,
-    right) {
+abstract class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                               rightKeys: Seq[Expression],
+                                               joinType: JoinType,
+                                               buildSide: BuildSide,
+                                               condition: Option[Expression],
+                                               left: SparkPlan,
+                                               right: SparkPlan)
+  extends HashJoinLikeExecTransformer {
+
+  override def joinBuildSide: BuildSide = buildSide
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
   }
-
-  override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): ShuffledHashJoinExecTransformer =
-    copy(left = newLeft, right = newRight)
 }
 
 case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
@@ -1211,42 +1114,17 @@ case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
                                     buildSideStructure: Seq[Attribute],
                                     buildHashTableId: String)
 
-case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                            rightKeys: Seq[Expression],
-                                            joinType: JoinType,
-                                            buildSide: BuildSide,
-                                            condition: Option[Expression],
-                                            left: SparkPlan,
-                                            right: SparkPlan,
-                                            isNullAwareAntiJoin: Boolean = false)
-  extends HashJoinLikeExecTransformer(
-    leftKeys,
-    rightKeys,
-    joinType,
-    buildSide,
-    condition,
-    left,
-    right) {
+abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                                rightKeys: Seq[Expression],
+                                                joinType: JoinType,
+                                                buildSide: BuildSide,
+                                                condition: Option[Expression],
+                                                left: SparkPlan,
+                                                right: SparkPlan,
+                                                isNullAwareAntiJoin: Boolean = false)
+  extends HashJoinLikeExecTransformer {
 
-  /**
-   * Returns whether a workaround for Anti join is needed. True for 'not exists' semantics.
-   * For SHJ, always returns true for Anti join.
-   * For BHJ, only when isNullAwareAntiJoin is disabled, true is returned.
-   */
-  override def antiJoinWorkaroundNeeded: Boolean = {
-    joinType match {
-      case LeftAnti =>
-        if (isNullAwareAntiJoin) {
-          false
-        } else {
-          // Velox's Anti semantics are matched with the case when isNullAwareAntiJoin is enabled.
-          // So a workaround is needed if isNullAwareAntiJoin is disabled.
-          true
-        }
-      case _ =>
-        false
-    }
-  }
+  override def joinBuildSide: BuildSide = buildSide
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id
@@ -1309,8 +1187,4 @@ case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     }
     streamedRDD :+ buildRDD
   }
-
-  override protected def withNewChildrenInternal(
-    newLeft: SparkPlan, newRight: SparkPlan): BroadcastHashJoinExecTransformer =
-  copy(left = newLeft, right = newRight)
 }

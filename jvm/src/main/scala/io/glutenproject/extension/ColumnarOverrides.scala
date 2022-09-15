@@ -145,14 +145,15 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         val left = replaceWithTransformerPlan(plan.left, isSupportAdaptive)
         val right = replaceWithTransformerPlan(plan.right, isSupportAdaptive)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ShuffledHashJoinExecTransformer(
-          plan.leftKeys,
-          plan.rightKeys,
-          plan.joinType,
-          plan.buildSide,
-          plan.condition,
-          left,
-          right)
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genShuffledHashJoinExecTransformer(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.buildSide,
+            plan.condition,
+            left,
+            right)
       case plan: SortMergeJoinExec =>
         val left = replaceWithTransformerPlan(plan.left, isSupportAdaptive)
         val right = replaceWithTransformerPlan(plan.right, isSupportAdaptive)
@@ -176,15 +177,16 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: BroadcastHashJoinExec =>
         val left = replaceWithTransformerPlan(plan.left, isSupportAdaptive)
         val right = replaceWithTransformerPlan(plan.right, isSupportAdaptive)
-        BroadcastHashJoinExecTransformer(
-          plan.leftKeys,
-          plan.rightKeys,
-          plan.joinType,
-          plan.buildSide,
-          plan.condition,
-          left,
-          right,
-          isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genBroadcastHashJoinExecTransformer(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.buildSide,
+            plan.condition,
+            left,
+            right,
+            isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
       case plan: AQEShuffleReadExec if columnarConf.enableColumnarShuffle =>
         plan.child match {
           case shuffle: ColumnarShuffleExchangeAdaptor =>
