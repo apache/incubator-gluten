@@ -75,7 +75,7 @@ class GlutenClickHouseTPCHParquetAQESuite
       runTPCHQuery(3) { df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val shjBuildLeft = collect(df.queryExecution.executedPlan) {
-          case shj: ShuffledHashJoinExecTransformer if shj.buildSide == BuildLeft => shj
+          case shj: ShuffledHashJoinExecTransformer if shj.joinBuildSide == BuildLeft => shj
         }
         assert(shjBuildLeft.size == 2)
       }
