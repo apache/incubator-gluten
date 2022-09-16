@@ -43,6 +43,8 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def getPartitions: Seq[Seq[InputPartition]]
 
+  def getFlattenPartitions: Seq[InputPartition]
+
   def getPartitionSchemas: StructType
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
@@ -66,7 +68,7 @@ trait BasicScanExecTransformer extends TransformSupport {
         planNode,
         substraitContext),
       fileFormat,
-      getPartitions.flatten,
+      getFlattenPartitions,
       numOutputRows,
       numOutputVectors,
       scanTime
@@ -121,6 +123,6 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   def executeInSubqueryForDynamicPruningExpression(inSubquery: InSubqueryExec): Unit = {
-
+    if (!inSubquery.values().isDefined) inSubquery.updateResult()
   }
 }

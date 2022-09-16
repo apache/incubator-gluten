@@ -108,6 +108,10 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation, dynamicallySelectedPartitions).map(Seq(_))
 
+  override def getFlattenPartitions: Seq[InputPartition] =
+    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
+      relation, dynamicallySelectedPartitions)
+
   override def getPartitionSchemas: StructType = relation.partitionSchema
 
   override def equals(other: Any): Boolean = other match {
