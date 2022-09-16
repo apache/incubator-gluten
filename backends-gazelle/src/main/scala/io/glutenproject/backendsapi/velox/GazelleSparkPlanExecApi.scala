@@ -18,15 +18,15 @@
 package io.glutenproject.backendsapi.velox
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.VeloxColumnarRules.{DummyRule, SimpleColumnarRule}
-import org.apache.spark.sql.execution.ColumnarRule
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.ArrowColumnarRules.ArrowWritePostRule
+import org.apache.spark.sql.catalyst.rules.Rule
 
 class GazelleSparkPlanExecApi extends VeloxSparkPlanExecApi {
 
-  override def genExtendedColumnarRules(): List[SparkSession => ColumnarRule] = {
+  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
     val arrowRule = (spark: SparkSession)
-    => SimpleColumnarRule(DummyRule, ArrowWritePostRule(spark))
-    super.genExtendedColumnarRules():+ arrowRule
+    => ArrowWritePostRule(spark)
+    super.genExtendedColumnarPostRules():+ arrowRule
   }
 }
