@@ -25,10 +25,11 @@ import scala.io.Source
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
-// scalastyle:off println
-object DSV2TPCDSBenchmarkTest {
+// scalastyle:off
+object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def main(args: Array[String]): Unit = {
 
@@ -45,10 +46,17 @@ object DSV2TPCDSBenchmarkTest {
     val separateScanRDD = "true"
     val coalesceBatches = "true"
     val broadcastThreshold = "10MB" // 100KB  10KB
+    val adaptiveEnabled = "true"
     val sparkLocalDir = "/data1/gazelle-jni-warehouse/spark_local_dirs"
-    val (parquetFilesPath, fileFormat,
-    executedCnt, configed, sqlFilePath, stopFlagFile,
-    createTable, metaRootPath) = if (args.length > 0) {
+    val (
+      parquetFilesPath,
+      fileFormat,
+      executedCnt,
+      configed,
+      sqlFilePath,
+      stopFlagFile,
+      createTable,
+      metaRootPath) = if (args.length > 0) {
       (args(0), args(1), args(2).toInt, true, args(3), args(4), args(5).toBoolean, args(6))
     } else {
       val rootPath = this.getClass.getResource("/").getPath
@@ -57,12 +65,21 @@ object DSV2TPCDSBenchmarkTest {
       val queryPath = resourcePath + "/queries/"
       // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
       // "/data1/gazelle-jni-warehouse")
-      ("/data1/test_output/tpcds-data-sf10", "parquet", 1, false, queryPath + "q01.sql", "",
-        true, "/data1/gazelle-jni-warehouse")
+      (
+        "/data1/test_output/tpcds-data-sf10",
+        "parquet",
+        1,
+        false,
+        queryPath + "q01.sql",
+        "",
+        true,
+        "/data1/gazelle-jni-warehouse")
     }
 
     val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
-      (metaRootPath + "/spark-warehouse", metaRootPath + "/meta",
+      (
+        metaRootPath + "/spark-warehouse",
+        metaRootPath + "/meta",
         metaRootPath + "/meta/metastore_db")
     } else {
       ("/tmp/spark-warehouse", "/tmp/meta", "/tmp/meta/metastore_db")
@@ -88,12 +105,25 @@ object DSV2TPCDSBenchmarkTest {
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
         .master(s"local[${thrdCnt}]")
+        .config("spark.driver.maxResultSize", "1g")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
         .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
         .config("spark.default.parallelism", 1)
         .config("spark.sql.shuffle.partitions", shufflePartitions)
-        .config("spark.sql.adaptive.enabled", "false")
+        .config("spark.sql.adaptive.enabled", adaptiveEnabled)
+        .config("spark.sql.adaptive.logLevel", "DEBUG")
+        .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB")
+        .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+        // .config("spark.sql.adaptive.coalescePartitions.minPartitionNum", "")
+        // .config("spark.sql.adaptive.coalescePartitions.initialPartitionNum", "")
+        .config("spark.sql.adaptive.fetchShuffleBlocksInBatch", "true")
+        .config("spark.sql.adaptive.localShuffleReader.enabled", "true")
+        .config("spark.sql.adaptive.skewJoin.enabled", "true")
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "5")
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "256MB")
+        .config("spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin", "0.2")
+        // .config("spark.sql.adaptive.optimizer.excludedRules", "")
         .config("spark.sql.files.maxPartitionBytes", 1024 << 10 << 10) // default is 128M
         .config("spark.sql.files.openCostInBytes", 1024 << 10 << 10) // default is 4M
         .config("spark.sql.files.minPartitionNum", "1")
@@ -106,7 +136,8 @@ object DSV2TPCDSBenchmarkTest {
         .config("spark.memory.storageFraction", "0.3")
         // .config("spark.sql.objectHashAggregate.sortBased.fallbackThreshold", "128")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
-        .config("spark.sql.catalog.spark_catalog",
+        .config(
+          "spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .config("spark.shuffle.manager", shuffleManager)
         .config("spark.shuffle.compress", "true")
@@ -139,13 +170,14 @@ object DSV2TPCDSBenchmarkTest {
         // .config("spark.sql.codegen.wholeStage", "false")
         .config("spark.sql.autoBroadcastJoinThreshold", broadcastThreshold)
         .config("spark.sql.exchange.reuse", "true")
+        .config("spark.sql.execution.reuseSubquery", "true")
         .config("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
         .config("spark.gluten.sql.columnar.coalesce.batches", coalesceBatches)
         // .config("spark.gluten.sql.columnar.filescan", "true")
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
         .config("spark.sql.shuffledHashJoinFactor", "3")
-        // .config("spark.sql.planChangeLog.level", "info")
+        // .config("spark.sql.planChangeLog.level", "warn")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
@@ -153,7 +185,7 @@ object DSV2TPCDSBenchmarkTest {
         .config("spark.memory.offHeap.size", "21474836480")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
         .config("spark.local.dir", sparkLocalDir)
-        .config("spark.executor.heartbeatInterval", "240s")
+        .config("spark.executor.heartbeatInterval", "30s")
         .config("spark.network.timeout", "300s")
         .config("spark.sql.optimizer.dynamicPartitionPruning.enabled", "true")
         .config("spark.sql.optimizer.dynamicPartitionPruning.useStats", "true")
@@ -169,8 +201,10 @@ object DSV2TPCDSBenchmarkTest {
         .config("spark.ui.retainedStages", "5000")
 
       if (!warehouse.isEmpty) {
-        sessionBuilderTmp1.config("spark.sql.warehouse.dir", warehouse)
-          .config("javax.jdo.option.ConnectionURL",
+        sessionBuilderTmp1
+          .config("spark.sql.warehouse.dir", warehouse)
+          .config(
+            "javax.jdo.option.ConnectionURL",
             s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
           .enableHiveSupport()
       } else {
@@ -182,7 +216,7 @@ object DSV2TPCDSBenchmarkTest {
 
     val spark = sessionBuilder.getOrCreate()
     if (!configed) {
-      spark.sparkContext.setLogLevel("WARN")
+      spark.sparkContext.setLogLevel("ERROR")
     }
 
     val createTbl = false
@@ -230,8 +264,7 @@ object DSV2TPCDSBenchmarkTest {
   }
 
   def testTPCDSOne(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb;
          |""".stripMargin).show(1000, false)
 
@@ -244,10 +277,12 @@ object DSV2TPCDSBenchmarkTest {
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
       val df = spark.sql(sqlStr) // .show(30, false)
-      df.explain(false)
-      val plan = df.queryExecution.executedPlan
+      // df.explain(false)
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
+      df.explain(false)
+      val plan = df.queryExecution.executedPlan
+      DSV2BenchmarkTest.collectAllJoinSide(plan)
       println(result.size)
       // result.foreach(r => println(r.mkString(",")))
       result.foreach(r => println(r.mkString("|-|")))
@@ -267,8 +302,7 @@ object DSV2TPCDSBenchmarkTest {
   }
 
   def testTPCDSAll(spark: SparkSession): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb;
          |""".stripMargin).show(1000, false)
 
@@ -297,8 +331,8 @@ object DSV2TPCDSBenchmarkTest {
         for (j <- 1 to executedCnt) {
           val startTime = System.nanoTime()
           val df = spark.sql(sqlStr)
-          if (executeExplain) df.explain(false)
           val result = df.collect()
+          if (executeExplain) df.explain(false)
           println(result.size)
           if (printData) result.foreach(r => println(r.mkString(",")))
           // .show(30, false)
@@ -321,8 +355,7 @@ object DSV2TPCDSBenchmarkTest {
   }
 
   def testTPCDSDecimalOne(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb_decimal;
          |""".stripMargin).show(1000, false)
 
@@ -335,10 +368,10 @@ object DSV2TPCDSBenchmarkTest {
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
       val df = spark.sql(sqlStr) // .show(30, false)
-      df.explain(false)
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
+      df.explain(false)
       println(result.size)
       result.foreach(r => println(r.mkString(",")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
@@ -357,8 +390,7 @@ object DSV2TPCDSBenchmarkTest {
   }
 
   def testTPCDSDecimalAll(spark: SparkSession): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb_decimal;
          |""".stripMargin).show(1000, false)
 
@@ -388,8 +420,8 @@ object DSV2TPCDSBenchmarkTest {
         for (j <- 1 to executedCnt) {
           val startTime = System.nanoTime()
           val df = spark.sql(sqlStr)
-          if (executeExplain) df.explain(false)
           val result = df.collect()
+          if (executeExplain) df.explain(false)
           println(result.size)
           if (printData) result.foreach(r => println(r.mkString(",")))
           // .show(30, false)
@@ -412,16 +444,14 @@ object DSV2TPCDSBenchmarkTest {
   }
 
   def benchmarkTPCH(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(
-      s"""
+    spark.sql(s"""
          |use tpcdsdb;
          |""".stripMargin).show(1000, false)
 
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      val df = spark.sql(
-        s"""
+      val df = spark.sql(s"""
            |
            |""".stripMargin) // .show(30, false)
       // df.explain(false)
@@ -460,14 +490,12 @@ object DSV2TPCDSBenchmarkTest {
       "tpcdsdb_decimal",
       "/data1/test_output/tpcds-data-sf10-decimal/",
       "",
-      ""
-    )
+      "")
     val parquetTables = GenTPCDSTableScripts.genTPCDSParquetTables(
       "tpcdsdb",
       "/data1/test_output/tpcds-data-sf10/",
       "",
-      ""
-    )
+      "")
 
     for (sql <- csv2Parquet) {
       println(s"execute: ${sql}")
@@ -475,28 +503,22 @@ object DSV2TPCDSBenchmarkTest {
     }
   }
 
-  def createClickHouseTables(spark: SparkSession): Unit = {
-  }
-
+  def createClickHouseTables(spark: SparkSession): Unit = {}
 
   def refreshClickHouseTable(spark: SparkSession): Unit = {
     val tableName = ""
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | refresh table ${tableName}
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | desc formatted ${tableName}
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | refresh table ch_clickhouse
          |""".stripMargin).show(100, false)
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | desc formatted ch_clickhouse
          |""".stripMargin).show(100, false)
   }
 }
-// scalastyle:on println
+// scalastyle:on

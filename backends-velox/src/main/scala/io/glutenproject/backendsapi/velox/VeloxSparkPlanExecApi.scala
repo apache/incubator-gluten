@@ -18,36 +18,44 @@
 package io.glutenproject.backendsapi.velox
 
 import scala.collection.mutable.ArrayBuffer
-import com.intel.oap.spark.sql.DwrfWriteExtension.{DummyRule, DwrfWritePostRule, SimpleColumnarRule, SimpleStrategy}
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.execution.{FilterExecBaseTransformer, FilterExecTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, VeloxFilterExecTransformer, VeloxHashAggregateExecTransformer, VeloxNativeColumnarToRowExec, VeloxRowToArrowColumnarExec}
-import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.execution._
+import io.glutenproject.expression.{AliasBaseTransformer, ArrowConverterUtils, VeloxAliasTransformer}
 import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
+
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
+import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan, VeloxBuildSideRelation}
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.VeloxExecUtil
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
+
+  /**
+   * Whether support gluten for current SparkPlan
+   *
+   * @return
+   */
+  override def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean =
+    nativeEngineEnabled
 
   /**
    * Generate NativeColumnarToRowExec.
@@ -106,25 +114,39 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
       child)
 
   /**
+   * Generate Alias transformer.
+   *
+   * @param child The computation being performed
+   * @param name The name to be associated with the result of computing.
+   * @param exprId
+   * @param qualifier
+   * @param explicitMetadata
+   * @return a transformer for alias
+   */
+  def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
+                          qualifier: Seq[String], explicitMetadata: Option[Metadata])
+  : AliasBaseTransformer =
+    new VeloxAliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
+
+  /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
    * @return
    */
   // scalastyle:off argcount
-  override def genShuffleDependency(
-                                     rdd: RDD[ColumnarBatch],
-                                     outputAttributes: Seq[Attribute],
-                                     newPartitioning: Partitioning,
-                                     serializer: Serializer,
-                                     writeMetrics: Map[String, SQLMetric],
-                                     dataSize: SQLMetric,
-                                     bytesSpilled: SQLMetric,
-                                     numInputRows: SQLMetric,
-                                     computePidTime: SQLMetric,
-                                     splitTime: SQLMetric,
-                                     spillTime: SQLMetric,
-                                     compressTime: SQLMetric,
-                                     prepareTime: SQLMetric)
+  override def genShuffleDependency(rdd: RDD[ColumnarBatch],
+                                    outputAttributes: Seq[Attribute],
+                                    newPartitioning: Partitioning,
+                                    serializer: Serializer,
+                                    writeMetrics: Map[String, SQLMetric],
+                                    dataSize: SQLMetric,
+                                    bytesSpilled: SQLMetric,
+                                    numInputRows: SQLMetric,
+                                    computePidTime: SQLMetric,
+                                    splitTime: SQLMetric,
+                                    spillTime: SQLMetric,
+                                    compressTime: SQLMetric,
+                                    prepareTime: SQLMetric)
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     VeloxExecUtil.genShuffleDependency(
@@ -162,7 +184,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   override def createColumnarBatchSerializer(
                                               schema: StructType,
                                               readBatchNumRows: SQLMetric,
-                                              numOutputRows: SQLMetric): Serializer = {
+                                              numOutputRows: SQLMetric,
+                                              dataSize: SQLMetric): Serializer = {
     new ArrowColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
   }
 
@@ -214,10 +237,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedDataSourceV2Strategy(spark: SparkSession): Strategy = {
-    throw new UnsupportedOperationException(
-      "Cannot support extending DataSourceV2 strategy for Velox backend.")
-  }
+  override def genExtendedDataSourceV2Strategies(): List[SparkSession =>
+    Strategy] = List()
 
   /**
    * Generate extended Analyzer.
@@ -225,20 +246,25 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedAnalyzer(spark: SparkSession, conf: SQLConf): Rule[LogicalPlan] = {
-    throw new UnsupportedOperationException(
-      "Cannot support extending Analyzer for Velox backend.")
-  }
+  override def genExtendedAnalyzers(): List[SparkSession =>
+    Rule[LogicalPlan]] = List()
 
   /**
-   * Generate extended Rule.
+   * Generate extended columnar pre-rules.
    * Currently only for Velox backend.
    *
    * @return
    */
-  override def genExtendedRule(spark: SparkSession): ColumnarRule = {
-    SimpleColumnarRule(DummyRule, DwrfWritePostRule(spark))
-  }
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  /**
+   * Generate extended columnar post-rules.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] =
+    List(spark => OtherWritePostRule(spark), _ => LoadBeforeColumnarToRow())
 
   /**
    * Generate extended Strategy.
@@ -246,8 +272,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedStrategy(): Strategy = {
-    SimpleStrategy()
+  override def genExtendedStrategies(): List[SparkSession => Strategy] = {
+    List(_ => SimpleStrategy())
   }
 
   /**

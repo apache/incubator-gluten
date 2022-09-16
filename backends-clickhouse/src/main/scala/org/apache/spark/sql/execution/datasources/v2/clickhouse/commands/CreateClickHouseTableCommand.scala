@@ -31,32 +31,32 @@ import org.apache.spark.sql.delta.commands.TableCreationModes
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.execution.command.RunnableCommand
+import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.types.StructType
 
 /**
-  * Single entry point for all write or declaration operations for Delta tables accessed through
-  * the table name.
-  *
-  * @param table            The table identifier for the Delta table
-  * @param existingTableOpt The existing table for the same identifier if exists
-  * @param mode             The save mode when writing data. Relevant when the query
-  *                         is empty or set to Ignore
-  *                         with `CREATE TABLE IF NOT EXISTS`.
-  * @param query            The query to commit into the Delta table if it exist. This can come from
-  *                - CTAS
-  *                - saveAsTable
-  */
+ * Single entry point for all write or declaration operations for Delta tables accessed through
+ * the table name.
+ *
+ * @param table            The table identifier for the Delta table
+ * @param existingTableOpt The existing table for the same identifier if exists
+ * @param mode             The save mode when writing data. Relevant when the query
+ *                         is empty or set to Ignore
+ *                         with `CREATE TABLE IF NOT EXISTS`.
+ * @param query            The query to commit into the Delta table if it exist. This can come from
+ *                - CTAS
+ *                - saveAsTable
+ */
 case class CreateClickHouseTableCommand(
-                             table: CatalogTable,
-                             existingTableOpt: Option[CatalogTable],
-                             mode: SaveMode,
-                             query: Option[LogicalPlan] = None,
-                             operation: TableCreationModes.CreationMode = TableCreationModes.Create,
-                             tableByPath: Boolean = false,
-                             override val output: Seq[Attribute] = Nil)
-  extends RunnableCommand
+    table: CatalogTable,
+    existingTableOpt: Option[CatalogTable],
+    mode: SaveMode,
+    query: Option[LogicalPlan] = None,
+    operation: TableCreationModes.CreationMode = TableCreationModes.Create,
+    tableByPath: Boolean = false,
+    override val output: Seq[Attribute] = Nil)
+    extends LeafRunnableCommand
     with DeltaLogging {
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
@@ -83,9 +83,7 @@ case class CreateClickHouseTableCommand(
               s"`${table.location}`.")
         case _ =>
       }
-      table.copy(
-        storage = existingTable.storage,
-        tableType = existingTable.tableType)
+      table.copy(storage = existingTable.storage, tableType = existingTable.tableType)
     } else if (table.storage.locationUri.isEmpty) {
       // We are defining a new managed table
       assert(table.tableType == CatalogTableType.MANAGED)
@@ -133,7 +131,8 @@ case class CreateClickHouseTableCommand(
             val op = getOperation(newMetadata, isManagedTable, None)
             txn.commit(Nil, op)
           } else {
-            val newProperties = DeltaConfigs.mergeGlobalConfigs(sparkSession.sessionState.conf,
+            val newProperties = DeltaConfigs.mergeGlobalConfigs(
+              sparkSession.sessionState.conf,
               tableWithLocation.properties)
             verifyTableMetadata(txn, tableWithLocation, newProperties)
           }
@@ -177,35 +176,40 @@ case class CreateClickHouseTableCommand(
   }
 
   private def assertTableSchemaDefined(
-                                        fs: FileSystem,
-                                        path: Path,
-                                        table: CatalogTable,
-                                        sparkSession: SparkSession): Unit = {
+      fs: FileSystem,
+      path: Path,
+      table: CatalogTable,
+      sparkSession: SparkSession): Unit = {
     // Users did not specify the schema. We expect the schema exists in Delta.
     if (table.schema.isEmpty) {
       if (table.tableType == CatalogTableType.EXTERNAL) {
         if (fs.exists(path) && fs.listStatus(path).nonEmpty) {
           throw DeltaErrors.createExternalTableWithoutLogException(
-            path, table.identifier.quotedString, sparkSession)
+            path,
+            table.identifier.quotedString,
+            sparkSession)
         } else {
           throw DeltaErrors.createExternalTableWithoutSchemaException(
-            path, table.identifier.quotedString, sparkSession)
+            path,
+            table.identifier.quotedString,
+            sparkSession)
         }
       } else {
         throw DeltaErrors.createManagedTableWithoutSchemaException(
-          table.identifier.quotedString, sparkSession)
+          table.identifier.quotedString,
+          sparkSession)
       }
     }
   }
 
   /**
-    * Verify against our transaction metadata that the user specified the right metadata for the
-    * table.
-    */
+   * Verify against our transaction metadata that the user specified the right metadata for the
+   * table.
+   */
   private def verifyTableMetadata(
-                                   txn: OptimisticTransaction,
-                                   tableDesc: CatalogTable,
-                                   properties: Map[String, String]): Unit = {
+      txn: OptimisticTransaction,
+      tableDesc: CatalogTable,
+      properties: Map[String, String]): Unit = {
     val existingMetadata = txn.metadata
     val path = new Path(tableDesc.location)
 
@@ -219,38 +223,44 @@ case class CreateClickHouseTableCommand(
         val differences = SchemaUtils.reportDifferences(existingMetadata.schema, tableDesc.schema)
         if (differences.nonEmpty) {
           throw DeltaErrors.createTableWithDifferentSchemaException(
-            path, tableDesc.schema, existingMetadata.schema, differences)
+            path,
+            tableDesc.schema,
+            existingMetadata.schema,
+            differences)
         }
       }
 
       // If schema is specified, we must make sure the partitioning matches, even the partitioning
       // is not specified.
       if (tableDesc.schema.nonEmpty &&
-        tableDesc.partitionColumnNames != existingMetadata.partitionColumns) {
+          tableDesc.partitionColumnNames != existingMetadata.partitionColumns) {
         throw DeltaErrors.createTableWithDifferentPartitioningException(
-          path, tableDesc.partitionColumnNames, existingMetadata.partitionColumns)
+          path,
+          tableDesc.partitionColumnNames,
+          existingMetadata.partitionColumns)
       }
 
       if (properties.nonEmpty && properties != existingMetadata.configuration) {
         throw DeltaErrors.createTableWithDifferentPropertiesException(
-          path, tableDesc.properties, existingMetadata.configuration)
+          path,
+          tableDesc.properties,
+          existingMetadata.configuration)
       }
     }
   }
 
   /**
-    * Based on the table creation operation, and parameters, we can resolve to different operations.
-    * A lot of this is needed for legacy reasons in Databricks Runtime.
-    *
-    * @param metadata       The table metadata, which we are creating or replacing
-    * @param isManagedTable Whether we are creating or replacing a managed table
-    * @param options        Write options, if this was a CTAS/RTAS
-    */
+   * Based on the table creation operation, and parameters, we can resolve to different operations.
+   * A lot of this is needed for legacy reasons in Databricks Runtime.
+   *
+   * @param metadata       The table metadata, which we are creating or replacing
+   * @param isManagedTable Whether we are creating or replacing a managed table
+   * @param options        Write options, if this was a CTAS/RTAS
+   */
   private def getOperation(
-                            metadata: Metadata,
-                            isManagedTable: Boolean,
-                            options: Option[DeltaOptions])
-  : DeltaOperations.Operation = operation match {
+      metadata: Metadata,
+      isManagedTable: Boolean,
+      options: Option[DeltaOptions]): DeltaOperations.Operation = operation match {
     // This is legacy saveAsTable behavior in Databricks Runtime
     case TableCreationModes.Create if existingTableOpt.isDefined && query.isDefined =>
       DeltaOperations.Write(mode, Option(table.partitionColumnNames), options.get.replaceWhere)
@@ -273,15 +283,15 @@ case class CreateClickHouseTableCommand(
   }
 
   /**
-    * Similar to getOperation, here we disambiguate the catalog alterations we need to do based
-    * on the table operation, and whether we have reached here through legacy code or DataSourceV2
-    * code paths.
-    */
+   * Similar to getOperation, here we disambiguate the catalog alterations we need to do based
+   * on the table operation, and whether we have reached here through legacy code or DataSourceV2
+   * code paths.
+   */
   private def updateCatalog(
-                             spark: SparkSession,
-                             table: CatalogTable,
-                             snapshot: Snapshot,
-                             txn: OptimisticTransaction): Unit = {
+      spark: SparkSession,
+      table: CatalogTable,
+      snapshot: Snapshot,
+      txn: OptimisticTransaction): Unit = {
     val cleaned = cleanupTableDefinition(table, snapshot)
     operation match {
       case _ if tableByPath => // do nothing with the metastore if this is by path
@@ -291,16 +301,14 @@ case class CreateClickHouseTableCommand(
           ignoreIfExists = existingTableOpt.isDefined,
           validateLocation = false)
       case TableCreationModes.Replace | TableCreationModes.CreateOrReplace
-        if existingTableOpt.isDefined =>
+          if existingTableOpt.isDefined =>
         spark.sessionState.catalog.alterTable(table)
       case TableCreationModes.Replace =>
         val ident = Identifier.of(table.identifier.database.toArray, table.identifier.table)
         throw new CannotReplaceMissingTableException(ident)
       case TableCreationModes.CreateOrReplace =>
-        spark.sessionState.catalog.createTable(
-          cleaned,
-          ignoreIfExists = false,
-          validateLocation = false)
+        spark.sessionState.catalog
+          .createTable(cleaned, ignoreIfExists = false, validateLocation = false)
     }
   }
 
@@ -308,12 +316,13 @@ case class CreateClickHouseTableCommand(
   private def cleanupTableDefinition(table: CatalogTable, snapshot: Snapshot): CatalogTable = {
     // These actually have no effect on the usability of Delta, but feature flagging legacy
     // behavior for now
-    val storageProps = if (conf.getConf(DeltaSQLConf.DELTA_LEGACY_STORE_WRITER_OPTIONS_AS_PROPS)) {
-      // Legacy behavior
-      table.storage
-    } else {
-      table.storage.copy(properties = Map.empty)
-    }
+    val storageProps =
+      if (conf.getConf(DeltaSQLConf.DELTA_LEGACY_STORE_WRITER_OPTIONS_AS_PROPS)) {
+        // Legacy behavior
+        table.storage
+      } else {
+        table.storage.copy(properties = Map.empty)
+      }
 
     table.copy(
       schema = new StructType(),
@@ -325,17 +334,18 @@ case class CreateClickHouseTableCommand(
   }
 
   private def assertPathEmpty(
-                               sparkSession: SparkSession,
-                               tableWithLocation: CatalogTable): Unit = {
+      sparkSession: SparkSession,
+      tableWithLocation: CatalogTable): Unit = {
     val path = new Path(tableWithLocation.location)
     val fs = path.getFileSystem(sparkSession.sessionState.newHadoopConf())
     // Verify that the table location associated with CREATE TABLE doesn't have any data. Note that
     // we intentionally diverge from this behavior w.r.t regular datasource tables (that silently
     // overwrite any previous data)
     if (fs.exists(path) && fs.listStatus(path).nonEmpty) {
-      throw new AnalysisException(s"Cannot create table ('${tableWithLocation.identifier}')." +
-        s" The associated location ('${tableWithLocation.location}') is not empty but " +
-        s"it's not a ClickHouse table")
+      throw new AnalysisException(
+        s"Cannot create table ('${tableWithLocation.identifier}')." +
+          s" The associated location ('${tableWithLocation.location}') is not empty but " +
+          s"it's not a ClickHouse table")
     }
   }
 

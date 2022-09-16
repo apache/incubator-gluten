@@ -287,7 +287,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   native_columnar_to_row_info_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
   native_columnar_to_row_info_constructor = GetMethodIDOrError(
-      env, native_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
+      env, native_columnar_to_row_info_class, "<init>", "(J[I[IJ)V");
 
   java_reservation_listener_class = CreateGlobalClassReference(
       env,
@@ -463,7 +463,6 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
   auto outputBytes = env->NewLongArray(numMetrics);
   auto count = env->NewLongArray(numMetrics);
   auto wallNanos = env->NewLongArray(numMetrics);
-  auto veloxToArrow = env->NewLongArray(numMetrics);
   auto peakMemoryBytes = env->NewLongArray(numMetrics);
   auto numMemoryAllocations = env->NewLongArray(numMetrics);
   auto numDynamicFiltersProduced = env->NewLongArray(numMetrics);
@@ -483,8 +482,6 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
     env->SetLongArrayRegion(outputBytes, 0, numMetrics, metrics->outputBytes);
     env->SetLongArrayRegion(count, 0, numMetrics, metrics->count);
     env->SetLongArrayRegion(wallNanos, 0, numMetrics, metrics->wallNanos);
-    env->SetLongArrayRegion(
-        veloxToArrow, 0, numMetrics, metrics->peakMemoryBytes);
     env->SetLongArrayRegion(
         peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
     env->SetLongArrayRegion(
@@ -519,7 +516,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(
       outputBytes,
       count,
       wallNanos,
-      veloxToArrow,
+      metrics ? metrics->veloxToArrow : -1,
       peakMemoryBytes,
       numMemoryAllocations,
       numDynamicFiltersProduced,
@@ -551,18 +548,11 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
     JNIEnv* env,
     jobject,
     jlong batch_handle,
-    jlong allocator_id,
-    jboolean wsChild) {
+    jlong allocator_id) {
   JNI_METHOD_START
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb =
       gluten_columnarbatch_holder_.Lookup(batch_handle);
-  std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
-  std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
-  std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(
-      arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
-  ArrowSchemaRelease(c_schema.get());
-  ArrowArrayRelease(c_array.get());
-  int64_t num_rows = rb->num_rows();
+  int64_t num_rows = cb->GetNumRows();
   // convert the record batch to spark unsafe row.
   auto* allocator =
       reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
@@ -572,7 +562,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   auto backend = gluten::CreateBackend();
   std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>
       columnar_to_row_converter =
-          backend->getColumnarConverter(allocator, rb, wsChild);
+          gluten::JniGetOrThrow(backend->getColumnarConverter(allocator, cb));
   gluten::JniAssertOkOrThrow(
       columnar_to_row_converter->Init(),
       "Native convert columnar to row: Init "
@@ -586,12 +576,12 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   int64_t instanceID =
       columnar_to_row_converter_holder_.Insert(columnar_to_row_converter);
 
-  auto offsets_arr = env->NewLongArray(num_rows);
-  auto offsets_src = reinterpret_cast<const jlong*>(offsets.data());
-  env->SetLongArrayRegion(offsets_arr, 0, num_rows, offsets_src);
-  auto lengths_arr = env->NewLongArray(num_rows);
-  auto lengths_src = reinterpret_cast<const jlong*>(lengths.data());
-  env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
+  auto offsets_arr = env->NewIntArray(num_rows);
+  auto offsets_src = reinterpret_cast<const jint*>(offsets.data());
+  env->SetIntArrayRegion(offsets_arr, 0, num_rows, offsets_src);
+  auto lengths_arr = env->NewIntArray(num_rows);
+  auto lengths_src = reinterpret_cast<const jint*>(lengths.data());
+  env->SetIntArrayRegion(lengths_arr, 0, num_rows, lengths_src);
   long address =
       reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
 

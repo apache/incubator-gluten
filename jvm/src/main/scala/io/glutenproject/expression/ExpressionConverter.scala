@@ -22,9 +22,7 @@ import io.glutenproject.execution.{NativeColumnarToRowExec, WholeStageTransforme
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.{BaseSubqueryExec, ColumnarBroadcastExchangeExec,
-  ColumnarSubqueryBroadcastExec, ColumnarToRowExec, InSubqueryExec,
-  SubqueryBroadcastExec, WholeStageCodegenExec}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.types.DecimalType
 
@@ -35,11 +33,12 @@ object ExpressionConverter extends Logging {
     expr match {
       case a: Alias =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        new AliasTransformer(
-          replaceWithExpressionTransformer(
-            a.child,
-            attributeSeq),
-          a.name)(a.exprId, a.qualifier, a.explicitMetadata)
+        BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
+          replaceWithExpressionTransformer(a.child, attributeSeq),
+          a.name,
+          a.exprId,
+          a.qualifier,
+          a.explicitMetadata)
       case a: AttributeReference =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         if (attributeSeq == null) {
@@ -188,7 +187,7 @@ object ExpressionConverter extends Logging {
         }
       case s: org.apache.spark.sql.execution.ScalarSubquery =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        new ScalarSubqueryTransformer(s)
+        new ScalarSubqueryTransformer(s.plan, s.exprId, s)
       case c: Concat =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         val exprs = c.children.map { expr =>
@@ -258,6 +257,29 @@ object ExpressionConverter extends Logging {
    * @return
    */
   def transformDynamicPruningExpr(partitionFilters: Seq[Expression]): Seq[Expression] = {
+
+    def convertBroadcastExchangeToColumnar(exchange: BroadcastExchangeExec)
+    : ColumnarBroadcastExchangeExec = {
+      val newChild = exchange.child match {
+        // get WholeStageTransformerExec directly
+        case c2r: NativeColumnarToRowExec => c2r.child
+        // in case of fallbacking
+        case codeGen: WholeStageCodegenExec =>
+          if (codeGen.child.isInstanceOf[ColumnarToRowExec]) {
+            val wholeStageTransformerExec = exchange.find(
+              _.isInstanceOf[WholeStageTransformerExec])
+            if (wholeStageTransformerExec.nonEmpty) {
+              wholeStageTransformerExec.get
+            } else {
+              BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(codeGen)
+            }
+          } else {
+            BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(codeGen)
+          }
+      }
+      ColumnarBroadcastExchangeExec(exchange.mode, newChild)
+    }
+
     partitionFilters.map(filter => filter match {
       case dynamicPruning: DynamicPruningExpression =>
         dynamicPruning.transform {
@@ -265,24 +287,7 @@ object ExpressionConverter extends Logging {
           case in: InSubqueryExec if in.plan.isInstanceOf[SubqueryBroadcastExec] =>
             val newIn = in.plan.transform {
               case exchange: BroadcastExchangeExec =>
-                val newChild = exchange.child match {
-                  // get WholeStageTransformerExec directly
-                  case c2r: NativeColumnarToRowExec => c2r.child
-                  // in case of fallbacking
-                  case codeGen: WholeStageCodegenExec =>
-                    if (codeGen.child.isInstanceOf[ColumnarToRowExec]) {
-                      val wholeStageTransformerExec = exchange.find(
-                        _.isInstanceOf[WholeStageTransformerExec])
-                      if (wholeStageTransformerExec.nonEmpty) {
-                        wholeStageTransformerExec.get
-                      } else {
-                        BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(codeGen)
-                      }
-                    } else {
-                      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(codeGen)
-                    }
-                }
-                ColumnarBroadcastExchangeExec(exchange.mode, newChild)
+                convertBroadcastExchangeToColumnar(exchange)
             }.asInstanceOf[SubqueryBroadcastExec]
             val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
               newIn.name, newIn.index, newIn.buildKeys, newIn.child)

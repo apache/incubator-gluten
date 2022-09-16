@@ -17,11 +17,20 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.execution.SparkRowIterator;
 import io.glutenproject.row.SparkRowInfo;
 
 public class BlockNativeConverter {
-
+	// for ch columnar -> spark row
 	public native SparkRowInfo convertColumnarToRow(long blockAddress);
 
+	// for ch columnar -> spark row
 	public native void freeMemory(long address, long size);
+
+	// for spark row -> ch columnar
+	public native long convertSparkRowsToCHColumn(SparkRowIterator iter, String[] names, String[] types,
+			boolean[] isNullables);
+
+	// for spark row -> ch columnar
+	public native void freeBlock(long blockAddress);
 }

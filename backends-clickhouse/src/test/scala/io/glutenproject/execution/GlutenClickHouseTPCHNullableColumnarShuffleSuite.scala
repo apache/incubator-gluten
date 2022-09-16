@@ -30,8 +30,8 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   override protected val queriesResults: String = rootPath + "queries-output"
 
   /**
-    * Run Gluten + ClickHouse Backend with SortShuffleManager
-    */
+   * Run Gluten + ClickHouse Backend with SortShuffleManager
+   */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -60,8 +60,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCH Q3") {
-    withSQLConf(
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(3) { df =>
         val shjBuildLeft = df.queryExecution.executedPlan.collect {
           case shj: ShuffledHashJoinExecTransformer if shj.buildSide == BuildLeft => shj
@@ -72,13 +71,11 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCH Q4") {
-    runTPCHQuery(4) { df =>
-    }
+    runTPCHQuery(4) { df => }
   }
 
   test("TPCH Q5") {
-    withSQLConf(
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(5) { df =>
         val bhjRes = df.queryExecution.executedPlan.collect {
           case bhj: BroadcastHashJoinExecTransformer => bhj
@@ -89,8 +86,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCH Q6") {
-    runTPCHQuery(6) { df =>
-    }
+    runTPCHQuery(6) { df => }
   }
 
   test("TPCH Q7") {
@@ -98,8 +94,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(7) { df =>
-      }
+      runTPCHQuery(7) { df => }
     }
   }
 
@@ -108,42 +103,34 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(8) { df =>
-      }
+      runTPCHQuery(8) { df => }
     }
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9) { df =>
-    }
+    runTPCHQuery(9) { df => }
   }
 
   test("TPCH Q9 without BHJ") {
-    withSQLConf(
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(9) { df =>
-      }
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      runTPCHQuery(9) { df => }
     }
   }
 
   test("TPCH Q10") {
-    runTPCHQuery(10) { df =>
-    }
+    runTPCHQuery(10) { df => }
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11) { df =>
-    }
+    runTPCHQuery(11) { df => }
   }
 
   test("TPCH Q12") {
-    runTPCHQuery(12) { df =>
-    }
+    runTPCHQuery(12) { df => }
   }
 
   test("TPCH Q13") {
-    runTPCHQuery(13) { df =>
-    }
+    runTPCHQuery(13) { df => }
   }
 
   test("TPCH Q14") {
@@ -151,64 +138,52 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(14) { df =>
-      }
+      runTPCHQuery(14) { df => }
     }
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) { df =>
-    }
+    runTPCHQuery(15) { df => }
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16) { df =>
-    }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
-    withSQLConf(
-      ("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(17) { df =>
-      }
+    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
+      runTPCHQuery(17) { df => }
     }
   }
 
   test("TPCH Q18") {
-    withSQLConf(
-      ("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(18) { df =>
-      }
+    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
+      runTPCHQuery(18) { df => }
     }
   }
 
   test("TPCH Q19") {
-    runTPCHQuery(19) { df =>
-    }
+    runTPCHQuery(19) { df => }
   }
 
   test("TPCH Q20") {
-    runTPCHQuery(20) { df =>
-    }
+    runTPCHQuery(20) { df => }
   }
 
   test("TPCH Q22") {
-    runTPCHQuery(22) { df =>
-    }
+    runTPCHQuery(22) { df => }
   }
 
   ignore("test 'select count(*) from table'") {
     // currently, it can't support 'select count(*)' for non-partitioned tables.
-    val df = spark.sql(
-      """
+    val df = spark.sql("""
         |select count(*) from lineitem
         |""".stripMargin)
     val result = df.collect()
   }
 
   test("test 'select count(*)'") {
-    val df = spark.sql(
-      """
+    val df = spark.sql("""
         |select count(*) from lineitem
         |where l_quantity < 24
         |""".stripMargin)
@@ -217,8 +192,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("test 'select count(1)'") {
-    val df = spark.sql(
-      """
+    val df = spark.sql("""
         |select count(1) from lineitem
         |where l_quantity < 20
         |""".stripMargin)
@@ -229,7 +203,6 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {
-    }
+      ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {}
   }
 }

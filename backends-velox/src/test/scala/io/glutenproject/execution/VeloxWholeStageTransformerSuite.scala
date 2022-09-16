@@ -32,7 +32,7 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
     super.beforeAll()
   }
 
-  override protected def createTPCHTables(): Unit = {
+  override protected def createTPCHNotNullTables(): Unit = {
     Seq(
       "customer",
       "lineitem",
@@ -52,10 +52,11 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
   test("generate hash join plan - v1") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.sql.adaptive.enabled", "false"),
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")) {
       withTable(
         "customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier") {
-        createTPCHTables()
+        createTPCHNotNullTables()
         val df = spark.sql(
           """select l_partkey from
             | lineitem join part join partsupp
@@ -65,6 +66,9 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
         val joins = plan.collect {
           case shj: ShuffledHashJoinExecTransformer => shj
         }
+        // scalastyle:off println
+        System.out.println(plan)
+        // scalastyle:on println line=68 column=19
         assert(joins.length == 2)
 
         // Children of Join should be seperated into different `TransformContext`s.
@@ -91,9 +95,10 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
   test("generate hash join plan - v2") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.sql.adaptive.enabled", "false"),
       ("spark.gluten.sql.columnar.forceshuffledhashjoin", "true"),
       ("spark.sql.sources.useV1SourceList", "avro")) {
-      createTPCHTables()
+      createTPCHNotNullTables()
       val df = spark.sql(
         """select l_partkey from
           | lineitem join part join partsupp

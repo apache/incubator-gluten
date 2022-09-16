@@ -17,21 +17,25 @@
 
 package io.glutenproject.vectorized;
 
-import org.apache.spark.sql.vectorized.ColumnarBatch;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+
+import org.apache.spark.sql.execution.metric.SQLMetric;
+import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 public class BlockOutputStream implements Closeable {
   private final long instance;
   private final OutputStream outputStream;
 
+  private SQLMetric dataSize;
+
   private boolean isClosed = false;
 
-  public BlockOutputStream(OutputStream outputStream, byte[] buffer) {
+  public BlockOutputStream(OutputStream outputStream, byte[] buffer, SQLMetric dataSize) {
     this.outputStream = outputStream;
     this.instance = nativeCreate(outputStream, buffer);
+    this.dataSize = dataSize;
   }
 
   private native long nativeCreate(OutputStream outputStream, byte[] buffer);
@@ -44,6 +48,7 @@ public class BlockOutputStream implements Closeable {
 
   public void write(ColumnarBatch cb) {
     CHNativeBlock.fromColumnarBatch(cb).ifPresent(block -> {
+      dataSize.add(block.totalBytes());
       nativeWrite(instance, block.blockAddress());
     });
   }

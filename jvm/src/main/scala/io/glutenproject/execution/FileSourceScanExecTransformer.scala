@@ -25,9 +25,9 @@ import io.glutenproject.vectorized.OperatorMetrics
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, PlanExpression, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
@@ -204,6 +204,16 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       FileSourceScanExecTransformer.isDynamicPruningFilter)
 
     if (dynamicPartitionFilters.nonEmpty) {
+      // When it includes some DynamicPruningExpression,
+      // it needs to execute InSubqueryExec first,
+      // because doTransform path can't execute 'doExecuteColumnar' which will
+      // execute prepare subquery first.
+      dynamicPartitionFilters.map(dynamicPartitionFilter => {
+        dynamicPartitionFilter match {
+          case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
+            executeInSubqueryForDynamicPruningExpression(inSubquery)
+        }
+      })
       val startTime = System.nanoTime()
       // call the file index for the files matching all filters except dynamic partition filters
       val predicate = dynamicPartitionFilters.reduce(And)

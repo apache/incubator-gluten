@@ -43,7 +43,7 @@ abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    createTPCHTables()
+    createTPCHNotNullTables()
   }
 
   override protected def sparkConf: SparkConf = {

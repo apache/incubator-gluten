@@ -25,25 +25,11 @@ import org.apache.spark.sql.SparkSessionExtensions
 
 object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
-    // Spark extension rules for ClickHouse backend.
-    if (SparkEnv.get.conf.get(GlutenConfig.GLUTEN_BACKEND_LIB)
-      .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
-      extensions.injectResolutionRule { session =>
-        BackendsApiManager.getSparkPlanExecApiInstance
-          .genExtendedAnalyzer(session, session.sessionState.conf)
-      }
-      extensions.injectPlannerStrategy { spark =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genExtendedDataSourceV2Strategy(spark)
-      }
-    }
-    if (SparkEnv.get.conf.get(GlutenConfig.GLUTEN_BACKEND_LIB)
-      .equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
-      extensions.injectColumnar { session =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genExtendedRule(session)
-      }
-      extensions.injectPlannerStrategy { session =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genExtendedStrategy()
-      }
-    }
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedAnalyzers()
+        .foreach (extensions.injectResolutionRule)
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedDataSourceV2Strategies()
+        .foreach(extensions.injectPlannerStrategy)
+      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedStrategies()
+        .foreach(extensions.injectPlannerStrategy)
   }
 }

@@ -63,4 +63,7 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
   }
 
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException
+
+  override protected def withNewChildInternal(newChild: SparkPlan): CoalesceBatchesExec =
+    copy(child = newChild)
 }

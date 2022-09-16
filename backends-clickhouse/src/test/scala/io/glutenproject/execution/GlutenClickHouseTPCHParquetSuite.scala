@@ -17,8 +17,12 @@
 
 package io.glutenproject.execution
 
+import java.io.File
+
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.functions.{col, rand, when}
 
 class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -30,9 +34,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     rootPath + "../../../../jvm/src/test/resources/queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  /**
-    * Run Gluten + ClickHouse Backend with SortShuffleManager
-    */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "sort")
@@ -42,11 +43,40 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
   }
 
-  override protected def createTPCHTables(): Unit = {
-    val customerData = tablesPath + "/customer"
+  override protected val createNullableTables = true
+
+  override protected def createTPCHNullableTables(): Unit = {
+
+    // first process the parquet data to:
+    // 1. make every column nullable in schema (optional rather than required)
+    // 2. salt some null values randomly
+    val saltedTablesPath = tablesPath + "-salted"
+    withSQLConf(vanillaSparkConfs(): _*) {
+      Seq("customer", "lineitem", "nation", "order", "part", "partsupp", "region", "supplier")
+        .map(tableName => {
+          val originTablePath = tablesPath + "/" + tableName
+          val df = spark.read.parquet(originTablePath)
+          var salted_df: Option[DataFrame] = None
+          for (c <- df.schema) {
+            salted_df = Some((salted_df match {
+              case Some(x) => x
+              case None => df
+            }).withColumn(c.name, when(rand() < 0.1, null).otherwise(col(c.name))))
+          }
+
+          val currentSaltedTablePath = saltedTablesPath + "/" + tableName
+          val file = new File(currentSaltedTablePath)
+          if (file.exists()) {
+            file.delete()
+          }
+          salted_df.get.write.parquet(currentSaltedTablePath)
+//          salted_df.get.show(100)
+        })
+    }
+
+    val customerData = saltedTablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS customer (
          | c_custkey    bigint,
          | c_name       string,
@@ -59,10 +89,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${customerData}'
          |""".stripMargin)
 
-    val lineitemData = tablesPath + "/lineitem"
+    val lineitemData = saltedTablesPath + "/lineitem"
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS lineitem (
          | l_orderkey      bigint,
          | l_partkey       bigint,
@@ -83,10 +112,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${lineitemData}'
          |""".stripMargin)
 
-    val nationData = tablesPath + "/nation"
+    val nationData = saltedTablesPath + "/nation"
     spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS nation (
          | n_nationkey bigint,
          | n_name      string,
@@ -95,10 +123,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${nationData}'
          |""".stripMargin)
 
-    val regionData = tablesPath + "/region"
+    val regionData = saltedTablesPath + "/region"
     spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS region (
          | r_regionkey bigint,
          | r_name      string,
@@ -106,10 +133,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${regionData}'
          |""".stripMargin)
 
-    val ordersData = tablesPath + "/order"
+    val ordersData = saltedTablesPath + "/order"
     spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS orders (
          | o_orderkey      bigint,
          | o_custkey       bigint,
@@ -123,10 +149,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${ordersData}'
          |""".stripMargin)
 
-    val partData = tablesPath + "/part"
+    val partData = saltedTablesPath + "/part"
     spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS part (
          | p_partkey     bigint,
          | p_name        string,
@@ -140,10 +165,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${partData}'
          |""".stripMargin)
 
-    val partsuppData = tablesPath + "/partsupp"
+    val partsuppData = saltedTablesPath + "/partsupp"
     spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS partsupp (
          | ps_partkey    bigint,
          | ps_suppkey    bigint,
@@ -153,10 +177,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${partsuppData}'
          |""".stripMargin)
 
-    val supplierData = tablesPath + "/supplier"
+    val supplierData = saltedTablesPath + "/supplier"
     spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(
-      s"""
+    spark.sql(s"""
          | CREATE TABLE IF NOT EXISTS supplier (
          | s_suppkey   bigint,
          | s_name      string,
@@ -168,8 +191,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
          | USING PARQUET LOCATION '${supplierData}'
          |""".stripMargin)
 
-    val result = spark.sql(
-      s"""
+    val result = spark.sql(s"""
          | show tables;
          |""".stripMargin).collect()
     assert(result.size == 8)
@@ -194,8 +216,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("TPCH Q3") {
-    withSQLConf(
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(3) { df =>
         val shjBuildLeft = df.queryExecution.executedPlan.collect {
           case shj: ShuffledHashJoinExecTransformer if shj.buildSide == BuildLeft => shj
@@ -206,13 +227,11 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("TPCH Q4") {
-    runTPCHQuery(4) { df =>
-    }
+    runTPCHQuery(4) { df => }
   }
 
   test("TPCH Q5") {
-    withSQLConf(
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(5) { df =>
         val bhjRes = df.queryExecution.executedPlan.collect {
           case bhj: BroadcastHashJoinExecTransformer => bhj
@@ -223,8 +242,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("TPCH Q6") {
-    runTPCHQuery(6) { df =>
-    }
+    runTPCHQuery(6) { df => }
   }
 
   test("TPCH Q7") {
@@ -232,8 +250,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(7) { df =>
-      }
+      runTPCHQuery(7) { df => }
     }
   }
 
@@ -242,34 +259,28 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(8) { df =>
-      }
+      runTPCHQuery(8) { df => }
     }
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9, compareResult = false) { df =>
-    }
+    runTPCHQuery(9, compareResult = false) { df => }
   }
 
   test("TPCH Q10") {
-    runTPCHQuery(10) { df =>
-    }
+    runTPCHQuery(10) { df => }
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11, compareResult = false) { df =>
-    }
+    runTPCHQuery(11, compareResult = false) { df => }
   }
 
   test("TPCH Q12") {
-    runTPCHQuery(12) { df =>
-    }
+    runTPCHQuery(12) { df => }
   }
 
   test("TPCH Q13") {
-    runTPCHQuery(13) { df =>
-    }
+    runTPCHQuery(13) { df => }
   }
 
   test("TPCH Q14") {
@@ -277,49 +288,50 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      runTPCHQuery(14) { df =>
-      }
+      runTPCHQuery(14) { df => }
     }
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) { df =>
-    }
+    runTPCHQuery(15) { df => }
   }
 
-  test("TPCH Q16") {
-    runTPCHQuery(16) { df =>
-    }
+  // see issue CH-93
+  ignore("TPCH Q16") {
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
-    withSQLConf(
-      ("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(17) { df =>
-      }
+    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
+      runTPCHQuery(17) { df => }
     }
   }
 
   test("TPCH Q18") {
-    withSQLConf(
-      ("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(18) { df =>
-      }
+    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
+      runTPCHQuery(18) { df => }
     }
   }
 
   test("TPCH Q19") {
-    runTPCHQuery(19) { df =>
-    }
+    runTPCHQuery(19) { df => }
   }
 
   test("TPCH Q20") {
-    runTPCHQuery(20) { df =>
-    }
+    runTPCHQuery(20) { df => }
   }
 
-  test("TPCH Q22") {
-    runTPCHQuery(22) { df =>
-    }
+  // see issue CH-93
+  ignore("TPCH Q22") {
+    runTPCHQuery(22) { df => }
+  }
+
+  override protected def runTPCHQuery(
+      queryNum: Int,
+      tpchQueries: String = tpchQueries,
+      queriesResults: String = queriesResults,
+      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+//    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
+    compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck)
   }
 }

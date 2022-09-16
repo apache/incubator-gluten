@@ -24,6 +24,7 @@ import scala.io.Source
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.benchmarks.GenTPCDSTableScripts
+import io.glutenproject.utils.UTSystemParameters
 import org.apache.commons.io.FileUtils
 
 import org.apache.spark.SparkConf
@@ -32,11 +33,12 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.types.DoubleType
 
-abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
+abstract class GlutenClickHouseTPCDSAbstractSuite
+    extends WholeStageTransformerSuite
+    with Logging {
 
   override protected val backend: String = "ch"
-  override protected val resourcePath: String = "/home/changchen/tpcds-sf1-data/"
-  // override protected val resourcePath: String = "/data1/test_output/tpcds-data-sf1/"
+  override protected val resourcePath: String = UTSystemParameters.getTpcdsDataPath() + "/"
   override protected val fileFormat: String = "parquet"
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -63,22 +65,17 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     createTPCDSTables()
   }
 
-  override protected def createTPCHTables(): Unit = {}
+  override protected def createTPCHNotNullTables(): Unit = {}
 
   protected def createTPCDSTables(): Unit = {
-    val parquetTables = GenTPCDSTableScripts.genTPCDSParquetTables(
-      "tpcdsdb",
-      resourcePath,
-      "",
-      ""
-    )
+    val parquetTables =
+      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", resourcePath, "", "")
 
     for (sql <- parquetTables) {
       spark.sql(sql).show(10, false)
     }
     spark.sql("use tpcdsdb;")
-    val result = spark.sql(
-      s"""
+    val result = spark.sql(s"""
          | show tables;
          |""".stripMargin).collect()
     assert(result.size == 24)
@@ -91,7 +88,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set("spark.sql.catalog.spark_catalog",
+      .set(
+        "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")
@@ -101,7 +99,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -120,11 +118,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
     GlutenConfig.ins = null
   }
 
-  protected def runTPCDSQuery(queryNum: Int,
-                              tpcdsQueries: String = tpcdsQueries,
-                              queriesResults: String = queriesResults,
-                              compareResult: Boolean = true)
-                             (customCheck: DataFrame => Unit): Unit = {
+  protected def runTPCDSQuery(
+      queryNum: Int,
+      tpcdsQueries: String = tpcdsQueries,
+      queriesResults: String = queriesResults,
+      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     val sqlStrArr = new ArrayBuffer[String]()
     if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
       var sqlNum = "q" + "%d".format(queryNum) + "-1"

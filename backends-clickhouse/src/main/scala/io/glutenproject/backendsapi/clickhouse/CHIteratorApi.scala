@@ -42,19 +42,19 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 class CHIteratorApi extends IIteratorApi with Logging {
 
   /**
-    * Generate native row partition.
-    *
-    * @return
-    */
-  override def genNativeFilePartition(index: Int,
-                                      partitions: Seq[InputPartition],
-                                      wsCxt: WholestageTransformContext
-                                     ): BaseNativeFilePartition = {
+   * Generate native row partition.
+   *
+   * @return
+   */
+  override def genNativeFilePartition(
+      index: Int,
+      partitions: Seq[InputPartition],
+      wsCxt: WholestageTransformContext): BaseNativeFilePartition = {
     val localFilesNodes = partitions.indices.map(i =>
       partitions(i) match {
         case p: NativeMergeTreePartition =>
-          ExtensionTableBuilder.makeExtensionTable(p.minParts,
-            p.maxParts, p.database, p.table, p.tablePath)
+          ExtensionTableBuilder
+            .makeExtensionTable(p.minParts, p.maxParts, p.database, p.table, p.tablePath)
         case FilePartition(index, files) =>
           val paths = new java.util.ArrayList[String]()
           val starts = new java.util.ArrayList[java.lang.Long]()
@@ -65,9 +65,12 @@ class CHIteratorApi extends IIteratorApi with Logging {
             lengths.add(java.lang.Long.valueOf(f.length))
           }
           LocalFilesBuilder.makeLocalFiles(
-            index, paths, starts, lengths, wsCxt.substraitContext.getFileFormat.get(i))
-      }
-    )
+            index,
+            paths,
+            starts,
+            lengths,
+            wsCxt.substraitContext.getFileFormat.get(i))
+      })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodes)
     val substraitPlan = wsCxt.root.toProtobuf
@@ -77,19 +80,19 @@ class CHIteratorApi extends IIteratorApi with Logging {
     NativePartition(index, substraitPlan.toByteArray)
   }
 
-
   /**
-    * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
-    *
+   * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
+   *
    */
-  override def genCoalesceIterator(iter: Iterator[ColumnarBatch],
-                                   recordsPerBatch: Int,
-                                   numOutputRows: SQLMetric,
-                                   numInputBatches: SQLMetric,
-                                   numOutputBatches: SQLMetric,
-                                   collectTime: SQLMetric,
-                                   concatTime: SQLMetric,
-                                   avgCoalescedNumRows: SQLMetric): Iterator[ColumnarBatch] = {
+  override def genCoalesceIterator(
+      iter: Iterator[ColumnarBatch],
+      recordsPerBatch: Int,
+      numOutputRows: SQLMetric,
+      numInputBatches: SQLMetric,
+      numOutputBatches: SQLMetric,
+      collectTime: SQLMetric,
+      concatTime: SQLMetric,
+      avgCoalescedNumRows: SQLMetric): Iterator[ColumnarBatch] = {
     val res = if (GlutenConfig.getConf.enableCoalesceBatches) {
       val operator = new CHCoalesceOperator(recordsPerBatch)
       new Iterator[ColumnarBatch] {
@@ -112,17 +115,17 @@ class CHIteratorApi extends IIteratorApi with Logging {
             operator.mergeBlock(cb)
           }
           val res = operator.release().toColumnarBatch
-          CHNativeBlock.fromColumnarBatch(res).ifPresent(block => {
-            numOutputRows += block.numRows();
-            numOutputBatches += 1;
-            concatTime += System.nanoTime() - beforeConcat
-          })
+          CHNativeBlock
+            .fromColumnarBatch(res)
+            .ifPresent(block => {
+              numOutputRows += block.numRows();
+              numOutputBatches += 1;
+              concatTime += System.nanoTime() - beforeConcat
+            })
           res
         }
 
-        TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-          operator.close()
-        }
+        TaskContext.get().addTaskCompletionListener[Unit] { _ => operator.close() }
       }
     } else {
       iter
@@ -132,19 +135,19 @@ class CHIteratorApi extends IIteratorApi with Logging {
   }
 
   /**
-    * Generate Iterator[ColumnarBatch] for first stage.
-    *
-    * @return
-    */
-  override def genFirstStageIterator(inputPartition: BaseNativeFilePartition,
-                                     loadNative: Boolean,
-                                     outputAttributes: Seq[Attribute],
-                                     context: TaskContext,
-                                     pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
-                                     updateNativeMetrics: GeneralOutIterator => Unit,
-                                     inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
-  : Iterator[ColumnarBatch] = {
+   * Generate Iterator[ColumnarBatch] for first stage.
+   *
+   * @return
+   */
+  override def genFirstStageIterator(
+      inputPartition: BaseNativeFilePartition,
+      loadNative: Boolean,
+      outputAttributes: Seq[Attribute],
+      context: TaskContext,
+      pipelineTime: SQLMetric,
+      updateMetrics: (Long, Long) => Unit,
+      updateNativeMetrics: GeneralOutIterator => Unit,
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     var resIter: GeneralOutIterator = null
     if (loadNative) {
       val beforeBuild = System.nanoTime()
@@ -153,7 +156,9 @@ class CHIteratorApi extends IIteratorApi with Logging {
         new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
       resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.substraitPlan, inBatchIters, outputAttributes.asJava)
+        inputPartition.substraitPlan,
+        inBatchIters,
+        outputAttributes.asJava)
       pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
     }
@@ -175,29 +180,31 @@ class CHIteratorApi extends IIteratorApi with Logging {
     }
 
     // TODO: SPARK-25083 remove the type erasure hack in data source scan
-    new InterruptibleIterator(context,
-      new CloseableCHColumnBatchIterator(iter.asInstanceOf[Iterator[ColumnarBatch]],
+    new InterruptibleIterator(
+      context,
+      new CloseableCHColumnBatchIterator(
+        iter.asInstanceOf[Iterator[ColumnarBatch]],
         Some(pipelineTime)))
   }
 
-   // Generate Iterator[ColumnarBatch] for final stage.
-   // scalastyle:off argcount
-  override def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
-                                     numaBindingInfo: GlutenNumaBindingInfo,
-                                     listJars: Seq[String],
-                                     signature: String,
-                                     sparkConf: SparkConf,
-                                     outputAttributes: Seq[Attribute],
-                                     rootNode: PlanNode,
-                                     streamedSortPlan: SparkPlan,
-                                     pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
-                                     updateNativeMetrics: GeneralOutIterator => Unit,
-                                     buildRelationBatchHolder: Seq[ColumnarBatch],
-                                     dependentKernels: Seq[ExpressionEvaluator],
-                                     dependentKernelIterators: Seq[GeneralOutIterator]
-                                    ): Iterator[ColumnarBatch] = {
-     // scalastyle:on argcount
+  // Generate Iterator[ColumnarBatch] for final stage.
+  // scalastyle:off argcount
+  override def genFinalStageIterator(
+      inputIterators: Seq[Iterator[ColumnarBatch]],
+      numaBindingInfo: GlutenNumaBindingInfo,
+      listJars: Seq[String],
+      signature: String,
+      sparkConf: SparkConf,
+      outputAttributes: Seq[Attribute],
+      rootNode: PlanNode,
+      streamedSortPlan: SparkPlan,
+      pipelineTime: SQLMetric,
+      updateMetrics: (Long, Long) => Unit,
+      updateNativeMetrics: GeneralOutIterator => Unit,
+      buildRelationBatchHolder: Seq[ColumnarBatch],
+      dependentKernels: Seq[ExpressionEvaluator],
+      dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {
+    // scalastyle:on argcount
     GlutenConfig.getConf
     val beforeBuild = System.nanoTime()
     val transKernel = new ExpressionEvaluator()
@@ -206,7 +213,9 @@ class CHIteratorApi extends IIteratorApi with Logging {
         new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
-    val nativeIterator = transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator,
+    val nativeIterator = transKernel.createKernelWithBatchIterator(
+      rootNode,
+      columnarNativeIterator,
       outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = streamedSortPlan match {
@@ -223,8 +232,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
           }
         }
       case _ =>
-        throw new UnsupportedOperationException(
-          s"streamedSortPlan should support transformation")
+        throw new UnsupportedOperationException(s"streamedSortPlan should support transformation")
     }
     var closed = false
 
@@ -237,59 +245,58 @@ class CHIteratorApi extends IIteratorApi with Logging {
       // relationHolder.clear()
     }
 
-    TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-      close
-    }
+    TaskContext.get().addTaskCompletionListener[Unit] { _ => close }
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }
 
   /**
-    * Generate closeable ColumnBatch iterator.
-    *
-    * @param iter
-    * @return
-    */
-  override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]
-                                              ): Iterator[ColumnarBatch] = {
+   * Generate closeable ColumnBatch iterator.
+   *
+   * @param iter
+   * @return
+   */
+  override def genCloseableColumnBatchIterator(
+      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
     else new CloseableCHColumnBatchIterator(iter)
   }
 
   /**
-    * Generate columnar native iterator.
-    *
-    * @return
-    */
-  override def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]
-                                        ): ColumnarNativeIterator = {
+   * Generate columnar native iterator.
+   *
+   * @return
+   */
+  override def genColumnarNativeIterator(
+      delegated: Iterator[ColumnarBatch]): ColumnarNativeIterator = {
     new ColumnarNativeIterator(delegated.asJava)
   }
 
   /**
-    * Generate BatchIterator for ExpressionEvaluator.
-    *
-    * @return
-    */
-  override def genBatchIterator(wsPlan: Array[Byte],
-                                iterList: Seq[GeneralInIterator],
-                                jniWrapper: ExpressionEvaluatorJniWrapper,
-                                outAttrs: Seq[Attribute]
-                               ): GeneralOutIterator = {
-    val batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
-      0L, wsPlan, iterList.toArray)
+   * Generate BatchIterator for ExpressionEvaluator.
+   *
+   * @return
+   */
+  override def genBatchIterator(
+      wsPlan: Array[Byte],
+      iterList: Seq[GeneralInIterator],
+      jniWrapper: ExpressionEvaluatorJniWrapper,
+      outAttrs: Seq[Attribute]): GeneralOutIterator = {
+    val batchIteratorInstance =
+      jniWrapper.nativeCreateKernelWithIterator(0L, wsPlan, iterList.toArray)
     new BatchIterator(batchIteratorInstance, outAttrs.asJava)
   }
 
   /**
-    * Generate Native FileScanRDD, currently only for ClickHouse Backend.
-    */
-  override def genNativeFileScanRDD(sparkContext: SparkContext,
-                                    wsCxt: WholestageTransformContext,
-                                    fileFormat: ReadFileFormat,
-                                    inputPartitions: Seq[InputPartition],
-                                    numOutputRows: SQLMetric,
-                                    numOutputBatches: SQLMetric,
-                                    scanTime: SQLMetric): RDD[ColumnarBatch] = {
+   * Generate Native FileScanRDD, currently only for ClickHouse Backend.
+   */
+  override def genNativeFileScanRDD(
+      sparkContext: SparkContext,
+      wsCxt: WholestageTransformContext,
+      fileFormat: ReadFileFormat,
+      inputPartitions: Seq[InputPartition],
+      numOutputRows: SQLMetric,
+      numOutputBatches: SQLMetric,
+      scanTime: SQLMetric): RDD[ColumnarBatch] = {
     val startTime = System.nanoTime()
     // the file format for each scan exec
     wsCxt.substraitContext.setFileFormat(Seq(fileFormat).asJava)
@@ -310,9 +317,9 @@ class CHIteratorApi extends IIteratorApi with Logging {
   }
 
   /**
-    * Get the backend api name.
-    *
-    * @return
-    */
+   * Get the backend api name.
+   *
+   * @return
+   */
   override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

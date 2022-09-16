@@ -26,59 +26,70 @@ import io.glutenproject.utils.InputPartitionsUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{
+  HashPartitioning,
+  Partitioning,
+  RangePartitioning
+}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{
+  FileFormat,
+  HadoopFsRelation,
+  PartitionDirectory
+}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
 class CHTransformerApi extends ITransformerApi with Logging {
 
   /**
-    * Do validate for ColumnarShuffleExchangeExec.
-    * For ClickHouse backend, it will return true directly.
-    *
-    * @return
-    */
-  override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
-                                                   outputAttributes: Seq[Attribute]
-                                                  ): Boolean = {
+   * Do validate for ColumnarShuffleExchangeExec.
+   * For ClickHouse backend, it will return true directly.
+   *
+   * @return
+   */
+  override def validateColumnarShuffleExchangeExec(
+      outputPartitioning: Partitioning,
+      outputAttributes: Seq[Attribute]): Boolean = {
     !outputPartitioning.isInstanceOf[RangePartitioning]
 
     // check repartition expression
     val substraitContext = new SubstraitContext
     outputPartitioning match {
       case HashPartitioning(exprs, _) =>
-        !(exprs.map(expr => {
-          val node = ExpressionConverter
-            .replaceWithExpressionTransformer(expr, outputAttributes)
-            .asInstanceOf[ExpressionTransformer]
-            .doTransform(substraitContext.registeredFunction)
-          if (!node.isInstanceOf[SelectionNode]) {
-            logDebug("Expressions are not supported in HashPartitioning.")
-            false
-          } else {
-            true
-          }
-        }).exists(_ == false))
+        !(exprs
+          .map(expr => {
+            val node = ExpressionConverter
+              .replaceWithExpressionTransformer(expr, outputAttributes)
+              .asInstanceOf[ExpressionTransformer]
+              .doTransform(substraitContext.registeredFunction)
+            if (!node.isInstanceOf[SelectionNode]) {
+              logDebug("Expressions are not supported in HashPartitioning.")
+              false
+            } else {
+              true
+            }
+          })
+          .exists(_ == false))
       case RangePartitioning(_, _) => false
       case _ => true
     }
   }
 
   /**
-    * Used for table scan validation.
-    *
-    * @return true if backend supports reading the file format.
-    */
+   * Used for table scan validation.
+   *
+   * @return true if backend supports reading the file format.
+   */
   def supportsReadFileFormat(fileFormat: FileFormat): Boolean =
     GlutenConfig.getConf.isClickHouseBackend && fileFormat.isInstanceOf[ParquetFileFormat]
 
   /**
-    * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-    */
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
+   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
+   */
+  def genInputPartitionSeq(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     if (relation.location.isInstanceOf[ClickHouseFileIndex]) {
       // Generate NativeMergeTreePartition for MergeTree
       relation.location.asInstanceOf[ClickHouseFileIndex].partsPartitions
@@ -89,9 +100,9 @@ class CHTransformerApi extends ITransformerApi with Logging {
   }
 
   /**
-    * Get the backend api name.
-    *
-    * @return
-    */
+   * Get the backend api name.
+   *
+   * @return
+   */
   override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

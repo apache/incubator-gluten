@@ -24,30 +24,36 @@ import com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
-import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{
+  AggregateFunctionNode,
+  ExpressionBuilder,
+  ExpressionNode
+}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.exchange.Exchange
 
 case class CHHashAggregateExecTransformer(
-                                     requiredChildDistributionExpressions: Option[Seq[Expression]],
-                                     groupingExpressions: Seq[NamedExpression],
-                                     aggregateExpressions: Seq[AggregateExpression],
-                                     aggregateAttributes: Seq[Attribute],
-                                     initialInputBufferOffset: Int,
-                                     resultExpressions: Seq[NamedExpression],
-                                     child: SparkPlan) extends HashAggregateExecBaseTransformer(
-  requiredChildDistributionExpressions,
-  groupingExpressions,
-  aggregateExpressions,
-  aggregateAttributes,
-  initialInputBufferOffset,
-  resultExpressions,
-  child) {
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan)
+    extends HashAggregateExecBaseTransformer(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child) {
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
@@ -64,12 +70,14 @@ case class CHHashAggregateExecTransformer(
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
       // are in the one WholeStageTransformer.
       if (child.isInstanceOf[CHHashAggregateExecTransformer] &&
-        childCtx.outputAttributes == aggregateResultAttributes) {
-        (getAggRel(context, operatorId, aggParams, childCtx.root),
+          childCtx.outputAttributes == aggregateResultAttributes) {
+        (
+          getAggRel(context, operatorId, aggParams, childCtx.root),
           childCtx.outputAttributes,
           output)
       } else {
-        (getAggRel(context, operatorId, aggParams, childCtx.root),
+        (
+          getAggRel(context, operatorId, aggParams, childCtx.root),
           childCtx.outputAttributes,
           aggregateResultAttributes)
       }
@@ -82,68 +90,81 @@ case class CHHashAggregateExecTransformer(
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       // When the child is file scan operator
-      val (inputAttrs, outputAttrs) = if (child.find(_.isInstanceOf[Exchange]).isEmpty) {
-        for (attr <- child.output) {
-          typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-          nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-        }
-        (child.output, aggregateResultAttributes)
-      } else {
-        for (attr <- aggregateResultAttributes) {
-          val colName = if (aggregateAttributes.exists(_ == attr)) {
-            // for aggregate func
-            ConverterUtils.genColumnNameWithExprId(attr) +
-              "#Partial#" + ConverterUtils.getShortAttributeName(attr)
-          } else {
-            // for group by cols
-            ConverterUtils.genColumnNameWithExprId(attr)
-          }
-          nameList.add(colName)
-          // In final stage, when the output attr is the output of the avg func,
-          // CH needs to get the original data type as input type.
-          if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
-            val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
-            val originalType = if (originalExpr.isDefined &&
-              originalExpr.get.asInstanceOf[AggregateExpression]
-                .aggregateFunction.isInstanceOf[Average]) {
-              originalExpr.get.asInstanceOf[AggregateExpression].aggregateFunction
-                .asInstanceOf[Average].child.dataType
-            } else {
-              attr.dataType
-            }
-            typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
-          } else {
+      val (inputAttrs, outputAttrs) =
+        if (child.find(_.isInstanceOf[Exchange]).isEmpty
+            && child.find(_.isInstanceOf[QueryStageExec]).isEmpty) {
+          for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
           }
+          (child.output, aggregateResultAttributes)
+        } else {
+          for (attr <- aggregateResultAttributes) {
+            val colName = if (aggregateAttributes.exists(_ == attr)) {
+              // for aggregate func
+              ConverterUtils.genColumnNameWithExprId(attr) +
+                "#Partial#" + ConverterUtils.getShortAttributeName(attr)
+            } else {
+              // for group by cols
+              ConverterUtils.genColumnNameWithExprId(attr)
+            }
+            nameList.add(colName)
+            // In final stage, when the output attr is the output of the avg func,
+            // CH needs to get the original data type as input type.
+            if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
+              val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
+              val originalType =
+                if (originalExpr.isDefined &&
+                    originalExpr.get
+                      .asInstanceOf[AggregateExpression]
+                      .aggregateFunction
+                      .isInstanceOf[Average]) {
+                  originalExpr.get
+                    .asInstanceOf[AggregateExpression]
+                    .aggregateFunction
+                    .asInstanceOf[Average]
+                    .child
+                    .dataType
+                } else {
+                  attr.dataType
+                }
+              typeList.add(ConverterUtils.getTypeNode(originalType, attr.nullable))
+            } else {
+              typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+            }
+          }
+          (aggregateResultAttributes, output)
         }
-        (aggregateResultAttributes, output)
-      }
 
       // The iterator index will be added in the path of LocalFiles.
       val iteratorIndex: Long = context.nextIteratorIndex
       val inputIter = LocalFilesBuilder.makeLocalFiles(
         ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
       context.setIteratorNode(iteratorIndex, inputIter)
-      val readRel = RelBuilder.makeReadRel(
-        typeList, nameList, null, iteratorIndex, context, operatorId)
+      val readRel =
+        RelBuilder.makeReadRel(typeList, nameList, null, iteratorIndex, context, operatorId)
 
       (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)
   }
 
-  override def getAggRel(context: SubstraitContext,
-                         operatorId: Long,
-                         aggParams: AggregationParams,
-                         input: RelNode = null,
-                         validation: Boolean = false): RelNode = {
+  override def getAggRel(
+      context: SubstraitContext,
+      operatorId: Long,
+      aggParams: AggregationParams,
+      input: RelNode = null,
+      validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val aggRel = if (needsPreProjection) {
-      getAggRelWithPreProjection(
-        context, originalInputAttributes, operatorId, input, validation)
+      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
     } else {
       getAggRelWithoutPreProjection(
-        context, aggregateResultAttributes, operatorId, input, validation)
+        context,
+        aggregateResultAttributes,
+        operatorId,
+        input,
+        validation)
     }
     // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
     // AggregateRel.
@@ -154,11 +175,12 @@ case class CHHashAggregateExecTransformer(
     }
   }
 
-  override def getAggRelWithoutPreProjection(context: SubstraitContext,
-                                             originalInputAttributes: Seq[Attribute],
-                                             operatorId: Long,
-                                             input: RelNode = null,
-                                             validation: Boolean): RelNode = {
+  override def getAggRelWithoutPreProjection(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode = null,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
@@ -200,8 +222,7 @@ case class CHHashAggregateExecTransformer(
       aggregateFunctionList.add(aggFunctionNode)
     })
     if (!validation) {
-      RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, context, operatorId)
+      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -211,7 +232,21 @@ case class CHHashAggregateExecTransformer(
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, extensionNode, context, operatorId)
+        input,
+        groupingList,
+        aggregateFunctionList,
+        extensionNode,
+        context,
+        operatorId)
     }
+  }
+
+  override def isStreaming: Boolean = false
+
+  def numShufflePartitions: Option[Int] = Some(0)
+
+  override protected def withNewChildInternal(
+      newChild: SparkPlan): CHHashAggregateExecTransformer = {
+    copy(child = newChild)
   }
 }
