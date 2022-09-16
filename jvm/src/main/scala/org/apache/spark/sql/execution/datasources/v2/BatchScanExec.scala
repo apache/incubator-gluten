@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasources.v2
 
 import com.google.common.base.Objects
+import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
@@ -56,35 +57,22 @@ case class BatchScanExec(output: Seq[AttributeReference],
 
   @transient override lazy val partitions: Seq[InputPartition] = batch.planInputPartitions()
 
-  @transient private lazy val filteredPartitions: Seq[InputPartition] = {
+  @transient private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
     val dataSourceFilters = runtimeFilters.flatMap {
       case DynamicPruningExpression(e) => DataSourceStrategy.translateRuntimeFilter(e)
       case _ => None
     }
 
     if (dataSourceFilters.nonEmpty) {
-      val originalPartitioning = outputPartitioning
-
       // the cast is safe as runtime filters are only assigned if the scan can be filtered
       val filterableScan = scan.asInstanceOf[SupportsRuntimeFiltering]
       filterableScan.filter(dataSourceFilters.toArray)
 
       // call toBatch again to get filtered partitions
       val newPartitions = scan.toBatch.planInputPartitions()
-
-      originalPartitioning match {
-        case p: DataSourcePartitioning if p.numPartitions != newPartitions.size =>
-          throw new SparkException(
-            "Data source must have preserved the original partitioning during runtime filtering; " +
-              s"reported num partitions: ${p.numPartitions}, " +
-              s"num partitions after runtime filtering: ${newPartitions.size}")
-        case _ =>
-        // no validation is needed as the data source did not report any specific partitioning
-      }
-
-      newPartitions
+      SparkShimLoader.getSparkShims.getKeyPartition(newPartitions, outputPartitioning)
     } else {
-      partitions
+      partitions.map(Seq(_))
     }
   }
 
@@ -95,8 +83,8 @@ case class BatchScanExec(output: Seq[AttributeReference],
       // return an empty RDD with 1 partition if dynamic filtering removed the only split
       sparkContext.parallelize(Array.empty[InternalRow], 1)
     } else {
-      new DataSourceRDD(
-        sparkContext, filteredPartitions, readerFactory, supportsColumnar, customMetrics)
+      SparkShimLoader.getSparkShims.newDatasourceRDD(sparkContext, filteredPartitions,
+        readerFactory, supportsColumnar, customMetrics)
     }
   }
 

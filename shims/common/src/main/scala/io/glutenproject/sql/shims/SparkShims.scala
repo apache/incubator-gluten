@@ -16,6 +16,13 @@
 
 package io.glutenproject.sql.shims
 
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+
 sealed abstract class ShimDescriptor
 
 case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
@@ -24,4 +31,13 @@ case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimD
 
 trait SparkShims {
   def getShimDescriptor: ShimDescriptor
+
+  def getKeyPartition(newPartitions: Seq[InputPartition], originalPartition: Partitioning)
+    : Seq[Seq[InputPartition]]
+
+  def newDatasourceRDD(sc: SparkContext, inputPartitions: Seq[Seq[InputPartition]],
+      partitionReaderFactory: PartitionReaderFactory,
+      columnarReads: Boolean,
+      customMetrics: Map[String, SQLMetric]): RDD[InternalRow]
+
 }

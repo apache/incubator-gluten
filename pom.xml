@@ -36,6 +36,7 @@
 
   <properties>
     <spark32.version>3.2.2</spark32.version>
+    <spark33.version>3.3.0</spark33.version>
     <delta2.version>2.0.0</delta2.version>
     <delta1.version>1.2.1</delta1.version>
     <scala.version>2.12.10</scala.version>
@@ -86,6 +87,13 @@
           <spark.version>${spark32.version}</spark.version>
           <delta.version>${delta1.version}</delta.version>
         </properties>
+    </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <properties>
+        <spark.version>${spark33.version}</spark.version>
+        <delta.version>${delta1.version}</delta.version>
+      </properties>
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
