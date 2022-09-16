@@ -20,6 +20,7 @@ package org.apache.spark.sql.execution
 import java.util.concurrent.atomic.AtomicInteger
 
 import io.glutenproject.execution._
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -105,12 +106,17 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  * is created, e.g. for special fallback handling when an existing WholeStageCodegenExec
  * failed to generate/compile code.
  */
-case class ColumnarCollapseCodegenStages(
-                                          columnarWholeStageEnabled: Boolean,
-                                          separateScanRDDForCH: Boolean,
-                                          codegenStageCounter: AtomicInteger =
-                                          new AtomicInteger(0))
+case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
+                                         codegenStageCounter: AtomicInteger =
+                                         ColumnarCollapseCodegenStages.codegenStageCounter)
   extends Rule[SparkPlan] {
+
+  def columnarWholeStageEnabled: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.wholestagetransform",
+      "true").toBoolean
+
+  def separateScanRDDForCH: Boolean = glutenConfig.isClickHouseBackend && conf
+      .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "true").toBoolean
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (columnarWholeStageEnabled) {
@@ -155,4 +161,8 @@ case class ColumnarCollapseCodegenStages(
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
     }
   }
+}
+
+object ColumnarCollapseCodegenStages {
+  val codegenStageCounter = new AtomicInteger(0)
 }

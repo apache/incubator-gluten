@@ -73,4 +73,7 @@ case class ExpandExecTransformer(
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
+
+  override protected def withNewChildInternal(newChild: SparkPlan): ExpandExecTransformer =
+    copy(child = newChild)
 }

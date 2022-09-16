@@ -58,9 +58,9 @@ case class ClickHouseBuildSideRelation(
   }
 
   /**
-    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
-    * @return
-    */
+   * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
+   * @return
+   */
   override def transform(keys: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
     // native block reader
@@ -93,7 +93,7 @@ case class ClickHouseBuildSideRelation(
         if (batch.numRows == 0) {
           Iterator.empty
         } else {
-          val info = converter.converColumarToRow(block)
+          val info = converter.convertColumnarToRow(block)
 
           new Iterator[InternalRow] {
             var rowId = 0
@@ -120,8 +120,7 @@ case class ClickHouseBuildSideRelation(
           }
         }
       }.toArray
-    }
-    finally {
+    } finally {
       block_reader.close()
       expressionEval.close()
     }

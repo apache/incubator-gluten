@@ -20,7 +20,7 @@ import java.util.ServiceLoader
 
 import scala.collection.JavaConverters._
 
-import org.apache.spark.{SPARK_VERSION}
+import org.apache.spark.SPARK_VERSION
 import org.apache.spark.internal.Logging
 
 object SparkShimLoader extends Logging {
@@ -49,7 +49,8 @@ object SparkShimLoader extends Logging {
     logInfo(s"Loading Spark Shims for version: $sparkVersion")
 
     //Load and filter the providers based on version
-    val shimProviders = ServiceLoader.load(classOf[SparkShimProvider]).asScala.filter(_.matches(sparkVersion))
+    val shimProviders = ServiceLoader.load(classOf[SparkShimProvider])
+      .asScala.filter(_.matches(sparkVersion))
     if (shimProviders.size > 1) {
       throw new IllegalStateException(s"More than one SparkShimProvider found: $shimProviders")
     }

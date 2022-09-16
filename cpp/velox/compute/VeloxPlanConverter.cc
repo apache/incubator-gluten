@@ -86,8 +86,8 @@ void VeloxInitializer::Init() {
           connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, nullptr);
   registerConnector(hiveConnector);
-  // parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
-  parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
+  parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
+  // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   functions::prestosql::registerAllScalarFunctions();
@@ -673,6 +673,15 @@ std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportArrowArray() {
       *out,
       gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
   return out;
+}
+
+RowVectorPtr GlutenVeloxColumnarBatch::getRowVector() const {
+  return rowVector_;
+}
+
+RowVectorPtr GlutenVeloxColumnarBatch::getFlattenedRowVector() {
+  EnsureFlattened();
+  return flattened_;
 }
 
 } // namespace compute

@@ -40,7 +40,9 @@ A simple example of execution flow is as below chart. The transformer operator t
 
 The code is still not completely cleaned now. The work is still WIP.
 
-Not all the operators and functions are added. 22 queries of TPCH can pass. We are working on TPCDS queries.
+Not all the operators and functions are added. 22 queries of TPCH can pass. We are working on TPCDS queries. <b> We haven't pass Spark UTs, the work is just started and expected to finish in Q4 2022. So any other queries except H/DS may run into issues. Feel free to submit it to our issue list.</b>
+
+Not all data type is supported now. Refere to Velox and Clickhouse to check the supported data types.
 
 Operator stat info is pretty useful to understand Spark's execution status. Velox metrics are already added to Spark metric list for Velox backend. More info about Velox's stat can be found here: https://facebookincubator.github.io/velox/develop/debugging/print-plan-with-stats.html
 
@@ -58,8 +60,10 @@ Ideally if all native library can return arrow record batch, we can share much f
 
 ### Build the Environment
 
-There are two ways to build the env for compiling OAP: Gluten
-1. Build by Yourself
+Gluten can only support single Spark version now. In Gluten main branch, Spark3.2.x is the only version to be supported currently. If you would like to try TPCH queries on Spark3.1.x, you may find [Gluten with Spark3.1.1](https://github.com/oap-project/gluten/tree/spark311) to give a try, but it is no longer to be supported or maintained.
+We are working on a shim layer to support multiple Spark version in the future.
+
+You can build the environment by yourself.
 
 - ### Build by yourself
 
@@ -86,18 +90,20 @@ If you would like to build Gluten with **ClickHouse** backend, please follow the
 # Performance
 
 We use Decision Support Benchmark1(TPC-H Like) to evaluate the performance for Gluten project.
-* Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. Firstly we change column data type like Decimal to Double and Date to String. Secondly we use [DWRF](https://github.com/oap-project/gluten/tree/main/backends-velox/workload/tpch) file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline. Thirdly we modify the SQLs to use double and string data type for both Gluten and baseline. backends-velox/workload/tpch has the script to reproduce the performance number for Velox backend.
+* Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. Firstly we change column data type like Decimal to Double and Date to String. Secondly we use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline. Thirdly we modify the SQLs to use double and string data type for both Gluten and baseline, please check [Decision Support Benchmark1](./backends-velox/workload/tpch) has the script and queries as the examples to run the performance testing for Velox backend.
 
-The testing environment is using single node with 1TB datasize. The result shows a up to 3.63X speedup in Decision Support Benchmark1 with Gluten and Velox backend.
-![Performance](./docs/image/velox_decision_support_bench1_10query_performance.png)
+The testing environment is using single node with 2TB datasize and using Spark3.1.1 for both baseline and Gluten. The Decision Support Benchmark1 result shows an average speedup of 2.07x and up to 8.1X speedup in a single query with Gluten and Velox backend. Spark3.2 performance is pretty close.
+![Performance](./docs/image/velox_decision_support_bench1_22queries_performance.png)
 
-The testing environment is using a 8-nodes AWS cluster with 1TB datasize. The result shows a up to 3.48X speedup in Decision Support Benchmark1 with Gluten and Clickhouse backend.
-![Performance](./docs/image/clickhouse_decision_support_bench1_10query_performance.png)
+The testing environment is using a 8-nodes AWS cluster with 1TB datasize and using Spark3.1.1 for both baseline and Gluten. The Decision Support Benchmark1 result shows an average speedup of 2.12x and up to 3.48x speedup with Gluten and Clickhouse backend.
+![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
 # Reference
 
-Please check below link for more related information.
-[Gluten Intro at Data AI Summit 2022](https://databricks.com/dataaisummit/session/gazelle-jni-middle-layer-offload-spark-sql-native-engines-execution)
+Please check below links for more related information.
+- [Gluten Intro Video at Data AI Summit 2022](https://databricks.com/dataaisummit/session/gazelle-jni-middle-layer-offload-spark-sql-native-engines-execution)
+- [Gluten Intro Article at Medium.com](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
+- [Gluten Intro Article at Kyligence.io(in Chinese)](https://cn.kyligence.io/blog/gluten-spark/)
 
 # Contact
 

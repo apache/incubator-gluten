@@ -22,22 +22,23 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
-  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
-  * properly.
-  */
-class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatch]]
-                                       ) extends Iterator[Product2[Int, ColumnarBatch]]
-  with Logging {
+ * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
+ * properly.
+ */
+class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatch]])
+    extends Iterator[Product2[Int, ColumnarBatch]]
+    with Logging {
   var cb: ColumnarBatch = null
 
   override def hasNext: Boolean = {
     itr.hasNext
   }
 
-  TaskContext.get().addTaskCompletionListener[Unit] { _ => {
-    closeCurrentBatch()
-    if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
-  }
+  TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+    {
+      closeCurrentBatch()
+      if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
+    }
   }
 
   override def next(): Product2[Int, ColumnarBatch] = {

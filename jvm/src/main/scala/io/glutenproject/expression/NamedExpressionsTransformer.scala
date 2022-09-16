@@ -23,7 +23,7 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
-class AliasTransformer(child: Expression, name: String)(
+abstract class AliasBaseTransformer(child: Expression, name: String)(
   override val exprId: ExprId,
   override val qualifier: Seq[String],
   override val explicitMetadata: Option[Metadata])
@@ -31,28 +31,34 @@ class AliasTransformer(child: Expression, name: String)(
     with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!child_node.isInstanceOf[ExpressionNode]) {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.ALIAS, Seq(child.dataType)))
-    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(child.dataType, child.nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
-class AttributeReferenceTransformer(
-                                     name: String,
-                                     ordinal: Int,
-                                     dataType: DataType,
-                                     nullable: Boolean = true,
-                                     override val metadata: Metadata = Metadata.empty)(
-                                     override val exprId: ExprId,
-                                     override val qualifier: Seq[String])
+class AliasTransformer(child: Expression, name: String)(
+  override val exprId: ExprId,
+  override val qualifier: Seq[String],
+  override val explicitMetadata: Option[Metadata])
+  extends AliasBaseTransformer(child, name)(exprId, qualifier, explicitMetadata) {
+}
+
+class AttributeReferenceTransformer(name: String,
+                                    ordinal: Int,
+                                    dataType: DataType,
+                                    nullable: Boolean = true,
+                                    override val metadata: Metadata = Metadata.empty)(
+                                    override val exprId: ExprId,
+                                    override val qualifier: Seq[String])
   extends AttributeReference(name, dataType, nullable, metadata)(exprId, qualifier)
     with ExpressionTransformer {
 

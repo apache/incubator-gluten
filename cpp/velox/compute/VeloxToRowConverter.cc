@@ -24,6 +24,7 @@
 #include "ArrowTypeUtils.h"
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
+#include "arrow/c/helpers.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
 
@@ -31,9 +32,17 @@ namespace velox {
 namespace compute {
 
 arrow::Status VeloxToRowConverter::Init() {
-  num_rows_ = rb_->num_rows();
-  num_cols_ = rb_->num_columns();
-  schema_ = rb_->schema();
+  num_rows_ = rv_->size();
+  num_cols_ = rv_->childrenSize();
+  ArrowSchema c_schema{};
+  facebook::velox::exportToArrow(rv_, c_schema);
+  ARROW_ASSIGN_OR_RAISE(
+      std::shared_ptr<arrow::Schema> schema, arrow::ImportSchema(&c_schema));
+  if (num_cols_ != schema->num_fields()) {
+    return arrow::Status::Invalid(
+        "Mismatch: num_cols_ != schema->num_fields()");
+  }
+  schema_ = schema;
   // The input is Arrow batch. We need to resume Velox Vector here.
   ResumeVeloxVector();
   // Calculate the initial size
@@ -47,8 +56,8 @@ arrow::Status VeloxToRowConverter::Init() {
   }
   // Calculated the lengths_
   for (int64_t col_idx = 0; col_idx < num_cols_; col_idx++) {
-    auto array = rb_->column(col_idx);
-    if (arrow::is_binary_like(array->type_id())) {
+    std::shared_ptr<arrow::Field> field = schema_->field(col_idx);
+    if (arrow::is_binary_like(field->type()->id())) {
       auto str_views = vecs_[col_idx]->asFlatVector<StringView>()->rawValues();
       for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
         auto length = str_views[row_idx].size();
@@ -72,16 +81,7 @@ arrow::Status VeloxToRowConverter::Init() {
 
 void VeloxToRowConverter::ResumeVeloxVector() {
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
-    auto array = rb_->column(col_idx);
-    ArrowArray c_array{};
-    ArrowSchema c_schema{};
-    arrow::Status status = arrow::ExportArray(*array, &c_array, &c_schema);
-    if (!status.ok()) {
-      throw std::runtime_error("Failed to export from Arrow record batch");
-    }
-    VectorPtr vec =
-        importFromArrowAsOwner(c_schema, c_array, velox_pool_.get());
-    vecs_.push_back(vec);
+    vecs_.push_back(rv_->childAt(col_idx));
   }
 }
 
@@ -157,7 +157,8 @@ arrow::Status VeloxToRowConverter::Write() {
                 buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx],
                 value,
                 length);
-            int64_t offset_and_size = (buffer_cursor_[row_idx] << 32) | length;
+            int64_t offset_and_size =
+                ((int64_t)buffer_cursor_[row_idx] << 32) | length;
             // Write the offset and size.
             memcpy(
                 buffer_address_ + offsets_[row_idx] + field_offset,

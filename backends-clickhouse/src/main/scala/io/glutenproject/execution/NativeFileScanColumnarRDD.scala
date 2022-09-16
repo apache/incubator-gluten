@@ -22,7 +22,12 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import scala.collection.JavaConverters._
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.vectorized.{CloseableCHColumnBatchIterator, ExpressionEvaluator, GeneralInIterator, GeneralOutIterator}
+import io.glutenproject.vectorized.{
+  CloseableCHColumnBatchIterator,
+  ExpressionEvaluator,
+  GeneralInIterator,
+  GeneralOutIterator
+}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -31,13 +36,14 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class NativeFileScanColumnarRDD(sc: SparkContext,
-                                @transient private val inputPartitions: Seq[InputPartition],
-                                outputAttributes: Seq[Attribute],
-                                numOutputRows: SQLMetric,
-                                numOutputBatches: SQLMetric,
-                                scanTime: SQLMetric)
-  extends RDD[ColumnarBatch](sc, Nil) {
+class NativeFileScanColumnarRDD(
+    sc: SparkContext,
+    @transient private val inputPartitions: Seq[InputPartition],
+    outputAttributes: Seq[Attribute],
+    numOutputRows: SQLMetric,
+    numOutputBatches: SQLMetric,
+    scanTime: SQLMetric)
+    extends RDD[ColumnarBatch](sc, Nil) {
 
   val loadNative: Boolean = GlutenConfig.getConf.loadNative
 
@@ -50,7 +56,9 @@ class NativeFileScanColumnarRDD(sc: SparkContext,
       val transKernel = new ExpressionEvaluator()
       val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
       resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.substraitPlan, inBatchIters, outputAttributes.asJava)
+        inputPartition.substraitPlan,
+        inBatchIters,
+        outputAttributes.asJava)
       scanTime += NANOSECONDS.toMillis(System.nanoTime() - startNs)
       TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
     }

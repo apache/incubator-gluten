@@ -44,7 +44,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * populate with [[RowToColumnConverter]], but the performance requirements are different and it
  * would only be to reduce code.
  */
-abstract class RowToArrowColumnarExec(child: SparkPlan) extends RowToColumnarExec(child = child) {
+abstract class RowToArrowColumnarExec(child: SparkPlan) extends UnaryExecNode {
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
