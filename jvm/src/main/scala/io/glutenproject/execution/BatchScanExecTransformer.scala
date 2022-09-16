@@ -80,6 +80,8 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def getPartitions: Seq[Seq[InputPartition]] = filteredPartitions
 
+  override def getFlattenPartitions: Seq[InputPartition] = filteredFlattenPartitions
+
   override def getPartitionSchemas: StructType = scan match {
     case fileScan: FileScan => fileScan.readPartitionSchema
     case _ => new StructType()
@@ -170,4 +172,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
       partitions.map(Seq(_))
     }
   }
+
+  @transient private lazy val filteredFlattenPartitions: Seq[InputPartition] =
+    filteredPartitions.flatten
 }

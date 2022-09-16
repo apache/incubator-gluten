@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.glutenproject.sql.shims.spark32
+package io.glutenproject.sql.shims.spark33
 
 import io.glutenproject.sql.shims.{SparkShims, SparkShimDescriptor}
 
