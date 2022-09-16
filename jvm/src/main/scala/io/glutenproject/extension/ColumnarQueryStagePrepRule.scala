@@ -18,8 +18,8 @@
 package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
-
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
@@ -47,15 +47,16 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
       case bhj: BroadcastHashJoinExec =>
         if (columnarConf.enableColumnarBroadcastExchange &&
           columnarConf.enableColumnarBroadcastJoin) {
-          val transformer = BroadcastHashJoinExecTransformer(
-            bhj.leftKeys,
-            bhj.rightKeys,
-            bhj.joinType,
-            bhj.buildSide,
-            bhj.condition,
-            bhj.left,
-            bhj.right,
-            bhj.isNullAwareAntiJoin)
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genBroadcastHashJoinExecTransformer(
+              bhj.leftKeys,
+              bhj.rightKeys,
+              bhj.joinType,
+              bhj.buildSide,
+              bhj.condition,
+              bhj.left,
+              bhj.right,
+              bhj.isNullAwareAntiJoin)
           if (!transformer.doValidate()) {
             bhj.children.map {
               // ResuedExchange is not created yet, so we don't need to handle that case.

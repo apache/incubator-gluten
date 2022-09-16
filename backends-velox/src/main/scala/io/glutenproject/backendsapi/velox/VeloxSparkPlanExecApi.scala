@@ -25,7 +25,6 @@ import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, ArrowConverterUtils, VeloxAliasTransformer}
 import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
-
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -35,8 +34,10 @@ import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan, VeloxBuildSideRelation}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
@@ -112,6 +113,33 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
       initialInputBufferOffset,
       resultExpressions,
       child)
+
+  /**
+   * Generate ShuffledHashJoinExecTransformer.
+   */
+  def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                         rightKeys: Seq[Expression],
+                                         joinType: JoinType,
+                                         buildSide: BuildSide,
+                                         condition: Option[Expression],
+                                         left: SparkPlan,
+                                         right: SparkPlan): ShuffledHashJoinExecTransformer =
+    VeloxShuffledHashJoinExecTransformer(
+      leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+
+  /**
+   * Generate BroadcastHashJoinExecTransformer.
+   */
+  def genBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                          rightKeys: Seq[Expression],
+                                          joinType: JoinType,
+                                          buildSide: BuildSide,
+                                          condition: Option[Expression],
+                                          left: SparkPlan,
+                                          right: SparkPlan,
+                                          isNullAwareAntiJoin: Boolean = false)
+  : BroadcastHashJoinExecTransformer = VeloxBroadcastHashJoinExecTransformer(
+      leftKeys, rightKeys, joinType, buildSide, condition, left, right)
 
   /**
    * Generate Alias transformer.
