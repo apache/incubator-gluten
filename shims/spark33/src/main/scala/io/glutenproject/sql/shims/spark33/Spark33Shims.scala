@@ -14,19 +14,25 @@
  * limitations under the License.
  */
 
-package io.glutenproject.sql.shims.spark32
+package io.glutenproject.sql.shims.spark33
 
+import io.glutenproject.extension.JoinSelectionOverrideShim
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
+import io.glutenproject.BackendLib
 
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, PartitionReaderFactory}
 import org.apache.spark.{SparkContext, SparkException}
 import org.apache.spark.datasources.v2.Spark33Scan
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.plans.physical.{KeyGroupedPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.util.InternalRowSet
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.datasources.v2.DataSourceRDD
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.SparkPlan
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -67,4 +73,22 @@ class Spark33Shims extends SparkShims {
                                 customMetrics: Map[String, SQLMetric]): RDD[InternalRow] = {
     new DataSourceRDD(sc, inputPartitions, partitionReaderFactory, columnarReads, customMetrics)
   }
+
+  override def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression])
+  : Seq[Distribution] = {
+    ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
+  }
+  override def applyPlan(plan: LogicalPlan,
+                         forceShuffledHashJoin: Boolean,
+                         backendLib: BackendLib): Seq[SparkPlan] = {
+    plan match {
+      // If the build side of BHJ is already decided by AQE, we need to keep the build side.
+      case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, _, left, right, hint) =>
+        new JoinSelectionOverrideShim().extractEqualJoinKeyCondition(joinType, leftKeys, rightKeys,
+          condition, left, right, hint,
+          forceShuffledHashJoin, backendLib)
+      case _ => Nil
+    }
+  }
+
 }

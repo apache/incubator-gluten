@@ -191,7 +191,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     val filesSizeSum = partitions.map(_.files.map(_.getLen).sum).sum
     driverMetrics("numFiles") = filesNum
     driverMetrics("filesSize") = filesSizeSum
-    if (relation.partitionSchemaOption.isDefined) {
+    if (relation.partitionSchema.nonEmpty) {
       driverMetrics("numPartitions") = partitions.length
     }
   }

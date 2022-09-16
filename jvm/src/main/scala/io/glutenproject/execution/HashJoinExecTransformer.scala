@@ -30,6 +30,7 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -46,6 +47,8 @@ import java.{lang, util}
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
+import io.glutenproject.sql.shims.SparkShimLoader
+
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
 
@@ -59,7 +62,7 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
       // partitioning doesn't satisfy `HashClusteredDistribution`.
       UnspecifiedDistribution :: UnspecifiedDistribution :: Nil
     } else {
-      HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
+      SparkShimLoader.getSparkShims.getDistribution(leftKeys, rightKeys)
     }
   }
 
