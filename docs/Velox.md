@@ -46,7 +46,7 @@ Considering current Velox does not fully support Decimal and Date data type, the
 Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
 
 ```
-var parquet_file_path = "/PATH/TO/TPCH_DWRF_PATH"
+var parquet_file_path = "/PATH/TO/TPCH_PARQUET_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
 ```
 
