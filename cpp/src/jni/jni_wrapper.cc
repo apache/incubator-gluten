@@ -287,7 +287,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   native_columnar_to_row_info_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
   native_columnar_to_row_info_constructor = GetMethodIDOrError(
-      env, native_columnar_to_row_info_class, "<init>", "(J[J[JJ)V");
+      env, native_columnar_to_row_info_class, "<init>", "(J[I[IJ)V");
 
   java_reservation_listener_class = CreateGlobalClassReference(
       env,
@@ -576,12 +576,12 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeConvertColu
   int64_t instanceID =
       columnar_to_row_converter_holder_.Insert(columnar_to_row_converter);
 
-  auto offsets_arr = env->NewLongArray(num_rows);
-  auto offsets_src = reinterpret_cast<const jlong*>(offsets.data());
-  env->SetLongArrayRegion(offsets_arr, 0, num_rows, offsets_src);
-  auto lengths_arr = env->NewLongArray(num_rows);
-  auto lengths_src = reinterpret_cast<const jlong*>(lengths.data());
-  env->SetLongArrayRegion(lengths_arr, 0, num_rows, lengths_src);
+  auto offsets_arr = env->NewIntArray(num_rows);
+  auto offsets_src = reinterpret_cast<const jint*>(offsets.data());
+  env->SetIntArrayRegion(offsets_arr, 0, num_rows, offsets_src);
+  auto lengths_arr = env->NewIntArray(num_rows);
+  auto lengths_src = reinterpret_cast<const jint*>(lengths.data());
+  env->SetIntArrayRegion(lengths_arr, 0, num_rows, lengths_src);
   long address =
       reinterpret_cast<long>(columnar_to_row_converter->GetBufferAddress());
 

@@ -50,6 +50,10 @@ public class ExpressionBuilder {
     return new NullLiteralNode(typeNode);
   }
 
+  public static BooleanLiteralNode makeBooleanLiteral(Boolean booleanConstant) {
+    return new BooleanLiteralNode(booleanConstant);
+  }
+
   public static IntLiteralNode makeIntLiteral(Integer intConstant) {
     return new IntLiteralNode(intConstant);
   }
