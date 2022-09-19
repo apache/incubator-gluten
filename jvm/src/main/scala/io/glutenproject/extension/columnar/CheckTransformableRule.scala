@@ -290,7 +290,7 @@ case class CheckTransformableRule() extends Rule[SparkPlan] {
         logError(
           s"Fall back to use row-based operators, error is ${e.getMessage}," +
             s"original sparkplan is ${plan.getClass}(${plan.children.toList.map(_.getClass)})")
-        false
+        Transformable.tagNotTransformable(plan)
     }
   }
 }
