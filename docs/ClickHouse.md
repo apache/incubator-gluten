@@ -121,20 +121,19 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
 
 ### Test on local
 
-#### Deploy Spark 3.1.1
+#### Deploy Spark 3.2.2
 ```
-tar -zxvf spark-3.1.1-bin-2.8.5.tgz
-cd spark-3.1.1-bin-2.8.5
-rm -f jars/arrow-* ./
-rm -f jars/protobuf-java-2.5.0.jar ./
-rm -f jars/flatbuffers-java-1.9.0.jar ./
-#download protobuf-java-3.13.0.jar and flatbuffers-java-1.12.0.jar from maven
-cp protobuf-java-3.13.0.jar jars/
-cp flatbuffers-java-1.12.0.jar jars/
+tar zxf spark-3.2.2-bin-hadoop2.7.tgz
+cd spark-3.2.2-bin-hadoop2.7
+rm -f jars/arrow-*
+rm -f jars/protobuf-java-2.5.0.jar
+rm -f jars/flatbuffers-java-1.9.0.jar
+#download protobuf-java-3.13.0.jar, flatbuffers-java-1.12.0.jar and delta-core_2.12-1.2.1.jar
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.13.0/protobuf-java-3.13.0.jar -P ./jars -O protobuf-java-3.13.0.jar
+wget https://repo1.maven.org/maven2/com/google/flatbuffers/flatbuffers-java/1.12.0/flatbuffers-java-1.12.0.jar -P ./jars -O flatbuffers-java-1.12.0.jar
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/1.2.1/delta-core_2.12-1.2.1.jar -P ./jars -O delta-core_2.12-1.2.1.jar
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/1.2.1/delta-storage-1.2.1.jar -P ./jars -O delta-storage-1.2.1.jar
 cp gluten-jvm-XXXXX-jar-with-dependencies.jar jars/
-#download delta-core_2.12-1.0.1.jar
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/1.0.1/delta-core_2.12-1.0.1.jar
-cp delta-core_2.12-1.0.1.jar jars/
 ```
 
 #### Data preparation
