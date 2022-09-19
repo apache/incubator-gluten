@@ -305,3 +305,27 @@ install(FILES ${source_root_directory}/resources/libhdfs.so
         DESTINATION ${LIBHDFS3_DESTINATION})
 install(FILES ${source_root_directory}/resources/libprotobuf.so.13
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+if(BUILD_BENCHMARKS)
+  find_package(GTest)
+  add_definitions(-DBENCHMARK_FILE_PATH="file://${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks/source_files/")
+macro(package_add_benchmark TESTNAME)
+  add_executable(${TESTNAME} ${ARGN})
+  target_link_libraries(${TESTNAME} gtest gtest_main spark_columnar_jni ${CMAKE_THREAD_LIBS_INIT})
+  target_include_directories(${TESTNAME} PUBLIC ${source_root_directory})
+  gtest_discover_tests(${TESTNAME}
+    WORKING_DIRECTORY ${PROJECT_DIR}
+    PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}"
+  )
+  set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+endmacro()
+macro(package_add_gbenchmark TESTNAME)
+  find_arrow_lib(${PARQUET_LIB_NAME})
+  add_executable(${TESTNAME} ${ARGN})
+  target_link_libraries(${TESTNAME} benchmark::benchmark spark_columnar_jni Arrow::parquet ${CMAKE_THREAD_LIBS_INIT})
+  target_include_directories(${TESTNAME} PUBLIC ${source_root_directory})
+  set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+endmacro()
+
+add_subdirectory(benchmarks)
+endif()

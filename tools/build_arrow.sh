@@ -193,7 +193,6 @@ if [ $BUILD_ARROW == "ON" ]; then
               echo "Unable to parse Arrow commit: $TARGET_BUILD_COMMIT."
               exit 1
             fi
-
             if [ "$TARGET_BUILD_COMMIT" = "$LAST_BUILT_COMMIT" ]; then
                 echo "Arrow build of commit $TARGET_BUILD_COMMIT was cached, skipping build..."
                 exit 0

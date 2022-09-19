@@ -350,6 +350,11 @@ arrow::Status Splitter::Init() {
     ARROW_ASSIGN_OR_RAISE(
         ipc_write_options.codec,
         arrow::util::Codec::Create(arrow::Compression::LZ4_FRAME));
+  }
+  else if (options_.compression_type == arrow::Compression::GZIP) {
+    ARROW_ASSIGN_OR_RAISE(
+        ipc_write_options.codec,
+        arrow::util::Codec::Create(arrow::Compression::GZIP));
   } else {
     ipc_write_options.codec = nullptr;
   }
