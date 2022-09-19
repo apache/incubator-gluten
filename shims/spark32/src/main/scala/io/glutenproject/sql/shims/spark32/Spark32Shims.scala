@@ -17,22 +17,20 @@
 package io.glutenproject.sql.shims.spark32
 
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
-import io.glutenproject.{BackendLib, GlutenConfig}
+import io.glutenproject.BackendLib
 import io.glutenproject.extension.JoinSelectionOverrideShim
 
-import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution, Partitioning}
 import org.apache.spark.{SparkContext, SparkException}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution, Partitioning}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, SHUFFLE_MERGE}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.execution.datasources.v2.{DataSourcePartitioning, DataSourceRDD}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.{joins, SparkPlan}
-import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.SparkPlan
 
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
