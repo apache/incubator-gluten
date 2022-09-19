@@ -21,7 +21,7 @@ import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.extension.columnar.{RowGuard, TransformGuardRule}
+import io.glutenproject.extension.columnar.{CheckTransformableRule, Transformable}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -42,24 +42,12 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
 
   def replaceWithTransformerPlan(plan: SparkPlan, isSupportAdaptive: Boolean): SparkPlan = {
+    if (!Transformable.isTransformable(plan)) {
+      logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
+      return plan.withNewChildren(
+        plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+    }
     plan match {
-      case RowGuard(child: AQEShuffleReadExec) =>
-        replaceWithTransformerPlan(child, isSupportAdaptive)
-      case RowGuard(bhj: BroadcastHashJoinExec) =>
-        bhj.withNewChildren(bhj.children.map {
-          // ResuedExchange is not created yet, so we don't need to handle that case.
-          case e: BroadcastExchangeExec =>
-            replaceWithTransformerPlan(RowGuard(e), isSupportAdaptive)
-          case other => replaceWithTransformerPlan(other, isSupportAdaptive)
-        })
-      case plan: RowGuard =>
-        val actualPlan = plan.child
-        logDebug(s"Columnar Processing for ${actualPlan.getClass} is under RowGuard.")
-        actualPlan.withNewChildren(
-          actualPlan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
-      case plan if plan.getTagValue(RowGuardTag.key).contains(true) =>
-        // Add RowGuard if the plan has a RowGuardTag.
-        replaceWithTransformerPlan(RowGuard(plan), isSupportAdaptive)
       /* case plan: ArrowEvalPythonExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
@@ -300,7 +288,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   // while creating the rules. At this time SQLConf may not be there yet.
 
   def preOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List((_: SparkSession) => TransformGuardRule(),
+    List((_: SparkSession) => CheckTransformableRule(),
       (_: SparkSession) => TransformPreOverrides()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
 
