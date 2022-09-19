@@ -15,35 +15,33 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.datasources.arrow
+package org.apache.spark.sql.execution.datasource.arrow
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.utils.ArrowAbiUtil
-
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
-
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-
 import org.apache.parquet.hadoop.codec.CodecConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkVectorUtils}
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.VeloxColumnarRules.FakeRow
+import org.apache.spark.sql.utils.GazelleArrowUtils
 
 class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
   override def inferSchema(sparkSession: SparkSession,
                            options: Map[String, String],
                            files: Seq[FileStatus]): Option[StructType] = {
-    ArrowUtils.readSchema(files)
+    GazelleArrowUtils.readSchema(files)
   }
 
   override def prepareWrite(sparkSession: SparkSession,
