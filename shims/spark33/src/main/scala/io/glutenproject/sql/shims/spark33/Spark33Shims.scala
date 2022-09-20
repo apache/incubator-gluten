@@ -16,67 +16,34 @@
 
 package io.glutenproject.sql.shims.spark33
 
+import scala.collection.Seq
+
 import io.glutenproject.extension.JoinSelectionOverrideShim
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 import io.glutenproject.BackendLib
 
-import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, PartitionReaderFactory}
+import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.{SparkContext, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.util.InternalRowSet
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.datasources.v2.{DataSourceRDD, Spark33Scan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
-
-  def getKeyPartition(newPartitions: Seq[InputPartition],
-                      originalPartitioning: Partitioning): Seq[Seq[InputPartition]] = {
-    originalPartitioning match {
-      case p: KeyGroupedPartitioning =>
-        if (newPartitions.exists(!_.isInstanceOf[HasPartitionKey])) {
-          throw new SparkException("Data source must have preserved the original partitioning " +
-            "during runtime filtering: not all partitions implement HasPartitionKey after " +
-            "filtering")
-        }
-
-        val newRows = new InternalRowSet(p.expressions.map(_.dataType))
-        newRows ++= newPartitions.map(_.asInstanceOf[HasPartitionKey].partitionKey())
-        val oldRows = p.partitionValuesOpt.get
-
-        if (oldRows.size != newRows.size) {
-          throw new SparkException("Data source must have preserved the original partitioning " +
-            "during runtime filtering: the number of unique partition values obtained " +
-            s"through HasPartitionKey changed: before ${oldRows.size}, after ${newRows.size}")
-        }
-
-        if (!oldRows.forall(newRows.contains)) {
-          throw new SparkException("Data source must have preserved the original partitioning " +
-            "during runtime filtering: the number of unique partition values obtained " +
-            s"through HasPartitionKey remain the same but do not exactly match")
-        }
-
-        new Spark33Scan().groupPartitions(newPartitions).get.map(_._2)
-    }
-  }
-
-  override def newDatasourceRDD(sc: SparkContext, inputPartitions: Seq[Seq[InputPartition]],
-                                partitionReaderFactory: PartitionReaderFactory,
-                                columnarReads: Boolean,
-                                customMetrics: Map[String, SQLMetric]): RDD[InternalRow] = {
-    new DataSourceRDD(sc, inputPartitions, partitionReaderFactory, columnarReads, customMetrics)
-  }
 
   override def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression])
   : Seq[Distribution] = {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
+
   override def applyPlan(plan: LogicalPlan,
                          forceShuffledHashJoin: Boolean,
                          backendLib: BackendLib): Seq[SparkPlan] = {

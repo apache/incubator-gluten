@@ -21,9 +21,11 @@ import io.glutenproject.GlutenConfig
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.Scan
+import org.apache.spark.sql.connector.read.{InputPartition, Scan, SupportsRuntimeFiltering}
+import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.SparkException
 
 class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
                                runtimeFilters: Seq[Expression],
@@ -48,4 +50,36 @@ class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecShim]
 
+  // to comply v3.3. and v3.2, change return type from Seq[InputPartition] to current
+  @transient protected lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
+    val dataSourceFilters = runtimeFilters.flatMap {
+      case DynamicPruningExpression(e) => DataSourceStrategy.translateRuntimeFilter(e)
+      case _ => None
+    }
+
+    if (dataSourceFilters.nonEmpty) {
+      val originalPartitioning = outputPartitioning
+
+      // the cast is safe as runtime filters are only assigned if the scan can be filtered
+      val filterableScan = scan.asInstanceOf[SupportsRuntimeFiltering]
+      filterableScan.filter(dataSourceFilters.toArray)
+
+      // call toBatch again to get filtered partitions
+      val newPartitions = scan.toBatch.planInputPartitions()
+
+      originalPartitioning match {
+        case p: DataSourcePartitioning if p.numPartitions != newPartitions.size =>
+          throw new SparkException(
+            "Data source must have preserved the original partitioning during runtime filtering; " +
+              s"reported num partitions: ${p.numPartitions}, " +
+              s"num partitions after runtime filtering: ${newPartitions.size}")
+        case _ =>
+        // no validation is needed as the data source did not report any specific partitioning
+      }
+
+      newPartitions.map(Seq(_))
+    } else {
+      partitions.map(Seq(_))
+    }
+  }
 }

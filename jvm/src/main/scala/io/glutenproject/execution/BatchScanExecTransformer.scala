@@ -18,18 +18,16 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.vectorized.OperatorMetrics
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.{InputPartition, Scan, SupportsRuntimeFiltering}
-import org.apache.spark.sql.execution.{InSubqueryExec, SparkPlan}
+import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.util.DataSourceStrategyUtil
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
                                runtimeFilters: Seq[Expression],
@@ -139,37 +137,6 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
       peakMemoryBytes += operatorMetrics.peakMemoryBytes
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
       numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
-    }
-  }
-
-  // The codes below are copied from BatchScanExec in Spark,
-  // all of them are private.
-  @transient private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
-    val dataSourceFilters = runtimeFilters.flatMap {
-      case DynamicPruningExpression(e) =>
-        // When it includes some DynamicPruningExpression,
-        // it needs to execute InSubqueryExec first,
-        // because doTransform path can't execute 'doExecuteColumnar' which will
-        // execute prepare subquery first.
-        e match {
-          case inSubquery: InSubqueryExec =>
-            executeInSubqueryForDynamicPruningExpression(inSubquery)
-        }
-        DataSourceStrategyUtil.translateRuntimeFilter(e)
-      case _ => None
-    }
-
-    if (dataSourceFilters.nonEmpty) {
-      // the cast is safe as runtime filters are only assigned if the scan can be filtered
-      val filterableScan = scan.asInstanceOf[SupportsRuntimeFiltering]
-      filterableScan.filter(dataSourceFilters.toArray)
-
-      // call toBatch again to get filtered partitions
-      val newPartitions = scan.toBatch.planInputPartitions()
-
-      SparkShimLoader.getSparkShims.getKeyPartition(newPartitions, outputPartitioning)
-    } else {
-      partitions.map(Seq(_))
     }
   }
 
