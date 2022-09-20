@@ -54,32 +54,35 @@ object InSetOperatorTransformer {
   def toTransformer(value: Expression,
                     leftNode: ExpressionNode,
                     values: Set[Any]): ExpressionNode = {
-    val expressionNodes = new util.ArrayList[ExpressionNode]()
-    val listNode = value.dataType match {
+    val expressionNodes = value.dataType match {
       case _: IntegerType =>
-        val valueList = new util.ArrayList[java.lang.Integer](values.map(value =>
-          value.asInstanceOf[java.lang.Integer]).asJava)
-        ExpressionBuilder.makeIntList(valueList)
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeIntLiteral(value.asInstanceOf[java.lang.Integer])
+        }).asJava)
       case _: LongType =>
-        val valueList = new util.ArrayList[java.lang.Long](values.map(value =>
-          value.asInstanceOf[java.lang.Long]).asJava)
-        ExpressionBuilder.makeLongList(valueList)
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeLongLiteral(value.asInstanceOf[java.lang.Long])
+        }).asJava)
       case _: DoubleType =>
-        val valueList = new util.ArrayList[java.lang.Double](values.map(value =>
-          value.asInstanceOf[java.lang.Double]).asJava)
-        ExpressionBuilder.makeDoubleList(valueList)
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeDoubleLiteral(value.asInstanceOf[java.lang.Double])
+        }).asJava)
       case _: DateType =>
-        val valueList = new util.ArrayList[java.lang.Integer](values.map(value =>
-          value.asInstanceOf[java.lang.Integer]).asJava)
-        ExpressionBuilder.makeDateList(valueList)
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeDateLiteral(value.asInstanceOf[java.lang.Integer])
+        }).asJava)
       case _: StringType =>
-        val valueList = new util.ArrayList[java.lang.String](values.map(value =>
-          value.toString).asJava)
-        ExpressionBuilder.makeStringList(valueList)
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeStringLiteral(value.toString)
+        }).asJava)
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
-    expressionNodes.add(listNode)
 
     ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
   }
