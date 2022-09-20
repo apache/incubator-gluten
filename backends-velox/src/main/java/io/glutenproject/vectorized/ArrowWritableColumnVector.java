@@ -46,7 +46,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.util.DateTimeUtils;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils;
-import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
+import org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
@@ -69,7 +69,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * A column backed by an in memory JVM array. This stores the NULLs as a byte per value
  * and a java array for the values.
  */
-public final class ArrowWritableColumnVector extends WritableColumnVector {
+public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   private static final boolean bigEndianPlatform =
       ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN);
 
@@ -135,18 +135,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     return vectors;
   }
 
-  public static ArrowWritableColumnVector[] loadColumns(
-      int capacity, Schema arrowSchema, ArrowRecordBatch recordBatch) {
-    return loadColumns(capacity, arrowSchema, recordBatch, null);
-  }
-
   public static ArrowWritableColumnVector[] loadColumns(int capacity, Schema arrowSchema,
                                                         ArrowRecordBatch recordBatch,
-                                                        BufferAllocator _allocator) {
-    if (_allocator == null) {
-      _allocator = SparkMemoryUtils.contextArrowAllocator();
-    }
-    VectorSchemaRoot root = VectorSchemaRoot.create(arrowSchema, _allocator);
+                                                        BufferAllocator allocator) {
+    VectorSchemaRoot root = VectorSchemaRoot.create(arrowSchema, allocator);
     VectorLoader loader = new VectorLoader(root);
     loader.load(recordBatch);
     return loadColumns(capacity, root.getFieldVectors());
@@ -369,85 +361,6 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
   @Override
   public int numNulls() {
     return accessor.getNullCount();
-  }
-
-  //
-  // APIs dealing with general
-  //
-  public void mergeTo(ArrowWritableColumnVector other, int rowId, int rowNum) {
-    for (int i = 0; i < rowNum; i++) {
-      if (accessor instanceof BooleanAccessor) {
-        if (!isNullAt(i)) {
-          other.put(rowId + i, getBoolean(i));
-        } else {
-          other.putNull(rowId + i);
-        }
-      } else if (accessor instanceof ByteAccessor) {
-        if (!isNullAt(i)) {
-          other.put(rowId + i, getByte(i));
-        } else {
-          other.putNull(rowId + i);
-        }
-      } else if (accessor instanceof ShortAccessor) {
-        if (!isNullAt(i)) {
-          other.put(rowId + i, getShort(i));
-        } else {
-          other.putNull(rowId + i);
-        }
-      } else if (accessor instanceof IntAccessor) {
-        if (!isNullAt(i)) {
-          other.put(rowId + i, getInt(i));
-        } else {
-          other.putNull(rowId + i);
-        }
-      } else if (accessor instanceof LongAccessor) {
-        if (!isNullAt(i)) {
-          other.put(rowId + i, getLong(i));
-        } else {
-          other.putNull(rowId + i);
-        }
-      } else if (accessor instanceof FloatAccessor) {
-        if (!isNullAt(i)) {
-          other.put(rowId + i, getFloat(i));
-        } else {
-          other.putNull(rowId + i);
-        }
-      } else if (accessor instanceof DoubleAccessor) {
-        if (!isNullAt(i)) {
-          other.put(rowId + i, getDouble(i));
-        } else {
-          other.putNull(rowId + i);
-        }
-      }
-    }
-  }
-
-  public void put(int rowId, boolean value) {
-    putBoolean(rowId, value);
-  }
-
-  public void put(int rowId, byte value) {
-    putByte(rowId, value);
-  }
-
-  public void put(int rowId, short value) {
-    putShort(rowId, value);
-  }
-
-  public void put(int rowId, int value) {
-    putInt(rowId, value);
-  }
-
-  public void put(int rowId, long value) {
-    putLong(rowId, value);
-  }
-
-  public void put(int rowId, float value) {
-    putFloat(rowId, value);
-  }
-
-  public void put(int rowId, double value) {
-    putDouble(rowId, value);
   }
 
   //
