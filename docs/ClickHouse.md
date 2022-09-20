@@ -61,7 +61,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 - ninja-build 1.8.2
 - Java 8
 - Maven 3.6.3 or higher version
-- Spark 3.1.1
+- Spark 3.2.2
 - Intel Optimized Arrow 8.0.0 ( Please refer to [Intel-Optimized-Arrow-Installation](./ArrowInstallation.md) )
 
 
@@ -114,7 +114,7 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
     git clone https://github.com/oap-project/gluten.git
     cd gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
-    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.1.1 -Dhadoop.version=2.8.5 -DskipTests -Dbuild_cpp=OFF -Dcpp_tests=OFF -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_jemalloc=ON -Dcheckstyle.skip
+    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2.2 -Dhadoop.version=2.8.5 -DskipTests -Dbuild_cpp=OFF -Dcpp_tests=OFF -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_jemalloc=ON -Dcheckstyle.skip
     ls -al jvm/target/gluten-jvm-XXXXX-jar-with-dependencies.jar
 ```
 
@@ -125,15 +125,12 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
 ```
 tar zxf spark-3.2.2-bin-hadoop2.7.tgz
 cd spark-3.2.2-bin-hadoop2.7
-rm -f jars/arrow-*
 rm -f jars/protobuf-java-2.5.0.jar
-rm -f jars/flatbuffers-java-1.9.0.jar
-#download protobuf-java-3.13.0.jar, flatbuffers-java-1.12.0.jar and delta-core_2.12-1.2.1.jar
+#download protobuf-java-3.13.0.jar, delta-core_2.12-1.2.1.jar and delta-storage-1.2.1.jar
 wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.13.0/protobuf-java-3.13.0.jar -P ./jars -O protobuf-java-3.13.0.jar
-wget https://repo1.maven.org/maven2/com/google/flatbuffers/flatbuffers-java/1.12.0/flatbuffers-java-1.12.0.jar -P ./jars -O flatbuffers-java-1.12.0.jar
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/1.2.1/delta-core_2.12-1.2.1.jar -P ./jars -O delta-core_2.12-1.2.1.jar
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/1.2.1/delta-storage-1.2.1.jar -P ./jars -O delta-storage-1.2.1.jar
-cp gluten-jvm-XXXXX-jar-with-dependencies.jar jars/
+cp gluten-XXXXX-jar-with-dependencies.jar jars/
 ```
 
 #### Data preparation
@@ -158,7 +155,7 @@ python3 /path_to_clickhouse_backend_src/utils/local-engine/tool/parquet_to_merge
 
 #### Run Spark Thriftserver on local
 ```
-cd spark-3.1.1-bin-2.8.5
+cd spark-3.2.2-bin-hadoop2.7
 ./sbin/start-thriftserver.sh \
   --master local[3] \
   --driver-memory 10g \
@@ -178,7 +175,7 @@ cd spark-3.1.1-bin-2.8.5
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.columnartorow=false \
   --conf spark.gluten.sql.columnar.loadnative=true \
-  --conf spark.gluten.sql.columnar.backend.lib=clickhouse \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=false \
   --conf spark.gluten.sql.columnar.loadarrow=false \
@@ -263,7 +260,7 @@ This benchmark is tested on AWS EC2 cluster, there are 7 EC2 instances:
 
 - Prepare jars
 
-    Refer to [Deploy Spark 3.1.1](#deploy-spark-311)
+    Refer to [Deploy Spark 3.2.2](#deploy-spark-322)
 
 - Deploy gluten-jvm-XXXXX-jar-with-dependencies.jar
 
@@ -319,7 +316,7 @@ Please refer to [Data-preparation](#data-preparation) to generate MergeTree part
 #### Run Spark Thriftserver
 
 ```
-cd /home/ubuntu/spark-3.1.1-bin-2.8.5/
+cd spark-3.2.2-bin-hadoop2.7
 ./sbin/start-thriftserver.sh \
   --master spark://master-ip:7070 --deploy-mode client \
   --driver-memory 16g --driver-cores 4 \
@@ -343,7 +340,7 @@ cd /home/ubuntu/spark-3.1.1-bin-2.8.5/
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.columnartorow=false \
   --conf spark.gluten.sql.columnar.loadnative=true \
-  --conf spark.gluten.sql.columnar.backend.lib=clickhouse \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
   --conf spark.gluten.sql.columnar.libpath=/path_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=false \
   --conf spark.gluten.sql.columnar.loadarrow=false \
