@@ -25,7 +25,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.{InSubqueryExec, SparkPlan}
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -34,7 +34,7 @@ import org.apache.spark.sql.util.DataSourceStrategyUtil
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
                                runtimeFilters: Seq[Expression],
                                pushdownFilters: Seq[Expression] = Seq())
-  extends BatchScanExec(output, scan, runtimeFilters) with BasicScanExecTransformer {
+  extends BatchScanExecShim(output, scan, runtimeFilters) with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
     "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),

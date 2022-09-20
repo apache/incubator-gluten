@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package org.apache.spark.datasources.v2
+package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory, Scan}
-import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 
 class Spark33Scan extends DataSourceV2ScanExecBase {
   override def scan: Scan = ???
