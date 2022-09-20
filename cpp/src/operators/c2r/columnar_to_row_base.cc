@@ -22,17 +22,19 @@ namespace columnartorow {
 
 int64_t ColumnarToRowConverterBase::CalculateBitSetWidthInBytes(
     int32_t numFields) {
-  return ((numFields + 63) / 64) * 8;
+  return ((numFields + 63) >> 6) << 3;
 }
 
-int64_t ColumnarToRowConverterBase::RoundNumberOfBytesToNearestWord(
-    int64_t numBytes) {
-  int64_t remainder = numBytes & 0x07; // This is equivalent to `numBytes % 8`
-  if (remainder == 0) {
+int32_t ColumnarToRowConverterBase::RoundNumberOfBytesToNearestWord(
+    int32_t numBytes) {
+  int32_t remainder = numBytes & 0x07; // This is equivalent to `numBytes % 8`
+
+  return numBytes + ((8 - remainder) & 0x7);
+  /*if (remainder == 0) {
     return numBytes;
   } else {
     return numBytes + (8 - remainder);
-  }
+  }*/
 }
 
 int64_t ColumnarToRowConverterBase::CalculatedFixeSizePerRow(
@@ -68,9 +70,9 @@ void ColumnarToRowConverterBase::BitSet(
   int64_t mask = 1L << (index & 0x3f); // mod 64 and shift
   int64_t wordOffset = (index >> 6) * 8;
   int64_t word;
-  memcpy(&word, buffer_address + wordOffset, sizeof(int64_t));
+  word = *(int64_t*)(buffer_address + wordOffset);
   int64_t value = word | mask;
-  memcpy(buffer_address + wordOffset, &value, sizeof(int64_t));
+  *(int64_t*)(buffer_address + wordOffset) = value;
 }
 
 void ColumnarToRowConverterBase::SetNullAt(
@@ -80,7 +82,8 @@ void ColumnarToRowConverterBase::SetNullAt(
     int32_t col_index) {
   BitSet(buffer_address + row_offset, col_index);
   // set the value to 0
-  memset(buffer_address + row_offset + field_offset, 0, sizeof(int64_t));
+  *(int64_t*)(buffer_address + row_offset + field_offset) = 0;
+
   return;
 }
 
@@ -207,6 +210,9 @@ std::vector<uint32_t> ColumnarToRowConverterBase::ConvertMagArray(
   return new_mag;
 }
 
+/*
+ *  This method refer to the BigInterger#toByteArray() method in Java side.
+ */
 std::array<uint8_t, 16> ColumnarToRowConverterBase::ToByteArray(
     arrow::Decimal128 value,
     int32_t* length) {
@@ -256,6 +262,5 @@ std::array<uint8_t, 16> ColumnarToRowConverterBase::ToByteArray(
   *length = byte_length;
   return out;
 }
-
 } // namespace columnartorow
 } // namespace gluten

@@ -18,17 +18,8 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches;
-import io.glutenproject.expression.ArrowConverterUtils;
-import io.glutenproject.utils.ArrowAbiUtil;
-import org.apache.arrow.c.ArrowArray;
-import org.apache.arrow.c.ArrowSchema;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
-import scala.collection.JavaConverters;
 
 import java.io.IOException;
 import java.util.List;

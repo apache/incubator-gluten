@@ -34,14 +34,21 @@ class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
   arrow::Status Write() override;
 
  private:
-  arrow::Status WriteValue(
+  arrow::Status FillBuffer(
+      int32_t& row_start,
+      int32_t batch_rows,
+      std::vector<std::vector<const uint8_t*>>& dataptrs,
+      std::vector<uint8_t> nullvec,
       uint8_t* buffer_address,
-      int64_t field_offset,
-      std::shared_ptr<arrow::Array> array,
-      int32_t col_index,
-      int64_t num_rows,
-      std::vector<int64_t>& offsets,
-      std::vector<int64_t>& buffer_cursor);
+      std::vector<int32_t>& offsets,
+      std::vector<int32_t>& buffer_cursor,
+      int32_t& num_cols,
+      int32_t& num_rows,
+      int32_t& nullBitsetWidthInBytes,
+      std::vector<arrow::Type::type>& typevec,
+      std::vector<uint8_t>& typewidth,
+      std::vector<std::shared_ptr<arrow::Array>>& arrays,
+      bool support_avx512);
 
   std::shared_ptr<arrow::RecordBatch> rb_;
 };

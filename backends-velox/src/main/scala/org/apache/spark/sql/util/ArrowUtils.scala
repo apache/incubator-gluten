@@ -19,7 +19,6 @@ package org.apache.spark.sql.util
 
 import scala.collection.JavaConverters._
 
-import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.complex.MapVector
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
@@ -29,10 +28,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 object ArrowUtils {
-
-  @deprecated
-  val rootAllocator = new RootAllocator(Long.MaxValue)
-
   // todo: support more types.
 
   /** Maps data type from Spark to Arrow. NOTE: timeZoneId required for TimestampTypes */

@@ -17,9 +17,8 @@
 
 package io.glutenproject.backendsapi
 
-import io.glutenproject.execution.{FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, ShuffledHashJoinExecTransformer}
 import io.glutenproject.expression.AliasBaseTransformer
-
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -27,8 +26,10 @@ import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriter
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -83,6 +84,30 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
      initialInputBufferOffset: Int,
      resultExpressions: Seq[NamedExpression],
      child: SparkPlan): HashAggregateExecBaseTransformer = null
+
+  /**
+   * Generate ShuffledHashJoinExecTransformer.
+   */
+  def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                         rightKeys: Seq[Expression],
+                                         joinType: JoinType,
+                                         buildSide: BuildSide,
+                                         condition: Option[Expression],
+                                         left: SparkPlan,
+                                         right: SparkPlan): ShuffledHashJoinExecTransformer = null
+
+  /**
+   * Generate BroadcastHashJoinExecTransformer.
+   */
+  def genBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                          rightKeys: Seq[Expression],
+                                          joinType: JoinType,
+                                          buildSide: BuildSide,
+                                          condition: Option[Expression],
+                                          left: SparkPlan,
+                                          right: SparkPlan,
+                                          isNullAwareAntiJoin: Boolean = false)
+  : BroadcastHashJoinExecTransformer = null
 
   /**
    * Generate Alias transformer.
@@ -165,13 +190,6 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] =
     List()
 
-  /**
-   * Generate extended Rules.
-   * Currently only for Velox backend.
-   *
-   * @return
-   */
-  override def genExtendedColumnarRules(): List[SparkSession => ColumnarRule] = List()
 
   /**
    * Generate extended Strategies.
@@ -180,4 +198,20 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+
+  /**
+   * Generate extended columnar pre-rules.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  /**
+   * Generate extended columnar post-rules.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 }
