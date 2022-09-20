@@ -6,7 +6,7 @@ There are some requirements before you build the project.
 Please make sure you have already installed the software in your system.
 
 1. GCC 7.0 or higher version
-2. LLVM 7.0 or higher version
+2. LLVM 10.0 or higher version
 3. java8 OpenJDK -> yum install java-1.8.0-openjdk
 4. cmake 3.16 or higher version
 5. Maven 3.6.3 or higher version
@@ -47,30 +47,12 @@ Please remember to add and source the setup in your environment files such as /e
 - Verify if gcc has been installation
 Use `gcc -v` command to verify if your gcc version is correct.(Must larger than 7.0)
 
-### LLVM 7.0 installation
+### LLVM 10.0 installation
 
-Arrow Gandiva depends on LLVM, and current version strictly depends on llvm7.0 if you installed any other version rather than 7.0, it will fail.
+Arrow Gandiva depends on LLVM, and current version strictly depends on llvm10.0 if you installed any other version rather than 10.0, it will fail.
 ``` shell
-wget http://releases.llvm.org/7.0.1/llvm-7.0.1.src.tar.xz
-tar xf llvm-7.0.1.src.tar.xz
-cd llvm-7.0.1.src/
-cd tools
-wget http://releases.llvm.org/7.0.1/cfe-7.0.1.src.tar.xz
-tar xf cfe-7.0.1.src.tar.xz
-mv cfe-7.0.1.src clang
-cd ..
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . -j
-cmake --build . --target install
-# check if clang has also been compiled, if no
-cd tools/clang
-mkdir build
-cd build
-cmake ..
-make -j
-make install
+apt search llvm
+apt install llvm-10
 ```
 
 
