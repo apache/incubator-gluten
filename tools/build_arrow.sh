@@ -209,6 +209,11 @@ if [ $BUILD_ARROW == "ON" ]; then
   if [ -d build/arrow_install ]; then
       rm -r build/arrow_install
   fi
+
+  if [ -e ${CURRENT_DIR}/arrow-commit.cache ]; then
+      rm -f ${CURRENT_DIR}/arrow-commit.cache
+  fi
+
   echo "Building Arrow from Source ..."
   mkdir -p build
   cd build

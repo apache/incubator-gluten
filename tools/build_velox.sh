@@ -88,6 +88,11 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     if [ -d build/velox_install ]; then
         rm -r build/velox_install
     fi
+
+    if [ -e ${CURRENT_DIR}/velox-commit.cache ]; then
+        rm -f ${CURRENT_DIR}/velox-commit.cache
+    fi
+
     echo "Building Velox from Source ..."
     mkdir -p build
     cd build
