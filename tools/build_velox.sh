@@ -7,15 +7,24 @@ NPROC=$(nproc)
 BUILD_VELOX_FROM_SOURCE=OFF
 COMPILE_VELOX=OFF
 VELOX_HOME=${3:-/root/velox}
+ENABLE_REPO_CACHE=OFF
+
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=main
+
 for arg in "$@"
 do
     case $arg in
-        -v=*|--build_velox_from_source=*)
+        --build_velox_from_source=*)
         BUILD_VELOX_FROM_SOURCE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        -v=*|--compile_velox=*)
+        --compile_velox=*)
         COMPILE_VELOX=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_repo_cache=*)
+        ENABLE_REPO_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
 	*)
@@ -52,6 +61,26 @@ cd ${CURRENT_DIR}
 
 
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
+
+    TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
+    if [ $ENABLE_REPO_CACHE == "ON" ]; then
+        if [ -e ${CURRENT_DIR}/velox-commit.cache ]; then
+            LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/velox-commit.cache)"
+            if [ -n $LAST_BUILT_COMMIT ]; then
+                if [ -z "$TARGET_BUILD_COMMIT" ]
+                then
+                  echo "Unable to parse Velox commit: $TARGET_BUILD_COMMIT."
+                  exit 1
+                fi
+
+                if [ "$TARGET_BUILD_COMMIT" = "$LAST_BUILT_COMMIT" ]; then
+                    echo "Velox build of commit $TARGET_BUILD_COMMIT was cached, skipping build..."
+                    exit 0
+                fi
+            fi
+        fi
+    fi
+
     if [ -d build/velox_ep ]; then
         rm -r build/velox_ep
     fi
@@ -71,7 +100,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     echo "VELOX_INSTALL_DIR=${VELOX_INSTALL_DIR}"
     mkdir -p $VELOX_SOURCE_DIR
     mkdir -p $VELOX_INSTALL_DIR
-    git clone https://github.com/oap-project/velox.git -b main $VELOX_SOURCE_DIR
+    git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
     pushd $VELOX_SOURCE_DIR
     #sync submodules
     git submodule sync --recursive
@@ -80,6 +109,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     process_script
     compile
     echo "Finish to build Velox from Source !!!"
+    echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/velox-commit.cache"
 else
     VELOX_SOURCE_DIR=${VELOX_HOME}
     if [ $COMPILE_VELOX == "ON" ]; then
