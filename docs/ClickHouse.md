@@ -1,7 +1,7 @@
 ## ClickHouse Backend
 
 ClickHouse is a column-oriented database management system (DBMS) for online analytical processing of queries (OLAP), which supports best in the industry query performance, while significantly reducing storage requirements through its innovative use of columnar storage and compression.
-We port ClickHouse ( based on version **21.9** ) as a library, called 'libch.so', and Gluten loads this library through JNI as the native engine. In this way, we don't need to deploy a standalone ClickHouse Cluster, Spark uses Gluten as SparkPlugin to read and write ClickHouse MergeTree data.
+We port ClickHouse ( based on version **22.3** ) as a library, called 'libch.so', and Gluten loads this library through JNI as the native engine. In this way, we don't need to deploy a standalone ClickHouse Cluster, Spark uses Gluten as SparkPlugin to read and write ClickHouse MergeTree data.
 
 ### Architecture
 
@@ -114,7 +114,7 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
     git clone https://github.com/oap-project/gluten.git
     cd gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
-    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2.2 -Dhadoop.version=2.8.5 -DskipTests -Dbuild_cpp=OFF -Dcpp_tests=OFF -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_jemalloc=ON -Dcheckstyle.skip
+    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
     ls -al jvm/target/gluten-jvm-XXXXX-jar-with-dependencies.jar
 ```
 
@@ -143,7 +143,7 @@ sudo apt-get install -y apt-transport-https ca-certificates dirmngr
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 8919F6BD2B48D754
 echo "deb https://packages.clickhouse.com/deb stable main" | sudo tee /etc/apt/sources.list.d/clickhouse.list
 sudo apt-get update
-sudo apt-get install -y clickhouse-server clickhouse-client
+sudo apt install -y --allow-downgrades clickhouse-server=22.5.1.2079 clickhouse-client=22.5.1.2079 clickhouse-common-static=22.5.1.2079
 
 #generate MergeTree parts
 mkdir -p /path_clickhouse_database/table_path/
@@ -173,13 +173,17 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=false \
+  --conf spark.gluten.sql.columnar.columnartorow=true \
   --conf spark.gluten.sql.columnar.loadnative=true \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
-  --conf spark.gluten.sql.columnar.iterator=false \
+  --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.hashagg.enablefinal=false \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
+  --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
+  --conf spark.gluten.sql.enable.native.validation=false \
+  --conf spark.io.compression.codec=snappy \
+  --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
   --conf spark.databricks.delta.snapshotPartitions=1 \
@@ -338,13 +342,17 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.serializer=org.apache.spark.serializer.JavaSerializer \
   --conf spark.sql.sources.ignoreDataLocality=true \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=false \
+  --conf spark.gluten.sql.columnar.columnartorow=true \
   --conf spark.gluten.sql.columnar.loadnative=true \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
-  --conf spark.gluten.sql.columnar.libpath=/path_clickhouse_library/libch.so \
-  --conf spark.gluten.sql.columnar.iterator=false \
+  --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
+  --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.hashagg.enablefinal=false \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
+  --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
+  --conf spark.gluten.sql.enable.native.validation=false \
+  --conf spark.io.compression.codec=snappy \
+  --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
   --conf spark.databricks.delta.snapshotPartitions=1 \
