@@ -19,17 +19,11 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.BroadcastHashJoinExecTransformer
-<<<<<<< HEAD:jvm/src/main/scala/io/glutenproject/extension/ColumnarQueryStagePrepRule.scala
-=======
 import io.glutenproject.extension.columnar.Transformable
-
->>>>>>> 44994ab (Minor: Reorganize Scala plan validation codes):jvm/src/main/scala/io/glutenproject/extension/ColumnarQueryStagePrepOverrides.scala
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 // e.g. BroadcastHashJoinExec and it's child BroadcastExec will be cut into different QueryStages,
