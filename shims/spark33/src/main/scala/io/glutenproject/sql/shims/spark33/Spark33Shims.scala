@@ -16,25 +16,15 @@
 
 package io.glutenproject.sql.shims.spark33
 
-import scala.collection.Seq
-
 import io.glutenproject.extension.JoinSelectionOverrideShim
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 import io.glutenproject.BackendLib
 
-import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, PartitionReaderFactory, Scan}
-import org.apache.spark.{SparkContext, SparkException}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
-import org.apache.spark.sql.catalyst.util.InternalRowSet
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.datasources.v2.{DataSourceRDD, Spark33Scan}
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
