@@ -36,6 +36,8 @@ Then the dependencies below will be installed:
 * [Arrow](https://github.com/oap-project/arrow/tree/v4.0.0-oap-1.2.0)
 * [LLVM](https://llvm.org/) 
 
+Install the llvm10 mannually if needed
+
 - **Requirements for Shuffle Remote PMem Extension**  
 If enable Shuffle Remote PMem extension with RDMA, you can refer to [PMem Shuffle](https://github.com/oap-project/pmem-shuffle) to configure and validate RDMA in advance.
 
