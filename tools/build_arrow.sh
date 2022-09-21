@@ -170,18 +170,18 @@ echo $CURRENT_DIR
 
 cd ${CURRENT_DIR}
 
-ARROW_REPO=https://github.com/oap-project/arrow.git
-
-if [ $BACKEND_TYPE == "velox" ]; then
-    ARROW_BRANCH=backend_velox_main
-elif [ $BACKEND_TYPE == "gazelle_cpp" ]; then
-    ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
-else
-    echo "Unrecognizable backend type: $BACKEND_TYPE."
-    exit 1
-fi
-
 if [ $BUILD_ARROW == "ON" ]; then
+
+  ARROW_REPO=https://github.com/oap-project/arrow.git
+
+  if [ $BACKEND_TYPE == "velox" ]; then
+      ARROW_BRANCH=backend_velox_main
+  elif [ $BACKEND_TYPE == "gazelle_cpp" ]; then
+      ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
+  else
+      echo "Unrecognizable backend type: $BACKEND_TYPE."
+      exit 1
+  fi
 
   TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
   if [ $ENABLE_EP_CACHE == "ON" ]; then
