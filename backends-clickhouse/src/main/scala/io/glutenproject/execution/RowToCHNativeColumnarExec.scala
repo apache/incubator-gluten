@@ -19,17 +19,13 @@ package io.glutenproject.execution
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
+import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{
-  Attribute,
-  SortOrder,
-  UnsafeProjection,
-  UnsafeRow
-}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -51,6 +47,9 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = this.schema
+    val fieldNames = output.map(ConverterUtils.genColumnNameWithExprId(_)).toArray
+    val fieldTypes = output.map(_.dataType.typeName).toArray
+    val nullables = output.map(_.nullable).toArray
     child.execute().mapPartitions { rowIterator =>
       val projection = UnsafeProjection.create(localSchema)
       val cvt = new BlockNativeConverter
@@ -78,9 +77,9 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
             val sparkRowIterator = new SparkRowIterator(slice)
             last_address = cvt.convertSparkRowsToCHColumn(
               sparkRowIterator,
-              localSchema.fieldNames,
-              localSchema.fields.map(_.dataType.typeName),
-              localSchema.fields.map(_.nullable))
+              fieldNames,
+              fieldTypes,
+              nullables)
             elapse += System.nanoTime() - start
             val block = new CHNativeBlock(last_address)
 

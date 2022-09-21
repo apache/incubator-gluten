@@ -29,7 +29,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BoundReference, Expression, ExprId, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -39,14 +39,12 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -71,10 +69,11 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
     }
 
     val includedUnsupportedPlans = collect(plan) {
-      case s: SerializeFromObjectExec => true
-      case d: DeserializeToObjectExec => true
-      case o: ObjectHashAggregateExec => true
-      case f: FileSourceScanExec => includedDeltaOperator(f)
+      // case s: SerializeFromObjectExec => true
+      // case d: DeserializeToObjectExec => true
+      // case o: ObjectHashAggregateExec => true
+      case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
+      case f: FileSourceScanExec if includedDeltaOperator(f) => true
       case v2CommandExec: V2CommandExec => true
       case commandResultExec: CommandResultExec => true
     }

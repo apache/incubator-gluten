@@ -1,0 +1,34 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.spark.sql
+
+class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
+
+  override def blackTestNameList: Seq[String] = Seq(
+    GlutenTestConstants.IGNORE_ALL,
+    "SPARK-28441: COUNT bug in WHERE clause (Filter) with PythonUDF",
+    "SPARK-28441: COUNT bug in SELECT clause (Project) with PythonUDF",
+    "SPARK-28441: COUNT bug in Aggregate with PythonUDF",
+    "SPARK-28441: COUNT bug negative examples with PythonUDF",
+    "SPARK-28441: COUNT bug in nested subquery with PythonUDF",
+    "SPARK-28441: COUNT bug with nasty predicate expr with PythonUDF",
+    "SPARK-28441: COUNT bug in HAVING clause (Filter) with PythonUDF",
+    "SPARK-28441: COUNT bug with attribute ref in subquery input and output with PythonUDF",
+    "SPARK-35080: correlated equality predicates contain only outer references"
+  )
+}

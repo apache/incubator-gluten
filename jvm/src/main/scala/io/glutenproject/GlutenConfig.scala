@@ -76,7 +76,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.columnartorow", "true").toBoolean
 
   val forceShuffledHashJoin: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.forceshuffledhashjoin", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.forceshuffledhashjoin", "true").toBoolean
 
   // enable or disable columnar sortmergejoin
   // this should be set with preferSortMergeJoin=false

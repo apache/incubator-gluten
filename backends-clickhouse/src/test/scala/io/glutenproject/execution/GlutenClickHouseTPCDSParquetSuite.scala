@@ -124,6 +124,29 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     }
   }
 
+  test("TPCDS Q21 with DPP + SHJ") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.sql.optimizer.dynamicPartitionPruning.reuseBroadcastOnly", "false")) {
+      runTPCDSQuery(21) { df =>
+        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+          case f: FileSourceScanExecTransformer =>
+            f.partitionFilters.exists {
+              case _: DynamicPruningExpression => true
+              case _ => false
+            }
+          case _ => false
+        }
+        assert(foundDynamicPruningExpr.nonEmpty == true)
+
+        val reuseExchange = df.queryExecution.executedPlan.find {
+          case r: ReusedExchangeExec => true
+          case _ => false
+        }
+        assert(reuseExchange.isEmpty)
+      }
+    }
+  }
+
   test("TPCDS Q21 with non-separated scan rdd") {
     withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
       runTPCDSQuery(21) { df =>

@@ -32,6 +32,7 @@
   <modules>
     <module>jvm</module>
     <module>shims</module>
+    <module>gluten-ut</module>
   </modules>
 
   <properties>
@@ -68,6 +69,10 @@
     <project.prefix>spark-sql-columnar</project.prefix>
     <project.name.prefix>Gluten</project.name.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
+    <!-- For unit tests -->
+    <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
+    <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
+    <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
   </properties>
 
   <profiles>

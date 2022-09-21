@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>gluten-parent</artifactId>
@@ -9,13 +9,12 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>backends-clickhouse</artifactId>
-    <packaging>jar</packaging>
-    <name>Gluten-Backends-ClickHouse</name>
+    <artifactId>gluten-ut</artifactId>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
     </properties>
 
@@ -143,18 +142,68 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
             <version>2.11.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <profile>
+            <id>backends-clickhouse</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>backends-clickhouse</artifactId>
+                    <version>${project.version}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <properties>
+                <spark.gluten.sql.columnar.backend.lib>ch</spark.gluten.sql.columnar.backend.lib>
+            </properties>
+        </profile>
+        <profile>
+            <id>backends-velox</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>backends-velox</artifactId>
+                    <version>${project.version}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <properties>
+                <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
+                <clickhouse.lib.path></clickhouse.lib.path>
+            </properties>
+        </profile>
+        <profile>
+            <id>backends-gazelle</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>backends-velox</artifactId>
+                    <version>${project.version}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <properties>
+                <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
+                <clickhouse.lib.path></clickhouse.lib.path>
+            </properties>
+        </profile>
+    </profiles>
 
     <build>
         <resources>
@@ -208,25 +257,6 @@
                         <phase>compile</phase>
                         <goals>
                             <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <finalName>${jar.assembly.name.prefix}-${project.version}</finalName>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -306,6 +336,7 @@
                             <systemProperties>
                                 <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
                                 <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
+                                <spark.gluten.sql.columnar.backend.lib>${spark.gluten.sql.columnar.backend.lib}</spark.gluten.sql.columnar.backend.lib>
                             </systemProperties>
                         </configuration>
                     </execution>
