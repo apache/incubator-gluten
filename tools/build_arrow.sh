@@ -174,7 +174,7 @@ ARROW_REPO=https://github.com/oap-project/arrow.git
 
 if [ $BACKEND_TYPE == "velox" ]; then
     ARROW_BRANCH=backend_velox_main
-elif [ $BACKEND_TYPE == "gazelle" ]; then
+elif [ $BACKEND_TYPE == "gazellel_cpp" ]; then
     ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
 else
     echo "Unrecognizable backend type: $BACKEND_TYPE."
@@ -228,7 +228,7 @@ if [ $BUILD_ARROW == "ON" ]; then
 
   if [ $BACKEND_TYPE == "velox" ]; then
     compile_velox_arrow
-  elif [ $BACKEND_TYPE == "gazelle" ]; then
+  elif [ $BACKEND_TYPE == "gazellel_cpp" ]; then
     compile_gazelle_arrow
   else
     echo "Unrecognizable backend type: $BACKEND_TYPE."
