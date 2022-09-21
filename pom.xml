@@ -54,6 +54,7 @@
     <build_arrow>OFF</build_arrow>
     <arrow_root>${project.basedir}/../tools/build/arrow_install</arrow_root>
     <arrow.bfs.dir>${project.basedir}/../tools/build/arrow_install</arrow.bfs.dir>
+    <enable_ep_cache>ON</enable_ep_cache>
     <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
     <build_jemalloc>OFF</build_jemalloc>

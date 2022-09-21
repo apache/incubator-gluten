@@ -38,6 +38,7 @@
         <parquet.deps.scope>provided</parquet.deps.scope>
         <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars
         </jars.target.dir>
+        <jvm.enable_ep_cache>${enable_ep_cache}</jvm.enable_ep_cache>
         <jvm.build_arrow>${build_arrow}</jvm.build_arrow>
         <jvm.cpp_tests>${cpp_tests}</jvm.cpp_tests>
         <jvm.static_arrow>${static_arrow}</jvm.static_arrow>
@@ -394,6 +395,7 @@
                                 <argument>--static_arrow=${jvm.static_arrow}</argument>
                                 <argument>--arrow_root=${jvm.arrow_root}</argument>
                                 <argument>--backend_type=${jvm.backend_type}</argument>
+                                <argument>--enable_ep_cache=${jvm.enable_ep_cache}</argument>
                             </arguments>
                         </configuration>
                     </execution>

@@ -9,6 +9,7 @@ STATIC_ARROW=OFF
 ARROW_ROOT=/usr/local
 # option gazelle_cpp
 BACKEND_TYPE=velox
+ENABLE_EP_CACHE=OFF
 
 for arg in "$@"
 do
@@ -33,6 +34,10 @@ do
         BACKEND_TYPE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
         *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
@@ -42,7 +47,7 @@ done
 
 function compile_velox_arrow {
     echo "Compile velox arrow branch"
-    git clone https://github.com/oap-project/arrow.git -b backend_velox_main $ARROW_SOURCE_DIR
+    git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
 
     mkdir -p java/build
@@ -103,7 +108,7 @@ function compile_velox_arrow {
 
 function compile_gazelle_arrow {
     echo "Compile gazelle arrow branch"
-    git clone https://github.com/oap-project/arrow.git -b arrow-8.0.0-gluten-20220427a $ARROW_SOURCE_DIR
+    git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
 
     mkdir -p java/c/build
@@ -165,7 +170,40 @@ echo $CURRENT_DIR
 
 cd ${CURRENT_DIR}
 
+ARROW_REPO=https://github.com/oap-project/arrow.git
+
+if [ $BACKEND_TYPE == "velox" ]; then
+    ARROW_BRANCH=backend_velox_main
+elif [ $BACKEND_TYPE == "gazelle_cpp" ]; then
+    ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
+else
+    echo "Unrecognizable backend type: $BACKEND_TYPE."
+    exit 1
+fi
+
 if [ $BUILD_ARROW == "ON" ]; then
+
+  TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
+  if [ $ENABLE_EP_CACHE == "ON" ]; then
+    if [ -e ${CURRENT_DIR}/arrow-commit.cache ]; then
+        LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/arrow-commit.cache)"
+        if [ -n $LAST_BUILT_COMMIT ]; then
+            if [ -z "$TARGET_BUILD_COMMIT" ]
+            then
+              echo "Unable to parse Arrow commit: $TARGET_BUILD_COMMIT."
+              exit 1
+            fi
+
+            if [ "$TARGET_BUILD_COMMIT" = "$LAST_BUILT_COMMIT" ]; then
+                echo "Arrow build of commit $TARGET_BUILD_COMMIT was cached, skipping build..."
+                exit 0
+            else
+                echo "Found cached commit $LAST_BUILT_COMMIT for Arrow which is different with target commit $TARGET_BUILD_COMMIT, creating brand-new build..."
+            fi
+        fi
+    fi
+  fi
+
   if [ -d build/arrow_ep ]; then
       rm -r build/arrow_ep
   fi
@@ -173,6 +211,11 @@ if [ $BUILD_ARROW == "ON" ]; then
   if [ -d build/arrow_install ]; then
       rm -r build/arrow_install
   fi
+
+  if [ -e ${CURRENT_DIR}/arrow-commit.cache ]; then
+      rm -f ${CURRENT_DIR}/arrow-commit.cache
+  fi
+
   echo "Building Arrow from Source ..."
   mkdir -p build
   cd build
@@ -187,11 +230,15 @@ if [ $BUILD_ARROW == "ON" ]; then
 
   if [ $BACKEND_TYPE == "velox" ]; then
     compile_velox_arrow
-  else # gazelle
+  elif [ $BACKEND_TYPE == "gazelle_cpp" ]; then
     compile_gazelle_arrow
+  else
+    echo "Unrecognizable backend type: $BACKEND_TYPE."
+    exit 1
   fi
 
   echo "Finish to build Arrow from Source !!!"
+  echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/arrow-commit.cache"
 else
   echo "Use ARROW_ROOT as Arrow Library Path"
   echo "ARROW_ROOT=${ARROW_ROOT}"
