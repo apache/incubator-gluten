@@ -32,7 +32,7 @@
         <velox.build_velox>${build_velox}</velox.build_velox>
         <velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
         <velox.compile_velox>${compile_velox}</velox.compile_velox>
-        <velox.enable_repo_cache>${enable_repo_cache}</velox.enable_repo_cache>
+        <velox.enable_ep_cache>${enable_ep_cache}</velox.enable_ep_cache>
         <velox.velox_home>${velox_home}</velox.velox_home>
         <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
         <velox.debug_build>${debug_build}</velox.debug_build>
@@ -276,7 +276,7 @@
                                     --compile_velox=${velox.compile_velox}
                                 </argument>
                                 <argument>
-                                    --enable_repo_cache=${velox.enable_repo_cache}
+                                    --enable_ep_cache=${velox.enable_ep_cache}
                                 </argument>
                                 <argument>${velox.velox_home}</argument>
                             </arguments>

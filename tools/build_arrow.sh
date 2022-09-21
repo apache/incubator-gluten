@@ -9,7 +9,7 @@ STATIC_ARROW=OFF
 ARROW_ROOT=/usr/local
 # option gazelle_cpp
 BACKEND_TYPE=velox
-ENABLE_REPO_CACHE=OFF
+ENABLE_EP_CACHE=OFF
 
 for arg in "$@"
 do
@@ -34,8 +34,8 @@ do
         BACKEND_TYPE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --enable_repo_cache=*)
-        ENABLE_REPO_CACHE=("${arg#*=}")
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -184,7 +184,7 @@ fi
 if [ $BUILD_ARROW == "ON" ]; then
 
   TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
-  if [ $ENABLE_REPO_CACHE == "ON" ]; then
+  if [ $ENABLE_EP_CACHE == "ON" ]; then
     if [ -e ${CURRENT_DIR}/arrow-commit.cache ]; then
         LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/arrow-commit.cache)"
         if [ -n $LAST_BUILT_COMMIT ]; then

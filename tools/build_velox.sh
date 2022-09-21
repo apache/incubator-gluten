@@ -7,7 +7,7 @@ NPROC=$(nproc)
 BUILD_VELOX_FROM_SOURCE=OFF
 COMPILE_VELOX=OFF
 VELOX_HOME=${3:-/root/velox}
-ENABLE_REPO_CACHE=OFF
+ENABLE_EP_CACHE=OFF
 
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=main
@@ -23,8 +23,8 @@ do
         COMPILE_VELOX=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --enable_repo_cache=*)
-        ENABLE_REPO_CACHE=("${arg#*=}")
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
 	*)
@@ -63,7 +63,7 @@ cd ${CURRENT_DIR}
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
 
     TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
-    if [ $ENABLE_REPO_CACHE == "ON" ]; then
+    if [ $ENABLE_EP_CACHE == "ON" ]; then
         if [ -e ${CURRENT_DIR}/velox-commit.cache ]; then
             LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/velox-commit.cache)"
             if [ -n $LAST_BUILT_COMMIT ]; then
