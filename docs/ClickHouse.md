@@ -115,7 +115,7 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
     cd gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
-    ls -al jvm/target/gluten-jvm-XXXXX-jar-with-dependencies.jar
+    ls -al backends-clickhouse/target/gluten-XXXXX-jar-with-dependencies.jar
 ```
 
 
