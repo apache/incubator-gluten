@@ -103,7 +103,7 @@ jobs:
           sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
           sudo make -j$(nproc)
           sudo apt-get install -y google-mock
-      - name: Install Gluten Velox-backend
+      - name: Install Gluten Velox-backend spark-3.2
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
           mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
@@ -124,7 +124,7 @@ jobs:
       #    parquet/bm_lineitem/part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet \
       #    parquet/bm_part/part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet
 
-      - name: TPC-H Parquet SF1.0 local
+      - name: TPC-H Parquet SF1.0 local spark3.2
         run: |
           git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
           cd gluten-it
@@ -132,7 +132,17 @@ jobs:
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
-
+      - name: Install Gluten Velox-backend spark-3.3
+        run: |
+          mvn clean install -Pspark-3.3 -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=OFF -Dbuild_arrow=OFF
+      - name: TPC-H Parquet SF1.0 local spark-3.3
+        run: |
+          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
+          cd gluten-it
+          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Darrow.version=10.0.0-SNAPSHOT -Pspark-3.3
+          java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
+            --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
   ch-backend-test:
     runs-on: libch-self-hosted
     steps:
