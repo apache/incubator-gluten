@@ -102,8 +102,7 @@ function compile_velox_arrow {
     popd
 
     cd java
-    mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
-        -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
+    mvn clean install -DskipTests -Dcheckstyle.skip  -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=/mnt/data/jvm/bigdata/gluten/tools/build/arrow_install/lib -Dmaven.gitcommitid.skip=true
 }
 
 function compile_gazelle_arrow {
