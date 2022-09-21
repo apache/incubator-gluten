@@ -74,6 +74,8 @@
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
     <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
     <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
+    <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
+    <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
   </properties>
 
   <profiles>
@@ -369,6 +371,32 @@
         <artifactId>scalatest_${scala.binary.version}</artifactId>
         <version>3.2.3</version>
         <scope>test</scope>
+      </dependency>
+      <!-- Fasterxml -->
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+        <version>${fasterxml.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>${fasterxml.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${fasterxml.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-guava</artifactId>
+        <version>${fasterxml.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+        <version>${fasterxml.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
