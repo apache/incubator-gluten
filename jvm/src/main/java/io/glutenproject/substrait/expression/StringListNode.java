@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class StringListNode implements ExpressionNode, Serializable {
+
   private final ArrayList<String> values = new ArrayList<>();
 
   public StringListNode(ArrayList<String> values) {
