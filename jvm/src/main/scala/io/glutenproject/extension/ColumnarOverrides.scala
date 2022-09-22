@@ -21,8 +21,7 @@ import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.extension.columnar.{CheckTransformableRule, Transformable}
-
+import io.glutenproject.extension.columnar.{CheckTransformableRule, TransformHints}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -36,16 +35,21 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
 
+import io.glutenproject.extension.columnar.TransformHint
+
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 // The plan with a row guard on the top of it will not be converted.
 case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
 
   def replaceWithTransformerPlan(plan: SparkPlan, isSupportAdaptive: Boolean): SparkPlan = {
-    if (!Transformable.isTransformable(plan)) {
-      logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
-      return plan.withNewChildren(
-        plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+    TransformHints.getHint(plan) match {
+      case TransformHint.TRANSFORM_SUPPORTED =>
+        // supported, break
+      case TransformHint.TRANSFORM_UNSUPPORTED =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
+        return plan.withNewChildren(
+          plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
     }
     plan match {
       /* case plan: ArrowEvalPythonExec =>

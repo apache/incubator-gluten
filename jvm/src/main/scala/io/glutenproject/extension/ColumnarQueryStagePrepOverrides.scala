@@ -19,7 +19,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.Transformable
+import io.glutenproject.extension.columnar.TransformHints
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
@@ -51,12 +51,12 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
               bhj.isNullAwareAntiJoin)
 
           val isTransformable = transformer.doValidate()
-          Transformable.tag(plan, isTransformable)
+          TransformHints.tag(plan, isTransformable)
           if (!isTransformable) {
             bhj.children.foreach {
               // ResuedExchange is not created yet, so we don't need to handle that case.
               case e: BroadcastExchangeExec =>
-                Transformable.tagNotTransformable(e)
+                TransformHints.tagNotTransformable(e)
               case _ =>
             }
           }
