@@ -55,12 +55,12 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
               bhj.isNullAwareAntiJoin)
 
           val isTransformable = transformer.doValidate()
-          TransformHints.tag(plan, isTransformable.toTransformHint)
+          TransformHints.tag(bhj, isTransformable.toTransformHint)
           if (!isTransformable) {
             bhj.children.foreach {
               // ResuedExchange is not created yet, so we don't need to handle that case.
-              case e: BroadcastExchangeExec =>
-                TransformHints.tagNotTransformable(e)
+              case be: BroadcastExchangeExec =>
+                TransformHints.tagNotTransformable(be)
               case _ =>
             }
           }
