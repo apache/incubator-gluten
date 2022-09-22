@@ -106,7 +106,7 @@ jobs:
       - name: Install Gluten Velox-backend spark-3.2
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
+          mvn clean install -Pspark -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
           mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
@@ -116,6 +116,9 @@ jobs:
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make -j$(nproc)
           # ctest -V
+      - name: Install Gluten Velox-backend spark-3.3
+        run: |
+          mvn clean install -Pspark-3.3 -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=OFF -Dbuild_arrow=OFF
       #- name: Run micro benchmarks
       #  run: |
       #    cd cpp/velox/benchmarks/
@@ -126,20 +129,18 @@ jobs:
 
       - name: TPC-H Parquet SF1.0 local spark3.2
         run: |
-          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
+          git clone -b main https://github.com/jinchengchenghh/gluten-it.git gluten-it
           cd gluten-it
           mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
-      - name: Install Gluten Velox-backend spark-3.3
-        run: |
-          mvn clean install -Pspark-3.3 -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=OFF -Dbuild_arrow=OFF
+
       - name: TPC-H Parquet SF1.0 local spark-3.3
         run: |
-          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
+          git clone -b main https://github.com/jinchengchenghh/gluten-it.git gluten-it
           cd gluten-it
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Darrow.version=10.0.0-SNAPSHOT -Pspark-3.3
+          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT -Pspark-3.3
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22

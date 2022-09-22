@@ -32,7 +32,6 @@
   <modules>
     <module>jvm</module>
     <module>shims</module>
-    <module>gluten-ut</module>
   </modules>
 
   <properties>
@@ -76,6 +75,7 @@
     <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
     <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
+    <sparkbundle.version></sparkbundle.version>
   </properties>
 
   <profiles>
@@ -87,20 +87,29 @@
       <properties>
         <spark.version>${spark32.version}</spark.version>
         <delta.version>${delta1.version}</delta.version>
+        <sparkbundle.version>3.2</sparkbundle.version>
       </properties>
+      <modules>
+        <module>gluten-ut</module>
+      </modules>
     </profile>
     <profile>
         <id>spark-3.2</id>
         <properties>
           <spark.version>${spark32.version}</spark.version>
           <delta.version>${delta1.version}</delta.version>
+          <sparkbundle.version>3.2</sparkbundle.version>
         </properties>
+      <modules>
+        <module>gluten-ut</module>
+      </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <properties>
         <spark.version>${spark33.version}</spark.version>
         <delta.version>${delta1.version}</delta.version>
+        <sparkbundle.version>3.3</sparkbundle.version>
       </properties>
     </profile>
     <profile>
@@ -407,6 +416,17 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.2.0</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>${scala.binary.version}</classifier>
+              <classifier>${sparkbundle.version}</classifier>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
