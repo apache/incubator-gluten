@@ -44,6 +44,8 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 
 abstract class FilterExecBaseTransformer(condition: Expression,
                                          child: SparkPlan) extends UnaryExecNode
@@ -397,8 +399,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         null
     }
     val operatorId = context.nextOperatorId
-    if (projectList == null || projectList.isEmpty) {
+    if ((projectList == null || projectList.isEmpty) && childCtx != null) {
       // The computing for this project is not needed.
+      // the child may be an input adapter and childCtx is null. In this case we want to
+      // make a read node with non-empty base_schema.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
