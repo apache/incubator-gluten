@@ -26,6 +26,10 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
+import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
+import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
+import io.glutenproject.extension.columnar.TransformHint.TransformHint
+
 // e.g. BroadcastHashJoinExec and it's child BroadcastExec will be cut into different QueryStages,
 // so the columnar rules will be applied to the two QueryStages separately, and they cannot
 // see each other during transformation. In order to prevent BroadcastExec being transformed
@@ -51,7 +55,7 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
               bhj.isNullAwareAntiJoin)
 
           val isTransformable = transformer.doValidate()
-          TransformHints.tag(plan, isTransformable)
+          TransformHints.tag(plan, isTransformable.toTransformHint)
           if (!isTransformable) {
             bhj.children.foreach {
               // ResuedExchange is not created yet, so we don't need to handle that case.
@@ -63,6 +67,15 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
         }
         bhj
       case plan => plan
+    }
+  }
+
+  implicit class EncodeTransformableTagImplicits(transformable: Boolean) {
+    def toTransformHint: TransformHint = {
+      transformable match {
+        case true => TRANSFORM_SUPPORTED
+        case false => TRANSFORM_UNSUPPORTED
+      }
     }
   }
 }
