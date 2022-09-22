@@ -51,9 +51,14 @@ object TransformHints {
 
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
     if (isAlreadyTagged(plan)) {
-      throw new IllegalStateException("Transform hint tag already set in plan: " + plan.toString())
+      throw new IllegalStateException("Transform hint tag already set as "
+        + getHint(plan) + " in plan: " + plan.toString())
     }
     plan.setTagValue(TAG, hint)
+  }
+
+  def untag(plan: SparkPlan): Unit = {
+    plan.unsetTagValue(TAG)
   }
 
   def tagTransformable(plan: SparkPlan): Unit = {
@@ -310,5 +315,12 @@ case class CheckTransformableRule() extends Rule[SparkPlan] {
         case false => TRANSFORM_UNSUPPORTED
       }
     }
+  }
+}
+
+case class RemoveTransformHintRule() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    plan.foreach(TransformHints.untag)
+    plan
   }
 }

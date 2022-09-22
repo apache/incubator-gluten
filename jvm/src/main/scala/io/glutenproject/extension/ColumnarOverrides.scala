@@ -17,13 +17,9 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution._
-import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.extension.columnar.{CheckTransformableRule, TransformHints}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -35,6 +31,14 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
 
+import io.glutenproject.GlutenConfig
+import io.glutenproject.GlutenSparkExtensionsInjector
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution._
+import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.extension.columnar.CheckTransformableRule
+import io.glutenproject.extension.columnar.TransformHints
+import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.TransformHint
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -45,7 +49,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   def replaceWithTransformerPlan(plan: SparkPlan, isSupportAdaptive: Boolean): SparkPlan = {
     TransformHints.getHint(plan) match {
       case TransformHint.TRANSFORM_SUPPORTED =>
-        // supported, break
+      // supported, break
       case TransformHint.TRANSFORM_UNSUPPORTED =>
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         return plan.withNewChildren(
@@ -293,7 +297,8 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
   def preOverrides: List[SparkSession => Rule[SparkPlan]] =
     List((_: SparkSession) => CheckTransformableRule(),
-      (_: SparkSession) => TransformPreOverrides()) :::
+      (_: SparkSession) => TransformPreOverrides(),
+      (_: SparkSession) => RemoveTransformHintRule()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
 
   def postOverrides: List[SparkSession => Rule[SparkPlan]] =
