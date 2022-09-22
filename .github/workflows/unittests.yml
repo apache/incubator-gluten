@@ -48,7 +48,7 @@ jobs:
       - name: Install Gluten Arrow-backend
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          mvn clean package -Pspark-3.2 -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
           cp backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
       # - name: Run unit tests
@@ -106,7 +106,7 @@ jobs:
       - name: Install Gluten Velox-backend spark-3.2
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean install -Pspark -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
+          mvn clean install -Pspark -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Pspark-ut -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
           mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
@@ -186,7 +186,7 @@ jobs:
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
 
   formatting-check:
     name: Formatting Check

@@ -76,6 +76,7 @@
     <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
     <sparkbundle.version></sparkbundle.version>
+    <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
   </properties>
 
   <profiles>
@@ -89,9 +90,6 @@
         <delta.version>${delta1.version}</delta.version>
         <sparkbundle.version>3.2</sparkbundle.version>
       </properties>
-      <modules>
-        <module>gluten-ut</module>
-      </modules>
     </profile>
     <profile>
         <id>spark-3.2</id>
@@ -100,9 +98,6 @@
           <delta.version>${delta1.version}</delta.version>
           <sparkbundle.version>3.2</sparkbundle.version>
         </properties>
-      <modules>
-        <module>gluten-ut</module>
-      </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
@@ -208,6 +203,12 @@
         <backend_type>gazelle_cpp</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
       </properties>
+    </profile>
+    <profile>
+      <id>spark-ut</id>
+      <modules>
+        <module>gluten-ut</module>
+      </modules>
     </profile>
   </profiles>
 
@@ -411,6 +412,74 @@
   </dependencyManagement>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>${maven.compiler.plugin}</version>
+          <configuration>
+            <source>1.8</source>
+            <target>1.8</target>
+            <encoding>UTF-8</encoding>
+            <maxmem>1024m</maxmem>
+            <fork>true</fork>
+            <compilerArgs>
+              <arg>-Xlint:all,-serial,-path</arg>
+            </compilerArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalatest</groupId>
+          <artifactId>scalatest-maven-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>test</id>
+              <goals>
+                <goal>test</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>net.alchim31.maven</groupId>
+          <artifactId>scala-maven-plugin</artifactId>
+          <version>3.2.2</version>
+          <executions>
+            <execution>
+              <id>scala-compile-first</id>
+              <phase>process-resources</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>scala-test-compile-first</id>
+              <phase>process-test-resources</phase>
+              <goals>
+                <goal>testCompile</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>3.1.1</version>
+            <configuration>
+              <configLocation>dev/checkstyle.xml</configLocation>
+            </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <configLocation>${project.basedir}/scalastyle-config.xml</configLocation>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
