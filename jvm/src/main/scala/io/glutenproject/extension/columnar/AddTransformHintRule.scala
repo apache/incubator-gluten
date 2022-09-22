@@ -81,7 +81,7 @@ object TransformHints {
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
-case class CheckTransformableRule() extends Rule[SparkPlan] {
+case class AddTransformHintRule() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
   val optimizeLevel: Integer = columnarConf.joinOptimizationThrottle

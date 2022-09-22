@@ -36,7 +36,7 @@ import io.glutenproject.GlutenSparkExtensionsInjector
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.extension.columnar.CheckTransformableRule
+import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.TransformHint
@@ -296,7 +296,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   // while creating the rules. At this time SQLConf may not be there yet.
 
   def preOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List((_: SparkSession) => CheckTransformableRule(),
+    List((_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(),
       (_: SparkSession) => RemoveTransformHintRule()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
