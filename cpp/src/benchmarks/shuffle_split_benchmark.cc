@@ -208,7 +208,7 @@ class BenchmarkShuffleSplit {
   }
 
   void operator()(benchmark::State& state) {
-    SetCPU(state.thread_index());
+    // SetCPU(state.thread_index());
     arrow::Compression::type compression_type = (arrow::Compression::type)state.range(1);
 
     std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
@@ -229,9 +229,12 @@ class BenchmarkShuffleSplit {
     int64_t num_batches = 0;
     int64_t num_rows = 0;
     int64_t split_time = 0;
+    auto start_time = std::chrono::steady_clock::now();
 
     Do_Split(splitter, elapse_read, num_batches, num_rows, split_time, num_partitions,
              options, state);
+    auto end_time = std::chrono::steady_clock::now();
+    auto total_time = (end_time - start_time).count();
 
     auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
     fs->DeleteFile(splitter->DataFile());
@@ -291,6 +294,9 @@ class BenchmarkShuffleSplit {
                  splitter->TotalWriteTime();
     state.counters["split_time"] = benchmark::Counter(
         split_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+
+    state.counters["total_time"] = benchmark::Counter(
+        total_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     splitter.reset();
   }
 
@@ -438,46 +444,12 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
   }
 };
 
-/*BENCHMARK_REGISTER_F(BenchmarkShuffleSplit, CacheScan)->Iterations(1)
-      ->Args({96*2, arrow::Compression::FASTPFOR})
-      ->Args({96*4, arrow::Compression::FASTPFOR})
-      ->Args({96*8, arrow::Compression::FASTPFOR})
-      ->Args({96*16, arrow::Compression::FASTPFOR})
-      ->Args({96*32, arrow::Compression::FASTPFOR})
-      ->Threads(1)
-      ->Threads(2)
-      ->Threads(4)
-      ->Threads(8)
-      ->Threads(16)
-      ->Threads(24)
-      ->Unit(benchmark::kSecond);
-*/
-/*BENCHMARK_REGISTER_F(BenchmarkShuffleSplit, IterateScan)->Iterations(1)
-      ->Args({96*2, arrow::Compression::FASTPFOR})
-      ->Args({96*4, arrow::Compression::FASTPFOR})
-      ->Args({96*8, arrow::Compression::FASTPFOR})
-      ->Args({96*16, arrow::Compression::FASTPFOR})
-      ->Args({96*32, arrow::Compression::FASTPFOR})
-      ->Threads(1)
-      ->Threads(2)
-      ->Threads(4)
-      ->Threads(8)
-      ->Threads(16)
-      ->Threads(24)
-      ->Unit(benchmark::kSecond);*/
-/*BENCHMARK_REGISTER_F(BenchmarkShuffleSplit, CacheScan)
-    ->Iterations(1000000)
-    ->Args({512, arrow::Compression::FASTPFOR})
-    ->Threads(1)
-    ->ReportAggregatesOnly(false)
-    ->MeasureProcessCPUTime()
-    ->Unit(benchmark::kSecond);*/
 }  // namespace shuffle
 }  // namespace sparkcolumnarplugin
 
 int main(int argc, char** argv) {
   uint32_t iterations = 1;
-  uint32_t partitions = 512;
+  uint32_t partitions = 192;
   uint32_t threads = 1;
   std::string datafile;
 
@@ -497,6 +469,7 @@ int main(int argc, char** argv) {
   std::cout << "threads = " << threads << std::endl;
   std::cout << "datafile = " << datafile << std::endl;
 
+/*
   sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_CacheScan_Benchmark bck(datafile);
 
   benchmark::RegisterBenchmark("BenchmarkShuffleSplit::CacheScan", bck)
@@ -507,30 +480,20 @@ int main(int argc, char** argv) {
       ->MeasureProcessCPUTime()
       ->Unit(benchmark::kSecond);
 
-  /*    sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_IterateScan_Benchmark
+*/
+
+  sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_IterateScan_Benchmark
       bck(datafile);
 
-      benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", bck)
-        ->Iterations(1)
-          ->Args({96*2, arrow::Compression::FASTPFOR})
-          ->Args({96*4, arrow::Compression::FASTPFOR})
-          ->Args({96*8, arrow::Compression::FASTPFOR})
-          ->Args({96*16, arrow::Compression::FASTPFOR})
-          ->Args({96*32, arrow::Compression::FASTPFOR})
-          ->Threads(24)
-          ->Unit(benchmark::kSecond);
+  benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", bck)
+      ->Iterations(iterations)
+      ->Args({partitions, arrow::Compression::GZIP})
+      ->Threads(threads)
+      ->ReportAggregatesOnly(false)
+      ->MeasureProcessCPUTime()
+      ->Unit(benchmark::kSecond);
 
-      benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", bck)
-        ->Iterations(1)
-          ->Args({4096, arrow::Compression::FASTPFOR})
-          ->Threads(1)
-          ->Threads(2)
-          ->Threads(4)
-          ->Threads(8)
-          ->Threads(16)
-          ->Threads(24)
-          ->Unit(benchmark::kSecond);
-  */
+
   benchmark::Initialize(&argc, argv);
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();
