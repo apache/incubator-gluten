@@ -44,8 +44,6 @@ class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
 
   override val keyGroupedPartitioning: Option[Seq[Expression]] = Option.empty[Seq[Expression]]
 
-  override lazy val inputPartitions: Seq[InputPartition] = Seq()
-
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecShim =>
       (that canEqual this) && super.equals(that)
