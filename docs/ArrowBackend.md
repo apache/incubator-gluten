@@ -5,8 +5,6 @@ the [gazelle_plugin](https://github.com/oap-project/gazelle_plugin) project. It 
 intermediate substrait plan to Arrow's execution engine to build a pipeline for the off-loaded stage
 from Spark, and uses the optimized compute functions that are implemented in gazelle_plugin.
 
-## Environment Setup
-
 ### Prerequisites
 
 - **OS Requirements**
