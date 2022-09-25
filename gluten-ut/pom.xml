@@ -5,7 +5,7 @@
     <parent>
         <artifactId>gluten-parent</artifactId>
         <groupId>io.glutenproject</groupId>
-        <version>1.0.0-snapshot</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
