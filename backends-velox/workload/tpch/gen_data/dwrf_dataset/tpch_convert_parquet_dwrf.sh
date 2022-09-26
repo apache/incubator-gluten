@@ -1,7 +1,7 @@
 batchsize=20480
 
 export GLUTEN_HOME=/PATH/TO/gluten/
-export GLUTEN_JVM_JAR=${GLUTEN_HOME}/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar
+export GLUTEN_JVM_JAR=${GLUTEN_HOME}/backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 SPARK_HOME=/home/sparkuser/spark/
 
 cat tpch_convert_parquet_dwrf.scala  | ${SPARK_HOME}/bin/spark-shell                            \
