@@ -40,7 +40,7 @@ function process_script {
     sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
     sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
     sed -i '/^sudo apt install/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
-    sed -i 's/^  liblzo2-dev.*/  liblzo2-dev/g' scripts/setup-ubuntu.sh
+    sed -i 's/^  liblzo2-dev.*/  liblzo2-dev \\/g' scripts/setup-ubuntu.sh
     sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
     sed -i '/^function install_folly.*/i function install_pb {\n  github_checkout protocolbuffers/protobuf v3.13.0\n  git submodule update --init --recursive\n  ./autogen.sh\n  ./configure CFLAGS=-fPIC CXXFLAGS=-fPIC\n  make -j$(nproc)\n  make check\n  sudo make install\n sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_folly/i \ \ run_and_time install_pb' scripts/setup-ubuntu.sh
