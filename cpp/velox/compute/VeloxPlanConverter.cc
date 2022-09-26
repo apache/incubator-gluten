@@ -79,8 +79,6 @@ void VeloxInitializer::Init() {
   filesystems::registerLocalFileSystem();
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
-  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-  // registerConnectorFactory(hiveConnectorFactory);
   auto hiveConnector =
       getConnectorFactory(
           connector::hive::HiveConnectorFactory::kHiveConnectorName)
@@ -89,9 +87,9 @@ void VeloxInitializer::Init() {
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
-  // Register Velox functions
-  functions::prestosql::registerAllScalarFunctions();
+  // Register Velox functions.
   functions::sparksql::registerFunctions("");
+  functions::prestosql::registerAllScalarFunctions();
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   aggregate::registerAverageAggregate("avg");
   aggregate::registerCountAggregate("count");
