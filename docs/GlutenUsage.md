@@ -27,7 +27,7 @@ The full compiling command would be like:
 
 ```shell script
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+mvn clean package -Pbackends-velox -Pspark-3.3 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
@@ -41,7 +41,7 @@ add below config to disable Arrow compilation each time when compiling Gluten:
 Compile gluten again with existed velox and arrow.
 The full compiling command would be like:
 ```shell script
-mvn package -Pbackends-velox -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_arrow=ON -Dbuild_protobuf=OFF
+mvn package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_arrow=ON -Dbuild_protobuf=OFF
 ```
 while arrow_root and velox_home is the default value as following
 
@@ -79,7 +79,7 @@ spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-<>-jar-w
 spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-<>-jar-with-dependencies.jar
 ```
 
-The jar name pattern is gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar
+The gluten jar name pattern is gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar
 
 | Spark Version | sparkbundle.version | scala.binary.version |
 | ---------- | ----------- | ------------- |
@@ -103,7 +103,7 @@ time{spark.sql("${QUERY}").show}
 Submit the above script from spark-shell to trigger a Spark Job with certain configurations.
 
 ```shell script
-cat query.scala | spark-shell --name query --master yarn --deploy-mode client --conf spark.plugins=io.glutenproject.GlutenPlugin --conf spark.gluten.sql.columnar.backend.lib=${BACKEND} --conf spark.driver.extraClassPath=${gluten_jvm_jar} --conf spark.executor.extraClassPath=${gluten_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
+cat query.scala | spark-shell --name query --master yarn --deploy-mode client --conf spark.plugins=io.glutenproject.GlutenPlugin --conf spark.gluten.sql.columnar.backend.lib=${BACKEND} --conf spark.driver.extraClassPath=${gluten_jar} --conf spark.executor.extraClassPath=${gluten_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
 ```
 
 For more information about How to use Gluten with Velox, please go to [Decision Support Benchmark1](../backends-velox/workloak/tpch).
