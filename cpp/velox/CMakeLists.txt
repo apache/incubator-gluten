@@ -145,6 +145,7 @@ set(VELOX_SRCS
     compute/VeloxPlanConverter.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxToRowConverter.cc
+    compute/RowConstructor.cc
     compute/DwrfDatasource.cc
     compute/bridge.cc
     memory/velox_memory_pool.cc

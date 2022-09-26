@@ -27,6 +27,7 @@
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
+#include "RegistrationCustomFunctions.cc"
 #include "compute/exec_backend.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
@@ -101,6 +102,7 @@ void VeloxInitializer::Init() {
   aggregate::registerMinMaxAggregate<
       aggregate::MaxAggregate,
       aggregate::NonNumericMaxAggregate>("max");
+  registerCustomFunctions();
 }
 
 void VeloxPlanConverter::setInputPlanNode(
