@@ -106,6 +106,7 @@ trait HashJoinLikeExecTransformer
   extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin {
 
   def joinBuildSide: BuildSide
+  def hashJoinType: JoinType
 
   override lazy val metrics = Map(
     "streamInputRows" -> SQLMetrics.createMetric(
@@ -486,9 +487,16 @@ trait HashJoinLikeExecTransformer
   val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
   def isSkewJoin: Boolean = false
 
-  lazy val (buildPlan, streamedPlan) = joinBuildSide match {
-    case BuildLeft => (left, right)
-    case BuildRight => (right, left)
+  // Whether the left and right side should be exchanged.
+  protected lazy val exchangeTable: Boolean = joinBuildSide match {
+      case BuildLeft => true
+      case BuildRight => false
+  }
+
+  lazy val (buildPlan, streamedPlan) = if (exchangeTable) {
+    (left, right)
+  } else {
+    (right, left)
   }
 
   val (buildKeyExprs, streamedKeyExprs) = {
@@ -497,9 +505,10 @@ trait HashJoinLikeExecTransformer
       "Join keys from two sides should have same types")
     val lkeys = HashJoin.rewriteKeyExpr(leftKeys)
     val rkeys = HashJoin.rewriteKeyExpr(rightKeys)
-    joinBuildSide match {
-      case BuildLeft => (lkeys, rkeys)
-      case BuildRight => (rkeys, lkeys)
+    if (exchangeTable) {
+      (lkeys, rkeys)
+    } else {
+      (rkeys, lkeys)
     }
   }
 
@@ -521,7 +530,7 @@ trait HashJoinLikeExecTransformer
       // join type is reverted.
       JoinRel.JoinType.JOIN_TYPE_LEFT
     case LeftSemi =>
-      JoinRel.JoinType.JOIN_TYPE_SEMI
+      JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
     case LeftAnti =>
       JoinRel.JoinType.JOIN_TYPE_ANTI
     case _ =>
@@ -705,6 +714,7 @@ trait HashJoinLikeExecTransformer
     case BuildLeft =>
       joinType match {
         case _: InnerLike | RightOuter => right.outputPartitioning
+        case LeftOuter => left.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"HashJoin should not take $x as the JoinType with building left side")
@@ -713,6 +723,7 @@ trait HashJoinLikeExecTransformer
       joinType match {
         case _: InnerLike | LeftOuter | LeftSemi | LeftAnti | _: ExistenceJoin =>
           left.outputPartitioning
+        case RightOuter => right.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"HashJoin should not take $x as the JoinType with building right side")
@@ -884,12 +895,12 @@ trait HashJoinLikeExecTransformer
 
 
   protected def createJoinRel(inputStreamedRelNode: RelNode,
-                            inputBuildRelNode: RelNode,
-                            inputStreamedOutput: Seq[Attribute],
-                            inputBuildOutput: Seq[Attribute],
-                            substraitContext: SubstraitContext,
-                            operatorId: java.lang.Long,
-                            validation: Boolean = false): RelNode = {
+                              inputBuildRelNode: RelNode,
+                              inputStreamedOutput: Seq[Attribute],
+                              inputBuildOutput: Seq[Attribute],
+                              substraitContext: SubstraitContext,
+                              operatorId: java.lang.Long,
+                              validation: Boolean = false): RelNode = {
     // Create pre-projection for build/streamed plan. Append projected keys to each side.
     val (streamedKeys, streamedRelNode, streamedOutput) = createPreProjectionIfNeeded(
       streamedKeyExprs,
@@ -938,20 +949,19 @@ trait HashJoinLikeExecTransformer
       operatorId)
 
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
-    val resultProjection = joinBuildSide match {
-      case BuildLeft =>
-        val (leftOutput, rightOutput) =
-          getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
-        // Exchange the order of build and streamed.
-        leftOutput.indices.map(idx =>
-          ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
-          rightOutput.indices
-            .map(ExpressionBuilder.makeSelection(_))
-      case BuildRight =>
-        val (leftOutput, rightOutput) =
-          getResultProjectionOutput(inputStreamedOutput, inputBuildOutput)
-        leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
-          rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
+    val resultProjection = if (exchangeTable) {
+      val (leftOutput, rightOutput) =
+        getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
+      // Exchange the order of build and streamed.
+      leftOutput.indices.map(idx =>
+        ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
+        rightOutput.indices
+          .map(ExpressionBuilder.makeSelection(_))
+    } else {
+      val (leftOutput, rightOutput) =
+        getResultProjectionOutput(inputStreamedOutput, inputBuildOutput)
+      leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
+        rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
     }
 
     RelBuilder.makeProjectRel(
@@ -965,9 +975,10 @@ trait HashJoinLikeExecTransformer
   private def createTransformContext(rel: RelNode,
                                      inputStreamedOutput: Seq[Attribute],
                                      inputBuildOutput: Seq[Attribute]): TransformContext = {
-    val inputAttributes = joinBuildSide match {
-      case BuildLeft => inputBuildOutput ++ inputStreamedOutput
-      case BuildRight => inputStreamedOutput ++ inputBuildOutput
+    val inputAttributes = if (exchangeTable) {
+      inputBuildOutput ++ inputStreamedOutput
+    } else {
+      inputStreamedOutput ++ inputBuildOutput
     }
     TransformContext(inputAttributes, output, rel)
   }
@@ -984,15 +995,14 @@ trait HashJoinLikeExecTransformer
                                     validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.
     if (validation) {
-      ExtensionBuilder.makeAdvancedExtension(
-        createEnhancementForValidation(output))
+      ExtensionBuilder.makeAdvancedExtension(createEnhancementForValidation(output))
     } else {
       null
     }
   }
 
   protected def createJoinExtensionNode(output: Seq[Attribute],
-                                      validation: Boolean): AdvancedExtensionNode = {
+                                        validation: Boolean): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
     val joinParameters = genJoinParametersBuilder()
@@ -1025,7 +1035,7 @@ trait HashJoinLikeExecTransformer
 
   // The output of result projection should be consistent with ShuffledJoin.output
   protected def getResultProjectionOutput(leftOutput: Seq[Attribute],
-                                        rightOutput: Seq[Attribute])
+                                          rightOutput: Seq[Attribute])
     : (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
@@ -1039,6 +1049,7 @@ trait HashJoinLikeExecTransformer
       case j: ExistenceJoin =>
         (leftOutput :+ j.exists, Nil)
       case LeftExistence(_) =>
+        // LeftSemi | LeftAnti | ExistenceJoin.
         (leftOutput, Nil)
       case x =>
         throw new IllegalArgumentException(
@@ -1107,6 +1118,7 @@ abstract class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
   extends HashJoinLikeExecTransformer {
 
   override def joinBuildSide: BuildSide = buildSide
+  override def hashJoinType: JoinType = joinType
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
@@ -1129,6 +1141,7 @@ abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
   extends HashJoinLikeExecTransformer {
 
   override def joinBuildSide: BuildSide = buildSide
+  override def hashJoinType: JoinType = joinType
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id

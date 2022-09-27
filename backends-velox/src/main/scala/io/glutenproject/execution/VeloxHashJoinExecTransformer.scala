@@ -46,7 +46,7 @@ trait VeloxHashJoinLikeExecTransformer extends HashJoinLikeExecTransformer {
       // join type is reverted.
       JoinRel.JoinType.JOIN_TYPE_LEFT
     case LeftSemi =>
-      JoinRel.JoinType.JOIN_TYPE_SEMI
+      JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
     case LeftAnti =>
       if (!antiJoinWorkaroundNeeded) {
         JoinRel.JoinType.JOIN_TYPE_ANTI
@@ -184,20 +184,19 @@ trait VeloxHashJoinLikeExecTransformer extends HashJoinLikeExecTransformer {
     }
 
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
-    val resultProjection = joinBuildSide match {
-      case BuildLeft =>
-        val (leftOutput, rightOutput) =
-          getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
-        // Exchange the order of build and streamed.
-        leftOutput.indices.map(idx =>
-          ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
-          rightOutput.indices
-            .map(ExpressionBuilder.makeSelection(_))
-      case BuildRight =>
-        val (leftOutput, rightOutput) =
-          getResultProjectionOutput(inputStreamedOutput, inputBuildOutput)
-        leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
-          rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
+    val resultProjection = if (exchangeTable) {
+      val (leftOutput, rightOutput) =
+        getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
+      // Exchange the order of build and streamed.
+      leftOutput.indices.map(idx =>
+        ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
+        rightOutput.indices
+          .map(ExpressionBuilder.makeSelection(_))
+    } else {
+      val (leftOutput, rightOutput) =
+        getResultProjectionOutput(inputStreamedOutput, inputBuildOutput)
+      leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
+        rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
     }
 
     RelBuilder.makeProjectRel(
@@ -224,6 +223,61 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
     condition,
     left,
     right) with VeloxHashJoinLikeExecTransformer {
+
+  override lazy val exchangeTable: Boolean = hashJoinType match {
+    case LeftOuter => joinBuildSide match {
+      case BuildLeft => true /* Exchange build and stream side because RightOuter will be used. */
+      case _ => false
+    }
+    case RightOuter => joinBuildSide match {
+      case BuildRight =>
+        false /* Not exchange build and stream side because RightOuter will be used. */
+      case _ => true /* Exchange build and stream side because LeftOuter will be used. */
+    }
+    case LeftSemi => joinBuildSide match {
+      case BuildLeft => true
+      case _ => false
+    }
+    case _ => joinBuildSide match {
+      case BuildLeft => true
+      case BuildRight => false
+    }
+  }
+
+  // Direct output order of substrait join operation
+  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+    case Inner =>
+      JoinRel.JoinType.JOIN_TYPE_INNER
+    case FullOuter =>
+      JoinRel.JoinType.JOIN_TYPE_OUTER
+    case LeftOuter => joinBuildSide match {
+      case BuildLeft =>
+        // Use RightOuter join for LeftOuter with left build side.
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      case _ => JoinRel.JoinType.JOIN_TYPE_LEFT
+    }
+    case RightOuter => joinBuildSide match {
+      case BuildRight =>
+        // Use RighterOuter join for RightOuter with right build side.
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      case _ => JoinRel.JoinType.JOIN_TYPE_LEFT
+    }
+    case LeftSemi => joinBuildSide match {
+      case BuildLeft => JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
+      case _ => JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+    }
+    case LeftAnti =>
+      if (!antiJoinWorkaroundNeeded) {
+        JoinRel.JoinType.JOIN_TYPE_ANTI
+      } else {
+        // Use Left to replace Anti as a workaround.
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      }
+    case _ =>
+      // TODO: Support cross join with Cross Rel
+      // TODO: Support existence join
+      JoinRel.JoinType.UNRECOGNIZED
+  }
 
   /**
    * Returns whether a workaround for Anti join is needed. True for 'not exists' semantics.
