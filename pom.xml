@@ -75,7 +75,8 @@
     <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
     <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
-    <sparkbundle.version></sparkbundle.version>
+    <spark32bundle.version>3.2</spark32bundle.version>
+    <spark33bundle.version>3.3</spark33bundle.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
   </properties>
 
@@ -88,7 +89,7 @@
       <properties>
         <spark.version>${spark32.version}</spark.version>
         <delta.version>${delta1.version}</delta.version>
-        <sparkbundle.version>3.2</sparkbundle.version>
+        <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
       </properties>
     </profile>
     <profile>
@@ -96,7 +97,7 @@
         <properties>
           <spark.version>${spark32.version}</spark.version>
           <delta.version>${delta1.version}</delta.version>
-          <sparkbundle.version>3.2</sparkbundle.version>
+          <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
         </properties>
     </profile>
     <profile>
@@ -104,7 +105,7 @@
       <properties>
         <spark.version>${spark33.version}</spark.version>
         <delta.version>${delta1.version}</delta.version>
-        <sparkbundle.version>3.3</sparkbundle.version>
+        <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
       </properties>
     </profile>
     <profile>
@@ -184,6 +185,7 @@
       </activation>
       <modules>
         <module>backends-velox</module>
+        <module>package/velox</module>
       </modules>
       <properties>
         <backend_type>velox</backend_type>
@@ -198,6 +200,7 @@
       <modules>
         <module>backends-velox</module>
         <module>backends-gazelle</module>
+        <module>package/gazelle</module>
       </modules>
       <properties>
         <backend_type>gazelle_cpp</backend_type>
@@ -481,6 +484,15 @@
           <version>1.0.0</version>
           <configuration>
             <configLocation>${project.basedir}/scalastyle-config.xml</configLocation>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>3.3.0</version>
+          <configuration>
+            <descriptorRefs>
+              <descriptorRef>jar-with-dependencies</descriptorRef>
+            </descriptorRefs>
           </configuration>
         </plugin>
       </plugins>

@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>backends-gazelle-spark${sparkbundle.version}_${scala.binary.version}</artifactId>
+    <artifactId>backends-gazelle</artifactId>
     <packaging>jar</packaging>
     <name>Gluten-Backends-Gazelle</name>
 
@@ -44,7 +44,7 @@
     <dependencies>
         <dependency>
             <groupId>io.glutenproject</groupId>
-            <artifactId>backends-velox-spark${sparkbundle.version}_${scala.binary.version}</artifactId>
+            <artifactId>backends-velox</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
@@ -159,25 +159,6 @@
                         <phase>compile</phase>
                         <goals>
                             <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <finalName>${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}</finalName>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
                         </goals>
                     </execution>
                 </executions>

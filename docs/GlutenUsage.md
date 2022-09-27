@@ -75,8 +75,8 @@ spark.plugins io.glutenproject.GlutenPlugin
 spark.gluten.sql.columnar.backend.lib ${BACKEND}
 spark.sql.sources.useV1SourceList avro
 spark.memory.offHeap.size 20g
-spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-<>-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-<>-jar-with-dependencies.jar
+spark.driver.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
 ```
 
 The gluten jar name pattern is gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar
