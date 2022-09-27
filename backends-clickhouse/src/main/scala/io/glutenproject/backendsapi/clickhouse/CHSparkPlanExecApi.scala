@@ -18,47 +18,33 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import scala.collection.mutable.ArrayBuffer
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
-
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  BoundReference,
-  Expression,
-  ExprId,
-  NamedExpression
-}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.execution.joins.{
-  BuildSideRelation,
-  ClickHouseBuildSideRelation,
-  HashedRelationBroadcastMode
-}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -83,10 +69,11 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
     }
 
     val includedUnsupportedPlans = collect(plan) {
-      case s: SerializeFromObjectExec => true
-      case d: DeserializeToObjectExec => true
-      case o: ObjectHashAggregateExec => true
-      case f: FileSourceScanExec => includedDeltaOperator(f)
+      // case s: SerializeFromObjectExec => true
+      // case d: DeserializeToObjectExec => true
+      // case o: ObjectHashAggregateExec => true
+      case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
+      case f: FileSourceScanExec if includedDeltaOperator(f) => true
       case v2CommandExec: V2CommandExec => true
       case commandResultExec: CommandResultExec => true
     }
@@ -144,6 +131,33 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       initialInputBufferOffset,
       resultExpressions,
       child)
+
+  /**
+   * Generate ShuffledHashJoinExecTransformer.
+   */
+  def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                         rightKeys: Seq[Expression],
+                                         joinType: JoinType,
+                                         buildSide: BuildSide,
+                                         condition: Option[Expression],
+                                         left: SparkPlan,
+                                         right: SparkPlan): ShuffledHashJoinExecTransformer =
+    CHShuffledHashJoinExecTransformer(
+      leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+
+  /**
+   * Generate BroadcastHashJoinExecTransformer.
+   */
+  def genBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                          rightKeys: Seq[Expression],
+                                          joinType: JoinType,
+                                          buildSide: BuildSide,
+                                          condition: Option[Expression],
+                                          left: SparkPlan,
+                                          right: SparkPlan,
+                                          isNullAwareAntiJoin: Boolean = false)
+  : BroadcastHashJoinExecTransformer = CHBroadcastHashJoinExecTransformer(
+    leftKeys, rightKeys, joinType, buildSide, condition, left, right)
 
   /**
    * Generate Alias transformer.
@@ -318,12 +332,20 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
   }
 
   /**
-   * Generate extended Rules.
+   * Generate extended columnar pre-rules.
    * Currently only for Velox backend.
    *
    * @return
    */
-  override def genExtendedColumnarRules(): List[SparkSession => ColumnarRule] = List()
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+
+  /**
+   * Generate extended columnar post-rules.
+   * Currently only for Velox backend.
+   *
+   * @return
+   */
+  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
    * Generate extended Strategies.

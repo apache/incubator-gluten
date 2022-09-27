@@ -17,12 +17,12 @@
     <parent>
         <groupId>io.glutenproject</groupId>
         <artifactId>gluten-parent</artifactId>
-        <version>1.0.0-snapshot</version>
+        <version>1.0.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>gluten-jvm</artifactId>
-    <version>1.0.0-snapshot</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Gluten-JVM</name>
 
@@ -38,10 +38,12 @@
         <parquet.deps.scope>provided</parquet.deps.scope>
         <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars
         </jars.target.dir>
+        <jvm.enable_ep_cache>${enable_ep_cache}</jvm.enable_ep_cache>
         <jvm.build_arrow>${build_arrow}</jvm.build_arrow>
         <jvm.cpp_tests>${cpp_tests}</jvm.cpp_tests>
         <jvm.static_arrow>${static_arrow}</jvm.static_arrow>
         <jvm.arrow_root>${arrow_root}</jvm.arrow_root>
+        <jvm.backend_type>${backend_type}</jvm.backend_type>
         <protobuf.version>3.13.0</protobuf.version>
         <!-- protobuf paths -->
         <protobuf.input.directory>${resource.dir}/substrait/proto</protobuf.input.directory>
@@ -392,6 +394,8 @@
                                 <argument>--build_arrow=${jvm.build_arrow}</argument>
                                 <argument>--static_arrow=${jvm.static_arrow}</argument>
                                 <argument>--arrow_root=${jvm.arrow_root}</argument>
+                                <argument>--backend_type=${jvm.backend_type}</argument>
+                                <argument>--enable_ep_cache=${jvm.enable_ep_cache}</argument>
                             </arguments>
                         </configuration>
                     </execution>

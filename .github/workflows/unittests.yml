@@ -20,6 +20,10 @@ name: Gluten Unit Tests Suite
 on:
   pull_request
 
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
 
   arrow-backend-test:
@@ -43,14 +47,17 @@ jobs:
       - run: sudo apt-get install -y llvm clang
       - name: Install Gluten Arrow-backend
         run: |
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
+          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
-          cp backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar /tmp/gluten_jars/
+          cp backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
+      # - name: Run unit tests
+      #   run: |
+      #     mvn test -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
       - name: Run TPCDS q82,q85,q37,q60,q26
         run: |
           cd /home/sparkuser/tpcds/
           bash tpcds.sh
-
 
   velox-backend-test:
     runs-on: sr404-self-hosted
@@ -98,10 +105,11 @@ jobs:
           sudo apt-get install -y google-mock
       - name: Install Gluten Velox-backend
         run: |
+          rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
           mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
-          mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
+          mvn test -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
           cd cpp/
           mkdir -p build
           cd build
@@ -120,9 +128,9 @@ jobs:
         run: |
           git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
           cd gluten-it
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
-          java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.h.Tpch \
-            --backend-type=velox --fixed-width-as-double --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
+          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT
+          java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
 
   ch-backend-test:
@@ -155,8 +163,14 @@ jobs:
       #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
       #    restore-keys: |
       #      ${{ runner.os }}-maven-
-      - name: Check ClickHouse Backend lib
+      - name: Install and Check ClickHouse Backend lib
         run: |
+          new_md5=$(curl https://devopsnexus.kyligence.io/service/rest/v1/search/assets | jq -r '.items[0].checksum.md5') 
+          old_md5=$(md5sum /usr/local/clickhouse/lib/libch.so | awk '{print $1}')
+          if [ "$new_md5" != "$old_md5" ];then
+            wget -O /usr/local/clickhouse/lib/libch.so.new https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
+            mv /usr/local/clickhouse/lib/libch.so.new /usr/local/clickhouse/lib/libch.so          
+          fi
           ls -alt /usr/local/clickhouse/lib/libch.so
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |

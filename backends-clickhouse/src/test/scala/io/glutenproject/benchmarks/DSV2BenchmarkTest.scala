@@ -290,8 +290,8 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def collectAllJoinSide(executedPlan: SparkPlan): Unit = {
     val buildSides = collect(executedPlan) {
-      case s: ShuffledHashJoinExecTransformer => "Shuffle-" + s.buildSide.toString
-      case b: BroadcastHashJoinExecTransformer => "Broadcast-" + b.buildSide.toString
+      case s: ShuffledHashJoinExecTransformer => "Shuffle-" + s.joinBuildSide.toString
+      case b: BroadcastHashJoinExecTransformer => "Broadcast-" + b.joinBuildSide.toString
       case os: ShuffledHashJoinExec => "Shuffle-" + os.buildSide.toString
       case ob: BroadcastHashJoinExec => "Broadcast-" + ob.buildSide.toString
       case sm: SortMergeJoinExec => "SortMerge-Join"

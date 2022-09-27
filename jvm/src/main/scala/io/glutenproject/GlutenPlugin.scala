@@ -20,14 +20,15 @@ package io.glutenproject
 import java.util.{Collections, Objects}
 
 import scala.language.implicitConversions
+
 import com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePreparations, OthersExtensionOverrides, StrategyOverrides}
+import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, JniLibLoader}
 import java.util
 
 import org.apache.spark.{SparkConf, SparkContext}
@@ -117,7 +118,7 @@ private[glutenproject] object GlutenPlugin {
    * Specify all injectors that Gluten is using in following list.
    */
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
-    ColumnarQueryStagePreparations,
+    ColumnarQueryStagePrepOverrides,
     ColumnarOverrides,
     StrategyOverrides,
     OthersExtensionOverrides
@@ -159,6 +160,7 @@ private[glutenproject] object GlutenPlugin {
     if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
       val customGlutenLib = conf.get(GlutenConfig.GLUTEN_LIB_PATH, "")
       val customBackendLib = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
+      JniLibLoader.BACKEND_NAME = customBackendLib
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
         conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
         customGlutenLib,

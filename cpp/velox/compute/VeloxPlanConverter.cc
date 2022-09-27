@@ -79,8 +79,6 @@ void VeloxInitializer::Init() {
   filesystems::registerLocalFileSystem();
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
-  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-  // registerConnectorFactory(hiveConnectorFactory);
   auto hiveConnector =
       getConnectorFactory(
           connector::hive::HiveConnectorFactory::kHiveConnectorName)

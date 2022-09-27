@@ -18,28 +18,24 @@
 package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
-import io.glutenproject.execution.BroadcastHashJoinExecTransformer
-
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.columnar.TransformHints
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
-// RowGuardTag is useful to transform the plan and add guard tag before creating new QueryStages.
-//
+import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
+import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
+import io.glutenproject.extension.columnar.TransformHint.TransformHint
+
 // e.g. BroadcastHashJoinExec and it's child BroadcastExec will be cut into different QueryStages,
 // so the columnar rules will be applied to the two QueryStages separately, and they cannot
 // see each other during transformation. In order to prevent BroadcastExec being transformed
 // to columnar while BHJ fallbacks, we can add RowGuardTag to BroadcastExec when applying
 // queryStagePrepRules and check the tag when applying columnarRules.
 // RowGuardTag will be ignored if the plan is already guarded by RowGuard.
-object RowGuardTag {
-  val key: TreeNodeTag[Boolean] = TreeNodeTag[Boolean]("RowGuard")
-  val value: Boolean = true
-}
-
 case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
@@ -47,20 +43,25 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
       case bhj: BroadcastHashJoinExec =>
         if (columnarConf.enableColumnarBroadcastExchange &&
           columnarConf.enableColumnarBroadcastJoin) {
-          val transformer = BroadcastHashJoinExecTransformer(
-            bhj.leftKeys,
-            bhj.rightKeys,
-            bhj.joinType,
-            bhj.buildSide,
-            bhj.condition,
-            bhj.left,
-            bhj.right,
-            bhj.isNullAwareAntiJoin)
-          if (!transformer.doValidate()) {
-            bhj.children.map {
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genBroadcastHashJoinExecTransformer(
+              bhj.leftKeys,
+              bhj.rightKeys,
+              bhj.joinType,
+              bhj.buildSide,
+              bhj.condition,
+              bhj.left,
+              bhj.right,
+              bhj.isNullAwareAntiJoin)
+
+          val isTransformable = transformer.doValidate()
+          TransformHints.tag(bhj, isTransformable.toTransformHint)
+          if (!isTransformable) {
+            bhj.children.foreach {
               // ResuedExchange is not created yet, so we don't need to handle that case.
-              case e: BroadcastExchangeExec => AddRowGuardTag(e)
-              case plan => plan
+              case be: BroadcastExchangeExec =>
+                TransformHints.tagNotTransformable(be)
+              case _ =>
             }
           }
         }
@@ -69,13 +70,17 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
     }
   }
 
-  def AddRowGuardTag(plan: SparkPlan): SparkPlan = {
-    plan.setTagValue(RowGuardTag.key, RowGuardTag.value)
-    plan
+  implicit class EncodeTransformableTagImplicits(transformable: Boolean) {
+    def toTransformHint: TransformHint = {
+      transformable match {
+        case true => TRANSFORM_SUPPORTED
+        case false => TRANSFORM_UNSUPPORTED
+      }
+    }
   }
 }
 
-object ColumnarQueryStagePreparations extends GlutenSparkExtensionsInjector {
+object ColumnarQueryStagePrepOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectQueryStagePrepRule(ColumnarQueryStagePrepRule)
   }

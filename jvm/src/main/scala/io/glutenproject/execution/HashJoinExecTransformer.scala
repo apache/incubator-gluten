@@ -20,7 +20,6 @@ package io.glutenproject.execution
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, ByteString}
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.HashJoinLikeExecTransformer.{makeAndExpression, makeEqualToExpression}
 import io.glutenproject.expression._
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -42,8 +41,8 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import java.{lang, util}
+
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
@@ -100,16 +99,10 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
  */
-abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
-                                           rightKeys: Seq[Expression],
-                                           joinType: JoinType,
-                                           buildSide: BuildSide,
-                                           condition: Option[Expression],
-                                           left: SparkPlan,
-                                           right: SparkPlan)
-  extends BaseJoinExec
-    with TransformSupport
-    with ColumnarShuffledJoin {
+trait HashJoinLikeExecTransformer
+  extends BaseJoinExec with TransformSupport with ColumnarShuffledJoin {
+
+  def joinBuildSide: BuildSide
 
   override lazy val metrics = Map(
     "streamInputRows" -> SQLMetrics.createMetric(
@@ -238,6 +231,56 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       sparkContext, "hash build peak memory bytes"),
     "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash build memory allocations"),
+
+    "antiDistinctInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation input rows"),
+    "antiDistinctInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation input vectors"),
+    "antiDistinctInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti join distinct aggregation input bytes"),
+    "antiDistinctRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation raw input rows"),
+    "antiDistinctRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti join distinct aggregation raw input bytes"),
+    "antiDistinctOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation output rows"),
+    "antiDistinctOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation output vectors"),
+    "antiDistinctOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti join distinct aggregation output bytes"),
+    "antiDistinctCount" -> SQLMetrics.createMetric(
+      sparkContext, "anti join distinct aggregation cpu wall time count"),
+    "antiDistinctWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime_anti_join_distinct_aggregation"),
+    "antiDistinctPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "anti join distinct aggregation peak memory bytes"),
+    "antiDistinctNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti join distinct aggregation memory allocations"),
+
+    "antiProjectInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project input rows"),
+    "antiProjectInputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project input vectors"),
+    "antiProjectInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti project input bytes"),
+    "antiProjectRawInputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project raw input rows"),
+    "antiProjectRawInputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti project raw input bytes"),
+    "antiProjectOutputRows" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project output rows"),
+    "antiProjectOutputVectors" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project output vectors"),
+    "antiProjectOutputBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "number of anti project output bytes"),
+    "antiProjectCount" -> SQLMetrics.createMetric(
+      sparkContext, "anti project cpu wall time count"),
+    "antiProjectWallNanos" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext, "totaltime_anti_project"),
+    "antiProjectPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+      sparkContext, "anti project peak memory bytes"),
+    "antiProjectNumMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of anti project memory allocations"),
 
     "hashProbeInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe input rows"),
@@ -368,6 +411,38 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
   val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
 
+  /**
+   * The metrics of build side distinct aggregation, relating to the special handling for Anti join.
+   */
+  val antiDistinctInputRows: SQLMetric = longMetric("antiDistinctInputRows")
+  val antiDistinctInputVectors: SQLMetric = longMetric("antiDistinctInputVectors")
+  val antiDistinctInputBytes: SQLMetric = longMetric("antiDistinctInputBytes")
+  val antiDistinctRawInputRows: SQLMetric = longMetric("antiDistinctRawInputRows")
+  val antiDistinctRawInputBytes: SQLMetric = longMetric("antiDistinctRawInputBytes")
+  val antiDistinctOutputRows: SQLMetric = longMetric("antiDistinctOutputRows")
+  val antiDistinctOutputVectors: SQLMetric = longMetric("antiDistinctOutputVectors")
+  val antiDistinctOutputBytes: SQLMetric = longMetric("antiDistinctOutputBytes")
+  val antiDistinctCount: SQLMetric = longMetric("antiDistinctCount")
+  val antiDistinctWallNanos: SQLMetric = longMetric("antiDistinctWallNanos")
+  val antiDistinctPeakMemoryBytes: SQLMetric = longMetric("antiDistinctPeakMemoryBytes")
+  val antiDistinctNumMemoryAllocations: SQLMetric = longMetric("antiDistinctNumMemoryAllocations")
+
+  /**
+   * The metrics of build side extra projection, relating to the special handling for Anti join.
+   */
+  val antiProjectInputRows: SQLMetric = longMetric("antiProjectInputRows")
+  val antiProjectInputVectors: SQLMetric = longMetric("antiProjectInputVectors")
+  val antiProjectInputBytes: SQLMetric = longMetric("antiProjectInputBytes")
+  val antiProjectRawInputRows: SQLMetric = longMetric("antiProjectRawInputRows")
+  val antiProjectRawInputBytes: SQLMetric = longMetric("antiProjectRawInputBytes")
+  val antiProjectOutputRows: SQLMetric = longMetric("antiProjectOutputRows")
+  val antiProjectOutputVectors: SQLMetric = longMetric("antiProjectOutputVectors")
+  val antiProjectOutputBytes: SQLMetric = longMetric("antiProjectOutputBytes")
+  val antiProjectCount: SQLMetric = longMetric("antiProjectCount")
+  val antiProjectWallNanos: SQLMetric = longMetric("antiProjectWallNanos")
+  val antiProjectPeakMemoryBytes: SQLMetric = longMetric("antiProjectPeakMemoryBytes")
+  val antiProjectNumMemoryAllocations: SQLMetric = longMetric("antiProjectNumMemoryAllocations")
+
   val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
   val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
   val hashProbeInputBytes: SQLMetric = longMetric("hashProbeInputBytes")
@@ -408,7 +483,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
   def isSkewJoin: Boolean = false
 
-  lazy val (buildPlan, streamedPlan) = buildSide match {
+  lazy val (buildPlan, streamedPlan) = joinBuildSide match {
     case BuildLeft => (left, right)
     case BuildRight => (right, left)
   }
@@ -419,19 +494,28 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       "Join keys from two sides should have same types")
     val lkeys = HashJoin.rewriteKeyExpr(leftKeys)
     val rkeys = HashJoin.rewriteKeyExpr(rightKeys)
-    buildSide match {
+    joinBuildSide match {
       case BuildLeft => (lkeys, rkeys)
       case BuildRight => (rkeys, lkeys)
     }
   }
 
+  /**
+   * Returns whether a workaround for Anti join is needed.
+   * True for 'not exists' semantics on Velox backend.
+   */
+  def antiJoinWorkaroundNeeded: Boolean = false
+
   // Direct output order of substrait join operation
-  private val substraitJoinType = joinType match {
+  protected val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
     case LeftOuter | RightOuter =>
+      // The right side is required to be used for building hash table in Substrait plan.
+      // Therefore, for RightOuter Join, the left and right relations are exchanged and the
+      // join type is reverted.
       JoinRel.JoinType.JOIN_TYPE_LEFT
     case LeftSemi =>
       JoinRel.JoinType.JOIN_TYPE_SEMI
@@ -473,6 +557,12 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       idx += 1
     }
 
+    if (antiJoinWorkaroundNeeded) {
+      // Filter of isNull over project are mapped into FilterProject operator in Velox.
+      // Therefore, the filter metrics are empty and no need to be updated.
+      idx += 1
+    }
+
     // HashProbe
     val hashProbeMetrics = joinMetrics.get(idx)
     hashProbeInputRows += hashProbeMetrics.inputRows
@@ -506,6 +596,38 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
     hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
     idx += 1
+
+    if (antiJoinWorkaroundNeeded) {
+      var metrics = joinMetrics.get(idx)
+      antiProjectInputRows += metrics.inputRows
+      antiProjectInputVectors += metrics.inputVectors
+      antiProjectInputBytes += metrics.inputBytes
+      antiProjectRawInputRows += metrics.rawInputRows
+      antiProjectRawInputBytes += metrics.rawInputBytes
+      antiProjectOutputRows += metrics.outputRows
+      antiProjectOutputVectors += metrics.outputVectors
+      antiProjectOutputBytes += metrics.outputBytes
+      antiProjectCount += metrics.count
+      antiProjectWallNanos += metrics.wallNanos
+      antiProjectPeakMemoryBytes += metrics.peakMemoryBytes
+      antiProjectNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+
+      metrics = joinMetrics.get(idx)
+      antiDistinctInputRows += metrics.inputRows
+      antiDistinctInputVectors += metrics.inputVectors
+      antiDistinctInputBytes += metrics.inputBytes
+      antiDistinctRawInputRows += metrics.rawInputRows
+      antiDistinctRawInputBytes += metrics.rawInputBytes
+      antiDistinctOutputRows += metrics.outputRows
+      antiDistinctOutputVectors += metrics.outputVectors
+      antiDistinctOutputBytes += metrics.outputBytes
+      antiDistinctCount += metrics.count
+      antiDistinctWallNanos += metrics.wallNanos
+      antiDistinctPeakMemoryBytes += metrics.peakMemoryBytes
+      antiDistinctNumMemoryAllocations += metrics.numMemoryAllocations
+      idx += 1
+    }
 
     if (joinParams.buildPreProjectionNeeded) {
       val metrics = joinMetrics.get(idx)
@@ -576,7 +698,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
-  override def outputPartitioning: Partitioning = buildSide match {
+  override def outputPartitioning: Partitioning = joinBuildSide match {
     case BuildLeft =>
       joinType match {
         case _: InnerLike | RightOuter => right.outputPartitioning
@@ -669,7 +791,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     if (joinParams.isStreamedReadRel) {
       substraitContext.registerRelToOperator(operatorId)
     }
-    if(joinParams.isBuildReadRel) {
+    if (joinParams.isBuildReadRel) {
       substraitContext.registerRelToOperator(operatorId)
     }
 
@@ -697,7 +819,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     !keyExprs.forall(_.isInstanceOf[AttributeReference])
   }
 
-  private def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
+  protected def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
                                           inputNode: RelNode,
                                           inputNodeOutput: Seq[Attribute],
                                           joinOutput: Seq[Attribute],
@@ -758,7 +880,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   }
 
 
-  private def createJoinRel(inputStreamedRelNode: RelNode,
+  protected def createJoinRel(inputStreamedRelNode: RelNode,
                             inputBuildRelNode: RelNode,
                             inputStreamedOutput: Seq[Attribute],
                             inputBuildOutput: Seq[Attribute],
@@ -787,9 +909,10 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     // Combine join keys to make a single expression.
     val joinExpressionNode = (streamedKeys zip buildKeys).map {
       case ((leftKey, leftType), (rightKey, rightType)) =>
-        makeEqualToExpression(
+        HashJoinLikeExecTransformer.makeEqualToExpression(
           leftKey, leftType, rightKey, rightType, substraitContext.registeredFunction)
-    }.reduce((l, r) => makeAndExpression(l, r, substraitContext.registeredFunction))
+    }.reduce((l, r) =>
+      HashJoinLikeExecTransformer.makeAndExpression(l, r, substraitContext.registeredFunction))
 
     // Create post-join filter, which will be computed in hash join.
     val postJoinFilter = condition.map {
@@ -812,7 +935,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       operatorId)
 
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
-    val resultProjection = buildSide match {
+    val resultProjection = joinBuildSide match {
       case BuildLeft =>
         val (leftOutput, rightOutput) =
           getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
@@ -839,7 +962,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   private def createTransformContext(rel: RelNode,
                                      inputStreamedOutput: Seq[Attribute],
                                      inputBuildOutput: Seq[Attribute]): TransformContext = {
-    val inputAttributes = buildSide match {
+    val inputAttributes = joinBuildSide match {
       case BuildLeft => inputBuildOutput ++ inputStreamedOutput
       case BuildRight => inputStreamedOutput ++ inputBuildOutput
     }
@@ -854,8 +977,8 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
       new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf)
   }
 
-  private def createExtensionNode(output: Seq[Attribute],
-                                  validation: Boolean): AdvancedExtensionNode = {
+  protected def createExtensionNode(output: Seq[Attribute],
+                                    validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.
     if (validation) {
       ExtensionBuilder.makeAdvancedExtension(
@@ -865,7 +988,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
-  private def createJoinExtensionNode(output: Seq[Attribute],
+  protected def createJoinExtensionNode(output: Seq[Attribute],
                                       validation: Boolean): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
@@ -898,7 +1021,7 @@ abstract class HashJoinLikeExecTransformer(leftKeys: Seq[Expression],
   }
 
   // The output of result projection should be consistent with ShuffledJoin.output
-  private def getResultProjectionOutput(leftOutput: Seq[Attribute],
+  protected def getResultProjectionOutput(leftOutput: Seq[Attribute],
                                         rightOutput: Seq[Attribute])
     : (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
@@ -957,31 +1080,34 @@ object HashJoinLikeExecTransformer {
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
+
+  def makeIsNullExpression(childNode: ExpressionNode,
+                           functionMap: java.util.HashMap[String, java.lang.Long])
+    : ExpressionNode = {
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap, ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(BooleanType)))
+
+    ExpressionBuilder.makeScalarFunction(
+      functionId,
+      Lists.newArrayList(childNode),
+      TypeBuilder.makeBoolean(true))
+  }
 }
 
-case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                           rightKeys: Seq[Expression],
-                                           joinType: JoinType,
-                                           buildSide: BuildSide,
-                                           condition: Option[Expression],
-                                           left: SparkPlan,
-                                           right: SparkPlan)
-  extends HashJoinLikeExecTransformer(
-    leftKeys,
-    rightKeys,
-    joinType,
-    buildSide,
-    condition,
-    left,
-    right) {
+abstract class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                               rightKeys: Seq[Expression],
+                                               joinType: JoinType,
+                                               buildSide: BuildSide,
+                                               condition: Option[Expression],
+                                               left: SparkPlan,
+                                               right: SparkPlan)
+  extends HashJoinLikeExecTransformer {
+
+  override def joinBuildSide: BuildSide = buildSide
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(buildPlan)
   }
-
-  override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): ShuffledHashJoinExecTransformer =
-    copy(left = newLeft, right = newRight)
 }
 
 case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
@@ -989,22 +1115,17 @@ case class BroadCastHashJoinContext(buildSideJoinKeys: Seq[Expression],
                                     buildSideStructure: Seq[Attribute],
                                     buildHashTableId: String)
 
-case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                            rightKeys: Seq[Expression],
-                                            joinType: JoinType,
-                                            buildSide: BuildSide,
-                                            condition: Option[Expression],
-                                            left: SparkPlan,
-                                            right: SparkPlan,
-                                            isNullAwareAntiJoin: Boolean = false)
-  extends HashJoinLikeExecTransformer(
-    leftKeys,
-    rightKeys,
-    joinType,
-    buildSide,
-    condition,
-    left,
-    right) {
+abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
+                                                rightKeys: Seq[Expression],
+                                                joinType: JoinType,
+                                                buildSide: BuildSide,
+                                                condition: Option[Expression],
+                                                left: SparkPlan,
+                                                right: SparkPlan,
+                                                isNullAwareAntiJoin: Boolean = false)
+  extends HashJoinLikeExecTransformer {
+
+  override def joinBuildSide: BuildSide = buildSide
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id
@@ -1067,8 +1188,4 @@ case class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     }
     streamedRDD :+ buildRDD
   }
-
-  override protected def withNewChildrenInternal(
-    newLeft: SparkPlan, newRight: SparkPlan): BroadcastHashJoinExecTransformer =
-  copy(left = newLeft, right = newRight)
 }

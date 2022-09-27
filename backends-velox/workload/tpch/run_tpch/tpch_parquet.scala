@@ -5,7 +5,7 @@ import java.util.Arrays
 import sys.process._
 
 //Configurations:
-var dwrf_file_path = "/PATH/TO/TPCH_DWRF_PATH"
+var parquet_file_path = "/PATH/TO/TPCH_PARQUET_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
 
 def time[R](block: => R): R = {
@@ -17,14 +17,14 @@ def time[R](block: => R): R = {
 }
 
 //Read TPC-H Table from DWRF files
-val lineitem = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/lineitem")
-val part = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/part")
-val orders = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/orders")
-val customer = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/customer")
-val supplier = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/supplier")
-val partsupp = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/partsupp")
-val region = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/region")
-val nation = spark.read.format("dwrf").load("file://" + dwrf_file_path + "/nation")
+val lineitem = spark.read.format("parquet").load("file://" + parquet_file_path + "/lineitem")
+val part = spark.read.format("parquet").load("file://" + parquet_file_path + "/part")
+val orders = spark.read.format("parquet").load("file://" + parquet_file_path + "/orders")
+val customer = spark.read.format("parquet").load("file://" + parquet_file_path + "/customer")
+val supplier = spark.read.format("parquet").load("file://" + parquet_file_path + "/supplier")
+val partsupp = spark.read.format("parquet").load("file://" + parquet_file_path + "/partsupp")
+val region = spark.read.format("parquet").load("file://" + parquet_file_path + "/region")
+val nation = spark.read.format("parquet").load("file://" + parquet_file_path + "/nation")
 
 //Create DWRF based TPC-H Table View
 lineitem.createOrReplaceTempView("lineitem")

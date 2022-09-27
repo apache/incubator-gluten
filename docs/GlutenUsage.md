@@ -72,8 +72,8 @@ spark.plugins io.glutenproject.GlutenPlugin
 spark.gluten.sql.columnar.backend.lib ${BACKEND}
 spark.sql.sources.useV1SourceList avro
 spark.memory.offHeap.size 20g
-spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-snapshot-jar-with-dependencies.jar
+spark.driver.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-SNAPSHOT-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GLUTEN_HOME}/backends-velox/target/gluten-jvm-<version>-SNAPSHOT-jar-with-dependencies.jar
 ```
 ${BACKEND} can be velox or clickhouse, refer [Velox.md](https://github.com/oap-project/gluten/blob/main/docs/Velox.md}) and [ClickHouse.md](https://github.com/oap-project/gluten/blob/main/docs/ClickHouse.md) to get more detail.
 
@@ -94,3 +94,6 @@ Submit the above script from spark-shell to trigger a Spark Job with certain con
 ```shell script
 cat query.scala | spark-shell --name query --master yarn --deploy-mode client --conf spark.plugins=io.glutenproject.GlutenPlugin --conf spark.gluten.sql.columnar.backend.lib=${BACKEND} --conf spark.driver.extraClassPath=${gluten_jvm_jar} --conf spark.executor.extraClassPath=${gluten_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
 ```
+
+For more information about How to use Gluten with Velox, please go to [Decision Support Benchmark1](../backends-velox/workloak/tpch).
+

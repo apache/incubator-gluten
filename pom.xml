@@ -16,7 +16,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.glutenproject</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>1.0.0-snapshot</version>
+  <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -32,6 +32,7 @@
   <modules>
     <module>jvm</module>
     <module>shims</module>
+    <module>gluten-ut</module>
   </modules>
 
   <properties>
@@ -42,7 +43,6 @@
     <scala.binary.version>2.12</scala.binary.version>
     <spark.version>3.2.2</spark.version>
     <delta.version>${delta1.version}</delta.version>
-    <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -55,6 +55,7 @@
     <build_arrow>OFF</build_arrow>
     <arrow_root>${project.basedir}/../tools/build/arrow_install</arrow_root>
     <arrow.bfs.dir>${project.basedir}/../tools/build/arrow_install</arrow.bfs.dir>
+    <enable_ep_cache>ON</enable_ep_cache>
     <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
     <build_jemalloc>OFF</build_jemalloc>
@@ -68,6 +69,10 @@
     <project.prefix>spark-sql-columnar</project.prefix>
     <project.name.prefix>Gluten</project.name.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
+    <!-- For unit tests -->
+    <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
+    <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
+    <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
   </properties>
 
   <profiles>
@@ -154,6 +159,9 @@
       <modules>
         <module>backends-clickhouse</module>
       </modules>
+      <properties>
+        <backend_type>clickhouse</backend_type>
+      </properties>
     </profile>
     <profile>
       <id>backends-velox</id>
@@ -163,6 +171,10 @@
       <modules>
         <module>backends-velox</module>
       </modules>
+      <properties>
+        <backend_type>velox</backend_type>
+        <arrow.version>10.0.0-SNAPSHOT</arrow.version>
+      </properties>
     </profile>
     <profile>
       <id>backends-gazelle</id>
@@ -171,7 +183,12 @@
       </activation>
       <modules>
         <module>backends-velox</module>
+        <module>backends-gazelle</module>
       </modules>
+      <properties>
+        <backend_type>gazelle_cpp</backend_type>
+        <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
+      </properties>
     </profile>
   </profiles>
 

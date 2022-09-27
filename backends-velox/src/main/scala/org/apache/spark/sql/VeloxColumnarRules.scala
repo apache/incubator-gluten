@@ -18,9 +18,9 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
@@ -35,18 +35,10 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
 
 object VeloxColumnarRules {
-  case class SimpleColumnarRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
-    extends ColumnarRule {
-    override def preColumnarTransitions: Rule[SparkPlan] = pre
 
-    override def postColumnarTransitions: Rule[SparkPlan] = post
-  }
-
-  case class DwrfWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
+  case class OtherWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan match {
       case rc@DataWritingCommandExec(cmd, ColumnarToRowExec(child)) =>
         cmd match {
@@ -149,7 +141,7 @@ object VeloxColumnarRules {
       copy(child = newChild)
   }
 
-  private case class ColumnarToFakeRowAdaptor(child: SparkPlan) extends ColumnarToRowTransition {
+  case class ColumnarToFakeRowAdaptor(child: SparkPlan) extends ColumnarToRowTransition {
     if (!child.logicalLink.isEmpty) {
       setLogicalLink(ColumnarToFakeRowLogicAdaptor(child.logicalLink.get))
     }

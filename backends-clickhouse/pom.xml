@@ -5,7 +5,7 @@
     <parent>
         <artifactId>gluten-parent</artifactId>
         <groupId>io.glutenproject</groupId>
-        <version>1.0.0-snapshot</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -17,8 +17,6 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-        <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
-        <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
     </properties>
 
     <dependencies>

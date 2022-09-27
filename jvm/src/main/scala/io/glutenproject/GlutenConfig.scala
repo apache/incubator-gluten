@@ -76,7 +76,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.columnartorow", "true").toBoolean
 
   val forceShuffledHashJoin: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.forceshuffledhashjoin", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.forceshuffledhashjoin", "true").toBoolean
 
   // enable or disable columnar sortmergejoin
   // this should be set with preferSortMergeJoin=false
@@ -202,7 +202,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val columnarShuffleWriteSchema: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
 
-  // The supported customized compression codec is lz4 and fastpfor.
+  // The supported customized compression codec is lz4.
   val columnarShuffleUseCustomizedCompressionCodec: String =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
 
