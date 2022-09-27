@@ -440,10 +440,11 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <version>${scalatest-maven-plugin.version}</version>
                 <configuration>
                     <testFailureIgnore>false</testFailureIgnore>
-		    <junitxml>.</junitxml>
-	            <tagsToInclude>${tagsToInclude}</tagsToInclude>
+                    <junitxml>.</junitxml>
+                    <tagsToInclude>${tagsToInclude}</tagsToInclude>
                 </configuration>
                 <executions>
                     <execution>
