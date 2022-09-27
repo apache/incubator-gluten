@@ -17,10 +17,17 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.GlutenTestsTrait
+import io.glutenproject.GlutenConfig
+import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 import org.apache.spark.sql.types.DataType
 
 class GlutenNullExpressionsSuite extends NullExpressionsSuite with GlutenTestsTrait {
+
+  override def blackTestNameList: Seq[String] = {
+    if (GlutenConfig.getSessionConf.isClickHouseBackend) {
+      Seq(GlutenTestConstants.IGNORE_ALL)
+    } else Seq()
+  }
 
   test("gluten isnull and isnotnull") {
     testAllTypes { (value: Any, tpe: DataType) =>
