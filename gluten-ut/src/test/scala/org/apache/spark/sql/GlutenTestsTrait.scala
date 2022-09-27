@@ -40,6 +40,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
+  val backendType = System.getProperty("backend_type", "")
 
   protected override def beforeAll(): Unit = {
     // prepare working paths
