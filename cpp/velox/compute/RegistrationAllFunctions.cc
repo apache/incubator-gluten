@@ -14,8 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "RegistrationAllFunctions.h"
 #include "RowConstructor.cc"
+#include "velox/functions/sparksql/Register.h"
 
+using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
 namespace velox::compute {
@@ -26,6 +29,12 @@ void registerCustomFunctions() {
         std::vector<std::shared_ptr<exec::FunctionSignature>>{},
         std::make_unique<RowConstructor>(),
         true);
+}
+
+void registerAllFunctions() {
+  functions::prestosql::registerAllScalarFunctions();
+  functions::sparksql::registerFunctions("");
+  registerCustomFunctions();
 }
 
 } // velox::compute

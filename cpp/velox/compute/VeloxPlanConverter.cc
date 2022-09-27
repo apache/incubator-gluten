@@ -27,14 +27,13 @@
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
-#include "RegistrationCustomFunctions.cc"
+#include "RegistrationAllFunctions.cc"
 #include "compute/exec_backend.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
 #include "velox/functions/prestosql/aggregates/MinMaxAggregates.h"
-#include "velox/functions/sparksql/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -91,8 +90,7 @@ void VeloxInitializer::Init() {
   // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
-  functions::prestosql::registerAllScalarFunctions();
-  functions::sparksql::registerFunctions("");
+  registerAllFunctions();
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   aggregate::registerAverageAggregate("avg");
   aggregate::registerCountAggregate("count");
@@ -102,7 +100,6 @@ void VeloxInitializer::Init() {
   aggregate::registerMinMaxAggregate<
       aggregate::MaxAggregate,
       aggregate::NonNumericMaxAggregate>("max");
-  registerCustomFunctions();
 }
 
 void VeloxPlanConverter::setInputPlanNode(

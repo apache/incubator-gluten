@@ -20,6 +20,7 @@
 #include <jni.h>
 
 #include <jni/jni_common.h>
+#include "compute/RegistrationAllFunctions.h"
 #include "compute/DwrfDatasource.h"
 #include "compute/VeloxPlanConverter.h"
 #include "jni/jni_errors.h"
@@ -127,6 +128,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
   std::unique_ptr<core::ExecCtx> execCtx_ =
       std::make_unique<core::ExecCtx>(pool.get(), queryCtx_.get());
 
+  velox::compute::registerAllFunctions();
   auto planValidator = std::make_shared<
       facebook::velox::substrait::SubstraitToVeloxPlanValidator>(
       pool.get(), execCtx_.get());
