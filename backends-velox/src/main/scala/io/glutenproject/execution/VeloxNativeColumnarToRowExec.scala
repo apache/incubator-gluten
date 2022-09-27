@@ -59,8 +59,6 @@ case class VeloxNativeColumnarToRowExec(child: SparkPlan)
         case d: FloatType =>
         case d: DoubleType =>
         case d: StringType =>
-        case d: DateType =>
-        case d: DecimalType =>
         case d: TimestampType =>
         case d: BinaryType =>
         case _ =>

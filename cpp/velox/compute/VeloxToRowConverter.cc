@@ -171,7 +171,8 @@ arrow::Status VeloxToRowConverter::Write() {
       }
       default:
         return arrow::Status::Invalid(
-            "Type is not supported in VeloxToRow conversion.");
+            "Type " + schema_->field(col_idx)->type()->name() +
+            " is not supported in VeloxToRow conversion.");
     }
   }
   return arrow::Status::OK();
