@@ -18,22 +18,59 @@
 package io.glutenproject.execution;
 
 import java.util.Iterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class SparkRowIterator implements Iterator<byte[]> {
-
+    private static final Logger LOG = LoggerFactory.getLogger(SparkRowIterator.class);
     private final scala.collection.Iterator<byte[]> delegated;
+    private byte[] lastArray;
 
     public SparkRowIterator(scala.collection.Iterator<byte[]> delegated) {
         this.delegated = delegated;
+        lastArray = null;
     }
 
     @Override
     public boolean hasNext() {
-        return delegated.hasNext();
+        return lastArray != null || delegated.hasNext();
     }
 
     @Override
     public byte[] next() {
         return delegated.next();
+    }
+    public ByteBuffer nextBuf() {
+        int max_size = 4096;
+        ByteBuffer buf = ByteBuffer.allocateDirect(max_size);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        int size = 0;
+        if (lastArray != null) {
+            buf.putInt(lastArray.length);
+            buf.put(lastArray);
+            size += lastArray.length + 4;
+            lastArray = null;
+        }
+        while (size + 4 < max_size) {
+            if (!delegated.hasNext()) {
+                lastArray = null;
+                break;
+            }
+            lastArray = delegated.next();
+            if (size + 4 + lastArray.length > max_size) {
+                break;
+            }
+            else {
+                size += lastArray.length + 4;
+                buf.putInt(lastArray.length);
+                buf.put(lastArray);
+                lastArray = null;
+            }
+        }
+        // make the end flag
+        buf.putInt(-1);
+        return buf;
     }
 }
