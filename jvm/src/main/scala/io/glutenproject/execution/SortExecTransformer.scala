@@ -17,8 +17,19 @@
 
 package io.glutenproject.execution
 
+import com.google.common.collect.Lists
+import com.google.protobuf.Any
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
-
+import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.GlutenConfig
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.utils.BindReferencesUtil
+import io.substrait.proto.SortField
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -26,6 +37,8 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util
 
 case class SortExecTransformer(
                                 sortOrder: Seq[SortOrder],
@@ -89,10 +102,110 @@ case class SortExecTransformer(
     numOutputRows += outNumRows
   }
 
-  override def doValidate(): Boolean = false
+  def getRelNode(context: SubstraitContext,
+                 sortOrder: Seq[SortOrder],
+                 originalInputAttributes: Seq[Attribute],
+                 operatorId: Long,
+                 input: RelNode,
+                 validation: Boolean): RelNode = {
+    val args = context.registeredFunction
+    val sortFieldList = new util.ArrayList[SortField]()
+    sortOrder.map(order => {
+      val builder = SortField.newBuilder();
+      val expr = ExpressionConverter
+        .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
+      val exprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+      builder.setExpr(exprNode.toProtobuf)
+
+      (order.direction.sql, order.nullOrdering.sql) match {
+        case ("ASC", "NULLS FIRST") =>
+          builder.setDirectionValue(1);
+        case ("ASC", "NULLS LAST") =>
+          builder.setDirectionValue(2);
+        case ("DESC", "NULLS FIRST") =>
+          builder.setDirectionValue(3);
+        case ("DESC", "NULLS LAST") =>
+          builder.setDirectionValue(4);
+        case _ =>
+          builder.setDirectionValue(0);
+      }
+      sortFieldList.add(builder.build())
+    })
+    if (!validation) {
+      RelBuilder.makeSortRel(
+        input, sortFieldList, context, operatorId)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+
+      RelBuilder.makeSortRel(
+        input, sortFieldList, extensionNode, context, operatorId)
+    }
+
+  }
+
+  override def doValidate(): Boolean = {
+    return false;
+    val substraitContext = new SubstraitContext
+    val operatorId = substraitContext.nextOperatorId
+
+    val relNode = try {
+      getRelNode(
+        substraitContext, sortOrder, child.output, operatorId, null, validation = true)
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+
+    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
+      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+    val childCtx = child match {
+      case c: TransformSupport =>
+        c.doTransform(context)
+      case _ =>
+        null
+    }
+
+    val operatorId = context.nextOperatorId
+    if (sortOrder == null || sortOrder.isEmpty) {
+      // The computing for this project is not needed.
+      context.registerEmptyRelToOperator(operatorId)
+      return childCtx
+    }
+
+    val (currRel, inputAttributes) = if (childCtx != null) {
+      (getRelNode(
+        context, sortOrder, child.output, operatorId, childCtx.root, validation = false),
+        childCtx.outputAttributes)
+    } else {
+      // This means the input is just an iterator, so an ReadRel will be created as child.
+      // Prepare the input schema.
+      val attrList = new util.ArrayList[Attribute]()
+      for (attr <- child.output) {
+        attrList.add(attr)
+      }
+      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      (getRelNode(
+        context, sortOrder, child.output, operatorId, readRel, validation = false),
+        child.output)
+    }
+    assert(currRel != null, "Sort Rel should be valid")
+    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
+    TransformContext(inputAttributes, outputAttrs, currRel)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
