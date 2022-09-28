@@ -182,7 +182,7 @@
             <dependencies>
                 <dependency>
                     <groupId>io.glutenproject</groupId>
-                    <artifactId>backends-velox-spark${sparkbundle.version}_${scala.binary.version}</artifactId>
+                    <artifactId>backends-velox</artifactId>
                     <version>${project.version}</version>
                     <scope>test</scope>
                 </dependency>
@@ -200,7 +200,7 @@
             <dependencies>
                 <dependency>
                     <groupId>io.glutenproject</groupId>
-                    <artifactId>backends-velox</artifactId>
+                    <artifactId>backends-gazelle</artifactId>
                     <version>${project.version}</version>
                     <scope>test</scope>
                 </dependency>
