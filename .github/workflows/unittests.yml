@@ -146,7 +146,7 @@ jobs:
 
       - name: Build spark3.2 and spark3.3 at the same time
         run: |
-          mvn clean install -Pspark-3.2 -Pspark-3.3 -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox 
+          mvn clean install -Pspark-3.2 -Pspark-3.3 -DskipTests -Dcheckstyle.skip -Dscalastyle.skip=true  -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 
 
   ch-backend-test:
     runs-on: libch-self-hosted
