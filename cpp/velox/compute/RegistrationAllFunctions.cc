@@ -24,11 +24,11 @@ using namespace facebook::velox::exec;
 namespace velox::compute {
 
 void registerCustomFunctions() {
+
   exec::registerVectorFunction(
         "row_constructor",
         std::vector<std::shared_ptr<exec::FunctionSignature>>{},
-        std::make_unique<RowConstructor>(),
-        true);
+        std::make_unique<RowConstructor>());
 }
 
 void registerAllFunctions() {

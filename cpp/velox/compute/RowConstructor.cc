@@ -16,7 +16,6 @@
  */
 #include "velox/expression/VectorFunction.h"
 #include "velox/type/Type.h"
-#include "iostream"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -30,13 +29,12 @@ class RowConstructor : public exec::VectorFunction {
       const SelectivityVector& rows,
       std::vector<VectorPtr>& args,
       const TypePtr& outputType,
-      exec::EvalCtx* context,
-      VectorPtr* result) const override {
+      exec::EvalCtx& context,
+      VectorPtr& result) const override {
     auto argsCopy = args;
 
-    BufferPtr nulls = AlignedBuffer::allocate<char>(bits::nbytes(rows.size()), context->pool());
+    BufferPtr nulls = AlignedBuffer::allocate<char>(bits::nbytes(rows.size()), context.pool());
     auto* nullsPtr = nulls->asMutable<uint64_t>();
-
     for (size_t i = 0; i < rows.size(); ++i) {
       bits::setBit(nullsPtr, i);
     }
@@ -52,13 +50,13 @@ class RowConstructor : public exec::VectorFunction {
       }
     }
     RowVectorPtr localResult = std::make_shared<RowVector>(
-        context->pool(),
+        context.pool(),
         outputType,
         nulls,
         rows.size(),
         std::move(argsCopy),
         rows.size() /*nullCount*/);
-    context->moveOrCopyResult(localResult, rows, *result);
+    context.moveOrCopyResult(localResult, rows, result);
   }
 
   bool isDefaultNullBehavior() const override {
