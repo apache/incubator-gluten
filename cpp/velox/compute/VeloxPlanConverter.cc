@@ -77,12 +77,20 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 void VeloxInitializer::Init() {
   // Setup and register.
   filesystems::registerLocalFileSystem();
+  filesystems::registerHdfsFileSystem();
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
+  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
+  // registerConnectorFactory(hiveConnectorFactory);
+  // read hdfs client conf from hdfs-client.xml from LIBHDFS3_CONF
+  static const std::unordered_map<std::string, std::string> configurationValues(
+      {{"hive.hdfs.host", "default"}, {"hive.hdfs.port", "0"}});
+  auto properties =
+      std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector =
       getConnectorFactory(
           connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, nullptr);
+          ->newConnector(kHiveConnectorId, properties, nullptr);
   registerConnector(hiveConnector);
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
