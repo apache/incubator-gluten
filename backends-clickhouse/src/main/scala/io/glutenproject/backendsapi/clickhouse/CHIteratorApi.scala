@@ -34,7 +34,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -197,7 +196,6 @@ class CHIteratorApi extends IIteratorApi with Logging {
       sparkConf: SparkConf,
       outputAttributes: Seq[Attribute],
       rootNode: PlanNode,
-      streamedSortPlan: SparkPlan,
       pipelineTime: SQLMetric,
       updateMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
@@ -218,21 +216,16 @@ class CHIteratorApi extends IIteratorApi with Logging {
       columnarNativeIterator,
       outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    val resIter = streamedSortPlan match {
-      case t: TransformSupport =>
-        new Iterator[ColumnarBatch] {
-          override def hasNext: Boolean = {
-            nativeIterator.hasNext
-          }
+    val resIter = new Iterator[ColumnarBatch] {
+      override def hasNext: Boolean = {
+        nativeIterator.hasNext
+      }
 
-          override def next(): ColumnarBatch = {
-            val cb = nativeIterator.next()
-            updateMetrics(1, cb.numRows())
-            cb
-          }
-        }
-      case _ =>
-        throw new UnsupportedOperationException(s"streamedSortPlan should support transformation")
+      override def next(): ColumnarBatch = {
+        val cb = nativeIterator.next()
+        updateMetrics(1, cb.numRows())
+        cb
+      }
     }
     var closed = false
 

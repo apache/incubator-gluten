@@ -248,7 +248,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
     // we should zip all dependent RDDs to current main RDD
     // TODO: Does it still need these parameters?
-    val streamedSortPlan = getStreamedLeafPlan
     val dependentKernels: mutable.ListBuffer[ExpressionEvaluator] = mutable.ListBuffer()
     val dependentKernelIterators: mutable.ListBuffer[GeneralOutIterator] = mutable.ListBuffer()
     val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
@@ -319,7 +318,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             sparkConf,
             resCtx.outputAttributes,
             resCtx.root,
-            streamedSortPlan,
             pipelineTime,
             updateMetrics,
             metricsUpdatingFunction,

@@ -29,7 +29,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -287,7 +286,6 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                      sparkConf: SparkConf,
                                      outputAttributes: Seq[Attribute],
                                      rootNode: PlanNode,
-                                     streamedSortPlan: SparkPlan,
                                      pipelineTime: SQLMetric,
                                      updateMetrics: (Long, Long) => Unit,
                                      updateNativeMetrics: GeneralOutIterator => Unit,
