@@ -26,7 +26,6 @@ import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -85,7 +84,6 @@ trait IIteratorApi extends IBackendsApi {
                             sparkConf: SparkConf,
                             outputAttributes: Seq[Attribute],
                             rootNode: PlanNode,
-                            streamedSortPlan: SparkPlan,
                             pipelineTime: SQLMetric,
                             updateMetrics: (Long, Long) => Unit,
                             updateNativeMetrics: GeneralOutIterator => Unit,
