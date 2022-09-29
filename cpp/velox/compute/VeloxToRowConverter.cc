@@ -124,6 +124,23 @@ arrow::Status VeloxToRowConverter::Write() {
         }
         break;
       }
+      case arrow::Date32Type::type_id: {
+        auto vec = vecs_[col_idx];
+        bool mayHaveNulls = vec->mayHaveNulls();
+        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
+          if (mayHaveNulls && vec->isNullAt(row_idx)) {
+            SetNullAt(
+                buffer_address_, offsets_[row_idx], field_offset, col_idx);
+          } else {
+            // Will use Velox's conversion.
+            auto write_address =
+                (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto serialized = row::UnsafeRowSerializer::serialize<DateType>(
+                vec, write_address, row_idx);
+          }
+        }
+        break;
+      }
       case arrow::DoubleType::type_id: {
         auto vec = vecs_[col_idx];
         bool mayHaveNulls = vec->mayHaveNulls();
@@ -171,7 +188,8 @@ arrow::Status VeloxToRowConverter::Write() {
       }
       default:
         return arrow::Status::Invalid(
-            "Type is not supported in VeloxToRow conversion.");
+            "Type " + schema_->field(col_idx)->type()->name() +
+            " is not supported in VeloxToRow conversion.");
     }
   }
   return arrow::Status::OK();

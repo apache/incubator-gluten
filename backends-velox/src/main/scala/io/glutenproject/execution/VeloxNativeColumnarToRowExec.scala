@@ -59,9 +59,8 @@ case class VeloxNativeColumnarToRowExec(child: SparkPlan)
         case d: FloatType =>
         case d: DoubleType =>
         case d: StringType =>
-        case d: DateType =>
-        case d: DecimalType =>
         case d: TimestampType =>
+        case d: DateType =>
         case d: BinaryType =>
         case _ =>
           throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
