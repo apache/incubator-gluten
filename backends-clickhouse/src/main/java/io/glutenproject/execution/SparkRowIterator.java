@@ -41,7 +41,7 @@ public class SparkRowIterator implements Iterator<byte[]> {
         return delegated.next();
     }
 
-    public ByteBuffer nextBuf() {
+    public ByteBuffer nextBatch() {
         ByteBuffer buf = ByteBuffer.allocateDirect(maxBufSize);
         buf.order(ByteOrder.LITTLE_ENDIAN);
         if (lastRowBuf != null) {
