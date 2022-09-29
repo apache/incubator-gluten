@@ -9,8 +9,8 @@ COMPILE_VELOX=OFF
 VELOX_HOME=${3:-/root/velox}
 ENABLE_EP_CACHE=OFF
 
-VELOX_REPO=https://github.com/jinchengchenghh/velox.git
-VELOX_BRANCH=datetype
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=main
 
 for arg in "$@"
 do
