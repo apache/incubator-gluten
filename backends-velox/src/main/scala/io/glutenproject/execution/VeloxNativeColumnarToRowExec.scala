@@ -19,8 +19,9 @@ package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
-import io.glutenproject.expression.ConverterUtils
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
@@ -34,6 +35,7 @@ import io.glutenproject.vectorized.NativeColumnarToRowInfo
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 import org.apache.arrow.c.ArrowArray
 import org.apache.arrow.c.ArrowSchema
+
 import org.apache.spark.TaskContext
 import org.slf4j.LoggerFactory
 
@@ -99,12 +101,8 @@ case class VeloxNativeColumnarToRowExec(child: SparkPlan)
         } else {
           var info: NativeColumnarToRowInfo = null
           val beforeConvert = System.nanoTime()
-          ConverterUtils.printBatch(ArrowColumnarBatches.ensureLoaded(
-            SparkMemoryUtils.contextArrowAllocator(), batch))
-
           val offloaded =
             ArrowColumnarBatches.ensureOffloaded(SparkMemoryUtils.contextArrowAllocator(), batch)
-
           val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
           info = jniWrapper.nativeConvertColumnarToRow(
             batchHandle,
