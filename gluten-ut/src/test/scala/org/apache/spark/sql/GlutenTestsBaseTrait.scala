@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql
 
+import io.glutenproject.utils.NotSupport
+
 trait GlutenTestsBaseTrait {
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -28,7 +30,8 @@ trait GlutenTestsBaseTrait {
   def whiteTestNameList: Seq[String] = Seq.empty
 
   // prefer to use blackTestNameList
-  def blackTestNameList: Seq[String] = Seq.empty
+  def blackTestNameList: Seq[String] =
+    NotSupport.NotYetSupportCase(getClass.getSuperclass.getSimpleName)
 
   def whiteBlackCheck(testName: String): Boolean = {
     if (testName.startsWith(GlutenTestConstants.GLUTEN_TEST)) {
@@ -36,7 +39,7 @@ trait GlutenTestsBaseTrait {
     } else if (blackTestNameList.isEmpty && whiteTestNameList.isEmpty) {
       true
     } else if (blackTestNameList.nonEmpty &&
-      blackTestNameList(0).equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL)) {
+      blackTestNameList.head.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL)) {
       false
     } else if (blackTestNameList.nonEmpty) {
       !blackTestNameList.contains(testName)

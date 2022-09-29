@@ -27,19 +27,19 @@ object SystemParameters {
   val TPCDS_DATA_PATH_KEY = "tpcds.data.path"
   val TPCDS_DATA_PATH_DEFAULT_VALUE = "/data/tpcds-data-sf1"
 
-  def getClickHouseLibPath(): String = {
+  def getClickHouseLibPath: String = {
     System.getProperty(
       SystemParameters.CLICKHOUSE_LIB_PATH_KEY,
       SystemParameters.CLICKHOUSE_LIB_PATH_DEFAULT_VALUE)
   }
 
-  def getTpcdsDataPath(): String = {
+  def getTpcdsDataPath: String = {
     System.getProperty(
       SystemParameters.TPCDS_DATA_PATH_KEY,
       SystemParameters.TPCDS_DATA_PATH_DEFAULT_VALUE)
   }
 
-  def getGlutenBackend(): String = {
+  def getGlutenBackend: String = {
     System.getProperty(
       GlutenConfig.GLUTEN_BACKEND_LIB, GlutenConfig.GLUTEN_VELOX_BACKEND)
   }

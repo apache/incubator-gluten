@@ -17,13 +17,9 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
+import org.apache.spark.sql.GlutenTestsTrait
 
 class GlutenArithmeticExpressionSuite extends ArithmeticExpressionSuite with GlutenTestsTrait {
 
   override def whiteTestNameList: Seq[String] = Seq.empty
-
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
 }

@@ -90,10 +90,10 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-        .config("spark.gluten.sql.columnar.backend.lib", SystemParameters.getGlutenBackend())
+        .config("spark.gluten.sql.columnar.backend.lib", SystemParameters.getGlutenBackend)
         .config("spark.sql.warehouse.dir", warehouse)
 
-      _spark = if (SystemParameters.getGlutenBackend().equalsIgnoreCase(
+      _spark = if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
         GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
         sparkBuilder
           .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
@@ -102,7 +102,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
           .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
           .config("spark.gluten.sql.enable.native.validation", "false")
           .config("spark.sql.files.openCostInBytes", "134217728")
-          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath())
+          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
           .getOrCreate()
       } else {
         sparkBuilder

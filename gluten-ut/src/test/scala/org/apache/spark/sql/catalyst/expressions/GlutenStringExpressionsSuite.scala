@@ -23,10 +23,6 @@ import org.apache.spark.sql.types.IntegerType
 
 class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
-
   test(GlutenTestConstants.GLUTEN_TEST + "Substring") {
     val row = create_row("example", 1, 1L, 1.0, true, null, false)
 
