@@ -178,11 +178,12 @@ class TestOperator extends WholeStageTransformerSuite {
 
   test("test_orderby expression") {
     val result = runSql(
-      "select sum(l_partkey) from lineitem " +
-        "where l_orderkey < 3 order by sum(l_partkey) desc") { _ => }
-    assert(result.length == 1)
+      "select l_suppkey from lineitem " +
+        "where l_orderkey < 3 order by l_orderkey / 2 ") { _ => }
+    assert(result.length == 7)
 
-    val expected = Seq(Row(4345.0))
+    val expected =
+      Seq(Row(93.0), Row(75.0), Row(38.0), Row(48.0), Row(23.0), Row(10.0), Row(33.0))
     TestUtils.compareAnswers(result, expected)
   }
 }

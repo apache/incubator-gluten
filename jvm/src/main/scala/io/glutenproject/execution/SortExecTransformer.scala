@@ -17,11 +17,15 @@
 
 package io.glutenproject.execution
 
+import java.util
+import scala.util.control.Breaks.{break, breakable}
+
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import io.glutenproject.GlutenConfig
@@ -37,8 +41,6 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.util
 
 case class SortExecTransformer(
                                 sortOrder: Seq[SortOrder],
@@ -102,12 +104,93 @@ case class SortExecTransformer(
     numOutputRows += outNumRows
   }
 
-  def getRelNode(context: SubstraitContext,
-                 sortOrder: Seq[SortOrder],
-                 originalInputAttributes: Seq[Attribute],
-                 operatorId: Long,
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  protected def needsPreProjection(
+                                    sortOrders: Seq[SortOrder]): Boolean = {
+    var needsProjection = false
+    breakable {
+      for (sortOrder <- sortOrders) {
+        if (!sortOrder.child.isInstanceOf[Attribute]) {
+          needsProjection = true
+          break
+        }
+      }
+    }
+    needsProjection
+  }
+
+  def getRelWithProject(context: SubstraitContext,
+                        sortOrder: Seq[SortOrder],
+                        originalInputAttributes: Seq[Attribute],
+                        operatorId: Long,
+                        input: RelNode,
+                        validation: Boolean): RelNode = {
+    val args = context.registeredFunction
+
+    val sortFieldList = new util.ArrayList[SortField]()
+    val projectExpressions = new util.ArrayList[ExpressionNode]()
+    var colIdx = originalInputAttributes.size
+    sortOrder.map(order => {
+      val builder = SortField.newBuilder();
+      val expr = ExpressionConverter
+        .replaceWithExpressionTransformer(order.child, originalInputAttributes)
+      val projectExprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+      projectExpressions.add(projectExprNode)
+
+      val exprNode = ExpressionBuilder.makeSelection(colIdx)
+      colIdx += 1
+      builder.setExpr(exprNode.toProtobuf)
+
+      (order.direction.sql, order.nullOrdering.sql) match {
+        case ("ASC", "NULLS FIRST") =>
+          builder.setDirectionValue(1);
+        case ("ASC", "NULLS LAST") =>
+          builder.setDirectionValue(2);
+        case ("DESC", "NULLS FIRST") =>
+          builder.setDirectionValue(3);
+        case ("DESC", "NULLS LAST") =>
+          builder.setDirectionValue(4);
+        case _ =>
+          builder.setDirectionValue(0);
+      }
+      sortFieldList.add(builder.build())
+    })
+
+    val inputRel = if (!validation) {
+      RelBuilder.makeProjectRel(input, projectExpressions, context, operatorId)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for a validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+      RelBuilder.makeProjectRel(input, projectExpressions, extensionNode, context, operatorId)
+    }
+
+    if (!validation) {
+      RelBuilder.makeSortRel(
+        inputRel, sortFieldList, context, operatorId)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+
+      RelBuilder.makeSortRel(
+        inputRel, sortFieldList, extensionNode, context, operatorId)
+    }
+  }
+
+  def getRelWithoutProject(context: SubstraitContext,
+                           sortOrder: Seq[SortOrder],
+                           originalInputAttributes: Seq[Attribute],
+                           operatorId: Long,
+                           input: RelNode,
+                           validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val sortFieldList = new util.ArrayList[SortField]()
     sortOrder.map(order => {
@@ -146,7 +229,22 @@ case class SortExecTransformer(
       RelBuilder.makeSortRel(
         input, sortFieldList, extensionNode, context, operatorId)
     }
+  }
 
+  def getRelNode(context: SubstraitContext,
+                 sortOrder: Seq[SortOrder],
+                 originalInputAttributes: Seq[Attribute],
+                 operatorId: Long,
+                 input: RelNode,
+                 validation: Boolean): RelNode = {
+    val needsProjection = needsPreProjection(sortOrder: Seq[SortOrder])
+
+    if (needsProjection) {
+      getRelWithProject(context, sortOrder, originalInputAttributes, operatorId, input, validation)
+    } else {
+      getRelWithoutProject(
+        context, sortOrder, originalInputAttributes, operatorId, input, validation)
+    }
   }
 
   override def doValidate(): Boolean = {
