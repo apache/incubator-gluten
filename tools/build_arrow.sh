@@ -77,6 +77,7 @@ function compile_velox_arrow {
             -DARROW_WITH_UTF8PROC=ON \
             -DARROW_WITH_ZLIB=ON \
             -DARROW_WITH_ZSTD=ON \
+            -DARROW_WITH_QAT=ON \
             -DCMAKE_BUILD_TYPE=Release \
             -DARROW_BUILD_SHARED=ON \
             -DARROW_SUBSTRAIT=ON \
@@ -172,10 +173,10 @@ cd ${CURRENT_DIR}
 
 if [ $BUILD_ARROW == "ON" ]; then
 
-  ARROW_REPO=https://github.com/oap-project/arrow.git
+  ARROW_REPO=https://github.com/marin-ma/arrow-1.git
 
   if [ $BACKEND_TYPE == "velox" ]; then
-      ARROW_BRANCH=backend_velox_main
+      ARROW_BRANCH=backend_velox_main-qat
   elif [ $BACKEND_TYPE == "gazelle_cpp" ]; then
       ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
   else
