@@ -1,9 +1,27 @@
-#package_add_benchmark(BenchmarkArrowCompute arrow_compute_benchmark.cc)
-# package_add_benchmark(BenchmarkArrowComputeJoin arrow_compute_benchmark_join.cc)
-# package_add_benchmark(BenchmarkArrowComputeWSCG arrow_compute_benchmark_wscg.cc)
-# package_add_benchmark(BenchmarkArrowComputeSort arrow_compute_benchmark_sort.cc)
-# package_add_benchmark(BenchmarkArrowComputeHashAggregate arrow_compute_benchmark_hash_aggregate.cc)
-#package_add_benchmark(BenchmarkArrowComputeBigScale arrow_compute_benchmark_big_scale.cc)
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+find_arrow_lib(${PARQUET_LIB_NAME})
+
+macro(package_add_gbenchmark TESTNAME)
+  add_executable(${TESTNAME} ${ARGN})
+  target_link_libraries(${TESTNAME} benchmark::benchmark spark_columnar_jni Arrow::parquet ${CMAKE_THREAD_LIBS_INIT})
+  target_include_directories(${TESTNAME} PUBLIC ${source_root_directory})
+  set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
+endmacro()
+
 package_add_gbenchmark(BenchmarkShuffleSplit shuffle_split_benchmark.cc)
-# package_add_gbenchmark(BenchmarkColumnarToRow columnar_to_row_converter_benchmark.cc)
-# package_add_gbenchmark(BenchmarkRowToColumnar row_to_columnar_converter_benchmark.cc)

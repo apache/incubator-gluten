@@ -50,7 +50,7 @@ function(FIND_ARROW_LIB LIB_NAME)
       add_dependencies(Arrow::${LIB_NAME} COPY_LIB_${LIB_NAME})
     else()
       find_library(ARROW_LIB_${LIB_NAME}
-          NAMES ${ARROW_LIB_FULL_NAME}
+          NAMES ${LIB_NAME}
           PATHS ${ARROW_BFS_LIB_DIR} ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
           NO_DEFAULT_PATH)
       if(NOT ARROW_LIB_${LIB_NAME})

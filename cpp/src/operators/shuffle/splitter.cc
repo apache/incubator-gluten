@@ -47,7 +47,7 @@ using arrow::internal::checked_cast;
 #define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
 #endif
 
-#define SKIPWRITE
+// #define SKIPWRITE
 
 template <typename T>
 std::string __m128i_toString(const __m128i var) {
