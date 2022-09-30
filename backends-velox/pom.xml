@@ -278,7 +278,9 @@
                                 <argument>
                                     --enable_ep_cache=${velox.enable_ep_cache}
                                 </argument>
-                                <argument>${velox.velox_home}</argument>
+                                <argument>
+                                    --velox_home=${velox.velox_home}
+                                </argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -442,8 +444,8 @@
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <configuration>
                     <testFailureIgnore>false</testFailureIgnore>
-		    <junitxml>.</junitxml>
-	            <tagsToInclude>${tagsToInclude}</tagsToInclude>
+                    <junitxml>.</junitxml>
+                    <tagsToInclude>${tagsToInclude}</tagsToInclude>
                 </configuration>
                 <executions>
                     <execution>

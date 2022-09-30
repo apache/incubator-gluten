@@ -6,8 +6,8 @@ NPROC=$(nproc)
 
 BUILD_VELOX_FROM_SOURCE=OFF
 COMPILE_VELOX=OFF
-VELOX_HOME=${3:-/root/velox}
 ENABLE_EP_CACHE=OFF
+VELOX_HOME=/root/velox
 
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=main
@@ -25,6 +25,10 @@ do
         ;;
         --enable_ep_cache=*)
         ENABLE_EP_CACHE=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --velox_home=*)
+        VELOX_HOME=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
 	*)
