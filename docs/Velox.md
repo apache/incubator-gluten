@@ -39,6 +39,8 @@ mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobu
 
 Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not.
 
+Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
+
 ## Test TPC-H on Gluten with Velox backend
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
@@ -60,8 +62,25 @@ Below script shows an example about how to run the testing, you should modify th
 
 ```shell script
 export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar 
-cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox --master yarn --deploy-mode client --conf spark.plugins=io.glutenproject.GlutenPlugin --conf --conf spark.gluten.sql.columnar.backend.lib=velox --conf spark.driver.extraClassPath=${gluten_jvm_jar} --conf spark.executor.extraClassPath=${gluten_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
+cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
+  --master yarn --deploy-mode client \
+  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.gluten.sql.columnar.backend.lib=velox \
+  --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
+  --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=20g \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+  --num-executors 6 \
+  --executor-cores 6 \
+  --driver-memory 20g \
+  --executor-memory 25g \
+  --conf spark.executor.memoryOverhead=5g \
+  --conf spark.driver.maxResultSize=32g
 ```
+
+Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
 
 ### Result
 
