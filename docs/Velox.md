@@ -7,7 +7,7 @@ Currently the mvn script can automatically fetch and build all dependency librar
 Velox use the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency library can't be installed. So we need to install them manually:
 
 ```shell script
-apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev
+apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev ninja-build git
 ```
 
 Also we need to setup the JAVA_HOME env.
