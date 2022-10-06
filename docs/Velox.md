@@ -19,6 +19,8 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 ## Build Velox Jar
 
+Since the mvn script calls setup-ubuntu.sh to install dependency libraries, so we need to run it from root group.
+
 The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
 
 ```shell script
@@ -40,6 +42,12 @@ mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobu
 Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not.
 
 Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
+
+## Cluster mode
+
+hdfs support is still in progress for Velox backend. Refer to [issue 158](https://github.com/oap-project/gluten/issues/158). We haven't test the cluster mode. The issue is we have to manually install all dependency libraries on each worker node, currently no script available for this yet. The plan is to use conda env to build Velox and gluten.
+
+The script still use yarn to start the spark worker, but yarn is configured as single node only. Assumption is that all dependency libraries are installed into system so we needn't to set the LD_LIBRARY_PATH env.
 
 ## Test TPC-H on Gluten with Velox backend
 
