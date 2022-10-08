@@ -48,12 +48,12 @@ jobs:
       - name: Install Gluten Arrow-backend
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          mvn clean package -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
           cp backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
       # - name: Run unit tests
       #   run: |
-      #     mvn test -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
+      #     mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
       - name: Run TPCDS q82,q85,q37,q60,q26
         run: |
           cd /home/sparkuser/tpcds/
@@ -106,10 +106,10 @@ jobs:
       - name: Install Gluten Velox-backend
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
+          mvn clean install -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
-          mvn test -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
+          mvn test -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox
           cd cpp/
           mkdir -p build
           cd build
@@ -128,7 +128,7 @@ jobs:
         run: |
           git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
           cd gluten-it
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT
+          mvn clean package -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22

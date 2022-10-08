@@ -65,14 +65,6 @@ We are working on a shim layer to support multiple Spark version in the future.
 
 You can build the environment by yourself.
 
-- ### Build by yourself
-
-If you prefer to build from the source code on your hand, please follow the steps in [Installation Guide](./docs/GlutenInstallation.md) to set up your environment.
-
-### Compile and use Gluten
-
-Once your env being successfully deployed, please refer to [Gluten Usage](./docs/GlutenUsage.md) to compile and use Gluten in Spark.
-
 ### Build Gluten with Velox backend
 
 After Gluten being successfully deployed in your environment, if you would like to build Gluten with **Velox** computing, please follow the steps in [Build with Velox](./docs/Velox.md) to install the needed libraries, compile Velox and try out the TPC-H Q6 and Q1 test.
@@ -86,6 +78,10 @@ If you would like to build Gluten with **Arrow** backend, please follow the step
 ![logo](./docs/image/ClickHouse/logo.png)
 
 If you would like to build Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is devleoped by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
+
+### Build script parameters
+
+[Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
 # Performance
 
