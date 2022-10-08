@@ -17,13 +17,7 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
+import org.apache.spark.sql.GlutenTestsTrait
 
 class GlutenNullExpressionsSuite extends NullExpressionsSuite with GlutenTestsTrait {
-  override def blackTestNameList: Seq[String] = {
-    val backendType = System.getProperty("backend_type", "")
-    if (backendType.equals("velox")) {
-      Seq()
-    } else Seq(GlutenTestConstants.IGNORE_ALL)
-  }
 }

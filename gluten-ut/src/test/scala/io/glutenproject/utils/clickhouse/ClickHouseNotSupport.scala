@@ -15,9 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.catalyst.expressions
+package io.glutenproject.utils.clickhouse
 
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
+import io.glutenproject.utils.NotSupport
+import org.apache.spark.sql.catalyst.expressions._
 
-class GlutenSortOrderExpressionsSuite extends SortOrderExpressionsSuite with GlutenTestsTrait {
+object ClickHouseNotSupport extends NotSupport {
+
+  override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
+  override lazy val fullSupportSuiteList: Set[String] = Set.empty
 }

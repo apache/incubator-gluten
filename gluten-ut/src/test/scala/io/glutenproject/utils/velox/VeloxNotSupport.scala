@@ -15,9 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.catalyst.expressions
+package io.glutenproject.utils.velox
 
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
+import io.glutenproject.utils.NotSupport
+import org.apache.spark.sql.catalyst.expressions._
 
-class GlutenSortOrderExpressionsSuite extends SortOrderExpressionsSuite with GlutenTestsTrait {
+object VeloxNotSupport extends NotSupport {
+
+  override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
+
+  override lazy val fullSupportSuiteList: Set[String] = Set(
+    simpleClassName[NullExpressionsSuite]
+  )
 }

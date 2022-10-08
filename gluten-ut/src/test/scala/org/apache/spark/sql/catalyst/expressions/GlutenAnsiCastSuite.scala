@@ -25,10 +25,6 @@ import java.time.LocalDateTime
 
 class GlutenCastSuiteWithAnsiModeOn extends AnsiCastSuiteBase with GlutenTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
-
   override def beforeAll(): Unit = {
     super.beforeAll()
     SQLConf.get.setConf(SQLConf.ANSI_ENABLED, true)
@@ -51,10 +47,6 @@ class GlutenCastSuiteWithAnsiModeOn extends AnsiCastSuiteBase with GlutenTestsTr
 }
 
 class GlutenAnsiCastSuiteWithAnsiModeOn extends AnsiCastSuiteBase with GlutenTestsTrait {
-
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -80,10 +72,6 @@ class GlutenAnsiCastSuiteWithAnsiModeOn extends AnsiCastSuiteBase with GlutenTes
 
 class GlutenAnsiCastSuiteWithAnsiModeOff extends AnsiCastSuiteBase with GlutenTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
-
   override def beforeAll(): Unit = {
     super.beforeAll()
     SQLConf.get.setConf(SQLConf.ANSI_ENABLED, false)
@@ -107,12 +95,6 @@ class GlutenAnsiCastSuiteWithAnsiModeOff extends AnsiCastSuiteBase with GlutenTe
 }
 
 class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
-
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL,
-    "ANSI mode: Throw exception on casting out-of-range value to decimal type",
-    "cast from invalid string to numeric should throw NumberFormatException"
-  )
 
   private val specialTs = Seq(
     "0001-01-01T00:00:00", // the fist timestamp of Common Era
