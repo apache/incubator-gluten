@@ -19,14 +19,15 @@ package org.apache.spark.sql
 
 
 import java.io.File
+
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.commons.io.FileUtils
 import org.scalactic.source.Position
-import org.scalatest.Tag
-
+import org.scalatest.{Args, Status, Tag}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.ProjectExecTransformer
+import io.glutenproject.test.TestStats
 import io.glutenproject.utils.SystemParameters
 
 import org.apache.spark.SparkFunSuite
@@ -73,6 +74,23 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         SparkSession.clearDefaultSession()
       }
     }
+    print("Test suite: " + this.getClass.getSimpleName +
+      "; Suite test number: " + TestStats.suiteTestNumber +
+      "; OffloadGluten number: " + TestStats.offloadGlutenTestNumber + "\n")
+    TestStats.reset()
+  }
+
+  override def runTest(testName: String, args: Args): Status = {
+    val status = super.runTest(testName, args)
+    if (TestStats.offloadGluten) {
+      TestStats.offloadGlutenTestNumber += 1
+      print("'" + testName + "'" + " offload to gluten\n")
+    } else {
+      // you can find the keyword 'Validation failed for' in function doValidate() in log
+      // to get the fallback reason
+      print("'" + testName + "'" + " NOT use gluten\n")
+    }
+    status
   }
 
   protected def initializeSession(): Unit = {
@@ -116,6 +134,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
 
   override protected def test(testName: String,
                               testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
+    TestStats.suiteTestNumber += 1
     if (whiteBlackCheck(testName)) {
       super.test(testName, testTags: _*)(testFun)
     }
