@@ -17,38 +17,19 @@
 
 package io.glutenproject.vectorized;
 
-import java.io.IOException;
+public class ShuffleReaderJniWrapper {
 
-public class ShuffleDecompressionJniWrapper {
+  private ShuffleReaderJniWrapper() {
+  }
 
-  public ShuffleDecompressionJniWrapper() throws IOException {
+  static {
     JniWorkspace.getDefault().libLoader().loadEssentials();
   }
 
-  /**
-   * Make for multiple decompression with the same schema
-   *
-   * @param cSchema {@link org.apache.arrow.c.ArrowSchema} address
-   * @return native schema holder id
-   * @throws RuntimeException
-   */
-  public native long make(long cSchema) throws RuntimeException;
+  public static native long make(JniByteInputStream jniIn);
 
-  public native boolean decompress(
-      long schemaHolderId,
-      String compressionCodec,
-      int numRows,
-      long[] bufAddrs,
-      long[] bufSizes,
-      long[] bufMask,
-      long cSchema,
-      long cArray)
-      throws RuntimeException;
+  public static native long next(long handle);
 
-  /**
-   * Release resources associated with designated schema holder instance.
-   *
-   * @param schemaHolderId of the schema holder instance.
-   */
-  public native void close(long schemaHolderId);
+  public static native void close(long handle);
+
 }
