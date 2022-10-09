@@ -36,6 +36,7 @@ jobs:
           distribution: 'zulu'
           java-version: '8'
           java-package: jdk
+          overwrite-settings: false
       - run: sudo swapoff -a
       - run: free
       - run: sudo apt-get update
