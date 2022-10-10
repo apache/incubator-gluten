@@ -193,7 +193,7 @@ if [ $BUILD_ARROW == "ON" ]; then
                 echo "Arrow build of commit $TARGET_BUILD_COMMIT was cached, skipping build..."
                 exit 0
             else
-                echo "Found cached commit $LAST_BUILT_COMMIT for Arrow which is different with target commit $TARGET_BUILD_COMMIT, creating brand-new build..."
+                echo "Found cached commit $LAST_BUILT_COMMIT for Arrow which is different with target commit $TARGET_BUILD_COMMIT."
             fi
         fi
     fi
