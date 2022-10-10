@@ -36,6 +36,7 @@ done
 
 function process_script {
     # make this function Reentrantly
+    PROMPT_ALWAYS_RESPOND=n
     git checkout scripts/setup-ubuntu.sh
     sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
     sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
