@@ -117,6 +117,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     git submodule sync --recursive
     git submodule update --init --recursive
 
+    export PROMPT_ALWAYS_RESPOND=n
     process_script
     compile
     echo "Successfully built Velox from Source !!!"
