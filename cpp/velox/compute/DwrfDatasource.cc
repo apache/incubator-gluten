@@ -23,6 +23,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <regex>
 #include <string>
 
 #include "ArrowTypeUtils.h"
@@ -119,6 +120,22 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
             ->createReader(
                 std::make_unique<dwio::common::FileInputStream>(
                     file_path_.substr(5)),
+                reader_options);
+    return toArrowSchema(reader->rowType());
+  } else if (strncmp(file_path_.c_str(), "hdfs:", 5) == 0) {
+    struct hdfsBuilder* builder = hdfsNewBuilder();
+    // read hdfs client conf from hdfs-client.xml from LIBHDFS3_CONF
+    hdfsBuilderSetNameNode(builder, "default");
+    hdfsFS hdfs = hdfsBuilderConnect(builder);
+    hdfsFreeBuilder(builder);
+    std::regex hdfsPrefixExp("hdfs://(\\w+)/");
+    std::string hdfsFilePath =
+        regex_replace(file_path_.c_str(), hdfsPrefixExp, "/");
+    HdfsReadFile readFile(hdfs, hdfsFilePath);
+    std::unique_ptr<dwio::common::Reader> reader =
+        dwio::common::getReaderFactory(reader_options.getFileFormat())
+            ->createReader(
+                std::make_unique<dwio::common::ReadFileInputStream>(&readFile),
                 reader_options);
     return toArrowSchema(reader->rowType());
   } else {
