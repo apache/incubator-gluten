@@ -105,7 +105,10 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     if [ -d $VELOX_SOURCE_DIR ]; then
         echo "Applying incremental build for Velox..."
         pushd $VELOX_SOURCE_DIR
-        git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
+        EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT`
+        if [ -z $EXISTS ]; then
+            git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
+        fi
         git checkout build_$TARGET_BUILD_COMMIT
     else
         echo "Creating brand-new build for Velox..."
