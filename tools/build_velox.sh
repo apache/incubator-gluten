@@ -61,11 +61,12 @@ cd ${CURRENT_DIR}
 
 
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
-
+    mkdir -p build
     TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
+
     if [ $ENABLE_EP_CACHE == "ON" ]; then
-        if [ -e ${CURRENT_DIR}/velox-commit.cache ]; then
-            LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/velox-commit.cache)"
+        if [ -e ${CURRENT_DIR}/build/velox-commit.cache ]; then
+            LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/build/velox-commit.cache)"
             if [ -n $LAST_BUILT_COMMIT ]; then
                 if [ -z "$TARGET_BUILD_COMMIT" ]
                 then
@@ -77,27 +78,16 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
                     echo "Velox build of commit $TARGET_BUILD_COMMIT was cached, skipping build..."
                     exit 0
                 else
-                    echo "Found cached commit $LAST_BUILT_COMMIT for Velox which is different with target commit $TARGET_BUILD_COMMIT, creating brand-new build..."
+                    echo "Found cached commit $LAST_BUILT_COMMIT for Velox which is different with target commit $TARGET_BUILD_COMMIT."
                 fi
             fi
         fi
     fi
 
-    if [ -d build/velox_ep ]; then
-        rm -r build/velox_ep
+    if [ -e ${CURRENT_DIR}/build/velox-commit.cache ]; then
+        rm -f ${CURRENT_DIR}/build/velox-commit.cache
     fi
 
-    if [ -d build/velox_install ]; then
-        rm -r build/velox_install
-    fi
-
-    if [ -e ${CURRENT_DIR}/velox-commit.cache ]; then
-        rm -f ${CURRENT_DIR}/velox-commit.cache
-    fi
-
-    echo "Building Velox from Source ..."
-    mkdir -p build
-    cd build
     VELOX_PREFIX="${CURRENT_DIR}/build" # Use build directory as VELOX_PREFIX
     VELOX_SOURCE_DIR="${VELOX_PREFIX}/velox_ep"
     VELOX_INSTALL_DIR="${VELOX_PREFIX}/velox_install"
@@ -107,8 +97,21 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     echo "VELOX_INSTALL_DIR=${VELOX_INSTALL_DIR}"
     mkdir -p $VELOX_SOURCE_DIR
     mkdir -p $VELOX_INSTALL_DIR
-    git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
-    pushd $VELOX_SOURCE_DIR
+
+    if [ -d $VELOX_INSTALL_DIR ]; then
+        rm -r $VELOX_INSTALL_DIR
+    fi
+
+    if [ -d $VELOX_SOURCE_DIR]; then
+        echo "Applying incremental build for Velox..."
+        pushd $VELOX_SOURCE_DIR
+        git fetch $VELOX_REPO
+        git checkout $VELOX_REPO/$VELOX_BRANCH
+    else
+        echo "Creating brand-new build for Velox..."
+        git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
+        pushd $VELOX_SOURCE_DIR
+    fi
     #sync submodules
     git submodule sync --recursive
     git submodule update --init --recursive
@@ -116,7 +119,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     process_script
     compile
     echo "Finish to build Velox from Source !!!"
-    echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/velox-commit.cache"
+    echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/build/velox-commit.cache"
 else
     VELOX_SOURCE_DIR=${VELOX_HOME}
     if [ $COMPILE_VELOX == "ON" ]; then

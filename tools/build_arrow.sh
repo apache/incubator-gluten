@@ -46,10 +46,7 @@ do
 done
 
 function compile_velox_arrow {
-    echo "Compile velox arrow branch"
-    git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
-
     mkdir -p java/build
     pushd java/build
     cmake \
@@ -107,8 +104,6 @@ function compile_velox_arrow {
 }
 
 function compile_gazelle_arrow {
-    echo "Compile gazelle arrow branch"
-    git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
 
     mkdir -p java/c/build
@@ -171,7 +166,7 @@ echo $CURRENT_DIR
 cd ${CURRENT_DIR}
 
 if [ $BUILD_ARROW == "ON" ]; then
-
+  mkdir -p build
   ARROW_REPO=https://github.com/oap-project/arrow.git
 
   if [ $BACKEND_TYPE == "velox" ]; then
@@ -185,8 +180,8 @@ if [ $BUILD_ARROW == "ON" ]; then
 
   TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
   if [ $ENABLE_EP_CACHE == "ON" ]; then
-    if [ -e ${CURRENT_DIR}/arrow-commit.cache ]; then
-        LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/arrow-commit.cache)"
+    if [ -e ${CURRENT_DIR}/build/arrow-commit.cache ]; then
+        LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/build/arrow-commit.cache)"
         if [ -n $LAST_BUILT_COMMIT ]; then
             if [ -z "$TARGET_BUILD_COMMIT" ]
             then
@@ -204,21 +199,11 @@ if [ $BUILD_ARROW == "ON" ]; then
     fi
   fi
 
-  if [ -d build/arrow_ep ]; then
-      rm -r build/arrow_ep
-  fi
-
-  if [ -d build/arrow_install ]; then
-      rm -r build/arrow_install
-  fi
-
-  if [ -e ${CURRENT_DIR}/arrow-commit.cache ]; then
-      rm -f ${CURRENT_DIR}/arrow-commit.cache
+  if [ -e ${CURRENT_DIR}/build/arrow-commit.cache ]; then
+      rm -f ${CURRENT_DIR}/build/arrow-commit.cache
   fi
 
   echo "Building Arrow from Source ..."
-  mkdir -p build
-  cd build
   ARROW_PREFIX="${CURRENT_DIR}/build" # Use build directory as ARROW_PREFIX
   ARROW_SOURCE_DIR="${ARROW_PREFIX}/arrow_ep"
   ARROW_INSTALL_DIR="${ARROW_PREFIX}/arrow_install"
@@ -227,6 +212,21 @@ if [ $BUILD_ARROW == "ON" ]; then
   echo "ARROW_SOURCE_DIR=${ARROW_SOURCE_DIR}"
   mkdir -p $ARROW_SOURCE_DIR
   mkdir -p $ARROW_ROOT
+
+  if [ -d $ARROW_INSTALL_DIR ]; then
+      rm -r $ARROW_INSTALL_DIR
+  fi
+
+  if [ -d ARROW_SOURCE_DIR ]; then
+    echo "Applying incremental build for Arrow..."
+    pushd $ARROW_SOURCE_DIR
+    git fetch $ARROW_REPO
+    git checkout $ARROW_REPO/$ARROW_BRANCH
+  else
+    echo "Creating brand-new build for Arrow..."
+    git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
+    pushd $ARROW_SOURCE_DIR
+  fi
 
   if [ $BACKEND_TYPE == "velox" ]; then
     compile_velox_arrow
@@ -238,7 +238,7 @@ if [ $BUILD_ARROW == "ON" ]; then
   fi
 
   echo "Finish to build Arrow from Source !!!"
-  echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/arrow-commit.cache"
+  echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/build/arrow-commit.cache"
 else
   echo "Use ARROW_ROOT as Arrow Library Path"
   echo "ARROW_ROOT=${ARROW_ROOT}"
