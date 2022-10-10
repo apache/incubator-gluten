@@ -81,6 +81,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   }
 
   override def runTest(testName: String, args: Args): Status = {
+    TestStats.suiteTestNumber += 1
     val status = super.runTest(testName, args)
     if (TestStats.offloadGluten) {
       TestStats.offloadGlutenTestNumber += 1
@@ -134,7 +135,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
 
   override protected def test(testName: String,
                               testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
-    TestStats.suiteTestNumber += 1
     if (whiteBlackCheck(testName)) {
       super.test(testName, testTags: _*)(testFun)
     }
