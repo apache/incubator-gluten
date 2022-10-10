@@ -220,8 +220,8 @@ if [ $BUILD_ARROW == "ON" ]; then
   if [ -d $ARROW_SOURCE_DIR ]; then
     echo "Applying incremental build for Arrow..."
     pushd $ARROW_SOURCE_DIR
-    git fetch $ARROW_REPO
-    git checkout $TARGET_BUILD_COMMIT
+    git fetch $ARROW_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
+    git checkout build_$TARGET_BUILD_COMMIT
   else
     echo "Creating brand-new build for Arrow..."
     git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR

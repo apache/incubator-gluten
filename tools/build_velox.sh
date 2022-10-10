@@ -105,8 +105,8 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     if [ -d $VELOX_SOURCE_DIR ]; then
         echo "Applying incremental build for Velox..."
         pushd $VELOX_SOURCE_DIR
-        git fetch $VELOX_REPO
-        git checkout $TARGET_BUILD_COMMIT
+        git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
+        git checkout build_$TARGET_BUILD_COMMIT
     else
         echo "Creating brand-new build for Velox..."
         git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
