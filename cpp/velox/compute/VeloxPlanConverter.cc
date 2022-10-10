@@ -80,11 +80,18 @@ void VeloxInitializer::Init() {
   filesystems::registerHdfsFileSystem();
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
-  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-  // registerConnectorFactory(hiveConnectorFactory);
-  // read hdfs client conf from hdfs-client.xml from LIBHDFS3_CONF
+
+  // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
+  // LIBHDFS3_CONF
+  std::string hdfsUri = "localhost:9000";
+  const char* envHdfsUri = std::getenv("VELOX_HDFS");
+  if (envHdfsUri != nullptr) {
+    hdfsUri = std::string(envHdfsUri);
+  }
+  auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
+  auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
   static const std::unordered_map<std::string, std::string> configurationValues(
-      {{"hive.hdfs.host", "default"}, {"hive.hdfs.port", "0"}});
+      {{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
   auto properties =
       std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector =
