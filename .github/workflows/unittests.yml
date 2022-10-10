@@ -119,7 +119,7 @@ jobs:
           # ctest -V
       - name: Install Gluten Velox-backend spark3.3 and Unit test
         run: |
-          mvn clean install -Pspark-3.3 -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=OFF -Dbuild_arrow=OFF
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=OFF -Dbuild_arrow=OFF
       #- name: Run micro benchmarks
       #  run: |
       #    cd cpp/velox/benchmarks/
@@ -140,14 +140,14 @@ jobs:
       - name: TPC-H Parquet SF1.0 local spark3.3
         run: |
           cd gluten-it
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT -Pspark-3.3
+          mvn clean package -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT -Pspark-3.3
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
 
       - name: Build spark3.2 and spark3.3 at the same time
         run: |
-          mvn clean install -Pspark-3.2 -Pspark-3.3 -DskipTests -Dcheckstyle.skip -Dscalastyle.skip=true  -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 
+          mvn clean install -Pspark-3.2 -Pspark-3.3 -DskipTests -Dcheckstyle.skip -Dscalastyle.skip=true -Pbackends-velox 
 
   ch-backend-test:
     runs-on: libch-self-hosted
