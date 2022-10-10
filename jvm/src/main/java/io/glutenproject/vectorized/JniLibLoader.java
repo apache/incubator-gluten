@@ -168,7 +168,12 @@ public class JniLibLoader {
 
   public static synchronized void unloadNativeLibs(String libName) {
     LOADED_LIBRARY_PATHS.remove(libName);
+
     try {
+      while (Files.isSymbolicLink(Paths.get(libName))) {
+        libName = Files.readSymbolicLink(Paths.get(libName)).toString();
+      }
+
       ClassLoader classLoader = JniLibLoader.class.getClassLoader();
       Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
       field.setAccessible(true);

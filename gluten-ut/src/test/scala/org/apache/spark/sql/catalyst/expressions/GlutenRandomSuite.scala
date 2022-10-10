@@ -20,8 +20,4 @@ package org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenRandomSuite extends RandomSuite with GlutenTestsTrait {
-
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
 }

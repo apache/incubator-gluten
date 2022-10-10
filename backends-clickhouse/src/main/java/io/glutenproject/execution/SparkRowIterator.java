@@ -18,22 +18,54 @@
 package io.glutenproject.execution;
 
 import java.util.Iterator;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class SparkRowIterator implements Iterator<byte[]> {
-
     private final scala.collection.Iterator<byte[]> delegated;
+    private final int maxBufSize = 4096;
+    private byte[] lastRowBuf;
 
     public SparkRowIterator(scala.collection.Iterator<byte[]> delegated) {
         this.delegated = delegated;
+        lastRowBuf = null;
     }
 
     @Override
     public boolean hasNext() {
-        return delegated.hasNext();
+        return lastRowBuf != null || delegated.hasNext();
     }
 
     @Override
     public byte[] next() {
         return delegated.next();
+    }
+
+    public ByteBuffer nextBatch() {
+        ByteBuffer buf = ByteBuffer.allocateDirect(maxBufSize);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        if (lastRowBuf != null) {
+            buf.putInt(lastRowBuf.length);
+            buf.put(lastRowBuf);
+            lastRowBuf = null;
+        }
+        while (buf.remaining() > 4) {
+            if (!delegated.hasNext()) {
+                lastRowBuf = null;
+                break;
+            }
+            lastRowBuf = delegated.next();
+            if (buf.remaining() < lastRowBuf.length + 8) {
+                break;
+            }
+            else {
+                buf.putInt(lastRowBuf.length);
+                buf.put(lastRowBuf);
+                lastRowBuf = null;
+            }
+        }
+        // make the end flag
+        buf.putInt(-1);
+        return buf;
     }
 }

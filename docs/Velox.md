@@ -2,10 +2,12 @@
 
 Currently the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
+## Prerequisite
+
 Velox use the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency library can't be installed. So we need to install them manually:
 
 ```shell script
-apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev
+apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git
 ```
 
 Also we need to setup the JAVA_HOME env.
@@ -15,13 +17,19 @@ export PATH=$JAVA_HOME/bin:$PATH
 ```
 
 
-## Velox home directory
+## Build Velox Jar
+
+Since the mvn script calls setup-ubuntu.sh to install dependency libraries, so we need to run it from root group.
 
 The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
 
 ```shell script
 mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
+
+The command generates the Jar file in the directory: backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar. It's the only jar we need to config to Spark.
+
+## Velox home directory
 
 You can also clone the Velox source to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
 
@@ -32,6 +40,14 @@ mvn clean package -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobu
 ## Arrow home directory
 
 Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not.
+
+Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
+
+## Cluster mode
+
+hdfs support is still in progress for Velox backend. Refer to [issue 158](https://github.com/oap-project/gluten/issues/158). We haven't test the cluster mode. The issue is we have to manually install all dependency libraries on each worker node, currently no script available for this yet. The plan is to use conda env to build Velox and gluten.
+
+The script still use yarn to start the spark worker, but yarn is configured as single node only. Assumption is that all dependency libraries are installed into system so we needn't to set the LD_LIBRARY_PATH env.
 
 ## Test TPC-H on Gluten with Velox backend
 
@@ -53,8 +69,26 @@ var gluten_root = "/PATH/TO/GLUTEN"
 Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
 ```shell script
-cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox --master yarn --deploy-mode client --conf spark.plugins=io.glutenproject.GlutenPlugin --conf --conf spark.gluten.sql.columnar.backend.lib=velox --conf spark.driver.extraClassPath=${gluten_jvm_jar} --conf spark.executor.extraClassPath=${gluten_jvm_jar} --conf spark.memory.offHeap.size=20g --conf spark.sql.sources.useV1SourceList=avro --num-executors 6 --executor-cores 6 --driver-memory 20g --executor-memory 25g --conf spark.executor.memoryOverhead=5g --conf spark.driver.maxResultSize=32g
+export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar 
+cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
+  --master yarn --deploy-mode client \
+  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.gluten.sql.columnar.backend.lib=velox \
+  --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
+  --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=20g \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+  --num-executors 6 \
+  --executor-cores 6 \
+  --driver-memory 20g \
+  --executor-memory 25g \
+  --conf spark.executor.memoryOverhead=5g \
+  --conf spark.driver.maxResultSize=32g
 ```
+
+Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
 
 ### Result
 

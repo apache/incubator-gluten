@@ -82,10 +82,10 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-      .set("spark.gluten.sql.columnar.backend.lib", SystemParameters.getGlutenBackend())
+      .set("spark.gluten.sql.columnar.backend.lib", SystemParameters.getGlutenBackend)
       .set("spark.sql.warehouse.dir", warehouse)
 
-    if (SystemParameters.getGlutenBackend().equalsIgnoreCase(
+    if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
       GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
       conf
         .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
@@ -93,7 +93,7 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
         .set("spark.gluten.sql.enable.native.validation", "false")
-        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath())
+        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
         .set("spark.sql.files.openCostInBytes", "134217728")
     } else {
       conf.set("spark.unsafe.exceptionOnMemoryLeak", "false")

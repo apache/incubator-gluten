@@ -20,12 +20,4 @@ package org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
-
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL,
-    "cast from long #2",
-    "cast from int #2",
-    "SPARK-28470: Cast should honor nullOnOverflow property",
-    "Cast should output null for invalid strings when ANSI is not enabled."
-  )
 }
