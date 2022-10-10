@@ -118,7 +118,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
 
     process_script
     compile
-    echo "Finish to build Velox from Source !!!"
+    echo "Successfully built Velox from Source !!!"
     echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/build/velox-commit.cache"
 else
     VELOX_SOURCE_DIR=${VELOX_HOME}

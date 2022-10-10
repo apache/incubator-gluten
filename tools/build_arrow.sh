@@ -237,7 +237,7 @@ if [ $BUILD_ARROW == "ON" ]; then
     exit 1
   fi
 
-  echo "Finish to build Arrow from Source !!!"
+  echo "Successfully built Arrow from Source !!!"
   echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/build/arrow-commit.cache"
 else
   echo "Use ARROW_ROOT as Arrow Library Path"
