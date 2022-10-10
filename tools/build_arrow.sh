@@ -226,6 +226,7 @@ if [ $BUILD_ARROW == "ON" ]; then
     echo "Creating brand-new build for Arrow..."
     git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
+    git checkout $TARGET_BUILD_COMMIT
   fi
 
   if [ $BACKEND_TYPE == "velox" ]; then

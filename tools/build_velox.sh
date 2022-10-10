@@ -111,6 +111,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         echo "Creating brand-new build for Velox..."
         git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
         pushd $VELOX_SOURCE_DIR
+        git checkout $TARGET_BUILD_COMMIT
     fi
     #sync submodules
     git submodule sync --recursive
