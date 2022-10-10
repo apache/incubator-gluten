@@ -83,27 +83,12 @@
           <module>spark32</module>
         </modules>
     </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <modules>
+          <module>common</module>
+          <module>spark33</module>
+      </modules>
+    </profile>
   </profiles>
-
-  <build>
-    <plugins>
-        <plugin>
-            <groupId>net.alchim31.maven</groupId>
-            <artifactId>scala-maven-plugin</artifactId>
-             <version>${scala.plugin.version}</version>
-        </plugin>
-        <plugin>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                  <id>test</id>
-                  <goals>
-                      <goal>test</goal>
-                  </goals>
-              </execution>
-            </executions>
-        </plugin>
-    </plugins>
-  </build>
 </project>

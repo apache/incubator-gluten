@@ -21,3 +21,11 @@ Based on the different environment, there are some parameters can be set via -D 
 When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten)
 If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.
 
+### Build jar
+
+The gluten jar name pattern is gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar
+
+| Spark Version | sparkbundle.version | scala.binary.version |
+| ---------- | ----------- | ------------- |
+| 3.2.x | 3.2 | 2.12 |
+| 3.3.x | 3.3 | 2.12 |

@@ -13,6 +13,34 @@
     <packaging>jar</packaging>
     <name>Gluten-Backends-Gazelle</name>
 
+    <profiles>
+        <profile>
+            <id>spark-3.2</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark32</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>spark-3.3</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark33</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
     <dependencies>
         <dependency>
             <groupId>io.glutenproject</groupId>
@@ -131,25 +159,6 @@
                         <phase>compile</phase>
                         <goals>
                             <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <finalName>${jar.assembly.name.prefix}-${project.version}</finalName>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
                         </goals>
                     </execution>
                 </executions>

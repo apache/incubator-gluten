@@ -18,9 +18,8 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, TestUtils}
-
 import scala.collection.JavaConverters
 
 class TestOperator extends WholeStageTransformerSuite {
@@ -33,7 +32,6 @@ class TestOperator extends WholeStageTransformerSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
-
   }
 
   override protected def sparkConf: SparkConf = {

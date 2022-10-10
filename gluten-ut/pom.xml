@@ -111,23 +111,30 @@
             <version>4.12</version>
             <scope>test</scope>
         </dependency>
+        <!-- Fasterxml -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
+            <artifactId>jackson-databind</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
+            <artifactId>jackson-core</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatestplus</groupId>
@@ -193,7 +200,7 @@
             <dependencies>
                 <dependency>
                     <groupId>io.glutenproject</groupId>
-                    <artifactId>backends-velox</artifactId>
+                    <artifactId>backends-gazelle</artifactId>
                     <version>${project.version}</version>
                     <scope>test</scope>
                 </dependency>

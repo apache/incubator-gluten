@@ -19,6 +19,34 @@
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>spark-3.2</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark32</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>spark-3.3</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark33</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -113,24 +141,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.scalatestplus</groupId>
             <artifactId>scalatestplus-mockito_2.12</artifactId>
             <version>1.0.0-M2</version>
@@ -153,6 +163,31 @@
             <artifactId>commons-io</artifactId>
             <version>2.11.0</version>
             <scope>provided</scope>
+        </dependency>
+        <!-- Fasterxml -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

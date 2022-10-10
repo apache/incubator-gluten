@@ -17,6 +17,7 @@
 
 package io.glutenproject.execution
 
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 
 import org.apache.spark.rdd.RDD
@@ -149,7 +150,7 @@ case class SortMergeJoinExecTransformer(
       // partitioning doesn't satisfy `HashClusteredDistribution`.
       UnspecifiedDistribution :: UnspecifiedDistribution :: Nil
     } else {
-      HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
+      SparkShimLoader.getSparkShims.getDistribution(leftKeys, rightKeys)
     }
   }
 

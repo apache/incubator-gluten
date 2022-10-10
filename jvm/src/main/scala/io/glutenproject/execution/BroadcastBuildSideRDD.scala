@@ -34,7 +34,7 @@ case class BroadcastBuildSideRDD(
   extends RDD[ColumnarBatch](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
-    if (numPartitions <= 0) {
+    if (numPartitions < 0) {
       throw new RuntimeException(s"Invalid number of partitions: $numPartitions.")
     }
     Array.tabulate(numPartitions)(i => BroadcastBuildSideRDDPartition(i))
