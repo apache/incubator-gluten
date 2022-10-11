@@ -130,7 +130,7 @@ jobs:
 
       - name: TPC-H Parquet SF1.0 local spark3.2
         run: |
-          git clone -b main https://github.com/jinchengchenghh/gluten-it.git gluten-it
+          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
           cd gluten-it
           mvn clean package -Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
