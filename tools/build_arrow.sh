@@ -218,7 +218,7 @@ if [ $BUILD_ARROW == "ON" ]; then
       rm -r $ARROW_INSTALL_DIR
   fi
 
-  if [ -d $ARROW_SOURCE_DIR ]; then
+  if [ $ENABLE_EP_CACHE == "ON" ] && [ -d $ARROW_SOURCE_DIR ]; then
     echo "Applying incremental build for Arrow..."
     pushd $ARROW_SOURCE_DIR
     git init .

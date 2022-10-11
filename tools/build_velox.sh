@@ -102,7 +102,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         rm -r $VELOX_INSTALL_DIR
     fi
 
-    if [ -d $VELOX_SOURCE_DIR ]; then
+    if [ $ENABLE_EP_CACHE == "ON" ] && [ -d $VELOX_SOURCE_DIR ]; then
         echo "Applying incremental build for Velox..."
         pushd $VELOX_SOURCE_DIR
         git init .
