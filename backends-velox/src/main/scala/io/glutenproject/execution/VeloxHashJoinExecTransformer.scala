@@ -26,9 +26,11 @@ import io.substrait.proto.JoinRel
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import java.util
+
+import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 
 import scala.collection.JavaConverters._
 
@@ -224,19 +226,49 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
     left,
     right) with VeloxHashJoinLikeExecTransformer {
 
+  // Used to specify the preferred build side in backend's real execution.
+  object PreferredBuildSide extends Serializable {
+    val LEFT = "left table"
+    val RIGHT = "right table"
+    val NON = "none"
+  }
+
+  private def matchCondition(plan: SparkPlan): Boolean =
+    plan.isInstanceOf[FilterExecBaseTransformer] || plan.isInstanceOf[FilterExec] ||
+    plan.isInstanceOf[BaseAggregateExec]
+
+  private def isPreferred(plan: SparkPlan): Boolean =
+    matchCondition(plan) || plan.children.exists(child => matchCondition(child))
+
+  private lazy val preferredBuildSide: String =
+    if ((isPreferred(left) && isPreferred(right)) || (!isPreferred(left) && !isPreferred(right))) {
+      PreferredBuildSide.NON
+    } else if (isPreferred(left)) {
+      PreferredBuildSide.LEFT
+    } else {
+      PreferredBuildSide.RIGHT
+    }
+
   override lazy val exchangeTable: Boolean = hashJoinType match {
-    case LeftOuter => joinBuildSide match {
-      case BuildLeft => true /* Exchange build and stream side because RightOuter will be used. */
-      case _ => false
+    case LeftOuter | LeftSemi => joinBuildSide match {
+      case BuildLeft =>
+        // Exchange build and stream side when left side or none is preferred as the build side,
+        // and RightOuter or RightSemi wil be used.
+        !(preferredBuildSide == PreferredBuildSide.RIGHT)
+      case _ =>
+        // Do not exchange build and stream side when right side or none is preferred
+        // as the build side, and LeftOuter or LeftSemi wil be used.
+        preferredBuildSide == PreferredBuildSide.LEFT
     }
     case RightOuter => joinBuildSide match {
       case BuildRight =>
-        false /* Not exchange build and stream side because RightOuter will be used. */
-      case _ => true /* Exchange build and stream side because LeftOuter will be used. */
-    }
-    case LeftSemi => joinBuildSide match {
-      case BuildLeft => true
-      case _ => false
+        // Do not exchange build and stream side when right side or none is preferred
+        // as the build side, and RightOuter will be used.
+        preferredBuildSide == PreferredBuildSide.LEFT
+      case _ =>
+        // Exchange build and stream side when left side or none is preferred as the build side,
+        // and LeftOuter will be used.
+        !(preferredBuildSide == PreferredBuildSide.RIGHT)
     }
     case _ => joinBuildSide match {
       case BuildLeft => true
@@ -244,35 +276,54 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
-  // Direct output order of substrait join operation
+  // Direct output order of Substrait join operation.
   override protected val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
     case LeftOuter => joinBuildSide match {
-      case BuildLeft =>
-        // Use RightOuter join for LeftOuter with left build side.
-        JoinRel.JoinType.JOIN_TYPE_RIGHT
-      case _ => JoinRel.JoinType.JOIN_TYPE_LEFT
-    }
-    case RightOuter => joinBuildSide match {
-      case BuildRight =>
-        // Use RighterOuter join for RightOuter with right build side.
-        JoinRel.JoinType.JOIN_TYPE_RIGHT
-      case _ => JoinRel.JoinType.JOIN_TYPE_LEFT
-    }
-    case LeftSemi => joinBuildSide match {
-      case BuildLeft => JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
-      case _ => JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-    }
-    case LeftAnti =>
-      if (!antiJoinWorkaroundNeeded) {
-        JoinRel.JoinType.JOIN_TYPE_ANTI
+      case BuildLeft => if (preferredBuildSide == PreferredBuildSide.RIGHT) {
+        JoinRel.JoinType.JOIN_TYPE_LEFT
       } else {
-        // Use Left to replace Anti as a workaround.
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      }
+      case _ => if (preferredBuildSide == PreferredBuildSide.LEFT) {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      } else {
         JoinRel.JoinType.JOIN_TYPE_LEFT
       }
+    }
+    case RightOuter => joinBuildSide match {
+      case BuildRight => if (preferredBuildSide == PreferredBuildSide.LEFT) {
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      }
+      case _ => if (preferredBuildSide == PreferredBuildSide.RIGHT) {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      }
+    }
+    case LeftSemi => joinBuildSide match {
+      case BuildLeft => if (preferredBuildSide == PreferredBuildSide.RIGHT) {
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
+      }
+      case _ => if (preferredBuildSide == PreferredBuildSide.LEFT) {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+      }
+    }
+    case LeftAnti => if (!antiJoinWorkaroundNeeded) {
+      JoinRel.JoinType.JOIN_TYPE_ANTI
+    } else {
+      // Use Left to replace Anti as a workaround.
+      JoinRel.JoinType.JOIN_TYPE_LEFT
+    }
     case _ =>
       // TODO: Support cross join with Cross Rel
       // TODO: Support existence join
