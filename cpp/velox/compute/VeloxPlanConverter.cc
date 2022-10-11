@@ -24,6 +24,7 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
+#include "RegistrationAllFunctions.cc"
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
@@ -33,7 +34,6 @@
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
 #include "velox/functions/prestosql/aggregates/MinMaxAggregates.h"
-#include "velox/functions/sparksql/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -95,9 +95,8 @@ void VeloxInitializer::Init() {
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
-  // Register Velox functions.
-  functions::sparksql::registerFunctions("");
-  functions::prestosql::registerAllScalarFunctions();
+  // Register Velox functions
+  registerAllFunctions();
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   aggregate::registerAverageAggregate("avg");
   aggregate::registerCountAggregate("count");
