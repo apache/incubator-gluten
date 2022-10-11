@@ -25,6 +25,7 @@ object VeloxNotSupport extends NotSupport {
   override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
 
   override lazy val fullSupportSuiteList: Set[String] = Set(
+    simpleClassName[LiteralExpressionSuite],
     simpleClassName[NullExpressionsSuite]
   )
 }
