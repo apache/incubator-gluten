@@ -179,6 +179,7 @@ if [ $BUILD_ARROW == "ON" ]; then
   fi
 
   TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
+  echo "Target Arrow commit: $TARGET_BUILD_COMMIT"
   if [ $ENABLE_EP_CACHE == "ON" ]; then
     if [ -e ${CURRENT_DIR}/build/arrow-commit.cache ]; then
         LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/build/arrow-commit.cache)"

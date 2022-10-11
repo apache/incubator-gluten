@@ -63,7 +63,7 @@ cd ${CURRENT_DIR}
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     mkdir -p build
     TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
-
+    echo "Target Velox commit: $TARGET_BUILD_COMMIT"
     if [ $ENABLE_EP_CACHE == "ON" ]; then
         if [ -e ${CURRENT_DIR}/build/velox-commit.cache ]; then
             LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/build/velox-commit.cache)"
