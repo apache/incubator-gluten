@@ -33,25 +33,26 @@ class RowConstructor : public exec::VectorFunction {
       VectorPtr& result) const override {
     auto argsCopy = args;
 
-    BufferPtr nulls = AlignedBuffer::allocate<char>(bits::nbytes(rows.size()), context.pool());
+    BufferPtr nulls = AlignedBuffer::allocate<char>(bits::nbytes(rows.size()),
+      context.pool(), 1);
     auto* nullsPtr = nulls->asMutable<uint64_t>();
-    for (size_t c = 0; c < argsCopy.size(); c++) {
-      auto arg = argsCopy[c].get();
-      if (arg->mayHaveNulls()) {
-        rows.applyToSelected([&](vector_size_t i) {
-          if (arg->isNullAt(i)) {
-            bits::setNull(nullsPtr, i, true);
-            return;
-          }
-        });
-      }
-    }
     auto cntNull = 0;
-    for (size_t i = 0; i < rows.size(); ++i) {
-      if (bits::isBitNull(nullsPtr, i)) {
-        cntNull++;
+    rows.applyToSelected([&](vector_size_t i) {
+      bits::clearNull(nullsPtr, i);
+      for (size_t c = 0; c < argsCopy.size(); c++) {
+        if (!bits::isBitNull(nullsPtr, i)) {
+          auto arg = argsCopy[c].get();
+          if (arg->mayHaveNulls()) {
+            if (arg->isNullAt(i)) {
+              bits::setNull(nullsPtr, i, true);
+              cntNull++;
+              break;
+            }
+          }
+        }
       }
-    }
+    });
+
     RowVectorPtr localResult = std::make_shared<RowVector>(
         context.pool(),
         outputType,
