@@ -38,8 +38,8 @@ class RowConstructor : public exec::VectorFunction {
     auto cntNull = 0;
     rows.applyToSelected([&](vector_size_t i) {
       bits::clearNull(nullsPtr, i);
-      for (size_t c = 0; c < argsCopy.size(); c++) {
-        if (!bits::isBitNull(nullsPtr, i)) {
+      if (!bits::isBitNull(nullsPtr, i)) {
+        for (size_t c = 0; c < argsCopy.size(); c++) {
           auto arg = argsCopy[c].get();
           if (arg->mayHaveNulls()) {
             if (arg->isNullAt(i)) {
