@@ -41,12 +41,10 @@ class RowConstructor : public exec::VectorFunction {
       if (!bits::isBitNull(nullsPtr, i)) {
         for (size_t c = 0; c < argsCopy.size(); c++) {
           auto arg = argsCopy[c].get();
-          if (arg->mayHaveNulls()) {
-            if (arg->isNullAt(i)) {
-              bits::setNull(nullsPtr, i, true);
-              cntNull++;
-              break;
-            }
+          if (arg->mayHaveNulls() && arg->isNullAt(i)) {
+            bits::setNull(nullsPtr, i, true);
+            cntNull++;
+            break;
           }
         }
       }
