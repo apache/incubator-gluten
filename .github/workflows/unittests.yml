@@ -110,7 +110,7 @@ jobs:
           mvn clean install -Pspark-3.2 -Pspark-ut -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
-          mvn test -Pspark-3.2 -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox
+          mvn test -Pspark-3.2 -Pspark-ut -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox
           cd cpp/
           mkdir -p build
           cd build
