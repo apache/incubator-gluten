@@ -24,10 +24,10 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
+#include "RegistrationAllFunctions.cc"
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
-#include "RegistrationAllFunctions.cc"
 #include "compute/exec_backend.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"

@@ -15,12 +15,8 @@
  * limitations under the License.
  */
 
-//using namespace facebook::velox;
-//using namespace facebook::velox::exec;
-
 namespace velox::compute {
 
 void registerAllFunctions();
 
-
-} // velox::compute
+} // namespace velox::compute

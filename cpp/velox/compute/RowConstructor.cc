@@ -24,7 +24,6 @@ namespace velox::compute {
 
 namespace {
 class RowConstructor : public exec::VectorFunction {
-
   void apply(
       const SelectivityVector& rows,
       std::vector<VectorPtr>& args,
@@ -33,8 +32,8 @@ class RowConstructor : public exec::VectorFunction {
       VectorPtr& result) const override {
     auto argsCopy = args;
 
-    BufferPtr nulls = AlignedBuffer::allocate<char>(bits::nbytes(rows.size()),
-      context.pool(), 1);
+    BufferPtr nulls = AlignedBuffer::allocate<char>(
+        bits::nbytes(rows.size()), context.pool(), 1);
     auto* nullsPtr = nulls->asMutable<uint64_t>();
     auto cntNull = 0;
     rows.applyToSelected([&](vector_size_t i) {
@@ -69,4 +68,4 @@ class RowConstructor : public exec::VectorFunction {
 };
 
 } // namespace
-} // velox::compute
+} // namespace velox::compute
