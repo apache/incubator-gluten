@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eux
+set -eu
 
 NPROC=$(nproc)
 TESTS=OFF
