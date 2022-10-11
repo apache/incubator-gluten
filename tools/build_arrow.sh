@@ -220,6 +220,7 @@ if [ $BUILD_ARROW == "ON" ]; then
   if [ -d $ARROW_SOURCE_DIR ]; then
     echo "Applying incremental build for Arrow..."
     pushd $ARROW_SOURCE_DIR
+    git init .
     EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT`
     if [ -z "$EXISTS" ]; then
       git fetch $ARROW_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
