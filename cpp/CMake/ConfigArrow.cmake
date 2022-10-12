@@ -15,8 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
-set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.800.0.0")
+if(${BACKEND_TYPE} STREQUAL "velox")
+  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1000")
+  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1000.0.0")
+else()
+  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
+  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.800.0.0")
+endif()
 
 set(ARROW_LIB_NAME "arrow")
 set(GANDIVA_LIB_NAME "gandiva")

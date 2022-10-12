@@ -30,6 +30,7 @@ import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator}
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
+import org.apache.arrow.vector.compression.NoCompressionCodec
 import org.apache.arrow.vector.ipc.ArrowStreamReader
 import org.apache.arrow.vector.types.pojo.Schema
 
@@ -70,10 +71,11 @@ private class ArrowColumnarBatchSerializerInstance(
         SparkEnv.get.conf.getBoolean("spark.shuffle.compress", true)
 
       private val allocator: BufferAllocator = SparkMemoryUtils
-        .contextArrowAllocatorUnmanaged()
+        .contextArrowAllocator()
         .newChildAllocator("ArrowColumnarBatch deserialize", 0, Long.MaxValue)
 
-      private var reader: ArrowStreamReader = _
+      private val reader = new SchemaAwareArrowStreamReader(
+        if (readSchema) null else schema, in, allocator)
       private var root: VectorSchemaRoot = _
       private var vectors: Array[ColumnVector] = _
       private var cb: ColumnarBatch = _
@@ -101,73 +103,48 @@ private class ArrowColumnarBatchSerializerInstance(
 
       @throws(classOf[EOFException])
       override def readValue[T: ClassTag](): T = {
-        if (reader != null && batchLoaded) {
-          root.clear()
-          if (cb != null) {
-            cb.close()
-            cb = null
-          }
-
-          try {
-            batchLoaded = reader.loadNextBatch()
-          } catch {
-            case ioe: IOException =>
-              this.close()
-              logError("Failed to load next RecordBatch", ioe)
-              throw ioe
-          }
-          if (batchLoaded) {
-            val numRows = root.getRowCount
-            logDebug(s"Read ColumnarBatch of ${numRows} rows")
-
-            numBatchesTotal += 1
-            numRowsTotal += numRows
-
-            // jni call to decompress buffers
-            if (compressionEnabled &&
-              reader.asInstanceOf[SchemaAwareArrowCompressedStreamReader]
-                .isCurrentBatchCompressed) {
-              try {
-                decompressVectors()
-              } catch {
-                case e: UnsupportedOperationException =>
-                  this.close()
-                  throw e
-              }
-            }
-
-            val newFieldVectors = root.getFieldVectors.asScala.map { vector =>
-              val newVector = vector.getField.createVector(allocator)
-              vector.makeTransferPair(newVector).transfer()
-              newVector
-            }.asJava
-
-            vectors = ArrowWritableColumnVector
-              .loadColumns(numRows, newFieldVectors)
-              .toArray[ColumnVector]
-
-            cb = new ColumnarBatch(vectors, numRows)
-            cb.asInstanceOf[T]
-          } else {
-            this.close()
-            throw new EOFException
-          }
-        } else {
-          val suggestedSchema = if (readSchema) null else schema
-          if (compressionEnabled) {
-            reader = new SchemaAwareArrowCompressedStreamReader(suggestedSchema, in, allocator)
-          } else {
-            reader = new SchemaAwareArrowStreamReader(suggestedSchema, in, allocator)
-          }
-          try {
-            root = reader.getVectorSchemaRoot
-          } catch {
-            case _: IOException =>
-              this.close()
-              throw new EOFException
-          }
-          readValue()
+        if (cb != null) {
+          cb.close()
+          cb = null
         }
+        try {
+          batchLoaded = reader.loadNextBatch()
+        } catch {
+          case ioe: IOException =>
+            this.close()
+            logError("Failed to load next RecordBatch", ioe)
+            throw ioe
+        }
+        if (!batchLoaded) {
+          this.close()
+          throw new EOFException
+        }
+        root = reader.getVectorSchemaRoot
+        val numRows = root.getRowCount
+        logDebug(s"Read ColumnarBatch of ${numRows} rows")
+        numBatchesTotal += 1
+        numRowsTotal += numRows
+        if (compressionEnabled &&
+          !reader.getBatchCompressType.equals(CompressType.NO_COMPRESSION)) {
+          try {
+            decompressVectors()
+          } catch {
+            case e: UnsupportedOperationException =>
+              this.close()
+              throw e
+          }
+        }
+        val newFieldVectors = root.getFieldVectors.asScala.map { vector =>
+          val newVector = vector.getField.createVector(allocator)
+          vector.makeTransferPair(newVector).transfer()
+          newVector
+        }.asJava
+        vectors = ArrowWritableColumnVector
+          .loadColumns(numRows, newFieldVectors)
+          .toArray[ColumnVector]
+
+        cb = new ColumnarBatch(vectors, numRows)
+        cb.asInstanceOf[T]
       }
 
       override def readObject[T: ClassTag](): T = {
@@ -236,7 +213,7 @@ private class ArrowColumnarBatchSerializerInstance(
         try {
           val open = jniWrapper.decompress(
             schemaHolderId,
-            reader.asInstanceOf[SchemaAwareArrowCompressedStreamReader].getCompressType,
+            reader.getBatchCompressType.getAlias,
             root.getRowCount,
             bufAddrs.toArray,
             bufSizes.toArray,

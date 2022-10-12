@@ -63,7 +63,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(3) { df =>
         val shjBuildLeft = df.queryExecution.executedPlan.collect {
-          case shj: ShuffledHashJoinExecTransformer if shj.buildSide == BuildLeft => shj
+          case shj: ShuffledHashJoinExecTransformer if shj.joinBuildSide == BuildLeft => shj
         }
         assert(shjBuildLeft.size == 2)
       }

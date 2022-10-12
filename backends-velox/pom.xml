@@ -5,7 +5,7 @@
     <parent>
         <artifactId>gluten-parent</artifactId>
         <groupId>io.glutenproject</groupId>
-        <version>1.0.0-snapshot</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -32,31 +32,36 @@
         <velox.build_velox>${build_velox}</velox.build_velox>
         <velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
         <velox.compile_velox>${compile_velox}</velox.compile_velox>
+        <velox.enable_ep_cache>${enable_ep_cache}</velox.enable_ep_cache>
         <velox.velox_home>${velox_home}</velox.velox_home>
         <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
         <velox.debug_build>${debug_build}</velox.debug_build>
+        <velox.backend_type>${backend_type}</velox.backend_type>
     </properties>
 
     <profiles>
-       <profile>
-	  <id>backends-gazelle</id>
-          <dependencies>
-           <dependency>
-              <groupId>org.apache.arrow</groupId>
-              <artifactId>arrow-dataset</artifactId>
-              <version>${arrow.version}</version>
-            </dependency>
-	  </dependencies>
-       </profile>
-
         <profile>
-            <id>backends-velox</id>
+            <id>spark-3.2</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <dependencies>
                 <dependency>
-                    <groupId>org.apache.arrow</groupId>
-                    <artifactId>arrow-dataset</artifactId>
-                    <version>${arrow.version}</version>
-                    <scope>provided</scope>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark32</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>spark-3.3</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark33</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
                 </dependency>
             </dependencies>
         </profile>
@@ -80,19 +85,8 @@
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
             <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>spark-sql-columnar-shims-common</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.glutenproject</groupId>
@@ -134,24 +128,6 @@
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatestplus</groupId>
@@ -217,7 +193,6 @@
             </exclusions>
             <!--scope>provided</scope-->
         </dependency>
-
         <dependency>
             <groupId>org.apache.arrow.gandiva</groupId>
             <artifactId>arrow-gandiva</artifactId>
@@ -269,6 +244,31 @@
             <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
             <type>test-jar</type>
         </dependency>
+        <!-- Fasterxml -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -304,7 +304,12 @@
                                 <argument>
                                     --compile_velox=${velox.compile_velox}
                                 </argument>
-                                <argument>${velox.velox_home}</argument>
+                                <argument>
+                                    --enable_ep_cache=${velox.enable_ep_cache}
+                                </argument>
+                                <argument>
+                                    --velox_home=${velox.velox_home}
+                                </argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -332,6 +337,7 @@
                                 <argument>${velox.velox_build_type}</argument>
                                 <argument>${velox.debug_build}</argument>
                                 <argument>${velox.cpp_benchmarks}</argument>
+                                <argument>${velox.backend_type}</argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -385,25 +391,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <finalName>${jar.assembly.name.prefix}-${project.version}</finalName>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.scalastyle</groupId>
                 <artifactId>scalastyle-maven-plugin</artifactId>
                 <version>1.0.0</version>
@@ -432,7 +419,7 @@
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>3.1.1</version>
                 <configuration>
-                    <failOnViolation>false</failOnViolation>
+                    <failOnViolation>true</failOnViolation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <sourceDirectories>
                         <directory>${project.basedir}/src/main/java</directory>
@@ -467,8 +454,8 @@
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <configuration>
                     <testFailureIgnore>false</testFailureIgnore>
-		    <junitxml>.</junitxml>
-	            <tagsToInclude>${tagsToInclude}</tagsToInclude>
+                    <junitxml>.</junitxml>
+                    <tagsToInclude>${tagsToInclude}</tagsToInclude>
                 </configuration>
                 <executions>
                     <execution>

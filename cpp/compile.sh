@@ -17,6 +17,7 @@ VELOX_HOME=${11:-/root/velox}
 VELOX_BUILD_TYPE=${12:-release}
 DEBUG_BUILD=${13:-OFF}
 BUILD_BENCHMARKS=${14:-OFF}
+BACKEND_TYPE=${15:-velox}
 
 if [ "$BUILD_CPP" == "ON" ]; then
   NPROC=$(nproc --ignore=2)
@@ -46,6 +47,7 @@ if [ "$BUILD_CPP" == "ON" ]; then
     -DVELOX_BUILD_TYPE=${VELOX_BUILD_TYPE} \
     -DCMAKE_BUILD_TYPE=$(if [ "$DEBUG_BUILD" == 'ON' ]; then echo 'Debug'; else echo 'Release'; fi) \
     -DDEBUG=${DEBUG_BUILD} \
-    -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS}
+    -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS} \
+    -DBACKEND_TYPE=${BACKEND_TYPE}
   make -j$NPROC
 fi

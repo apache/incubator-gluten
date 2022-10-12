@@ -16,8 +16,40 @@
 
 package io.glutenproject.sql.shims.spark32
 
-import io.glutenproject.sql.shims.{SparkShims, ShimDescriptor}
+import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
+import io.glutenproject.BackendLib
+import io.glutenproject.extension.JoinSelectionOverrideShim
+
+import org.apache.spark.{SparkContext, SparkException}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution, Partitioning}
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
+import org.apache.spark.sql.execution.datasources.v2.{DataSourcePartitioning, DataSourceRDD}
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.SparkPlan
 
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
+
+  override def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression])
+    : Seq[Distribution] = {
+    HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
+  }
+
+  override def applyPlan(plan: LogicalPlan,
+                forceShuffledHashJoin: Boolean,
+                backendLib: BackendLib): Seq[SparkPlan] = {
+    plan match {
+      // If the build side of BHJ is already decided by AQE, we need to keep the build side.
+      case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, left, right, hint) =>
+        new JoinSelectionOverrideShim().extractEqualJoinKeyCondition(joinType, leftKeys, rightKeys,
+          condition, left, right, hint,
+          forceShuffledHashJoin, backendLib)
+      case _ => Nil
+    }
+  }
 }

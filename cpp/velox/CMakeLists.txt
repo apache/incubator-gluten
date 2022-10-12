@@ -76,13 +76,14 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::json "${VELOX_COMPONENTS_PATH}/functions/prestosql/json/libvelox_functions_json.a")
   add_velox_dependency(functions::hyperloglog "${VELOX_COMPONENTS_PATH}/common/hyperloglog/libvelox_common_hyperloglog.a")
   add_velox_dependency(functions::lib "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_functions_lib.a")
-  add_velox_dependency(exec::test::util "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_util.a")
+  add_velox_dependency(common::test_util "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
   add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
   add_velox_dependency(parse::expression "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_expression.a")
   add_velox_dependency(vector::arrow::bridge "${VELOX_COMPONENTS_PATH}/vector/arrow/c/libvelox_arrow_bridge.a")
 
   add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
+  add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
 
   add_velox_dependency(dwio::dwrf::test_utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/test/utils/libvelox_dwrf_test_utils.a")
   add_velox_dependency(dwio::dwrf::writer "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
@@ -138,6 +139,16 @@ macro(ADD_VELOX_DEPENDENCIES)
 
 endmacro()
 
+macro(find_libhdfs3)
+  # Find the libhdfs3 library
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  find_library(LIBHDFS3_LIBRARY NAMES hdfs3 PATHS ${SYSTEM_LIB_PATH} ${SYSTEM_LIB64_PATH} ${SYSTEM_LIB_MULTIARCH_PATH} ${SYSTEM_LOCAL_LIB_PATH} ${SYSTEM_LOCAL_LIB64_PATH} NO_DEFAULT_PATH)
+  if (NOT LIBHDFS3_LIBRARY)
+     message(FATAL_ERROR "LIBHDFS3 Library Not Found")
+  else()
+    message(STATUS "LIBHDFS3 Library Can Be Found in ${LIBHDFS3_LIBRARY}")
+  endif()
+endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
@@ -145,6 +156,7 @@ set(VELOX_SRCS
     compute/VeloxPlanConverter.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxToRowConverter.cc
+    compute/RowConstructor.cc
     compute/DwrfDatasource.cc
     compute/bridge.cc
     memory/velox_memory_pool.cc
@@ -171,6 +183,11 @@ find_package(gflags REQUIRED COMPONENTS shared CONFIG)
 target_link_libraries(velox PUBLIC spark_columnar_jni)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
+
+find_libhdfs3()
+add_library(libhdfs3 SHARED IMPORTED)
+set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
+target_link_libraries(velox PUBLIC libhdfs3)
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)

@@ -17,6 +17,7 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.GlutenConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ import org.apache.spark.util.GlutenShutdownManager;
 public class JniLibLoader {
   private static final Logger LOG =
       LoggerFactory.getLogger(JniLibLoader.class);
+  public static String BACKEND_NAME = "";
 
   public static Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
 
@@ -117,10 +119,22 @@ public class JniLibLoader {
   }
 
   public void loadArrowLibs() {
-    newTransaction()
-        .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800")
-        .loadAndCreateLink("libgandiva.so.800.0.0", "libgandiva.so.800")
-        .commit();
+    if (BACKEND_NAME.equals(GlutenConfig.GLUTEN_GAZELLE_BACKEND())) {
+      LOG.info("Load gazelle backend arrow lib");
+      newTransaction()
+          .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800")
+          .loadAndCreateLink("libgandiva.so.800.0.0", "libgandiva.so.800")
+          .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800")
+          .loadAndCreateLink("libarrow_dataset.so.800.0.0", "libarrow_dataset.so.800")
+          .loadAndCreateLink("libarrow_substrait.so.800.0.0", "libarrow_substrait.so.800")
+          .commit();
+    } else {
+      LOG.info("Load other backend arrow lib");
+      newTransaction()
+          .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000")
+          .loadAndCreateLink("libgandiva.so.1000.0.0", "libgandiva.so.1000")
+          .commit();
+    }
   }
 
   public void loadGlutenLib() {
@@ -154,7 +168,12 @@ public class JniLibLoader {
 
   public static synchronized void unloadNativeLibs(String libName) {
     LOADED_LIBRARY_PATHS.remove(libName);
+
     try {
+      while (Files.isSymbolicLink(Paths.get(libName))) {
+        libName = Files.readSymbolicLink(Paths.get(libName)).toString();
+      }
+
       ClassLoader classLoader = JniLibLoader.class.getClassLoader();
       Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
       field.setAccessible(true);

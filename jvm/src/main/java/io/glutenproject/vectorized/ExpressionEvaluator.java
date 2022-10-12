@@ -47,7 +47,7 @@ public class ExpressionEvaluator implements AutoCloseable {
   public ExpressionEvaluator(List<String> listJars, String libName) throws IOException,
       IllegalAccessException, IllegalStateException {
     this(listJars, libName,
-        GlutenConfig.getSessionConf().nativeLibPath(),
+        GlutenConfig.getConf().nativeLibPath(),
         GlutenConfig.getConf().glutenBackendLib(),
         GlutenConfig.getConf().loadArrow());
   }

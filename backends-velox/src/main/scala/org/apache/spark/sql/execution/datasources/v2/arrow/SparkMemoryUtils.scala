@@ -51,8 +51,6 @@ object SparkMemoryUtils extends Logging {
       new NativeSQLMemoryConsumer(getTaskMemoryManager(), Spiller.NO_OP),
       sharedMetrics)
 
-    val arrowAllocListenerUnmanaged: AllocationListener = AllocationListener.NOOP
-
     private val arrowAllocators = new java.util.ArrayList[BufferAllocator]()
 
     private val nativeAllocators = new java.util.ArrayList[NativeMemoryAllocator]()
@@ -62,10 +60,6 @@ object SparkMemoryUtils extends Logging {
       arrowAllocators.add(alloc)
       alloc
     }
-
-    val taskDefaultArrowAllocatorUnmanaged: BufferAllocator = taskDefaultArrowAllocator
-      .newChildAllocator("CHILD-ARROW-ALLOC-UNMANAGED", arrowAllocListenerUnmanaged, 0L,
-        Long.MaxValue)
 
     val taskDefaultNativeAllocator: NativeMemoryAllocator = {
       val rl = new SparkManagedReservationListener(
@@ -82,17 +76,6 @@ object SparkMemoryUtils extends Logging {
         sharedMetrics)
       val alloc = NativeMemoryAllocator.createListenable(rl)
       nativeAllocators.add(alloc)
-      alloc
-    }
-
-    def createSpillableArrowAllocator(spiller: Spiller): BufferAllocator = {
-      val al = new SparkManagedAllocationListener(
-        new NativeSQLMemoryConsumer(getTaskMemoryManager(), spiller),
-        sharedMetrics)
-      val parent = taskDefaultArrowAllocator
-      val alloc = parent.newChildAllocator("Spark Managed Allocator - " +
-        UUID.randomUUID().toString, al, 0, parent.getLimit).asInstanceOf[BufferAllocator]
-      arrowAllocators.add(alloc)
       alloc
     }
 
@@ -228,25 +211,11 @@ object SparkMemoryUtils extends Logging {
     globalArrowAlloc
   }
 
-  def createSpillableArrowAllocator(spiller: Spiller): BufferAllocator = {
-    if (!inSparkTask()) {
-      throw new IllegalStateException("Spiller must be used in a Spark task")
-    }
-    getTaskMemoryResources().createSpillableArrowAllocator(spiller)
-  }
-
   def contextArrowAllocator(): BufferAllocator = {
     if (!inSparkTask()) {
       return globalArrowAllocator()
     }
     getTaskMemoryResources().taskDefaultArrowAllocator
-  }
-
-  def contextArrowAllocatorUnmanaged(): BufferAllocator = {
-    if (!inSparkTask()) {
-      return globalArrowAllocator()
-    }
-    getTaskMemoryResources().taskDefaultArrowAllocatorUnmanaged
   }
 
   def globalNativeAllocator(): NativeMemoryAllocator = {

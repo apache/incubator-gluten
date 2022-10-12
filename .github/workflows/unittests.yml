@@ -20,6 +20,10 @@ name: Gluten Unit Tests Suite
 on:
   pull_request
 
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
 
   arrow-backend-test:
@@ -32,6 +36,7 @@ jobs:
           distribution: 'zulu'
           java-version: '8'
           java-package: jdk
+          overwrite-settings: false
       - run: sudo swapoff -a
       - run: free
       - run: sudo apt-get update
@@ -43,14 +48,17 @@ jobs:
       - run: sudo apt-get install -y llvm clang
       - name: Install Gluten Arrow-backend
         run: |
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
+          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
-          cp backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar /tmp/gluten_jars/
+          cp package/gazelle/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
+      # - name: Run unit tests
+      #   run: |
+      #     mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
       - name: Run TPCDS q82,q85,q37,q60,q26
         run: |
           cd /home/sparkuser/tpcds/
-          bash tpcds.sh
-
+          bash tpcds_spark.sh
 
   velox-backend-test:
     runs-on: sr404-self-hosted
@@ -96,18 +104,22 @@ jobs:
           sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
           sudo make -j$(nproc)
           sudo apt-get install -y google-mock
-      - name: Install Gluten Velox-backend
+      - name: Install Gluten Velox-backend spark3.2
         run: |
-          mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
+          rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
+          mvn clean install -Pspark-3.2 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
-          mvn test -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
+          mvn test -Pspark-3.2 -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox
           cd cpp/
           mkdir -p build
           cd build
           cmake .. -DBUILD_ARROW=0 -DTESTS=1
           make -j$(nproc)
           # ctest -V
+      - name: Install Gluten Velox-backend spark3.3 and Unit test
+        run: |
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=OFF -Dbuild_arrow=OFF
       #- name: Run micro benchmarks
       #  run: |
       #    cd cpp/velox/benchmarks/
@@ -116,14 +128,26 @@ jobs:
       #    parquet/bm_lineitem/part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet \
       #    parquet/bm_part/part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet
 
-      - name: TPC-H Parquet SF1.0 local
+      - name: TPC-H Parquet SF1.0 local spark3.2
         run: |
-          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
+          git clone -b main https://github.com/jinchengchenghh/gluten-it.git gluten-it
           cd gluten-it
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
+          mvn clean package -Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
             --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
+
+      - name: TPC-H Parquet SF1.0 local spark3.3
+        run: |
+          cd gluten-it
+          mvn clean package -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT -Pspark-3.3
+          java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
+            --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
+
+      - name: Build spark3.2 and spark3.3 at the same time
+        run: |
+          mvn clean install -Pspark-3.2 -Pspark-3.3 -DskipTests -Dcheckstyle.skip -Dscalastyle.skip=true -Pbackends-velox 
 
   ch-backend-test:
     runs-on: libch-self-hosted
@@ -167,7 +191,7 @@ jobs:
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
 
   formatting-check:
     name: Formatting Check

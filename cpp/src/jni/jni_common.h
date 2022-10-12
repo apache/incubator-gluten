@@ -396,88 +396,12 @@ Status DecompressBuffer(
   return Status::OK();
 }
 
-Status DecompressBuffersByType(
-    arrow::Compression::type compression,
-    const arrow::ipc::IpcReadOptions& options,
-    const uint8_t* buf_mask,
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    const std::vector<std::shared_ptr<arrow::Field>>& schema_fields) {
-  std::unique_ptr<arrow::util::Codec> codec;
-  std::unique_ptr<arrow::util::Codec> int32_codec;
-  std::unique_ptr<arrow::util::Codec> int64_codec;
-  ARROW_ASSIGN_OR_RAISE(
-      codec, arrow::util::Codec::Create(arrow::Compression::LZ4_FRAME));
-  ARROW_ASSIGN_OR_RAISE(
-      int32_codec, arrow::util::Codec::CreateInt32(compression));
-  ARROW_ASSIGN_OR_RAISE(
-      int64_codec, arrow::util::Codec::CreateInt64(compression));
-
-  int32_t buffer_idx = 0;
-  for (const auto& field : schema_fields) {
-    if (field->type()->id() == arrow::Type::NA)
-      continue;
-
-    const auto& layout_buffers = field->type()->layout().buffers;
-    for (size_t i = 0; i < layout_buffers.size(); ++i) {
-      const auto& layout = layout_buffers[i];
-      auto& buffer = buffers[buffer_idx + i];
-      if (buffer == nullptr || buffer->size() == 0) {
-        continue;
-      }
-      // if the buffer has been rebuilt to uncompressed on java side, return
-      if (arrow::bit_util::GetBit(buf_mask, buffer_idx + i)) {
-        continue;
-      }
-      if (buffer->size() < 8) {
-        return Status::Invalid(
-            "Likely corrupted message, compressed buffers "
-            "are larger than 8 bytes by construction");
-      }
-      switch (layout.kind) {
-        case arrow::DataTypeLayout::BufferKind::FIXED_WIDTH:
-          if (layout.byte_width == 4 &&
-              field->type()->id() != arrow::Type::FLOAT) {
-            RETURN_NOT_OK(DecompressBuffer(
-                *buffer, int32_codec.get(), &buffer, options.memory_pool));
-          } else if (
-              layout.byte_width == 8 &&
-              field->type()->id() != arrow::Type::DOUBLE) {
-            RETURN_NOT_OK(DecompressBuffer(
-                *buffer, int64_codec.get(), &buffer, options.memory_pool));
-          } else {
-            RETURN_NOT_OK(DecompressBuffer(
-                *buffer, codec.get(), &buffer, options.memory_pool));
-          }
-          break;
-        case arrow::DataTypeLayout::BufferKind::BITMAP:
-        case arrow::DataTypeLayout::BufferKind::VARIABLE_WIDTH: {
-          RETURN_NOT_OK(DecompressBuffer(
-              *buffer, codec.get(), &buffer, options.memory_pool));
-          break;
-        }
-        case arrow::DataTypeLayout::BufferKind::ALWAYS_NULL:
-          break;
-        default:
-          return Status::Invalid("Wrong buffer layout.");
-      }
-    }
-    buffer_idx += layout_buffers.size();
-  }
-  return arrow::Status::OK();
-}
-
 arrow::Status DecompressBuffers(
     arrow::Compression::type compression,
     const arrow::ipc::IpcReadOptions& options,
     const uint8_t* buf_mask,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     const std::vector<std::shared_ptr<arrow::Field>>& schema_fields) {
-  if (compression == arrow::Compression::FASTPFOR) {
-    RETURN_NOT_OK(DecompressBuffersByType(
-        compression, options, buf_mask, buffers, schema_fields));
-    return arrow::Status::OK();
-  }
-
   std::unique_ptr<arrow::util::Codec> codec;
   ARROW_ASSIGN_OR_RAISE(codec, arrow::util::Codec::Create(compression));
 

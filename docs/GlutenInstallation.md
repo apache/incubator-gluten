@@ -6,13 +6,12 @@ There are some requirements before you build the project.
 Please make sure you have already installed the software in your system.
 
 1. GCC 7.0 or higher version
-2. LLVM 7.0 or higher version
-3. java8 OpenJDK -> yum install java-1.8.0-openjdk
+2. LLVM 10.0 or higher version
+3. java8 OpenJDK -> apt install openjdk-8-jdk
 4. cmake 3.16 or higher version
 5. Maven 3.6.3 or higher version
 6. Hadoop 2.7.5 or higher version
-7. Spark 3.1.1 or higher version
-8. Intel Optimized Arrow 8.0.0
+7. Spark 3.2.2 or higher version
 
 ### GCC installation
 
@@ -47,30 +46,12 @@ Please remember to add and source the setup in your environment files such as /e
 - Verify if gcc has been installation
 Use `gcc -v` command to verify if your gcc version is correct.(Must larger than 7.0)
 
-### LLVM 7.0 installation
+### LLVM 10.0 installation
 
-Arrow Gandiva depends on LLVM, and current version strictly depends on llvm7.0 if you installed any other version rather than 7.0, it will fail.
+Arrow Gandiva depends on LLVM, and current version strictly depends on llvm10.0 if you installed any other version rather than 10.0, it will fail.
 ``` shell
-wget http://releases.llvm.org/7.0.1/llvm-7.0.1.src.tar.xz
-tar xf llvm-7.0.1.src.tar.xz
-cd llvm-7.0.1.src/
-cd tools
-wget http://releases.llvm.org/7.0.1/cfe-7.0.1.src.tar.xz
-tar xf cfe-7.0.1.src.tar.xz
-mv cfe-7.0.1.src clang
-cd ..
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . -j
-cmake --build . --target install
-# check if clang has also been compiled, if no
-cd tools/clang
-mkdir build
-cd build
-cmake ..
-make -j
-make install
+apt search llvm
+apt install llvm-10
 ```
 
 
@@ -135,7 +116,7 @@ For more information, please check
 Arrow HDFS interface [documentation](https://github.com/apache/arrow/blob/master/cpp/apidoc/HDFS.md)
 Hadoop Native Library, please read the official Hadoop website [documentation](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/NativeLibraries.html).
 
-#### Use libhdfs3 library for better performance(Optional)
+#### Use libhdfs3 library for better performance for ArrowBackend(Optional)
 
 For better performance ArrowDataSource reads HDFS files using the third-party library `libhdfs3`. The library must be pre-installed on machines Spark Executor nodes are running on.
 
@@ -176,4 +157,3 @@ Please notes: If you choose to use libhdfs3.so, there are some other dependency 
 ### Intel Optimized Apache Arrow Installation
 
 During the mvn compile command, it will launch a script [build_arrow.sh](../tools/build_arrow.sh) to help install and compile a Intel custom Arrow library.
-If you wish to build Apache Arrow by yourself, please follow [Arrow Installation](./ArrowInstallation.md) to build and install Apache Arrow.

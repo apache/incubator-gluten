@@ -5,7 +5,7 @@ import java.util.Arrays
 import sys.process._
 
 //Configurations:
-var parquet_file_path = "/PATH/TO/TPCH_DWRF_PATH"
+var parquet_file_path = "/PATH/TO/TPCH_PARQUET_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
 
 def time[R](block: => R): R = {

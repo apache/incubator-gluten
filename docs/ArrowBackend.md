@@ -5,8 +5,6 @@ the [gazelle_plugin](https://github.com/oap-project/gazelle_plugin) project. It 
 intermediate substrait plan to Arrow's execution engine to build a pipeline for the off-loaded stage
 from Spark, and uses the optimized compute functions that are implemented in gazelle_plugin.
 
-## Environment Setup
-
 ### Prerequisites
 
 - **OS Requirements**
@@ -16,8 +14,6 @@ from Spark, and uses the optimized compute functions that are implemented in gaz
     - OpenJDK 8
     - Maven 3.6.3 or higher version
     - Spark 3.1.1
-
-### Building Gluten with Arrow backend
 
 #### Environment Setup
 
@@ -44,15 +40,8 @@ The build and install of our custom Arrow is embedded into the build of Gluten.
 ```bash
 $ git clone https://github.com/oap-project/gluten.git
 $ pushd gluten
-$ mvn clean package -Pfull-scala-compiler -Pbackends-gazelle -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_jemalloc=ON -Dbuild_gazelle_cpp=ON
+$ mvn clean package -Pfull-scala-compiler -Pbackends-gazelle -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_gazelle_cpp=ON
 $ popd
-```
-
-On error "Could not resolve dependencies for project io.glutenproject:backends-velox:jar:1.0.0-snapshot: Could not find artifact org.apache.arrow:arrow-c-data:jar:8.0.0-gluten-SNAPSHOT", it's because the arrow-c-data.jar isn't installed into ~/.m2. You may refer to https://github.com/oap-project/gluten/blob/main/docs/ArrowInstallation.md and run the mvn command in arrow/java directory, then re-run above mvn command
-
-```bash
-$ cd tools/build/arrow_ep/java
-$ mvn clean install -P arrow-jni -am -Darrow.cpp.build.dir=${ARROW_HOME}/cpp/release-build/release/ -DskipTests -Dcheckstyle.skip
 ```
 
 ### Enabling Arrow Bckend at Runtime
@@ -64,8 +53,8 @@ ArrowBackend should be added.
 
 | Configuration | Value | Comment |
 | --- | --- | --- |
-| spark.driver.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar |  |
-| spark.executor.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar |  |
+| spark.driver.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar |  |
+| spark.executor.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar |  |
 | spark.plugins | io.glutenproject.GlutenPlugin |  |
 | spark.gluten.sql.columnar.backend.lib | gazelle_cpp |  |
 | spark.shuffle.manager | org.apache.spark.shuffle.sort.ColumnarShuffleManager |  |
