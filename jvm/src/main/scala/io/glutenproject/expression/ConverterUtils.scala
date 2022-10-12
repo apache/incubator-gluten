@@ -333,12 +333,19 @@ object ConverterUtils extends Logging {
   final val ALIAS = "alias"
   final val IS_NOT_NULL = "is_not_null"
   final val IS_NULL = "is_null"
-  // Datetime
+  final val NOT = "not"
+
+  // String
   final val EXTRACT = "extract"
   final val ENDS_WITH = "ends_with"
   final val CONTAINS = "contains"
-  final val NOT = "not"
+  final val INSTR = "instr"
+  final val LENGTH = "length"
+  final val LOWER = "lower"
+  final val UPPER = "upper"
   final val STARTS_WITH = "starts_with"
   final val SUBSTRING = "substring"
+
+  // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
 }

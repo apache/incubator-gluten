@@ -98,13 +98,63 @@ class AbsTransformer(child: Expression, original: Expression)
   }
 }
 
+class LengthTransformer(child: Expression, original: Expression)
+  extends Lower(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!child_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.LENGTH, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeI32(true)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class LowerTransformer(child: Expression, original: Expression)
+  extends Lower(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!child_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.LOWER, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeString(true)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class UpperTransformer(child: Expression, original: Expression)
   extends Upper(child: Expression)
     with ExpressionTransformer
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: Upper.")
+    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!child_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.UPPER, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeString(true)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -230,8 +280,12 @@ object UnaryOperatorTransformer {
       new NotTransformer(child, n)
     case a: Abs =>
       new AbsTransformer(child, a)
-    case u: Upper =>
-      new UpperTransformer(child, u)
+    case len: Length =>
+      new LengthTransformer(child, len)
+    case lower: Lower =>
+      new LowerTransformer(child, lower)
+    case upper: Upper =>
+      new UpperTransformer(child, upper)
     case c: Cast =>
       new CastTransformer(child, c.dataType, c.timeZoneId, c)
     case u: UnscaledValue =>
