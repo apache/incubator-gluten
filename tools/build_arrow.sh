@@ -215,7 +215,7 @@ if [ $BUILD_ARROW == "ON" ]; then
   mkdir -p $ARROW_ROOT
 
   if [ -d $ARROW_INSTALL_DIR ]; then
-      rm -r $ARROW_INSTALL_DIR
+      rm -rf $ARROW_INSTALL_DIR
   fi
 
   if [ $ENABLE_EP_CACHE == "ON" ] && [ -d $ARROW_SOURCE_DIR ]; then
