@@ -53,8 +53,8 @@ function process_script {
     sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
     sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout apache/hawq master\n  cd depends/libhdfs3\n sed -i "/FIND_PACKAGE(GoogleTest REQUIRED)/d" ./CMakeLists.txt\n  sed -i "s/dumpversion/dumpfullversion/" ./CMake/Platform.cmake\n  cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^function install_folly.*/i function install_pb {\n  github_checkout protocolbuffers/protobuf v3.13.0\n  git submodule update --init --recursive\n  ./autogen.sh\n  ./configure CFLAGS=-fPIC CXXFLAGS=-fPIC\n  make -j$(nproc)\n  make check\n  sudo make install\n sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_folly/i \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_folly/i \ \ run_and_time install_pb' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_folly/i \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
     sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
 }
 
