@@ -261,7 +261,7 @@ object GlutenConfig {
   // For ClickHouse Backends.
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = true
-  val GLUTEN_CLICKHOUSE_CONFIF_FILE = "spark.gluten.sql.columnar.backend.ch.config.file"
+  val GLUTEN_CLICKHOUSE_CONFIF_PREFIX = "spark.gluten.sql.columnar.backend.ch"
 
   var ins: GlutenConfig = _
   var random_temp_dir_path: String = _
