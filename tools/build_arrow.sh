@@ -229,6 +229,9 @@ if [ $BUILD_ARROW == "ON" ]; then
     git checkout build_$TARGET_BUILD_COMMIT
   else
     echo "Creating brand-new build for Arrow..."
+    if [ -d $ARROW_SOURCE_DIR ]; then
+      rm -rf $ARROW_SOURCE_DIR
+    fi
     git clone $ARROW_REPO -b $ARROW_BRANCH $ARROW_SOURCE_DIR
     pushd $ARROW_SOURCE_DIR
     git checkout $TARGET_BUILD_COMMIT

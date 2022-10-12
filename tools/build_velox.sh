@@ -124,6 +124,9 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         git checkout build_$TARGET_BUILD_COMMIT
     else
         echo "Creating brand-new build for Velox..."
+        if [ -d $VELOX_SOURCE_DIR ]; then
+            rm -rf $VELOX_SOURCE_DIR
+        fi
         git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
         pushd $VELOX_SOURCE_DIR
         git checkout $TARGET_BUILD_COMMIT
