@@ -42,6 +42,8 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.collection.JavaConverters._
+
 case class SortExecTransformer(
                                 sortOrder: Seq[SortOrder],
                                 global: Boolean,
@@ -128,6 +130,12 @@ case class SortExecTransformer(
 
     val sortFieldList = new util.ArrayList[SortField]()
     val projectExpressions = new util.ArrayList[ExpressionNode]()
+    val sortExprArttributes = new util.ArrayList[AttributeReference]()
+
+    val selectOrigins =
+      originalInputAttributes.indices.map(ExpressionBuilder.makeSelection(_))
+    projectExpressions.addAll(selectOrigins.asJava)
+
     var colIdx = originalInputAttributes.size
     sortOrder.map(order => {
       val builder = SortField.newBuilder();
@@ -137,6 +145,8 @@ case class SortExecTransformer(
       projectExpressions.add(projectExprNode)
 
       val exprNode = ExpressionBuilder.makeSelection(colIdx)
+      sortExprArttributes.add(
+        AttributeReference(s"col_${colIdx}", order.child.dataType)())
       colIdx += 1
       builder.setExpr(exprNode.toProtobuf)
 
@@ -155,20 +165,27 @@ case class SortExecTransformer(
       sortFieldList.add(builder.build())
     })
 
+    // Add a Project Rel both original columns and the sorting columns
     val inputRel = if (!validation) {
       RelBuilder.makeProjectRel(input, projectExpressions, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
       for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        inputTypeNodeList.add(
+          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
+      sortExprArttributes.forEach { attr =>
+        inputTypeNodeList.add(
+          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(input, projectExpressions, extensionNode, context, operatorId)
     }
 
-    if (!validation) {
+    val sortRel = if (!validation) {
       RelBuilder.makeSortRel(
         inputRel, sortFieldList, context, operatorId)
     } else {
@@ -177,11 +194,35 @@ case class SortExecTransformer(
       for (attr <- originalInputAttributes) {
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
+
+      sortExprArttributes.forEach { attr =>
+        inputTypeNodeList.add(
+          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+
+      }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
 
       RelBuilder.makeSortRel(
         inputRel, sortFieldList, extensionNode, context, operatorId)
+    }
+
+    // Add a Project Rel to remove the sorting columns
+    if (!validation) {
+      RelBuilder.makeProjectRel(sortRel, new java.util.ArrayList[ExpressionNode](
+        selectOrigins.asJava), context, operatorId)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for a validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(
+          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+      RelBuilder.makeProjectRel(sortRel, new java.util.ArrayList[ExpressionNode](
+        selectOrigins.asJava), extensionNode, context, operatorId)
     }
   }
 
