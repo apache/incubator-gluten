@@ -108,7 +108,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     mkdir -p $VELOX_INSTALL_DIR
 
     if [ -d $VELOX_INSTALL_DIR ]; then
-        rm -r $VELOX_INSTALL_DIR
+        rm -rf $VELOX_INSTALL_DIR
     fi
 
     if [ $ENABLE_EP_CACHE == "ON" ] && [ -d $VELOX_SOURCE_DIR ]; then
