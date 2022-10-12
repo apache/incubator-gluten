@@ -16,6 +16,19 @@
 
 package io.glutenproject.sql.shims
 
+
+import io.glutenproject.BackendLib
+
+import org.apache.spark.sql.catalyst.plans.physical.{Distribution, Partitioning}
+import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.execution.SparkPlan
+
 sealed abstract class ShimDescriptor
 
 case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
@@ -24,4 +37,13 @@ case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimD
 
 trait SparkShims {
   def getShimDescriptor: ShimDescriptor
+
+  // for this purpose, change HashClusteredDistribution to ClusteredDistribution
+  // https://github.com/apache/spark/pull/32875
+  def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
+
+  // https://issues.apache.org/jira/browse/SPARK-36745
+  def applyPlan(plan: LogicalPlan, forceShuffledHashJoin: Boolean, backendLib: BackendLib)
+  : Seq[SparkPlan]
+
 }

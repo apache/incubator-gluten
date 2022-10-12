@@ -20,21 +20,19 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized.OperatorMetrics
 
-import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.{InputPartition, Scan, SupportsRuntimeFiltering}
-import org.apache.spark.sql.execution.{InSubqueryExec, SparkPlan}
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourcePartitioning, FileScan}
+import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.util.DataSourceStrategyUtil
 
 class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
                                runtimeFilters: Seq[Expression],
                                pushdownFilters: Seq[Expression] = Seq())
-  extends BatchScanExec(output, scan, runtimeFilters) with BasicScanExecTransformer {
+  extends BatchScanExecShim(output, scan, runtimeFilters) with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
     "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -78,7 +76,9 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[InputPartition] = filteredPartitions
+  override def getPartitions: Seq[Seq[InputPartition]] = filteredPartitions
+
+  override def getFlattenPartitions: Seq[InputPartition] = filteredFlattenPartitions
 
   override def getPartitionSchemas: StructType = scan match {
     case fileScan: FileScan => fileScan.readPartitionSchema
@@ -140,46 +140,6 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     }
   }
 
-  // The codes below are copied from BatchScanExec in Spark,
-  // all of them are private.
-  @transient private lazy val filteredPartitions: Seq[InputPartition] = {
-    val dataSourceFilters = runtimeFilters.flatMap {
-      case DynamicPruningExpression(e) =>
-        // When it includes some DynamicPruningExpression,
-        // it needs to execute InSubqueryExec first,
-        // because doTransform path can't execute 'doExecuteColumnar' which will
-        // execute prepare subquery first.
-        e match {
-          case inSubquery: InSubqueryExec =>
-            executeInSubqueryForDynamicPruningExpression(inSubquery)
-        }
-        DataSourceStrategyUtil.translateRuntimeFilter(e)
-      case _ => None
-    }
-
-    if (dataSourceFilters.nonEmpty) {
-      val originalPartitioning = outputPartitioning
-
-      // the cast is safe as runtime filters are only assigned if the scan can be filtered
-      val filterableScan = scan.asInstanceOf[SupportsRuntimeFiltering]
-      filterableScan.filter(dataSourceFilters.toArray)
-
-      // call toBatch again to get filtered partitions
-      val newPartitions = scan.toBatch.planInputPartitions()
-
-      originalPartitioning match {
-        case p: DataSourcePartitioning if p.numPartitions != newPartitions.size =>
-          throw new SparkException(
-            "Data source must have preserved the original partitioning during runtime filtering; " +
-              s"reported num partitions: ${p.numPartitions}, " +
-              s"num partitions after runtime filtering: ${newPartitions.size}")
-        case _ =>
-        // no validation is needed as the data source did not report any specific partitioning
-      }
-
-      newPartitions
-    } else {
-      partitions
-    }
-  }
+  @transient private lazy val filteredFlattenPartitions: Seq[InputPartition] =
+    filteredPartitions.flatten
 }

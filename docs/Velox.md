@@ -43,11 +43,27 @@ Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is clone
 
 Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
 
-## Cluster mode
+## HDFS support
 
-hdfs support is still in progress for Velox backend. Refer to [issue 158](https://github.com/oap-project/gluten/issues/158). We haven't test the cluster mode. The issue is we have to manually install all dependency libraries on each worker node, currently no script available for this yet. The plan is to use conda env to build Velox and gluten.
+Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/tree/master/depends/libhdfs3) library. The libhdfs3 provides native API for Hadoop I/O without the drawbacks of JNI. It also provides advanced authentatication like Kerberos based. Please note this library has serveral depedencies which may require extra installations on Driver and Worker node.
 
-The script still use yarn to start the spark worker, but yarn is configured as single node only. Assumption is that all dependency libraries are installed into system so we needn't to set the LD_LIBRARY_PATH env.
+Gluten HDFS support requires a extra enviorment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
+
+This env should be exported in both Spark driver and worker.
+e.g., in Spark local mode:
+```
+export VELOX_HDFS="sr595:9000"
+```
+
+If running in Spark Yarn cluster mode, the env variable need to be set on each executor:
+```
+--conf spark.executorEnv.VELOX_HDFS="sr595:9000"
+```
+
+## Yarn Cluster mode
+
+Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its depedencies should be installed on each worker node. Users may requried to setup extra LD_LIBRARY_PATH if the depedencies are not on system's default library path
+
 
 ## Test TPC-H on Gluten with Velox backend
 

@@ -39,6 +39,34 @@
         <velox.backend_type>${backend_type}</velox.backend_type>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>spark-3.2</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark32</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>spark-3.3</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.glutenproject</groupId>
+                    <artifactId>spark-sql-columnar-shims-spark33</artifactId>
+                    <version>${project.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -59,12 +87,6 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>spark-sql-columnar-shims-common</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.glutenproject</groupId>
@@ -106,24 +128,6 @@
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.12.3</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatestplus</groupId>
@@ -240,6 +244,31 @@
             <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
             <type>test-jar</type>
         </dependency>
+        <!-- Fasterxml -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+            <version>${fasterxml.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -278,7 +307,9 @@
                                 <argument>
                                     --enable_ep_cache=${velox.enable_ep_cache}
                                 </argument>
-                                <argument>${velox.velox_home}</argument>
+                                <argument>
+                                    --velox_home=${velox.velox_home}
+                                </argument>
                             </arguments>
                         </configuration>
                     </execution>
@@ -360,25 +391,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <finalName>${jar.assembly.name.prefix}-${project.version}</finalName>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.scalastyle</groupId>
                 <artifactId>scalastyle-maven-plugin</artifactId>
                 <version>1.0.0</version>
@@ -442,8 +454,8 @@
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <configuration>
                     <testFailureIgnore>false</testFailureIgnore>
-		    <junitxml>.</junitxml>
-	            <tagsToInclude>${tagsToInclude}</tagsToInclude>
+                    <junitxml>.</junitxml>
+                    <tagsToInclude>${tagsToInclude}</tagsToInclude>
                 </configuration>
                 <executions>
                     <execution>

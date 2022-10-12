@@ -32,11 +32,11 @@
   <modules>
     <module>jvm</module>
     <module>shims</module>
-    <module>gluten-ut</module>
   </modules>
 
   <properties>
     <spark32.version>3.2.2</spark32.version>
+    <spark33.version>3.3.0</spark33.version>
     <delta2.version>2.0.0</delta2.version>
     <delta1.version>1.2.1</delta1.version>
     <scala.version>2.12.10</scala.version>
@@ -55,7 +55,7 @@
     <build_arrow>OFF</build_arrow>
     <arrow_root>${project.basedir}/../tools/build/arrow_install</arrow_root>
     <arrow.bfs.dir>${project.basedir}/../tools/build/arrow_install</arrow.bfs.dir>
-    <enable_ep_cache>ON</enable_ep_cache>
+    <enable_ep_cache>OFF</enable_ep_cache>
     <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
     <build_jemalloc>OFF</build_jemalloc>
@@ -73,6 +73,11 @@
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
     <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
     <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
+    <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
+    <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
+    <spark32bundle.version>3.2</spark32bundle.version>
+    <spark33bundle.version>3.3</spark33bundle.version>
+    <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
   </properties>
 
   <profiles>
@@ -84,6 +89,7 @@
       <properties>
         <spark.version>${spark32.version}</spark.version>
         <delta.version>${delta1.version}</delta.version>
+        <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
       </properties>
     </profile>
     <profile>
@@ -91,7 +97,16 @@
         <properties>
           <spark.version>${spark32.version}</spark.version>
           <delta.version>${delta1.version}</delta.version>
+          <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
         </properties>
+    </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <properties>
+        <spark.version>${spark33.version}</spark.version>
+        <delta.version>${delta1.version}</delta.version>
+        <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
+      </properties>
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
@@ -170,6 +185,7 @@
       </activation>
       <modules>
         <module>backends-velox</module>
+        <module>package/velox</module>
       </modules>
       <properties>
         <backend_type>velox</backend_type>
@@ -184,11 +200,18 @@
       <modules>
         <module>backends-velox</module>
         <module>backends-gazelle</module>
+        <module>package/gazelle</module>
       </modules>
       <properties>
         <backend_type>gazelle_cpp</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
       </properties>
+    </profile>
+    <profile>
+      <id>spark-ut</id>
+      <modules>
+        <module>gluten-ut</module>
+      </modules>
     </profile>
   </profiles>
 
@@ -362,15 +385,134 @@
         <version>3.2.3</version>
         <scope>test</scope>
       </dependency>
+      <!-- Fasterxml -->
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-guava</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>${maven.compiler.plugin}</version>
+          <configuration>
+            <source>1.8</source>
+            <target>1.8</target>
+            <encoding>UTF-8</encoding>
+            <maxmem>1024m</maxmem>
+            <fork>true</fork>
+            <compilerArgs>
+              <arg>-Xlint:all,-serial,-path</arg>
+            </compilerArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalatest</groupId>
+          <artifactId>scalatest-maven-plugin</artifactId>
+          <executions>
+            <execution>
+              <id>test</id>
+              <goals>
+                <goal>test</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>net.alchim31.maven</groupId>
+          <artifactId>scala-maven-plugin</artifactId>
+          <version>3.2.2</version>
+          <executions>
+            <execution>
+              <id>scala-compile-first</id>
+              <phase>process-resources</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>scala-test-compile-first</id>
+              <phase>process-test-resources</phase>
+              <goals>
+                <goal>testCompile</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>3.1.1</version>
+            <configuration>
+              <configLocation>dev/checkstyle.xml</configLocation>
+            </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <configLocation>${project.basedir}/scalastyle-config.xml</configLocation>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>3.3.0</version>
+          <configuration>
+            <descriptorRefs>
+              <descriptorRef>jar-with-dependencies</descriptorRef>
+            </descriptorRefs>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.2.0</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>${scala.binary.version}</classifier>
+              <classifier>${sparkbundle.version}</classifier>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

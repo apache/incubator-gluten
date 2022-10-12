@@ -57,6 +57,10 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     spark.sparkContext.setLogLevel("WARN")
   }
 
+  override def afterAll(): Unit = {
+    super.afterAll()
+  }
+
   override protected def test(testName: String,
                               testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
     if (whiteBlackCheck(testName)) {
@@ -66,7 +70,7 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     }
   }
 
-  override protected def sparkConf: SparkConf = {
+  override def sparkConf: SparkConf = {
     // Native SQL configs
     val conf = super.sparkConf
       .setAppName("Gluten-UT")

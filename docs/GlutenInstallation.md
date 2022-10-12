@@ -7,12 +7,11 @@ Please make sure you have already installed the software in your system.
 
 1. GCC 7.0 or higher version
 2. LLVM 10.0 or higher version
-3. java8 OpenJDK -> yum install java-1.8.0-openjdk
+3. java8 OpenJDK -> apt install openjdk-8-jdk
 4. cmake 3.16 or higher version
 5. Maven 3.6.3 or higher version
 6. Hadoop 2.7.5 or higher version
-7. Spark 3.1.1 or higher version
-8. Intel Optimized Arrow 8.0.0
+7. Spark 3.2.2 or higher version
 
 ### GCC installation
 
@@ -117,7 +116,7 @@ For more information, please check
 Arrow HDFS interface [documentation](https://github.com/apache/arrow/blob/master/cpp/apidoc/HDFS.md)
 Hadoop Native Library, please read the official Hadoop website [documentation](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/NativeLibraries.html).
 
-#### Use libhdfs3 library for better performance(Optional)
+#### Use libhdfs3 library for better performance for ArrowBackend(Optional)
 
 For better performance ArrowDataSource reads HDFS files using the third-party library `libhdfs3`. The library must be pre-installed on machines Spark Executor nodes are running on.
 
@@ -158,4 +157,3 @@ Please notes: If you choose to use libhdfs3.so, there are some other dependency 
 ### Intel Optimized Apache Arrow Installation
 
 During the mvn compile command, it will launch a script [build_arrow.sh](../tools/build_arrow.sh) to help install and compile a Intel custom Arrow library.
-If you wish to build Apache Arrow by yourself, please follow [Arrow Installation](./ArrowInstallation.md) to build and install Apache Arrow.
