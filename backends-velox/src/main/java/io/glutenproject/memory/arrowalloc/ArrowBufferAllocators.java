@@ -22,7 +22,6 @@ import io.glutenproject.memory.alloc.Spiller;
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.spark.internal.Logging;
 import org.apache.spark.util.memory.TaskMemoryResourceManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
 import org.slf4j.Logger;

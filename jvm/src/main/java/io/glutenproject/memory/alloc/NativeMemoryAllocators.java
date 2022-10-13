@@ -18,7 +18,6 @@
 package io.glutenproject.memory.alloc;
 
 import io.glutenproject.memory.GlutenMemoryConsumer;
-import org.apache.spark.internal.Logging;
 import org.apache.spark.util.memory.TaskMemoryResourceManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
 import org.slf4j.Logger;
