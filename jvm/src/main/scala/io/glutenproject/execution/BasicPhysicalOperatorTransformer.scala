@@ -18,12 +18,9 @@
 package io.glutenproject.execution
 
 import java.util
-
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
@@ -34,7 +31,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
-
+import io.substrait.proto.SetRel
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -476,6 +473,33 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with TransformSupport {
   override def supportsColumnar: Boolean = true
 
+  override lazy val metrics = Map(
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_project"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val count: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map { attrs =>
       val firstAttr = attrs.head
@@ -492,7 +516,14 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
+    // throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
+    // collect all child input rdds
+    children.map {
+      case c: TransformSupport => c.columnarInputRDDs
+      case c => Seq(c.executeColumnar())
+    }.reduce {
+      (a, b) => a ++ b
+    }
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
@@ -505,12 +536,56 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override def getChild: SparkPlan = {
     throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
+
   }
 
-  override def doValidate(): Boolean = false
+  override def doValidate(): Boolean = {
+    logDebug(s"UnionExecTransformer doValidate=true")
+    val substraitContext = new SubstraitContext
+    val operatorId = substraitContext.nextOperatorId
+    val inputs = new util.ArrayList[RelNode]()
+    val relNode = try {
+      RelBuilder.makeSetRel(inputs,
+        SetRel.SetOp.SET_OP_UNION_ALL,
+        substraitContext,
+        operatorId)
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
+      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+      val validator = new ExpressionEvaluator()
+      validator.doValidate(planNode.toProtobuf.toByteArray)
+    } else {
+      true
+    }
+  }
+
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+    // throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+
+    val operatorId = context.nextOperatorId
+    val attrList = new util.ArrayList[Attribute]()
+    for (attr <- children(0).output)
+    {
+      attrList.add(attr)
+    }
+    val relNodes = children.map {
+      case c: TransformSupport => c.doTransform(context).root
+      case _ => RelBuilder.makeReadRel(attrList, context, operatorId)
+    }
+    val childrenRelNodes = new util.ArrayList[RelNode]()
+    for (rel <- relNodes) {
+      childrenRelNodes.add(rel)
+    }
+    val relNode = RelBuilder.makeSetRel(childrenRelNodes,
+      SetRel.SetOp.SET_OP_UNION_ALL,
+      context,
+      operatorId)
+    TransformContext(children(0).output, children(0).output, relNode)
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -525,6 +600,23 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan])
       : UnionExecTransformer =
     copy(children = newChildren)
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      count += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
+  }
 }
 
 /** Contains functions for the comparision and separation of the filter conditions
