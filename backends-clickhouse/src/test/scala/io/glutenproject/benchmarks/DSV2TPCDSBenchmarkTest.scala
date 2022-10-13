@@ -216,7 +216,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     val spark = sessionBuilder.getOrCreate()
     if (!configed) {
-      spark.sparkContext.setLogLevel("ERROR")
+      spark.sparkContext.setLogLevel("WARN")
     }
 
     val createTbl = false
@@ -270,7 +270,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     val tookTimeArr = ArrayBuffer[Long]()
     val sqlFilePath = "/data2/tpcds-data-gen/tpcds10-queries/"
-    val execNum = 21
+    val execNum = 9
     val sqlNum = "q" + execNum + ".sql"
     val sqlFile = sqlFilePath + sqlNum
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
