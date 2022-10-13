@@ -17,6 +17,7 @@
 
 package io.glutenproject.vectorized;
 
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -44,7 +45,6 @@ import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.spark.sql.catalyst.util.DateTimeUtils;
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils;
 import org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim;
 import org.apache.spark.sql.types.ArrayType;
@@ -96,7 +96,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     String timeZoneId = SparkSchemaUtils.getLocalTimezoneID();
     Schema arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId);
     VectorSchemaRoot new_root =
-        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextArrowAllocator());
+        VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());
 
     List<FieldVector> fieldVectors = new_root.getFieldVectors();
     ArrowWritableColumnVector[] vectors =
@@ -176,7 +176,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
         Arrays.asList(ArrowUtils.toArrowField("col", dataType, true, timeZoneId));
     Schema arrowSchema = new Schema(fields);
     VectorSchemaRoot root =
-        VectorSchemaRoot.create(arrowSchema, SparkMemoryUtils.contextArrowAllocator());
+        VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());
 
     List<FieldVector> fieldVectors = root.getFieldVectors();
     vector = fieldVectors.get(0);

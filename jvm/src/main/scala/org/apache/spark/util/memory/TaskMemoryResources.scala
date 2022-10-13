@@ -88,11 +88,11 @@ object TaskMemoryResources {
     TaskContext.get()
   }
 
-  private[memory] def inSparkTask(): Boolean = {
+  def inSparkTask(): Boolean = {
     TaskContext.get() != null
   }
 
-  private[memory] def getSparkMemoryManager(): TaskMemoryManager = {
+  def getSparkMemoryManager(): TaskMemoryManager = {
     getLocalTaskContext().taskMemoryManager()
   }
 

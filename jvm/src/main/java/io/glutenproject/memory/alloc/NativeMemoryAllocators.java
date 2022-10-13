@@ -21,6 +21,8 @@ import io.glutenproject.memory.GlutenMemoryConsumer;
 import org.apache.spark.internal.Logging;
 import org.apache.spark.util.memory.TaskMemoryResourceManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Vector;
@@ -66,7 +68,8 @@ public class NativeMemoryAllocators {
     return GLOBAL;
   }
 
-  public static class NativeMemoryAllocatorManager implements TaskMemoryResourceManager, Logging {
+  public static class NativeMemoryAllocatorManager implements TaskMemoryResourceManager {
+    private static Logger LOGGER = LoggerFactory.getLogger(NativeMemoryAllocatorManager.class);
     private static final List<NativeMemoryAllocator> LEAKED = new Vector<>();
     private final NativeMemoryAllocator managed;
 
@@ -82,7 +85,7 @@ public class NativeMemoryAllocators {
       // move to leaked list
       long leakBytes = managed.getBytesAllocated();
       long accumulated = TaskMemoryResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
-      logWarning(() -> String.format("Detected leaked native allocator, size: %d, " +
+      LOGGER.warn(String.format("Detected leaked native allocator, size: %d, " +
           "process accumulated leaked size: %d...", leakBytes, accumulated));
       managed.listener().inactivate();
       if (TaskMemoryResources.DEBUG()) {

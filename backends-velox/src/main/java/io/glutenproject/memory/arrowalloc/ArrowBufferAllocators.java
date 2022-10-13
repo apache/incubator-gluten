@@ -25,6 +25,8 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.spark.internal.Logging;
 import org.apache.spark.util.memory.TaskMemoryResourceManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Vector;
@@ -53,13 +55,14 @@ public class ArrowBufferAllocators {
     }
     return ((ArrowBufferAllocatorManager) TaskMemoryResources.getResourceManager(id)).managed;
   }
-
-  public static class ArrowBufferAllocatorManager implements TaskMemoryResourceManager, Logging {
+  public static class ArrowBufferAllocatorManager implements TaskMemoryResourceManager {
+    private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
     private final AllocationListener listener = new SparkManagedAllocationListener(
         new GlutenMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), Spiller.NO_OP),
         TaskMemoryResources.getSharedMetrics());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
+
 
     public ArrowBufferAllocatorManager() {
     }
@@ -72,10 +75,10 @@ public class ArrowBufferAllocators {
       // move to leaked list
       long leakBytes = managed.getAllocatedMemory();
       long accumulated = TaskMemoryResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
-      logWarning(() -> String.format("Detected leaked Arrow allocator, size: %d, " +
+      LOGGER.warn(String.format("Detected leaked Arrow allocator, size: %d, " +
           "process accumulated leaked size: %d...", leakBytes, accumulated));
       if (TaskMemoryResources.DEBUG()) {
-        logDebug(() -> String.format("Leaked allocator stack %s", managed.toVerboseString()));
+        LOGGER.warn(String.format("Leaked allocator stack %s", managed.toVerboseString()));
         LEAKED.add(managed);
       }
     }
