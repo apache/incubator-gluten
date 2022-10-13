@@ -27,6 +27,7 @@ import java.util.regex.Pattern
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.ArrowArray
+import org.apache.arrow.dataset.file.DatasetFileWriter
 import org.apache.arrow.dataset.file.FileFormat
 import org.apache.arrow.dataset.scanner.{Scanner, ScanTask}
 import org.apache.arrow.vector.ipc.ArrowReader
