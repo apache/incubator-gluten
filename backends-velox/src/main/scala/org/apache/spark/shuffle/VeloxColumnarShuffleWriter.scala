@@ -18,30 +18,32 @@
 package org.apache.spark.shuffle
 
 import java.io.IOException
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import com.google.common.annotations.VisibleForTesting
+
+import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
-import io.glutenproject.memory.Spiller
-import org.apache.arrow.c.{ArrowArray, ArrowSchema, Data}
+import org.apache.arrow.c.ArrowArray
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.pojo.Schema
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 class VeloxColumnarShuffleWriter[K, V](
-                                        shuffleBlockResolver: IndexShuffleBlockResolver,
-                                        handle: BaseShuffleHandle[K, V, V],
-                                        mapId: Long,
-                                        writeMetrics: ShuffleWriteMetricsReporter)
+  shuffleBlockResolver: IndexShuffleBlockResolver,
+  handle: BaseShuffleHandle[K, V, V],
+  mapId: Long,
+  writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
     with Logging {
 
@@ -94,13 +96,13 @@ class VeloxColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
-    val splitterJniWrapper : ShuffleSplitterJniWrapper =
+    val splitterJniWrapper: ShuffleSplitterJniWrapper =
       jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper]
 
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
       shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId,
-                                                      partitionLengths, Array[Long](), null)
+        partitionLengths, Array[Long](), null)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }
@@ -117,7 +119,7 @@ class VeloxColumnarShuffleWriter[K, V](
         blockManager.subDirsPerLocalDir,
         localDirs,
         preferSpill,
-        SparkMemoryUtils.createSpillableNativeAllocator(
+        NativeMemoryAllocators.createSpillable(
           new Spiller() {
             override def spill(size: Long, trigger: MemoryConsumer): Long = {
               if (nativeSplitter == 0) {
@@ -139,7 +141,7 @@ class VeloxColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val startTimeForPrepare = System.nanoTime()
-        val allocator = SparkMemoryUtils.contextArrowAllocator()
+        val allocator = ArrowBufferAllocators.contextInstance()
         val cArray = ArrowArray.allocateNew(allocator)
         // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
         // RecordBatch to ArrowArray without Schema, may optimize later

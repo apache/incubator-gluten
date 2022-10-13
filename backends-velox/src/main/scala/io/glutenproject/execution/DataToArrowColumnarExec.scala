@@ -17,16 +17,17 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
-
 import scala.collection.JavaConverters._
+
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection}
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -57,7 +58,7 @@ case class DataToArrowColumnarExec(child: SparkPlan, numPartitions: Int) extends
         numOutputBatches += 1
         numOutputRows += batch.numRows()
         ArrowColumnarBatches
-          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+          .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
           .rowIterator().asScala.map(toUnsafe)
       }
     }

@@ -18,14 +18,16 @@
 package org.apache.spark.sql.execution
 
 import java.io._
+
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, SerializableObject}
 import sun.misc.Cleaner
+
 import org.apache.spark.sql.execution.ColumnarHashedRelation.Deallocator
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.KnownSizeEstimation
 
@@ -118,7 +120,7 @@ class ColumnarHashedRelation(
         // retain all cols
         (0 until cb.numCols).toList.foreach(i =>
           ArrowColumnarBatches
-            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(),
               cb).column(i).asInstanceOf[ArrowWritableColumnVector].retain())
         cb
       }

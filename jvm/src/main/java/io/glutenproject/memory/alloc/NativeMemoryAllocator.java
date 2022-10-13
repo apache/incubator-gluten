@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package io.glutenproject.memory.alloc;
 
 import io.glutenproject.vectorized.JniLibLoader;
 import io.glutenproject.vectorized.JniWorkspace;
@@ -34,11 +34,11 @@ public class NativeMemoryAllocator {
     this.listener = listener;
   }
 
-  public static NativeMemoryAllocator getDefault() {
+  static NativeMemoryAllocator getDefault() {
     return new NativeMemoryAllocator(getDefaultAllocator(), ReservationListener.NOOP);
   }
 
-  public static NativeMemoryAllocator createListenable(ReservationListener listener) {
+  static NativeMemoryAllocator createListenable(ReservationListener listener) {
     return new NativeMemoryAllocator(createListenableAllocator(listener), listener);
   }
 

@@ -15,24 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package io.glutenproject.memory.alloc;
 
-public interface ReservationListener {
-  ReservationListener NOOP = new ReservationListener() {
-    @Override
-    public void reserve(long size) {
-    }
+import org.apache.spark.memory.MemoryConsumer;
 
+public interface Spiller {
+  Spiller NO_OP = new Spiller() {
     @Override
-    public void unreserve(long size) {
-    }
-
-    @Override
-    public void inactivate() {
+    public long spill(long size, MemoryConsumer trigger) {
+      return 0L;
     }
   };
 
-  void reserve(long size);
-  void unreserve(long size);
-  void inactivate();
+  long spill(long size, MemoryConsumer trigger);
 }

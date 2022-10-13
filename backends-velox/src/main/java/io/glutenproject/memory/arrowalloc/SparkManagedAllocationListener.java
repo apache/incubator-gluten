@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package io.glutenproject.memory.arrowalloc;
 
+import io.glutenproject.memory.GlutenMemoryConsumer;
+import io.glutenproject.memory.TaskMemoryMetrics;
 import org.apache.arrow.memory.AllocationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,16 +31,16 @@ public class SparkManagedAllocationListener implements AllocationListener, AutoC
 
   public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
-  private final NativeSQLMemoryConsumer consumer;
-  private final NativeSQLMemoryMetrics metrics;
+  private final GlutenMemoryConsumer consumer;
+  private final TaskMemoryMetrics metrics;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public SparkManagedAllocationListener(NativeSQLMemoryConsumer consumer,
-                                        NativeSQLMemoryMetrics metrics) {
+  public SparkManagedAllocationListener(GlutenMemoryConsumer consumer,
+                                        TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }

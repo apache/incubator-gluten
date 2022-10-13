@@ -18,14 +18,18 @@
 package org.apache.spark.sql.execution
 
 import java.io._
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression._
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -35,7 +39,7 @@ import org.apache.spark.sql.execution.columnar.DefaultCachedBatchSerializer
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.KnownSizeEstimation
 
@@ -146,7 +150,7 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
             if (batch.numRows > 0) {
               (0 until batch.numCols).foreach(i =>
                 ArrowColumnarBatches
-                  .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+                  .ensureLoaded(ArrowBufferAllocators.contextInstance(),
                     batch).column(i).asInstanceOf[ArrowWritableColumnVector].retain())
               _numRows += batch.numRows
               _input += batch
@@ -184,7 +188,7 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
         val toUnsafe = UnsafeProjection.create(selectedAttributes, selectedAttributes)
         batches.flatMap { batch =>
           ArrowColumnarBatches
-            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
             .rowIterator().asScala.map(toUnsafe)
         }
       }
@@ -218,7 +222,7 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
 
               override def next(): ColumnarBatch = {
                 val vectors = columnIndices.map(i => ArrowColumnarBatches
-                  .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+                  .ensureLoaded(ArrowBufferAllocators.contextInstance(),
                     rawData(batchIdx)).column(i))
                 vectors.foreach(v => v.asInstanceOf[ArrowWritableColumnVector].retain())
                 val numRows = rawData(batchIdx).numRows
