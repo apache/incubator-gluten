@@ -123,7 +123,6 @@ object DSV2Q1ColumnarBenchmarkTest {
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "6442450944")
         .config("spark.io.compression.codec", "LZ4")
-        .config("spark.gluten.sql.columnar.backend.lib", "clickhouse")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1

@@ -82,7 +82,6 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-      .set("spark.gluten.sql.columnar.backend.lib", SystemParameters.getGlutenBackend)
       .set("spark.sql.warehouse.dir", warehouse)
 
     if (SystemParameters.getGlutenBackend.equalsIgnoreCase(

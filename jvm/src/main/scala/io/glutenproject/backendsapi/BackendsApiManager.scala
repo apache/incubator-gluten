@@ -17,11 +17,15 @@
 
 package io.glutenproject.backendsapi
 
+import org.apache.commons.lang3.StringUtils
+
 import java.util.ServiceLoader
 
 import scala.collection.JavaConverters
 
 object BackendsApiManager {
+
+  protected var glutenBackenName: String = ""
 
   protected var iteratorApiInstance: IIteratorApi = null
 
@@ -30,54 +34,79 @@ object BackendsApiManager {
   protected var transformerApiInstance: ITransformerApi = null
 
   /**
+   * Automatically detect the backend api.
+   * @return
+   */
+  def initialize(): String = synchronized {
+    initializeInternal(null)
+  }
+
+  /**
+   * Initialize all backends api by the specified lib name.
+   *
+   * For test.
+   * @return
+   */
+  def initialize(glutenBackenLibName: String): String = synchronized {
+    initializeInternal(glutenBackenLibName)
+  }
+
+  /**
    * Initialize all backends api.
    *
    * @param glutenBackenLibName
    */
-  def initialize(glutenBackenLibName: String): Unit = synchronized {
+  private def initializeInternal(glutenBackenLibName: String): String = {
+    glutenBackenName = if (StringUtils.isEmpty(glutenBackenLibName)) {
+      val serviceBaseLoader = JavaConverters.iterableAsScalaIterable(
+        ServiceLoader.load(classOf[IBackendsApi]))
+      assert((serviceBaseLoader != null) && (serviceBaseLoader.size == 1),
+        "Can not load IBackendsApi.")
+      serviceBaseLoader.head.getBackendName
+    } else {
+      glutenBackenLibName
+    }
+
     // initialize IIteratorApi instance
     if (iteratorApiInstance == null) {
-      val serviceLoader = ServiceLoader.load(classOf[IIteratorApi])
-      for (ele <- JavaConverters.iterableAsScalaIterable(serviceLoader)) {
-        if (ele.getBackendName.equalsIgnoreCase(glutenBackenLibName)) {
-          iteratorApiInstance = ele
-        } else if (ele.getBackendName.equalsIgnoreCase("velox")) {
-          // Currently, Velox and Gazelle backends use the same api to implement.
-          // Will remove this after splitting gazelle module
+      val serviceLoader = JavaConverters.iterableAsScalaIterable(
+        ServiceLoader.load(classOf[IIteratorApi]))
+      assert(serviceLoader != null, "Can not initialize IIteratorApi instance.")
+      for (ele <- serviceLoader) {
+        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
           iteratorApiInstance = ele
         }
       }
     }
     assert(iteratorApiInstance != null, "Can not initialize IIteratorApi instance.")
+
     // initialize ISparkPlanExecApi instance
     if (sparkPlanExecApiInstance == null) {
-      val serviceLoader = ServiceLoader.load(classOf[ISparkPlanExecApi])
-
-      for (ele <- JavaConverters.iterableAsScalaIterable(serviceLoader)) {
-        if (ele.getBackendName.equalsIgnoreCase(glutenBackenLibName)) {
-          sparkPlanExecApiInstance = ele
-        } else if (ele.getBackendName.equalsIgnoreCase("velox")) {
-          // Currently, Velox and Gazelle backends use the same api to implement.
-          // Will remove this after splitting gazelle module
+      val serviceLoader = JavaConverters.iterableAsScalaIterable(
+        ServiceLoader.load(classOf[ISparkPlanExecApi]))
+      assert(serviceLoader != null, "Can not initialize ISparkPlanExecApi instance.")
+      for (ele <- serviceLoader) {
+        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
           sparkPlanExecApiInstance = ele
         }
       }
     }
-    assert(sparkPlanExecApiInstance != null, "Can not initialize " + "ISparkPlanExecApi instance.")
+    assert(sparkPlanExecApiInstance != null, "Can not initialize ISparkPlanExecApi instance.")
+
     // initialize ITransformerApi instance
     if (transformerApiInstance == null) {
-      val serviceLoader = ServiceLoader.load(classOf[ITransformerApi])
-      for (ele <- JavaConverters.iterableAsScalaIterable(serviceLoader)) {
-        if (ele.getBackendName.equalsIgnoreCase(glutenBackenLibName)) {
-          transformerApiInstance = ele
-        } else if (ele.getBackendName.equalsIgnoreCase("velox")) {
-          // Currently, Velox and Gazelle backends use the same api to implement.
-          // Will remove this after splitting gazelle module
+      val serviceLoader = JavaConverters.iterableAsScalaIterable(
+        ServiceLoader.load(classOf[ITransformerApi]))
+      assert(serviceLoader != null, "Can not initialize ITransformerApi instance.")
+      for (ele <- serviceLoader) {
+        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
           transformerApiInstance = ele
         }
       }
     }
     assert(transformerApiInstance != null, "Can not initialize ITransformerApi instance.")
+
+    glutenBackenName
   }
 
   def getIteratorApiInstance: IIteratorApi = {

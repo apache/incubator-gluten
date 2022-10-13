@@ -90,7 +90,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-        .config("spark.gluten.sql.columnar.backend.lib", SystemParameters.getGlutenBackend)
         .config("spark.sql.warehouse.dir", warehouse)
 
       _spark = if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
