@@ -146,7 +146,7 @@ private[glutenproject] object GlutenPlugin {
         GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
     }
 
-    conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIF_PREFIX) }
+    conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
       .foreach{ case (k, v) => nativeConfMap.put(k, v) }
 
     nativeConfMap.put(
