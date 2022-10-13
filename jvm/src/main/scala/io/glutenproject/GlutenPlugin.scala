@@ -146,6 +146,9 @@ private[glutenproject] object GlutenPlugin {
         GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
     }
 
+    conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
+      .foreach{ case (k, v) => nativeConfMap.put(k, v) }
+
     nativeConfMap.put(
       GlutenConfig.SPARK_BATCH_SIZE, conf.get(GlutenConfig.SPARK_BATCH_SIZE, "32768"))
 
