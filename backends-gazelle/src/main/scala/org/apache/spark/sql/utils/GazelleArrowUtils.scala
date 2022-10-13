@@ -62,7 +62,7 @@ object GazelleArrowUtils {
     factory
   }
 
-  private def readSchema(file: FgileStatus): Option[StructType] = {
+  private def readSchema(file: FileStatus): Option[StructType] = {
     val factory: FileSystemDatasetFactory =
       makeArrowDiscovery(file.getPath.toString, -1L, -1L)
     val schema = factory.inspect()
