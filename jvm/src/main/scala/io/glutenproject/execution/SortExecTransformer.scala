@@ -289,6 +289,7 @@ case class SortExecTransformer(
   }
 
   override def doValidate(): Boolean = {
+    if (!GlutenConfig.getConf.isVeloxBackend) return false
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
 
