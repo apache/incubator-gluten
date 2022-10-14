@@ -170,9 +170,6 @@
                     <scope>test</scope>
                 </dependency>
             </dependencies>
-            <properties>
-                <spark.gluten.sql.columnar.backend.lib>ch</spark.gluten.sql.columnar.backend.lib>
-            </properties>
         </profile>
         <profile>
             <id>backends-velox</id>
@@ -188,7 +185,6 @@
                 </dependency>
             </dependencies>
             <properties>
-                <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
                 <clickhouse.lib.path></clickhouse.lib.path>
             </properties>
         </profile>
@@ -206,7 +202,6 @@
                 </dependency>
             </dependencies>
             <properties>
-                <spark.gluten.sql.columnar.backend.lib>velox</spark.gluten.sql.columnar.backend.lib>
                 <clickhouse.lib.path></clickhouse.lib.path>
             </properties>
         </profile>
@@ -343,7 +338,6 @@
                             <systemProperties>
                                 <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
                                 <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
-                                <spark.gluten.sql.columnar.backend.lib>${spark.gluten.sql.columnar.backend.lib}</spark.gluten.sql.columnar.backend.lib>
                             </systemProperties>
                         </configuration>
                     </execution>
