@@ -115,6 +115,14 @@ void VeloxInitializer::Init() {
       aggregate::NonNumericMaxAggregate>("max");
 }
 
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
+  if (ssort.has_input()) {
+    setInputPlanNode(ssort.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
 void VeloxPlanConverter::setInputPlanNode(
     const ::substrait::AggregateRel& sagg) {
   if (sagg.has_input()) {
@@ -226,6 +234,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.read());
   } else if (srel.has_join()) {
     setInputPlanNode(srel.join());
+  } else if (srel.has_sort()) {
+    setInputPlanNode(srel.sort());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
