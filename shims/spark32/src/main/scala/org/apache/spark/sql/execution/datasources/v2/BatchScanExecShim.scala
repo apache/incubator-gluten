@@ -27,9 +27,10 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.SparkException
 
-class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
-                               runtimeFilters: Seq[Expression],
-                               pushdownFilters: Seq[Expression] = Seq())
+class BatchScanExecShim(output: Seq[AttributeReference],
+                        @transient scan: Scan,
+                        runtimeFilters: Seq[Expression],
+                        pushdownFilters: Seq[Expression] = Seq())
   extends BatchScanExec(output, scan, runtimeFilters) {
 
   override lazy val metrics: Map[String, SQLMetric] = Map()
