@@ -121,7 +121,6 @@ class JoinSelectionOverrideShim(val backendLib: BackendLib) extends Strategy wit
           }
           .getOrElse(Nil)
       }
-
       Nil
     }
   }
