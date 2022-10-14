@@ -30,49 +30,6 @@ import java.util.UUID
 
 import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
 
-class TaskMemoryResources {
-
-}
-
-class TaskMemoryResourceRegistry {
-  if (!inSparkTask()) {
-    throw new IllegalStateException(
-      "Creating TaskMemoryResourceRegistry instance out of Spark task")
-  }
-
-  private val sharedMetrics = new TaskMemoryMetrics()
-
-  private val managers = new java.util.HashMap[String, TaskMemoryResourceManager]()
-
-  private[memory] def releaseAll(): Unit = {
-    managers.values().asScala.foreach(_.release())
-  }
-
-  private[memory] def addManager(id: String, resource: TaskMemoryResourceManager): Unit = {
-    if (managers.containsKey(id)) {
-      throw new IllegalArgumentException(
-        String.format("TaskMemoryResourceManager with ID %s is already registered", id))
-    }
-    managers.put(id, resource)
-  }
-
-  private[memory] def isManagerRegistered(id: String): Boolean = {
-    managers.containsKey(id)
-  }
-
-  private[memory] def getManager[T <: TaskMemoryResourceManager](id: String): T = {
-    if (!managers.containsKey(id)) {
-      throw new IllegalArgumentException(
-        String.format("TaskMemoryResourceManager with ID %s is not registered", id))
-    }
-    managers.get(id).asInstanceOf[T]
-  }
-
-  private[memory] def getSharedMetrics(): TaskMemoryMetrics = {
-    sharedMetrics
-  }
-}
-
 object TaskMemoryResources {
   val DEBUG: Boolean = {
     SQLConf.get
@@ -148,5 +105,44 @@ object TaskMemoryResources {
 
   def getSharedMetrics(): TaskMemoryMetrics = {
     getOrCreateTaskMemoryResourceRegistry().getSharedMetrics()
+  }
+}
+
+class TaskMemoryResourceRegistry {
+  if (!inSparkTask()) {
+    throw new IllegalStateException(
+      "Creating TaskMemoryResourceRegistry instance out of Spark task")
+  }
+
+  private val sharedMetrics = new TaskMemoryMetrics()
+
+  private val managers = new java.util.HashMap[String, TaskMemoryResourceManager]()
+
+  private[memory] def releaseAll(): Unit = {
+    managers.values().asScala.foreach(_.release())
+  }
+
+  private[memory] def addManager(id: String, resource: TaskMemoryResourceManager): Unit = {
+    if (managers.containsKey(id)) {
+      throw new IllegalArgumentException(
+        String.format("TaskMemoryResourceManager with ID %s is already registered", id))
+    }
+    managers.put(id, resource)
+  }
+
+  private[memory] def isManagerRegistered(id: String): Boolean = {
+    managers.containsKey(id)
+  }
+
+  private[memory] def getManager[T <: TaskMemoryResourceManager](id: String): T = {
+    if (!managers.containsKey(id)) {
+      throw new IllegalArgumentException(
+        String.format("TaskMemoryResourceManager with ID %s is not registered", id))
+    }
+    managers.get(id).asInstanceOf[T]
+  }
+
+  private[memory] def getSharedMetrics(): TaskMemoryMetrics = {
+    sharedMetrics
   }
 }
