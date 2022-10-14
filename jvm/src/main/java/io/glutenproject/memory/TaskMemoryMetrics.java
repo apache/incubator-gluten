@@ -17,15 +17,28 @@
 
 package io.glutenproject.memory;
 
-import org.apache.spark.memory.MemoryConsumer;
+import java.util.concurrent.atomic.AtomicLong;
 
-public interface Spiller {
-  Spiller NO_OP = new Spiller() {
-    @Override
-    public long spill(long size, MemoryConsumer trigger) {
-      return 0L;
-    }
-  };
+public class TaskMemoryMetrics {
+  private final AtomicLong peak = new AtomicLong(0L);
+  private final AtomicLong total = new AtomicLong(0L);
 
-  long spill(long size, MemoryConsumer trigger);
+  public void inc(long bytes) {
+    final long total = this.total.addAndGet(bytes);
+    long prev_peak;
+    do {
+      prev_peak = this.peak.get();
+      if (total <= prev_peak) {
+        break;
+      }
+    } while (!this.peak.compareAndSet(prev_peak, total));
+  }
+
+  public long peak() {
+    return peak.get();
+  }
+
+  public long total() {
+    return total.get();
+  }
 }

@@ -17,13 +17,15 @@
 
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
-
 import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
+
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.memory.ArrowBuf
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch}
+
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object SparkVectorUtils {
@@ -31,7 +33,7 @@ object SparkVectorUtils {
   def estimateSize(columnarBatch: ColumnarBatch): Long = {
     val cols = (0 until columnarBatch.numCols).toList.map(i =>
       ArrowColumnarBatches
-        .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+        .ensureLoaded(ArrowBufferAllocators.contextInstance(),
           columnarBatch).column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector())
     val nodes = new java.util.ArrayList[ArrowFieldNode]()
     val buffers = new java.util.ArrayList[ArrowBuf]()
@@ -44,7 +46,7 @@ object SparkVectorUtils {
   def toFieldVectorList(cb: ColumnarBatch): List[FieldVector] = {
     (0 until cb.numCols).toList.map(i =>
       ArrowColumnarBatches
-        .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+        .ensureLoaded(ArrowBufferAllocators.contextInstance(),
           cb)
         .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector.asInstanceOf[FieldVector])
   }
@@ -53,7 +55,7 @@ object SparkVectorUtils {
     val numRowsInBatch = columnarBatch.numRows()
     val cols = (0 until columnarBatch.numCols).toList.map(i =>
       ArrowColumnarBatches
-        .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), columnarBatch)
+        .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
         .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector)
     toArrowRecordBatch(numRowsInBatch, cols)
   }

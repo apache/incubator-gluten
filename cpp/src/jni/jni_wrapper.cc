@@ -291,7 +291,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   java_reservation_listener_class = CreateGlobalClassReference(
       env,
-      "Lio/glutenproject/memory/"
+      "Lio/glutenproject/memory/alloc/"
       "ReservationListener;");
   reserve_memory_method = GetMethodIDOrError(
       env, java_reservation_listener_class, "reserve", "(J)V");
@@ -1040,7 +1040,7 @@ Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_close(
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_glutenproject_memory_NativeMemoryAllocator_getDefaultAllocator(
+Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_getDefaultAllocator(
     JNIEnv* env,
     jclass) {
   JNI_METHOD_START
@@ -1049,7 +1049,7 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_getDefaultAllocator(
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_glutenproject_memory_NativeMemoryAllocator_createListenableAllocator(
+Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_createListenableAllocator(
     JNIEnv* env,
     jclass,
     jobject jlistener) {
@@ -1072,7 +1072,7 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_createListenableAllocator(
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(
+Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator(
     JNIEnv* env,
     jclass,
     jlong allocator_id) {
@@ -1090,7 +1090,7 @@ Java_io_glutenproject_memory_NativeMemoryAllocator_releaseAllocator(
 }
 
 JNIEXPORT jlong JNICALL
-Java_io_glutenproject_memory_NativeMemoryAllocator_bytesAllocated(
+Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated(
     JNIEnv* env,
     jclass,
     jlong allocator_id) {

@@ -19,12 +19,11 @@ package org.apache.spark.sql.execution.datasources.velox
 
 import java.io.IOException
 
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
 import io.glutenproject.vectorized.NativeColumnarToRowInfo
-
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
@@ -32,7 +31,6 @@ import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
@@ -61,11 +59,11 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
                                context: TaskAttemptContext): OutputWriter = {
         val originPath = path
         val arrowSchema = ArrowUtils.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
-        val cSchema = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator)
+        val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         var instanceId = -1L
         val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
         try {
-          ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator, arrowSchema, cSchema)
+          ArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(), arrowSchema, cSchema)
           instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath,
             cSchema.memoryAddress())
         } catch {
@@ -78,13 +76,13 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            val allocator = SparkMemoryUtils.contextArrowAllocator()
+            val allocator = ArrowBufferAllocators.contextInstance()
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
             var info: NativeColumnarToRowInfo = null
             try {
               ArrowAbiUtil.exportFromSparkColumnarBatch(
-                SparkMemoryUtils.contextArrowAllocator(), batch, cSchema, cArray)
+                ArrowBufferAllocators.contextInstance(), batch, cSchema, cArray)
 
               dwrfDatasourceJniWrapper.write(instanceId, cSchema.memoryAddress(),
                 cArray.memoryAddress())

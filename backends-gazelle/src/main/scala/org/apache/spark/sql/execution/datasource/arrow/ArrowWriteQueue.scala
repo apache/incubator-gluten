@@ -24,16 +24,17 @@ import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.dataset.file.{DatasetFileWriter, FileFormat}
+import org.apache.arrow.dataset.file.DatasetFileWriter
+import org.apache.arrow.dataset.file.FileFormat
 import org.apache.arrow.dataset.scanner.{Scanner, ScanTask}
 import org.apache.arrow.vector.ipc.ArrowReader
 import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasource.arrow.ArrowWriteQueue.{EOS_ARROW_ARRAY, ScannerImpl}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 
 class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: String)
   extends AutoCloseable with Logging {
@@ -50,7 +51,7 @@ class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: Str
     val fileName = matcher.group(2)
 
     try {
-      DatasetFileWriter.write(SparkMemoryUtils.contextArrowAllocator(),
+      DatasetFileWriter.write(ArrowBufferAllocators.contextInstance(),
         scanner, fileFormat, dirURI, Array(), 1, "{i}_" + fileName)
     } catch {
       case e: Throwable =>
@@ -84,7 +85,7 @@ class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: Str
 object ArrowWriteQueue {
   private val TAILING_FILENAME_REGEX = Pattern.compile("^(.*)/([^/]+)$")
   private val EOS_ARROW_ARRAY = ArrowArray.allocateNew(
-    SparkMemoryUtils.contextArrowAllocator())
+    ArrowBufferAllocators.contextInstance())
 
   class ScannerImpl(schema: Schema) extends Scanner {
     private val writeQueue = new ArrayBlockingQueue[ArrowArray](1024)
@@ -96,7 +97,7 @@ object ArrowWriteQueue {
     override def scan(): lang.Iterable[_ <: ScanTask] = {
       Collections.singleton(new ScanTask {
         override def execute(): ArrowReader = {
-          val allocator = SparkMemoryUtils.contextArrowAllocator()
+          val allocator = ArrowBufferAllocators.contextInstance()
           new ArrowReader(allocator) {
             override def loadNextBatch(): Boolean = {
               val currentArray = try {
