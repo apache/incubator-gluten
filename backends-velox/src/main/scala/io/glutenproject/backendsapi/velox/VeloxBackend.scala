@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package io.glutenproject.backendsapi.clickhouse
+package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.IBackendsApi
 import io.glutenproject.GlutenConfig
