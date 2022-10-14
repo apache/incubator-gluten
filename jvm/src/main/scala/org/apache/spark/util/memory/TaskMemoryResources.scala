@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.UUID
 
 import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
+import org.apache.spark.internal.Logging
 
 object TaskMemoryResources {
   val DEBUG: Boolean = {
@@ -108,7 +109,7 @@ object TaskMemoryResources {
   }
 }
 
-class TaskMemoryResourceRegistry {
+class TaskMemoryResourceRegistry extends Logging {
   if (!inSparkTask()) {
     throw new IllegalStateException(
       "Creating TaskMemoryResourceRegistry instance out of Spark task")
@@ -119,7 +120,12 @@ class TaskMemoryResourceRegistry {
   private val managers = new java.util.HashMap[String, TaskMemoryResourceManager]()
 
   private[memory] def releaseAll(): Unit = {
-    managers.values().asScala.foreach(_.release())
+    managers.values().asScala.foreach(m => try {
+      m.release()
+    } catch {
+      case e: Throwable =>
+        logWarning("Failed to call release() on resource manager instance", e)
+    })
   }
 
   private[memory] def addManager(id: String, resource: TaskMemoryResourceManager): Unit = {
