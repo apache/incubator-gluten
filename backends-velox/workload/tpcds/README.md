@@ -1,9 +1,9 @@
-#Test on Velox backend with TPC-DS workload
+# Test on Velox backend with TPC-DS workload
 
 ## Test dataset
 Parquet format is supported. Here are the steps to generate the testing datasets:
 
-### Generate the Parquet dataset.
+### Generate the Parquet dataset
 Please refer to the scripts in ./gen_data/parquet_dataset/ directory to generate parquet dataset. Note this script relies on the [spark-sql-perf](https://github.com/databricks/spark-sql-perf) package from Databricks.
 
 In tpcds_datagen_parquet.sh, several parameters should be configured according to the system.

@@ -1,21 +1,21 @@
 # Velox Backend
 
-Currently the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
+Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
 ## Prerequisite
 
-Velox use the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency library can't be installed. So we need to install them manually:
+Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries can't be installed.
+Velox also requires ninja for compilation. So we need to install them manually:
 
 ```shell script
-apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git
+apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build
 ```
 
-Also we need to setup the JAVA_HOME env.
+Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
 ```shell script
 export JAVA_HOME=path/to/java/home
 export PATH=$JAVA_HOME/bin:$PATH
 ```
-
 
 ## Build Velox Jar
 
@@ -51,7 +51,7 @@ On Ubuntu 20.04 the required depedencis are libiberty-dev, libxml2-dev, libkrb5-
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
 
-Gluten HDFS support requires an extra enviorment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
+Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
 
 This env should be exported in both Spark driver and worker.
 e.g., in Spark local mode:
@@ -128,5 +128,4 @@ Both Parquet and ORC datasets are sf1024.
 
 # External reference setup
 
-TO ease your first hand experience of using Gluten, we have setup an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com
-
+TO ease your first-hand experience of using Gluten, we have set up an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com.
