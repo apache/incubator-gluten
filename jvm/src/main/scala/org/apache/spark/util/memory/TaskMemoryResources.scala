@@ -36,7 +36,8 @@ class TaskMemoryResources {
 
 class TaskMemoryResourceRegistry {
   if (!inSparkTask()) {
-    throw new IllegalStateException("Creating TaskMemoryResourceRegistry instance out of Spark task")
+    throw new IllegalStateException(
+      "Creating TaskMemoryResourceRegistry instance out of Spark task")
   }
 
   private val sharedMetrics = new TaskMemoryMetrics()
