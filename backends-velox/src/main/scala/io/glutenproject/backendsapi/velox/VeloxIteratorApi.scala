@@ -28,8 +28,9 @@ import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.alloc.{NativeMemoryAllocator, Spiller, VeloxManagedReservationListener, VeloxMemoryAllocatorManager}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.memory.{TaskMemoryMetrics, VeloxMemoryConsumer}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -38,6 +39,7 @@ import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
@@ -46,7 +48,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
-import org.apache.spark.util.memory.TaskMemoryResources
+import org.apache.spark.util.memory.{TaskMemoryResourceManager, TaskMemoryResources}
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
@@ -353,16 +355,31 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
   }
 
   /**
+   * Generate NativeMemoryAllocatorManager.
+   *
+   * @return
+   */
+  override def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
+                                               spiller: Spiller,
+                                               taskMemoryMetrics: TaskMemoryMetrics
+                                              ): TaskMemoryResourceManager = {
+    val rl = new VeloxManagedReservationListener(
+      new VeloxMemoryConsumer(taskMemoryManager, spiller),
+      taskMemoryMetrics
+    )
+    new VeloxMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
+  }
+
+  /**
    * Generate BatchIterator for ExpressionEvaluator.
    *
    * @return
    */
-  override def genBatchIterator(wsPlan: Array[Byte],
+  override def genBatchIterator(allocId: java.lang.Long,
+                                wsPlan: Array[Byte],
                                 iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper,
                                 outAttrs: Seq[Attribute]): GeneralOutIterator = {
-    val alloc = NativeMemoryAllocators.contextInstance()
-    val allocId = alloc.getNativeInstanceId
     val batchIteratorInstance =
       jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)

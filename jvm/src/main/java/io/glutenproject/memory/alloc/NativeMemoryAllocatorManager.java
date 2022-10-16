@@ -17,31 +17,8 @@
 
 package io.glutenproject.memory.alloc;
 
-public interface ReservationListener {
-  ReservationListener NOOP = new ReservationListener() {
-    @Override
-    public void reserve(long size) {
-    }
-
-    @Override
-    public void unreserve(long size) {
-    }
-
-    @Override
-    public void inactivate() {
-    }
-
-    @Override
-    public long currentMemory() {
-      return 0L;
-    }
-  };
-
-  void reserve(long size);
-
-  void unreserve(long size);
-
-  void inactivate();
-
-  long currentMemory();
+/**
+ * It's a black interface for the native memory allocator manager
+ */
+public interface NativeMemoryAllocatorManager {
 }

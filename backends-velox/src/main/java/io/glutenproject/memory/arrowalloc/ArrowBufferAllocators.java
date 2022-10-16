@@ -17,7 +17,8 @@
 
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
+import io.glutenproject.memory.VeloxMemoryConsumer;
+import io.glutenproject.memory.alloc.NativeMemoryAllocator;
 import io.glutenproject.memory.alloc.Spiller;
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
@@ -33,7 +34,6 @@ import java.util.Vector;
 public class ArrowBufferAllocators {
 
   private ArrowBufferAllocators() {
-
   }
 
   private static final long MAX_ALLOCATION_SIZE = TaskMemoryResources.OFFHEAP_SIZE();
@@ -54,14 +54,14 @@ public class ArrowBufferAllocators {
     }
     return ((ArrowBufferAllocatorManager) TaskMemoryResources.getResourceManager(id)).managed;
   }
+
   public static class ArrowBufferAllocatorManager implements TaskMemoryResourceManager {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
     private final AllocationListener listener = new SparkManagedAllocationListener(
-        new GlutenMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), Spiller.NO_OP),
+        new VeloxMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), Spiller.NO_OP),
         TaskMemoryResources.getSharedMetrics());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
-
 
     public ArrowBufferAllocatorManager() {
     }
@@ -89,6 +89,14 @@ public class ArrowBufferAllocators {
       } else {
         close();
       }
+    }
+
+    /**
+     * Not support for ArrowBufferAllocatorManager
+     * @return
+     */
+    public NativeMemoryAllocator getManaged() {
+      throw new UnsupportedOperationException("Not support for ArrowBufferAllocatorManager");
     }
   }
 }

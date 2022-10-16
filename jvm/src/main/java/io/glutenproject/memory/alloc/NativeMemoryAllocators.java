@@ -17,14 +17,10 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
+import io.glutenproject.backendsapi.BackendsApiManager;
+
 import org.apache.spark.util.memory.TaskMemoryResourceManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.Vector;
 
 public class NativeMemoryAllocators {
   private NativeMemoryAllocators() {
@@ -39,14 +35,14 @@ public class NativeMemoryAllocators {
 
     final String id = NativeMemoryAllocatorManager.class.toString();
     if (!TaskMemoryResources.isResourceManagerRegistered(id)) {
-      final ReservationListener rl = new SparkManagedReservationListener(
-          new GlutenMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), Spiller.NO_OP),
-          TaskMemoryResources.getSharedMetrics());
-      final NativeMemoryAllocator alloc = NativeMemoryAllocator.createListenable(rl);
-      final NativeMemoryAllocatorManager manager = new NativeMemoryAllocatorManager(alloc);
+      final TaskMemoryResourceManager manager = BackendsApiManager.getIteratorApiInstance()
+          .genNativeMemoryAllocatorManager(
+              TaskMemoryResources.getSparkMemoryManager(),
+              Spiller.NO_OP,
+              TaskMemoryResources.getSharedMetrics());
       TaskMemoryResources.addResourceManager(id, manager);
     }
-    return ((NativeMemoryAllocatorManager) TaskMemoryResources.getResourceManager(id)).managed;
+    return TaskMemoryResources.getResourceManager(id).getManaged();
   }
 
   public static NativeMemoryAllocator createSpillable(Spiller spiller) {
@@ -54,51 +50,16 @@ public class NativeMemoryAllocators {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
 
-    final ReservationListener rl = new SparkManagedReservationListener(
-        new GlutenMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), spiller),
-        TaskMemoryResources.getSharedMetrics());
-    final NativeMemoryAllocator alloc = NativeMemoryAllocator.createListenable(rl);
-    final NativeMemoryAllocatorManager manager = new NativeMemoryAllocatorManager(alloc);
+    final TaskMemoryResourceManager manager = BackendsApiManager.getIteratorApiInstance()
+        .genNativeMemoryAllocatorManager(
+            TaskMemoryResources.getSparkMemoryManager(),
+            spiller,
+            TaskMemoryResources.getSharedMetrics());
     TaskMemoryResources.addAnonymousResourceManager(manager);
-    return manager.managed;
+    return manager.getManaged();
   }
 
   public static NativeMemoryAllocator globalInstance() {
     return GLOBAL;
-  }
-
-  public static class NativeMemoryAllocatorManager implements TaskMemoryResourceManager {
-    private static Logger LOGGER = LoggerFactory.getLogger(NativeMemoryAllocatorManager.class);
-    private static final List<NativeMemoryAllocator> LEAKED = new Vector<>();
-    private final NativeMemoryAllocator managed;
-
-    public NativeMemoryAllocatorManager(NativeMemoryAllocator managed) {
-      this.managed = managed;
-    }
-
-    private void close() throws Exception {
-      managed.close();
-    }
-
-    private void softClose() throws Exception {
-      // move to leaked list
-      long leakBytes = managed.getBytesAllocated();
-      long accumulated = TaskMemoryResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
-      LOGGER.warn(String.format("Detected leaked native allocator, size: %d, " +
-          "process accumulated leaked size: %d...", leakBytes, accumulated));
-      managed.listener().inactivate();
-      if (TaskMemoryResources.DEBUG()) {
-        LEAKED.add(managed);
-      }
-    }
-
-    @Override
-    public void release() throws Exception {
-      if (managed.getBytesAllocated() != 0L) {
-        softClose();
-      } else {
-        close();
-      }
-    }
   }
 }
