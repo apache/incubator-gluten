@@ -118,6 +118,10 @@ case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
   def separateScanRDDForCH: Boolean = glutenConfig.isClickHouseBackend && conf
       .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "true").toBoolean
 
+  // Only support clickhouse at present
+  def enableColumnarUnion: Boolean = GlutenConfig.getSessionConf.enableColumnarUnion &&
+    glutenConfig.isClickHouseBackend
+
   def apply(plan: SparkPlan): SparkPlan = {
     if (columnarWholeStageEnabled) {
       insertWholeStageTransformer(plan)
@@ -147,6 +151,12 @@ case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
     plan match {
       case p if !supportTransform(p) =>
         new ColumnarInputAdapter(insertWholeStageTransformer(p))
+      case p: UnionExecTransformer if (enableColumnarUnion) =>
+        // We need to make the children of union into another stages to  avoid the check
+        // fail that all the number of partitions of file scan must be the same
+        // in WholeStageTransformerExec.doExecuteColumnar
+        p.withNewChildren(p.children.map((plan: SparkPlan) =>
+          new ColumnarInputAdapter(insertWholeStageTransformer(plan))))
       case p =>
         p.withNewChildren(p.children.map(insertInputAdapter))
     }

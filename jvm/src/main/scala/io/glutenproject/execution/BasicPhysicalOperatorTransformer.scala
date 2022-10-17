@@ -516,14 +516,20 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    // throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
     // collect all child input rdds
-    children.map {
-      case c: TransformSupport => c.columnarInputRDDs
-      case c => Seq(c.executeColumnar())
+    val retRDD = children.map {
+      case c: TransformSupport =>
+        val r: Seq[RDD[ColumnarBatch]] = c.columnarInputRDDs
+        r
+      case c =>
+        val r = Seq(c.executeColumnar())
+        r
     }.reduce {
       (a, b) => a ++ b
-    }
+    }.reduce(
+      (a, b) => a.union(b)
+    )
+    Seq(retRDD)
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
@@ -536,19 +542,18 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override def getChild: SparkPlan = {
     throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
-
   }
 
   override def doValidate(): Boolean = {
-    logDebug(s"UnionExecTransformer doValidate=true")
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
-    val inputs = new util.ArrayList[RelNode]()
     val relNode = try {
-      RelBuilder.makeSetRel(inputs,
-        SetRel.SetOp.SET_OP_UNION_ALL,
-        substraitContext,
-        operatorId)
+      val attrList = new util.ArrayList[Attribute]()
+      for (attr <- children(0).output)
+      {
+        attrList.add(attr)
+      }
+      RelBuilder.makeReadRel(attrList, substraitContext, operatorId)
     } catch {
       case e: Throwable =>
         logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
@@ -566,25 +571,13 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     // throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-
     val operatorId = context.nextOperatorId
     val attrList = new util.ArrayList[Attribute]()
     for (attr <- children(0).output)
     {
       attrList.add(attr)
     }
-    val relNodes = children.map {
-      case c: TransformSupport => c.doTransform(context).root
-      case _ => RelBuilder.makeReadRel(attrList, context, operatorId)
-    }
-    val childrenRelNodes = new util.ArrayList[RelNode]()
-    for (rel <- relNodes) {
-      childrenRelNodes.add(rel)
-    }
-    val relNode = RelBuilder.makeSetRel(childrenRelNodes,
-      SetRel.SetOp.SET_OP_UNION_ALL,
-      context,
-      operatorId)
+    val relNode = RelBuilder.makeReadRel(attrList, context, operatorId)
     TransformContext(children(0).output, children(0).output, relNode)
   }
 
