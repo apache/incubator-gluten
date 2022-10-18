@@ -83,7 +83,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     assert(result(0).getDouble(1) == 80037.12727449503)
   }
 
-  test("test union operator") {
+  test("test union all operator with two tables") {
     val testSql =
       """
         |select count(date_sk) from (
@@ -94,6 +94,35 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
     val result = spark.sql(testSql).collect()
     assert(result(0).getLong(0) == 791980)
+  }
+
+  test("test union all operator with three tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union all
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |  union all (
+        |   select ws_sold_date_sk as date_sk from web_sales limit 100
+        |  )
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 792080)
+  }
+
+  test("test union operator with two tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 73050)
   }
 
   test("TPCDS Q9") {
