@@ -87,15 +87,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
       case plan: FileSourceScanExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        val needToFillAttr = conf.getConfString(GlutenConfig.GLUTEN_FILL_ATTRIBUTE_FOR_SCAN,
-            "true").toBoolean
-        val realOutput = if (plan.output.size == 0 && needToFillAttr) {
-          // To support count(1)/count(*) etc. make at least one column to be
-          // read from the files.
-          findMinimalOutputToRead(plan.relation)
-        } else {
-          plan.output
-        }
+        val realOutput = BackendsApiManager.getTransformerApiInstance.
+          genFileSourceScanAttributes(plan)
         new FileSourceScanExecTransformer(
           plan.relation,
           realOutput,
@@ -261,19 +254,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
-  }
-
-  def findMinimalOutputToRead(@transient relation: HadoopFsRelation) : Seq[Attribute] = {
-    if (relation.partitionSchema != null && relation.partitionSchema.fields.size > 0) {
-      // use patition columns first
-      val partitionField = relation.partitionSchema.fields(0)
-      List[Attribute](AttributeReference(partitionField.name,
-        partitionField.dataType,
-        partitionField.nullable)())
-    } else {
-      val field = relation.dataSchema.fields(0)
-      List[Attribute](AttributeReference(field.name, field.dataType, field.nullable)())
-    }
   }
 }
 

@@ -23,22 +23,17 @@ import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
 import io.glutenproject.utils.InputPartitionsUtil
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.physical.{
-  HashPartitioning,
-  Partitioning,
-  RangePartitioning
-}
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{
-  FileFormat,
-  HadoopFsRelation,
-  PartitionDirectory
-}
+import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
+
+import scala.collection.Seq
 
 class CHTransformerApi extends ITransformerApi with Logging {
 
@@ -105,4 +100,30 @@ class CHTransformerApi extends ITransformerApi with Logging {
    * @return
    */
   override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
+
+  /**
+   * Clickhouse doesn't support reading from a file source with empty attributes.
+   * Try to read at least one column from the file. And a partition key column is preferred since
+   * its cost is low.
+   */
+  override def genFileSourceScanAttributes(scanNode: FileSourceScanExec): Seq[Attribute] = {
+    def findMinimalOutputToRead(@transient relation: HadoopFsRelation) : Seq[Attribute] = {
+      if (relation.partitionSchema != null && relation.partitionSchema.fields.size > 0) {
+        // use patition columns first
+        val partitionField = relation.partitionSchema.fields(0)
+        List[Attribute](AttributeReference(partitionField.name,
+          partitionField.dataType,
+          partitionField.nullable)())
+      } else {
+        val field = relation.dataSchema.fields(0)
+        List[Attribute](AttributeReference(field.name, field.dataType, field.nullable)())
+      }
+    }
+    val attrs = if (scanNode.output.size == 0) {
+      findMinimalOutputToRead(scanNode.relation)
+    } else {
+      scanNode.output
+    }
+    attrs
+  }
 }
