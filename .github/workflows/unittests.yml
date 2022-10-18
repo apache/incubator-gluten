@@ -107,10 +107,10 @@ jobs:
       - name: Install Gluten Velox-backend spark3.2
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean install -Pspark-3.2 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
+          mvn clean install -Pspark-3.2 -Pspark-ut -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
       - name: Run unit tests
         run: |
-          mvn test -Pspark-3.2 -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox
+          mvn test -Pspark-3.2 -Pspark-ut -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dbackend_type=velox
           cd cpp/
           mkdir -p build
           cd build
@@ -130,7 +130,7 @@ jobs:
 
       - name: TPC-H Parquet SF1.0 local spark3.2
         run: |
-          git clone -b main https://github.com/jinchengchenghh/gluten-it.git gluten-it
+          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
           cd gluten-it
           mvn clean package -Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT
           java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
