@@ -59,7 +59,6 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
-      .set("spark.gluten.sql.columnar.backend.lib", backend)
       .set("spark.default.parallelism", "1")
   }
 

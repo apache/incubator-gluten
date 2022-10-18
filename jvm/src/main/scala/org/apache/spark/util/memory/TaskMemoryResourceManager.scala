@@ -15,17 +15,9 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package org.apache.spark.util.memory
 
-import org.apache.spark.memory.MemoryConsumer;
-
-public interface Spiller {
-  Spiller NO_OP = new Spiller() {
-    @Override
-    public long spill(long size, MemoryConsumer trigger) {
-      return 0L;
-    }
-  };
-
-  long spill(long size, MemoryConsumer trigger);
+trait TaskMemoryResourceManager {
+  @throws(classOf[Exception])
+  def release(): Unit
 }

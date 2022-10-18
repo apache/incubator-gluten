@@ -19,35 +19,34 @@ package io.glutenproject.backendsapi.velox
 
 import java.util
 import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-import org.apache.spark.InterruptibleIterator
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.TaskContext
-import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
-import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.ColumnVector
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.ExecutorManager
-import org.apache.spark.util.UserAddedJarUtils
-import io.glutenproject.GlutenConfig
-import io.glutenproject.GlutenNumaBindingInfo
+
+import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
+
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
+import org.apache.spark.util.memory.TaskMemoryResources
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
@@ -113,7 +112,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       new Iterator[ColumnarBatch] {
         var numBatchesTotal: Long = _
         var numRowsTotal: Long = _
-        SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ =>
+        TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
           if (numBatchesTotal > 0) {
             avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
@@ -146,7 +145,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
             (0 until batchesToAppend(0).numCols).map(i => {
               ArrowColumnarBatches
                 .ensureLoaded(
-                  SparkMemoryUtils.contextArrowAllocator(), batchesToAppend(0)).column(i)
+                  ArrowBufferAllocators.contextInstance(), batchesToAppend(0)).column(i)
                 .asInstanceOf[ArrowWritableColumnVector]
                 .getValueVector
                 .getField
@@ -225,7 +224,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       resIter = transKernel.createKernelWithBatchIterator(
         inputPartition.substraitPlan, columnarNativeIterators, outputAttributes.asJava)
       pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-      SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
+      TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
     }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
@@ -336,7 +335,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       }
     }
 
-    SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
+    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
       nativeResultIterator.close()
     })
 
@@ -362,7 +361,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                 iterList: Seq[GeneralInIterator],
                                 jniWrapper: ExpressionEvaluatorJniWrapper,
                                 outAttrs: Seq[Attribute]): GeneralOutIterator = {
-    val alloc = SparkMemoryUtils.contextNativeAllocator()
+    val alloc = NativeMemoryAllocators.contextInstance()
     val allocId = alloc.getNativeInstanceId
     val batchIteratorInstance =
       jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)

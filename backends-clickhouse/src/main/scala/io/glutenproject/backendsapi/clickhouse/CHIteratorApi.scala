@@ -299,7 +299,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
       genNativeFilePartition(i, Seq(inputPartitions(i)), wsCxt)
     })
     logInfo(
-      s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
+      s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
     new NativeFileScanColumnarRDD(
       sparkContext,
       substraitPlanPartition,

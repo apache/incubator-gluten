@@ -1,21 +1,21 @@
 # Velox Backend
 
-Currently the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
+Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
 ## Prerequisite
 
-Velox use the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency library can't be installed. So we need to install them manually:
+Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries can't be installed.
+Velox also requires ninja for compilation. So we need to install them manually:
 
 ```shell script
-apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git uuid-dev
+apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build uuid-dev
 ```
 
-Also we need to setup the JAVA_HOME env.
+Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
 ```shell script
 export JAVA_HOME=path/to/java/home
 export PATH=$JAVA_HOME/bin:$PATH
 ```
-
 
 ## Build Velox Jar
 
@@ -47,11 +47,33 @@ Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is clone
 
 Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
 
-## Cluster mode
+## HDFS support
 
-hdfs support is still in progress for Velox backend. Refer to [issue 158](https://github.com/oap-project/gluten/issues/158). We haven't test the cluster mode. The issue is we have to manually install all dependency libraries on each worker node, currently no script available for this yet. The plan is to use conda env to build Velox and gluten.
+Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/tree/master/depends/libhdfs3) library. The libhdfs3 provides native API for Hadoop I/O without the drawbacks of JNI. It also provides advanced authentatication like Kerberos based. Please note this library has serveral depedencies which may require extra installations on Driver and Worker node.
+On Ubuntu 20.04 the required depedencis are libiberty-dev, libxml2-dev, libkrb5-dev, libgsasl7-dev, libuuid1, uuid-dev. The packages can be installed via below command:
+```
+sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
+```
 
-The script still use yarn to start the spark worker, but yarn is configured as single node only. Assumption is that all dependency libraries are installed into system so we needn't to set the LD_LIBRARY_PATH env.
+Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
+
+This env should be exported in both Spark driver and worker.
+e.g., in Spark local mode:
+```
+export VELOX_HDFS="sr595:9000"
+```
+
+If running in Spark Yarn cluster mode, the env variable need to be set on each executor:
+```
+--conf spark.executorEnv.VELOX_HDFS="sr595:9000"
+```
+
+## Yarn Cluster mode
+
+Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its depedencies should be installed on each worker node. Users may requried to setup extra LD_LIBRARY_PATH if the depedencies are not on system's default library path. On Ubuntu 20.04 the dependencies can be installed with below command:
+```
+sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
+```
 
 ## Test TPC-H on Gluten with Velox backend
 
@@ -110,5 +132,4 @@ Both Parquet and ORC datasets are sf1024.
 
 # External reference setup
 
-TO ease your first hand experience of using Gluten, we have setup an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com
-
+TO ease your first-hand experience of using Gluten, we have set up an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com.

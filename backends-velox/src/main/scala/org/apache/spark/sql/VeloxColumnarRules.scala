@@ -17,8 +17,9 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.VeloxRowToArrowColumnarExec
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.execution.VeloxRowToArrowColumnarExec
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -26,12 +27,11 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeAdaptor, ColumnarRule, ColumnarShuffleExchangeAdaptor, ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
@@ -172,7 +172,7 @@ object VeloxColumnarRules {
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
       child.executeColumnar().mapPartitions { itr =>
         itr.map { cb =>
-          ArrowColumnarBatches.ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+          ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
         }
       }
     }

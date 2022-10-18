@@ -26,18 +26,17 @@ import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator}
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
-import org.apache.arrow.vector.compression.NoCompressionCodec
-import org.apache.arrow.vector.ipc.ArrowStreamReader
 import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkVectorUtils}
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -70,8 +69,7 @@ private class ArrowColumnarBatchSerializerInstance(
       private val compressionEnabled =
         SparkEnv.get.conf.getBoolean("spark.shuffle.compress", true)
 
-      private val allocator: BufferAllocator = SparkMemoryUtils
-        .contextArrowAllocator()
+      private val allocator: BufferAllocator = ArrowBufferAllocators.contextInstance()
         .newChildAllocator("ArrowColumnarBatch deserialize", 0, Long.MaxValue)
 
       private val reader = new SchemaAwareArrowStreamReader(
@@ -168,9 +166,9 @@ private class ArrowColumnarBatchSerializerInstance(
       private def decompressVectors(): Unit = {
         if (jniWrapper == null) {
           jniWrapper = new ShuffleDecompressionJniWrapper
-          val out = ArrowSchema.allocateNew(SparkMemoryUtils.contextArrowAllocator())
+          val out = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
           try {
-            ArrowAbiUtil.exportSchema(SparkMemoryUtils.contextArrowAllocator(), root.getSchema, out)
+            ArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(), root.getSchema, out)
             schemaHolderId = jniWrapper.make(out.memoryAddress())
           } finally {
             out.close()

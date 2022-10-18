@@ -25,6 +25,7 @@ import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.JoinRel;
+import io.substrait.proto.SortField;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.util.ArrayList;
@@ -165,5 +166,22 @@ public class RelBuilder {
                                     Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
+  }
+
+  public static RelNode makeSortRel(RelNode input,
+                                    ArrayList<SortField> sorts,
+                                    AdvancedExtensionNode extensionNode,
+                                    SubstraitContext context,
+                                    Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new SortRelNode(input, sorts, extensionNode);
+  }
+
+  public static RelNode makeSortRel(RelNode input,
+                                    ArrayList<SortField> sorts,
+                                    SubstraitContext context,
+                                    Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new SortRelNode(input, sorts);
   }
 }

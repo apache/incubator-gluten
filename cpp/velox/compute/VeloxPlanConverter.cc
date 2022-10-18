@@ -24,6 +24,7 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
+#include "RegistrationAllFunctions.cc"
 #include "arrow/c/Bridge.h"
 #include "arrow/c/bridge.h"
 #include "bridge.h"
@@ -33,7 +34,6 @@
 #include "velox/functions/prestosql/aggregates/AverageAggregate.h"
 #include "velox/functions/prestosql/aggregates/CountAggregate.h"
 #include "velox/functions/prestosql/aggregates/MinMaxAggregates.h"
-#include "velox/functions/sparksql/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -80,11 +80,18 @@ void VeloxInitializer::Init() {
   filesystems::registerHdfsFileSystem();
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
-  // auto hiveConnectorFactory = std::make_shared<hive::HiveConnectorFactory>();
-  // registerConnectorFactory(hiveConnectorFactory);
-  // read hdfs client conf from hdfs-client.xml from LIBHDFS3_CONF
+
+  // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
+  // LIBHDFS3_CONF
+  std::string hdfsUri = "localhost:9000";
+  const char* envHdfsUri = std::getenv("VELOX_HDFS");
+  if (envHdfsUri != nullptr) {
+    hdfsUri = std::string(envHdfsUri);
+  }
+  auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
+  auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
   static const std::unordered_map<std::string, std::string> configurationValues(
-      {{"hive.hdfs.host", "default"}, {"hive.hdfs.port", "0"}});
+      {{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
   auto properties =
       std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector =
@@ -95,9 +102,8 @@ void VeloxInitializer::Init() {
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
-  // Register Velox functions.
-  functions::sparksql::registerFunctions("");
-  functions::prestosql::registerAllScalarFunctions();
+  // Register Velox functions
+  registerAllFunctions();
   aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
   aggregate::registerAverageAggregate("avg");
   aggregate::registerCountAggregate("count");
@@ -107,6 +113,14 @@ void VeloxInitializer::Init() {
   aggregate::registerMinMaxAggregate<
       aggregate::MaxAggregate,
       aggregate::NonNumericMaxAggregate>("max");
+}
+
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
+  if (ssort.has_input()) {
+    setInputPlanNode(ssort.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
 }
 
 void VeloxPlanConverter::setInputPlanNode(
@@ -220,6 +234,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.read());
   } else if (srel.has_join()) {
     setInputPlanNode(srel.join());
+  } else if (srel.has_sort()) {
+    setInputPlanNode(srel.sort());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }

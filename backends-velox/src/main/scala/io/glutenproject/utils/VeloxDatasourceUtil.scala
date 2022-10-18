@@ -17,11 +17,12 @@
 
 package io.glutenproject.utils
 
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
 import org.apache.arrow.vector.util.SchemaUtility
 import org.apache.hadoop.fs.FileStatus
 
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils}
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 import org.apache.spark.sql.types.StructType
 
 object VeloxDatasourceUtil {
@@ -36,7 +37,7 @@ object VeloxDatasourceUtil {
     val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
     val instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(file.getPath.toString, -1)
     val buffer = dwrfDatasourceJniWrapper.inspectSchema(instanceId)
-    val schema = SchemaUtility.deserialize(buffer, SparkMemoryUtils.contextArrowAllocator())
+    val schema = SchemaUtility.deserialize(buffer, ArrowBufferAllocators.contextInstance())
     try {
       Option(SparkSchemaUtils.fromArrowSchema(schema))
     } finally {

@@ -49,11 +49,14 @@ class GlutenPlugin extends SparkPlugin {
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
+    // Initialize Backends API
+    val glutenBackenLibName = BackendsApiManager.initialize
+    // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
+    if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
+      conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
+    }
     GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
-    // Initialize Backends API
-    BackendsApiManager.initialize(pluginContext.conf()
-      .get(GlutenConfig.GLUTEN_BACKEND_LIB, ""))
     Collections.emptyMap()
   }
 
@@ -72,8 +75,14 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    val conf = ctx.conf()
+    // Initialize Backends API
+    val glutenBackenLibName = BackendsApiManager.initialize
+    // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
+    if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
+      conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
+    }
     GlutenPlugin.initNative(ctx.conf())
-    BackendsApiManager.initialize(ctx.conf().get(GlutenConfig.GLUTEN_BACKEND_LIB, ""))
   }
 
   /**
@@ -145,6 +154,9 @@ private[glutenproject] object GlutenPlugin {
       nativeConfMap.put(
         GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
     }
+
+    conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
+      .foreach{ case (k, v) => nativeConfMap.put(k, v) }
 
     nativeConfMap.put(
       GlutenConfig.SPARK_BATCH_SIZE, conf.get(GlutenConfig.SPARK_BATCH_SIZE, "32768"))

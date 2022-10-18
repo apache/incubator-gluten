@@ -17,24 +17,23 @@
 
 package io.glutenproject.execution
 
+import com.google.common.collect.Lists
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
-import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitContext}
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.test.TestStats
 import io.glutenproject.vectorized._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -245,6 +244,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
     val signature = doBuild()
@@ -263,8 +263,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     // If containing scan exec transformer, a new RDD is created.
     if (basicScanExecTransformer.nonEmpty) {
       // the partition size of the all BasicScanExecTransformer must be the same
-      val partitionLength = basicScanExecTransformer(0).getFlattenPartitions.size
-      if (basicScanExecTransformer.exists(_.getFlattenPartitions.length != partitionLength)) {
+      val allScanPartitions = basicScanExecTransformer.map(_.getFlattenPartitions)
+      val partitionLength = allScanPartitions(0).size
+      if (allScanPartitions.exists(_.size != partitionLength)) {
         throw new RuntimeException(
           "The partition length of all the scan transformer are not the same.")
       }
@@ -277,13 +278,13 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       // generate each partition of all scan exec
       val substraitPlanPartition = (0 until partitionLength).map( i => {
-        val currentPartitions = basicScanExecTransformer.map(_.getFlattenPartitions(i))
+        val currentPartitions = allScanPartitions.map(_(i))
         BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(
           i, currentPartitions, wsCxt)
       })
 
       logInfo(
-        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>
         updateNativeMetrics(
@@ -304,7 +305,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val startTime = System.nanoTime()
       val resCtx = doWholestageTransform()
       logInfo(
-        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime) / 1000000} ms.")
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
       logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>

@@ -156,7 +156,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
         // .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", columnarColumnToRow)
-        .config("spark.gluten.sql.columnar.backend.lib", "ch")
+        // .config("spark.gluten.sql.columnar.backend.lib", "ch")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .config("spark.gluten.sql.columnar.backend.ch.use.v2", useV2)
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
@@ -216,7 +216,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     val spark = sessionBuilder.getOrCreate()
     if (!configed) {
-      spark.sparkContext.setLogLevel("ERROR")
+      spark.sparkContext.setLogLevel("WARN")
     }
 
     val createTbl = false
@@ -270,7 +270,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     val tookTimeArr = ArrayBuffer[Long]()
     val sqlFilePath = "/data2/tpcds-data-gen/tpcds10-queries/"
-    val execNum = 21
+    val execNum = 9
     val sqlNum = "q" + execNum + ".sql"
     val sqlFile = sqlFilePath + sqlNum
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString

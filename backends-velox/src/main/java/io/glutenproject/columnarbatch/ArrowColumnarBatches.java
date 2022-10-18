@@ -18,6 +18,7 @@
 package io.glutenproject.columnarbatch;
 
 import io.glutenproject.expression.ArrowConverterUtils;
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.utils.ArrowAbiUtil;
 import io.glutenproject.utils.VeloxImplicitClass;
 import io.glutenproject.vectorized.ArrowWritableColumnVector;
@@ -25,7 +26,6 @@ import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils;
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -109,7 +109,7 @@ public class ArrowColumnarBatches {
     }
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
          ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      ArrowAbiUtil.exportFromSparkColumnarBatch(SparkMemoryUtils.contextArrowAllocator(), input,
+      ArrowAbiUtil.exportFromSparkColumnarBatch(ArrowBufferAllocators.contextInstance(), input,
           cSchema, cArray);
       long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),
           cArray.memoryAddress());

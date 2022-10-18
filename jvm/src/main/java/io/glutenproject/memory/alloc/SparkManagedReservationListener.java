@@ -15,19 +15,22 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package io.glutenproject.memory.alloc;
+
+import io.glutenproject.memory.GlutenMemoryConsumer;
+import io.glutenproject.memory.TaskMemoryMetrics;
 
 /**
  * Reserve Spark managed memory.
  */
 public class SparkManagedReservationListener implements ReservationListener {
 
-  private NativeSQLMemoryConsumer consumer;
-  private NativeSQLMemoryMetrics metrics;
+  private GlutenMemoryConsumer consumer;
+  private TaskMemoryMetrics metrics;
   private volatile boolean open = true;
 
-  public SparkManagedReservationListener(NativeSQLMemoryConsumer consumer,
-                                         NativeSQLMemoryMetrics metrics) {
+  public SparkManagedReservationListener(GlutenMemoryConsumer consumer,
+                                         TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }

@@ -17,15 +17,17 @@
 
 package org.apache.spark.sql.execution.utils
 
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
-
 import scala.collection.JavaConverters._
+
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
+
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -36,13 +38,13 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Uns
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.PartitionIdPassthrough
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.MutablePair
+import org.apache.spark.util.memory.TaskMemoryResources
 
 object VeloxExecUtil {
   // scalastyle:off argcount
@@ -72,7 +74,7 @@ object VeloxExecUtil {
           iter.flatMap(batch => {
             val rows =
               ArrowColumnarBatches
-                .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+                .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
                 .rowIterator.asScala
             val projection =
               UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
@@ -103,7 +105,7 @@ object VeloxExecUtil {
         cbIter
           .filter(cb => cb.numRows != 0 && cb.numCols != 0)
           .map {
-            cb => ArrowColumnarBatches.ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+            cb => ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
           }
           .map { cb =>
             val startTime = System.nanoTime()
@@ -118,7 +120,7 @@ object VeloxExecUtil {
 
             val newColumns = (pidVec +: (0 until cb.numCols).map(
               ArrowColumnarBatches
-                .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+                .ensureLoaded(ArrowBufferAllocators.contextInstance(),
                   cb).column)).toArray
             newColumns.foreach(
               _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(cb.numRows))
@@ -185,7 +187,7 @@ object VeloxExecUtil {
           }
           val newIter = computeAndAddPartitionId(cbIter, partitionKeyExtractor)
 
-          SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit] { _ =>
+          TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
             newIter.closeAppendedVector()
           }
 
@@ -196,7 +198,7 @@ object VeloxExecUtil {
           (_, cbIter) =>
             cbIter.map { cb =>
               val acb = ArrowColumnarBatches
-                .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+                .ensureLoaded(ArrowBufferAllocators.contextInstance(),
                   cb)
               (0 until cb.numCols).foreach(
                 acb.column(_)
@@ -254,7 +256,7 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
       cur match {
         case (_, cb: ColumnarBatch) =>
           ArrowColumnarBatches
-            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(),
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(),
               cb).column(0).asInstanceOf[ArrowWritableColumnVector].close()
       }
       cur = null

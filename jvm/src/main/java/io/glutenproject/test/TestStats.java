@@ -15,24 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.memory;
+package io.glutenproject.test;
 
-public interface ReservationListener {
-  ReservationListener NOOP = new ReservationListener() {
-    @Override
-    public void reserve(long size) {
-    }
+public class TestStats {
+  // use the gluten backend to execute the query
+  public static boolean offloadGluten = false;
+  public static int suiteTestNumber = 0;
+  public static int offloadGlutenTestNumber = 0;
 
-    @Override
-    public void unreserve(long size) {
-    }
-
-    @Override
-    public void inactivate() {
-    }
-  };
-
-  void reserve(long size);
-  void unreserve(long size);
-  void inactivate();
+  public static void reset() {
+    offloadGluten = false;
+    suiteTestNumber = 0;
+    offloadGlutenTestNumber = 0;
+  }
 }

@@ -21,9 +21,9 @@ import java.util.concurrent.TimeUnit
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.memory.TaskMemoryResources
 
 /**
  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
@@ -46,7 +46,7 @@ class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
     res
   }
 
-  SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]((_: TaskContext) => {
+  TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit]((_: TaskContext) => {
     closeCurrentBatch()
   })
 
