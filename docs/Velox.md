@@ -7,7 +7,7 @@ Currently the mvn script can automatically fetch and build all dependency librar
 Velox use the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency library can't be installed. So we need to install them manually:
 
 ```shell script
-apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git
+apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git uuid-dev
 ```
 
 Also we need to setup the JAVA_HOME env.
@@ -29,8 +29,7 @@ mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
-
-You can also compile spark3.2 and spark3.3 at the same time by -Pspark3.2 -Pspark3.3
+You may compile spark3.2 and spark3.3 at the same time by -Pspark3.2 -Pspark3.3
 
 The command generates the Jar file in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark. So as spark3.3.
 
