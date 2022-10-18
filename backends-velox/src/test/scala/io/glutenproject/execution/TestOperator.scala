@@ -200,14 +200,14 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 
-  //VeloxRuntimeError, wait to fix
+  // VeloxRuntimeError, wait to fix
   ignore("Test isnull function") {
     val df = spark.sql("SELECT isnull(1)")
     df.show()
     df.explain(false)
   }
 
-  //VeloxRuntimeError, wait to fix
+  // VeloxRuntimeError, wait to fix
   ignore("Test df.count()") {
     val df = spark.sql("select * from lineitem limit 1")
     df.count()
