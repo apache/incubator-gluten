@@ -341,4 +341,8 @@ object ConverterUtils extends Logging {
   final val STARTS_WITH = "starts_with"
   final val SUBSTRING = "substring"
   final val ROW_CONSTRUCTOR = "row_constructor"
+
+  //
+  final val CHR = "chr"
+  final val ABS = "abs"
 }

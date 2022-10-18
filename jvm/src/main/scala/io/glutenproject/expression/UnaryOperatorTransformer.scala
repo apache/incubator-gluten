@@ -94,7 +94,34 @@ class AbsTransformer(child: Expression, original: Expression)
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: Abs.")
+    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!child_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.ABS, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeFP64(true)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class ChrTransformer(child: Expression, original: Expression)
+  extends Chr(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!child_node.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.CHR, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeString(true)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -230,6 +257,8 @@ object UnaryOperatorTransformer {
       new NotTransformer(child, n)
     case a: Abs =>
       new AbsTransformer(child, a)
+    case a: Chr =>
+      new ChrTransformer(child, a)
     case u: Upper =>
       new UpperTransformer(child, u)
     case c: Cast =>
