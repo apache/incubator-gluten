@@ -516,7 +516,6 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    // collect all child input rdds
     val retRDD = children.map {
       case c: TransformSupport =>
         val r: Seq[RDD[ColumnarBatch]] = c.columnarInputRDDs
@@ -570,13 +569,13 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    // throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
     val operatorId = context.nextOperatorId
     val attrList = new util.ArrayList[Attribute]()
     for (attr <- children(0).output)
     {
       attrList.add(attr)
     }
+    // read from a batch iterator built from union rdds
     val relNode = RelBuilder.makeReadRel(attrList, context, operatorId)
     TransformContext(children(0).output, children(0).output, relNode)
   }

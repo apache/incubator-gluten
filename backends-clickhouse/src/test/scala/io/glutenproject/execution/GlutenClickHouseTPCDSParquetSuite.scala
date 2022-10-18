@@ -83,6 +83,19 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     assert(result(0).getDouble(1) == 80037.12727449503)
   }
 
+  test("test union operator") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union all
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 791980)
+  }
+
   test("TPCDS Q9") {
     withSQLConf(("spark.gluten.sql.columnar.columnartorow", "true")) {
       runTPCDSQuery(9) { df =>
