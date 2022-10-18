@@ -15,18 +15,15 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils.velox
+package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.catalyst.expressions._
+import io.glutenproject.backendsapi.IBackendsApi
+import io.glutenproject.GlutenConfig
 
-object VeloxNotSupport extends NotSupport {
+class CHBackend extends IBackendsApi {
 
-  override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
-
-  override lazy val fullSupportSuiteList: Set[String] = Set(
-    simpleClassName[LiteralExpressionSuite],
-    simpleClassName[NullExpressionsSuite],
-    simpleClassName[IntervalExpressionsSuite]
-  )
+  /**
+   * Get the backend api name.
+   */
+  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

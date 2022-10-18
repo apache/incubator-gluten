@@ -15,18 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils.velox
+package io.glutenproject.test;
 
-import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.catalyst.expressions._
+public class TestStats {
+  // use the gluten backend to execute the query
+  public static boolean offloadGluten = false;
+  public static int suiteTestNumber = 0;
+  public static int offloadGlutenTestNumber = 0;
 
-object VeloxNotSupport extends NotSupport {
-
-  override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
-
-  override lazy val fullSupportSuiteList: Set[String] = Set(
-    simpleClassName[LiteralExpressionSuite],
-    simpleClassName[NullExpressionsSuite],
-    simpleClassName[IntervalExpressionsSuite]
-  )
+  public static void reset() {
+    offloadGluten = false;
+    suiteTestNumber = 0;
+    offloadGlutenTestNumber = 0;
+  }
 }

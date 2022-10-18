@@ -174,6 +174,16 @@ class TestOperator extends WholeStageTransformerSuite {
     TestUtils.compareAnswers(result, expected)
   }
 
+  test("test_orderby expression") {
+    val result = runSql(
+      "select l_suppkey from lineitem " +
+        "where l_orderkey < 3 order by l_partkey / 2 ") { _ => }
+    assert(result.length == 7)
+    val expected =
+      Seq(Row(48.0), Row(10.0), Row(23.0), Row(38.0), Row(75.0), Row(33.0), Row(93.0))
+    TestUtils.compareAnswers(result, expected)
+  }
+
   test("Test chr function") {
     val df = spark.sql("SELECT chr(l_orderkey) from lineitem")
     df.printSchema

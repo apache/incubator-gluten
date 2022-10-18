@@ -27,6 +27,7 @@ import io.glutenproject.expression._
 import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitContext}
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.test.TestStats
 import io.glutenproject.vectorized._
 
 import org.apache.spark.rdd.RDD
@@ -243,6 +244,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
     val signature = doBuild()
