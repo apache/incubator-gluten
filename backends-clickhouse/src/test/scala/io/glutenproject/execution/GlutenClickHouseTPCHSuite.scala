@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.{Row, TestUtils}
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -234,6 +235,17 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val result = df.collect()
     assert(result.size == 2)
     assert(result(0).getInt(0) == 1 && result(1).getInt(0) == 1)
+  test("test 'order by'") {
+    val df = spark.sql(
+      """
+        |select l_suppkey from lineitem
+        |where l_orderkey < 3 order by l_partkey / 2
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result.size == 7)
+    val expected =
+      Seq(Row(465.0), Row(67.0), Row(160.0), Row(371.0), Row(732.0), Row(138.0), Row(785.0))
+    TestUtils.compareAnswers(result, expected)
   }
 
   ignore("TPCH Q21") {
