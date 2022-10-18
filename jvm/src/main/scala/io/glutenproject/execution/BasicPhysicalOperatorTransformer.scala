@@ -31,7 +31,6 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
-import io.substrait.proto.SetRel
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -516,13 +515,12 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    if (children.size == 0) {
+      throw new IllegalArgumentException(s"Empty children")
+    }
     val retRDD = children.map {
-      case c: TransformSupport =>
-        val r: Seq[RDD[ColumnarBatch]] = c.columnarInputRDDs
-        r
-      case c =>
-        val r = Seq(c.executeColumnar())
-        r
+      case c: TransformSupport => c.columnarInputRDDs
+      case c => Seq(c.executeColumnar())
     }.reduce {
       (a, b) => a ++ b
     }.reduce(
@@ -544,6 +542,9 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   }
 
   override def doValidate(): Boolean = {
+    if (children.size == 0) {
+      throw new IllegalArgumentException(s"Empty children")
+    }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
     val relNode = try {

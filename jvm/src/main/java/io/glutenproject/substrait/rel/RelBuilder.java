@@ -27,6 +27,7 @@ import io.glutenproject.substrait.type.TypeNode;
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.SortField;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+
 import java.util.ArrayList;
 
 /**
