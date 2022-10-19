@@ -39,7 +39,6 @@ static constexpr int32_t kIpcContinuationToken = -1;
 const unsigned ONES[] = {1, 1, 1, 1, 1, 1, 1, 1};
 
 struct ReaderOptions {
-
   arrow::ipc::IpcReadOptions ipc_read_options =
       arrow::ipc::IpcReadOptions::Defaults();
 

@@ -92,8 +92,7 @@ using gluten::shuffle::Splitter;
 static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>>
     shuffle_splitter_holder_;
 
-static arrow::jni::ConcurrentMap<
-    std::shared_ptr<gluten::shuffle::Reader>>
+static arrow::jni::ConcurrentMap<std::shared_ptr<gluten::shuffle::Reader>>
     shuffle_reader_holder_;
 
 static arrow::jni::ConcurrentMap<
