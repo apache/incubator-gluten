@@ -17,6 +17,7 @@
 
 #include "reader.h"
 #include "arrow/ipc/reader.h"
+#include "arrow/record_batch.h"
 
 #include <utility>
 
