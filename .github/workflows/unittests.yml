@@ -72,7 +72,7 @@ jobs:
           docker stop velox-backend-test || true
       - name: Setup docker container
         run: |
-          EXTRA_DOCKER_OPTIONS='--name velox-backend-test' NON_INTERACTIVE=ON gluten-te/cbash.sh sleep 14400
+          EXTRA_DOCKER_OPTIONS='--name velox-backend-test --detach' NON_INTERACTIVE=ON gluten-te/cbash.sh sleep 14400
       - name: Install Gluten Velox-backend spark3.2
         run: |
           docker exec velox-backend-test bash -c 'cd /opt/gluten && \
