@@ -233,13 +233,26 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
     val NON = "none"
   }
 
+  /**
+   * Returns whether the plan matches the condition to be preferred as build side.
+   * Currently, filter and aggregation are preferred.
+   * @param plan the left or right plan of join
+   * @return whether the plan matches the condition
+   */
   private def matchCondition(plan: SparkPlan): Boolean =
     plan.isInstanceOf[FilterExecBaseTransformer] || plan.isInstanceOf[FilterExec] ||
     plan.isInstanceOf[BaseAggregateExec]
 
+  /**
+   * Returns whether a plan is preferred as the build side.
+   * If this plan or its children match the condition, it will be preferred.
+   * @param plan the left or right plan of join
+   * @return whether the plan is preferred as the build side
+   */
   private def isPreferred(plan: SparkPlan): Boolean =
     matchCondition(plan) || plan.children.exists(child => matchCondition(child))
 
+  // Returns the preferred build side with the consideration of preferring condition.
   private lazy val preferredBuildSide: String =
     if ((isPreferred(left) && isPreferred(right)) || (!isPreferred(left) && !isPreferred(right))) {
       PreferredBuildSide.NON
@@ -249,6 +262,10 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
       PreferredBuildSide.RIGHT
     }
 
+  /**
+   * Returns whether the build and stream table should be exchanged with consideration of
+   * build type, planned build side and the preferred build side.
+   */
   override lazy val exchangeTable: Boolean = hashJoinType match {
     case LeftOuter | LeftSemi => joinBuildSide match {
       case BuildLeft =>
