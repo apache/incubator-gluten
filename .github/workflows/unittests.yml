@@ -62,6 +62,8 @@ jobs:
 
   velox-backend-test:
     runs-on: sr404-self-hosted
+    env:
+      NON_INTERACTIVE=ON
     steps:
       - uses: actions/checkout@v2
       - name: Checkout gluten-te code
