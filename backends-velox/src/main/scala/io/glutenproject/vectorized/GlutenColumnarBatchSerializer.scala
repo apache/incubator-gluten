@@ -23,6 +23,7 @@ import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorLoader
 
@@ -52,8 +53,8 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
 
-      private val allocator: BufferAllocator = SparkMemoryUtils
-        .contextArrowAllocator()
+      private val allocator: BufferAllocator = ArrowBufferAllocators
+        .contextInstance()
         .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
 
       private val shuffleReaderHandle =
