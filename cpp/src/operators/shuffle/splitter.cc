@@ -836,7 +836,8 @@ arrow::Status Splitter::SpillPartition(int32_t partition_id) {
       partition_buffers_.begin(),
       partition_buffers_.end(),
       [partition_id](std::vector<arrow::BufferVector>& bufs) {
-        if (bufs[partition_id].size() != 0 && bufs[partition_id][0] != nullptr) {
+        if (bufs[partition_id].size() != 0 &&
+            bufs[partition_id][0] != nullptr) {
           // initialize all true once allocated
           auto addr = bufs[partition_id][0]->mutable_data();
           memset(addr, 0xff, bufs[partition_id][0]->capacity());
