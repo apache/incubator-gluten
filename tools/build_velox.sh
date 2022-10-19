@@ -9,8 +9,8 @@ COMPILE_VELOX=OFF
 ENABLE_EP_CACHE=OFF
 VELOX_HOME=/root/velox
 
-VELOX_REPO=https://github.com/zhztheplayer/velox.git
-VELOX_BRANCH=wip-hzdbg
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=main
 
 for arg in "$@"
 do
@@ -119,6 +119,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         if [ -z "$EXISTS" ]; then
             git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
         fi
+        git reset --hard HEAD
         git checkout build_$TARGET_BUILD_COMMIT
     else
         echo "Creating brand-new build for Velox..."
