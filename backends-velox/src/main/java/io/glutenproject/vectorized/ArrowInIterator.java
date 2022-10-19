@@ -32,6 +32,7 @@ public class ArrowInIterator extends GeneralInIterator {
   }
 
   public void next(long cArrayAddress, long cSchemaAddress) {
+    // todo move to Gluten columnar batch
     final ColumnarBatch batch = nextColumnarBatch();
     final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
     final ArrowSchema cSchema = ArrowSchema.wrap(cSchemaAddress);
