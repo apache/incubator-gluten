@@ -61,7 +61,7 @@ jobs:
           bash tpcds_spark.sh
 
   velox-backend-test:
-    runs-on: sr404-self-hosted
+    runs-on: sr596-self-hosted
     env:
       NON_INTERACTIVE=ON
     steps:
