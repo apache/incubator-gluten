@@ -94,15 +94,25 @@ class AbsTransformer(child: Expression, original: Expression)
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!child_node.isInstanceOf[ExpressionNode]) {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.ABS, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeFP64(true)
+    val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
+    val nullable = original.nullable
+    val typeNode = original.dataType match {
+      case DoubleType =>
+        TypeBuilder.makeFP64(nullable)
+      case LongType =>
+        TypeBuilder.makeI64(nullable)
+      case IntegerType =>
+        TypeBuilder.makeI32(nullable)
+      case otherType =>
+        throw new UnsupportedOperationException(s"Type $otherType not supported in abs().")
+    }
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -112,15 +122,15 @@ class ChrTransformer(child: Expression, original: Expression)
     with ExpressionTransformer
     with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!child_node.isInstanceOf[ExpressionNode]) {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.CHR, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(child_node.asInstanceOf[ExpressionNode])
-    val typeNode = TypeBuilder.makeString(true)
+    val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeString(original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
