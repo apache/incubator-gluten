@@ -207,4 +207,23 @@ public class RelBuilder {
     context.registerRelToOperator(operatorId);
     return new SortRelNode(input, sorts);
   }
+
+  public static RelNode makeFetchRel(RelNode input,
+                                     Long offset,
+                                     Long count,
+                                     SubstraitContext context,
+                                     Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new FetchRelNode(input, offset, count);
+  }
+
+  public static RelNode makeFetchRel(RelNode input,
+                                     Long offset,
+                                     Long count,
+                                     AdvancedExtensionNode extensionNode,
+                                     SubstraitContext context,
+                                     Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new FetchRelNode(input, offset, count, extensionNode);
+  }
 }

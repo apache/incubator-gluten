@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.{Row, TestUtils}
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -33,6 +34,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+      .set("spark.gluten.sql.columnar.limit", "true")
   }
 
   test("TPCH Q1") {
@@ -181,6 +183,18 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 275436L)
+  }
+
+  test("test 'select limit'") {
+    val df = spark.sql(
+      """
+        |select l_orderkey from lineitem
+        |where l_orderkey = 1 limit 5
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result.size == 5)
+    val expected = Seq(Row(1), Row(1), Row(1), Row(1), Row(1))
+    TestUtils.compareAnswers(result, expected)
   }
 
   test("test 'select count(1)'") {
