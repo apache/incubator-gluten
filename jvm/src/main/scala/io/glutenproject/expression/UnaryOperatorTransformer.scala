@@ -117,6 +117,82 @@ class AbsTransformer(child: Expression, original: Expression)
   }
 }
 
+class CeilTransformer(child: Expression, original: Expression)
+  extends Ceil(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.CEIL, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
+    val nullable = original.nullable
+    val typeNode = child.dataType match {
+      case DecimalType() =>
+        TypeBuilder.makeI64(nullable)
+      case LongType =>
+        TypeBuilder.makeI64(nullable)
+      case otherType =>
+        throw new UnsupportedOperationException(s"Type $otherType not supported in ceil().")
+    }
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class FloorTransformer(child: Expression, original: Expression)
+  extends Floor(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.FLOOR, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
+    val nullable = original.nullable
+    val typeNode = child.dataType match {
+      case DecimalType() =>
+        TypeBuilder.makeI64(nullable)
+      case LongType =>
+        TypeBuilder.makeI64(nullable)
+      case otherType =>
+        throw new UnsupportedOperationException(s"Type $otherType not supported in floor().")
+    }
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class ExpTransformer(child: Expression, original: Expression)
+  extends Exp(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.EXP, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
+    val nullable = original.nullable
+    val typeNode = child.dataType match {
+      case DoubleType =>
+        TypeBuilder.makeFP64(nullable)
+      case otherType =>
+        throw new UnsupportedOperationException(s"Type $otherType not supported in exp().")
+    }
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class ChrTransformer(child: Expression, original: Expression)
   extends Chr(child: Expression)
     with ExpressionTransformer
@@ -267,8 +343,14 @@ object UnaryOperatorTransformer {
       new NotTransformer(child, n)
     case a: Abs =>
       new AbsTransformer(child, a)
-    case a: Chr =>
-      new ChrTransformer(child, a)
+    case c: Ceil =>
+      new CeilTransformer(child, c)
+    case f: Floor =>
+      new FloorTransformer(child, f)
+    case e: Exp =>
+      new ExpTransformer(child, e)
+    case c: Chr =>
+      new ChrTransformer(child, c)
     case u: Upper =>
       new UpperTransformer(child, u)
     case c: Cast =>
