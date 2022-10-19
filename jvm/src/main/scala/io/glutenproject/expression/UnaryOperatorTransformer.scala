@@ -300,8 +300,8 @@ object UnaryOperatorTransformer {
       new NotTransformer(child, n)
     case a: Abs =>
       new AbsTransformer(child, a)
-    case len: Ascii =>
-      new AsciiTransformer(child, len)
+    case ascii: Ascii =>
+      new AsciiTransformer(child, ascii)
     case len: Length =>
       new LengthTransformer(child, len)
     case lower: Lower =>

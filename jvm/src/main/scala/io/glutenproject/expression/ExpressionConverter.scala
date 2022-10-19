@@ -131,7 +131,7 @@ object ExpressionConverter extends Logging {
             expr,
             attributeSeq)
         }
-        CoalesceOperatorTransformer.create(exprs, expr)
+        CoalesceExpressionTransformer.create(exprs, expr)
       case i: In =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         InExpressionTransformer.create(
@@ -221,7 +221,7 @@ object ExpressionConverter extends Logging {
             expr,
             attributeSeq)
         }
-        ConcatOperatorTransformer.create(exprs, expr)
+        ConcatExpressionTransformer.create(exprs, expr)
       case r: Round =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         RoundOperatorTransformer.create(

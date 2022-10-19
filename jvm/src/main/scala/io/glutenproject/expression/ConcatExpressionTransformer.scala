@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -25,36 +24,24 @@ import org.apache.spark.sql.types.DataType
 
 import scala.collection.mutable.ArrayBuffer
 
-/**
- * An expression that is evaluated to the first non-null input.
- * {{{
- *   coalesce(1, 2) => 1
- *   coalesce(null, 1, 2) => 1
- *   coalesce(null, null, 2) => 2
- *   coalesce(null, null, null) => null
- * }}}
- * */
-
-class CoalesceTransformer(exps: Seq[Expression], original: Expression)
-  extends Coalesce(exps: Seq[Expression])
+class ConcatTransformer(exps: Seq[Expression], original: Expression)
+  extends Concat(exps: Seq[Expression])
     with ExpressionTransformer
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    var notSupportFlag = false
     val nodes = new java.util.ArrayList[ExpressionNode]()
     val arrayBuffer = new ArrayBuffer[DataType]()
     exps.foreach(expression => {
       val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
-      notSupportFlag = !expressionNode.isInstanceOf[ExpressionNode] || notSupportFlag
-      if (notSupportFlag) {
+      if (!expressionNode.isInstanceOf[ExpressionNode]) {
         throw new UnsupportedOperationException(s"Not supported yet.")
       }
       arrayBuffer.append(expression.dataType)
       nodes.add(expressionNode)
     })
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.COALESCE,
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.CONCAT,
       arrayBuffer, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(exps.head.dataType, original.nullable)
@@ -62,11 +49,11 @@ class CoalesceTransformer(exps: Seq[Expression], original: Expression)
   }
 }
 
-object CoalesceOperatorTransformer {
+object ConcatExpressionTransformer {
 
   def create(exps: Seq[Expression], original: Expression): Expression = original match {
-    case c: Coalesce =>
-      new CoalesceTransformer(exps, original)
+    case c: Concat =>
+      new ConcatTransformer(exps, original)
     case other =>
       throw new UnsupportedOperationException(s"not currently supported: $other.")
   }

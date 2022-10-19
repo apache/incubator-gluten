@@ -103,10 +103,10 @@ object TernaryOperatorTransformer {
 
   def create(str: Expression, pos: Expression, len: Expression, original: Expression): Expression =
     original match {
-      case ss: StringSplit =>
-        new SplitTransformer(str, pos, len, ss)
-      case ss: StringReplace =>
-        new ReplaceTransformer(str, pos, len, ss)
+      case split: StringSplit =>
+        new SplitTransformer(str, pos, len, split)
+      case replace: StringReplace =>
+        new ReplaceTransformer(str, pos, len, replace)
       case ss: Substring =>
         new SubStringTransformer(str, pos, len, ss)
       case other =>
