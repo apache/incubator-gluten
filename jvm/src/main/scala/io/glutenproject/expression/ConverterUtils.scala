@@ -324,6 +324,7 @@ object ConverterUtils extends Logging {
   final val DIVIDE = "divide"
   final val AND = "and"
   final val OR = "or"
+  final val COALESCE = "coalesce"
   final val LIKE = "like"
   final val EQUAL = "equal"
   final val LESS_THAN = "lt"
@@ -336,13 +337,17 @@ object ConverterUtils extends Logging {
   final val NOT = "not"
 
   // String
+  final val ASCII = "ascii"
   final val EXTRACT = "extract"
   final val ENDS_WITH = "ends_with"
+  final val CONCAT = "concat"
   final val CONTAINS = "contains"
   final val INSTR = "instr"
   final val LENGTH = "length"
   final val LOWER = "lower"
   final val UPPER = "upper"
+  final val REPLACE = "replace"
+  final val SPLIT = "split"
   final val STARTS_WITH = "starts_with"
   final val SUBSTRING = "substring"
 

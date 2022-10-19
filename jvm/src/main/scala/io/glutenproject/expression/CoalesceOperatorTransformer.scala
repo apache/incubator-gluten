@@ -17,10 +17,13 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
-
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.DataType
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * An expression that is evaluated to the first non-null input.
@@ -38,7 +41,24 @@ class CoalesceTransformer(exps: Seq[Expression], original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: Coalesce.")
+    var notSupportFlag = false
+    val nodes = new java.util.ArrayList[ExpressionNode]()
+    val arrayBuffer = new ArrayBuffer[DataType]()
+    exps.foreach(expression => {
+      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
+      notSupportFlag = !expressionNode.isInstanceOf[ExpressionNode] || notSupportFlag
+      if (notSupportFlag) {
+        throw new UnsupportedOperationException(s"Not supported yet.")
+      }
+      arrayBuffer.append(expression.dataType)
+      nodes.add(expressionNode)
+    })
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.COALESCE,
+      arrayBuffer, FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val typeNode = ConverterUtils.getTypeNode(exps.head.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }
 
