@@ -135,6 +135,24 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(result.length == 60141)
   }
 
+  test("coalesce") {
+    var result = runSql("select l_orderkey, coalesce(l_comment, 'default_val') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runSql("select l_orderkey, coalesce(null, l_comment, 'default_val') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runSql("select l_orderkey, coalesce(null, null, l_comment) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runSql("select l_orderkey, coalesce(null, null, 1, 2) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runSql("select l_orderkey, coalesce(null, null, null) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+  }
+
   test("test_count") {
     val result = runSql("select count(*) from lineitem where l_partkey in (1552, 674, 1062)") {
       _ =>

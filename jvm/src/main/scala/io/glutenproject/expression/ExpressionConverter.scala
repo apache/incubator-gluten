@@ -148,6 +148,32 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           i.hset,
           expr)
+      case ss: StringReplace =>
+        logInfo(s"${expr.getClass} ${expr} is supported.")
+        TernaryOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            ss.srcExpr,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.searchExpr,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.replaceExpr,
+            attributeSeq),
+          expr)
+      case ss: StringSplit =>
+        logInfo(s"${expr.getClass} ${expr} is supported.")
+        TernaryOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            ss.str,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.regex,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.limit,
+            attributeSeq),
+          expr)
       case ss: Substring =>
         logInfo(s"${expr.getClass} ${expr} is supported.")
         TernaryOperatorTransformer.create(
