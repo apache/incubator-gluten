@@ -37,6 +37,7 @@
 #include "jni/jni_errors.h"
 #include "memory/columnar_batch.h"
 #include "operators/c2r/columnar_to_row_base.h"
+#include "operators/shuffle/reader.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/exception.h"
 #include "utils/metrics.h"
@@ -92,7 +93,7 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>>
     shuffle_splitter_holder_;
 
 static arrow::jni::ConcurrentMap<
-    std::shared_ptr<arrow::ipc::RecordBatchStreamReader>>
+    std::shared_ptr<gluten::shuffle::Reader>>
     shuffle_reader_holder_;
 
 static arrow::jni::ConcurrentMap<
@@ -998,13 +999,16 @@ JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_make(
     JNIEnv* env,
     jclass,
-    jobject jni_in) {
+    jobject jni_in,
+    jlong c_schema) {
   JNI_METHOD_START
   std::shared_ptr<arrow::io::InputStream> in =
       std::make_shared<JavaInputStreamAdaptor>(env, jni_in);
-  arrow::ipc::IpcReadOptions options = arrow::ipc::IpcReadOptions::Defaults();
-  GLUTEN_ASSIGN_OR_THROW(
-      auto reader, arrow::ipc::RecordBatchStreamReader::Open(in, options))
+  gluten::shuffle::ReaderOptions options =
+      gluten::shuffle::ReaderOptions::Defaults();
+  std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
+      arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  auto reader = std::make_shared<gluten::shuffle::Reader>(in, schema, options);
   return shuffle_reader_holder_.Insert(reader);
   JNI_METHOD_END(-1L)
 }
@@ -1016,12 +1020,10 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_next(
     jlong handle) {
   JNI_METHOD_START
   auto reader = shuffle_reader_holder_.Lookup(handle);
-  GLUTEN_ASSIGN_OR_THROW(auto arrow_batch, reader->Next())
-  if (arrow_batch == nullptr) {
+  GLUTEN_ASSIGN_OR_THROW(auto gluten_batch, reader->Next())
+  if (gluten_batch == nullptr) {
     return -1L;
   }
-  std::shared_ptr<gluten::memory::GlutenColumnarBatch> gluten_batch =
-      std::make_shared<gluten::memory::GlutenArrowColumnarBatch>(arrow_batch);
   return gluten_columnarbatch_holder_.Insert(gluten_batch);
   JNI_METHOD_END(-1L)
 }
@@ -1033,6 +1035,7 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(
     jlong handle) {
   JNI_METHOD_START
   auto reader = shuffle_reader_holder_.Lookup(handle);
+  GLUTEN_THROW_NOT_OK(reader->Close());
   shuffle_reader_holder_.Erase(handle);
   JNI_METHOD_END()
 }

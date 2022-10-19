@@ -26,7 +26,7 @@ public class ShuffleReaderJniWrapper {
     JniWorkspace.getDefault().libLoader().loadEssentials();
   }
 
-  public static native long make(JniByteInputStream jniIn);
+  public static native long make(JniByteInputStream jniIn, long cSchema);
 
   public static native long next(long handle);
 
