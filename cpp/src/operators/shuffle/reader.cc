@@ -65,6 +65,8 @@ Reader::Next() {
   return gluten_batch;
 }
 
-arrow::Status Reader::Close() {}
+arrow::Status Reader::Close() {
+  return arrow::Status::OK();
+}
 } // namespace shuffle
 } // namespace gluten
