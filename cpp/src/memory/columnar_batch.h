@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
 #include "utils/exception.h"
