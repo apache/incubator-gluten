@@ -46,21 +46,20 @@ Reader::Reader(
 arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>>
 Reader::Next() {
   std::shared_ptr<arrow::RecordBatch> arrow_batch;
+  std::unique_ptr<arrow::ipc::Message> message_to_read;
   if (!first_message_consumed_) {
-    GLUTEN_ASSIGN_OR_THROW(
-        arrow_batch,
-        arrow::ipc::ReadRecordBatch(
-            *first_message_, schema_, nullptr, options_.ipc_read_options))
+    message_to_read = std::move(first_message_);
     first_message_consumed_ = true;
   } else {
-    GLUTEN_ASSIGN_OR_THROW(
-        arrow_batch,
-        arrow::ipc::ReadRecordBatch(
-            schema_, nullptr, options_.ipc_read_options, in_.get()))
+    GLUTEN_ASSIGN_OR_THROW(message_to_read, arrow::ipc::ReadMessage(in_.get()))
   }
-  if (arrow_batch == nullptr) {
+  if (message_to_read == nullptr) {
     return nullptr;
   }
+  GLUTEN_ASSIGN_OR_THROW(
+      arrow_batch,
+      arrow::ipc::ReadRecordBatch(
+          *message_to_read, schema_, nullptr, options_.ipc_read_options))
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> gluten_batch =
       std::make_shared<gluten::memory::GlutenArrowColumnarBatch>(arrow_batch);
   return gluten_batch;
