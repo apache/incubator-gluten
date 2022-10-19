@@ -99,19 +99,21 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
           cb.close()
           cb = null
         }
-        val batch = try {
-          val batchHandle = ShuffleReaderJniWrapper.next(shuffleReaderHandle)
+        val batch = {
+          val batchHandle = try {
+            ShuffleReaderJniWrapper.next(shuffleReaderHandle)
+          } catch {
+            case ioe: IOException =>
+              this.close()
+              logError("Failed to load next RecordBatch", ioe)
+              throw ioe
+          }
           if (batchHandle == -1L) {
             // EOF reached
             this.close()
             throw new EOFException
           }
           GlutenColumnarBatches.create(schema, batchHandle)
-        } catch {
-          case ioe: IOException =>
-            this.close()
-            logError("Failed to load next RecordBatch", ioe)
-            throw ioe
         }
         val numRows = batch.numRows()
         logDebug(s"Read ColumnarBatch of ${numRows} rows")
