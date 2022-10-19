@@ -1033,7 +1033,6 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(
     jlong handle) {
   JNI_METHOD_START
   auto reader = shuffle_reader_holder_.Lookup(handle);
-  GLUTEN_THROW_NOT_OK(reader->Close());
   shuffle_reader_holder_.Erase(handle);
   JNI_METHOD_END()
 }
