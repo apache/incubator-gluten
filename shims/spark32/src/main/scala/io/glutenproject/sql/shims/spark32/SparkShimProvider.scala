@@ -30,5 +30,5 @@ class SparkShimProvider extends io.glutenproject.sql.shims.SparkShimProvider {
 
   def matches(version: String): Boolean = {
     SparkShimProvider.DESCRIPTOR_STRINGS.contains(version)
-  }  
+  }
 }
