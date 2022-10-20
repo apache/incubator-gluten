@@ -23,7 +23,7 @@ import org.apache.spark.sql.{Row, TestUtils}
 
 import scala.collection.JavaConverters
 
-class VeloxStringFunctionsSuit extends WholeStageTransformerSuite {
+class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"

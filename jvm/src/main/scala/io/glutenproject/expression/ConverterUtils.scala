@@ -342,8 +342,8 @@ object ConverterUtils extends Logging {
   final val ENDS_WITH = "ends_with"
   final val CONCAT = "concat"
   final val CONTAINS = "contains"
-  final val INSTR = "instr"
-  final val LENGTH = "length"
+  final val INSTR = "strpos" // instr
+  final val LENGTH = "char_length" // length
   final val LOWER = "lower"
   final val UPPER = "upper"
   final val REPLACE = "replace"

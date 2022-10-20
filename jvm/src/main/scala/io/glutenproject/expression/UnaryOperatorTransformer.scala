@@ -119,7 +119,7 @@ class AsciiTransformer(child: Expression, original: Expression)
 }
 
 class LengthTransformer(child: Expression, original: Expression)
-  extends Lower(child: Expression)
+  extends Length(child: Expression)
     with ExpressionTransformer
     with Logging {
 
