@@ -27,6 +27,7 @@ object VeloxNotSupport extends NotSupport {
   override lazy val fullSupportSuiteList: Set[String] = Set(
     simpleClassName[LiteralExpressionSuite],
     simpleClassName[NullExpressionsSuite],
-    simpleClassName[IntervalExpressionsSuite]
+    simpleClassName[IntervalExpressionsSuite],
+    simpleClassName[DecimalExpressionSuite]
   )
 }
