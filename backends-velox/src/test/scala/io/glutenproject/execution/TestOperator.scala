@@ -302,7 +302,7 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = spark.sql("select * from lineitem limit 1")
     df.count()
     df.explain(false)
-  test("test_union_all two tables") {
+  ignore("test_union_all two tables") {
     val result = runSql(
       """
         |select count(orderkey) from (
@@ -310,11 +310,11 @@ class TestOperator extends WholeStageTransformerSuite {
         | union all
         | select o_orderkey as orderkey from orders
         |);
-        |""".stripMargin)
+        |""".stripMargin) { _ => }
     assert(result(0).getLong(0) == 75175)
   }
 
-  test("test_union_all three tables") {
+  ignore("test_union_all three tables") {
     val result = runSql(
       """
         |select count(orderkey) from (
@@ -324,11 +324,11 @@ class TestOperator extends WholeStageTransformerSuite {
         | union all
         | (select o_orderkey as orderkey from orders limit 100)
         |);
-        |""".stripMargin)
+        |""".stripMargin) { _ => }
     assert(result(0).getLong(0) == 75275)
   }
 
-  test("test_union two tables") {
+  ignore("test_union two tables") {
     val result = runSql(
       """
         |select count(orderkey) from (
@@ -336,7 +336,7 @@ class TestOperator extends WholeStageTransformerSuite {
         | union
         | select o_orderkey as orderkey from orders
         |);
-        |""".stripMargin)
+        |""".stripMargin) { _ => }
     assert(result(0).getLong(0) == 15000)
   }
 }
