@@ -118,10 +118,10 @@ class TaskMemoryResourceRegistry extends Logging {
 
   private val sharedMetrics = new TaskMemoryMetrics()
 
-  private val managers = new java.util.HashMap[String, TaskMemoryResourceManager]()
+  private val managers = new java.util.LinkedHashMap[String, TaskMemoryResourceManager]()
 
   private[memory] def releaseAll(): Unit = {
-    managers.values().asScala.foreach(m => try {
+    managers.values().asScala.toArray.reverse.foreach(m => try {
       m.release()
     } catch {
       case e: Throwable =>
