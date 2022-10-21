@@ -15,19 +15,31 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils.velox
+#pragma once
 
-import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.catalyst.expressions._
+#include "memory/columnar_batch.h"
+#include "type.h"
 
-object VeloxNotSupport extends NotSupport {
+namespace gluten {
+namespace shuffle {
 
-  override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
+class Reader {
+ public:
+  Reader(
+      std::shared_ptr<arrow::io::InputStream> in,
+      std::shared_ptr<arrow::Schema> schema,
+      gluten::shuffle::ReaderOptions options);
 
-  override lazy val fullSupportSuiteList: Set[String] = Set(
-    simpleClassName[LiteralExpressionSuite],
-    simpleClassName[NullExpressionsSuite],
-    simpleClassName[IntervalExpressionsSuite],
-    simpleClassName[DecimalExpressionSuite]
-  )
-}
+  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next();
+  arrow::Status Close();
+
+ private:
+  std::shared_ptr<arrow::io::InputStream> in_;
+  gluten::shuffle::ReaderOptions options_;
+  std::shared_ptr<arrow::Schema> schema_;
+  std::unique_ptr<arrow::ipc::Message> first_message_;
+  bool first_message_consumed_ = false;
+};
+
+} // namespace shuffle
+} // namespace gluten

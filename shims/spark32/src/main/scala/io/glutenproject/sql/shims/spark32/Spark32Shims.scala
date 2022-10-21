@@ -41,14 +41,13 @@ class Spark32Shims extends SparkShims {
   }
 
   override def applyPlan(plan: LogicalPlan,
-                forceShuffledHashJoin: Boolean,
-                backendLib: BackendLib): Seq[SparkPlan] = {
+                         forceShuffledHashJoin: Boolean,
+                         backendLib: BackendLib): Seq[SparkPlan] = {
     plan match {
       // If the build side of BHJ is already decided by AQE, we need to keep the build side.
       case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, left, right, hint) =>
-        new JoinSelectionOverrideShim().extractEqualJoinKeyCondition(joinType, leftKeys, rightKeys,
-          condition, left, right, hint,
-          forceShuffledHashJoin, backendLib)
+        new JoinSelectionOverrideShim(backendLib).extractEqualJoinKeyCondition(
+          joinType, leftKeys, rightKeys, condition, left, right, hint, forceShuffledHashJoin)
       case _ => Nil
     }
   }

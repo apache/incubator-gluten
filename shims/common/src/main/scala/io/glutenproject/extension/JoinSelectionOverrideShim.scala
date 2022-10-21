@@ -20,6 +20,7 @@ package io.glutenproject.extension
 import io.glutenproject.BackendLib
 
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
+import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -29,7 +30,8 @@ import org.apache.spark.sql.execution.{joins, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
-class JoinSelectionOverrideShim extends Strategy with JoinSelectionHelper with SQLConfHelper{
+class JoinSelectionOverrideShim(val backendLib: BackendLib) extends Strategy with JoinSelectionHelper with SQLConfHelper{
+
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = ???
 
   private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
@@ -42,8 +44,7 @@ class JoinSelectionOverrideShim extends Strategy with JoinSelectionHelper with S
                                    condition: Option[Expression],
                                    left: LogicalPlan, right: LogicalPlan,
                                    hint: JoinHint,
-                                   forceShuffledHashJoin: Boolean,
-                                   backendLib: BackendLib): Seq[SparkPlan] = {
+                                   forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
     if (isBroadcastStage(left) || isBroadcastStage(right)) {
       // equal condition
       val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
@@ -120,8 +121,27 @@ class JoinSelectionOverrideShim extends Strategy with JoinSelectionHelper with S
           }
           .getOrElse(Nil)
       }
-
       Nil
+    }
+  }
+
+  override def canBuildShuffledHashJoinLeft(joinType: JoinType): Boolean = {
+    joinType match {
+      case _: InnerLike | RightOuter | FullOuter => true
+      // For Velox backend, build right and left are both supported for LeftOuter and LeftSemi.
+      case LeftOuter | LeftSemi => backendLib.equals(BackendLib.VELOX)
+      case _ => false
+    }
+  }
+
+
+  override def canBuildShuffledHashJoinRight(joinType: JoinType): Boolean = {
+    joinType match {
+      case _: InnerLike | LeftOuter | FullOuter |
+           LeftSemi | LeftAnti | _: ExistenceJoin => true
+      // For Velox backend, build right and left are both supported for RightOuter.
+      case RightOuter => backendLib.equals(BackendLib.VELOX)
+      case _ => false
     }
   }
 }

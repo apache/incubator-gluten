@@ -15,19 +15,15 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils.velox
+package io.glutenproject.vectorized;
 
-import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.catalyst.expressions._
+/**
+ * For being called from C++ code only.
+ */
+public interface JniByteInputStream {
+  long read(long destAddress, long maxSize);
 
-object VeloxNotSupport extends NotSupport {
+  long tell();
 
-  override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
-
-  override lazy val fullSupportSuiteList: Set[String] = Set(
-    simpleClassName[LiteralExpressionSuite],
-    simpleClassName[NullExpressionsSuite],
-    simpleClassName[IntervalExpressionsSuite],
-    simpleClassName[DecimalExpressionSuite]
-  )
+  void close();
 }
