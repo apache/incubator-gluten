@@ -344,6 +344,7 @@ object ConverterUtils extends Logging {
   // SparkSQL String fucctions of Velox
   final val CHR = "chr"
   // SparkSQL Math fucctions of Velox
+  final val ABS = "abs"
   final val CEIL = "ceil"
   final val FLOOR = "floor"
   final val EXP = "exp"

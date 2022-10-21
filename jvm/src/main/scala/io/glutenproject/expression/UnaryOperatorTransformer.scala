@@ -130,15 +130,7 @@ class CeilTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.CEIL, Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
-    val nullable = original.nullable
-    val typeNode = child.dataType match {
-      case DecimalType() =>
-        TypeBuilder.makeI64(nullable)
-      case LongType =>
-        TypeBuilder.makeI64(nullable)
-      case otherType =>
-        throw new UnsupportedOperationException(s"Type $otherType not supported in ceil().")
-    }
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -156,15 +148,7 @@ class FloorTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.FLOOR, Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
-    val nullable = original.nullable
-    val typeNode = child.dataType match {
-      case DecimalType() =>
-        TypeBuilder.makeI64(nullable)
-      case LongType =>
-        TypeBuilder.makeI64(nullable)
-      case otherType =>
-        throw new UnsupportedOperationException(s"Type $otherType not supported in floor().")
-    }
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -182,13 +166,7 @@ class ExpTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.EXP, Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
-    val nullable = original.nullable
-    val typeNode = child.dataType match {
-      case DoubleType =>
-        TypeBuilder.makeFP64(nullable)
-      case otherType =>
-        throw new UnsupportedOperationException(s"Type $otherType not supported in exp().")
-    }
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
