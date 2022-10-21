@@ -431,6 +431,29 @@ arrow::Status DecompressBuffers(
       options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
 }
 
+void AttachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
+  int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), JNI_VERSION);
+  if (getEnvStat == JNI_EDETACHED) {
+#ifdef GLUTEN_PRINT_DEBUG
+    std::cout << "JNIEnv was not attached to current thread." << std::endl;
+#endif
+    // Reattach current thread to JVM
+    getEnvStat =
+        vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
+    if (getEnvStat != JNI_OK) {
+      throw gluten::GlutenException(
+          "Failed to reattach current thread to JVM.");
+    }
+#ifdef GLUTEN_PRINT_DEBUG
+    std::cout << "Succeeded attaching current thread." << std::endl;
+#endif
+    return;
+  }
+  if (getEnvStat != JNI_OK) {
+    throw gluten::GlutenException("Failed to attach current thread to JVM.");
+  }
+}
+
 void CheckException(JNIEnv* env) {
   if (env->ExceptionCheck()) {
     jthrowable t = env->ExceptionOccurred();

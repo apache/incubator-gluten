@@ -17,26 +17,13 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
-import io.glutenproject.utils.ArrowAbiUtil;
-import org.apache.arrow.c.ArrowArray;
-import org.apache.arrow.c.ArrowSchema;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
+/**
+ * For being called from C++ code only.
+ */
+public interface JniByteInputStream {
+  long read(long destAddress, long maxSize);
 
-import java.util.Iterator;
+  long tell();
 
-public class ArrowInIterator extends GeneralInIterator {
-
-  public ArrowInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
-  }
-
-  public void next(long cArrayAddress, long cSchemaAddress) {
-    // todo produce GlutenColumnarBatch
-    final ColumnarBatch batch = nextColumnarBatch();
-    final ArrowArray cArray = ArrowArray.wrap(cArrayAddress);
-    final ArrowSchema cSchema = ArrowSchema.wrap(cSchemaAddress);
-    ArrowAbiUtil.exportFromSparkColumnarBatch(ArrowBufferAllocators.contextInstance(), batch,
-        cSchema, cArray);
-  }
+  void close();
 }

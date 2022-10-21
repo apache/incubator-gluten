@@ -19,6 +19,7 @@ package io.glutenproject.utils
 
 import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 
+import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, CDataDictionaryProvider, Data}
@@ -123,8 +124,9 @@ object ArrowAbiUtil {
 
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
                                    cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
-    val schema = ArrowConverterUtils.toSchema(columnarBatch)
-    val rb = ArrowConverterUtils.createArrowRecordBatch(columnarBatch)
+    val loaded = ArrowColumnarBatches.ensureLoaded(allocator, columnarBatch)
+    val schema = ArrowConverterUtils.toSchema(loaded)
+    val rb = ArrowConverterUtils.createArrowRecordBatch(loaded)
     try {
       exportFromArrowRecordBatch(allocator, rb, schema, cSchema, cArray)
     } finally {

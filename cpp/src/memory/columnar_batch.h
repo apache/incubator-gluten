@@ -17,7 +17,10 @@
 
 #include <memory>
 
+#include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
+#include "arrow/record_batch.h"
+#include "utils/exception.h"
 
 #pragma once
 
@@ -54,6 +57,34 @@ class GlutenColumnarBatch {
 
  protected:
   int64_t exportNanos_;
+};
+
+class GlutenArrowColumnarBatch : public GlutenColumnarBatch {
+ public:
+  explicit GlutenArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
+      : GlutenColumnarBatch(batch->num_columns(), batch->num_rows()),
+        batch_(std::move(batch)) {}
+
+  ~GlutenArrowColumnarBatch() override = default;
+
+  std::string GetType() override {
+    return "arrow";
+  }
+
+  std::shared_ptr<ArrowSchema> exportArrowSchema() override {
+    std::shared_ptr<ArrowSchema> c_schema = std::make_shared<ArrowSchema>();
+    GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*batch_->schema(), c_schema.get()));
+    return c_schema;
+  }
+
+  std::shared_ptr<ArrowArray> exportArrowArray() override {
+    std::shared_ptr<ArrowArray> c_array = std::make_shared<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch_, c_array.get()));
+    return c_array;
+  }
+
+ private:
+  std::shared_ptr<arrow::RecordBatch> batch_;
 };
 
 class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
