@@ -185,16 +185,22 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("Test chr function") {
-    val df = spark.sql("SELECT chr(l_orderkey) from lineitem")
-    df.printSchema
+    val df = spark.sql("SELECT chr(l_orderkey + 64) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row("A"))
+    TestUtils.compareAnswers(result, expected)
     df.show()
     df.explain(false)
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 
   test("Test abs function") {
-    val df = spark.sql("SELECT abs(l_orderkey) from lineitem")
-    df.printSchema
+    val df = spark.sql("SELECT abs(l_orderkey) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
     df.show()
     df.explain(false)
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)

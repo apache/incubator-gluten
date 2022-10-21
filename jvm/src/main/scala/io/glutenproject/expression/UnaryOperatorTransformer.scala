@@ -102,17 +102,7 @@ class AbsTransformer(child: Expression, original: Expression)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.ABS, Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
-    val nullable = original.nullable
-    val typeNode = original.dataType match {
-      case DoubleType =>
-        TypeBuilder.makeFP64(nullable)
-      case LongType =>
-        TypeBuilder.makeI64(nullable)
-      case IntegerType =>
-        TypeBuilder.makeI32(nullable)
-      case otherType =>
-        throw new UnsupportedOperationException(s"Type $otherType not supported in abs().")
-    }
+    val typeNode = ConverterUtils.getTypeNode(child.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
