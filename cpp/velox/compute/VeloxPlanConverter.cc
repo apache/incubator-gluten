@@ -31,16 +31,13 @@
 #include "compute/exec_backend.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
-#include "velox/functions/prestosql/aggregates/AverageAggregate.h"
-#include "velox/functions/prestosql/aggregates/CountAggregate.h"
-#include "velox/functions/prestosql/aggregates/MinMaxAggregates.h"
-
+#include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
-
+using namespace facebook::velox::aggregate::prestosql;
 namespace velox {
 namespace compute {
 
@@ -69,7 +66,8 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
       std::unordered_map<std::string, std::shared_ptr<Config>>(),
       memory::MappedMemory::getInstance(),
       std::move(ctxRoot),
-      nullptr);
+      nullptr,
+      "");
   return ctx;
 }
 
@@ -100,19 +98,10 @@ void VeloxInitializer::Init() {
           ->newConnector(kHiveConnectorId, properties, nullptr);
   registerConnector(hiveConnector);
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
-  // parquet::registerParquetReaderFactory(ParquetReaderType::DUCKDB);
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   registerAllFunctions();
-  aggregate::registerSumAggregate<aggregate::SumAggregate>("sum");
-  aggregate::registerAverageAggregate("avg");
-  aggregate::registerCountAggregate("count");
-  aggregate::registerMinMaxAggregate<
-      aggregate::MinAggregate,
-      aggregate::NonNumericMinAggregate>("min");
-  aggregate::registerMinMaxAggregate<
-      aggregate::MaxAggregate,
-      aggregate::NonNumericMaxAggregate>("max");
+  registerAllAggregateFunctions();
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
