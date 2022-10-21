@@ -185,7 +185,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 275436L)
   }
 
-  test("test 'select limit'") {
+  test("test 'select collect limit'") {
     val df = spark.sql(
       """
         |select l_orderkey from lineitem
@@ -195,6 +195,17 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result.size == 5)
     val expected = Seq(Row(1), Row(1), Row(1), Row(1), Row(1))
     TestUtils.compareAnswers(result, expected)
+  }
+
+  test("test 'select global/local limit'") {
+    val df = spark.sql(
+      """
+        |select * from (
+        | select * from lineitem limit 10
+        |) where l_suppkey != 0 limit 100;
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result.size == 10)
   }
 
   test("test 'select count(1)'") {
