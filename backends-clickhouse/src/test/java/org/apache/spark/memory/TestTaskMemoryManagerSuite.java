@@ -80,7 +80,7 @@ public class TestTaskMemoryManagerSuite {
     Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
   }
 
-  @Test(expected = UnsupportedOperationException.class)
+  @Test
   public void testMemoryFreeLessThanMalloc() {
     listener.reserve(100L);
     Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
@@ -115,6 +115,6 @@ public class TestTaskMemoryManagerSuite {
     listener.reserve(100L);
     Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
-    listener.unreserve(1000L);
+    listener.reserve(1000L);
   }
 }

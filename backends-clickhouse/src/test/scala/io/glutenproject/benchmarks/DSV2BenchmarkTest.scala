@@ -304,69 +304,74 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
     spark.sql(s"""
          |use default;
          |""".stripMargin).show(1000, false)
-    val tookTimeArr = ArrayBuffer[Long]()
-    for (i <- 1 to executedCnt) {
-      val startTime = System.nanoTime()
-      val df = spark.sql(s"""
-           |SELECT
-           |    o_year,
-           |    sum(
-           |        CASE WHEN nation = 'BRAZIL' THEN
-           |            volume
-           |        ELSE
-           |            0
-           |        END) / sum(volume) AS mkt_share
-           |FROM (
-           |    SELECT
-           |        extract(year FROM o_orderdate) AS o_year,
-           |        l_extendedprice * (1 - l_discount) AS volume,
-           |        n2.n_name AS nation
-           |    FROM
-           |        part01,
-           |        supplier01,
-           |        lineitem01,
-           |        orders01,
-           |        customer01,
-           |        nation01 n1,
-           |        nation01 n2,
-           |        region01
-           |    WHERE
-           |        p_partkey = l_partkey
-           |        AND s_suppkey = l_suppkey
-           |        AND l_orderkey = o_orderkey
-           |        AND o_custkey = c_custkey
-           |        AND c_nationkey = n1.n_nationkey
-           |        AND n1.n_regionkey = r_regionkey
-           |        AND r_name = 'AMERICA'
-           |        AND s_nationkey = n2.n_nationkey
-           |        AND o_orderdate BETWEEN date'1995-01-01' AND date'1996-12-31'
-           |        AND p_type = 'ECONOMY ANODIZED STEEL') AS all_nations
-           |GROUP BY
-           |    o_year
-           |ORDER BY
-           |    o_year;
-           |
-           |""".stripMargin) // .show(30, false)
-      // df.queryExecution.debug.codegen
-      // df.explain(false)
-      val result = df.collect() // .show(100, false)  //.collect()
-      df.explain(false)
-      val plan = df.queryExecution.executedPlan
-      collectAllJoinSide(plan)
-      println(result.size)
-      result.foreach(r => println(r.mkString(",")))
-      val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
-      tookTimeArr += tookTime
-      // Thread.sleep(5000)
-    }
+    try {
+      val tookTimeArr = ArrayBuffer[Long]()
+      for (i <- 1 to executedCnt) {
+        val startTime = System.nanoTime()
+        val df = spark.sql(
+          s"""
+             |SELECT
+             |    supp_nation,
+             |    cust_nation,
+             |    l_year,
+             |    sum(volume) AS revenue
+             |FROM (
+             |    SELECT
+             |        n1.n_name AS supp_nation,
+             |        n2.n_name AS cust_nation,
+             |        extract(year FROM l_shipdate) AS l_year,
+             |        l_extendedprice * (1 - l_discount) AS volume
+             |    FROM
+             |        supplier100,
+             |        lineitem100,
+             |        orders100,
+             |        customer100,
+             |        nation100 n1,
+             |        nation100 n2
+             |    WHERE
+             |        s_suppkey = l_suppkey
+             |        AND o_orderkey = l_orderkey
+             |        AND c_custkey = o_custkey
+             |        AND s_nationkey = n1.n_nationkey
+             |        AND c_nationkey = n2.n_nationkey
+             |        AND ((n1.n_name = 'FRANCE'
+             |                AND n2.n_name = 'GERMANY')
+             |            OR (n1.n_name = 'GERMANY'
+             |                AND n2.n_name = 'FRANCE'))
+             |        AND l_shipdate BETWEEN date'1995-01-01' AND date'1996-12-31') AS shipping
+             |GROUP BY
+             |    supp_nation,
+             |    cust_nation,
+             |    l_year
+             |ORDER BY
+             |    supp_nation,
+             |    cust_nation,
+             |    l_year;
+             |
+             |""".stripMargin) // .show(30, false)
+        // df.queryExecution.debug.codegen
+        // df.explain(false)
+        val result = df.collect() // .show(100, false)  //.collect()
+        df.explain(false)
+        val plan = df.queryExecution.executedPlan
+        collectAllJoinSide(plan)
+        println(result.size)
+        result.foreach(r => println(r.mkString(",")))
+        val tookTime = (System.nanoTime() - startTime) / 1000000
+        println(s"Execute ${i} time, time: ${tookTime}")
+        tookTimeArr += tookTime
+        // Thread.sleep(5000)
+      }
 
-    println(tookTimeArr.mkString(","))
+      println(tookTimeArr.mkString(","))
 
-    if (executedCnt >= 10) {
-      import spark.implicits._
-      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-      df.summary().show(100, false)
+      if (executedCnt >= 10) {
+        import spark.implicits._
+        val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+        df.summary().show(100, false)
+      }
+    } catch {
+      case e: Exception => e.printStackTrace()
     }
   }
 

@@ -61,16 +61,18 @@ public class CHManagedReservationListener implements ReservationListener {
       if (!open) {
         return;
       }
+      long memoryToFree = size;
       if ((currentMemory.get() - size) < 0L) {
-        throw new UnsupportedOperationException(
-            "The 'currentMemory' " + currentMemory.get() +
-                " value will be less than 0 after free " + size
+        LOG.warn(
+            "The current used memory' " + currentMemory.get() +
+                " will be less than 0 after free " + size
         );
+        memoryToFree = currentMemory.get();
       }
-      LOG.debug("unreserve memory size from native: " + size);
-      consumer.free(size);
-      currentMemory.addAndGet(-size);
-      metrics.inc(-size);
+      LOG.debug("unreserve memory size from native: " + memoryToFree);
+      consumer.free(memoryToFree);
+      currentMemory.addAndGet(-memoryToFree);
+      metrics.inc(-memoryToFree);
     }
   }
 
