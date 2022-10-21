@@ -230,6 +230,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
           replaceWithTransformerPlan(plan.child, isSupportAdaptive))
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
+        logDebug("Not support plan is " + p.toString())
         val children = plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive))
         p.withNewChildren(children)
     }
@@ -249,7 +250,14 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   }
 
   def apply(plan: SparkPlan): SparkPlan = {
-    replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
+    var finalPlan: SparkPlan = null;
+    if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
+      finalPlan = replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
+    } else {
+      finalPlan = replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
+    }
+    logDebug("final plan: " + finalPlan.toString())
+    finalPlan
   }
 }
 
@@ -308,7 +316,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
             c.withNewChildren(c.children.map(replaceWithTransformerPlan))
           }
         case other =>
-          replaceWithTransformerPlan(other)
+          other.withNewChildren(other.children.map(replaceWithTransformerPlan))
       }
       r.withNewChildren(children)
     case p =>
@@ -316,8 +324,11 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       p.withNewChildren(children)
   }
 
+  // apply for the physical not final plan
   def apply(plan: SparkPlan): SparkPlan = {
-    replaceWithTransformerPlan(plan)
+    val plan2 = replaceWithTransformerPlan(plan)
+//    println("applyied plan is " + plan2.toString())
+    plan2
   }
 }
 
@@ -343,12 +354,14 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       nativeEngineEnabled,
       plan)
 
+    logInfo(s"preColumnarTransitions preOverriden plan ${plan.toString}")
     if (supportedGluten) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
       preOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
+      logInfo(s"preColumnarTransitions afterOverriden plan ${overridden.toString}")
       logInfo(
         s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
@@ -362,12 +375,14 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       nativeEngineEnabled,
       plan)
 
+    logInfo(s"postColumnarTransitions preOverriden plan ${plan.toString}")
     if (supportedGluten) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
       postOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
+      logInfo(s"postColumnarTransitions afterOverriden plan ${overridden.toString}")
       logInfo(
         s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
