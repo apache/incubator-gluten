@@ -173,7 +173,7 @@ abstract class FilterExecBaseTransformer(condition: Expression,
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
     }
   }
@@ -453,7 +453,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode, context, operatorId)
     }
   }

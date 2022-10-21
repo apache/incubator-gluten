@@ -15,23 +15,30 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.substrait.type;
 
-import io.glutenproject.execution.SparkRowIterator;
-import io.glutenproject.row.SparkRowInfo;
+import io.substrait.proto.Type;
 
-public class BlockNativeConverter {
+import java.io.Serializable;
 
-  // for ch columnar -> spark row
-  public native SparkRowInfo convertColumnarToRow(long blockAddress);
+public class I16TypeNode implements TypeNode, Serializable {
+  private final Boolean nullable;
 
-  // for ch columnar -> spark row
-  public native void freeMemory(long address, long size);
+  I16TypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
 
-  // for spark row -> ch columnar
-  public native long convertSparkRowsToCHColumn(SparkRowIterator iter, String[] names,
-    byte[][] types);
+  @Override
+  public Type toProtobuf() {
+    Type.I16.Builder i16Builder = Type.I16.newBuilder();
+    if (nullable) {
+      i16Builder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
+    } else {
+      i16Builder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
+    }
 
-  // for spark row -> ch columnar
-  public native void freeBlock(long blockAddress);
+    Type.Builder builder = Type.newBuilder();
+    builder.setI16(i16Builder.build());
+    return builder.build();
+  }
 }

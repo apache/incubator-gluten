@@ -24,6 +24,12 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
   if (type_name == "BOOLEAN") {
     return arrow::boolean();
   }
+  if (type_name == "TINYINT") {
+    return arrow::int8();
+  }
+  if (type_name == "SMALLINT") {
+    return arrow::int16();
+  }
   if (type_name == "INTEGER") {
     return arrow::int32();
   }

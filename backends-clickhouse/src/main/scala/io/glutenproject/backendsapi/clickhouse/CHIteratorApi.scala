@@ -73,6 +73,8 @@ class CHIteratorApi extends IIteratorApi with Logging {
             starts,
             lengths,
             wsCxt.substraitContext.getFileFormat.get(i))
+        case _ =>
+          throw new UnsupportedOperationException(s"Unsupport operators.")
       })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodes)

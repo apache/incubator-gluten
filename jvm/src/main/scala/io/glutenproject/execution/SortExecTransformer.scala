@@ -181,7 +181,7 @@ case class SortExecTransformer(
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(input, projectExpressions, extensionNode, context, operatorId)
     }
 
@@ -201,7 +201,7 @@ case class SortExecTransformer(
 
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
 
       RelBuilder.makeSortRel(
         inputRel, sortFieldList, extensionNode, context, operatorId)
@@ -220,7 +220,7 @@ case class SortExecTransformer(
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(sortRel, new java.util.ArrayList[ExpressionNode](
         selectOrigins.asJava), extensionNode, context, operatorId)
     }
@@ -265,7 +265,7 @@ case class SortExecTransformer(
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
 
       RelBuilder.makeSortRel(
         input, sortFieldList, extensionNode, context, operatorId)
