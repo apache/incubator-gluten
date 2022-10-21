@@ -1005,6 +1005,7 @@ Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_make(
       std::make_shared<JavaInputStreamAdaptor>(env, jni_in);
   gluten::shuffle::ReaderOptions options =
       gluten::shuffle::ReaderOptions::Defaults();
+  options.ipc_read_options.use_threads = false;
   std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
       arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
   auto reader = std::make_shared<gluten::shuffle::Reader>(in, schema, options);
