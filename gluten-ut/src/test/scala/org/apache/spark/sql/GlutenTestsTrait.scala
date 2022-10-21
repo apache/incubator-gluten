@@ -105,7 +105,8 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config("spark.sql.adaptive.enabled", "true")
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.sql.files.maxPartitionBytes", "134217728")
-        .config("spark.memory.offHeap.size", "2g")
+        .config("spark.memory.offHeap.enabled", "true")
+        .config("spark.memory.offHeap.size", "1024MB")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
@@ -121,6 +122,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
           .config("spark.gluten.sql.enable.native.validation", "false")
           .config("spark.sql.files.openCostInBytes", "134217728")
           .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
           .getOrCreate()
       } else {
         sparkBuilder
