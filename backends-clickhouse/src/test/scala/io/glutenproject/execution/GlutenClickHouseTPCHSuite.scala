@@ -235,6 +235,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val result = df.collect()
     assert(result.size == 2)
     assert(result(0).getInt(0) == 1 && result(1).getInt(0) == 1)
+  }
   test("test 'order by'") {
     val df = spark.sql(
       """
