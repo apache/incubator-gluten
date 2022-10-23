@@ -20,11 +20,18 @@ package io.glutenproject.memory.alloc;
 public interface ReservationListener {
   ReservationListener NOOP = new ReservationListener() {
     @Override
-    public void reserve(long size) {
+    public long reserve(long size) {
+      return 0L;
     }
 
     @Override
-    public void unreserve(long size) {
+    public long reserveNoException(long size) {
+      return 0L;
+    }
+
+    @Override
+    public long unreserve(long size) {
+      return 0L;
     }
 
     @Override
@@ -37,9 +44,14 @@ public interface ReservationListener {
     }
   };
 
-  void reserve(long size);
+  long reserve(long size);
 
-  void unreserve(long size);
+  /**
+   * Only for ClickHouse Backend when executing new operator.
+   */
+  long reserveNoException(long size);
+
+  long unreserve(long size);
 
   void inactivate();
 

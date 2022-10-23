@@ -17,7 +17,10 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.glutenproject.memory.GlutenNativeMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 
 /**
@@ -25,35 +28,65 @@ import io.glutenproject.memory.TaskMemoryMetrics;
  */
 public class VeloxManagedReservationListener implements ReservationListener {
 
-  private GlutenMemoryConsumer consumer;
+  private static final Logger LOG =
+      LoggerFactory.getLogger(VeloxManagedReservationListener.class);
+
+  private GlutenNativeMemoryConsumer consumer;
   private TaskMemoryMetrics metrics;
   private volatile boolean open = true;
 
-  public VeloxManagedReservationListener(GlutenMemoryConsumer consumer,
+  public VeloxManagedReservationListener(GlutenNativeMemoryConsumer consumer,
                                          TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }
 
   @Override
-  public void reserve(long size) {
+  public long reserve(long size) {
     synchronized (this) {
       if (!open) {
-        return;
+        return 0L;
       }
-      consumer.acquire(size);
+      long granted = consumer.acquire(size);
+      if (granted < size) {
+        consumer.free(granted);
+        throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
+            "Acquired: " + size + ", granted: " + granted + ". " +
+            "Try tweaking config option spark.memory.offHeap.size to " +
+            "get larger space to run this application. ");
+      }
       metrics.inc(size);
+      return size;
     }
   }
 
   @Override
-  public void unreserve(long size) {
+  public long reserveNoException(long size) {
     synchronized (this) {
       if (!open) {
-        return;
+        return 0L;
+      }
+      long granted = consumer.acquire(size);
+      if (granted < size) {
+        LOG.warn("Not enough spark off-heap execution memory. " +
+            "Acquired: " + size + ", granted: " + granted + ". " +
+            "Try tweaking config option spark.memory.offHeap.size to " +
+            "get larger space to run this application. ");
+      }
+      metrics.inc(granted);
+      return granted;
+    }
+  }
+
+  @Override
+  public long unreserve(long size) {
+    synchronized (this) {
+      if (!open) {
+        return 0L;
       }
       consumer.free(size);
       metrics.inc(-size);
+      return size;
     }
   }
 

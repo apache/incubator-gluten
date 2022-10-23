@@ -22,7 +22,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.glutenproject.memory.CHMemoryConsumer;
+import io.glutenproject.memory.GlutenNativeMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 import io.glutenproject.memory.alloc.CHManagedReservationListener;
 import io.glutenproject.memory.alloc.CHMemoryAllocatorManager;
@@ -56,7 +56,7 @@ public class TestTaskMemoryManagerSuite {
         0);
 
     listener = new CHManagedReservationListener(
-        new CHMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
+        new GlutenNativeMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
         new TaskMemoryMetrics()
     );
 

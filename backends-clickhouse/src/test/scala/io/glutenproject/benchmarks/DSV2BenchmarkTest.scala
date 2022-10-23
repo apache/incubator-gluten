@@ -48,7 +48,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
     // val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
     //   "cmake-build-release/utils/local-engine/libch.so"
     val libPath = "/usr/local/clickhouse/lib/libch.so"
-    val thrdCnt = 12
+    val thrdCnt = 4
     val shufflePartitions = 12
     val shuffleManager = "sort"
     // val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
@@ -195,7 +195,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
-        .config("spark.memory.offHeap.size", "20G")
+        .config("spark.memory.offHeap.size", "6G")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
         .config("spark.local.dir", sparkLocalDir)
         .config("spark.executor.heartbeatInterval", "30s")
