@@ -179,9 +179,44 @@ class TestOperator extends WholeStageTransformerSuite {
       "select l_suppkey from lineitem " +
         "where l_orderkey < 3 order by l_partkey / 2 ") { _ => }
     assert(result.length == 7)
-
     val expected =
       Seq(Row(48.0), Row(10.0), Row(23.0), Row(38.0), Row(75.0), Row(33.0), Row(93.0))
     TestUtils.compareAnswers(result, expected)
+  }
+
+  test("Test chr function") {
+    val df = spark.sql("SELECT chr(l_orderkey + 64) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row("A"))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test abs function") {
+    val df = spark.sql("SELECT abs(l_orderkey) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  // VeloxRuntimeError, wait to fix
+  ignore("Test isnull function") {
+    val df = spark.sql("SELECT isnull(1)")
+    df.show()
+    df.explain(false)
+  }
+
+  // VeloxRuntimeError, wait to fix
+  ignore("Test df.count()") {
+    val df = spark.sql("select * from lineitem limit 1")
+    df.count()
+    df.explain(false)
   }
 }

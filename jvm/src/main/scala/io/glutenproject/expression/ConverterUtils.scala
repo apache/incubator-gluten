@@ -341,4 +341,8 @@ object ConverterUtils extends Logging {
   final val STARTS_WITH = "starts_with"
   final val SUBSTRING = "substring"
   final val ROW_CONSTRUCTOR = "row_constructor"
+  // SparkSQL String fucctions of Velox
+  final val CHR = "chr"
+  // SparkSQL Math fucctions of Velox
+  final val ABS = "abs"
 }
