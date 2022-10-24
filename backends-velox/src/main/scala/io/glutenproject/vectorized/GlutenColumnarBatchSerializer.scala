@@ -136,6 +136,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
           numOutputRows += numRowsTotal
           if (cb != null) cb.close()
           ShuffleReaderJniWrapper.close(shuffleReaderHandle)
+          allocator.close()
           isClosed = true
         }
       }
