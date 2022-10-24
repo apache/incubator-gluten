@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.glutenproject.memory.GlutenNativeMemoryConsumer;
+import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 
 public class CHManagedReservationListener implements ReservationListener {
@@ -30,23 +30,23 @@ public class CHManagedReservationListener implements ReservationListener {
   private static final Logger LOG =
       LoggerFactory.getLogger(CHManagedReservationListener.class);
 
-  private GlutenNativeMemoryConsumer consumer;
+  private GlutenMemoryConsumer consumer;
   private TaskMemoryMetrics metrics;
   private volatile boolean open = true;
 
   private final AtomicLong currentMemory = new AtomicLong(0L);
 
-  public CHManagedReservationListener(GlutenNativeMemoryConsumer consumer,
+  public CHManagedReservationListener(GlutenMemoryConsumer consumer,
                                       TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }
 
   @Override
-  public long reserve(long size) {
+  public void reserveOrThrow(long size) {
     synchronized (this) {
       if (!open) {
-        return 0L;
+        return;
       }
       LOG.debug("reserve memory size from native: " + size);
       long granted = consumer.acquire(size);
@@ -59,12 +59,11 @@ public class CHManagedReservationListener implements ReservationListener {
       }
       currentMemory.addAndGet(size);
       metrics.inc(size);
-      return size;
     }
   }
 
   @Override
-  public long reserveNoException(long size) {
+  public long reserve(long size) {
     synchronized (this) {
       if (!open) {
         return 0L;

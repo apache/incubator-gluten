@@ -20,7 +20,7 @@ package io.glutenproject.memory.alloc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.glutenproject.memory.GlutenNativeMemoryConsumer;
+import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 
 /**
@@ -31,21 +31,21 @@ public class VeloxManagedReservationListener implements ReservationListener {
   private static final Logger LOG =
       LoggerFactory.getLogger(VeloxManagedReservationListener.class);
 
-  private GlutenNativeMemoryConsumer consumer;
+  private GlutenMemoryConsumer consumer;
   private TaskMemoryMetrics metrics;
   private volatile boolean open = true;
 
-  public VeloxManagedReservationListener(GlutenNativeMemoryConsumer consumer,
+  public VeloxManagedReservationListener(GlutenMemoryConsumer consumer,
                                          TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
   }
 
   @Override
-  public long reserve(long size) {
+  public void reserveOrThrow(long size) {
     synchronized (this) {
       if (!open) {
-        return 0L;
+        return;
       }
       long granted = consumer.acquire(size);
       if (granted < size) {
@@ -56,12 +56,11 @@ public class VeloxManagedReservationListener implements ReservationListener {
             "get larger space to run this application. ");
       }
       metrics.inc(size);
-      return size;
     }
   }
 
   @Override
-  public long reserveNoException(long size) {
+  public long reserve(long size) {
     synchronized (this) {
       if (!open) {
         return 0L;

@@ -17,7 +17,7 @@
 
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.GlutenNativeMemoryConsumer;
+import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.alloc.NativeMemoryAllocator;
 import io.glutenproject.memory.alloc.Spiller;
 import org.apache.arrow.memory.AllocationListener;
@@ -59,7 +59,7 @@ public class ArrowBufferAllocators {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
     private final AllocationListener listener = new SparkManagedAllocationListener(
-        new GlutenNativeMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), Spiller.NO_OP),
+        new GlutenMemoryConsumer(TaskMemoryResources.getSparkMemoryManager(), Spiller.NO_OP),
         TaskMemoryResources.getSharedMetrics());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 

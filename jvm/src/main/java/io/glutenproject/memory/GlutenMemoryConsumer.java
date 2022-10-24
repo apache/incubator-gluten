@@ -25,11 +25,11 @@ import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 
-public class GlutenNativeMemoryConsumer extends MemoryConsumer {
+public class GlutenMemoryConsumer extends MemoryConsumer {
 
   protected final Spiller spiller;
 
-  public GlutenNativeMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
+  public GlutenMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
     this.spiller = spiller;
   }

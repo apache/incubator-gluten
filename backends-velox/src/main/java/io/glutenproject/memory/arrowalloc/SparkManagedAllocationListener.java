@@ -17,7 +17,7 @@
 
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.GlutenNativeMemoryConsumer;
+import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 import org.apache.arrow.memory.AllocationListener;
 import org.slf4j.Logger;
@@ -31,7 +31,7 @@ public class SparkManagedAllocationListener implements AllocationListener, AutoC
 
   public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
-  private final GlutenNativeMemoryConsumer consumer;
+  private final GlutenMemoryConsumer consumer;
   private final TaskMemoryMetrics metrics;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -39,7 +39,7 @@ public class SparkManagedAllocationListener implements AllocationListener, AutoC
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public SparkManagedAllocationListener(GlutenNativeMemoryConsumer consumer,
+  public SparkManagedAllocationListener(GlutenMemoryConsumer consumer,
                                         TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
@@ -59,8 +59,15 @@ public class SparkManagedAllocationListener implements AllocationListener, AutoC
       return;
     }
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
-    consumer.acquire(toBeAcquired);
-    metrics.inc(toBeAcquired);
+    long granted = consumer.acquire(toBeAcquired);
+    if (granted < toBeAcquired) {
+      consumer.free(granted);
+      throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
+          "Acquired: " + size + ", granted: " + granted + ". " +
+          "Try tweaking config option spark.memory.offHeap.size to " +
+          "get larger space to run this application. ");
+    }
+    metrics.inc(granted);
   }
 
   @Override

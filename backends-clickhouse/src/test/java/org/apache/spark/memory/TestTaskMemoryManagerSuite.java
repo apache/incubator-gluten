@@ -22,7 +22,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.glutenproject.memory.GlutenNativeMemoryConsumer;
+import io.glutenproject.memory.GlutenMemoryConsumer;
 import io.glutenproject.memory.TaskMemoryMetrics;
 import io.glutenproject.memory.alloc.CHManagedReservationListener;
 import io.glutenproject.memory.alloc.CHMemoryAllocatorManager;
@@ -56,7 +56,7 @@ public class TestTaskMemoryManagerSuite {
         0);
 
     listener = new CHManagedReservationListener(
-        new GlutenNativeMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
+        new GlutenMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
         new TaskMemoryMetrics()
     );
 
@@ -73,7 +73,7 @@ public class TestTaskMemoryManagerSuite {
 
   @Test
   public void testCHNativeMemoryManager() {
-    listener.reserve(100L);
+    listener.reserveOrThrow(100L);
     Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
     listener.unreserve(100L);
@@ -82,7 +82,7 @@ public class TestTaskMemoryManagerSuite {
 
   @Test
   public void testMemoryFreeLessThanMalloc() {
-    listener.reserve(100L);
+    listener.reserveOrThrow(100L);
     Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
     listener.unreserve(200L);
@@ -91,16 +91,16 @@ public class TestTaskMemoryManagerSuite {
 
   @Test
   public void testMemoryLeak() {
-    listener.reserve(100L);
+    listener.reserveOrThrow(100L);
     Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
     listener.unreserve(100L);
     Assert.assertEquals(0L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
-    listener.reserve(100L);
+    listener.reserveOrThrow(100L);
     Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
-    listener.reserve(100L);
+    listener.reserveOrThrow(100L);
     Assert.assertEquals(200L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
     try {
@@ -112,9 +112,9 @@ public class TestTaskMemoryManagerSuite {
 
   @Test(expected = UnsupportedOperationException.class)
   public void testAcquireLessMemory() {
-    listener.reserve(100L);
+    listener.reserveOrThrow(100L);
     Assert.assertEquals(100L, taskMemoryManager.getMemoryConsumptionForThisTask());
 
-    listener.reserve(1000L);
+    listener.reserveOrThrow(1000L);
   }
 }

@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
-import io.glutenproject.memory.{GlutenNativeMemoryConsumer, TaskMemoryMetrics}
+import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc.{CHManagedReservationListener, CHMemoryAllocatorManager, NativeMemoryAllocator, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
@@ -278,7 +278,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
                                                taskMemoryMetrics: TaskMemoryMetrics
                                               ): TaskMemoryResourceManager = {
     val rl = new CHManagedReservationListener(
-      new GlutenNativeMemoryConsumer(taskMemoryManager, spiller),
+      new GlutenMemoryConsumer(taskMemoryManager, spiller),
       taskMemoryMetrics
     )
     new CHMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
