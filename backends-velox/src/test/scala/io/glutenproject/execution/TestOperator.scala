@@ -26,8 +26,8 @@ class TestOperator extends WholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = "/tpch-data-orc-velox"
-  override protected val fileFormat: String = "orc"
+  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -65,7 +65,7 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("test_where") {
-    val result = runQueryAndCompare("select * from lineitem where l_shipdate < 8500") { _ => }
+    val result = runQueryAndCompare("select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
     assert(result.length == 10057)
   }
 
