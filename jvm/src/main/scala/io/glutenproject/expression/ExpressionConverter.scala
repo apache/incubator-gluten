@@ -206,6 +206,23 @@ object ExpressionConverter extends Logging {
             r.scale,
             attributeSeq),
           expr)
+      case l: StringTrimLeft =>
+        if (l.trimStr != None) {
+          throw new UnsupportedOperationException(s"not supported yet.")
+        }
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        TrimOperatorTransformer.create(
+          replaceWithExpressionTransformer(l.srcStr, attributeSeq),
+          expr)
+      case r: StringTrimRight =>
+        if (r.trimStr != None) {
+          throw new UnsupportedOperationException(s"not supported yet.")
+        }
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        TrimOperatorTransformer.create(
+          replaceWithExpressionTransformer(r.srcStr, attributeSeq),
+          expr)
+
       case expr =>
         logDebug(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
