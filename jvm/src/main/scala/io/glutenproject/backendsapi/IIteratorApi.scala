@@ -19,15 +19,20 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
+import io.glutenproject.memory.TaskMemoryMetrics
+import io.glutenproject.memory.alloc.Spiller
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
+
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
+import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.memory.TaskMemoryResourceManager
 
 trait IIteratorApi extends IBackendsApi {
 
@@ -112,11 +117,21 @@ trait IIteratorApi extends IBackendsApi {
                           ): RDD[ColumnarBatch]
 
   /**
+   * Generate NativeMemoryAllocatorManager.
+   * @return
+   */
+  def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
+                                      spiller: Spiller,
+                                      taskMemoryMetrics: TaskMemoryMetrics
+                                     ): TaskMemoryResourceManager
+
+  /**
    * Generate BatchIterator for ExpressionEvaluator.
    *
    * @return
    */
-  def genBatchIterator(wsPlan: Array[Byte], iterList: Seq[GeneralInIterator],
+  def genBatchIterator(allocId: java.lang.Long, wsPlan: Array[Byte],
+                       iterList: Seq[GeneralInIterator],
                        jniWrapper: ExpressionEvaluatorJniWrapper,
                        outAttrs: Seq[Attribute]): GeneralOutIterator
 }

@@ -17,7 +17,11 @@
 
 package org.apache.spark.util.memory
 
+import io.glutenproject.memory.alloc.NativeMemoryAllocator
+
 trait TaskMemoryResourceManager {
   @throws(classOf[Exception])
   def release(): Unit
+
+  def getManaged(): NativeMemoryAllocator
 }

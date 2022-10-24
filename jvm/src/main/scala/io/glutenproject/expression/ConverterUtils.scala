@@ -350,5 +350,4 @@ object ConverterUtils extends Logging {
   final val EXP = "exp"
   final val POWER = "power"
   final val PMOD = "pmod"
-
 }

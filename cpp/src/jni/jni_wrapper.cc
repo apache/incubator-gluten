@@ -37,6 +37,7 @@
 #include "jni/jni_errors.h"
 #include "memory/columnar_batch.h"
 #include "operators/c2r/columnar_to_row_base.h"
+#include "operators/shuffle/reader.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/exception.h"
 #include "utils/metrics.h"
@@ -54,6 +55,11 @@ jmethodID reserve_memory_method;
 jmethodID unreserve_memory_method;
 
 static jclass byte_array_class;
+
+static jclass jni_byte_input_stream_class;
+static jmethodID jni_byte_input_stream_read;
+static jmethodID jni_byte_input_stream_tell;
+static jmethodID jni_byte_input_stream_close;
 
 static jclass split_result_class;
 static jmethodID split_result_constructor;
@@ -82,10 +88,12 @@ static arrow::jni::ConcurrentMap<std::shared_ptr<GlutenResultIterator>>
 
 using gluten::shuffle::SplitOptions;
 using gluten::shuffle::Splitter;
+
 static arrow::jni::ConcurrentMap<std::shared_ptr<Splitter>>
     shuffle_splitter_holder_;
-static arrow::jni::ConcurrentMap<std::shared_ptr<arrow::Schema>>
-    decompression_schema_holder_;
+
+static arrow::jni::ConcurrentMap<std::shared_ptr<gluten::shuffle::Reader>>
+    shuffle_reader_holder_;
 
 static arrow::jni::ConcurrentMap<
     std::shared_ptr<gluten::memory::GlutenColumnarBatch>>
@@ -95,19 +103,92 @@ std::shared_ptr<GlutenResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
   auto handler = array_iterator_holder_.Lookup(id);
   if (!handler) {
     std::string error_message = "invalid handler id " + std::to_string(id);
-    throw gluten::GlutenException(error_message);
+    gluten::JniThrow(error_message);
   }
   return handler;
 }
 
+class JavaInputStreamAdaptor : public arrow::io::InputStream {
+ public:
+  JavaInputStreamAdaptor(JNIEnv* env, jobject jni_in) {
+    // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
+    if (env->GetJavaVM(&vm_) != JNI_OK) {
+      std::string error_message = "Unable to get JavaVM instance";
+      gluten::JniThrow(error_message);
+    }
+    jni_in_ = env->NewGlobalRef(jni_in);
+  }
+
+  ~JavaInputStreamAdaptor() override {
+    GLUTEN_THROW_NOT_OK(JavaInputStreamAdaptor::Close());
+  };
+
+  // not thread safe
+  Status Close() override {
+    if (closed_) {
+      return Status::OK();
+    }
+    JNIEnv* env;
+    AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    env->CallVoidMethod(jni_in_, jni_byte_input_stream_close);
+    CheckException(env);
+    env->DeleteGlobalRef(jni_in_);
+    vm_->DetachCurrentThread();
+    closed_ = true;
+    return Status::OK();
+  }
+
+  arrow::Result<int64_t> Tell() const override {
+    JNIEnv* env;
+    AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    return env->CallLongMethod(jni_in_, jni_byte_input_stream_tell);
+  }
+
+  bool closed() const override {
+    return closed_;
+  }
+
+  arrow::Result<int64_t> Read(int64_t nbytes, void* out) override {
+    JNIEnv* env;
+    AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    return env->CallLongMethod(
+        jni_in_,
+        jni_byte_input_stream_read,
+        reinterpret_cast<jlong>(out),
+        nbytes);
+  }
+
+  arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override {
+    GLUTEN_ASSIGN_OR_THROW(
+        auto buffer,
+        arrow::AllocateResizableBuffer(
+            nbytes, gluten::memory::GetDefaultWrappedArrowMemoryPool().get()))
+    GLUTEN_ASSIGN_OR_THROW(
+        int64_t bytes_read, Read(nbytes, buffer->mutable_data()));
+    GLUTEN_THROW_NOT_OK(buffer->Resize(bytes_read, false));
+    buffer->ZeroPadding();
+    return std::move(buffer);
+  }
+
+ private:
+  JavaVM* vm_;
+  jobject jni_in_;
+  bool closed_ = false;
+};
+
 class JavaArrowArrayIterator {
  public:
   explicit JavaArrowArrayIterator(
-      JavaVM* vm,
-      jobject java_serialized_arrow_array_iterator)
-      : vm_(vm),
-        java_serialized_arrow_array_iterator_(
-            java_serialized_arrow_array_iterator) {}
+      JNIEnv* env,
+      jobject java_serialized_arrow_array_iterator) {
+    // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
+    if (env->GetJavaVM(&vm_) != JNI_OK) {
+      std::string error_message = "Unable to get JavaVM instance";
+      gluten::JniThrow(error_message);
+    }
+    java_serialized_arrow_array_iterator_ =
+        env->NewGlobalRef(java_serialized_arrow_array_iterator);
+  }
 
   // singleton, avoid stack instantiation
   JavaArrowArrayIterator(const JavaArrowArrayIterator& itr) = delete;
@@ -115,27 +196,7 @@ class JavaArrowArrayIterator {
 
   virtual ~JavaArrowArrayIterator() {
     JNIEnv* env;
-    int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
-    if (getEnvStat == JNI_EDETACHED) {
-      // Reattach current thread to JVM
-      getEnvStat =
-          vm_->AttachCurrentThread(reinterpret_cast<void**>(&env), NULL);
-      if (getEnvStat != JNI_OK) {
-        std::cout << "Failed to deconstruct due to thread not being reattached."
-                  << std::endl;
-        return;
-      }
-    }
-    if (getEnvStat != JNI_OK) {
-      std::cout << "Failed to deconstruct due to thread not being attached."
-                << std::endl;
-      return;
-    }
-#ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "DELETING ITERATOR REF "
-              << reinterpret_cast<long>(java_serialized_arrow_array_iterator_)
-              << "..." << std::endl;
-#endif
+    AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
     ReleaseUnclosed();
     env->DeleteGlobalRef(java_serialized_arrow_array_iterator_);
     vm_->DetachCurrentThread();
@@ -143,22 +204,7 @@ class JavaArrowArrayIterator {
 
   arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() {
     JNIEnv* env;
-    int getEnvStat = vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
-    if (getEnvStat == JNI_EDETACHED) {
-#ifdef GLUTEN_PRINT_DEBUG
-      std::cout << "JNIEnv was not attached to current thread." << std::endl;
-#endif
-      if (vm_->AttachCurrentThreadAsDaemon(
-              reinterpret_cast<void**>(&env), NULL) != 0) {
-        return arrow::Status::Invalid("Failed to attach thread.");
-      }
-#ifdef GLUTEN_PRINT_DEBUG
-      std::cout << "Succeeded attaching current thread." << std::endl;
-#endif
-    } else if (getEnvStat != JNI_OK) {
-      return arrow::Status::Invalid(
-          "JNIEnv was not attached to current thread");
-    }
+    AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
 #ifdef GLUTEN_PRINT_DEBUG
     std::cout << "PICKING ITERATOR REF "
               << reinterpret_cast<long>(java_serialized_arrow_array_iterator_)
@@ -207,7 +253,7 @@ class JavaArrowArrayIterator {
 // org/apache/arrow/dataset/jni/NativeSerializedRecordBatchIterator
 //
 std::shared_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
-    JavaVM* vm,
+    JNIEnv* env,
     jobject java_serialized_arrow_array_iterator) {
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "CREATING ITERATOR REF "
@@ -216,7 +262,7 @@ std::shared_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
 #endif
   std::shared_ptr<JavaArrowArrayIterator> itr =
       std::make_shared<JavaArrowArrayIterator>(
-          vm, java_serialized_arrow_array_iterator);
+          env, java_serialized_arrow_array_iterator);
   return itr;
 }
 
@@ -229,7 +275,7 @@ jmethodID GetMethodIDOrError(
   if (ret == nullptr) {
     std::string error_message = "Unable to find method " + std::string(name) +
         " within signature" + std::string(sig);
-    throw gluten::GlutenException(error_message);
+    gluten::JniThrow(error_message);
   }
   return ret;
 }
@@ -240,7 +286,7 @@ jclass CreateGlobalClassReferenceOrError(JNIEnv* env, const char* class_name) {
     std::string error_message =
         "Unable to CreateGlobalClassReferenceOrError for" +
         std::string(class_name);
-    throw gluten::GlutenException(error_message);
+    gluten::JniThrow(error_message);
   }
   return global_class;
 }
@@ -264,6 +310,16 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       env, serializable_obj_builder_class, "<init>", "([J[I)V");
 
   byte_array_class = CreateGlobalClassReferenceOrError(env, "[B");
+
+  jni_byte_input_stream_class = CreateGlobalClassReferenceOrError(
+      env, "Lio/glutenproject/vectorized/JniByteInputStream;");
+  jni_byte_input_stream_read =
+      GetMethodIDOrError(env, jni_byte_input_stream_class, "read", "(JJ)J");
+  jni_byte_input_stream_tell =
+      GetMethodIDOrError(env, jni_byte_input_stream_class, "tell", "()J");
+  jni_byte_input_stream_close =
+      GetMethodIDOrError(env, jni_byte_input_stream_class, "close", "()V");
+
   split_result_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/SplitResult;");
   split_result_constructor =
@@ -310,6 +366,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
 
   env->DeleteGlobalRef(serializable_obj_builder_class);
+  env->DeleteGlobalRef(jni_byte_input_stream_class);
   env->DeleteGlobalRef(split_result_class);
   env->DeleteGlobalRef(serialized_arrow_array_iterator_class);
   env->DeleteGlobalRef(native_columnar_to_row_info_class);
@@ -319,7 +376,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   array_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
   shuffle_splitter_holder_.Clear();
-  decompression_schema_holder_.Clear();
+  shuffle_reader_holder_.Clear();
 }
 
 JNIEXPORT void JNICALL
@@ -360,11 +417,6 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
     jobjectArray iter_arr) {
   JNI_METHOD_START
   arrow::Status msg;
-  JavaVM* vm;
-  if (env->GetJavaVM(&vm) != JNI_OK) {
-    std::string error_message = "Unable to get JavaVM instance";
-    gluten::JniThrow(error_message);
-  }
 
   auto plan_data =
       reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(plan_arr, 0));
@@ -387,10 +439,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKerne
   if (iters_len > 0) {
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
-      // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
-      // TODO Release this in JNI Unload or dependent object's destructor
-      jobject ref_iter = env->NewGlobalRef(iter);
-      auto array_iter = MakeJavaArrowArrayIterator(vm, ref_iter);
+      auto array_iter = MakeJavaArrowArrayIterator(env, iter);
       input_iters.push_back(
           std::make_shared<GlutenResultIterator>(std::move(array_iter)));
     }
@@ -928,115 +977,67 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_close(
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL
-Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_make(
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_JniByteInputStreamImpl_memCopyFromHeap(
     JNIEnv* env,
     jobject,
+    jbyteArray source,
+    jlong destAddress,
+    jint size) {
+  JNI_METHOD_START
+  jbyte* bytes = env->GetByteArrayElements(source, nullptr);
+  std::memcpy(
+      reinterpret_cast<void*>(destAddress),
+      reinterpret_cast<const void*>(bytes),
+      size);
+  env->ReleaseByteArrayElements(source, bytes, JNI_ABORT);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_make(
+    JNIEnv* env,
+    jclass,
+    jobject jni_in,
     jlong c_schema) {
   JNI_METHOD_START
+  std::shared_ptr<arrow::io::InputStream> in =
+      std::make_shared<JavaInputStreamAdaptor>(env, jni_in);
+  gluten::shuffle::ReaderOptions options =
+      gluten::shuffle::ReaderOptions::Defaults();
+  options.ipc_read_options.use_threads = false;
   std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
       arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
-  return decompression_schema_holder_.Insert(schema);
+  auto reader = std::make_shared<gluten::shuffle::Reader>(in, schema, options);
+  return shuffle_reader_holder_.Insert(reader);
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jboolean JNICALL
-Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_decompress(
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_next(
     JNIEnv* env,
-    jobject obj,
-    jlong schema_holder_id,
-    jstring compression_type_jstr,
-    jint num_rows,
-    jlongArray buf_addrs,
-    jlongArray buf_sizes,
-    jlongArray buf_mask,
-    jlong c_schema,
-    jlong c_array) {
+    jclass,
+    jlong handle) {
   JNI_METHOD_START
-  auto schema = decompression_schema_holder_.Lookup(schema_holder_id);
-  if (!schema) {
-    std::string error_message =
-        "Invalid schema holder id " + std::to_string(schema_holder_id);
-    gluten::JniThrow(error_message);
+  auto reader = shuffle_reader_holder_.Lookup(handle);
+  GLUTEN_ASSIGN_OR_THROW(auto gluten_batch, reader->Next())
+  if (gluten_batch == nullptr) {
+    return -1L;
   }
-  if (buf_addrs == NULL) {
-    gluten::JniThrow("Native decompress: buf_addrs can't be null");
-  }
-  if (buf_sizes == NULL) {
-    gluten::JniThrow("Native decompress: buf_sizes can't be null");
-  }
-  if (buf_mask == NULL) {
-    gluten::JniThrow("Native decompress: buf_mask can't be null");
-  }
-
-  int in_bufs_len = env->GetArrayLength(buf_addrs);
-  if (in_bufs_len != env->GetArrayLength(buf_sizes)) {
-    gluten::JniThrow(
-        "Native decompress: length of buf_addrs and buf_sizes mismatch");
-  }
-
-  auto compression_type = arrow::Compression::UNCOMPRESSED;
-  if (compression_type_jstr != NULL) {
-    auto compression_type_result =
-        GetCompressionType(env, compression_type_jstr);
-    if (compression_type_result.status().ok()) {
-      compression_type = compression_type_result.MoveValueUnsafe();
-    }
-  }
-
-  // make buffers from raws
-  auto in_buf_addrs = env->GetLongArrayElements(buf_addrs, JNI_FALSE);
-  auto in_buf_sizes = env->GetLongArrayElements(buf_sizes, JNI_FALSE);
-  auto in_buf_mask = env->GetLongArrayElements(buf_mask, JNI_FALSE);
-
-  std::vector<std::shared_ptr<arrow::Buffer>> input_buffers;
-  input_buffers.reserve(in_bufs_len);
-  for (auto buffer_idx = 0; buffer_idx < in_bufs_len; buffer_idx++) {
-    input_buffers.push_back(std::make_shared<arrow::Buffer>(
-        reinterpret_cast<const uint8_t*>(in_buf_addrs[buffer_idx]),
-        in_buf_sizes[buffer_idx]));
-  }
-
-  // decompress buffers
-  auto options = arrow::ipc::IpcReadOptions::Defaults();
-  options.memory_pool =
-      gluten::memory::GetDefaultWrappedArrowMemoryPool().get();
-  options.use_threads = false;
-  gluten::JniAssertOkOrThrow(
-      DecompressBuffers(
-          compression_type,
-          options,
-          (uint8_t*)in_buf_mask,
-          input_buffers,
-          schema->fields()),
-      "ShuffleDecompressionJniWrapper_decompress, failed to decompress buffers");
-
-  env->ReleaseLongArrayElements(buf_addrs, in_buf_addrs, JNI_ABORT);
-  env->ReleaseLongArrayElements(buf_sizes, in_buf_sizes, JNI_ABORT);
-  env->ReleaseLongArrayElements(buf_mask, in_buf_mask, JNI_ABORT);
-
-  // make arrays from buffers
-  std::shared_ptr<arrow::RecordBatch> rb;
-  gluten::JniAssertOkOrThrow(
-      MakeRecordBatch(
-          schema, num_rows, input_buffers, input_buffers.size(), &rb),
-      "ShuffleDecompressionJniWrapper_decompress, failed to MakeRecordBatch upon "
-      "buffers");
-
-  gluten::JniAssertOkOrThrow(arrow::ExportRecordBatch(
-      *rb,
-      reinterpret_cast<struct ArrowArray*>(c_array),
-      reinterpret_cast<struct ArrowSchema*>(c_schema)));
-  return true;
-  JNI_METHOD_END(false)
+  return gluten_columnarbatch_holder_.Insert(gluten_batch);
+  JNI_METHOD_END(-1L)
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ShuffleDecompressionJniWrapper_close(
+Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_close(
     JNIEnv* env,
-    jobject,
-    jlong schema_holder_id) {
-  decompression_schema_holder_.Erase(schema_holder_id);
+    jclass,
+    jlong handle) {
+  JNI_METHOD_START
+  auto reader = shuffle_reader_holder_.Lookup(handle);
+  GLUTEN_THROW_NOT_OK(reader->Close());
+  shuffle_reader_holder_.Erase(handle);
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jlong JNICALL

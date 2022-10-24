@@ -24,6 +24,8 @@ import scala.collection.JavaConverters._
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
+import io.glutenproject.memory.{CHMemoryConsumer, TaskMemoryMetrics}
+import io.glutenproject.memory.alloc.{CHManagedReservationListener, CHMemoryAllocatorManager, NativeMemoryAllocator, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -31,12 +33,14 @@ import io.glutenproject.vectorized._
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.memory.TaskMemoryResourceManager
 
 class CHIteratorApi extends IIteratorApi with Logging {
 
@@ -265,17 +269,33 @@ class CHIteratorApi extends IIteratorApi with Logging {
   }
 
   /**
+   * Generate NativeMemoryAllocatorManager.
+   *
+   * @return
+   */
+  override def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
+                                               spiller: Spiller,
+                                               taskMemoryMetrics: TaskMemoryMetrics
+                                              ): TaskMemoryResourceManager = {
+    val rl = new CHManagedReservationListener(
+      new CHMemoryConsumer(taskMemoryManager, spiller),
+      taskMemoryMetrics
+    )
+    new CHMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
+  }
+
+  /**
    * Generate BatchIterator for ExpressionEvaluator.
    *
    * @return
    */
-  override def genBatchIterator(
-      wsPlan: Array[Byte],
-      iterList: Seq[GeneralInIterator],
-      jniWrapper: ExpressionEvaluatorJniWrapper,
-      outAttrs: Seq[Attribute]): GeneralOutIterator = {
+  override def genBatchIterator(allocId: java.lang.Long,
+                                wsPlan: Array[Byte],
+                                iterList: Seq[GeneralInIterator],
+                                jniWrapper: ExpressionEvaluatorJniWrapper,
+                                outAttrs: Seq[Attribute]): GeneralOutIterator = {
     val batchIteratorInstance =
-      jniWrapper.nativeCreateKernelWithIterator(0L, wsPlan, iterList.toArray)
+      jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new BatchIterator(batchIteratorInstance, outAttrs.asJava)
   }
 

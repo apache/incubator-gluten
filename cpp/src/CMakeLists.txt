@@ -57,8 +57,7 @@ endif(CCACHE_FOUND)
 macro(build_protobuf)
   message(STATUS "Building Protocol Buffers from Source")
   set (PROTOBUF_SOURCE_URL
-       "https://github.com/protocolbuffers/protobuf/releases/download/v3.13.0/protobuf-all-3.13.0.tar.gz"
-        "https://github.com/ursa-labs/thirdparty/releases/download/latest/protobuf-v3.13.0.tar.gz"
+       "https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz"
   )
   set(PROTOBUF_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/protobuf_ep-install")
   set(PROTOBUF_INCLUDE_DIR "${PROTOBUF_PREFIX}/include")
@@ -95,7 +94,7 @@ macro(build_protobuf)
                       BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
-                      URL_MD5 cafa623d51361228c83c874d95f51992
+                      URL_MD5 802d3c1d31d1c295de18f8f6b4a488ef
                       URL ${PROTOBUF_SOURCE_URL}
   )
 
@@ -238,6 +237,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/protobuf_utils.cc
         operators/c2r/arrow_columnar_to_row_converter.cc
         operators/c2r/columnar_to_row_base.cc
+        operators/shuffle/reader.cc
         operators/shuffle/splitter.cc
         )
 

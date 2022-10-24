@@ -17,19 +17,20 @@
 
 package org.apache.spark.util.memory
 
+import java.util.concurrent.atomic.AtomicLong
+import java.util.UUID
+
+import scala.collection.JavaConverters._
+
 import io.glutenproject.memory.TaskMemoryMetrics
 
 import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
+import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskCompletionListener
 import org.apache.spark.util.memory.TaskMemoryResources._
-import scala.collection.JavaConverters._
-import java.util.concurrent.atomic.AtomicLong
-import java.util.UUID
-
-import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
-import org.apache.spark.internal.Logging
 
 object TaskMemoryResources {
   val DEBUG: Boolean = {
@@ -117,10 +118,10 @@ class TaskMemoryResourceRegistry extends Logging {
 
   private val sharedMetrics = new TaskMemoryMetrics()
 
-  private val managers = new java.util.HashMap[String, TaskMemoryResourceManager]()
+  private val managers = new java.util.LinkedHashMap[String, TaskMemoryResourceManager]()
 
   private[memory] def releaseAll(): Unit = {
-    managers.values().asScala.foreach(m => try {
+    managers.values().asScala.toArray.reverse.foreach(m => try {
       m.release()
     } catch {
       case e: Throwable =>
