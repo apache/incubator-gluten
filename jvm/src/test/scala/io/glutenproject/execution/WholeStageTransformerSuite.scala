@@ -138,6 +138,35 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   /**
    * run a query with native engine as well as vanilla spark
    * then compare the result set for correctness check
+   */
+  protected def compareResultsAgainstVanillaSpark(
+      sqlStr: String,
+      compareResult: Boolean = true,
+      customCheck: DataFrame => Unit): Seq[Row] = {
+    var expected: Seq[Row] = null;
+    withSQLConf(vanillaSparkConfs(): _*) {
+      val df = spark.sql(sqlStr)
+      df.show(false)
+      expected = df.collect()
+    }
+    val df = spark.sql(sqlStr)
+    df.show(false)
+    if (compareResult) {
+      checkAnswer(df, expected)
+    }
+    customCheck(df)
+    df.collect()
+  }
+
+  protected def runQueryAndCompare(
+      sqlStr: String,
+      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Seq[Row] = {
+    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck)
+  }
+
+  /**
+   * run a query with native engine as well as vanilla spark
+   * then compare the result set for correctness check
    *
    * @param queryNum
    * @param tpchQueries
@@ -150,14 +179,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     val sqlNum = "q" + "%02d".format(queryNum)
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    var expected: Seq[Row] = null;
-    withSQLConf(vanillaSparkConfs(): _*) {
-      val df = spark.sql(sqlStr)
-      expected = df.collect()
-    }
-    val df = spark.sql(sqlStr)
-    checkAnswer(df, expected)
-    customCheck(df)
+    compareResultsAgainstVanillaSpark(sqlStr, compareResult = true, customCheck)
   }
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {

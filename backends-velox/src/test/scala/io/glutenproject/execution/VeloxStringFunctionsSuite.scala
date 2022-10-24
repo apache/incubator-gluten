@@ -18,10 +18,6 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.sql.{Row, TestUtils}
-
-import scala.collection.JavaConverters
 
 class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
 
@@ -48,70 +44,79 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   test("ascii") {
-    var result = runSql("select l_orderkey, ascii(l_comment) " +
+    var result = runQueryAndCompare("select l_orderkey, ascii(l_comment) " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, ascii(null) " +
+    result = runQueryAndCompare("select l_orderkey, ascii(null) " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
 
   test("concat") {
-    var result = runSql("select l_orderkey, concat(l_comment, 'hello') " +
+    var result = runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello') " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, concat(l_comment, 'hello', 'world') " +
+    result = runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello', 'world') " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
 
   test("instr") {
-    var result = runSql("select l_orderkey, instr(l_comment, 'h') from lineitem limit 5") { _ => }
+    var result = runQueryAndCompare("select l_orderkey, instr(l_comment, 'h') " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, instr(l_comment, null) from lineitem limit 5") { _ => }
+    result = runQueryAndCompare("select l_orderkey, instr(l_comment, null) " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, instr(null, 'h') from lineitem limit 5") { _ => }
+    result = runQueryAndCompare("select l_orderkey, instr(null, 'h') " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
 
   test("length") {
-    var result = runSql("select l_orderkey, length(l_comment) from lineitem limit 5") { _ => }
+    var result = runQueryAndCompare("select l_orderkey, length(l_comment) " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, length(null) from lineitem limit 5") { _ => }
+    result = runQueryAndCompare("select l_orderkey, length(null) " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
 
   test("lower") {
-    var result = runSql("select l_orderkey, lower(l_comment) from lineitem limit 5") { _ => }
+    var result = runQueryAndCompare("select l_orderkey, lower(l_comment) " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, lower(null) from lineitem limit 5") { _ => }
+    result = runQueryAndCompare("select l_orderkey, lower(null) " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
 
   test("upper") {
-    var result = runSql("select l_orderkey, upper(l_comment) from lineitem limit 5") { _ => }
+    var result = runQueryAndCompare("select l_orderkey, upper(l_comment) " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, upper(null) from lineitem limit 5") { _ => }
+    result = runQueryAndCompare("select l_orderkey, upper(null) " +
+      "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
 
   test("replace") {
-    var result = runSql("select l_orderkey, replace(l_comment, ' ', 'hello') " +
+    var result = runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', 'hello') " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, replace(l_comment, 'ha') " +
+    result = runQueryAndCompare("select l_orderkey, replace(l_comment, 'ha') " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, replace(l_comment, ' ', null) " +
+    result = runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', null) " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
-    result = runSql("select l_orderkey, replace(l_comment, null, 'hello') " +
+    result = runQueryAndCompare("select l_orderkey, replace(l_comment, null, 'hello') " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
 
   test("split") {
-    val result = runSql("select l_orderkey, split(l_comment, 'h', 3) " +
+    val result = runQueryAndCompare("select l_orderkey, split(l_comment, 'h', 3) " +
       "from lineitem limit 5") { _ => }
     assert(result.length == 5)
   }
