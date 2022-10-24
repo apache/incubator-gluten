@@ -349,7 +349,8 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       preOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
-      logInfo(s"preTransform SparkPlan took: ${System.nanoTime() - startTime} ns.")
+      logInfo(
+        s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
     } else {
       plan
@@ -367,7 +368,8 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       postOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
-      logInfo(s"postTransform SparkPlan took: ${System.nanoTime() - startTime} ns.")
+      logInfo(
+        s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
     } else {
       plan
