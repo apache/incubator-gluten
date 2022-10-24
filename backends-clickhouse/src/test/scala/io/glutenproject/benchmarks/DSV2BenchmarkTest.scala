@@ -195,7 +195,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
-        .config("spark.memory.offHeap.size", "6G")
+        .config("spark.memory.offHeap.size", "20G")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
         .config("spark.local.dir", sparkLocalDir)
         .config("spark.executor.heartbeatInterval", "30s")

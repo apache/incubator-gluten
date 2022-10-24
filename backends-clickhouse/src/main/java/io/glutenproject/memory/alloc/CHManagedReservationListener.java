@@ -69,7 +69,7 @@ public class CHManagedReservationListener implements ReservationListener {
       if (!open) {
         return 0L;
       }
-      LOG.debug("reserve memory size from native: " + size);
+      LOG.debug("reserve memory (without exception) size from native: " + size);
       long granted = consumer.acquire(size);
       if (granted < size) {
         LOG.warn("Not enough spark off-heap execution memory. " +
