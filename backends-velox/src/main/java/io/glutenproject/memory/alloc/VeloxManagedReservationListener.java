@@ -23,13 +23,13 @@ import io.glutenproject.memory.TaskMemoryMetrics;
 /**
  * Reserve Spark managed memory.
  */
-public class SparkManagedReservationListener implements ReservationListener {
+public class VeloxManagedReservationListener implements ReservationListener {
 
   private GlutenMemoryConsumer consumer;
   private TaskMemoryMetrics metrics;
   private volatile boolean open = true;
 
-  public SparkManagedReservationListener(GlutenMemoryConsumer consumer,
+  public VeloxManagedReservationListener(GlutenMemoryConsumer consumer,
                                          TaskMemoryMetrics metrics) {
     this.consumer = consumer;
     this.metrics = metrics;
@@ -63,5 +63,10 @@ public class SparkManagedReservationListener implements ReservationListener {
       consumer = null; // make it gc reachable
       open = false;
     }
+  }
+
+  @Override
+  public long currentMemory() {
+    return consumer.getUsed();
   }
 }

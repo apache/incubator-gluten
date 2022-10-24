@@ -345,9 +345,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
     if (supportedGluten) {
       var overridden: SparkPlan = plan
+      val startTime = System.nanoTime()
       preOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
+      logInfo(s"preTransform SparkPlan took: ${System.nanoTime() - startTime} ns.")
       overridden
     } else {
       plan
@@ -361,9 +363,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
     if (supportedGluten) {
       var overridden: SparkPlan = plan
+      val startTime = System.nanoTime()
       postOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
+      logInfo(s"postTransform SparkPlan took: ${System.nanoTime() - startTime} ns.")
       overridden
     } else {
       plan

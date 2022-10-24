@@ -33,9 +33,9 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def main(args: Array[String]): Unit = {
 
-    val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
-      "cmake-build-release/utils/local-engine/libch.so"
-    // val libPath = "/usr/local/clickhouse/lib/libch.so"
+    // val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
+    //   "cmake-build-release/utils/local-engine/libch.so"
+    val libPath = "/usr/local/clickhouse/lib/libch.so"
     val thrdCnt = 12
     val shufflePartitions = 12
     val shuffleManager = "sort"
@@ -178,11 +178,12 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         // .config("spark.sql.join.preferSortMergeJoin", "false")
         .config("spark.sql.shuffledHashJoinFactor", "3")
         // .config("spark.sql.planChangeLog.level", "warn")
+        // .config("spark.sql.planChangeLog.batches", "ApplyColumnarRulesAndInsertTransitions")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
-        .config("spark.memory.offHeap.size", "21474836480")
+        .config("spark.memory.offHeap.size", "20G")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
         .config("spark.local.dir", sparkLocalDir)
         .config("spark.executor.heartbeatInterval", "30s")
@@ -270,7 +271,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     val tookTimeArr = ArrayBuffer[Long]()
     val sqlFilePath = "/data2/tpcds-data-gen/tpcds10-queries/"
-    val execNum = 9
+    val execNum = 21
     val sqlNum = "q" + execNum + ".sql"
     val sqlFile = sqlFilePath + sqlNum
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString

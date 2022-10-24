@@ -17,16 +17,19 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GlutenConfig;
-import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.row.RowIterator;
-import io.glutenproject.substrait.plan.PlanNode;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
-import scala.collection.JavaConverters;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import scala.collection.JavaConverters;
+
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.backendsapi.BackendsApiManager;
+import io.glutenproject.memory.alloc.NativeMemoryAllocators;
+import io.glutenproject.row.RowIterator;
+import io.glutenproject.substrait.plan.PlanNode;
+
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 public class ExpressionEvaluator implements AutoCloseable {
   private long nativeHandler = 0;
@@ -89,16 +92,11 @@ public class ExpressionEvaluator implements AutoCloseable {
   public GeneralOutIterator createKernelWithBatchIterator(
       byte[] wsPlan, ArrayList<GeneralInIterator> iterList, List<Attribute> outAttrs)
       throws RuntimeException, IOException {
-    /* long poolId = 0;
-    if (!GlutenConfig.getConf().isClickHouseBackend()) {
-      // NativeMemoryPool memoryPool = SparkMemoryUtils.contextMemoryPool();
-      // poolId = memoryPool.getNativeInstanceId();
-    }
-    ColumnarNativeIterator[] iterArray = new ColumnarNativeIterator[iterList.size()];
-    long batchIteratorInstance = jniWrapper.nativeCreateKernelWithIterator(
-            poolId, wsPlan, iterList.toArray(iterArray)); */
+    Long allocId = NativeMemoryAllocators.contextInstance().getNativeInstanceId();
     return BackendsApiManager.getIteratorApiInstance()
-        .genBatchIterator(wsPlan,
+        .genBatchIterator(
+            allocId,
+            wsPlan,
             JavaConverters.asScalaIteratorConverter(iterList.iterator()).asScala().toSeq(),
             jniWrapper,
             JavaConverters.asScalaIteratorConverter(outAttrs.iterator()).asScala().toSeq());

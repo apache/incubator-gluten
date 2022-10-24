@@ -45,9 +45,9 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def main(args: Array[String]): Unit = {
 
-    val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
-      "cmake-build-release/utils/local-engine/libch.so"
-    // val libPath = "/usr/local/clickhouse/lib/libch.so"
+    // val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
+    //   "cmake-build-release/utils/local-engine/libch.so"
+    val libPath = "/usr/local/clickhouse/lib/libch.so"
     val thrdCnt = 12
     val shufflePartitions = 12
     val shuffleManager = "sort"
@@ -189,12 +189,13 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         // .config("spark.sql.optimizeNullAwareAntiJoin", "false")
         // .config("spark.sql.join.preferSortMergeJoin", "false")
         .config("spark.sql.shuffledHashJoinFactor", "3")
-        .config("spark.sql.planChangeLog.level", "debug")
+        // .config("spark.sql.planChangeLog.level", "warn")
+        // .config("spark.sql.planChangeLog.batches", "ApplyColumnarRulesAndInsertTransitions")
         // .config("spark.sql.optimizer.inSetConversionThreshold", "5")  // IN to INSET
         .config("spark.sql.columnVector.offheap.enabled", "true")
         .config("spark.sql.parquet.columnarReaderBatchSize", "4096")
         .config("spark.memory.offHeap.enabled", "true")
-        .config("spark.memory.offHeap.size", "21474836480")
+        .config("spark.memory.offHeap.size", "20G")
         .config("spark.shuffle.sort.bypassMergeThreshold", "200")
         .config("spark.local.dir", sparkLocalDir)
         .config("spark.executor.heartbeatInterval", "30s")
@@ -303,75 +304,74 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
     spark.sql(s"""
          |use default;
          |""".stripMargin).show(1000, false)
-    val tookTimeArr = ArrayBuffer[Long]()
-    for (i <- 1 to executedCnt) {
-      val startTime = System.nanoTime()
-      val df = spark.sql(s"""
-           |SELECT
-           |    s_acctbal,
-           |    s_name,
-           |    n_name,
-           |    p_partkey,
-           |    p_mfgr,
-           |    s_address,
-           |    s_phone,
-           |    s_comment
-           |FROM
-           |    part,
-           |    supplier,
-           |    partsupp,
-           |    nation,
-           |    region
-           |WHERE
-           |    p_partkey = ps_partkey
-           |    AND s_suppkey = ps_suppkey
-           |    AND p_size = 15
-           |    AND p_type LIKE '%BRASS'
-           |    AND s_nationkey = n_nationkey
-           |    AND n_regionkey = r_regionkey
-           |    AND r_name = 'EUROPE'
-           |    AND ps_supplycost = (
-           |        SELECT
-           |            min(ps_supplycost)
-           |        FROM
-           |            partsupp,
-           |            supplier,
-           |            nation,
-           |            region
-           |        WHERE
-           |            p_partkey = ps_partkey
-           |            AND s_suppkey = ps_suppkey
-           |            AND s_nationkey = n_nationkey
-           |            AND n_regionkey = r_regionkey
-           |            AND r_name = 'EUROPE')
-           |ORDER BY
-           |    s_acctbal DESC,
-           |    n_name,
-           |    s_name,
-           |    p_partkey
-           |LIMIT 100;
-           |
-           |""".stripMargin) // .show(30, false)
-      // df.queryExecution.debug.codegen
-      // df.explain(false)
-      val result = df.collect() // .show(100, false)  //.collect()
-      df.explain(false)
-      val plan = df.queryExecution.executedPlan
-      collectAllJoinSide(plan)
-      println(result.size)
-      result.foreach(r => println(r.mkString(",")))
-      val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
-      tookTimeArr += tookTime
-      // Thread.sleep(5000)
-    }
+    try {
+      val tookTimeArr = ArrayBuffer[Long]()
+      for (i <- 1 to executedCnt) {
+        val startTime = System.nanoTime()
+        val df = spark.sql(
+          s"""
+             |SELECT
+             |    supp_nation,
+             |    cust_nation,
+             |    l_year,
+             |    sum(volume) AS revenue
+             |FROM (
+             |    SELECT
+             |        n1.n_name AS supp_nation,
+             |        n2.n_name AS cust_nation,
+             |        extract(year FROM l_shipdate) AS l_year,
+             |        l_extendedprice * (1 - l_discount) AS volume
+             |    FROM
+             |        supplier100,
+             |        lineitem100,
+             |        orders100,
+             |        customer100,
+             |        nation100 n1,
+             |        nation100 n2
+             |    WHERE
+             |        s_suppkey = l_suppkey
+             |        AND o_orderkey = l_orderkey
+             |        AND c_custkey = o_custkey
+             |        AND s_nationkey = n1.n_nationkey
+             |        AND c_nationkey = n2.n_nationkey
+             |        AND ((n1.n_name = 'FRANCE'
+             |                AND n2.n_name = 'GERMANY')
+             |            OR (n1.n_name = 'GERMANY'
+             |                AND n2.n_name = 'FRANCE'))
+             |        AND l_shipdate BETWEEN date'1995-01-01' AND date'1996-12-31') AS shipping
+             |GROUP BY
+             |    supp_nation,
+             |    cust_nation,
+             |    l_year
+             |ORDER BY
+             |    supp_nation,
+             |    cust_nation,
+             |    l_year;
+             |
+             |""".stripMargin) // .show(30, false)
+        // df.queryExecution.debug.codegen
+        // df.explain(false)
+        val result = df.collect() // .show(100, false)  //.collect()
+        df.explain(false)
+        val plan = df.queryExecution.executedPlan
+        collectAllJoinSide(plan)
+        println(result.size)
+        result.foreach(r => println(r.mkString(",")))
+        val tookTime = (System.nanoTime() - startTime) / 1000000
+        println(s"Execute ${i} time, time: ${tookTime}")
+        tookTimeArr += tookTime
+        // Thread.sleep(5000)
+      }
 
-    println(tookTimeArr.mkString(","))
+      println(tookTimeArr.mkString(","))
 
-    if (executedCnt >= 10) {
-      import spark.implicits._
-      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-      df.summary().show(100, false)
+      if (executedCnt >= 10) {
+        import spark.implicits._
+        val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+        df.summary().show(100, false)
+      }
+    } catch {
+      case e: Exception => e.printStackTrace()
     }
   }
 
