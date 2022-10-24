@@ -17,16 +17,17 @@
 
 package io.glutenproject.memory;
 
+import java.io.IOException;
+
 import io.glutenproject.memory.alloc.Spiller;
+
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 
-import java.io.IOException;
+public abstract class GlutenMemoryConsumer extends MemoryConsumer {
 
-public class GlutenMemoryConsumer extends MemoryConsumer {
-
-  private final Spiller spiller;
+  protected final Spiller spiller;
 
   public GlutenMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
@@ -38,22 +39,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer {
     return spiller.spill(size, trigger);
   }
 
+  public abstract void acquire(long size);
 
-  public void acquire(long size) {
-    if (size == 0) {
-      return;
-    }
-    long granted = acquireMemory(size);
-    if (granted < size) {
-      freeMemory(granted);
-      throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
-          "Acquired: " + size + ", granted: " + granted + ". " +
-          "Try tweaking config option spark.memory.offHeap.size to " +
-          "get larger space to run this application. ");
-    }
-  }
-
-  public void free(long size) {
-    freeMemory(size);
-  }
+  public abstract void free(long size);
 }

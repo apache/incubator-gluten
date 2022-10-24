@@ -30,7 +30,6 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenSparkExtensionsInjector
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -40,6 +39,8 @@ import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.TransformHint
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 // The plan with a row guard on the top of it will not be converted.
@@ -52,13 +53,31 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       // supported, break
       case TransformHint.TRANSFORM_UNSUPPORTED =>
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
-        return plan.withNewChildren(
-          plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+        plan match {
+          case plan: ShuffledHashJoinExec =>
+            if (columnarConf.isVeloxBackend) {
+              // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
+              // RightOuter, need to change the build side back if this join fallback into vanilla
+              // Spark for execution.
+              return ShuffledHashJoinExec(
+                plan.leftKeys,
+                plan.rightKeys,
+                plan.joinType,
+                getSparkSupportedBuildSide(plan),
+                plan.condition,
+                replaceWithTransformerPlan(plan.left, isSupportAdaptive),
+                replaceWithTransformerPlan(plan.right, isSupportAdaptive),
+                plan.isSkewJoin)
+            } else {
+              return plan.withNewChildren(
+                plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+            }
+          case _ =>
+            return plan.withNewChildren(
+              plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+        }
     }
     plan match {
-      /* case plan: ArrowEvalPythonExec =>
-        val columnarChild = replaceWithTransformerPlan(plan.child)
-        ArrowEvalPythonExecTransformer(plan.udfs, plan.resultAttrs, columnarChild, plan.evalType) */
       case plan: BatchScanExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val newPartitionFilters =
@@ -216,6 +235,19 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     }
   }
 
+  /**
+   * Get the build side supported by the execution of vanilla Spark.
+   * @param plan: shuffled hash join plan
+   * @return the supported build side
+   */
+  private def getSparkSupportedBuildSide(plan: ShuffledHashJoinExec): BuildSide = {
+    plan.joinType match {
+      case LeftOuter | LeftSemi => BuildRight
+      case RightOuter => BuildLeft
+      case _ => plan.buildSide
+    }
+  }
+
   def apply(plan: SparkPlan): SparkPlan = {
     replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
   }
@@ -313,9 +345,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
     if (supportedGluten) {
       var overridden: SparkPlan = plan
+      val startTime = System.nanoTime()
       preOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
+      logInfo(s"preTransform SparkPlan took: ${System.nanoTime() - startTime} ns.")
       overridden
     } else {
       plan
@@ -329,9 +363,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 
     if (supportedGluten) {
       var overridden: SparkPlan = plan
+      val startTime = System.nanoTime()
       postOverrides.foreach { r =>
         overridden = r(session)(overridden)
       }
+      logInfo(s"postTransform SparkPlan took: ${System.nanoTime() - startTime} ns.")
       overridden
     } else {
       plan

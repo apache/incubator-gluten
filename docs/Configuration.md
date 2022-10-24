@@ -5,8 +5,8 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 
 | Parameters | Description | Recommend Setting |
 | ---------- | ----------- | --------------- |
-| spark.driver.extraClassPath | To add Arrow Data Source and Gluten Plugin jar file in Spark Driver | /path/to/jar_file1:/path/to/jar_file2 |
-| spark.executor.extraClassPath | To add Arrow Data Source and Gluten Plugin jar file in Spark Executor | /path/to/jar_file1:/path/to/jar_file2 |
+| spark.driver.extraClassPath | To add Gluten Plugin jar file in Spark Driver | /path/to/jar_file |
+| spark.executor.extraClassPath | To add Gluten Plugin jar file in Spark Executor | /path/to/jar_file |
 | spark.executorEnv.LIBARROW_DIR | To set up the location of Arrow library, by default it will search the loation of jar to be uncompressed | /path/to/arrow_library/ |
 | spark.executorEnv.CC | To set up the location of gcc | /path/to/gcc/ |
 | spark.executor.memory| To set up how much memory to be used for Spark Executor. | |
@@ -44,23 +44,11 @@ Below is an example for spark-default.conf, if you are using conda to install OA
 ##### Columnar Process Configuration
 
 spark.sql.sources.useV1SourceList avro
-spark.sql.join.preferSortMergeJoin false
-spark.plugins com.intel.oap.GlutenPlugin
+spark.plugins io.glutenproject.GlutenPlugin
 spark.shuffle.manager org.apache.spark.shuffle.sort.ColumnarShuffleManager
-
-# note Gluten Plugin depends on arrow data source
-spark.driver.extraClassPath $HOME/miniconda2/envs/oapenv/oap_jars/spark-columnar-core-<version>-jar-with-dependencies.jar:$HOME/miniconda2/envs/oapenv/oap_jars/spark-arrow-datasource-standard-<version>-jar-with-dependencies.jar
-spark.executor.extraClassPath $HOME/miniconda2/envs/oapenv/oap_jars/spark-columnar-core-<version>-jar-with-dependencies.jar:$HOME/miniconda2/envs/oapenv/oap_jars/spark-arrow-datasource-standard-<version>-jar-with-dependencies.jar
-
-spark.executorEnv.LIBARROW_DIR      $HOME/miniconda2/envs/oapenv
-spark.executorEnv.CC                $HOME/miniconda2/envs/oapenv/bin/gcc
+spark.gluten.sql.columnar.backend.lib=velox # Valid options: velox, clickhouse, gazelle-cpp
+# Options: ${GLUTEN_HOME}/package/velox/spark33/target/gluten-<>-jar-with-dependencies.jar
+spark.driver.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
 ######
 ```
-
-Before you start spark, you must use below command to add some environment variables.
-
-```
-export CC=$HOME/miniconda2/envs/oapenv/bin/gcc
-export LIBARROW_DIR=$HOME/miniconda2/envs/oapenv/
-```
-

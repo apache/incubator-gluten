@@ -238,6 +238,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/protobuf_utils.cc
         operators/c2r/arrow_columnar_to_row_converter.cc
         operators/c2r/columnar_to_row_base.cc
+        operators/shuffle/reader.cc
         operators/shuffle/splitter.cc
         )
 

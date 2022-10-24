@@ -20,10 +20,9 @@ package io.glutenproject
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-case class GlutenNumaBindingInfo(
-                                  enableNumaBinding: Boolean,
-                                  totalCoreRange: Array[String] = null,
-                                  numCoresPerExecutor: Int = -1) {}
+case class GlutenNumaBindingInfo(enableNumaBinding: Boolean,
+                                 totalCoreRange: Array[String] = null,
+                                 numCoresPerExecutor: Int = -1) {}
 
 class GlutenConfig(conf: SQLConf) extends Logging {
 

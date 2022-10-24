@@ -33,9 +33,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * @param partitionSpecs The partition specs that defines the arrangement.
  * @param description    The string description of this shuffle reader.
  */
-case class ColumnarAQEShuffleReadExec(
-                                            child: SparkPlan,
-                                            partitionSpecs: Seq[ShufflePartitionSpec])
+case class ColumnarAQEShuffleReadExec(child: SparkPlan,
+                                      partitionSpecs: Seq[ShufflePartitionSpec])
   extends UnaryExecNode {
   // We don't extends AQEShuffleReadExec since it has private constructor
 

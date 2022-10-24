@@ -17,11 +17,13 @@
 
 package io.glutenproject
 
+import java.util
 import java.util.{Collections, Objects}
 
 import scala.language.implicitConversions
 
 import com.google.protobuf.Any
+
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
@@ -29,10 +31,10 @@ import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, JniLibLoader}
-import java.util
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
+import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
 
@@ -76,6 +78,13 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val conf = ctx.conf()
+    // Must set the 'spark.memory.offHeap.size' value to native memory malloc
+    if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||
+      (JavaUtils.byteStringAsBytes(
+        conf.get("spark.memory.offHeap.size").toString) / 1024 / 1024).toInt <= 0) {
+      throw new IllegalArgumentException(s"Must set the 'spark.memory.offHeap.enabled' to true" +
+        s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
+    }
     // Initialize Backends API
     val glutenBackenLibName = BackendsApiManager.initialize
     // Automatically set the 'spark.gluten.sql.columnar.backend.lib'

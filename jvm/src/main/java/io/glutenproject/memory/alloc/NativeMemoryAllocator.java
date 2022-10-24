@@ -17,28 +17,35 @@
 
 package io.glutenproject.memory.alloc;
 
+import io.glutenproject.GlutenConfig;
 import io.glutenproject.vectorized.JniLibLoader;
 import io.glutenproject.vectorized.JniWorkspace;
 
 public class NativeMemoryAllocator {
   static {
-    final JniLibLoader loader = JniWorkspace.getDefault().libLoader();
-    loader.loadEssentials();
+    // only for velox backend
+    if (!System.getProperty("spark.sql.testkey", "false")
+        .equalsIgnoreCase("true")) {
+      if (!GlutenConfig.getConf().isClickHouseBackend()) {
+        final JniLibLoader loader = JniWorkspace.getDefault().libLoader();
+        loader.loadEssentials();
+      }
+    }
   }
 
   private final long nativeInstanceId;
   private final ReservationListener listener;
 
-  private NativeMemoryAllocator(long nativeInstanceId, ReservationListener listener) {
+  public NativeMemoryAllocator(long nativeInstanceId, ReservationListener listener) {
     this.nativeInstanceId = nativeInstanceId;
     this.listener = listener;
   }
 
-  static NativeMemoryAllocator getDefault() {
+  public static NativeMemoryAllocator getDefault() {
     return new NativeMemoryAllocator(getDefaultAllocator(), ReservationListener.NOOP);
   }
 
-  static NativeMemoryAllocator createListenable(ReservationListener listener) {
+  public static NativeMemoryAllocator createListenable(ReservationListener listener) {
     return new NativeMemoryAllocator(createListenableAllocator(listener), listener);
   }
 
@@ -51,10 +58,12 @@ public class NativeMemoryAllocator {
   }
 
   public long getBytesAllocated() {
+    if (this.nativeInstanceId == -1L) return 0;
     return bytesAllocated(this.nativeInstanceId);
   }
 
   public void close() throws Exception {
+    if (this.nativeInstanceId == -1L) return;
     releaseAllocator(this.nativeInstanceId);
   }
 
@@ -64,5 +73,5 @@ public class NativeMemoryAllocator {
 
   private static native void releaseAllocator(long allocatorId);
 
-  private static native long bytesAllocated(long size);
+  private static native long bytesAllocated(long allocatorId);
 }

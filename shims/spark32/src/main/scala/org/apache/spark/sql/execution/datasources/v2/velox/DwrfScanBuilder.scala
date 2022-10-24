@@ -25,12 +25,11 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class DwrfScanBuilder(
-                            sparkSession: SparkSession,
-                            fileIndex: PartitioningAwareFileIndex,
-                            schema: StructType,
-                            dataSchema: StructType,
-                            options: CaseInsensitiveStringMap)
+case class DwrfScanBuilder(sparkSession: SparkSession,
+                           fileIndex: PartitioningAwareFileIndex,
+                           schema: StructType,
+                           dataSchema: StructType,
+                           options: CaseInsensitiveStringMap)
   extends FileScanBuilder(sparkSession, fileIndex, dataSchema)
     with SupportsPushDownFilters {
 
