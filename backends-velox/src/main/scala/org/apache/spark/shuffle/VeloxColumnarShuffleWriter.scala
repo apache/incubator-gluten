@@ -142,10 +142,11 @@ class VeloxColumnarShuffleWriter[K, V](
         // RecordBatch to ArrowArray without Schema, may optimize later
         val rb = ArrowConverterUtils.createArrowRecordBatch(cb)
         dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
-        schema = if (firstRecordBatch) {
-          ArrowConverterUtils.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
+
+        if (firstRecordBatch) {
+          schema = ArrowConverterUtils.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
           firstRecordBatch = false
-        } else schema
+        }
         try {
           ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
             null, cArray)
