@@ -10,7 +10,9 @@ public enum CompressType {
   NO_COMPRESSION((byte)-1, "uncompressed"),
   LZ4_FRAME((byte)0, "lz4"),
 
-  ZSTD((byte)1, "zstd"); // not use now
+  ZSTD((byte)1, "zstd"), // not use now
+
+  GZIP((byte)2, "gzip"); // QAT use gzip by default.
 
   private final byte type;
   // Arrow compress type in C++
