@@ -258,13 +258,13 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = spark.sql("SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1")
     val result = df.collect()
     assert(result.length == 1)
-    val expected = Seq(Row("A"))
+    val expected = Seq(Row(1))
     TestUtils.compareAnswers(result, expected)
     df.show()
     df.explain(false)
+    df.printSchema()
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
-
 
   // VeloxRuntimeError, wait to fix
   ignore("Test isnull function") {
