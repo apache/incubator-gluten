@@ -68,6 +68,7 @@ class VeloxColumnarShuffleWriter[K, V](
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
+  private val customizedCompressCodecWhitelist = Seq("gzip")
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
   private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
@@ -163,6 +164,10 @@ class VeloxColumnarShuffleWriter[K, V](
           schema.getFields.asScala.exists(_.getType.getTypeID == ArrowTypeID.Int)
         } else false
 
+        if (customizedCompressCodecWhitelist.contains(customizedCompressCodec)) {
+          firstRecordBatch = false
+          splitterJniWrapper.setCompressType(nativeSplitter, customizedCompressCodec)
+        }
         // Choose the compress type based on the compress size of the first record batch.
         if (firstRecordBatch && conf.getBoolean("spark.shuffle.compress", true) &&
           customizedCompressCodec != defaultCompressionCodec && existingIntType) {
