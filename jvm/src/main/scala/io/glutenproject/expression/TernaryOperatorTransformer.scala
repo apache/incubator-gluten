@@ -25,6 +25,46 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
+class ReplaceTransformer(str: Expression, search: Expression, replace: Expression,
+                       original: Expression)
+  extends StringReplace(str: Expression, search: Expression, search: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val strNode =
+      str.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val searchNode =
+      search.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val replaceNode =
+      replace.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!strNode.isInstanceOf[ExpressionNode] ||
+      !searchNode.isInstanceOf[ExpressionNode] ||
+      !replaceNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.REPLACE,
+      Seq(str.dataType, search.dataType, replace.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(strNode, searchNode, replaceNode)
+    val typeNode = TypeBuilder.makeString(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class SplitTransformer(str: Expression, delimiter: Expression, limit: Expression,
+                       original: Expression)
+  extends StringSplit(str: Expression, delimiter: Expression, limit: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException("Not supported: Split.")
+  }
+}
+
 class SubStringTransformer(str: Expression, pos: Expression, len: Expression, original: Expression)
   extends Substring(str: Expression, pos: Expression, len: Expression)
     with ExpressionTransformer
@@ -63,6 +103,10 @@ object TernaryOperatorTransformer {
 
   def create(str: Expression, pos: Expression, len: Expression, original: Expression): Expression =
     original match {
+      case split: StringSplit =>
+        new SplitTransformer(str, pos, len, split)
+      case replace: StringReplace =>
+        new ReplaceTransformer(str, pos, len, replace)
       case ss: Substring =>
         new SubStringTransformer(str, pos, len, ss)
       case other =>

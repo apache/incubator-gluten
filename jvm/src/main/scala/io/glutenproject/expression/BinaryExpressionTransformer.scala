@@ -25,6 +25,27 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
+class InstrTransformer(str: Expression, substr: Expression, original: Expression)
+  extends StringInstr(str: Expression, substr: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val strNode = str.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val substrNode = substr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!strNode.isInstanceOf[ExpressionNode] || !substrNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.INSTR, Seq(str.dataType, substr.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(strNode, substrNode)
+    val typeNode = TypeBuilder.makeI32(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class ShiftLeftTransformer(left: Expression, right: Expression, original: Expression)
   extends ShiftLeft(left: Expression, right: Expression)
     with ExpressionTransformer
@@ -175,6 +196,8 @@ object BinaryExpressionTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression =
     original match {
+      case instr: StringInstr =>
+        new InstrTransformer(left, right, instr)
       case e: EndsWith =>
         new EndsWithTransformer(left, right, e)
       case s: StartsWith =>

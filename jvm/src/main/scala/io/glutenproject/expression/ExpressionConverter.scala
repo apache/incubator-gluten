@@ -131,7 +131,7 @@ object ExpressionConverter extends Logging {
             expr,
             attributeSeq)
         }
-        CoalesceOperatorTransformer.create(exprs, expr)
+        CoalesceExpressionTransformer.create(exprs, expr)
       case i: In =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         InExpressionTransformer.create(
@@ -147,6 +147,32 @@ object ExpressionConverter extends Logging {
             i.child,
             attributeSeq),
           i.hset,
+          expr)
+      case ss: StringReplace =>
+        logInfo(s"${expr.getClass} ${expr} is supported.")
+        TernaryOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            ss.srcExpr,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.searchExpr,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.replaceExpr,
+            attributeSeq),
+          expr)
+      case ss: StringSplit =>
+        logInfo(s"${expr.getClass} ${expr} is supported.")
+        TernaryOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            ss.str,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.regex,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.limit,
+            attributeSeq),
           expr)
       case ss: Substring =>
         logInfo(s"${expr.getClass} ${expr} is supported.")
@@ -195,7 +221,7 @@ object ExpressionConverter extends Logging {
             expr,
             attributeSeq)
         }
-        ConcatOperatorTransformer.create(exprs, expr)
+        ConcatExpressionTransformer.create(exprs, expr)
       case r: Round =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         RoundOperatorTransformer.create(
