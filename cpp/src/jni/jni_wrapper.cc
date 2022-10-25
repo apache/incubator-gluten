@@ -899,8 +899,7 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
     jobject,
     jlong splitter_id,
     jint num_rows,
-    jlong c_array,
-    jboolean first_record_batch) {
+    jlong c_array) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
@@ -913,9 +912,6 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
           reinterpret_cast<struct ArrowArray*>(c_array),
           splitter->input_schema()));
 
-  if (first_record_batch) {
-    return splitter->CompressedSize(*in);
-  }
   gluten::JniAssertOkOrThrow(
       splitter->Split(*in), "Native split: splitter split failed");
   return -1L;

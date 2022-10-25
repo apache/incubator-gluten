@@ -68,14 +68,8 @@ class VeloxColumnarShuffleWriter[K, V](
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
-  private val customizedCompressCodecWhitelist = Seq("gzip")
-  private val customizedCompressCodec =
+  private val customizedCompressionCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-  private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
-    conf.get("spark.io.compression.codec", CompressType.LZ4_FRAME.getAlias)
-  } else {
-    CompressType.NO_COMPRESSION.getAlias
-  }
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
 
@@ -114,7 +108,7 @@ class VeloxColumnarShuffleWriter[K, V](
         dep.nativePartitioning,
         offheapPerTask,
         nativeBufferSize,
-        defaultCompressionCodec,
+        customizedCompressionCodec,
         batchCompressThreshold,
         dataTmp.getAbsolutePath,
         blockManager.subDirsPerLocalDir,
@@ -150,6 +144,7 @@ class VeloxColumnarShuffleWriter[K, V](
         dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
         schema = if (firstRecordBatch) {
           ArrowConverterUtils.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
+          firstRecordBatch = false
         } else schema
         try {
           ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
@@ -159,42 +154,11 @@ class VeloxColumnarShuffleWriter[K, V](
         }
 
         val startTime = System.nanoTime()
-        val existingIntType: Boolean = if (firstRecordBatch) {
-          // Check whether the recordbatch contain the Int data type.
-          schema.getFields.asScala.exists(_.getType.getTypeID == ArrowTypeID.Int)
-        } else false
 
-        if (customizedCompressCodecWhitelist.contains(customizedCompressCodec)) {
-          firstRecordBatch = false
-          splitterJniWrapper.setCompressType(nativeSplitter, customizedCompressCodec)
-        }
-        // Choose the compress type based on the compress size of the first record batch.
-        if (firstRecordBatch && conf.getBoolean("spark.shuffle.compress", true) &&
-          customizedCompressCodec != defaultCompressionCodec && existingIntType) {
-          // Compute the default compress size
-          splitterJniWrapper.setCompressType(nativeSplitter, defaultCompressionCodec)
-          val defaultCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
-
-          // Compute the custom compress size.
-          splitterJniWrapper.setCompressType(nativeSplitter, customizedCompressCodec)
-          val customizedCompressedSize = splitterJniWrapper.split(
-            nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
-
-          // Choose the compress algorithm based on the compress size.
-          if (customizedCompressedSize != -1 && defaultCompressedSize != -1) {
-            if (customizedCompressedSize > defaultCompressedSize) {
-              splitterJniWrapper.setCompressType(nativeSplitter, defaultCompressionCodec)
-            }
-          } else {
-            logError("Failed to compute the compress size in the first record batch")
-          }
-        }
-        firstRecordBatch = false
         dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
 
         splitterJniWrapper
-          .split(nativeSplitter, cb.numRows, cArray.memoryAddress(), firstRecordBatch)
+          .split(nativeSplitter, cb.numRows, cArray.memoryAddress())
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
         writeMetrics.incRecordsWritten(1)
