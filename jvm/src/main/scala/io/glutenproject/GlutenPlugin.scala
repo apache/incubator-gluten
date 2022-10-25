@@ -63,12 +63,12 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   }
 
   def setPredefinedConfigs(conf: SparkConf): Unit = {
-    if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
-      throw new IllegalArgumentException("Spark extensions are already specified before " +
-        "enabling Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SESSION_EXTS_KEY))
+    val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
+      s"${conf.get(SPARK_SESSION_EXTS_KEY)},${GLUTEN_SESSION_EXTENSION_NAME}"
+    } else {
+      s"${GLUTEN_SESSION_EXTENSION_NAME}"
     }
-    conf.set(SPARK_SESSION_EXTS_KEY,
-      String.format("%s", GLUTEN_SESSION_EXTENSION_NAME))
+    conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
   }
 }
 
