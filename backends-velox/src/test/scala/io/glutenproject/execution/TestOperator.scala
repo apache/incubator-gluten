@@ -65,8 +65,9 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("test_where") {
-    val result = runQueryAndCompare("select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
-    assert(result.length == 10057)
+    val result = runQueryAndCompare(
+      "select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
+    assert(result.length == 59288)
   }
 
   test("test_is_null") {
