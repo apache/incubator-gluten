@@ -175,6 +175,32 @@ class BitwiseXorTransformer(left: Expression, right: Expression, original: Expre
   }
 }
 
+class PmodTransformer(left: Expression, right: Expression, original: Expression)
+  extends Pmod(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.PMOD, Seq(left.dataType, right.dataType)))
+
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 object BinaryArithmeticTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression = {
@@ -193,6 +219,8 @@ object BinaryArithmeticTransformer {
         new BitwiseOrTransformer(left, right, o)
       case x: BitwiseXor =>
         new BitwiseXorTransformer(left, right, x)
+      case p: Pmod =>
+        new PmodTransformer(left, right, p)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
