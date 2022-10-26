@@ -415,38 +415,6 @@ trait HashJoinLikeExecTransformer
   val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
   val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
 
-  /**
-   * The metrics of build side distinct aggregation, relating to the special handling for Anti join.
-   */
-  val antiDistinctInputRows: SQLMetric = longMetric("antiDistinctInputRows")
-  val antiDistinctInputVectors: SQLMetric = longMetric("antiDistinctInputVectors")
-  val antiDistinctInputBytes: SQLMetric = longMetric("antiDistinctInputBytes")
-  val antiDistinctRawInputRows: SQLMetric = longMetric("antiDistinctRawInputRows")
-  val antiDistinctRawInputBytes: SQLMetric = longMetric("antiDistinctRawInputBytes")
-  val antiDistinctOutputRows: SQLMetric = longMetric("antiDistinctOutputRows")
-  val antiDistinctOutputVectors: SQLMetric = longMetric("antiDistinctOutputVectors")
-  val antiDistinctOutputBytes: SQLMetric = longMetric("antiDistinctOutputBytes")
-  val antiDistinctCount: SQLMetric = longMetric("antiDistinctCount")
-  val antiDistinctWallNanos: SQLMetric = longMetric("antiDistinctWallNanos")
-  val antiDistinctPeakMemoryBytes: SQLMetric = longMetric("antiDistinctPeakMemoryBytes")
-  val antiDistinctNumMemoryAllocations: SQLMetric = longMetric("antiDistinctNumMemoryAllocations")
-
-  /**
-   * The metrics of build side extra projection, relating to the special handling for Anti join.
-   */
-  val antiProjectInputRows: SQLMetric = longMetric("antiProjectInputRows")
-  val antiProjectInputVectors: SQLMetric = longMetric("antiProjectInputVectors")
-  val antiProjectInputBytes: SQLMetric = longMetric("antiProjectInputBytes")
-  val antiProjectRawInputRows: SQLMetric = longMetric("antiProjectRawInputRows")
-  val antiProjectRawInputBytes: SQLMetric = longMetric("antiProjectRawInputBytes")
-  val antiProjectOutputRows: SQLMetric = longMetric("antiProjectOutputRows")
-  val antiProjectOutputVectors: SQLMetric = longMetric("antiProjectOutputVectors")
-  val antiProjectOutputBytes: SQLMetric = longMetric("antiProjectOutputBytes")
-  val antiProjectCount: SQLMetric = longMetric("antiProjectCount")
-  val antiProjectWallNanos: SQLMetric = longMetric("antiProjectWallNanos")
-  val antiProjectPeakMemoryBytes: SQLMetric = longMetric("antiProjectPeakMemoryBytes")
-  val antiProjectNumMemoryAllocations: SQLMetric = longMetric("antiProjectNumMemoryAllocations")
-
   val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
   val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
   val hashProbeInputBytes: SQLMetric = longMetric("hashProbeInputBytes")
@@ -512,12 +480,6 @@ trait HashJoinLikeExecTransformer
     }
   }
 
-  /**
-   * Returns whether a workaround for Anti join is needed.
-   * True for 'not exists' semantics on Velox backend.
-   */
-  def antiJoinWorkaroundNeeded: Boolean = false
-
   // Direct output order of substrait join operation
   protected val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
@@ -569,12 +531,6 @@ trait HashJoinLikeExecTransformer
       idx += 1
     }
 
-    if (antiJoinWorkaroundNeeded) {
-      // Filter of isNull over project are mapped into FilterProject operator in Velox.
-      // Therefore, the filter metrics are empty and no need to be updated.
-      idx += 1
-    }
-
     // HashProbe
     val hashProbeMetrics = joinMetrics.get(idx)
     hashProbeInputRows += hashProbeMetrics.inputRows
@@ -609,38 +565,6 @@ trait HashJoinLikeExecTransformer
     hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
     idx += 1
 
-    if (antiJoinWorkaroundNeeded) {
-      var metrics = joinMetrics.get(idx)
-      antiProjectInputRows += metrics.inputRows
-      antiProjectInputVectors += metrics.inputVectors
-      antiProjectInputBytes += metrics.inputBytes
-      antiProjectRawInputRows += metrics.rawInputRows
-      antiProjectRawInputBytes += metrics.rawInputBytes
-      antiProjectOutputRows += metrics.outputRows
-      antiProjectOutputVectors += metrics.outputVectors
-      antiProjectOutputBytes += metrics.outputBytes
-      antiProjectCount += metrics.count
-      antiProjectWallNanos += metrics.wallNanos
-      antiProjectPeakMemoryBytes += metrics.peakMemoryBytes
-      antiProjectNumMemoryAllocations += metrics.numMemoryAllocations
-      idx += 1
-
-      metrics = joinMetrics.get(idx)
-      antiDistinctInputRows += metrics.inputRows
-      antiDistinctInputVectors += metrics.inputVectors
-      antiDistinctInputBytes += metrics.inputBytes
-      antiDistinctRawInputRows += metrics.rawInputRows
-      antiDistinctRawInputBytes += metrics.rawInputBytes
-      antiDistinctOutputRows += metrics.outputRows
-      antiDistinctOutputVectors += metrics.outputVectors
-      antiDistinctOutputBytes += metrics.outputBytes
-      antiDistinctCount += metrics.count
-      antiDistinctWallNanos += metrics.wallNanos
-      antiDistinctPeakMemoryBytes += metrics.peakMemoryBytes
-      antiDistinctNumMemoryAllocations += metrics.numMemoryAllocations
-      idx += 1
-    }
-
     if (joinParams.buildPreProjectionNeeded) {
       val metrics = joinMetrics.get(idx)
       buildPreProjectionInputRows += metrics.inputRows
@@ -661,6 +585,7 @@ trait HashJoinLikeExecTransformer
     if (joinParams.isBuildReadRel) {
       val metrics = joinMetrics.get(idx)
       buildInputRows += metrics.inputRows
+      buildInputVectors += metrics.inputVectors
       buildInputBytes += metrics.inputBytes
       buildRawInputRows += metrics.rawInputRows
       buildRawInputBytes += metrics.rawInputBytes
@@ -944,7 +869,7 @@ trait HashJoinLikeExecTransformer
       substraitJoinType,
       joinExpressionNode,
       postJoinFilter.orNull,
-      createJoinExtensionNode(streamedOutput ++ buildOutput, validation),
+      createJoinExtensionNode(streamedOutput ++ buildOutput),
       substraitContext,
       operatorId)
 
@@ -983,7 +908,7 @@ trait HashJoinLikeExecTransformer
     TransformContext(inputAttributes, output, rel)
   }
 
-  private def createEnhancementForValidation(output: Seq[Attribute]): com.google.protobuf.Any = {
+  private def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
     val inputTypeNodes = output.map { attr =>
       ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
     }
@@ -995,22 +920,17 @@ trait HashJoinLikeExecTransformer
                                     validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.
     if (validation) {
-      ExtensionBuilder.makeAdvancedExtension(createEnhancementForValidation(output))
+      ExtensionBuilder.makeAdvancedExtension(createEnhancement(output))
     } else {
       null
     }
   }
 
-  protected def createJoinExtensionNode(output: Seq[Attribute],
-                                        validation: Boolean): AdvancedExtensionNode = {
+  protected def createJoinExtensionNode(output: Seq[Attribute]): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
     val joinParameters = genJoinParametersBuilder()
-    val enhancement = if (validation) {
-      createEnhancementForValidation(output)
-    } else {
-      null
-    }
+    val enhancement = createEnhancement(output)
     ExtensionBuilder.makeAdvancedExtension(joinParameters.build(), enhancement)
   }
 
