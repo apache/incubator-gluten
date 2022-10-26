@@ -92,9 +92,7 @@ class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
   GlutenArrowCStructColumnarBatch(
       std::unique_ptr<ArrowSchema> cSchema,
       std::unique_ptr<ArrowArray> cArray)
-      : GlutenColumnarBatch(cArray->n_children, cArray->length),
-        cSchema_(std::move(cSchema)),
-        cArray_(std::move(cArray)) {
+      : GlutenColumnarBatch(cArray->n_children, cArray->length) {
     ArrowSchemaMove(cSchema.get(), cSchema_.get());
     ArrowArrayMove(cArray.get(), cArray_.get());
   }
