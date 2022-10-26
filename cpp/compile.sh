@@ -46,7 +46,7 @@ if [ "$BUILD_CPP" == "ON" ]; then
     -DVELOX_HOME=${VELOX_HOME} \
     -DVELOX_BUILD_TYPE=${VELOX_BUILD_TYPE} \
     -DCMAKE_BUILD_TYPE=$(if [ "$DEBUG_BUILD" == 'ON' ]; then echo 'Debug'; else echo 'Release'; fi) \
-    -DDEBUG=OFF \
+    -DDEBUG=${DEBUG_BUILD} \
     -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS} \
     -DBACKEND_TYPE=${BACKEND_TYPE}
   make -j$NPROC
