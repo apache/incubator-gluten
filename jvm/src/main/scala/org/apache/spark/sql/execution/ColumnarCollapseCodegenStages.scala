@@ -150,8 +150,11 @@ case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
       case p: UnionExecTransformer =>
         // Separate union with its children. union will read from
         // an union batch iterator.
-        p.withNewChildren(p.children.map((plan: SparkPlan) =>
-          new ColumnarInputAdapter(insertWholeStageTransformer(plan))))
+        val children = p.children.map(plan =>
+          new ColumnarInputAdapter(insertWholeStageTransformer(plan)))
+        val newUnion = UnionExecTransformer(children)
+        new ColumnarInputAdapter(
+          WholeStageTransformerExec(newUnion)(codegenStageCounter.incrementAndGet()))
       case p =>
         p.withNewChildren(p.children.map(insertInputAdapter))
     }
