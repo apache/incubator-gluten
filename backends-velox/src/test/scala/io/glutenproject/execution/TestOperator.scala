@@ -289,6 +289,42 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 
+  test("Test round function") {
+    val df = spark.sql("SELECT round(cast(l_orderkey as int), 2) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test greatest function") {
+    val df = spark.sql("SELECT greatest(l_orderkey, l_orderkey) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test least function") {
+    val df = spark.sql("SELECT least(l_orderkey, l_orderkey) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
   // VeloxRuntimeError, wait to fix
   ignore("Test isnull function") {
     val df = spark.sql("SELECT isnull(1)")

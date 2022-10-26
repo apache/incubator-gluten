@@ -218,6 +218,32 @@ class PowTransformer(left: Expression, right: Expression, original: Expression)
   }
 }
 
+class RoundTransformer(child: Expression, scale: Expression, original: Expression)
+  extends Round(child: Expression, scale: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.ROUND, Seq(left.dataType, right.dataType)))
+
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 object BinaryExpressionTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression =
@@ -244,6 +270,8 @@ object BinaryExpressionTransformer {
         new UnixTimestampTransformer(left, right)
       case p: Pow =>
         new PowTransformer(left, right, p)
+      case r: Round =>
+        new RoundTransformer(left, right, r)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }

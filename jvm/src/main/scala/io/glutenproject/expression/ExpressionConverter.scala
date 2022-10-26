@@ -232,6 +232,22 @@ object ExpressionConverter extends Logging {
             r.scale,
             attributeSeq),
           expr)
+      case g: Greatest =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        val exprs = g.children.map { expr =>
+          replaceWithExpressionTransformer(
+            expr,
+            attributeSeq)
+        }
+        new GreatestTransformer(exprs, expr)
+      case l: Least =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        val exprs = l.children.map { expr =>
+          replaceWithExpressionTransformer(
+            expr,
+            attributeSeq)
+        }
+        new LeastTransformer(exprs, expr)
       case l: StringTrimLeft =>
         if (l.trimStr != None) {
           throw new UnsupportedOperationException(s"not supported yet.")

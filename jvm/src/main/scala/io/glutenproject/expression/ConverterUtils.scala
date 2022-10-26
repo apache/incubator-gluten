@@ -361,6 +361,9 @@ object ConverterUtils extends Logging {
   final val EXP = "exp"
   final val POWER = "power"
   final val PMOD = "pmod"
+  final val ROUND = "round"
+  final val GREATEST = "greatest"
+  final val LEAST = "least"
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
