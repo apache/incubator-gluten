@@ -31,10 +31,6 @@ import java.lang.reflect.Field;
 
 public class ArrowColumnarBatches {
 
-  private ArrowColumnarBatches() {
-
-  }
-
   private static final Field FIELD_COLUMNS;
 
   static {
@@ -45,6 +41,10 @@ public class ArrowColumnarBatches {
     } catch (NoSuchFieldException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private ArrowColumnarBatches() {
+
   }
 
   private static void transferVectors(ColumnarBatch from, ColumnarBatch target) {
@@ -73,14 +73,14 @@ public class ArrowColumnarBatches {
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
          ArrowArray cArray = ArrowArray.allocateNew(allocator)) {
       ColumnarBatchJniWrapper.INSTANCE.exportToArrow(handle, cSchema.memoryAddress(),
-              cArray.memoryAddress());
+          cArray.memoryAddress());
       ColumnarBatch output = ArrowAbiUtil.importToSparkColumnarBatch(allocator, cSchema, cArray);
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
       GlutenIndicatorVector giv = (GlutenIndicatorVector) input.column(0);
       VeloxImplicitClass.ArrowColumnarBatchRetainer retainer =
-              new VeloxImplicitClass.ArrowColumnarBatchRetainer(output);
+          new VeloxImplicitClass.ArrowColumnarBatchRetainer(output);
       for (long i = 0; i < (giv.refCnt() - 1); i++) {
         retainer.retain();
       }

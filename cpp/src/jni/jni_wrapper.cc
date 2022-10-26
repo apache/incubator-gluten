@@ -229,8 +229,7 @@ class JavaArrowArrayIterator {
  private:
   JavaVM* vm_;
   jobject java_serialized_arrow_array_iterator_;
-  std::shared_ptr<gluten::memory::GlutenColumnarBatch> unclosed =
-      nullptr;
+  std::shared_ptr<gluten::memory::GlutenColumnarBatch> unclosed = nullptr;
 };
 
 // See Java class

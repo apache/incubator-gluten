@@ -19,7 +19,6 @@ package io.glutenproject.columnarbatch;
 
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
