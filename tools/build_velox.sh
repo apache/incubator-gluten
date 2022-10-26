@@ -106,8 +106,6 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     echo "VELOX_PREFIX=${VELOX_PREFIX}"
     echo "VELOX_SOURCE_DIR=${VELOX_SOURCE_DIR}"
     echo "VELOX_INSTALL_DIR=${VELOX_INSTALL_DIR}"
-    mkdir -p $VELOX_SOURCE_DIR
-    mkdir -p $VELOX_INSTALL_DIR
 
     if [ -d $VELOX_INSTALL_DIR ]; then
         rm -rf $VELOX_INSTALL_DIR
