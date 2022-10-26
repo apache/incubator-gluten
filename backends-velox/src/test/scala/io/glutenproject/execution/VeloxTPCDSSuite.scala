@@ -26,7 +26,7 @@ import org.junit.Ignore
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.SparkConf
 
-@Ignore
+// just used to test TPCDS locally
 class VeloxTPCDSSuite extends WholeStageTransformerSuite {
 
   override protected val backend: String = "velox"
@@ -87,21 +87,17 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
       "web_site"
     ).map { table =>
       val tablePath = new File(resourcePath, table).getAbsolutePath
-//      println("table " + table)
       val tableDF = spark.read.format(fileFormat).load(tablePath)
       tableDF.createOrReplaceTempView(table)
       (table, tableDF)
     }.toMap
   }
 
-  test("q7") {
-    println("execute q7")
+  ignore("q7") {
     val queryPath = "/mnt/DP_disk1/code/gluten/backends-velox/workload/tpcds/tpcds.queries.updated/"
     val source = Source.fromFile(queryPath + "q7.sql")
     val sql = source.mkString
     source.close()
-//    spark.sql(sql).explain(true)
-//    spark.sql(sql).collect()
     assert(spark.sql(sql).collect().length == 100)
   }
 

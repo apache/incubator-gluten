@@ -162,7 +162,7 @@ class VeloxColumnarShuffleWriter[K, V](
           .split(nativeSplitter, cb.numRows, cArray.memoryAddress())
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
-        writeMetrics.incRecordsWritten(1)
+        writeMetrics.incRecordsWritten(cb.numRows())
         cArray.close()
       }
     }

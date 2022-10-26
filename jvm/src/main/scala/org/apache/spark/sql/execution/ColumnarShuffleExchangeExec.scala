@@ -40,6 +40,12 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
                                        shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS)
   extends Exchange {
 
+  private[sql] lazy val writeMetrics =
+    SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
+
+  private[sql] lazy val readMetrics =
+    SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
+
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
@@ -103,12 +109,6 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
   }
 
-  private[sql] lazy val writeMetrics =
-    SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
-
-  private[sql] lazy val readMetrics =
-    SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
-
   //  super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer =
     BackendsApiManager.getSparkPlanExecApiInstance
@@ -119,7 +119,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
-  override def nodeName: String = "ColumnarExchange"
+  override def nodeName: String = "ColumnarExchangeExec"
 
   override def supportsColumnar: Boolean = true
 
@@ -163,6 +163,12 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
                                      child: SparkPlan,
                                      shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS)
   extends ShuffleExchangeLike {
+
+  private[sql] lazy val writeMetrics =
+    SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
+
+  private[sql] lazy val readMetrics =
+    SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
@@ -227,12 +233,6 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
     override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
   }
 
-  private[sql] lazy val writeMetrics =
-    SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
-
-  private[sql] lazy val readMetrics =
-    SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
-
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
     .createColumnarBatchSerializer(schema,
@@ -242,7 +242,7 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
-  override def nodeName: String = "ColumnarExchange"
+  override def nodeName: String = "ColumnarExchangeAdaptor"
 
   override def supportsColumnar: Boolean = true
   override def numMappers: Int = shuffleDependency.rdd.getNumPartitions

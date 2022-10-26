@@ -20,7 +20,7 @@ package io.glutenproject.extension
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -39,6 +39,7 @@ import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.TransformHint
+
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 
@@ -46,6 +47,16 @@ import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 // The plan with a row guard on the top of it will not be converted.
 case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  @transient private val logOnLevel: ( => String) => Unit =
+    columnarConf.transformPlanLogLevel match {
+      case "TRACE" => logTrace(_)
+      case "DEBUG" => logDebug(_)
+      case "INFO" => logInfo(_)
+      case "WARN" => logWarning(_)
+      case "ERROR" => logError(_)
+      case _ => logDebug(_)
+    }
+  @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   def replaceWithTransformerPlan(plan: SparkPlan, isSupportAdaptive: Boolean): SparkPlan = {
     TransformHints.getHint(plan) match {
@@ -250,14 +261,11 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   }
 
   def apply(plan: SparkPlan): SparkPlan = {
-    var finalPlan: SparkPlan = null;
-    if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
-      finalPlan = replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
-    } else {
-      finalPlan = replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
-    }
-    logDebug("final plan: " + finalPlan.toString())
-    finalPlan
+    logOnLevel(s"${ruleName} before plan ${plan.toString()}")
+    val newPlan = replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
+    planChangeLogger.logRule(ruleName, plan, newPlan)
+    logOnLevel(s"${ruleName} after plan ${plan.toString()}")
+    newPlan
   }
 }
 
@@ -265,6 +273,16 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 // into columnar implementations.
 case class TransformPostOverrides() extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getSessionConf
+  @transient private val logOnLevel: ( => String) => Unit =
+    columnarConf.transformPlanLogLevel match {
+      case "TRACE" => logTrace(_)
+      case "DEBUG" => logDebug(_)
+      case "INFO" => logInfo(_)
+      case "WARN" => logWarning(_)
+      case "ERROR" => logError(_)
+      case _ => logDebug(_)
+    }
+  @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
@@ -316,7 +334,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
             c.withNewChildren(c.children.map(replaceWithTransformerPlan))
           }
         case other =>
-          other.withNewChildren(other.children.map(replaceWithTransformerPlan))
+          replaceWithTransformerPlan(other)
       }
       r.withNewChildren(children)
     case p =>
@@ -326,15 +344,27 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 
   // apply for the physical not final plan
   def apply(plan: SparkPlan): SparkPlan = {
-    val plan2 = replaceWithTransformerPlan(plan)
-//    println("applyied plan is " + plan2.toString())
-    plan2
+    logOnLevel(s"${ruleName} before plan ${plan.toString()}")
+    val newPlan = replaceWithTransformerPlan(plan)
+    planChangeLogger.logRule(ruleName, plan, newPlan)
+    logOnLevel(s"${ruleName} after plan ${plan.toString()}")
+    newPlan
   }
 }
 
 case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
   var isSupportAdaptive: Boolean = true
 
+  @transient private lazy val logOnLevel: ( => String) => Unit =
+  GlutenConfig.getSessionConf.transformPlanLogLevel match {
+    case "TRACE" => logTrace(_)
+    case "DEBUG" => logDebug(_)
+    case "INFO" => logInfo(_)
+    case "WARN" => logWarning(_)
+    case "ERROR" => logError(_)
+    case _ => logDebug(_)
+  }
+  @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
@@ -354,14 +384,15 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       nativeEngineEnabled,
       plan)
 
-    logInfo(s"preColumnarTransitions preOverriden plan ${plan.toString}")
     if (supportedGluten) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
+      logOnLevel(s"preColumnarTransitions preOverriden plan ${plan.toString}")
       preOverrides.foreach { r =>
         overridden = r(session)(overridden)
+        planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
-      logInfo(s"preColumnarTransitions afterOverriden plan ${overridden.toString}")
+      logOnLevel(s"preColumnarTransitions afterOverriden plan ${plan.toString}")
       logInfo(
         s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
@@ -375,14 +406,15 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       nativeEngineEnabled,
       plan)
 
-    logInfo(s"postColumnarTransitions preOverriden plan ${plan.toString}")
+    logOnLevel(s"postColumnarTransitions preOverriden plan ${plan.toString}")
     if (supportedGluten) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
       postOverrides.foreach { r =>
         overridden = r(session)(overridden)
+        planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
-      logInfo(s"postColumnarTransitions afterOverriden plan ${overridden.toString}")
+      logOnLevel(s"postColumnarTransitions afterOverriden plan ${overridden.toString}")
       logInfo(
         s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
