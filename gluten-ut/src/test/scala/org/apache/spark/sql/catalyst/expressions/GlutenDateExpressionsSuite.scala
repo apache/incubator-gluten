@@ -20,4 +20,13 @@ package org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
+
+//  override
+//  def blackTestNameList: Seq[String] = Seq("DateFormat", "next_day", "TruncDate",
+//    "unsupported fmt fields for trunc/date_trunc results null", "from_unixtime",
+//    "to_unix_timestamp")
+
+//  override
+//  def whiteTestNameList: Seq[String] = Seq("next_day")
+
 }
