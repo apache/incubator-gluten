@@ -30,8 +30,6 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenSparkExtensionsInjector
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -87,11 +85,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
       case plan: FileSourceScanExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        val realOutput = BackendsApiManager.getTransformerApiInstance.
-          genFileSourceScanAttributes(plan)
         new FileSourceScanExecTransformer(
           plan.relation,
-          realOutput,
+          plan.output,
           plan.requiredSchema,
           ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters),
           plan.optionalBucketSet,

@@ -20,7 +20,6 @@ package io.glutenproject.backendsapi
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 
 trait ITransformerApi extends IBackendsApi {
@@ -46,10 +45,4 @@ trait ITransformerApi extends IBackendsApi {
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
 
-  /**
-   * Clickhouse doesn't support read from a file source with empty attributes now.
-   */
-  def genFileSourceScanAttributes(scanNode: FileSourceScanExec): Seq[Attribute] = {
-    scanNode.output
-  }
 }
