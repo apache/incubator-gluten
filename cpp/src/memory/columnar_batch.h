@@ -94,9 +94,15 @@ class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
       std::unique_ptr<ArrowArray> cArray)
       : GlutenColumnarBatch(cArray->n_children, cArray->length),
         cSchema_(std::move(cSchema)),
-        cArray_(std::move(cArray)) {}
+        cArray_(std::move(cArray)) {
+    ArrowSchemaMove(cSchema.get(), cSchema_.get());
+    ArrowArrayMove(cArray.get(), cArray_.get());
+  }
 
-  ~GlutenArrowCStructColumnarBatch() override {}
+  ~GlutenArrowCStructColumnarBatch() override {
+    ArrowSchemaRelease(cSchema_.get());
+    ArrowArrayRelease(cArray_.get());
+  }
 
   std::string GetType() override {
     return "arrow_array";
@@ -111,8 +117,8 @@ class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
   }
 
  private:
-  std::shared_ptr<ArrowSchema> cSchema_;
-  std::shared_ptr<ArrowArray> cArray_;
+  std::shared_ptr<ArrowSchema> cSchema_ = std::make_shared<ArrowSchema>();
+  std::shared_ptr<ArrowArray> cArray_ = std::make_shared<ArrowArray>();
 };
 
 } // namespace memory

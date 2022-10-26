@@ -51,7 +51,7 @@ public class ArrowOutIterator extends GeneralOutIterator {
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return GlutenColumnarBatches.create(schema, batchHandle);
+    return GlutenColumnarBatches.create(batchHandle);
   }
 
   @Override
