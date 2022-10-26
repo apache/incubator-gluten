@@ -121,7 +121,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         if [ -z "$EXISTS" ]; then
             git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
         fi
-        git reset --hard HEAD
+        git restore --worktree .
         git checkout build_$TARGET_BUILD_COMMIT
     else
         echo "Creating brand-new build for Velox..."
