@@ -326,18 +326,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(22) { df => }
   }
 
-  test("count(*)") {
-    withSQLConf(
-      ("spark.sql.sources.useV1SourceList", "avro"),
-      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
-      val df1 = spark.sql("select * from lineitem")
-      df1.createGlobalTempView("lineitem_view")
-      val df2 = spark.sql("select count(*) from global_temp.lineitem_view")
-      val result = df2.collect()
-      assert(result(0).getLong(0) == 1)
-    }
-  }
-
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
