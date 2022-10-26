@@ -30,7 +30,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.memory.alloc.{NativeMemoryAllocator, Spiller, VeloxManagedReservationListener, VeloxMemoryAllocatorManager}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.memory.{TaskMemoryMetrics, VeloxMemoryConsumer}
+import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -364,7 +364,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                                taskMemoryMetrics: TaskMemoryMetrics
                                               ): TaskMemoryResourceManager = {
     val rl = new VeloxManagedReservationListener(
-      new VeloxMemoryConsumer(taskMemoryManager, spiller),
+      new GlutenMemoryConsumer(taskMemoryManager, spiller),
       taskMemoryMetrics
     )
     new VeloxMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))

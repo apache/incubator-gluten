@@ -59,8 +59,15 @@ public class SparkManagedAllocationListener implements AllocationListener, AutoC
       return;
     }
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
-    consumer.acquire(toBeAcquired);
-    metrics.inc(toBeAcquired);
+    long granted = consumer.acquire(toBeAcquired);
+    if (granted < toBeAcquired) {
+      consumer.free(granted);
+      throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
+          "Acquired: " + size + ", granted: " + granted + ". " +
+          "Try tweaking config option spark.memory.offHeap.size to " +
+          "get larger space to run this application. ");
+    }
+    metrics.inc(granted);
   }
 
   @Override

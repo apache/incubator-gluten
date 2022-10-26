@@ -25,8 +25,8 @@ import org.apache.spark.sql.internal.SQLConf
 
 class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = "/tpch-data-orc-velox"
-  override protected val fileFormat: String = "orc"
+  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {
     super.beforeAll()

@@ -26,8 +26,8 @@ class TestOperator extends WholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = "/tpch-data-orc-velox"
-  override protected val fileFormat: String = "orc"
+  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -46,31 +46,33 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("simple_select") {
-    val result = runSql("select * from lineitem limit 1") { _ => }
+    val result = runQueryAndCompare("select * from lineitem limit 1") { _ => }
     assert(result.length == 1)
   }
 
   test("select_part_column") {
-    val result = runSql("select l_shipdate, l_orderkey from lineitem limit 1") { df =>
+    val result = runQueryAndCompare("select l_shipdate, l_orderkey from lineitem limit 1") { df =>
       { assert(df.schema.fields.length == 2) }
     }
     assert(result.length == 1)
   }
 
   test("select_as") {
-    val result = runSql("select l_shipdate as my_col from lineitem limit 1") { df =>
+    val result = runQueryAndCompare("select l_shipdate as my_col from lineitem limit 1") { df =>
       { assert(df.schema.fieldNames(0).equals("my_col")) }
     }
     assert(result.length == 1)
   }
 
   test("test_where") {
-    val result = runSql("select * from lineitem where l_shipdate < 8500") { _ => }
-    assert(result.length == 10057)
+    val result = runQueryAndCompare(
+      "select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
+    assert(result.length == 59288)
   }
 
   test("test_is_null") {
-    val result = runSql("select l_orderkey from lineitem where l_comment is null") { _ => }
+    val result = runQueryAndCompare("select l_orderkey from lineitem " +
+      "where l_comment is null") { _ => }
     assert(result.isEmpty)
   }
 
@@ -80,12 +82,12 @@ class TestOperator extends WholeStageTransformerSuite {
     spark
       .createDataFrame(JavaConverters.seqAsJavaList(data), schema)
       .createOrReplaceTempView("temp_test_is_null")
-    val result = runSql("select * from temp_test_is_null where col1 is null") { _ => }
+    val result = runQueryAndCompare("select * from temp_test_is_null where col1 is null") { _ => }
     assert(result.length == 2)
   }
 
   test("test_is_not_null") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
     assert(result.length == 6)
@@ -93,14 +95,15 @@ class TestOperator extends WholeStageTransformerSuite {
 
   // test result failed, wait to fix, filter on 2 column will cause problem
   ignore("test_and pushdown") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_orderkey from lineitem where l_orderkey > 2 " +
         "and l_orderkey = 1") { _ => }
     assert(result.isEmpty)
   }
 
   test("test_in") {
-    val result = runSql("select l_orderkey from lineitem where l_partkey in (1552, 674, 1062)") {
+    val result = runQueryAndCompare("select l_orderkey from lineitem " +
+      "where l_partkey in (1552, 674, 1062)") {
       _ =>
     }
     assert(result.length == 122)
@@ -108,35 +111,54 @@ class TestOperator extends WholeStageTransformerSuite {
 
   // wait to fix, may same as before todo
   ignore("test_in_and") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674, 1062) and l_partkey in (1552, 674)") { _ => }
     assert(result.length == 73)
   }
 
   test("test_in_or") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674) or l_partkey in (1552, 1062)") { _ => }
     assert(result.length == 122)
   }
 
   test("test_in_or_and") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674) or l_partkey in (1552) and l_orderkey > 1") { _ => }
     assert(result.length == 73)
   }
 
   test("test_in_not") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey not in (1552, 674) or l_partkey in (1552, 1062)") { _ => }
     assert(result.length == 60141)
   }
 
+  test("coalesce") {
+    var result = runQueryAndCompare("select l_orderkey, coalesce(l_comment, 'default_val') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, coalesce(null, l_comment, 'default_val') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, coalesce(null, null, l_comment) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, coalesce(null, null, 1, 2) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, coalesce(null, null, null) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+  }
+
   test("test_count") {
-    val result = runSql("select count(*) from lineitem where l_partkey in (1552, 674, 1062)") {
+    val result = runQueryAndCompare("select count(*) from lineitem " +
+      "where l_partkey in (1552, 674, 1062)") {
       _ =>
     }
     val expected = Seq(Row(122))
@@ -145,17 +167,19 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("test_avg") {
-    val result = runSql("select avg(l_partkey) from lineitem where l_partkey < 1000") { _ => }
+    val result = runQueryAndCompare("select avg(l_partkey) from lineitem " +
+      "where l_partkey < 1000") { _ => }
     assert(result.length == 1)
   }
 
   test("test_sum") {
-    val result = runSql("select sum(l_partkey) from lineitem where l_partkey < 2000") { _ => }
+    val result = runQueryAndCompare("select sum(l_partkey) from lineitem " +
+      "where l_partkey < 2000") { _ => }
     assert(result.length == 1)
   }
 
   test("test_groupby") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_orderkey, sum(l_partkey) as sum from lineitem " +
         "where l_orderkey < 3 group by l_orderkey") { _ => }
     assert(result.length == 2)
@@ -164,7 +188,7 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("test_orderby") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_suppkey from lineitem " +
         "where l_orderkey < 3 order by l_partkey") { _ => }
     assert(result.length == 7)
@@ -175,7 +199,7 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("test_orderby expression") {
-    val result = runSql(
+    val result = runQueryAndCompare(
       "select l_suppkey from lineitem " +
         "where l_orderkey < 3 order by l_partkey / 2 ") { _ => }
     assert(result.length == 7)
@@ -203,6 +227,66 @@ class TestOperator extends WholeStageTransformerSuite {
     TestUtils.compareAnswers(result, expected)
     df.show()
     df.explain(false)
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test ceil function") {
+    val df = spark.sql("SELECT ceil(cast(l_orderkey as long)) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test floor function") {
+    val df = spark.sql("SELECT floor(cast(l_orderkey as long)) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test Exp function") {
+    val df = spark.sql("SELECT exp(l_orderkey) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(2.718281828459045))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test Power function") {
+    val df = spark.sql("SELECT power(l_orderkey, 2.0) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test Pmod function") {
+    val df = spark.sql("SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 

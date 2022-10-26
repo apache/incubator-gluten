@@ -43,23 +43,50 @@ public class CHManagedReservationListener implements ReservationListener {
   }
 
   @Override
-  public void reserve(long size) {
+  public void reserveOrThrow(long size) {
     synchronized (this) {
       if (!open) {
         return;
       }
       LOG.debug("reserve memory size from native: " + size);
-      consumer.acquire(size);
+      long granted = consumer.acquire(size);
+      if (granted < size) {
+        consumer.free(granted);
+        throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
+            "Acquired: " + size + ", granted: " + granted + ". " +
+            "Try tweaking config option spark.memory.offHeap.size to " +
+            "get larger space to run this application. ");
+      }
       currentMemory.addAndGet(size);
       metrics.inc(size);
     }
   }
 
   @Override
-  public void unreserve(long size) {
+  public long reserve(long size) {
     synchronized (this) {
       if (!open) {
-        return;
+        return 0L;
+      }
+      LOG.debug("reserve memory (without exception) size from native: " + size);
+      long granted = consumer.acquire(size);
+      if (granted < size) {
+        LOG.warn("Not enough spark off-heap execution memory. " +
+            "Acquired: " + size + ", granted: " + granted + ". " +
+            "Try tweaking config option spark.memory.offHeap.size to " +
+            "get larger space to run this application. ");
+      }
+      currentMemory.addAndGet(granted);
+      metrics.inc(size);
+      return granted;
+    }
+  }
+
+  @Override
+  public long unreserve(long size) {
+    synchronized (this) {
+      if (!open) {
+        return 0L;
       }
       long memoryToFree = size;
       if ((currentMemory.get() - size) < 0L) {
@@ -69,10 +96,12 @@ public class CHManagedReservationListener implements ReservationListener {
         );
         memoryToFree = currentMemory.get();
       }
+      if (memoryToFree == 0L) return memoryToFree;
       LOG.debug("unreserve memory size from native: " + memoryToFree);
       consumer.free(memoryToFree);
       currentMemory.addAndGet(-memoryToFree);
-      metrics.inc(-memoryToFree);
+      metrics.inc(-size);
+      return memoryToFree;
     }
   }
 

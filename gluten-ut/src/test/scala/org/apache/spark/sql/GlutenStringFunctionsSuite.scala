@@ -17,9 +17,20 @@
 
 package org.apache.spark.sql
 
-class GlutenStringFunctionsSuite extends StringFunctionsSuite with GlutenSQLTestsTrait {
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.expressions.ExpressionEvalHelper
+import org.apache.spark.sql.catalyst.expressions.Lower
+import org.apache.spark.sql.catalyst.expressions.Upper
+
+class GlutenStringFunctionsSuite extends StringFunctionsSuite
+  with GlutenSQLTestsTrait
+  with ExpressionEvalHelper {
+  override def whiteTestNameList: Seq[String] = Seq(
+    "string trim functions"
+  )
 
   override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
   )
 }

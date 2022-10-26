@@ -16,10 +16,13 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
-
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.DataType
+
+import scala.collection.mutable.ArrayBuffer
 
 class ConcatTransformer(exps: Seq[Expression], original: Expression)
   extends Concat(exps: Seq[Expression])
@@ -27,11 +30,26 @@ class ConcatTransformer(exps: Seq[Expression], original: Expression)
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: Concat.")
+    val nodes = new java.util.ArrayList[ExpressionNode]()
+    val arrayBuffer = new ArrayBuffer[DataType]()
+    exps.foreach(expression => {
+      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
+      if (!expressionNode.isInstanceOf[ExpressionNode]) {
+        throw new UnsupportedOperationException(s"Not supported yet.")
+      }
+      arrayBuffer.append(expression.dataType)
+      nodes.add(expressionNode)
+    })
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.CONCAT,
+      arrayBuffer, FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val typeNode = ConverterUtils.getTypeNode(exps.head.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }
 
-object ConcatOperatorTransformer {
+object ConcatExpressionTransformer {
 
   def create(exps: Seq[Expression], original: Expression): Expression = original match {
     case c: Concat =>
