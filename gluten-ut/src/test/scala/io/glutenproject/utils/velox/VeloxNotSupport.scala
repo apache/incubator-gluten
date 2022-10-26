@@ -28,6 +28,7 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[LiteralExpressionSuite],
     simpleClassName[NullExpressionsSuite],
     simpleClassName[IntervalExpressionsSuite],
-    simpleClassName[DecimalExpressionSuite]
+    simpleClassName[DecimalExpressionSuite],
+    simpleClassName[MathExpressionsSuite]
   )
 }
