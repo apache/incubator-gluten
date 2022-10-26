@@ -222,14 +222,12 @@ class JavaArrowArrayIterator {
         serialized_arrow_array_iterator_next);
     CheckException(env);
     auto output = gluten_columnarbatch_holder_.Lookup(handle);
-    unclosed = output;
     return output;
   }
 
  private:
   JavaVM* vm_;
   jobject java_serialized_arrow_array_iterator_;
-  std::shared_ptr<gluten::memory::GlutenColumnarBatch> unclosed = nullptr;
 };
 
 // See Java class
