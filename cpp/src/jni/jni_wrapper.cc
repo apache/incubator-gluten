@@ -350,9 +350,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       "Lio/glutenproject/memory/alloc/"
       "ReservationListener;");
   reserve_memory_method = GetMethodIDOrError(
-      env, java_reservation_listener_class, "reserve", "(J)V");
+      env, java_reservation_listener_class, "reserveOrThrow", "(J)V");
   unreserve_memory_method = GetMethodIDOrError(
-      env, java_reservation_listener_class, "unreserve", "(J)V");
+      env, java_reservation_listener_class, "unreserve", "(J)J");
 
   default_memory_allocator_id =
       reinterpret_cast<jlong>(gluten::memory::DefaultMemoryAllocator().get());

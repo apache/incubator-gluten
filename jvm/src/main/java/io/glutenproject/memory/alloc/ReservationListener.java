@@ -20,11 +20,16 @@ package io.glutenproject.memory.alloc;
 public interface ReservationListener {
   ReservationListener NOOP = new ReservationListener() {
     @Override
-    public void reserve(long size) {
+    public void reserveOrThrow(long size) {}
+
+    @Override
+    public long reserve(long size) {
+      return 0L;
     }
 
     @Override
-    public void unreserve(long size) {
+    public long unreserve(long size) {
+      return 0L;
     }
 
     @Override
@@ -37,9 +42,11 @@ public interface ReservationListener {
     }
   };
 
-  void reserve(long size);
+  long reserve(long size);
 
-  void unreserve(long size);
+  void reserveOrThrow(long size);
+
+  long unreserve(long size);
 
   void inactivate();
 
