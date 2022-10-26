@@ -197,8 +197,6 @@ class PmodTransformer(left: Expression, right: Expression, original: Expression)
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(original.dataType, nullable)
-    // scalastyle:off println
-    println("original.dataType: " + original.dataType )
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
