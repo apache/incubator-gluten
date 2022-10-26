@@ -25,7 +25,7 @@ import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 
-public abstract class GlutenMemoryConsumer extends MemoryConsumer {
+public class GlutenMemoryConsumer extends MemoryConsumer {
 
   protected final Spiller spiller;
 
@@ -39,7 +39,15 @@ public abstract class GlutenMemoryConsumer extends MemoryConsumer {
     return spiller.spill(size, trigger);
   }
 
-  public abstract void acquire(long size);
+  public long acquire(long size) {
+    if (size <= 0L) {
+      return 0L;
+    }
+    return acquireMemory(size);
+  }
 
-  public abstract void free(long size);
+  public long free(long size) {
+    freeMemory(size);
+    return size;
+  }
 }
