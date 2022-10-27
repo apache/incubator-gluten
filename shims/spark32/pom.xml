@@ -25,7 +25,7 @@
   </parent>
 
   <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-  <name>${project.name.prefix} Shims for Spark 3.2</name>
+  <name>Gluten Shims for Spark 3.2</name>
   <packaging>jar</packaging>
 
   <dependencies>

@@ -68,7 +68,6 @@
     <velox_build_type>release</velox_build_type>
     <debug_build>OFF</debug_build>
     <project.prefix>spark-sql-columnar</project.prefix>
-    <project.name.prefix>Gluten</project.name.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
     <!-- To build built-in backend c++ codes -->
     <build_gazelle_cpp>OFF</build_gazelle_cpp>
