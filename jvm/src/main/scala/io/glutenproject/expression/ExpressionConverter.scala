@@ -131,7 +131,7 @@ object ExpressionConverter extends Logging {
             expr,
             attributeSeq)
         }
-        CoalesceOperatorTransformer.create(exprs, expr)
+        CoalesceExpressionTransformer.create(exprs, expr)
       case i: In =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         InExpressionTransformer.create(
@@ -147,6 +147,32 @@ object ExpressionConverter extends Logging {
             i.child,
             attributeSeq),
           i.hset,
+          expr)
+      case ss: StringReplace =>
+        logInfo(s"${expr.getClass} ${expr} is supported.")
+        TernaryOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            ss.srcExpr,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.searchExpr,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.replaceExpr,
+            attributeSeq),
+          expr)
+      case ss: StringSplit =>
+        logInfo(s"${expr.getClass} ${expr} is supported.")
+        TernaryOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            ss.str,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.regex,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            ss.limit,
+            attributeSeq),
           expr)
       case ss: Substring =>
         logInfo(s"${expr.getClass} ${expr} is supported.")
@@ -195,7 +221,7 @@ object ExpressionConverter extends Logging {
             expr,
             attributeSeq)
         }
-        ConcatOperatorTransformer.create(exprs, expr)
+        ConcatExpressionTransformer.create(exprs, expr)
       case r: Round =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         RoundOperatorTransformer.create(
@@ -206,6 +232,23 @@ object ExpressionConverter extends Logging {
             r.scale,
             attributeSeq),
           expr)
+      case l: StringTrimLeft =>
+        if (l.trimStr != None) {
+          throw new UnsupportedOperationException(s"not supported yet.")
+        }
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        TrimOperatorTransformer.create(
+          replaceWithExpressionTransformer(l.srcStr, attributeSeq),
+          expr)
+      case r: StringTrimRight =>
+        if (r.trimStr != None) {
+          throw new UnsupportedOperationException(s"not supported yet.")
+        }
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        TrimOperatorTransformer.create(
+          replaceWithExpressionTransformer(r.srcStr, attributeSeq),
+          expr)
+
       case expr =>
         logDebug(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(

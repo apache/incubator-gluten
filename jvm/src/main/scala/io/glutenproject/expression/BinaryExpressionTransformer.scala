@@ -25,6 +25,27 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
+class InstrTransformer(str: Expression, substr: Expression, original: Expression)
+  extends StringInstr(str: Expression, substr: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val strNode = str.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val substrNode = substr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!strNode.isInstanceOf[ExpressionNode] || !substrNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.INSTR, Seq(str.dataType, substr.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(strNode, substrNode)
+    val typeNode = TypeBuilder.makeI32(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class ShiftLeftTransformer(left: Expression, right: Expression, original: Expression)
   extends ShiftLeft(left: Expression, right: Expression)
     with ExpressionTransformer
@@ -171,10 +192,38 @@ class DateAddIntervalTransformer(start: Expression, interval: Expression, origin
   }
 }
 
+class PowTransformer(left: Expression, right: Expression, original: Expression)
+  extends Pow(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.POWER, Seq(left.dataType, right.dataType)))
+
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 object BinaryExpressionTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression =
     original match {
+      case instr: StringInstr =>
+        new InstrTransformer(left, right, instr)
       case e: EndsWith =>
         new EndsWithTransformer(left, right, e)
       case s: StartsWith =>
@@ -193,6 +242,8 @@ object BinaryExpressionTransformer {
         new DateDiffTransformer(left, right)
       case a: UnixTimestamp =>
         new UnixTimestampTransformer(left, right)
+      case p: Pow =>
+        new PowTransformer(left, right, p)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
