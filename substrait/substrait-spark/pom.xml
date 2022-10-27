@@ -50,6 +50,11 @@
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf.substrait.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
