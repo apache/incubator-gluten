@@ -31,8 +31,8 @@ void registerCustomFunctions() {
 }
 
 void registerAllFunctions() {
-  functions::prestosql::registerAllScalarFunctions();
   functions::sparksql::registerFunctions("");
+  functions::prestosql::registerAllScalarFunctions();
   registerCustomFunctions();
 }
 
