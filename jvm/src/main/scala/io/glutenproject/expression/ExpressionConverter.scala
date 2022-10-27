@@ -222,16 +222,6 @@ object ExpressionConverter extends Logging {
             attributeSeq)
         }
         ConcatExpressionTransformer.create(exprs, expr)
-      case r: Round =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        RoundOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            r.child,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            r.scale,
-            attributeSeq),
-          expr)
       case g: Greatest =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         val exprs = g.children.map { expr =>
