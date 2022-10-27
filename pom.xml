@@ -79,6 +79,7 @@
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
     <spark32bundle.version>3.2</spark32bundle.version>
     <spark33bundle.version>3.3</spark33bundle.version>
+    <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
     <junit.version>4.13.1</junit.version>
 
     <substrait.version>1.0-SNAPSHOT</substrait.version>
