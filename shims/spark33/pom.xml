@@ -61,6 +61,7 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
+        <version>${scala.compiler.version}</version>
       </plugin>
       <plugin>
         <groupId>org.scalatest</groupId>
