@@ -326,6 +326,8 @@ object ConverterUtils extends Logging {
   final val OR = "or"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
+  final val RLIKE = "rlike"
+  final val REGEXP_EXTRACT = "regexp_extract"
   final val EQUAL = "equal"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"

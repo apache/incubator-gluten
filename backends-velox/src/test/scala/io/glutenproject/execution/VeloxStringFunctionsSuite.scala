@@ -100,6 +100,45 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
     assert(result.length == 5)
   }
 
+  test("like") {
+    var result = runQueryAndCompare("select l_orderkey, like(l_comment, '%a%') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, l_comment " +
+      "from lineitem where l_comment like '%a%' limit 5") { _ => }
+    assert(result.length == 5)
+  }
+
+  test("rlike") {
+    var result = runQueryAndCompare("select l_orderkey, l_comment, rlike(l_comment, 'a*') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, rlike(l_comment, ' ') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, rlike(null, '%a%') " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, l_comment " +
+      "from lineitem where l_comment rlike '%a%' limit 5") { _ => }
+    assert(result.length == 5)
+  }
+
+  test("regexp_extract") {
+    var result = runQueryAndCompare("select l_orderkey, regexp_extract(l_comment, '([a-z])', 1) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, regexp_extract(null, '([a-z])', 1) " +
+      "from lineitem limit 5") { _ => }
+    assert(result.length == 5)
+  }
+
   test("replace") {
     var result = runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', 'hello') " +
       "from lineitem limit 5") { _ => }
