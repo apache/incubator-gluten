@@ -82,7 +82,7 @@
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
     <junit.version>4.13.1</junit.version>
 
-    <substrait.version>1.0-SNAPSHOT</substrait.version>
+    <substrait.version>gluten-0.1</substrait.version>
     <guava.version>31.1-jre</guava.version>
     <protobuf.version>3.13.0</protobuf.version>
     <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
@@ -671,5 +671,18 @@
       </plugin>
     </plugins>
   </reporting>
-
+  <repositories>
+    <repository>
+      <id>Kyligence</id>
+      <name>Kyligence Repository</name>
+      <url>https://repository.kyligence.io/repository/maven-public/
+      </url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>
