@@ -87,7 +87,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // enable or disable columnar union
   val enableColumnarUnion: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.union", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.union", "true").toBoolean
 
   // enable or disable columnar expand
   val enableColumnarExpand: Boolean =
