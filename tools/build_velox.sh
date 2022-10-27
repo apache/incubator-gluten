@@ -9,8 +9,8 @@ COMPILE_VELOX=OFF
 ENABLE_EP_CACHE=OFF
 VELOX_HOME=/root/velox
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/rui-mo/velox.git
+VELOX_BRANCH=anti_join
 
 for arg in "$@"
 do
