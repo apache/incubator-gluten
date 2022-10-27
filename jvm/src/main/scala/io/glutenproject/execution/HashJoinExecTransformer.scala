@@ -1057,7 +1057,7 @@ abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
                                                 condition: Option[Expression],
                                                 left: SparkPlan,
                                                 right: SparkPlan,
-                                                isNullAwareAntiJoin: Boolean = false)
+                                                isNullAwareAntiJoin: Boolean)
   extends HashJoinLikeExecTransformer {
 
   override def joinBuildSide: BuildSide = buildSide

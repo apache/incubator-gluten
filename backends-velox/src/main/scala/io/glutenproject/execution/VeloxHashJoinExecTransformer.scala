@@ -170,7 +170,7 @@ case class VeloxBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
                                                  condition: Option[Expression],
                                                  left: SparkPlan,
                                                  right: SparkPlan,
-                                                 isNullAwareAntiJoin: Boolean = false)
+                                                 isNullAwareAntiJoin: Boolean)
   extends BroadcastHashJoinExecTransformer(
     leftKeys,
     rightKeys,
@@ -178,7 +178,8 @@ case class VeloxBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     buildSide,
     condition,
     left,
-    right) {
+    right,
+    isNullAwareAntiJoin) {
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan, newRight: SparkPlan): VeloxBroadcastHashJoinExecTransformer =
