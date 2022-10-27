@@ -33,6 +33,7 @@
     <module>jvm</module>
     <module>shims</module>
     <module>substrait/substrait-spark</module>
+    <module>core</module>
   </modules>
 
   <properties>
