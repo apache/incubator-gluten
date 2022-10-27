@@ -45,7 +45,6 @@ namespace {
 const std::string kHiveConnectorId = "test-hive";
 const std::string kSparkBatchSizeKey =
     "spark.sql.execution.arrow.maxRecordsPerBatch";
-const std::string kVeloxPreferredBatchSize = "preferred_output_batch_size";
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows =
@@ -500,14 +499,14 @@ int64_t WholeStageResIter::sumOfRuntimeMetric(
 void WholeStageResIter::setConfToQueryContext(
     const std::shared_ptr<core::QueryCtx>& queryCtx) {
   std::unordered_map<std::string, std::string> configs = {};
-  // Only batch size is considered currently.
+  // Find batch size from Spark confs. If found, set it to Velox query context.
   auto got = confMap_.find(kSparkBatchSizeKey);
   if (got != confMap_.end()) {
-    configs[kVeloxPreferredBatchSize] = got->second;
+    configs[core::QueryConfig::kPreferredOutputBatchSize] = got->second;
   }
-  if (configs.size() > 0) {
-    queryCtx->setConfigOverridesUnsafe(std::move(configs));
-  }
+  // To align with Spark's behavior, set casting to int to be truncating.
+  configs[core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
+  queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
 class VeloxPlanConverter::WholeStageResIterFirstStage
