@@ -955,7 +955,22 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_close(
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_JniByteInputStreamImpl_memCopyFromHeap(
+Java_io_glutenproject_vectorized_LowCopyNettyJniByteInputStream_memCopy(
+    JNIEnv* env,
+    jobject,
+    jlong srcAddress,
+    jlong destAddress,
+    jlong size) {
+  JNI_METHOD_START
+  std::memcpy(
+      reinterpret_cast<void*>(destAddress),
+      reinterpret_cast<void*>(srcAddress),
+      size);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_OnHeapJniByteInputStream_memCopyFromHeap(
     JNIEnv* env,
     jobject,
     jbyteArray source,
