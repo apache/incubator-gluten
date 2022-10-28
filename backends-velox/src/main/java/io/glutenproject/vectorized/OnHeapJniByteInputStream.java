@@ -34,6 +34,9 @@ public class OnHeapJniByteInputStream implements JniByteInputStream {
     byte[] tmp = new byte[maxSize32];
     try {
       int read = in.read(tmp); // this conducts copy as long as 'in' wraps off-heap data, which is about to be moved to heap
+      if (read == -1 || read == 0) {
+        return 0;
+      }
       memCopyFromHeap(tmp, destAddress, read); // this conducts copy, from heap to off-heap
       bytesRead += read;
       return read;

@@ -44,7 +44,10 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 
   private final InputStream in;
   private final long baseAddress;
-  private long bytesRead = 0L;
+  private final int initReaderIndex;
+  private int readerIndex;
+  private int readableBytes;
+
 
   public LowCopyNettyJniByteInputStream(InputStream in) {
     this.in = in; // to prevent underlying netty buffer from being collected by GC
@@ -52,6 +55,9 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
     try {
       final ByteBuf byteBuf = (ByteBuf) FIELD_ByteBufInputStream_buffer.get(unwrapped);
       baseAddress = byteBuf.memoryAddress();
+      initReaderIndex = byteBuf.readerIndex();
+      readerIndex = initReaderIndex;
+      readableBytes = byteBuf.readableBytes();
     } catch (IllegalAccessException e) {
       throw new RuntimeException(e);
     }
@@ -59,9 +65,14 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 
   @Override
   public long read(long destAddress, long maxSize) {
-    memCopy(baseAddress + bytesRead, destAddress, maxSize);
-    bytesRead += maxSize;
-    return maxSize;
+    long bytesToRead = Math.min(maxSize, readableBytes);
+    if (bytesToRead == 0) {
+      return 0;
+    }
+    memCopy(baseAddress + readerIndex, destAddress, bytesToRead);
+    readerIndex += bytesToRead;
+    readableBytes -= bytesToRead;
+    return bytesToRead;
   }
 
   public native void memCopy(long srcAddress, long destAddress, long size);
@@ -84,7 +95,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 
   @Override
   public long tell() {
-    return bytesRead;
+    return readerIndex - initReaderIndex;
   }
 
   @Override
