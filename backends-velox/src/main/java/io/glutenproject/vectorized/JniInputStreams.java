@@ -35,16 +35,24 @@ public final class JniInputStreams {
 
   public static JniByteInputStream create(InputStream in) {
     // Unwrap BufferReleasingInputStream
-    if (in instanceof BufferReleasingInputStream) {
-      final BufferReleasingInputStream brin = (BufferReleasingInputStream) in;
-      in = org.apache.spark.storage.OASPackageBridge.unwrapBufferReleasingInputStream(brin);
-    }
-    LOG.info("InputStream is of class " + in.getClass().getName());
-    if (LowCopyNettyJniByteInputStream.isSupported(in)) {
+    final InputStream unwrapped = unwrapBufferReleasingInputStream(in);
+    LOG.info("InputStream is of class " + unwrapped.getClass().getName());
+    if (LowCopyNettyJniByteInputStream.isSupported(unwrapped)) {
       LOG.info("Creating LowCopyNettyJniByteInputStream");
-      return new LowCopyNettyJniByteInputStream(in);
+      return new LowCopyNettyJniByteInputStream(unwrapped);
     }
     LOG.info("Creating OnHeapJniByteInputStream");
-    return new OnHeapJniByteInputStream(in);
+    return new OnHeapJniByteInputStream(unwrapped);
+  }
+
+  public static InputStream unwrapBufferReleasingInputStream(InputStream in) {
+    final InputStream unwrapped;
+    if (in instanceof BufferReleasingInputStream) {
+      final BufferReleasingInputStream brin = (BufferReleasingInputStream) in;
+      unwrapped = org.apache.spark.storage.OASPackageBridge.unwrapBufferReleasingInputStream(brin);
+    } else {
+      unwrapped = in;
+    }
+    return unwrapped;
   }
 }
