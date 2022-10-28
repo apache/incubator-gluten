@@ -162,6 +162,7 @@ class VeloxColumnarShuffleWriter[K, V](
           .split(nativeSplitter, cb.numRows, cArray.memoryAddress())
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
+        // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(cb.numRows())
         cArray.close()
       }
