@@ -33,7 +33,7 @@ public final class JniInputStreams {
   }
 
   public static JniByteInputStream create(InputStream in) {
-    LOG.info("InputStream is of class " + InputStream.class.getName());
+    LOG.info("InputStream is of class " + in.getClass().getName());
     if (LowCopyNettyJniByteInputStream.isSupported(in)) {
       LOG.info("Creating LowCopyNettyJniByteInputStream");
       return new LowCopyNettyJniByteInputStream(in);
