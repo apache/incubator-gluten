@@ -54,10 +54,10 @@ public final class JniInputStreams {
     LOG.info("InputStream is of class " + unwrapped.getClass().getName());
     if (LowCopyNettyJniByteInputStream.isSupported(unwrapped)) {
       LOG.info("Creating LowCopyNettyJniByteInputStream");
-      return new LowCopyNettyJniByteInputStream(unwrapped);
+      return new LowCopyNettyJniByteInputStream(in);
     }
     LOG.info("Creating OnHeapJniByteInputStream");
-    return new OnHeapJniByteInputStream(unwrapped);
+    return new OnHeapJniByteInputStream(in);
   }
 
   static InputStream unwrapSparkInputStream(InputStream in) {
