@@ -29,7 +29,6 @@ import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
 import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark._
