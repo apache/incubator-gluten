@@ -49,6 +49,7 @@ const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows =
     "replacedWithDynamicFilterRows";
+const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
 
@@ -624,8 +625,12 @@ class VeloxPlanConverter::WholeStageResIterFirstStage
       // Extract the partition value.
       pos = latterPart.find("/");
       std::string partitionValue = latterPart.substr(0, pos);
-      // Set to the map of partition keys.
-      partitionKeys[partitionColumn] = partitionValue;
+      if (partitionValue == kHiveDefaultPartition) {
+        partitionKeys[partitionColumn] = std::nullopt;
+      } else {
+        // Set to the map of partition keys.
+        partitionKeys[partitionColumn] = partitionValue;
+      }
       // For processing the remaining keys.
       str = latterPart.substr(pos + 1, latterPart.size() - 1);
       pos = str.find(delimiter);

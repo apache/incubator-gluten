@@ -17,14 +17,19 @@
 
 package org.apache.spark.sql.execution
 
+import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.expression.ArrowConverterUtils
-
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 case class VeloxBuildSideRelation(mode: BroadcastMode,
                                   output: Seq[Attribute],
@@ -44,6 +49,54 @@ case class VeloxBuildSideRelation(mode: BroadcastMode,
    */
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
-    Array.empty
+    val batchIter = ArrowConverterUtils.convertFromNetty(output, batches)
+    // Convert columnar to Row.
+    batchIter.flatMap(batch => {
+      if (batch.numRows == 0) {
+        Iterator.empty
+      } else if (this.output.isEmpty || (batch.numCols() > 0 &&
+        !batch.column(0).isInstanceOf[ArrowWritableColumnVector] &&
+        !batch.column(0).isInstanceOf[GlutenIndicatorVector])) {
+        // Fallback to ColumnarToRow
+        val localOutput = this.output
+        val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
+        val arrowBatch = ArrowColumnarBatches
+          .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+        arrowBatch.rowIterator().asScala.map(toUnsafe)
+      } else {
+        val jniWrapper = new NativeColumnarToRowJniWrapper()
+        var info: NativeColumnarToRowInfo = null
+        val offloaded =
+          ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
+        val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
+        info = jniWrapper.nativeConvertColumnarToRow(
+          batchHandle,
+          NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+
+        new Iterator[InternalRow] {
+          var rowId = 0
+          val row = new UnsafeRow(batch.numCols())
+          var closed = false
+
+          override def hasNext: Boolean = {
+            val result = rowId < batch.numRows()
+            if (!result && !closed) {
+              jniWrapper.nativeClose(info.instanceID)
+              closed = true
+            }
+            result
+          }
+
+          override def next: UnsafeRow = {
+            if (rowId >= batch.numRows()) throw new NoSuchElementException
+
+            val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+            row.pointTo(null, info.memoryAddress + offset, length.toInt)
+            rowId += 1
+            row.copy()
+          }
+        }
+      }
+    }).toArray
   }
 }

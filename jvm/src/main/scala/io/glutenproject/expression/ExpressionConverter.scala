@@ -323,20 +323,34 @@ object ExpressionConverter extends Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    partitionFilters.map(filter => filter match {
+    partitionFilters.map {
       case dynamicPruning: DynamicPruningExpression =>
         dynamicPruning.transform {
           // Lookup inside subqueries for duplicate exchanges
-          case in: InSubqueryExec if in.plan.isInstanceOf[SubqueryBroadcastExec] =>
-            val newIn = in.plan.transform {
-              case exchange: BroadcastExchangeExec =>
-                convertBroadcastExchangeToColumnar(exchange)
-            }.asInstanceOf[SubqueryBroadcastExec]
-            val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-              newIn.name, newIn.index, newIn.buildKeys, newIn.child)
-            in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
+          case in: InSubqueryExec => in.plan match {
+            case _: SubqueryBroadcastExec =>
+              val newIn = in.plan.transform {
+                case exchange: BroadcastExchangeExec =>
+                  convertBroadcastExchangeToColumnar(exchange)
+              }.asInstanceOf[SubqueryBroadcastExec]
+              val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
+                newIn.name, newIn.index, newIn.buildKeys, newIn.child)
+              in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
+            case _: ReusedSubqueryExec =>
+              assert(in.plan.child.isInstanceOf[SubqueryBroadcastExec],
+                "SubqueryBroadcastExec is expected.")
+              val newIn = in.plan.child.transform {
+                case exchange: BroadcastExchangeExec =>
+                  convertBroadcastExchangeToColumnar(exchange)
+              }.asInstanceOf[SubqueryBroadcastExec]
+              val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
+                newIn.name, newIn.index, newIn.buildKeys, newIn.child)
+              in.copy(plan = ReusedSubqueryExec(transformSubqueryBroadcast))
+            case other => throw new UnsupportedOperationException(
+              s"Not supported plan type: ${other.getClass.toString}")
+          }
         }
       case e: Expression => e
-    })
+    }
   }
 }
