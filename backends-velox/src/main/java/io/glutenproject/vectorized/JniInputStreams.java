@@ -62,12 +62,12 @@ public final class JniInputStreams {
 
   static InputStream unwrapSparkInputStream(InputStream in) {
     InputStream unwrapped = in;
-    if (in instanceof BufferReleasingInputStream) {
-      final BufferReleasingInputStream brin = (BufferReleasingInputStream) in;
+    if (unwrapped instanceof BufferReleasingInputStream) {
+      final BufferReleasingInputStream brin = (BufferReleasingInputStream) unwrapped;
       unwrapped = org.apache.spark.storage.OASPackageBridge.unwrapBufferReleasingInputStream(brin);
     }
-    if (in instanceof CheckedInputStream) {
-      final CheckedInputStream cin = (CheckedInputStream) in;
+    if (unwrapped instanceof CheckedInputStream) {
+      final CheckedInputStream cin = (CheckedInputStream) unwrapped;
       try {
         unwrapped = ((InputStream) FIELD_FilterInputStream_in.get(cin));
       } catch (IllegalAccessException e) {
