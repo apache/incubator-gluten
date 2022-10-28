@@ -17,19 +17,28 @@
 
 package io.glutenproject.vectorized;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.InputStream;
 
 /**
  * Create optimal {@link JniByteInputStream} implementation from Java {@link InputStream}.
  */
 public final class JniInputStreams {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(JniInputStreams.class);
+
   private JniInputStreams() {
   }
 
   public static JniByteInputStream create(InputStream in) {
+    LOG.info("InputStream is of class " + InputStream.class.getName());
     if (LowCopyNettyJniByteInputStream.isSupported(in)) {
+      LOG.info("Creating LowCopyNettyJniByteInputStream");
       return new LowCopyNettyJniByteInputStream(in);
     }
+    LOG.info("Creating OnHeapJniByteInputStream");
     return new OnHeapJniByteInputStream(in);
   }
 }
