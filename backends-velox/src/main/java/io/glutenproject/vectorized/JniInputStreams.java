@@ -56,6 +56,10 @@ public final class JniInputStreams {
       LOG.info("Creating LowCopyNettyJniByteInputStream");
       return new LowCopyNettyJniByteInputStream(in);
     }
+    if (LowCopyFileSegmentJniByteInputStream.isSupported(unwrapped)) {
+      LOG.info("Creating LowCopyFileSegmentJniByteInputStream");
+      return new LowCopyFileSegmentJniByteInputStream(in);
+    }
     LOG.info("Creating OnHeapJniByteInputStream");
     return new OnHeapJniByteInputStream(in);
   }

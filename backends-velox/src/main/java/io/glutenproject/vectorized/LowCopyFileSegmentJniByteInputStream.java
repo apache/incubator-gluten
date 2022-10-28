@@ -17,9 +17,6 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.vectorized.JniByteInputStream;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
 import io.netty.util.internal.PlatformDependent;
 import org.apache.spark.network.util.LimitedInputStream;
 
@@ -28,7 +25,6 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
