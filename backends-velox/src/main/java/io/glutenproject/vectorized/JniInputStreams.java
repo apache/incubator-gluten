@@ -21,7 +21,10 @@ import org.apache.spark.storage.BufferReleasingInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FilterInputStream;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.util.zip.CheckedInputStream;
 
 /**
  * Create optimal {@link JniByteInputStream} implementation from Java {@link InputStream}.
@@ -30,12 +33,24 @@ public final class JniInputStreams {
   private static final Logger LOG =
       LoggerFactory.getLogger(JniInputStreams.class);
 
+
+  private static final Field FIELD_FilterInputStream_in;
+
+  static {
+    try {
+      FIELD_FilterInputStream_in = FilterInputStream.class.getDeclaredField("in");
+      FIELD_FilterInputStream_in.setAccessible(true);
+    } catch (NoSuchFieldException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private JniInputStreams() {
   }
 
   public static JniByteInputStream create(InputStream in) {
     // Unwrap BufferReleasingInputStream
-    final InputStream unwrapped = unwrapBufferReleasingInputStream(in);
+    final InputStream unwrapped = unwrapSparkInputStream(in);
     LOG.info("InputStream is of class " + unwrapped.getClass().getName());
     if (LowCopyNettyJniByteInputStream.isSupported(unwrapped)) {
       LOG.info("Creating LowCopyNettyJniByteInputStream");
@@ -45,13 +60,19 @@ public final class JniInputStreams {
     return new OnHeapJniByteInputStream(unwrapped);
   }
 
-  public static InputStream unwrapBufferReleasingInputStream(InputStream in) {
-    final InputStream unwrapped;
+  static InputStream unwrapSparkInputStream(InputStream in) {
+    InputStream unwrapped = in;
     if (in instanceof BufferReleasingInputStream) {
       final BufferReleasingInputStream brin = (BufferReleasingInputStream) in;
       unwrapped = org.apache.spark.storage.OASPackageBridge.unwrapBufferReleasingInputStream(brin);
-    } else {
-      unwrapped = in;
+    }
+    if (in instanceof CheckedInputStream) {
+      final CheckedInputStream cin = (CheckedInputStream) in;
+      try {
+        unwrapped = ((InputStream) FIELD_FilterInputStream_in.get(cin));
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
     }
     return unwrapped;
   }

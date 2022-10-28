@@ -48,7 +48,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 
   public LowCopyNettyJniByteInputStream(InputStream in) {
     this.in = in; // to prevent underlying netty buffer from being collected by GC
-    final InputStream unwrapped = JniInputStreams.unwrapBufferReleasingInputStream(in);
+    final InputStream unwrapped = JniInputStreams.unwrapSparkInputStream(in);
     try {
       final ByteBuf byteBuf = (ByteBuf) FIELD_ByteBufInputStream_buffer.get(unwrapped);
       baseAddress = byteBuf.memoryAddress();
