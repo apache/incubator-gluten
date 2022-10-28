@@ -17,6 +17,7 @@
 
 package io.glutenproject.vectorized;
 
+import org.apache.spark.storage.BufferReleasingInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,11 @@ public final class JniInputStreams {
   }
 
   public static JniByteInputStream create(InputStream in) {
+    // Unwrap BufferReleasingInputStream
+    if (in instanceof BufferReleasingInputStream) {
+      final BufferReleasingInputStream brin = (BufferReleasingInputStream) in;
+      in = org.apache.spark.storage.OASPackageBridge.unwrapBufferReleasingInputStream(brin);
+    }
     LOG.info("InputStream is of class " + in.getClass().getName());
     if (LowCopyNettyJniByteInputStream.isSupported(in)) {
       LOG.info("Creating LowCopyNettyJniByteInputStream");
