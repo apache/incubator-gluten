@@ -1359,7 +1359,8 @@ arrow::Status Splitter::SplitBinaryType(
         // allocate value buffer again
         // enlarge the buffer by 8x
         auto old_capacity = capacity;
-        capacity = capacity + std::max((capacity >> multiply), (uint64_t)strlength);
+        capacity =
+            capacity + std::max((capacity >> multiply), (uint64_t)strlength);
         multiply = std::min(3, multiply + 1);
         auto value_buffer = std::static_pointer_cast<arrow::ResizableBuffer>(
             partition_buffers_[fixed_width_col_cnt_ + binary_idx][pid][2]);
