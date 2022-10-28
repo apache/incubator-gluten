@@ -238,6 +238,14 @@ object ExpressionConverter extends Logging {
             attributeSeq)
         }
         new LeastTransformer(exprs, expr)
+      case m: Murmur3Hash =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        val exprs = m.children.map { expr =>
+          replaceWithExpressionTransformer(
+            expr,
+            attributeSeq)
+        }
+        new Murmur3HashTransformer(exprs, expr)
       case l: StringTrimLeft =>
         if (l.trimStr != None) {
           throw new UnsupportedOperationException(s"not supported yet.")
