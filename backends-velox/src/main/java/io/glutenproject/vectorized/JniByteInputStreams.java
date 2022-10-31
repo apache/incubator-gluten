@@ -29,9 +29,9 @@ import java.util.zip.CheckedInputStream;
 /**
  * Create optimal {@link JniByteInputStream} implementation from Java {@link InputStream}.
  */
-public final class JniInputStreams {
+public final class JniByteInputStreams {
   private static final Logger LOG =
-      LoggerFactory.getLogger(JniInputStreams.class);
+      LoggerFactory.getLogger(JniByteInputStreams.class);
 
 
   private static final Field FIELD_FilterInputStream_in;
@@ -45,22 +45,18 @@ public final class JniInputStreams {
     }
   }
 
-  private JniInputStreams() {
+  private JniByteInputStreams() {
   }
 
   public static JniByteInputStream create(InputStream in) {
     // Unwrap BufferReleasingInputStream
     final InputStream unwrapped = unwrapSparkInputStream(in);
-    LOG.info("InputStream is of class " + unwrapped.getClass().getName());
     if (LowCopyNettyJniByteInputStream.isSupported(unwrapped)) {
-      LOG.info("Creating LowCopyNettyJniByteInputStream");
       return new LowCopyNettyJniByteInputStream(in);
     }
     if (LowCopyFileSegmentJniByteInputStream.isSupported(unwrapped)) {
-      LOG.info("Creating LowCopyFileSegmentJniByteInputStream");
       return new LowCopyFileSegmentJniByteInputStream(in);
     }
-    LOG.info("Creating OnHeapJniByteInputStream");
     return new OnHeapJniByteInputStream(in);
   }
 

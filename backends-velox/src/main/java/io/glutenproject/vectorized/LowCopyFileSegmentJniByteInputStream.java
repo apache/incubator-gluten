@@ -56,7 +56,7 @@ public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream 
 
   public LowCopyFileSegmentJniByteInputStream(InputStream in) {
     this.in = in; // to prevent underlying netty buffer from being collected by GC
-    final InputStream unwrapped = JniInputStreams.unwrapSparkInputStream(in);
+    final InputStream unwrapped = JniByteInputStreams.unwrapSparkInputStream(in);
     final LimitedInputStream lin = (LimitedInputStream) unwrapped;
     try {
       left = ((long) FIELD_LimitedInputStream_left.get(lin));
