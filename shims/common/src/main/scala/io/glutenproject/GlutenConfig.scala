@@ -82,9 +82,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarSortMergeJoin: Boolean =
   conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean
 
-  val enableColumnarSortMergeJoinLazyRead: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.sortmergejoin.lazyread", "false").toBoolean
-
   // enable or disable columnar union
   val enableColumnarUnion: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.union", "true").toBoolean
@@ -96,14 +93,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar broadcastexchange
   val enableColumnarBroadcastExchange: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.broadcastexchange", "true").toBoolean
-
-  // enable or disable NAN check
-  val enableColumnarNaNCheck: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.nanCheck", "true").toBoolean
-
-  // enable or disable hashcompare in hashjoins or hashagg
-  val hashCompare: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.hashCompare", "true").toBoolean
 
   // enable or disable columnar BroadcastHashJoin
   val enableColumnarBroadcastJoin: Boolean =
