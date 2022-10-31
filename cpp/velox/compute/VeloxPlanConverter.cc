@@ -49,6 +49,7 @@ const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows =
     "replacedWithDynamicFilterRows";
+const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
 
@@ -540,8 +541,14 @@ class VeloxPlanConverter::WholeStageResIterFirstStage
       std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
       connectorSplits.reserve(paths.size());
       for (int idx = 0; idx < paths.size(); idx++) {
+        auto partitionKeys = extractPartitionColumnAndValue(paths[idx]);
         auto split = std::make_shared<hive::HiveConnectorSplit>(
-            kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx]);
+            kHiveConnectorId,
+            paths[idx],
+            format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys);
         connectorSplits.emplace_back(split);
       }
 
@@ -597,6 +604,39 @@ class VeloxPlanConverter::WholeStageResIterFirstStage
   std::vector<core::PlanNodeId> streamIds_;
   std::vector<std::vector<exec::Split>> splits_;
   bool noMoreSplits_ = false;
+
+  // Extract the partition column and value from a path of split.
+  // The split path is like .../my_dataset/year=2022/month=July/split_file.
+  std::unordered_map<std::string, std::optional<std::string>>
+  extractPartitionColumnAndValue(const std::string& filePath) {
+    std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
+
+    // Column name with '=' is not supported now.
+    std::string delimiter = "=";
+    std::string str = filePath;
+    std::size_t pos = str.find(delimiter);
+    while (pos != std::string::npos) {
+      // Split the string with delimiter.
+      std::string prePart = str.substr(0, pos);
+      std::string latterPart = str.substr(pos + 1, str.size() - 1);
+      // Extract the partition column.
+      pos = prePart.find_last_of("/");
+      std::string partitionColumn = prePart.substr(pos + 1, prePart.size() - 1);
+      // Extract the partition value.
+      pos = latterPart.find("/");
+      std::string partitionValue = latterPart.substr(0, pos);
+      if (partitionValue == kHiveDefaultPartition) {
+        partitionKeys[partitionColumn] = std::nullopt;
+      } else {
+        // Set to the map of partition keys.
+        partitionKeys[partitionColumn] = partitionValue;
+      }
+      // For processing the remaining keys.
+      str = latterPart.substr(pos + 1, latterPart.size() - 1);
+      pos = str.find(delimiter);
+    }
+    return partitionKeys;
+  }
 };
 
 class VeloxPlanConverter::WholeStageResIterMiddleStage

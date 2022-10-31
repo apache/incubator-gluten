@@ -145,5 +145,4 @@ class NativeWholeStageColumnarRDD(sc: SparkContext,
       }
     }
   }
-
 }
