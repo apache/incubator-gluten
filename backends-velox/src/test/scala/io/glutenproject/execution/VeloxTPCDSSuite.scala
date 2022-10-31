@@ -94,7 +94,8 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
   }
 
   ignore("q7") {
-    val queryPath = "/mnt/DP_disk1/code/gluten/backends-velox/workload/tpcds/tpcds.queries.updated/"
+    val queryPath = getClass.getResource("/").getPath +
+      "../../../workload/tpcds/tpcds.queries.updated/"
     val source = Source.fromFile(queryPath + "q7.sql")
     val sql = source.mkString
     source.close()
