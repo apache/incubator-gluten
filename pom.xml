@@ -112,7 +112,9 @@
     <!-- plugin version-->
     <scala.compiler.version>4.3.0</scala.compiler.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
+    <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
+    <scalatest-maven-plugin.version>2.1.0</scalatest-maven-plugin.version>
   </properties>
 
   <profiles>
@@ -294,6 +296,10 @@
           <exclusion>
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
           </exclusion>
         </exclusions>
         <scope>provided</scope>
@@ -480,6 +486,22 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>${maven.jar.plugin}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+              <configuration>
+                <classifier>${scala.binary.version}</classifier>
+                <classifier>${sparkbundle.version}</classifier>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven.compiler.plugin}</version>
           <configuration>
@@ -496,8 +518,13 @@
         <plugin>
           <groupId>org.scalatest</groupId>
           <artifactId>scalatest-maven-plugin</artifactId>
+          <version>${scalatest-maven-plugin.version}</version>
+          <configuration>
+            <junitxml>.</junitxml>
+          </configuration>
           <executions>
             <execution>
+              <phase>validate</phase>
               <id>test</id>
               <goals>
                 <goal>test</goal>
@@ -615,18 +642,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.2.0</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classifier>${scala.binary.version}</classifier>
-              <classifier>${sparkbundle.version}</classifier>
-            </configuration>
-          </execution>
-        </executions>
+        <version>${maven.jar.plugin}</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

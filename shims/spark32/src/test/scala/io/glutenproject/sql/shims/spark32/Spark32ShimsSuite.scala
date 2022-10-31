@@ -16,11 +16,12 @@
 
 package io.glutenproject.sql.shims.spark32
 
-import io.glutenproject.sql.shims.{SparkShimLoader, SparkShims}
-import org.scalatest.FunSuite;
+import io.glutenproject.sql.shims.{SparkShimDescriptor, SparkShimLoader, SparkShims}
+import org.scalatest.funsuite.AnyFunSuite
 
-class Spark32ShimsSuite extends FunSuite {
-  val descriptor = SparkShimProvider.DESCRIPTOR
+
+class Spark32ShimsSuite extends AnyFunSuite {
+  val descriptor: SparkShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   test("Spark shims descriptor") {
     val sparkShims: SparkShims = new SparkShimProvider().createShim

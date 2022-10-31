@@ -499,6 +499,7 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <version>${scalatest-maven-plugin.version}</version>
                 <configuration>
                     <junitxml>.</junitxml>
                 </configuration>
@@ -515,6 +516,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven.jar.plugin}</version>
                 <executions>
                     <execution>
                         <id>prepare-test-jar</id>

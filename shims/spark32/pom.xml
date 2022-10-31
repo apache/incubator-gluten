@@ -51,13 +51,6 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-catalyst_2.12</artifactId>
-      <version>${spark32.version}</version>
-      <scope>provided</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.12</artifactId>
       <version>${spark32.version}</version>
       <scope>provided</scope>
@@ -69,10 +62,58 @@
       <version>${hadoop.version}</version>
       <scope>provided</scope>
     </dependency>
+
+    <!--test-->
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_${scala.binary.version}</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_${scala.binary.version}</artifactId>
+      <version>${spark32.version}</version>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.binary.version}</artifactId>
+      <version>${spark32.version}</version>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+      <version>${spark32.version}</version>
+      <type>test-jar</type>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <!--
+     This plugin forces the generation of jar containing catalyst test classes,
+     so that the tests classes of external modules can use them. The two execution profiles
+     are necessary - first one for 'mvn package', second one for 'mvn test-compile'. Ideally,
+     'mvn compile' should not compile test classes and therefore should not need this.
+     However, a closed due to "Cannot Reproduce" Maven bug (https://issues.apache.org/jira/browse/MNG-3559)
+     causes the compilation to fail if catalyst test-jar is not generated. Hence, the
+     second execution profile for 'mvn test-compile'.
+     -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>${maven.jar.plugin}</version>
+        <executions>
+          <execution>
+            <id>prepare-test-jar</id>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
