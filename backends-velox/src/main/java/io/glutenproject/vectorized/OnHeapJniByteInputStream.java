@@ -33,11 +33,13 @@ public class OnHeapJniByteInputStream implements JniByteInputStream {
     int maxSize32 = Math.toIntExact(maxSize);
     byte[] tmp = new byte[maxSize32];
     try {
-      int read = in.read(tmp); // this conducts copy as long as 'in' wraps off-heap data, which is about to be moved to heap
+      // The code conducts copy as long as 'in' wraps off-heap data,
+      // which is about to be moved to heap
+      int read = in.read(tmp);
       if (read == -1 || read == 0) {
         return 0;
       }
-      memCopyFromHeap(tmp, destAddress, read); // this conducts copy, from heap to off-heap
+      memCopyFromHeap(tmp, destAddress, read); // The code conducts copy, from heap to off-heap
       bytesRead += read;
       return read;
     } catch (IOException e) {
