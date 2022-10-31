@@ -45,6 +45,7 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #include "velox/core/Expressions.h"
 #include "velox/core/ITypedExpr.h"
 #include "velox/core/PlanNode.h"

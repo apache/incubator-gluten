@@ -75,10 +75,14 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 void VeloxInitializer::Init() {
   // Setup and register.
   filesystems::registerLocalFileSystem();
-  filesystems::registerHdfsFileSystem();
+
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
 
+std::unordered_map<std::string, std::string> configurationValues;
+
+#ifdef VELOX_ENABLE_HDFS
+  filesystems::registerHdfsFileSystem();
   // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
   // LIBHDFS3_CONF
   std::string hdfsUri = "localhost:9000";
@@ -88,8 +92,24 @@ void VeloxInitializer::Init() {
   }
   auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
   auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
-  static const std::unordered_map<std::string, std::string> configurationValues(
+  static const std::unordered_map<std::string, std::string> hdfsConfig(
       {{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
+  configurationValues.merge(hdfsConfig);
+#endif
+
+#ifdef VELOX_ENABLE_S3
+  filesystems::registerS3FileSystem();
+  // TODO(yuan): should passing thru config?
+  std::unordered_map<std::string, std::string> S3Config({
+      {"hive.s3.aws-access-key", "minio"},
+      {"hive.s3.aws-secret-key", "miniopass"},
+      {"hive.s3.endpoint", "127.0.0.1:9000"},
+      {"hive.s3.ssl.enabled", "false"},
+      {"hive.s3.path-style-access", "true"},
+  });
+  configurationValues.merge(S3Config);
+#endif
+
   auto properties =
       std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector =

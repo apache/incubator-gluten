@@ -86,6 +86,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
   add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
+  add_velox_dependency(connector::hive::s3fs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a")
 
   add_velox_dependency(dwio::dwrf::writer "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
   add_velox_dependency(dwio::dwrf::reader "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
@@ -147,6 +148,13 @@ macro(find_libhdfs3)
   endif()
 endmacro()
 
+macro(find_awssdk)
+  // set(CMAKE_PREFIX_PATH "/opt/install/")
+  set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
+endmacro()
+
+
 # Build Velox backend.
 set(VELOX_SRCS
     jni/jni_wrapper.cc
@@ -185,6 +193,9 @@ find_libhdfs3()
 add_library(libhdfs3 SHARED IMPORTED)
 set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
 target_link_libraries(velox PUBLIC libhdfs3)
+
+find_awssdk()
+target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
