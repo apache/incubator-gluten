@@ -142,7 +142,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected def compareResultsAgainstVanillaSpark(
       sqlStr: String,
       compareResult: Boolean = true,
-      customCheck: DataFrame => Unit): Seq[Row] = {
+      customCheck: DataFrame => Unit): DataFrame = {
     var expected: Seq[Row] = null;
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
@@ -151,16 +151,17 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     }
     val df = spark.sql(sqlStr)
     df.show(false)
+    df.explain()
     if (compareResult) {
       checkAnswer(df, expected)
     }
     customCheck(df)
-    df.collect()
+    df
   }
 
   protected def runQueryAndCompare(
       sqlStr: String,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Seq[Row] = {
+      compareResult: Boolean = true)(customCheck: DataFrame => Unit): DataFrame = {
     compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck)
   }
 
