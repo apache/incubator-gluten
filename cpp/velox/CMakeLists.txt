@@ -194,8 +194,6 @@ add_library(libhdfs3 SHARED IMPORTED)
 set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
 target_link_libraries(velox PUBLIC libhdfs3)
 
-find_awssdk()
-target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
@@ -204,3 +202,6 @@ endif()
 if(BUILD_TESTS)
   add_test_case(shuffle_test SOURCES tests/shuffle_split_test.cc)
 endif()
+
+find_awssdk()
+target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
