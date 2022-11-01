@@ -79,7 +79,7 @@ void VeloxInitializer::Init() {
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
 
-std::unordered_map<std::string, std::string> configurationValues;
+  std::unordered_map<std::string, std::string> configurationValues;
 
 #ifdef VELOX_ENABLE_HDFS
   filesystems::registerHdfsFileSystem();
@@ -100,10 +100,25 @@ std::unordered_map<std::string, std::string> configurationValues;
 #ifdef VELOX_ENABLE_S3
   filesystems::registerS3FileSystem();
   // TODO(yuan): should passing thru config?
+  std::string awsAccessKey = "minio";
+  std::string awsSecretKey = "miniopass";
+  std::string awsEndpoint = "localhost:9000";
+  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
+  if (envAwsAccessKey != nullptr) {
+    awsAccessKey = std::string(envAwsAccessKey);
+  }
+  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
+  if (envAwsSecretKey != nullptr) {
+    awsSecretKey = std::string(envAwsSecretKey);
+  }
+  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
+  if (envAwsEndpoint != nullptr) {
+    awsEndpoint = std::string(envAwsEndpoint);
+  }
   std::unordered_map<std::string, std::string> S3Config({
-      {"hive.s3.aws-access-key", "minio"},
-      {"hive.s3.aws-secret-key", "miniopass"},
-      {"hive.s3.endpoint", "127.0.0.1:9000"},
+      {"hive.s3.aws-access-key", awsAccessKey},
+      {"hive.s3.aws-secret-key", awsSecretKey},
+      {"hive.s3.endpoint", awsEndpoint},
       {"hive.s3.ssl.enabled", "false"},
       {"hive.s3.path-style-access", "true"},
   });
