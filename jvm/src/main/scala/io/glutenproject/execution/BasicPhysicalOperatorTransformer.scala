@@ -242,7 +242,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     }
 
     val operatorId = context.nextOperatorId
-    if (condition == null) {
+    if (condition == null && childCtx != null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
