@@ -42,7 +42,19 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
   if (type_name == "VARCHAR") {
     return arrow::utf8();
   }
-  throw std::runtime_error("Type name is not supported");
+  // The type name of Array type is like ARRAY<type>.
+  std::string arrayType = "ARRAY";
+  if (type_name.substr(0, arrayType.length()) == arrayType) {
+    std::size_t start = type_name.find_first_of("<");
+    std::size_t end = type_name.find_last_of(">");
+    if (start == std::string::npos || end == std::string::npos) {
+      throw std::runtime_error("Invalid array type.");
+    }
+    // Extract the inner type of array type.
+    std::string innerType = type_name.substr(start + 1, end - start - 1);
+    return arrow::list(toArrowTypeFromName(innerType));
+  }
+  throw std::runtime_error("Type name is not supported: " + type_name + ".");
 }
 
 std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
