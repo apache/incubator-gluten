@@ -241,7 +241,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
           replaceWithTransformerPlan(plan.child, isSupportAdaptive))
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
-        logDebug("Not support plan is " + p.toString())
         val children = plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive))
         p.withNewChildren(children)
     }
