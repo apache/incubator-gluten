@@ -18,12 +18,9 @@
 package io.glutenproject.execution
 
 import java.util
-
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
@@ -34,7 +31,6 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
-
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -44,6 +40,7 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 
 abstract class FilterExecBaseTransformer(condition: Expression,
                                          child: SparkPlan) extends UnaryExecNode
@@ -245,7 +242,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     }
 
     val operatorId = context.nextOperatorId
-    if (condition == null) {
+    if (condition == null && childCtx != null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
@@ -397,8 +394,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         null
     }
     val operatorId = context.nextOperatorId
-    if (projectList == null || projectList.isEmpty) {
+    if ((projectList == null || projectList.isEmpty) && childCtx != null) {
       // The computing for this project is not needed.
+      // the child may be an input adapter and childCtx is null. In this case we want to
+      // make a read node with non-empty base_schema.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
