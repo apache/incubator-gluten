@@ -498,7 +498,6 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
       throw new IllegalArgumentException(s"Empty children")
     }
     val retRDD = children.map {
-      case c: TransformSupport => c.columnarInputRDDs
       case c => Seq(c.executeColumnar())
     }.reduce {
       (a, b) => a ++ b
