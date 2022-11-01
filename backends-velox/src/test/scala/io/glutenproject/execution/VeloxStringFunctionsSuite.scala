@@ -30,7 +30,6 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
-
   }
 
   override protected def sparkConf: SparkConf = {
@@ -45,8 +44,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   }
 
   def checkLengthAndPlan(df: DataFrame) {
-    assert(df.collect().length == 5)
-    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+    this.checkLengthAndPlan(df, 5)
   }
 
   test("ascii") {

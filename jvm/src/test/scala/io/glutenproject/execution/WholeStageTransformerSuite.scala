@@ -135,6 +135,12 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     result
   }
 
+  def checkLengthAndPlan(df: DataFrame, len: Int = 100) {
+    assert(df.collect().length == len)
+    assert(df.queryExecution.executedPlan
+      .find(_.isInstanceOf[TransformSupport]).isDefined)
+  }
+
   /**
    * run a query with native engine as well as vanilla spark
    * then compare the result set for correctness check
