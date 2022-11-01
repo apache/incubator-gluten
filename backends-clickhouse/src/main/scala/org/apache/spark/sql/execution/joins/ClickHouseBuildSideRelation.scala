@@ -65,13 +65,13 @@ case class ClickHouseBuildSideRelation(
     val allBatches = batches.flatten
     // native block reader
     val input = new ByteArrayInputStream(allBatches)
-    val block_reader = new CHStreamReader(input, false)
+    val blockReader = new CHStreamReader(input, false)
     val broadCastIter = new Iterator[ColumnarBatch] {
       private var current: CHNativeBlock = _
 
       override def hasNext: Boolean = {
         if (current == null) {
-          current = block_reader.next()
+          current = blockReader.next()
         }
         current.numRows() > 0
       }
@@ -121,7 +121,7 @@ case class ClickHouseBuildSideRelation(
         }
       }.toArray
     } finally {
-      block_reader.close()
+      blockReader.close()
       expressionEval.close()
     }
   }
