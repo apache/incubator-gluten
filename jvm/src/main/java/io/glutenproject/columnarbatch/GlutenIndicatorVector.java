@@ -19,7 +19,6 @@ package io.glutenproject.columnarbatch;
 
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
@@ -28,18 +27,12 @@ import org.apache.spark.unsafe.types.UTF8String;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class GlutenIndicatorVector extends ColumnVector {
-  private final StructType schema;
   private final long nativeHandle;
   private final AtomicLong refCnt = new AtomicLong(1L);
 
-  protected GlutenIndicatorVector(StructType schema, long nativeHandle) {
+  protected GlutenIndicatorVector(long nativeHandle) {
     super(DataTypes.NullType);
-    this.schema = schema;
     this.nativeHandle = nativeHandle;
-  }
-
-  public StructType getSchema() {
-    return schema;
   }
 
   public long getNativeHandle() {

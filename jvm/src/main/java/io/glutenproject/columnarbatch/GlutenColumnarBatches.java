@@ -17,7 +17,6 @@
 
 package io.glutenproject.columnarbatch;
 
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -27,8 +26,8 @@ public final class GlutenColumnarBatches {
 
   }
 
-  public static ColumnarBatch create(StructType schema, long nativeHandle) {
-    final GlutenIndicatorVector iv = new GlutenIndicatorVector(schema, nativeHandle);
+  public static ColumnarBatch create(long nativeHandle) {
+    final GlutenIndicatorVector iv = new GlutenIndicatorVector(nativeHandle);
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
     if (numColumns == 0) {

@@ -51,10 +51,13 @@ trait IIteratorApi extends IBackendsApi {
    * @return
    */
   def genCoalesceIterator(iter: Iterator[ColumnarBatch],
-                          recordsPerBatch: Int, numOutputRows: SQLMetric,
-                          numInputBatches: SQLMetric, numOutputBatches: SQLMetric,
-                          collectTime: SQLMetric, concatTime: SQLMetric,
-                          avgCoalescedNumRows: SQLMetric): Iterator[ColumnarBatch]
+                          recordsPerBatch: Int,
+                          numOutputRows: SQLMetric = null,
+                          numInputBatches: SQLMetric = null,
+                          numOutputBatches: SQLMetric = null,
+                          collectTime: SQLMetric = null,
+                          concatTime: SQLMetric = null,
+                          avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch]
 
   /**
    * Generate closeable ColumnBatch iterator.
