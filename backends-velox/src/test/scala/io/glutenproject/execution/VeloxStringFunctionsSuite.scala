@@ -55,70 +55,54 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
 
     runQueryAndCompare("select l_orderkey, ascii(null) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
   }
 
   test("concat") {
     runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello', 'world') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
   }
 
   test("instr") {
     runQueryAndCompare("select l_orderkey, instr(l_comment, 'h') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, instr(l_comment, null) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, instr(null, 'h') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
   }
 
   test("length") {
     runQueryAndCompare("select l_orderkey, length(l_comment) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, length(null) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
   }
 
   test("lower") {
     runQueryAndCompare("select l_orderkey, lower(l_comment) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, lower(null) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
   }
 
   test("upper") {
     runQueryAndCompare("select l_orderkey, upper(l_comment) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, upper(null) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
   }
 
   test("like") {
     runQueryAndCompare("select l_orderkey, like(l_comment, '%a%') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, l_comment " +
       "from lineitem where l_comment like '%a%' limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
       "from lineitem where l_comment like ''  limit 5") { _ => }
     runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
@@ -128,13 +112,10 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   test("rlike") {
     runQueryAndCompare("select l_orderkey, l_comment, rlike(l_comment, 'a*') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, rlike(l_comment, ' ') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, rlike(null, '%a%') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, l_comment " +
       "from lineitem where l_comment rlike '%a%' limit 5") { _ => }
     runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
@@ -155,13 +136,10 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       "from lineitem limit 5") { checkLengthAndPlan }
     runQueryAndCompare("select l_orderkey, replace(l_comment, 'ha') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', null) " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
     runQueryAndCompare("select l_orderkey, replace(l_comment, null, 'hello') " +
       "from lineitem limit 5") { checkLengthAndPlan }
-    
   }
 
   test("split") {
