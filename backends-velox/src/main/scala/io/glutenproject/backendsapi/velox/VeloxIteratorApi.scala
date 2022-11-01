@@ -99,23 +99,26 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    */
   override def genCoalesceIterator(iter: Iterator[ColumnarBatch],
                                    recordsPerBatch: Int,
-                                   numOutputRows: SQLMetric,
-                                   numInputBatches: SQLMetric,
-                                   numOutputBatches: SQLMetric,
-                                   collectTime: SQLMetric,
-                                   concatTime: SQLMetric,
-                                   avgCoalescedNumRows: SQLMetric): Iterator[ColumnarBatch] = {
+                                   numOutputRows: SQLMetric = null,
+                                   numInputBatches: SQLMetric = null,
+                                   numOutputBatches: SQLMetric = null,
+                                   collectTime: SQLMetric = null,
+                                   concatTime: SQLMetric = null,
+                                   avgCoalescedNumRows: SQLMetric = null)
+    : Iterator[ColumnarBatch] = {
     import io.glutenproject.utils.VeloxImplicitClass._
 
     val beforeInput = System.nanoTime
     val hasInput = iter.hasNext
-    collectTime += System.nanoTime - beforeInput
+    if (collectTime != null) {
+      collectTime += System.nanoTime - beforeInput
+    }
     val res = if (hasInput) {
       new Iterator[ColumnarBatch] {
         var numBatchesTotal: Long = _
         var numRowsTotal: Long = _
         TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
-          if (numBatchesTotal > 0) {
+          if (avgCoalescedNumRows!= null && numBatchesTotal > 0) {
             avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
         }
@@ -123,7 +126,9 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
         override def hasNext: Boolean = {
           val beforeNext = System.nanoTime
           val hasNext = iter.hasNext
-          collectTime += System.nanoTime - beforeNext
+          if (collectTime != null) {
+            collectTime += System.nanoTime - beforeNext
+          }
           hasNext
         }
 
@@ -143,7 +148,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           }
 
           // chendi: We need make sure target FieldTypes are exactly the same as src
-          val expected_output_arrow_fields = if (batchesToAppend.size > 0) {
+          val expectedOutputArrowFields = if (batchesToAppend.size > 0) {
             (0 until batchesToAppend(0).numCols).map(i => {
               ArrowColumnarBatches
                 .ensureLoaded(
@@ -157,7 +162,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           }
 
           val resultStructType =
-            ArrowUtils.fromArrowSchema(new Schema(expected_output_arrow_fields.asJava))
+            ArrowUtils.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
           val beforeConcat = System.nanoTime
           val resultColumnVectors =
             ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType).toArray
@@ -166,11 +171,18 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           coalesce(target, batchesToAppend.toList)
           target.setNumRows(rowCount)
 
-          concatTime += System.nanoTime - beforeConcat
-          numOutputRows += rowCount
-          numInputBatches += batchesToAppend.length
-          numOutputBatches += 1
-
+          if (concatTime != null) {
+            concatTime += System.nanoTime - beforeConcat
+          }
+          if (numOutputRows != null) {
+            numOutputRows += rowCount
+          }
+          if (numInputBatches != null) {
+            numInputBatches += batchesToAppend.length
+          }
+          if (numOutputBatches != null) {
+            numOutputBatches += 1
+          }
           // used for calculating avgCoalescedNumRows
           numRowsTotal += rowCount
           numBatchesTotal += 1

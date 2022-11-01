@@ -294,23 +294,22 @@ class CheckOverflowTransformer(child: Expression, original: CheckOverflow)
   }
 }
 
-class CastTransformer(
-                       child: Expression,
-                       datatype: DataType,
-                       timeZoneId: Option[String],
-                       original: Expression)
+class CastTransformer(child: Expression,
+                      datatype: DataType,
+                      timeZoneId: Option[String],
+                      original: Expression)
   extends Cast(child: Expression, datatype: DataType, timeZoneId: Option[String])
     with ExpressionTransformer
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val child_node = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!child_node.isInstanceOf[ExpressionNode]) {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
     val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, child_node.asInstanceOf[ExpressionNode])
+    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
   }
 }
 

@@ -423,8 +423,11 @@ bool ParseProtobuf(
     const uint8_t* buf,
     int bufLen,
     google::protobuf::Message* msg) {
-  google::protobuf::io::ArrayInputStream buf_stream{buf, bufLen};
-  return msg->ParseFromZeroCopyStream(&buf_stream);
+  google::protobuf::io::CodedInputStream coded_stream{buf, bufLen};
+  // The default recursion limit is 100 which is too smaller for a deep
+  // Substrait plan.
+  coded_stream.SetRecursionLimit(100000);
+  return msg->ParseFromCodedStream(&coded_stream);
 }
 
 inline google::protobuf::util::TypeResolver* GetGeneratedTypeResolver() {
