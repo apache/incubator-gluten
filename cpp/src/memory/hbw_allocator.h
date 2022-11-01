@@ -15,18 +15,37 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils.velox
+#pragma once
 
-import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.catalyst.expressions._
+#include "allocator.h"
 
-object VeloxNotSupport extends NotSupport {
+namespace gluten {
+namespace memory {
 
-  override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
+class HbwMemoryAllocator : public MemoryAllocator {
+ public:
+  bool Allocate(int64_t size, void** out) override;
 
-  override lazy val fullSupportSuiteList: Set[String] = Set(
-    simpleClassName[LiteralExpressionSuite],
-    simpleClassName[IntervalExpressionsSuite],
-    simpleClassName[DecimalExpressionSuite]
-  )
-}
+  bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
+
+  bool AllocateAligned(uint16_t alignment, int64_t size, void** out) override;
+
+  bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
+
+  bool ReallocateAligned(
+      void* p,
+      uint16_t alignment,
+      int64_t size,
+      int64_t new_size,
+      void** out) override;
+
+  bool Free(void* p, int64_t size) override;
+
+  int64_t GetBytes() override;
+
+ private:
+  std::atomic_int64_t bytes_{0};
+};
+
+} // namespace memory
+} // namespace gluten
