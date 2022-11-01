@@ -67,6 +67,7 @@ If running in Spark Yarn cluster mode, the env variable need to be set on each e
 ```
 --conf spark.executorEnv.VELOX_HDFS="sr595:9000"
 ```
+Note by default libhdfs3 does not set the default hdfs domain socket path for HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/tools/build_velox.sh)
 
 ## Yarn Cluster mode
 

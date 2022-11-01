@@ -26,8 +26,8 @@ class TestOperator extends WholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = "/tpch-data-orc-velox"
-  override protected val fileFormat: String = "orc"
+  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -65,8 +65,9 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("test_where") {
-    val result = runQueryAndCompare("select * from lineitem where l_shipdate < 8500") { _ => }
-    assert(result.length == 10057)
+    val result = runQueryAndCompare(
+      "select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
+    assert(result.length == 59288)
   }
 
   test("test_is_null") {
@@ -226,6 +227,66 @@ class TestOperator extends WholeStageTransformerSuite {
     TestUtils.compareAnswers(result, expected)
     df.show()
     df.explain(false)
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test ceil function") {
+    val df = spark.sql("SELECT ceil(cast(l_orderkey as long)) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test floor function") {
+    val df = spark.sql("SELECT floor(cast(l_orderkey as long)) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test Exp function") {
+    val df = spark.sql("SELECT exp(l_orderkey) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(2.718281828459045))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test Power function") {
+    val df = spark.sql("SELECT power(l_orderkey, 2.0) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
+    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+  }
+
+  test("Test Pmod function") {
+    val df = spark.sql("SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1")
+    val result = df.collect()
+    assert(result.length == 1)
+    val expected = Seq(Row(1))
+    TestUtils.compareAnswers(result, expected)
+    df.show()
+    df.explain(false)
+    df.printSchema()
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 

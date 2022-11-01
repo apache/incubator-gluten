@@ -157,7 +157,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
                                           right: SparkPlan,
                                           isNullAwareAntiJoin: Boolean = false)
   : BroadcastHashJoinExecTransformer = CHBroadcastHashJoinExecTransformer(
-    leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+    leftKeys, rightKeys, joinType, buildSide, condition, left, right, isNullAwareAntiJoin)
 
   /**
    * Generate Alias transformer.

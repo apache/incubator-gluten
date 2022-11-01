@@ -356,6 +356,11 @@ object ConverterUtils extends Logging {
 
   // SparkSQL Math fucctions of Velox
   final val ABS = "abs"
+  final val CEIL = "ceil"
+  final val FLOOR = "floor"
+  final val EXP = "exp"
+  final val POWER = "power"
+  final val PMOD = "pmod"
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"

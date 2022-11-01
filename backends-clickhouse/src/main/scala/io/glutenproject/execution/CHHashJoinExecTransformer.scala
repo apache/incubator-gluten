@@ -44,9 +44,9 @@ case class CHBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
                                               condition: Option[Expression],
                                               left: SparkPlan,
                                               right: SparkPlan,
-                                              isNullAwareAntiJoin: Boolean = false)
+                                              isNullAwareAntiJoin: Boolean)
   extends BroadcastHashJoinExecTransformer(
-    leftKeys, rightKeys, joinType, buildSide, condition, left, right) {
+    leftKeys, rightKeys, joinType, buildSide, condition, left, right, isNullAwareAntiJoin) {
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan, newRight: SparkPlan): CHBroadcastHashJoinExecTransformer =

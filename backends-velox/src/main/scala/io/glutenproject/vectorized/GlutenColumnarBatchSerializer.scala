@@ -113,7 +113,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
             this.close()
             throw new EOFException
           }
-          GlutenColumnarBatches.create(schema, batchHandle)
+          GlutenColumnarBatches.create(batchHandle)
         }
         val numRows = batch.numRows()
         logDebug(s"Read ColumnarBatch of ${numRows} rows")
