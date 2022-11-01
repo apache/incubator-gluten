@@ -22,6 +22,7 @@ import scala.collection.JavaConverters._
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -468,7 +469,69 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
 }
+class UnionExecTransformerV2(children: Seq[SparkPlan])
+  extends UnionExec(children) {
+  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  override def supportsColumnar: Boolean = true
 
+  protected override def doExecute()
+  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
+  }
+
+  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val pipelineTime: SQLMetric = longMetric("pipelineTime")
+    val listJars = uploadAndListJars(signature)
+    val wholeStageContext = buildWholeStageTransformContext
+    val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
+      BackendsApiManager.getIteratorApiInstance
+        .genFinalStageIterator(
+          inputIterators,
+          numaBindingInfo,
+          listJars,
+          signature,
+          sparkConf,
+          wholeStageContext.outputAttributes,
+          wholeStageContext.root,
+          pipelineTime,
+          updateMetrics,
+          metricsUpdatingFunction,
+          buildRelationBatchHolder,
+          dependentKernels,
+          dependentKernelIterators)
+    }
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  def doTransform(context: SubstraitContext): TransformContext = {
+    val operatorId = context.nextOperatorId
+    val attrList = new util.ArrayList[Attribute]()
+    for (attr <- children(0).output)
+    {
+      attrList.add(attr)
+    }
+    // read from a batch iterator built from union rdds
+    val relNode = RelBuilder.makeReadRel(attrList, context, operatorId)
+    TransformContext(children(0).output, children(0).output, relNode)
+  }
+
+  def buildWholeStageTransformContext: WholestageTransformContext = {
+    val context = new SubstraitContext
+    val childContext = doTransform(context)
+    val outNames = new java.util.ArrayList[String]()
+    for (attr <- childContext.outputAttributes) {
+      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
+    }
+    val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(childContext.root), outNames)
+    WholestageTransformContext(
+      childContext.inputAttributes,
+      childContext.outputAttributes,
+      planNode,
+      context)
+  }
+
+
+}
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with TransformSupport {
   override def supportsColumnar: Boolean = true
 
