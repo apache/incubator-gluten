@@ -151,18 +151,8 @@ case class SortExecTransformer(
       colIdx += 1
       builder.setExpr(exprNode.toProtobuf)
 
-      (order.direction.sql, order.nullOrdering.sql) match {
-        case ("ASC", "NULLS FIRST") =>
-          builder.setDirectionValue(1);
-        case ("ASC", "NULLS LAST") =>
-          builder.setDirectionValue(2);
-        case ("DESC", "NULLS FIRST") =>
-          builder.setDirectionValue(3);
-        case ("DESC", "NULLS LAST") =>
-          builder.setDirectionValue(4);
-        case _ =>
-          builder.setDirectionValue(0);
-      }
+      builder.setDirectionValue(SortExecTransformer.transformSortDirection(order.direction.sql,
+        order.nullOrdering.sql))
       sortFieldList.add(builder.build())
     })
 
@@ -242,18 +232,8 @@ case class SortExecTransformer(
       val exprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
       builder.setExpr(exprNode.toProtobuf)
 
-      (order.direction.sql, order.nullOrdering.sql) match {
-        case ("ASC", "NULLS FIRST") =>
-          builder.setDirectionValue(1);
-        case ("ASC", "NULLS LAST") =>
-          builder.setDirectionValue(2);
-        case ("DESC", "NULLS FIRST") =>
-          builder.setDirectionValue(3);
-        case ("DESC", "NULLS LAST") =>
-          builder.setDirectionValue(4);
-        case _ =>
-          builder.setDirectionValue(0);
-      }
+      builder.setDirectionValue(SortExecTransformer.transformSortDirection(order.direction.sql,
+        order.nullOrdering.sql))
       sortFieldList.add(builder.build())
     })
     if (!validation) {
@@ -360,4 +340,16 @@ case class SortExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): SortExecTransformer =
     copy(child = newChild)
+}
+
+object SortExecTransformer {
+  def transformSortDirection(direction: String, nullOrdering: String): Int = {
+    (direction, nullOrdering) match {
+      case ("ASC", "NULLS FIRST") => 1
+      case ("ASC", "NULLS LAST") => 2
+      case ("DESC", "NULLS FIRST") => 3
+      case ("DESC", "NULLS LAST") => 4
+      case _ => 0
+    }
+  }
 }

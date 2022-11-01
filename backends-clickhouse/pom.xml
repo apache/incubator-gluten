@@ -179,6 +179,11 @@
             <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.typesafe.play</groupId>
+            <artifactId>play-json_2.12</artifactId>
+            <version>2.7.1</version>
+        </dependency>
     </dependencies>
 
     <build>

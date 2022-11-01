@@ -45,6 +45,9 @@ import org.apache.spark.util.MutablePair
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 
+import java.util
+import scala.collection.mutable
+
 object CHExecUtil {
 
   def inferSparkDataType(substraitType: Array[Byte]): DataType = {
@@ -130,18 +133,21 @@ object CHExecUtil {
         val rddForSampling = buildRangePartitionSampleRDD(rdd,
           RangePartitioning(sortingExpressions, numPartitions ),
           outputAttributes)
+
+        // we let spark compute the range bounds here, and then pass to CH.
         val orderingAttributes = sortingExpressions.zipWithIndex.map {
           case (ord, i) =>
             ord.copy(child = BoundReference(i, ord.dataType, ord.nullable))
         }
         implicit val ordering = new LazilyGeneratedOrdering(orderingAttributes)
         val generator = new RangePartitionerBoundsGenerator(
-          numPartitions, rddForSampling, orderingAttributes, true,
+          numPartitions, rddForSampling, sortingExpressions, true,
           samplePointsPerPartitionHint = 20)
-        val jsonBuffer = generator.getRangeBoundsJsonString()
-        // scalastyle:off println
-        println(jsonBuffer)
-        throw new IllegalStateException("invalid partitioning")
+        val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
+
+        new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes())
+      case p =>
+        throw new IllegalStateException(s"Unknow partition type: ${p.getClass.toString}")
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
@@ -263,8 +269,40 @@ object CHExecUtil {
                 }
                 new CloseablePartitionedBlockIterator(iter)
               },
-              isOrderSensitive = isOrderSensitive
-            )
+              isOrderSensitive = isOrderSensitive)
+          case RangePartitioning(exprs, n) =>
+            rdd.mapPartitionsWithIndexInternal(
+              (_, cbIter) => {
+                options.setPartitionNum(n)
+                options.setName("range")
+                val expr_str = new String(nativePartitioning.getExprList)
+                // scalastyle:off println
+                println(expr_str)
+                options.setExpr(expr_str)
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
+                  val splitIterator = new BlockSplitIterator(
+                    cbIter
+                      .map(
+                        cb =>
+                          CHNativeBlock
+                            .fromColumnarBatch(cb)
+                            .orElseThrow(() =>
+                              new IllegalStateException("unsupported columnar batch"))
+                            .blockAddress()
+                            .asInstanceOf[java.lang.Long])
+                      .asJava,
+                    options)
+
+                  override def hasNext: Boolean = splitIterator.hasNext
+
+                  override def next(): Product2[Int, ColumnarBatch] =
+                    (splitIterator.nextPartitionId(), splitIterator.next());
+
+                  override def close(): Unit = splitIterator.close()
+                }
+                new CloseablePartitionedBlockIterator(iter)
+              },
+              isOrderSensitive = isOrderSensitive)
           case _ =>
             throw new UnsupportedOperationException(s"Unsupport operators.")
         }
