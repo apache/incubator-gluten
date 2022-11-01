@@ -113,6 +113,10 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
     result = runQueryAndCompare("select l_orderkey, l_comment " +
       "from lineitem where l_comment like '%a%' limit 5") { _ => }
     assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
+      "from lineitem where l_comment like ''  limit 5") { _ => }
+    result = runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
+      "from lineitem where l_comment like '%$$$##@@#&&' limit 5") { _ => }
   }
 
   test("rlike") {
@@ -128,6 +132,10 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
     result = runQueryAndCompare("select l_orderkey, l_comment " +
       "from lineitem where l_comment rlike '%a%' limit 5") { _ => }
     assert(result.length == 5)
+    result = runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
+      "from lineitem where l_comment rlike ''  limit 5") { _ => }
+    result = runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
+      "from lineitem where l_comment rlike '%$$$##@@#&&' limit 5") { _ => }
   }
 
   test("regexp_extract") {
