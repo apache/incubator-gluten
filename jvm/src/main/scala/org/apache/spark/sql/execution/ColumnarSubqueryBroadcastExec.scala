@@ -69,15 +69,16 @@ case class ColumnarSubqueryBroadcastExec(name: String,
       SQLExecution.withExecutionId(session, executionId) {
         val beforeCollect = System.nanoTime()
 
-        val exchangeChild = if (child.isInstanceOf[ReusedExchangeExec]) {
-          child.asInstanceOf[ReusedExchangeExec].child
-        } else {
-          child
+        val exchangeChild = child match {
+          case exec: ReusedExchangeExec =>
+            exec.child
+          case _ =>
+            child
         }
         val rows = if (exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
           exchangeChild.isInstanceOf[ColumnarBroadcastExchangeAdaptor] ||
           exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]) {
-          // transform broadcasted columnar value to Arrya[InternalRow] by key
+          // transform broadcasted columnar value to Array[InternalRow] by key
           exchangeChild.executeBroadcast[BuildSideRelation].value
             .transform(buildKeys(index)).distinct
         } else {

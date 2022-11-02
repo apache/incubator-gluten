@@ -217,17 +217,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
                           basicScanExecTransformers: mutable.ListBuffer[BasicScanExecTransformer]
                          ): Unit = {
       if (plan != null && plan.isInstanceOf[TransformSupport]) {
-        if (plan.isInstanceOf[BasicScanExecTransformer]) {
-          basicScanExecTransformers.append(plan.asInstanceOf[BasicScanExecTransformer])
+        plan match {
+          case transformer: BasicScanExecTransformer =>
+            basicScanExecTransformers.append(transformer)
+          case _ =>
         }
         // according to the substrait plan order
-        if (plan.isInstanceOf[HashJoinLikeExecTransformer]) {
-          val shj = plan.asInstanceOf[HashJoinLikeExecTransformer]
-          transformChildren(shj.streamedPlan, basicScanExecTransformers)
-          transformChildren(shj.buildPlan, basicScanExecTransformers)
-        } else {
-          plan.asInstanceOf[TransformSupport].children.foreach(transformChildren(_,
-            basicScanExecTransformers))
+        plan match {
+          case shj: HashJoinLikeExecTransformer =>
+            transformChildren(shj.streamedPlan, basicScanExecTransformers)
+            transformChildren(shj.buildPlan, basicScanExecTransformers)
+          case _ =>
+            plan.asInstanceOf[TransformSupport].children.foreach(transformChildren(_,
+              basicScanExecTransformers))
         }
       }
     }

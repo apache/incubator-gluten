@@ -20,11 +20,11 @@ package io.glutenproject.vectorized;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class JniByteInputStreamImpl implements JniByteInputStream {
+public class OnHeapJniByteInputStream implements JniByteInputStream {
   private final InputStream in;
   private long bytesRead = 0L;
 
-  public JniByteInputStreamImpl(InputStream in) {
+  public OnHeapJniByteInputStream(InputStream in) {
     this.in = in;
   }
 
@@ -33,8 +33,13 @@ public class JniByteInputStreamImpl implements JniByteInputStream {
     int maxSize32 = Math.toIntExact(maxSize);
     byte[] tmp = new byte[maxSize32];
     try {
+      // The code conducts copy as long as 'in' wraps off-heap data,
+      // which is about to be moved to heap
       int read = in.read(tmp);
-      memCopyFromHeap(tmp, destAddress, read); // this conducts copy
+      if (read == -1 || read == 0) {
+        return 0;
+      }
+      memCopyFromHeap(tmp, destAddress, read); // The code conducts copy, from heap to off-heap
       bytesRead += read;
       return read;
     } catch (IOException e) {

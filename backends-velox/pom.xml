@@ -22,6 +22,7 @@
         <velox.build_cpp>${build_cpp}</velox.build_cpp>
         <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
         <velox.cpp_benchmarks>${cpp_benchmarks}</velox.cpp_benchmarks>
+        <velox.enable_hbm>${enable_hbm}</velox.enable_hbm>
         <velox.build_arrow>OFF</velox.build_arrow>
         <velox.static_arrow>${static_arrow}</velox.static_arrow>
         <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
@@ -343,6 +344,7 @@
                                 <argument>${velox.debug_build}</argument>
                                 <argument>${velox.cpp_benchmarks}</argument>
                                 <argument>${velox.backend_type}</argument>
+                                <argument>${velox.enable_hbm}</argument>
                             </arguments>
                         </configuration>
                     </execution>

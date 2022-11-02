@@ -90,12 +90,12 @@ class CHIteratorApi extends IIteratorApi with Logging {
   override def genCoalesceIterator(
       iter: Iterator[ColumnarBatch],
       recordsPerBatch: Int,
-      numOutputRows: SQLMetric,
-      numInputBatches: SQLMetric,
-      numOutputBatches: SQLMetric,
-      collectTime: SQLMetric,
-      concatTime: SQLMetric,
-      avgCoalescedNumRows: SQLMetric): Iterator[ColumnarBatch] = {
+      numOutputRows: SQLMetric = null,
+      numInputBatches: SQLMetric = null,
+      numOutputBatches: SQLMetric = null,
+      collectTime: SQLMetric = null,
+      concatTime: SQLMetric = null,
+      avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch] = {
     val res = if (GlutenConfig.getConf.enableCoalesceBatches) {
       val operator = new CHCoalesceOperator(recordsPerBatch)
       new Iterator[ColumnarBatch] {

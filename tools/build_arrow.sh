@@ -211,7 +211,7 @@ if [ $BUILD_ARROW == "ON" ]; then
 
   echo "ARROW_PREFIX=${ARROW_PREFIX}"
   echo "ARROW_SOURCE_DIR=${ARROW_SOURCE_DIR}"
-  mkdir -p $ARROW_SOURCE_DIR
+
   mkdir -p $ARROW_ROOT
 
   if [ -d $ARROW_INSTALL_DIR ]; then

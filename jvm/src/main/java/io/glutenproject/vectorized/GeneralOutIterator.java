@@ -30,12 +30,10 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
   protected final long handle;
   protected final AtomicBoolean closed = new AtomicBoolean(false);
   protected final transient List<Attribute> outAttrs;
-  protected final transient StructType schema;
 
   public GeneralOutIterator(long handle, List<Attribute> outAttrs) {
     this.handle = handle;
     this.outAttrs = outAttrs;
-    this.schema = fromAttributes(outAttrs);
   }
 
   private static StructType fromAttributes(List<Attribute> attributes) {

@@ -26,6 +26,10 @@ import java.util.List;
 
 public class ArrowOutIterator extends GeneralOutIterator {
 
+  public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
+    super(instance_id, outAttrs);
+  }
+
   private native boolean nativeHasNext(long nativeHandle);
 
   private native long nativeNext(long nativeHandle);
@@ -35,10 +39,6 @@ public class ArrowOutIterator extends GeneralOutIterator {
   private native void nativeClose(long nativeHandle);
 
   private native Metrics nativeFetchMetrics(long nativeHandle);
-
-  public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
-    super(instance_id, outAttrs);
-  }
 
   @Override
   public boolean hasNextInternal() throws IOException {
@@ -51,7 +51,7 @@ public class ArrowOutIterator extends GeneralOutIterator {
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return GlutenColumnarBatches.create(schema, batchHandle);
+    return GlutenColumnarBatches.create(batchHandle);
   }
 
   @Override

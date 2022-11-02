@@ -38,6 +38,10 @@ option(DEBUG "Enable Debug Info" OFF)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
 option(BUILD_GAZELLE_CPP "Build the gazelle-cpp libraries" OFF)
+option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
+option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
+option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
+option(ENABLE_HBM "Enable HBM allocator" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 

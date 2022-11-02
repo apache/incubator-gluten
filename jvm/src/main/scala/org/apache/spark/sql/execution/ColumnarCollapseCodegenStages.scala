@@ -131,7 +131,7 @@ case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
    * BasicScanExecTransformer will not be included in WholeStageTransformerExec.
    */
   private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
-    case f: BasicScanExecTransformer if separateScanRDDForCH => true
+    case _: BasicScanExecTransformer if separateScanRDDForCH => true
     case _ => false
   }
 

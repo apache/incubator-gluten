@@ -197,7 +197,6 @@ class JavaArrowArrayIterator {
   virtual ~JavaArrowArrayIterator() {
     JNIEnv* env;
     AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    ReleaseUnclosed();
     env->DeleteGlobalRef(java_serialized_arrow_array_iterator_);
     vm_->DetachCurrentThread();
   }
@@ -210,7 +209,6 @@ class JavaArrowArrayIterator {
               << reinterpret_cast<long>(java_serialized_arrow_array_iterator_)
               << "..." << std::endl;
 #endif
-    ReleaseUnclosed();
     if (!env->CallBooleanMethod(
             java_serialized_arrow_array_iterator_,
             serialized_arrow_array_iterator_hasNext)) {
@@ -219,34 +217,17 @@ class JavaArrowArrayIterator {
     }
 
     CheckException(env);
-    std::unique_ptr<ArrowSchema> c_schema = std::make_unique<ArrowSchema>();
-    std::unique_ptr<ArrowArray> c_array = std::make_unique<ArrowArray>();
-    env->CallObjectMethod(
+    jlong handle = env->CallLongMethod(
         java_serialized_arrow_array_iterator_,
-        serialized_arrow_array_iterator_next,
-        reinterpret_cast<jlong>(c_array.get()),
-        reinterpret_cast<jlong>(c_schema.get()));
+        serialized_arrow_array_iterator_next);
     CheckException(env);
-    auto output =
-        std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
-            std::move(c_schema), std::move(c_array));
-    unclosed = output;
+    auto output = gluten_columnarbatch_holder_.Lookup(handle);
     return output;
   }
 
  private:
   JavaVM* vm_;
   jobject java_serialized_arrow_array_iterator_;
-  std::shared_ptr<gluten::memory::GlutenArrowCStructColumnarBatch> unclosed =
-      nullptr;
-
-  void ReleaseUnclosed() {
-    if (unclosed != nullptr) {
-      ArrowSchemaRelease(unclosed->exportArrowSchema().get());
-      ArrowArrayRelease(unclosed->exportArrowArray().get());
-      unclosed = nullptr;
-    }
-  }
 };
 
 // See Java class
@@ -338,7 +319,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   serialized_arrow_array_iterator_hasNext = GetMethodIDOrError(
       env, serialized_arrow_array_iterator_class, "hasNext", "()Z");
   serialized_arrow_array_iterator_next = GetMethodIDOrError(
-      env, serialized_arrow_array_iterator_class, "next", "(JJ)V");
+      env, serialized_arrow_array_iterator_class, "next", "()J");
 
   native_columnar_to_row_info_class = CreateGlobalClassReferenceOrError(
       env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
@@ -974,7 +955,22 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_close(
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_JniByteInputStreamImpl_memCopyFromHeap(
+Java_io_glutenproject_vectorized_LowCopyNettyJniByteInputStream_memCopy(
+    JNIEnv* env,
+    jobject,
+    jlong srcAddress,
+    jlong destAddress,
+    jlong size) {
+  JNI_METHOD_START
+  std::memcpy(
+      reinterpret_cast<void*>(destAddress),
+      reinterpret_cast<void*>(srcAddress),
+      size);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL
+Java_io_glutenproject_vectorized_OnHeapJniByteInputStream_memCopyFromHeap(
     JNIEnv* env,
     jobject,
     jbyteArray source,
