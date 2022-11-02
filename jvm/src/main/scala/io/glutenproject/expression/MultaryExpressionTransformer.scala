@@ -50,27 +50,3 @@ class Murmur3HashTransformer(exps: Seq[Expression], original: Expression)
   }
 }
 
-class LeastTransformer(exps: Seq[Expression], original: Expression)
-  extends Least(exps: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val nodes = new java.util.ArrayList[ExpressionNode]()
-    val arrayBuffer = new ArrayBuffer[DataType]()
-    exps.foreach(expression => {
-      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!expressionNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"Not supported yet.")
-      }
-      arrayBuffer.append(expression.dataType)
-      nodes.add(expressionNode)
-    })
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.LEAST,
-      arrayBuffer, FunctionConfig.OPT)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
-  }
-}
