@@ -17,16 +17,14 @@
 
 package io.glutenproject.benchmarks
 
-import java.io.File
-
-import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
-
 import io.glutenproject.GlutenConfig
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+
+import java.io.File
+import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
 
 // scalastyle:off
 object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
@@ -36,14 +34,14 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
     // val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
     //   "cmake-build-release/utils/local-engine/libch.so"
     val libPath = "/usr/local/clickhouse/lib/libch.so"
-    val thrdCnt = 12
-    val shufflePartitions = 12
+    val thrdCnt = 8
+    val shufflePartitions = 8
     val shuffleManager = "sort"
     // val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
     val ioCompressionCodec = "SNAPPY"
     val columnarColumnToRow = "true"
     val useV2 = "false"
-    val separateScanRDD = "true"
+    val separateScanRDD = "false"
     val coalesceBatches = "true"
     val broadcastThreshold = "10MB" // 100KB  10KB
     val adaptiveEnabled = "true"
@@ -295,7 +293,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     println(tookTimeArr.mkString(","))
 
-    if (executedCnt >= 10) {
+    if (executedCnt >= 30) {
       import spark.implicits._
       val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
       df.summary().show(100, false)
