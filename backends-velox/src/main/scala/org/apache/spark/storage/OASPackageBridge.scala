@@ -15,25 +15,12 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package org.apache.spark.storage
 
-/**
- * For being called from C++ code only.
- */
-public interface JniByteInputStream {
-  /**
-   * Read fixed size of data into an address.
-   * @return the read bytes; 0 if end of stream.
-   */
-  long read(long destAddress, long maxSize);
+import java.io.InputStream
 
-  /**
-   * Position of this stream.
-   */
-  long tell();
-
-  /**
-   * Close and reclaim the resources.
-   */
-  void close();
+object OASPackageBridge {
+  def unwrapBufferReleasingInputStream(in: BufferReleasingInputStream): InputStream = {
+    in.delegate
+  }
 }
