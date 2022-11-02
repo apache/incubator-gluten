@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
 
 class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
 
@@ -29,7 +30,6 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
-
   }
 
   override protected def sparkConf: SparkConf = {
@@ -43,82 +43,107 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
   }
 
+  def checkLengthAndPlan(df: DataFrame) {
+    this.checkLengthAndPlan(df, 5)
+  }
+
   test("ascii") {
-    var result = runQueryAndCompare("select l_orderkey, ascii(l_comment) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, ascii(null) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    runQueryAndCompare("select l_orderkey, ascii(l_comment) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+
+    runQueryAndCompare("select l_orderkey, ascii(null) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
   }
 
   test("concat") {
-    var result = runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello') " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello', 'world') " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, concat(l_comment, 'hello', 'world') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
   }
 
   test("instr") {
-    var result = runQueryAndCompare("select l_orderkey, instr(l_comment, 'h') " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, instr(l_comment, null) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, instr(null, 'h') " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    runQueryAndCompare("select l_orderkey, instr(l_comment, 'h') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, instr(l_comment, null) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, instr(null, 'h') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
   }
 
   test("length") {
-    var result = runQueryAndCompare("select l_orderkey, length(l_comment) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, length(null) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    runQueryAndCompare("select l_orderkey, length(l_comment) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, length(null) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
   }
 
   test("lower") {
-    var result = runQueryAndCompare("select l_orderkey, lower(l_comment) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, lower(null) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    runQueryAndCompare("select l_orderkey, lower(l_comment) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, lower(null) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
   }
 
   test("upper") {
-    var result = runQueryAndCompare("select l_orderkey, upper(l_comment) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, upper(null) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    runQueryAndCompare("select l_orderkey, upper(l_comment) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, upper(null) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+  }
+
+  test("like") {
+    runQueryAndCompare("select l_orderkey, like(l_comment, '%a%') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, l_comment " +
+      "from lineitem where l_comment like '%a%' limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
+      "from lineitem where l_comment like ''  limit 5") { _ => }
+    runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
+      "from lineitem where l_comment like '%$$$##@@#&&' limit 5") { _ => }
+  }
+
+  test("rlike") {
+    runQueryAndCompare("select l_orderkey, l_comment, rlike(l_comment, 'a*') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, rlike(l_comment, ' ') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, rlike(null, '%a%') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, l_comment " +
+      "from lineitem where l_comment rlike '%a%' limit 5") { _ => }
+    runQueryAndCompare("select l_orderkey, like(l_comment, ' ') " +
+      "from lineitem where l_comment rlike ''  limit 5") { _ => }
+    runQueryAndCompare("select l_orderkey, like(null, '%a%') " +
+      "from lineitem where l_comment rlike '%$$$##@@#&&' limit 5") { _ => }
+  }
+
+  test("regexp_extract") {
+    runQueryAndCompare("select l_orderkey, regexp_extract(l_comment, '([a-z])', 1) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, regexp_extract(null, '([a-z])', 1) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
   }
 
   test("replace") {
-    var result = runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', 'hello') " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, replace(l_comment, 'ha') " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', null) " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
-    result = runQueryAndCompare("select l_orderkey, replace(l_comment, null, 'hello') " +
-      "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', 'hello') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, replace(l_comment, 'ha') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, replace(l_comment, ' ', null) " +
+      "from lineitem limit 5") { checkLengthAndPlan }
+    runQueryAndCompare("select l_orderkey, replace(l_comment, null, 'hello') " +
+      "from lineitem limit 5") { checkLengthAndPlan }
   }
 
   test("split") {
-    val result = runQueryAndCompare("select l_orderkey, split(l_comment, 'h', 3) " +
+    val df = runQueryAndCompare("select l_orderkey, split(l_comment, 'h', 3) " +
       "from lineitem limit 5") { _ => }
-    assert(result.length == 5)
+    assert(df.collect().length == 5)
   }
 
 }

@@ -51,8 +51,8 @@ object TransformHints {
 
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
     if (isAlreadyTagged(plan)) {
-      throw new IllegalStateException("Transform hint tag already set as "
-        + getHint(plan) + " in plan: " + plan.toString())
+      untag(plan)
+      plan.setTagValue(TAG, hint)
     }
     plan.setTagValue(TAG, hint)
   }
@@ -126,12 +126,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     }
     try {
       plan match {
-        /* case plan: ArrowEvalPythonExec =>
-          if (!enableColumnarArrowUDF) return false
-          val transformer = ArrowEvalPythonExecTransformer(
-            plan.udfs, plan.resultAttrs, plan.child, plan.evalType)
-          if (!transformer.doValidate()) return false
-          transformer */
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) {
             TransformHints.tagNotTransformable(plan)
@@ -310,9 +304,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
 
   implicit class EncodeTransformableTagImplicits(transformable: Boolean) {
     def toTransformHint: TransformHint = {
-      transformable match {
-        case true => TRANSFORM_SUPPORTED
-        case false => TRANSFORM_UNSUPPORTED
+      if (transformable) {
+        TRANSFORM_SUPPORTED
+      } else {
+        TRANSFORM_UNSUPPORTED
       }
     }
   }

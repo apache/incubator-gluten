@@ -35,7 +35,7 @@ import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -111,6 +111,9 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config("spark.sql.warehouse.dir", warehouse)
+        // Avoid static evaluation for literal input by spark catalyst.
+        .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
+            NullPropagation.ruleName)
 
       _spark = if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
         GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
@@ -153,6 +156,10 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     glutenCheckExpression(expr, catalystValue, inputRow)
   }
 
+  def checkDataTypeSupported(expr: Expression): Boolean = {
+    GlutenTestConstants.SUPPORTED_DATA_TYPE.contains(expr.dataType)
+  }
+
   def glutenCheckExpression(expression: Expression,
                             expected: Any,
                             inputRow: InternalRow): Unit = {
@@ -166,13 +173,20 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     }
     val resultDF = df.select(Column(expression))
     val result = resultDF.collect()
-    resultDF.explain(false)
-    if (GlutenTestConstants.SUPPORTED_DATA_TYPE.contains(expression.dataType)) {
+    if (checkDataTypeSupported(expression) &&
+        !expression.children.map(checkDataTypeSupported).exists(_ == false)) {
       val projectTransformer = resultDF.queryExecution.executedPlan.collect {
         case p: ProjectExecTransformer => p
       }
-      assert(projectTransformer.size == 1)
+      if (projectTransformer.size == 1) {
+        print("Offload to native backend in the test.\n")
+      } else {
+        print("Not supported in native backend, fall back to vanilla spark in the test.\n")
+      }
+    } else {
+      print("Has unsupported data type, fall back to vanilla spark.\n")
     }
+    resultDF.explain(false)
     checkResult(result, expected, expression)
   }
 

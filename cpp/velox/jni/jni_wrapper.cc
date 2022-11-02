@@ -128,7 +128,6 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
   std::unique_ptr<core::ExecCtx> execCtx_ =
       std::make_unique<core::ExecCtx>(pool.get(), queryCtx_.get());
 
-  velox::compute::registerAllFunctions();
   auto planValidator = std::make_shared<
       facebook::velox::substrait::SubstraitToVeloxPlanValidator>(
       pool.get(), execCtx_.get());
