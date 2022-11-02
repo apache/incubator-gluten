@@ -16,6 +16,8 @@
  */
 
 #include "allocator.h"
+#include <iostream>
+#include "hbw_allocator.h"
 
 bool gluten::memory::ListenableMemoryAllocator::Allocate(
     int64_t size,
@@ -216,7 +218,12 @@ std::string gluten::memory::WrappedArrowMemoryPool::backend_name() const {
 
 std::shared_ptr<gluten::memory::MemoryAllocator>
 gluten::memory::DefaultMemoryAllocator() {
+#if defined(GLUTEN_ENABLE_HBM)
+  static std::shared_ptr<MemoryAllocator> alloc =
+      std::make_shared<HbwMemoryAllocator>();
+#else
   static std::shared_ptr<MemoryAllocator> alloc =
       std::make_shared<StdMemoryAllocator>();
+#endif
   return alloc;
 }

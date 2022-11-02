@@ -44,4 +44,5 @@ trait ITransformerApi extends IBackendsApi {
    */
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
+
 }

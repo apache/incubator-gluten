@@ -140,7 +140,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
     right: SparkPlan,
     isNullAwareAntiJoin: Boolean = false)
   : BroadcastHashJoinExecTransformer = VeloxBroadcastHashJoinExecTransformer(
-    leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+    leftKeys, rightKeys, joinType, buildSide, condition, left, right, isNullAwareAntiJoin)
 
   /**
    * Generate Alias transformer.

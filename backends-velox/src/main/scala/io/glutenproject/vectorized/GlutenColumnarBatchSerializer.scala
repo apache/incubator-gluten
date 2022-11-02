@@ -66,7 +66,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
           SparkSchemaUtils.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.make(
-          new JniByteInputStreamImpl(in), cSchema.memoryAddress())
+          JniByteInputStreams.create(in), cSchema.memoryAddress())
         cSchema.close()
         handle
       }
@@ -113,7 +113,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
             this.close()
             throw new EOFException
           }
-          GlutenColumnarBatches.create(schema, batchHandle)
+          GlutenColumnarBatches.create(batchHandle)
         }
         val numRows = batch.numRows()
         logDebug(s"Read ColumnarBatch of ${numRows} rows")

@@ -19,9 +19,7 @@ package io.glutenproject.expression
 
 import java.io._
 import java.nio.channels.Channels
-
 import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -39,7 +37,6 @@ import org.apache.arrow.vector.ipc.message._
 import org.apache.arrow.vector.types.TimeUnit
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.DateTimeConstants
@@ -111,9 +108,8 @@ object ArrowConverterUtils extends Logging {
     SparkVectorUtils.toArrowRecordBatch(numRowsInBatch, cols)
   }
 
-  def convertFromNetty(
-                        attributes: Seq[Attribute],
-                        input: InputStream): Iterator[ColumnarBatch] = {
+  def convertFromNetty(attributes: Seq[Attribute],
+                       input: InputStream): Iterator[ColumnarBatch] = {
     new Iterator[ColumnarBatch] {
       val allocator = ArrowBufferAllocators.contextInstance()
       var messageReader =
@@ -178,11 +174,10 @@ object ArrowConverterUtils extends Logging {
     }
   }
 
-  def convertFromNetty(
-                        attributes: Seq[Attribute],
-                        data: Array[Array[Byte]],
-                        columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
-    if (data.size == 0) {
+  def convertFromNetty(attributes: Seq[Attribute],
+                       data: Array[Array[Byte]],
+                       columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
+    if (data.length == 0) {
       return new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = false
 
@@ -212,16 +207,16 @@ object ArrowConverterUtils extends Logging {
       var result: MessageResult = null
 
       override def hasNext: Boolean =
-        if (array_id < (data.size - 1) || input.available > 0) {
-          return true
+        if (array_id < (data.length - 1) || input.available > 0) {
+          true
         } else {
-          messageReader.close
-          return false
+          messageReader.close()
+          false
         }
 
       override def next(): ColumnarBatch = {
         if (input.available == 0) {
-          messageReader.close
+          messageReader.close()
           array_id += 1
           input = new ByteArrayInputStream(data(array_id))
           messageReader =
@@ -242,35 +237,34 @@ object ArrowConverterUtils extends Logging {
               throw new IOException("Unexpected end of input. Missing schema.");
             }
 
-            if (result.getMessage().headerType() != MessageHeader.Schema) {
+            if (result.getMessage.headerType() != MessageHeader.Schema) {
               throw new IOException(
-                "Expected schema but header was " + result.getMessage().headerType());
+                "Expected schema but header was " + result.getMessage.headerType());
             }
 
-            schema = MessageSerializer.deserializeSchema(result.getMessage());
-
+            schema = MessageSerializer.deserializeSchema(result.getMessage)
           }
 
           result = messageReader.readNext();
-          if (result.getMessage().headerType() == MessageHeader.Schema) {
+          if (result.getMessage.headerType() == MessageHeader.Schema) {
             result = messageReader.readNext();
           }
 
-          if (result.getMessage().headerType() != MessageHeader.RecordBatch) {
+          if (result.getMessage.headerType() != MessageHeader.RecordBatch) {
             throw new IOException(
-              "Expected recordbatch but header was " + result.getMessage().headerType());
+              "Expected recordbatch but header was " + result.getMessage.headerType());
           }
-          var bodyBuffer = result.getBodyBuffer();
+          var bodyBuffer = result.getBodyBuffer
 
           // For zero-length batches, need an empty buffer to deserialize the batch
           if (bodyBuffer == null) {
-            bodyBuffer = allocator.getEmpty();
+            bodyBuffer = allocator.getEmpty
           }
 
-          val batch = MessageSerializer.deserializeRecordBatch(result.getMessage(), bodyBuffer);
+          val batch = MessageSerializer.deserializeRecordBatch(result.getMessage, bodyBuffer);
           val vectors = fromArrowRecordBatch(schema, batch, allocator)
           val length = batch.getLength
-          batch.close
+          batch.close()
           if (columnIndices == null) {
             new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), length)
           } else {
@@ -281,7 +275,7 @@ object ArrowConverterUtils extends Logging {
 
         } catch {
           case e: Throwable =>
-            messageReader.close
+            messageReader.close()
             throw e
         }
       }
@@ -495,12 +489,18 @@ object ArrowConverterUtils extends Logging {
     val fields = new java.util.ArrayList[Field](batch.numCols)
     for (i <- 0 until batch.numCols) {
       val col: ColumnVector = batch.column(i)
-      fields.add(col.asInstanceOf[ArrowWritableColumnVector].getValueVector.getField)
+      fields.add(col match {
+        case vector: ArrowWritableColumnVector =>
+          vector.getValueVector.getField
+        case _ =>
+          throw new UnsupportedOperationException(
+            s"Unexpected vector type: ${col.getClass.toString}")
+      })
     }
     new Schema(fields)
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     s"ArrowConverterUtils"
   }
 }
