@@ -43,7 +43,7 @@ INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 set(JEMALLOC_BUILD_VERSION "5.2.1")
 
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
-set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../jvm/src/main/resources/substrait/proto)
+set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../gluten-core/src/main/resources/substrait/proto)
 set(substrait_proto_directory ${proto_directory}/substrait)
 message(STATUS "Set Proto Directory in ${proto_directory}")
 

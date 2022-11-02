@@ -96,13 +96,13 @@
         </dependency>
         <dependency>
             <groupId>io.glutenproject</groupId>
-            <artifactId>gluten-jvm</artifactId>
+            <artifactId>gluten-core</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.glutenproject</groupId>
-            <artifactId>gluten-jvm</artifactId>
+            <artifactId>gluten-core</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

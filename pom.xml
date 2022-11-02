@@ -30,8 +30,9 @@
   </licenses>
 
   <modules>
-    <module>jvm</module>
     <module>shims</module>
+    <module>gluten-core</module>
+    <module>gluten-data</module>
   </modules>
 
   <properties>
