@@ -77,7 +77,7 @@ Feel free to submit any bugs, issues or enhancement requirements to github issue
 
 ## Documentation
 
-Unfortunately we haven't create the orginazed documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs) Ping us if you would like to know more details about the Gluten design. Gluten is still in developping now, some designs may change. Feel free to talk with us if you have better design.
+Unfortunately we haven't create the orginazed documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still in developping now, some designs may change. Feel free to talk with us if you have better design.
 
 # Performance
 
