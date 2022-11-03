@@ -79,6 +79,7 @@
     <spark32bundle.version>3.2</spark32bundle.version>
     <spark33bundle.version>3.3</spark33bundle.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
+    <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
   </properties>
 
   <profiles>
