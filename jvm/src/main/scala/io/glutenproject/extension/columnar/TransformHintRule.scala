@@ -107,6 +107,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     addTransformableTags(plan)
   }
 
+  private def checkIfStorageSupported(location: String): Boolean = {
+    // TODO(yuan): move this list to config
+    location.contains("hdfs:/") || location.contains("file:/")
+  }
+
   /**
    * Inserts a transformable tag on top of those that are not supported.
    */
@@ -127,7 +132,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     try {
       plan match {
         case plan: BatchScanExec =>
-          if (!enableColumnarBatchScan) {
+          if (!enableColumnarBatchScan || !(checkIfStorageSupported(plan.scan.description()))) {
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = new BatchScanExecTransformer(plan.output, plan.scan,
@@ -135,7 +140,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: FileSourceScanExec =>
-          if (!enableColumnarFileScan) {
+          if (!enableColumnarFileScan ||
+            !(checkIfStorageSupported(plan.verboseStringWithOperatorId()))) {
             TransformHints.tagNotTransformable(plan)
           } else {
             val transformer = new FileSourceScanExecTransformer(plan.relation,
