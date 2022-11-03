@@ -22,11 +22,22 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.types._
 
-import io.substrait.`type`.{NamedStruct, Type}
+import io.substrait.`type`.{NamedStruct, Type, TypeVisitor}
+import io.substrait.function.TypeExpression
 
 import scala.collection.JavaConverters
 
+private class ToSparkDataTpe
+  extends TypeVisitor.TypeThrowsVisitor[DataType, RuntimeException]("Unknown expression type.") {
+
+  override def visit(`type`: Type.I64): DataType = LongType
+
+}
 class TypeConverter extends Logging {
+
+  def convert(typeExpression: TypeExpression): DataType = {
+    typeExpression.accept(new ToSparkDataTpe)
+  }
 
   def convert(dataType: DataType, nullable: Boolean): Option[Type] = {
     convert(dataType, Seq.empty, nullable)

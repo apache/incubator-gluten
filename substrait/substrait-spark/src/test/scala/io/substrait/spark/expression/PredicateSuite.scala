@@ -14,22 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.substrait.spark
+package io.substrait.spark.expression
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{And, Literal}
 
-import io.substrait.expression.{Expression => SExpression}
+class PredicateSuite extends SparkFunSuite with SubstraitExpressionTestBase {
 
-class ArithmeticExpressionSuite extends SparkFunSuite {
-
-  test("+ (Add)") {
-    val e = Add(Literal(1L), Literal(2L))
-    val pexp = ExpressionConverter.defaultConverter
-      .convert(e)
-      .map(_.asInstanceOf[SExpression.ScalarFunctionInvocation])
-    assert(pexp.isDefined)
-    assertResult(Some("add:opt_i64_i64"))(pexp.map(_.declaration().key()))
-
+  test("And") {
+    runTest("and:bool", And(Literal(true), Literal(false)))
   }
 }

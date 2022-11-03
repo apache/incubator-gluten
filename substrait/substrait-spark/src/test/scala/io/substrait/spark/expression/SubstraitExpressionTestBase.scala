@@ -14,21 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.substrait.spark
+package io.substrait.spark.expression
 
-import org.apache.spark.sql.TPCHBase
+import io.substrait.spark.ExpressionConverter
 
-class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
+import org.apache.spark.sql.catalyst.expressions.Expression
 
-  test("scan") {
-//    val queryString = resourceToString(s"tpch/${tpchQueries(5)}.sql",
-//      classLoader = Thread.currentThread().getContextClassLoader)
-//    logInfo(queryString)
-    assertSqlSubstraitRelRoundTrip("select * from lineitem")
-  }
+import io.substrait.expression.{Expression => SExpression}
+import org.scalatest.Assertions.assertResult
 
-  test("simpleTest") {
-    val query = "select p_size  from part where p_partkey > cast(100 as bigint)"
-    assertSqlSubstraitRelRoundTrip(query)
+trait SubstraitExpressionTestBase {
+
+  protected def runTest(expectedName: String, expression: Expression): Unit = {
+    val substraitExp = ExpressionConverter
+      .defaultConverter(expression)
+      .asInstanceOf[SExpression.ScalarFunctionInvocation]
+    assertResult(expectedName)(substraitExp.declaration().key())
   }
 }

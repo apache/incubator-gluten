@@ -14,21 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.substrait.spark
+package io.substrait.spark.expression
 
-import org.apache.spark.sql.TPCHBase
+import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.LongType
 
-class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
+class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTestBase {
 
-  test("scan") {
-//    val queryString = resourceToString(s"tpch/${tpchQueries(5)}.sql",
-//      classLoader = Thread.currentThread().getContextClassLoader)
-//    logInfo(queryString)
-    assertSqlSubstraitRelRoundTrip("select * from lineitem")
-  }
-
-  test("simpleTest") {
-    val query = "select p_size  from part where p_partkey > cast(100 as bigint)"
-    assertSqlSubstraitRelRoundTrip(query)
+  test("+ (Add)") {
+    runTest("add:opt_i64_i64", Add(Literal(1), Literal(2L)))
+    runTest("add:opt_i64_i64", Add(Cast(Literal(1), LongType), Literal(2L)))
   }
 }

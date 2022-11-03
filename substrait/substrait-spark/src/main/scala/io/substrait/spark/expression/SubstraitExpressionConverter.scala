@@ -17,7 +17,8 @@
 package io.substrait.spark.expression
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
+import org.apache.spark.substrait.TypeConverter
 
 import io.substrait.`type`.{StringTypeVisitor, Type}
 import io.substrait.{expression => exp}
@@ -37,6 +38,10 @@ class SubstraitExpressionConverter(
     throw new UnsupportedOperationException(
       s"Expression $expr of type ${expr.getClass.getCanonicalName} " +
         s"not handled by visitor type ${getClass.getCanonicalName}.")
+
+  override def visit(expr: SExpression.I64Literal): Expression = {
+    Literal(expr.value(), TypeConverter.convert(expr.getType))
+  }
 
   override def visit(expr: exp.FieldReference): Expression = {
     if (expr.isSimpleRootReference) {
