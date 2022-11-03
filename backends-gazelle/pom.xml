@@ -44,7 +44,7 @@
     <dependencies>
         <dependency>
             <groupId>io.glutenproject</groupId>
-            <artifactId>backends-velox</artifactId>
+            <artifactId>gluten-data</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
