@@ -5,7 +5,9 @@
 
 Apache Spark is a stable, mature project that has been under development for many years. The project has proven to be one of the best frameworks to scale out of processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that required various optimizations over time. A key optimization introduced in Spark 2.0 replaced Volcano mode with whole-stage code-generation to achieve a 2x speedup. Since then most of the optimization works at the query plan level. The operator's performance stopped to grow.
 
-![image](https://user-images.githubusercontent.com/47296334/199614366-6209ed91-8955-4c7a-8829-e80ccdfaded9.png)
+<p align="center">
+<img src="https://user-images.githubusercontent.com/47296334/199614366-6209ed91-8955-4c7a-8829-e80ccdfaded9.png" width="800">
+</p>
 
 On the other side, SQL engine is researched for years. There are product or libraries like Clickhouse, Arrow or Velox. By using features like native implementation, columnar data format as well as vectorized data processing, these libraries outperform much of Spark's JVM based SQL eingine. However these libraries are running on single node.
 
@@ -25,9 +27,9 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 ## Architecture
 
 The overview chart is like below. Spark physical plan is transformed to substrait plan. Substrait is to create a well defined cross-language specification for data compute operations. More details can be found from https://substrait.io/. Then substrait plan is passed to native through JNI call. In native the operator chain should be built and start to run. We use Spark3.0's columnar API as the data interface, so the native library should return Columnar Batch to Spark. We may need to wrap the columnar batch for each native backend. Gazelle engine's c++ code use Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
-
-![image](https://user-images.githubusercontent.com/47296334/199617207-1140698a-4d53-462d-9bc7-303d14be060b.png)
-
+<p align="center">
+<img src="https://user-images.githubusercontent.com/47296334/199617207-1140698a-4d53-462d-9bc7-303d14be060b.png" width="800">
+</p>
 There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. We also implemented a basic backend using Arrow Computer Engine which is for reference only. Gluten can also be easily extended to any accelerator libraries as backend.
 
 There are several key component in GLuten:
