@@ -76,6 +76,16 @@ Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its 
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
 
+## Coverage
+
+Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 53 functions.
+
+Here is the operator support list:
+
+![image](https://user-images.githubusercontent.com/47296334/199826049-2ed7235a-f461-499d-917c-a83452b326c7.png)
+
+Union operator is implemented in JVM, needn't to offload to native.
+
 ## Test TPC-H on Gluten with Velox backend
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
