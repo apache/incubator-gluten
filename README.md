@@ -6,7 +6,7 @@
 Apache Spark is a stable, mature project that has been under development for many years. The project has proven to be one of the best frameworks to scale out of processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that required various optimizations over time. A key optimization introduced in Spark 2.0 replaced Volcano mode with whole-stage code-generation to achieve a 2x speedup. Since then most of the optimization works at the query plan level. The operator's performance stopped to grow.
 
 <p align="center">
-<img src="https://user-images.githubusercontent.com/47296334/199614366-6209ed91-8955-4c7a-8829-e80ccdfaded9.png" width="800">
+<img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="800">
 </p>
 
 On the other side, SQL engine is researched for years. There are product or libraries like Clickhouse, Arrow or Velox. By using features like native implementation, columnar data format as well as vectorized data processing, these libraries outperform much of Spark's JVM based SQL eingine. However these libraries are running on single node.
@@ -32,18 +32,17 @@ The overview chart is like below. Spark physical plan is transformed to substrai
 </p>
 There are several native libraries we may offload. Currently we are working on Clickhouse and Velox as native backend. Velox is a C++ database acceleration library which provides reusable, extensible, and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. We also implemented a basic backend using Arrow Computer Engine which is for reference only. Gluten can also be easily extended to any accelerator libraries as backend.
 
-There are several key component in GLuten:
+There are several key component in Gluten:
 * Query plan conversion which convert Spark's physical plan into substrait plan in each stage.
 * Unified memory management in Spark is used to control the native memory allocation as well
 * Columnar shuffle is used to shuffle columnar data directly. The shuffle service still reuse the one in Spark core. The exchange operator is reimplemented to support columnar data format
 * For unsupported operators or functions Gluten fallback the operator to Vanilla Spark. There are C2R and R2C converter to convert the columnar data and Spark's internal row data. Both C2R and R2C are implemented natively as well
 * Metrics are very important to get insight of Spark's execution, identify the issues or bottlenecks. Gluten collects the metrics from native library and shows in Spark UI.
-* Shim layer is used to support mutiple releases of Spark. Gluten does not and will not support all the Spark releases. The plan is to support the latest 2-3 spark stable release only.
+* Shim layer is used to support mutiple releases of Spark. Gluten only plans to support the latest 2-3 spark stable releases, with no plans to add support on older spark releases. Current support is on Spark 3.2 and Spark 3.3.
 
 # Usage
 
-Gluten is still under actively developping now. There isn't released binary yet. The only way to use Gluten is to build from source.
-Gluten can support Spark3.2 and 3.3 now by shim layer.
+Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source.
 
 ## Build and Install Gluten with Velox backend
 
@@ -71,7 +70,7 @@ Gluten project welcomes everyone to contribute.
 
 ## Community
 
-Currently we communite with all developers and users in a wechat group(Chinese only), Spark channel in Velox Slack group. Contact us if you would like to join in.
+Currently we communicate with all developers and users in a wechat group(Chinese only), Spark channel in Velox Slack group. Contact us if you would like to join in.
 
 ## Bug Reports
 
@@ -79,7 +78,7 @@ Feel free to submit any bugs, issues or enhancement requirements to github issue
 
 ## Documentation
 
-Unfortunately we haven't create the orginazed documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still in developping now, some designs may change. Feel free to talk with us if you have better design.
+Unfortunately we haven't organized the documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under development now, and some designs may change. Feel free to talk with us and share other design and ideas.
 
 # Performance
 
