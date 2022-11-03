@@ -303,4 +303,42 @@ class TestOperator extends WholeStageTransformerSuite {
     df.count()
     df.explain(false)
   }
+
+  ignore("test_union_all two tables") {
+    val result = runSql(
+      """
+        |select count(orderkey) from (
+        | select l_orderkey as orderkey from lineitem
+        | union all
+        | select o_orderkey as orderkey from orders
+        |);
+        |""".stripMargin) { _ => }
+    assert(result(0).getLong(0) == 75175L)
+  }
+
+  ignore("test_union_all three tables") {
+    val result = runSql(
+      """
+        |select count(orderkey) from (
+        | select l_orderkey as orderkey from lineitem
+        | union all
+        | select o_orderkey as orderkey from orders
+        | union all
+        | (select o_orderkey as orderkey from orders limit 100)
+        |);
+        |""".stripMargin) { _ => }
+    assert(result(0).getLong(0) == 75275L)
+  }
+
+  ignore("test_union two tables") {
+    val result = runSql(
+      """
+        |select count(orderkey) from (
+        | select l_orderkey as orderkey from lineitem
+        | union
+        | select o_orderkey as orderkey from orders
+        |);
+        |""".stripMargin) { _ => }
+    assert(result(0).getLong(0) == 15000L)
+  }
 }

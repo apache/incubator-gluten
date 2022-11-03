@@ -41,6 +41,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       // Currently, it can not support to read multiple partitioned file in one task.
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.sql.files.openCostInBytes", "134217728")
+      .set("spark.gluten.sql.columnar.union", "true")
   }
 
   test("test 'select count(*)'") {
@@ -81,6 +82,48 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     val result = spark.sql(testSql).collect()
     assert(result(0).getDouble(0) == 8998.463336886734)
     assert(result(0).getDouble(1) == 80037.12727449503)
+  }
+
+  test("test union all operator with two tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union all
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 791980)
+  }
+
+  test("test union all operator with three tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union all
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |  union all (
+        |   select ws_sold_date_sk as date_sk from web_sales limit 100
+        |  )
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 792080)
+  }
+
+  test("test union operator with two tables") {
+    val testSql =
+      """
+        |select count(date_sk) from (
+        |  select d_date_sk as date_sk from date_dim
+        |  union
+        |  select ws_sold_date_sk as date_sk from web_sales
+        |)
+        |""".stripMargin
+    val result = spark.sql(testSql).collect()
+    assert(result(0).getLong(0) == 73050)
   }
 
   test("TPCDS Q9") {
