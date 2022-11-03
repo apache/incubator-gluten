@@ -20,7 +20,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 import io.substrait.`type`.Type
-import io.substrait.expression.{AggregateFunctionInvocation, Expression => PExp, ExpressionCreator, FunctionArg}
+import io.substrait.expression.{AggregateFunctionInvocation, Expression => SExpression, ExpressionCreator, FunctionArg}
 import io.substrait.function.SimpleExtension
 import io.substrait.proto.AggregateFunction
 
@@ -49,22 +49,22 @@ class AggregateFunctionConverter(functions: Seq[SimpleExtension.AggregateFunctio
       function,
       outputType,
       to(sparkAggregate.mode),
-      Collections.emptyList[PExp.SortField](),
+      Collections.emptyList[SExpression.SortField](),
       invocation,
       JavaConverters.asJavaIterable(arguments))
   }
 
-  private def to(mode: AggregateMode): PExp.AggregationPhase = mode match {
-    case Partial => PExp.AggregationPhase.INITIAL_TO_INTERMEDIATE
-    case PartialMerge => PExp.AggregationPhase.INTERMEDIATE_TO_INTERMEDIATE
-    case Final => PExp.AggregationPhase.INTERMEDIATE_TO_RESULT
+  private def to(mode: AggregateMode): SExpression.AggregationPhase = mode match {
+    case Partial => SExpression.AggregationPhase.INITIAL_TO_INTERMEDIATE
+    case PartialMerge => SExpression.AggregationPhase.INTERMEDIATE_TO_INTERMEDIATE
+    case Final => SExpression.AggregationPhase.INTERMEDIATE_TO_RESULT
     case other => throw new UnsupportedOperationException(s"not currently supported: $other.")
   }
   override def getSigs: Seq[Sig] = FunctionMappings.AGGREGATE_SIGS
 
   def convert(
       expression: AggregateExpression,
-      operands: Seq[PExp]): Option[AggregateFunctionInvocation] = {
+      operands: Seq[SExpression]): Option[AggregateFunctionInvocation] = {
     Option(signatures.get(expression.aggregateFunction.getClass))
       .filter(m => m.allowedArgCount(2))
       .flatMap(m => m.attemptMatch(expression, operands))

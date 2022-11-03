@@ -16,17 +16,24 @@
  */
 package io.substrait.spark.expression
 
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 
 import scala.reflect.ClassTag
 
-case class Sig(expClass: Class[_], name: String)
+case class Sig(expClass: Class[_], name: String, builder: Seq[Expression] => Expression) {
+  def makeCall(args: Seq[Expression]): Expression =
+    builder(args)
+
+}
 
 class FunctionMappings {
 
-  private def s[T <: Expression: ClassTag](name: String): Sig =
-    Sig(scala.reflect.classTag[T].runtimeClass, name)
+  private def s[T <: Expression: ClassTag](name: String): Sig = {
+    val builder = FunctionRegistryBase.build[T](name, None)._2
+    Sig(scala.reflect.classTag[T].runtimeClass, name, builder)
+  }
 
   val SCALAR_SIGS: Seq[Sig] = Seq(
     s[Add]("add"),

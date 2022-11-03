@@ -35,8 +35,7 @@ class TypeConverter extends Logging {
   def convertWithThrow(dataType: DataType, nullable: Boolean): Type = {
     convert(dataType, Seq.empty, nullable)
       .getOrElse(
-        throw new UnsupportedOperationException(
-          String.format("Unable to convert the type %s", dataType.typeName)))
+        throw new UnsupportedOperationException(s"Unable to convert the type ${dataType.typeName}"))
   }
 
   protected def convert(dataType: DataType, names: Seq[String], nullable: Boolean): Option[Type] = {
@@ -77,6 +76,18 @@ class TypeConverter extends Logging {
       .seqToOption(output.map(a => convert(a.dataType, a.nullable)))
       .map(l => creator.struct(JavaConverters.asJavaIterable(l)))
       .map(NamedStruct.of(names, _))
+  }
+  def toNamedStruct(schema: StructType): NamedStruct = {
+    val creator = Type.withNullability(false)
+    val names = new java.util.ArrayList[String]
+    val children = new java.util.ArrayList[Type]
+    schema.fields.foreach(
+      field => {
+        names.add(field.name)
+        children.add(convertWithThrow(field.dataType, field.nullable))
+      })
+    val struct = creator.struct(children)
+    NamedStruct.of(names, struct)
   }
 }
 

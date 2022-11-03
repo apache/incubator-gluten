@@ -19,25 +19,27 @@ package io.substrait.spark.expression
 import io.substrait.spark.Util
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.SQLConfHelper
+import org.apache.spark.sql.catalyst.analysis.{AnsiTypeCoercion, TypeCoercion}
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{DataType, IntegerType}
 import org.apache.spark.substrait.TypeConverter
 
-import com.google.common.collect.ArrayListMultimap
+import com.google.common.collect.{ArrayListMultimap, Multimap}
 import io.substrait.`type`.Type
-import io.substrait.expression.{Expression => PExp, ExpressionCreator, FunctionArg}
+import io.substrait.expression.{Expression => SExpression, ExpressionCreator, FunctionArg}
 import io.substrait.function.{ParameterizedType, SimpleExtension, ToTypeString}
 
 import java.{util => ju}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 abstract class FunctionConverter[F <: SimpleExtension.Function, T](functions: Seq[F])
   extends Logging {
 
-  protected val signatures: ju.IdentityHashMap[Class[_], FunctionFinder[F, T]] = createSignatures(
-    functions)
+  protected val (signatures, substraitFuncKeyToSig) = init(functions)
 
   def generateBinding(
       sparkExp: Expression,
@@ -46,8 +48,8 @@ abstract class FunctionConverter[F <: SimpleExtension.Function, T](functions: Se
       outputType: Type): T
   def getSigs: Seq[Sig]
 
-  private def createSignatures(
-      functions: Seq[F]): ju.IdentityHashMap[Class[_], FunctionFinder[F, T]] = {
+  private def init(
+      functions: Seq[F]): (ju.Map[Class[_], FunctionFinder[F, T]], Multimap[String, Sig]) = {
     val alm = ArrayListMultimap.create[String, F]()
     functions.foreach(f => alm.put(f.name().toLowerCase(ju.Locale.ROOT), f))
 
@@ -76,9 +78,26 @@ abstract class FunctionConverter[F <: SimpleExtension.Function, T](functions: Se
                 })
           }
         })
-    matcherMap
+    val keyMap = ArrayListMultimap.create[String, Sig]
+
+    alm.entries.asScala.foreach(
+      entry =>
+        calciteOperators
+          .get(entry.getKey)
+          .asScala
+          .foreach(keyMap.put(entry.getValue.key(), _)))
+
+    (matcherMap, keyMap)
   }
 
+  def getSparkExpressionFromSubstraitFunc(key: String, outputType: Type): Option[Sig] = {
+    val sigs = substraitFuncKeyToSig.get(key)
+    sigs.size() match {
+      case 0 => None
+      case 1 => Some(sigs.iterator().next())
+      case _ => None
+    }
+  }
   private def createFinder(name: String, functions: Seq[F]): FunctionFinder[F, T] = {
     new FunctionFinder[F, T](
       name,
@@ -99,7 +118,27 @@ abstract class FunctionConverter[F <: SimpleExtension.Function, T](functions: Se
   }
 }
 
-object FunctionFinder {
+object FunctionFinder extends SQLConfHelper {
+
+  /**
+   * Returns the most general of a set of types (that is, one type to which they can all be cast),
+   * or [[None]] if conversion is not possible. The result may be a new type that is less
+   * restrictive than any of the input types, e.g. <code>leastRestrictive(INT, NUMERIC(3, 2))</code>
+   * could be {@code NUMERIC(12, 2)}.
+   *
+   * @param types
+   *   input types to be combined using union (not null, not empty)
+   * @return
+   *   canonical union type descriptor
+   */
+  def leastRestrictive(types: Seq[DataType]): Option[DataType] = {
+    val typeCoercion = if (conf.ansiEnabled) {
+      AnsiTypeCoercion
+    } else {
+      TypeCoercion
+    }
+    typeCoercion.findWiderCommonType(types)
+  }
 
   /**
    * If some of the function variants for this function name have single, repeated argument type, we
@@ -195,7 +234,7 @@ class FunctionFinder[F <: SimpleExtension.Function, T](
     val singularInputType: Option[SingularArgumentMatcher[F]],
     val parent: FunctionConverter[F, T]) {
 
-  def attemptMatch(expression: Expression, operands: Seq[PExp]): Option[T] = {
+  def attemptMatch(expression: Expression, operands: Seq[SExpression]): Option[T] = {
 
     val opTypes = operands.map(_.getType)
     val outputType = TypeConverter.convertWithThrow(expression.dataType, expression.nullable)
@@ -214,18 +253,25 @@ class FunctionFinder[F <: SimpleExtension.Function, T](
       val funcArgs: Seq[FunctionArg] = operands
       Option(parent.generateBinding(expression, variant, funcArgs, outputType))
     } else if (singularInputType.isDefined) {
-      val leastRestrictive = IntegerType
-      val leastRestrictiveSubstraitT =
-        TypeConverter.convertWithThrow(leastRestrictive, nullable = false)
-      singularInputType
-        .flatMap(f => f(leastRestrictiveSubstraitT, outputType))
-        .map(
-          declaration => {
-            val coercedArgs = coerceArguments(operands, leastRestrictiveSubstraitT)
-            declaration
-              .validateOutputType(JavaConverters.bufferAsJavaList(coercedArgs.toBuffer), outputType)
-            val funcArgs: Seq[FunctionArg] = coercedArgs
-            parent.generateBinding(expression, declaration, funcArgs, outputType)
+      val types = expression.children.map(_.dataType)
+      val nullable = expression.children.exists(e => e.nullable)
+      FunctionFinder
+        .leastRestrictive(types)
+        .flatMap(
+          leastRestrictive => {
+            val leastRestrictiveSubstraitT =
+              TypeConverter.convertWithThrow(leastRestrictive, nullable = nullable)
+            singularInputType
+              .flatMap(f => f(leastRestrictiveSubstraitT, outputType))
+              .map(
+                declaration => {
+                  val coercedArgs = coerceArguments(operands, leastRestrictiveSubstraitT)
+                  declaration.validateOutputType(
+                    JavaConverters.bufferAsJavaList(coercedArgs.toBuffer),
+                    outputType)
+                  val funcArgs: Seq[FunctionArg] = coercedArgs
+                  parent.generateBinding(expression, declaration, funcArgs, outputType)
+                })
           })
     } else {
       None
@@ -236,7 +282,7 @@ class FunctionFinder[F <: SimpleExtension.Function, T](
    * Coerced types according to an expected output type. Coercion is only done for type mismatches,
    * not for nullability or parameter mismatches.
    */
-  private def coerceArguments(arguments: Seq[PExp], t: Type): Seq[PExp] = {
+  private def coerceArguments(arguments: Seq[SExpression], t: Type): Seq[SExpression] = {
     arguments.map(
       a => {
         if (FunctionFinder.isMatch(t, a.getType)) {

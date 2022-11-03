@@ -21,22 +21,22 @@ import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.types._
 import org.apache.spark.substrait.TypeConverter
 
-import io.substrait.expression.{Expression => PExp}
+import io.substrait.expression.{Expression => SExpression}
 import io.substrait.expression.ExpressionCreator._
 
 class LiteralConverter extends Logging {
 
   object Nonnull {
-    val _bool: Boolean => PExp.Literal = bool(false, _)
-    val _i8: Byte => PExp.Literal = i8(false, _)
-    val _i16: Short => PExp.Literal = i16(false, _)
-    val _i32: Int => PExp.Literal = i32(false, _)
-    val _i64: Long => PExp.Literal = i64(false, _)
-    val _fp32: Float => PExp.Literal = fp32(false, _)
-    val _fp64: Double => PExp.Literal = fp64(false, _)
+    val _bool: Boolean => SExpression.Literal = bool(false, _)
+    val _i8: Byte => SExpression.Literal = i8(false, _)
+    val _i16: Short => SExpression.Literal = i16(false, _)
+    val _i32: Int => SExpression.Literal = i32(false, _)
+    val _i64: Long => SExpression.Literal = i64(false, _)
+    val _fp32: Float => SExpression.Literal = fp32(false, _)
+    val _fp64: Double => SExpression.Literal = fp64(false, _)
   }
 
-  private def convertWithValue(literal: Literal): Option[PExp.Literal] = {
+  private def convertWithValue(literal: Literal): Option[SExpression.Literal] = {
     Option.apply(
       literal match {
         case Literal(b: Boolean, BooleanType) => Nonnull._bool(b)
@@ -51,7 +51,7 @@ class LiteralConverter extends Logging {
     )
   }
 
-  def convert(literal: Literal): Option[PExp.Literal] = {
+  def convert(literal: Literal): Option[SExpression.Literal] = {
     if (literal.nullable) {
       TypeConverter
         .convert(literal.dataType, nullable = true)
@@ -59,6 +59,13 @@ class LiteralConverter extends Logging {
     } else {
       convertWithValue(literal)
     }
+  }
+
+  def convertWithThrow(literal: Literal): SExpression.Literal = {
+    convert(literal)
+      .getOrElse(
+        throw new UnsupportedOperationException(
+          s"Unable to convert the type ${literal.dataType.typeName}"))
   }
 }
 

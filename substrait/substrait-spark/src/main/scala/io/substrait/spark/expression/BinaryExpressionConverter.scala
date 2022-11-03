@@ -19,20 +19,20 @@ package io.substrait.spark.expression
 import org.apache.spark.sql.catalyst.expressions.Expression
 
 import io.substrait.`type`.Type
-import io.substrait.expression.{Expression => PExp, FunctionArg}
+import io.substrait.expression.{Expression => SExpression, FunctionArg}
 import io.substrait.function.SimpleExtension
 
 import scala.collection.JavaConverters
 
 class BinaryExpressionConverter(functions: Seq[SimpleExtension.ScalarFunctionVariant])
-  extends FunctionConverter[SimpleExtension.ScalarFunctionVariant, PExp](functions) {
+  extends FunctionConverter[SimpleExtension.ScalarFunctionVariant, SExpression](functions) {
 
   override def generateBinding(
       sparkExp: Expression,
       function: SimpleExtension.ScalarFunctionVariant,
       arguments: Seq[FunctionArg],
-      outputType: Type): PExp = {
-    PExp.ScalarFunctionInvocation
+      outputType: Type): SExpression = {
+    SExpression.ScalarFunctionInvocation
       .builder()
       .outputType(outputType)
       .declaration(function)
@@ -41,7 +41,7 @@ class BinaryExpressionConverter(functions: Seq[SimpleExtension.ScalarFunctionVar
   }
   override def getSigs: Seq[Sig] = FunctionMappings.SCALAR_SIGS
 
-  def convert(expression: Expression, operands: Seq[PExp]): Option[PExp] = {
+  def convert(expression: Expression, operands: Seq[SExpression]): Option[SExpression] = {
     Option(signatures.get(expression.getClass))
       .filter(m => m.allowedArgCount(2))
       .flatMap(m => m.attemptMatch(expression, operands))

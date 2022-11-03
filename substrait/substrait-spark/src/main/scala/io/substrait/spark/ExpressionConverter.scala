@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.substrait.TypeConverter
 
-import io.substrait.expression.{Expression => PExp, FieldReference}
+import io.substrait.expression.{Expression => SExpression, FieldReference}
 import io.substrait.function.SimpleExtension
 
 import scala.collection.JavaConverters
@@ -31,14 +31,14 @@ import scala.collection.JavaConverters
 abstract class ExpressionConverter {
   protected val binaryOperatorConverter: BinaryExpressionConverter
 
-  def apply(e: Expression, output: Seq[Attribute] = Seq.empty): PExp = {
+  def apply(e: Expression, output: Seq[Attribute] = Seq.empty): SExpression = {
     convert(e, output).getOrElse(
       throw new UnsupportedOperationException(s"Unable to convert the expression $e"))
   }
-  def convert(e: Expression, output: Seq[Attribute] = Seq.empty): Option[PExp] =
+  def convert(e: Expression, output: Seq[Attribute] = Nil): Option[SExpression] =
     generateExpression(e, output)
 
-  private def generateExpression(expr: Expression, output: Seq[Attribute]): Option[PExp] =
+  private def generateExpression(expr: Expression, output: Seq[Attribute]): Option[SExpression] =
     expr match {
       case a: AggregateExpression => None
       case l: Literal => LiteralConverter.convert(l)
