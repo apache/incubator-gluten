@@ -39,6 +39,23 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
+import io.glutenproject.GlutenConfig
+import io.glutenproject.GlutenSparkExtensionsInjector
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution._
+import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.extension.columnar.AddTransformHintRule
+import io.glutenproject.extension.columnar.TransformHints
+import io.glutenproject.extension.columnar.RemoveTransformHintRule
+import io.glutenproject.extension.columnar.TransformHint
+import io.glutenproject.extension.columnar.StoreExpandGroupExpression
+import io.glutenproject.sql.shims.SparkShimLoader
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.physical.RangePartitioning
+import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
+
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 // The plan with a row guard on the top of it will not be converted.
@@ -132,6 +149,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: ProjectExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        logDebug(s"xxxx ${plan.projectList}; ${plan.output}; ${plan.child.output}")
         ProjectExecTransformer(plan.projectList, columnarChild)
       case plan: FilterExec =>
         // Push down the left conditions in Filter into Scan.
@@ -173,7 +191,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: SortExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
+        // SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
+        transformSupportSortWithProjection(plan, isSupportAdaptive)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
@@ -292,6 +311,58 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)
         p.withNewChildren(children)
+    }
+  }
+
+  def transformSupportSortWithProjection(plan: SortExec, isSupportAdaptive: Boolean) : SparkPlan = {
+    logDebug(s"xxxx sort input atrtributes:${plan.child.output}")
+    val needProjection = SortExecTransformer.needProjection(plan.sortOrder)
+    if (!needProjection) {
+      val newChild = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+      SortExecTransformer(plan.sortOrder, plan.global, newChild, plan.testSpillFrequency)
+    }
+    else {
+      // A little more complicated transform.
+      // 1) we put a projection ahead of sort, add new columns for the sort orderings
+      // 2) update all related attributes with the new projection
+      // 3) append the sort operator
+      // 4) add a new projection to remove the columns introduced by sort orderings
+      val partitioning = plan.child.asInstanceOf[ShuffleExchangeExec]
+        .outputPartitioning.asInstanceOf[RangePartitioning]
+      val orderings = partitioning.ordering
+      val originalInputs = plan.child.output
+      val (projectAttrs, newOrderings) = SortExecTransformer
+        .buildProjectionAttributesByOrderings(orderings)
+      val sortChild = plan.child match {
+        case shuffle: ShuffleExchangeExec =>
+          shuffle.outputPartitioning match {
+            case RangePartitioning(_, n) =>
+              // If it is a range-partition sort, we put the projection ahead of
+              // range-partition shuffle
+              val child = ProjectExec(originalInputs ++ projectAttrs, shuffle.child)
+              TransformHints.tagNotTransformable(child)
+              logDebug(s"xxx projectNode1 ${child}; ${child.output}")
+              // the ordering in RangePartitioning should be the same as in
+              // the SortExec
+              val rangePartitioning = RangePartitioning(newOrderings, n)
+              val newShuffle = ShuffleExchangeExec(rangePartitioning,
+                child,
+                shuffle.shuffleOrigin)
+              TransformHints.tagNotTransformable(newShuffle)
+
+              replaceWithTransformerPlan(newShuffle, isSupportAdaptive)
+            case _ =>
+              replaceWithTransformerPlan(shuffle, isSupportAdaptive)
+          }
+        case c =>
+          replaceWithTransformerPlan(c, isSupportAdaptive)
+      }
+      logDebug(s"xxxx update sort child is:${sortChild}")
+      val newSort = SortExecTransformer(newOrderings, plan.global,
+        sortChild, plan.testSpillFrequency)
+      val ret = ProjectExecTransformer(originalInputs, newSort)
+      logDebug(s"final sort is : ${ret}")
+      ret
     }
   }
 

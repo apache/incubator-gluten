@@ -107,20 +107,6 @@ case class SortExecTransformer(
     numOutputRows += outNumRows
   }
 
-  protected def needsPreProjection(
-                                    sortOrders: Seq[SortOrder]): Boolean = {
-    var needsProjection = false
-    breakable {
-      for (sortOrder <- sortOrders) {
-        if (!sortOrder.child.isInstanceOf[Attribute]) {
-          needsProjection = true
-          break
-        }
-      }
-    }
-    needsProjection
-  }
-
   def getRelWithProject(context: SubstraitContext,
                         sortOrder: Seq[SortOrder],
                         originalInputAttributes: Seq[Attribute],
@@ -259,10 +245,11 @@ case class SortExecTransformer(
                  operatorId: Long,
                  input: RelNode,
                  validation: Boolean): RelNode = {
-    val needsProjection = needsPreProjection(sortOrder: Seq[SortOrder])
+    val needsProjection = SortExecTransformer.needProjection(sortOrder: Seq[SortOrder])
 
     if (needsProjection) {
-      getRelWithProject(context, sortOrder, originalInputAttributes, operatorId, input, validation)
+      getRelWithProject(context, sortOrder,
+        originalInputAttributes, operatorId, input, validation)
     } else {
       getRelWithoutProject(
         context, sortOrder, originalInputAttributes, operatorId, input, validation)
@@ -351,5 +338,38 @@ object SortExecTransformer {
       case ("DESC", "NULLS LAST") => 4
       case _ => 0
     }
+  }
+
+  def needProjection(sortOrders: Seq[SortOrder]): Boolean = {
+    var needsProjection = false
+    breakable {
+      for (sortOrder <- sortOrders) {
+        if (!sortOrder.child.isInstanceOf[Attribute]) {
+          needsProjection = true
+          break
+        }
+      }
+    }
+    needsProjection
+  }
+
+  def buildProjectionAttributesByOrderings(sortOrders: Seq[SortOrder]):
+    (Seq[NamedExpression], Seq[SortOrder]) = {
+    val projectionAttrs = new util.ArrayList[NamedExpression]()
+    val newSortOrders = new util.ArrayList[SortOrder]()
+    // projectionAttrs.addAll(inputAttributes.asJava)
+    var aliasNo = 0
+    sortOrders.foreach(
+      order => {
+        if (!order.child.isInstanceOf[Attribute]) {
+          val alias = new Alias(order.child, s"sort_col_${aliasNo}")()
+          aliasNo += 1
+          projectionAttrs.add(alias)
+          newSortOrders.add(SortOrder(alias.toAttribute, order.direction,
+            order.nullOrdering, order.sameOrderExpressions))
+        }
+      }
+    )
+    (projectionAttrs.asScala, newSortOrders.asScala)
   }
 }

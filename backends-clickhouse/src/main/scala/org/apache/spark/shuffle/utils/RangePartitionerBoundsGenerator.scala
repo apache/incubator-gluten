@@ -24,22 +24,34 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.types._
+import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.expression.ExpressionTransformer
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.vectorized.{BlockNativeConverter, BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import play.api.libs.json._
 import io.glutenproject.execution.SortExecTransformer
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import play.api.libs.json._
+import io.substrait.proto.ProjectRel
+import io.substrait.proto.Rel
+import io.substrait.proto.RelCommon
+import org.apache.spark.internal.Logging
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.hashing.byteswap32
 
 // In spark RangePartitioner, the rangeBounds is private, so we make a copied-implementation here.
-class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V](
-    partitions: Int,
-    rdd: RDD[_ <: Product2[K, V]],
-    ordering: Seq[SortOrder],
-    private var ascending: Boolean = true,
-    val samplePointsPerPartitionHint: Int = 20
+// It is based on the fact that, there has been a pre-projection before the range partition
+// and remove all function expressions in the sort ordering expressions.
+class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
+(
+  partitions: Int,
+  rdd: RDD[_ <: Product2[K, V]],
+  ordering: Seq[SortOrder],
+  inputAttributes: Seq[Attribute],
+  private var ascending: Boolean = true,
+  val samplePointsPerPartitionHint: Int = 20
 ) {
     def getRangeBounds(): Array[K] = {
          if (partitions <= 1) {
@@ -93,13 +105,59 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V](
         ...
       ]
     }
+    {
+      "ordering":[
+        {
+          "column_ref":0,
+          "data_type":"xxx",
+          "is_nullable":true,
+          "direction":0
+        },
+        ...
+      ],
+      "range_bounds":{
+        "options": {
+          "direction": 0,
+          "data_type":"...",
+          "is_nullable":false,
+        },
+        "bounds":[
+          {
+            "is_null":false,
+            "value": ...
+          },
+          {
+            "is_null":true
+          },
+          ...
+        ]
+      }
+    }
   */
+  // we need resolve the column reference, so we utilize the
+  // io.substrait.proto.Expression here.
+  def getExpressionFiedlReference(ordering: SortOrder): Int = {
+    val substraitCtx = new SubstraitContext()
+    val funcs = substraitCtx.registeredFunction
+    val colExpr = ExpressionConverter.replaceWithExpressionTransformer(
+      ordering.child, inputAttributes)
+    val projExprNode = colExpr.asInstanceOf[ExpressionTransformer].doTransform(funcs)
+    val pb = projExprNode.toProtobuf
+    if (!pb.hasSelection()) {
+      // scalastyle:off println
+      println(s"xxx ${pb}")
+      throw new IllegalArgumentException(s"A sorting field should be an attribute")
+    }
+    pb.getSelection().getDirectReference().getStructField.getField()
+  }
   def buildOrderingJson(ordering: Seq[SortOrder]): JsValue = {
     val data = ordering.map {
       order => {
         val orderJson = Json.toJson(Map(
-          "expression" -> Json.toJson(s"${order.child}"),
+          // expression is a protobuf of io.substrait.proto.Expression
+          "column_ref" -> Json.toJson(getExpressionFiedlReference(order)),
           "data_type" -> Json.toJson(order.dataType.toString),
+          "is_nullable" -> Json.toJson(order.nullable),
           "direction" -> Json.toJson(
             SortExecTransformer.transformSortDirection(order.direction.sql,
               order.nullOrdering.sql))
@@ -110,22 +168,34 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V](
     Json.toJson(data)
   }
 
+  def getFieldValue(row: UnsafeRow, dataType: DataType, field: Int): JsValue = {
+    dataType match {
+      case _: BooleanType => Json.toJson(row.getBoolean(field))
+      case _: ByteType => Json.toJson(row.getByte(field))
+      case _: ShortType => Json.toJson(row.getShort(field))
+      case _: IntegerType => Json.toJson(row.getInt(field))
+      case _: LongType => Json.toJson(row.getLong(field))
+      case _: FloatType => Json.toJson(row.getFloat(field))
+      case _: DoubleType => Json.toJson(row.getDouble(field))
+      case _: StringType => Json.toJson(row.getString(field))
+      case d =>
+        throw new IllegalArgumentException(s"Unsupported data type ${d.toString}")
+    }
+  }
   def buildRangeBoundJson(row: UnsafeRow, ordering: Seq[SortOrder]): JsValue = {
     val data = Json.toJson(
       (0 until row.numFields).map {
         i => {
-          val order = ordering(i)
-          order.dataType match {
-            case _: BooleanType => Json.toJson(row.getBoolean(i))
-            case _: ByteType => Json.toJson(row.getByte(i))
-            case _: ShortType => Json.toJson(row.getShort(i))
-            case _: IntegerType => Json.toJson(row.getInt(i))
-            case _: LongType => Json.toJson(row.getLong(i))
-            case _: FloatType => Json.toJson(row.getFloat(i))
-            case _: DoubleType => Json.toJson(row.getDouble(i))
-            case _: StringType => Json.toJson(row.getString(i))
-            case d =>
-              throw new IllegalArgumentException(s"Unsupported data type ${d.toString}")
+          if (row.isNullAt(i)) {
+            Json.toJson(Map(
+              "is_null" -> Json.toJson(true)
+            ))
+          } else {
+            val order = ordering(i)
+            Json.toJson(Map(
+              "is_null" -> Json.toJson(false),
+              "value" -> getFieldValue(row, order.dataType, i)
+            ))
           }
         }
       }
