@@ -209,6 +209,7 @@ arrow::Status VeloxToRowConverter::Write() {
         }
         break;
       }
+      case arrow::BinaryType::type_id:
       case arrow::StringType::type_id: {
         auto vec = vecs_[col_idx];
         auto str_views = vec->asFlatVector<StringView>()->rawValues();
