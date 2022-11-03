@@ -17,18 +17,38 @@
 package io.substrait.spark.expression
 
 import io.substrait.spark.ExpressionConverter
+import io.substrait.spark.ExpressionConverter.EXTENSION_COLLECTION
 
 import org.apache.spark.sql.catalyst.expressions.Expression
 
 import io.substrait.expression.{Expression => SExpression}
 import org.scalatest.Assertions.assertResult
 
+import scala.collection.JavaConverters
+
 trait SubstraitExpressionTestBase {
 
+  private val expressionConverter = new SubstraitExpressionConverter(
+    BinaryExpressionConverter(JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.scalarFunctions())))
+
   protected def runTest(expectedName: String, expression: Expression): Unit = {
+    runTest(expectedName, expression, func => {}, bidirectional = true)
+  }
+
+  protected def runTest(
+      expectedName: String,
+      expression: Expression,
+      f: SExpression.ScalarFunctionInvocation => Unit,
+      bidirectional: Boolean): Unit = {
     val substraitExp = ExpressionConverter
       .defaultConverter(expression)
       .asInstanceOf[SExpression.ScalarFunctionInvocation]
     assertResult(expectedName)(substraitExp.declaration().key())
+    f(substraitExp)
+
+    if (bidirectional) {
+      val convertedExpression = substraitExp.accept(expressionConverter)
+      assertResult(expression)(convertedExpression)
+    }
   }
 }

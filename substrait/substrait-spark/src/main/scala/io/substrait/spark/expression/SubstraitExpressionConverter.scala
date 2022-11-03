@@ -17,7 +17,7 @@
 package io.substrait.spark.expression
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Cast, Expression, Literal}
 import org.apache.spark.substrait.TypeConverter
 
 import io.substrait.`type`.{StringTypeVisitor, Type}
@@ -39,8 +39,24 @@ class SubstraitExpressionConverter(
       s"Expression $expr of type ${expr.getClass.getCanonicalName} " +
         s"not handled by visitor type ${getClass.getCanonicalName}.")
 
+  override def visit(expr: SExpression.BoolLiteral): Expression = {
+    if (expr.value()) {
+      Literal.TrueLiteral
+    } else {
+      Literal.FalseLiteral
+    }
+  }
+  override def visit(expr: SExpression.I32Literal): Expression = {
+    Literal(expr.value(), TypeConverter.convert(expr.getType))
+  }
+
   override def visit(expr: SExpression.I64Literal): Expression = {
     Literal(expr.value(), TypeConverter.convert(expr.getType))
+  }
+
+  override def visit(expr: SExpression.Cast): Expression = {
+    val childExp = expr.input().accept(this)
+    Cast(childExp, TypeConverter.convert(expr.getType))
   }
 
   override def visit(expr: exp.FieldReference): Expression = {

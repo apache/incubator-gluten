@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.substrait.TypeConverter
 
-import io.substrait.expression.{Expression => SExpression, FieldReference}
+import io.substrait.expression.{Expression => SExpression, ExpressionCreator, FieldReference}
 import io.substrait.function.SimpleExtension
 
 import scala.collection.JavaConverters
@@ -41,6 +41,9 @@ abstract class ExpressionConverter {
   private def generateExpression(expr: Expression, output: Seq[Attribute]): Option[SExpression] =
     expr match {
       case a: AggregateExpression => None
+      case c @ Cast(child, dataType, _, _) =>
+        generateExpression(child, output)
+          .map(ExpressionCreator.cast(TypeConverter.convertWithThrow(dataType, c.nullable), _))
       case l: Literal => LiteralConverter.convert(l)
       case a: AttributeReference if output.nonEmpty =>
         val bindReference =
@@ -48,11 +51,11 @@ abstract class ExpressionConverter {
         if (bindReference == a) {
           None
         } else {
-          TypeConverter
-            .convert(a.dataType, a.nullable)
-            .map(
-              FieldReference
-                .newRootStructReference(bindReference.asInstanceOf[BoundReference].ordinal, _))
+          Some(
+            FieldReference.newRootStructReference(
+              bindReference.asInstanceOf[BoundReference].ordinal,
+              TypeConverter.convertWithThrow(a.dataType, a.nullable))
+          )
         }
       case a: Alias => generateExpression(a.child, output) // ?
       case b: BinaryExpression =>
