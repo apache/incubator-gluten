@@ -35,6 +35,7 @@
         <velox.debug_build>${debug_build}</velox.debug_build>
         <velox.backend_type>${backend_type}</velox.backend_type>
         <velox.velox_home>${velox_home}</velox.velox_home>
+        <velox.velox_enable_s3>${velox_enable_s3}</velox.velox_enable_s3>
     </properties>
 
     <profiles>
@@ -243,6 +244,7 @@
                                 <argument>${velox.cpp_benchmarks}</argument>
                                 <argument>${velox.backend_type}</argument>
                                 <argument>${velox.enable_hbm}</argument>
+                                <argument>${velox.velox_enable_s3}</argument>
                             </arguments>
                         </configuration>
                     </execution>

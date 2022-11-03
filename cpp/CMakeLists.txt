@@ -42,6 +42,7 @@ option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
+option(VELOX_ENABLE_S3 "Enable S3" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 

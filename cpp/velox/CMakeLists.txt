@@ -208,6 +208,7 @@ if(BUILD_TESTS)
 endif()
 
 if(VELOX_ENABLE_S3)
+  add_definitions(-DVELOX_ENABLE_S3)
   find_awssdk()
   target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()

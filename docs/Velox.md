@@ -108,6 +108,10 @@ Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its 
 ```
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
+## S3 support
+
+Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten used Velox S3 connector to connect with S3.
+
 
 # 3 Coverage
 
