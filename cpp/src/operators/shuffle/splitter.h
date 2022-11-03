@@ -60,14 +60,6 @@ class Splitter {
       const std::string& short_name,
       std::shared_ptr<arrow::Schema> schema,
       int num_partitions,
-      const uint8_t* expr_data,
-      int expr_size,
-      SplitOptions options = SplitOptions::Defaults());
-
-  static arrow::Result<std::shared_ptr<Splitter>> Make(
-      const std::string& short_name,
-      std::shared_ptr<arrow::Schema> schema,
-      int num_partitions,
       SplitOptions options = SplitOptions::Defaults());
 
   virtual const std::shared_ptr<arrow::Schema>& input_schema() const {
@@ -363,7 +355,6 @@ class HashSplitter : public Splitter {
   static arrow::Result<std::shared_ptr<HashSplitter>> Create(
       int32_t num_partitions,
       std::shared_ptr<arrow::Schema> schema,
-      const substrait::Rel& subRel,
       SplitOptions options);
 
  private:
@@ -373,15 +364,8 @@ class HashSplitter : public Splitter {
       SplitOptions options)
       : Splitter(num_partitions, std::move(schema), std::move(options)) {}
 
-  arrow::Status CreateGandivaExpr(const substrait::Rel& subRel);
-  arrow::Status CreateProjector();
-
   arrow::Status ComputeAndCountPartitionId(
       const arrow::RecordBatch& rb) override;
-
-  std::vector<u_int32_t> hashIndices_;
-  gandiva::ExpressionVector exprVector_;
-  std::shared_ptr<gandiva::Projector> projector_;
 };
 
 class FallbackRangeSplitter : public Splitter {
