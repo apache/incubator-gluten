@@ -25,6 +25,35 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
+class RegExpExtractTransformer(subject: Expression, regexp: Expression,
+                               index: Expression, original: Expression)
+  extends RegExpExtract(subject: Expression, regexp: Expression, regexp: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val firstNode =
+      subject.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val secondNode =
+      regexp.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val thirdNode =
+      index.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!firstNode.isInstanceOf[ExpressionNode] ||
+      !secondNode.isInstanceOf[ExpressionNode] ||
+      !thirdNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.REGEXP_EXTRACT,
+      Seq(subject.dataType, regexp.dataType, index.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode)
+    val typeNode = TypeBuilder.makeString(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class ReplaceTransformer(str: Expression, search: Expression, replace: Expression,
                        original: Expression)
   extends StringReplace(str: Expression, search: Expression, search: Expression)
@@ -103,6 +132,8 @@ object TernaryOperatorTransformer {
 
   def create(str: Expression, pos: Expression, len: Expression, original: Expression): Expression =
     original match {
+      case extract: RegExpExtract =>
+        new RegExpExtractTransformer(str, pos, len, extract)
       case split: StringSplit =>
         new SplitTransformer(str, pos, len, split)
       case replace: StringReplace =>
