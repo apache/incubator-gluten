@@ -1,7 +1,7 @@
 
-# Introduction
+# 1.0 Introduction
 
-## Problem Statement
+## 1.1 Problem Statement
 
 Apache Spark is a stable, mature project that has been under development for many years. The project has proven to be one of the best frameworks to scale out of processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that required various optimizations over time. A key optimization introduced in Spark 2.0 replaced Volcano mode with whole-stage code-generation to achieve a 2x speedup. Since then most of the optimization works at the query plan level. The operator's performance stopped to grow.
 
@@ -11,7 +11,7 @@ Apache Spark is a stable, mature project that has been under development for man
 
 On the other side, SQL engine is researched for years. There are product or libraries like Clickhouse, Arrow or Velox. By using features like native implementation, columnar data format as well as vectorized data processing, these libraries outperform much of Spark's JVM based SQL eingine. However these libraries are running on single node.
 
-## Gluten's Solution
+## 1.2 Gluten's Solution
 
 “Gluten” is Latin for glue. Main goal of project Gluten is to “glue" the SparkSQL and native libraries. So we can take use of and benefit from Spark SQL's scale out framework as well native libraries' high performance.
 
@@ -24,7 +24,20 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 * Manage data sharing between JVM and native
 * Extend support to native accelerators
 
-## Architecture
+## 1.3 Target User
+
+Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is an plunin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seemlessly, no code changes are needed. However as an plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md)
+
+## 1.4 References:
+
+You may click below links for more related information.
+- [Gluten Intro Video at Data AI Summit 2022](https://databricks.com/dataaisummit/session/gazelle-jni-middle-layer-offload-spark-sql-native-engines-execution)
+- [Gluten Intro Article at Medium.com](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
+- [Gluten Intro Article at Kyligence.io(in Chinese)](https://cn.kyligence.io/blog/gluten-spark/)
+- [Velox Intro from Meta](https://engineering.fb.com/2022/08/31/open-source/velox/)
+
+
+# 2 Architecture
 
 The overview chart is like below. Spark physical plan is transformed to substrait plan. Substrait is to create a well defined cross-language specification for data compute operations. More details can be found from https://substrait.io/. Then substrait plan is passed to native through JNI call. In native the operator chain should be built and start to run. We use Spark3.0's columnar API as the data interface, so the native library should return Columnar Batch to Spark. We may need to wrap the columnar batch for each native backend. Gazelle engine's c++ code use Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
 <p align="center">
@@ -40,47 +53,58 @@ There are several key component in Gluten:
 * Metrics are very important to get insight of Spark's execution, identify the issues or bottlenecks. Gluten collects the metrics from native library and shows in Spark UI.
 * Shim layer is used to support mutiple releases of Spark. Gluten only plans to support the latest 2-3 spark stable releases, with no plans to add support on older spark releases. Current support is on Spark 3.2 and Spark 3.3.
 
-# Usage
+# 3 Usage
 
-Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source.
+Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source, copied the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details
 
-## Build and Install Gluten with Velox backend
+```export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/gluten-spark3.2_2.12-1.0.0-snapshot-jar-with-dependencies.jar 
+spark-shell 
+  --master yarn --deploy-mode client \
+  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.gluten.sql.columnar.backend.lib=velox or ch \
+  --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
+  --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
+  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+  ...
+  ```
+
+## 3.1 Build and Install Gluten with Velox backend
 
 <img src="https://github.com/facebookincubator/velox/raw/main/static/logo.svg" width="200">
 
 If you would like to build and try Gluten with **Velox** backend, please follow the steps in [Build with Velox](./docs/Velox.md) to build and install the necessary libraries, compile Velox and try out the TPC-H workload.
 
-## Build and Install Gluten with ClickHouse backend
+## 3.2 Build and Install Gluten with ClickHouse backend
 
 ![logo](./docs/image/ClickHouse/logo.png)
 
 If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is devleoped by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
-## Build and Install Gluten with Arrow backend
+## 3.3 Build and Install Gluten with Arrow backend
 
 If you would like to build and try Gluten with **Arrow** backend, please follow the steps in [Build with Arrow Backend](./docs/ArrowBackend.md). Arrow backend only support parquet scan and parquet write now. All other operators are fallback to Vanilla Spark.
 
-## Build script parameters
+## 3.4 Build script parameters
 
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
-# Contribution
+# 4 Contribution
 
 Gluten project welcomes everyone to contribute. 
 
-## Community
+## 4.1 Community
 
-Currently we communicate with all developers and users in a wechat group(Chinese only), Spark channel in Velox Slack group. Contact us if you would like to join in.
+Currently we communicate with all developers and users in a wechat group(Chinese only), Spark channel in Velox Slack group. Contact us if you would like to join in. Refer to Contact info below
 
-## Bug Reports
+## 4.2 Bug Reports
 
 Feel free to submit any bugs, issues or enhancement requirements to github issue list. Be sure to follow the bug fill template so we can solve it quickly. If you already implement a PR and would like to contribute, you may submit an issue firstly and refer to the issue in the PR. 
 
-## Documentation
+## 4.3 Documentation
 
 Unfortunately we haven't organized the documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under development now, and some designs may change. Feel free to talk with us and share other design and ideas.
 
-# Performance
+# 5 Performance
 
 We use Decision Support Benchmark1(TPC-H Like) to evaluate the performance for Gluten project.
 Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). Because some features are not fully supported, there are some changes during the testing. Firstly we change column data type like Decimal to Double and Date to String. Secondly we use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing compared to Parquet file format as baseline. Thirdly we modify the SQLs to use double and string data type for both Gluten and baseline, please check [Decision Support Benchmark1](./backends-velox/workload/tpch) has the script and queries as the examples to run the performance testing for Velox backend.
@@ -92,19 +116,12 @@ The testing environment is using a 8-nodes AWS cluster with 1TB datasize and usi
 ![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
 
-# Reference
 
-Please check below links for more related information.
-- [Gluten Intro Video at Data AI Summit 2022](https://databricks.com/dataaisummit/session/gazelle-jni-middle-layer-offload-spark-sql-native-engines-execution)
-- [Gluten Intro Article at Medium.com](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
-- [Gluten Intro Article at Kyligence.io(in Chinese)](https://cn.kyligence.io/blog/gluten-spark/)
-- [Velox Intro from Meta](https://engineering.fb.com/2022/08/31/open-source/velox/)
-
-# License
+# 5 License
 
 Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
 
-# Contact
+# 7 Contact
 
 rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io
