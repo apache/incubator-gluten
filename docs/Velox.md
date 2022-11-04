@@ -1,11 +1,9 @@
-Velox Backend
-
 Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
 # Prerequisite
 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries can't be installed.
-Velox also requires ninja for compilation. So we need to install them manually:
+<b>Currently Gluten+Velox backend is only tested on Ubuntu20.04 and Ubuntu22.04. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
+Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually:
 
 ```shell script
 apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build uuid-dev
@@ -19,7 +17,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 # Build Velox Jar
 
-Since the mvn script calls setup-ubuntu.sh to install dependency libraries, so we need to run it from root group.
+Since the mvn script calls setup-ubuntu.sh to install dependency libraries, so we need to run it from <b>root</b> group.
 
 The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
 
@@ -33,9 +31,11 @@ You may compile spark3.2 and spark3.3 at the same time by -Pspark-3.2 -Pspark-3.
 
 The command generates the Jar file in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark. So as spark3.3.
 
+Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
+
 ## Velox home directory
 
-You can also clone the Velox source to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
+You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
 
 ```shell script
 mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
@@ -43,9 +43,7 @@ mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox -Db
 
 ## Arrow home directory
 
-Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not.
-
-Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
+Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not. Currently Arrow is also clone from [OAP/Arrow](https://github.com/oap-project/arrow). We will soon switch to upstream Arrow. Currently the shuffle still uses Arrow's IPC interface.
 
 ## HDFS support
 
@@ -60,14 +58,27 @@ Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indic
 This env should be exported in both Spark driver and worker.
 e.g., in Spark local mode:
 ```
-export VELOX_HDFS="sr595:9000"
+export VELOX_HDFS="hdfshost:9000"
 ```
 
 If running in Spark Yarn cluster mode, the env variable need to be set on each executor:
 ```
---conf spark.executorEnv.VELOX_HDFS="sr595:9000"
+--conf spark.executorEnv.VELOX_HDFS="hdfshost:9000"
 ```
 Note by default libhdfs3 does not set the default hdfs domain socket path for HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/tools/build_velox.sh)
+
+Here is an example to configure in "*HADOOP_HOME*/etc/hadoop/hdfs-site.xml"
+```
+ <property>
+    <name>dfs.client.read.shortcircuit</name>
+    <value>true</value>
+  </property>
+
+ <property>
+    <name>dfs.domain.socket.path</name>
+    <value>/var/lib/hadoop-hdfs/dn_socket</value>
+  </property>
+```
 
 ## Yarn Cluster mode
 
@@ -97,7 +108,7 @@ mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests
 
 Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.
 
-During testing, we found that it is possible that HBM is detected but not being used at runtime. The workaround is to set `MEMKIND_HBW_NODES` enviroment variable in the runtime environment. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`
+During testing, it is possible that HBM is detected but not being used at runtime. The workaround is to set `MEMKIND_HBW_NODES` enviroment variable in the runtime environment. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`
 
 
 # Test TPC-H on Gluten with Velox backend
@@ -120,13 +131,13 @@ var gluten_root = "/PATH/TO/GLUTEN"
 Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
 ```shell script
-export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/gluten-spark3.2_2.12-1.0.0-snapshot-jar-with-dependencies.jar 
+export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/gluten-spark3.2_2.12-1.0.0-snapshot-jar-with-dependencies.jar 
 cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.backend.lib=velox \
-  --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
-  --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
+  --conf spark.driver.extraClassPath=${GLUTEN_JAR} \
+  --conf spark.executor.extraClassPath=${GLUTEN_JAR} \
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=20g \
   --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
@@ -142,6 +153,7 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
 Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
 
 ## Result
+*wholestagetransformer* indicates that the offload works.
 
 ![TPC-H Q6](./image/TPC-H_Q6_DAG.png)
 
