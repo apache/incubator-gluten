@@ -50,4 +50,19 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
       "select l_partkey + l_orderkey, count(l_tax), COUNT(distinct l_discount)" +
         " from lineitem group by l_partkey + l_orderkey")
   }
+
+  ignore("simpleTestAgg2[has Expand]") {
+    assertSqlSubstraitRelRoundTrip(
+      "select l_partkey, sum(l_tax), sum(distinct l_tax)," +
+        " avg(l_discount), avg(distinct l_discount) from lineitem group by l_partkey")
+  }
+
+  test("simpleTestAgg3") {
+    assertSqlSubstraitRelRoundTrip(
+      "select l_partkey, sum(l_extendedprice * (1.0-l_discount)) from lineitem group by l_partkey")
+  }
+
+  test("simpleTestAggNoGB") {
+    assertSqlSubstraitRelRoundTrip("select count(l_tax), count(distinct l_discount) from lineitem")
+  }
 }

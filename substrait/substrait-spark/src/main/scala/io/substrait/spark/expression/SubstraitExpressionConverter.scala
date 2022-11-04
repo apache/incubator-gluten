@@ -17,12 +17,14 @@
 package io.substrait.spark.expression
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, Expression, Literal}
+import org.apache.spark.sql.types.Decimal
 import org.apache.spark.substrait.TypeConverter
 
 import io.substrait.`type`.{StringTypeVisitor, Type}
 import io.substrait.{expression => exp}
 import io.substrait.expression.{Expression => SExpression}
 import io.substrait.function.SimpleExtension
+import io.substrait.util.DecimalUtil
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 
@@ -51,6 +53,13 @@ class SubstraitExpressionConverter(
 
   override def visit(expr: SExpression.I64Literal): Expression = {
     Literal(expr.value(), TypeConverter.convert(expr.getType))
+  }
+
+  override def visit(expr: SExpression.DecimalLiteral): Expression = {
+    val value = expr.value.toByteArray
+    val decimal = DecimalUtil.getBigDecimalFromBytes(value, expr.scale, 16)
+    // Literal(Decimal(decimal), TypeConverter.convert(expr.getType))
+    Literal(Decimal(decimal))
   }
 
   override def visit(expr: SExpression.Cast): Expression = {

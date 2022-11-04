@@ -30,9 +30,10 @@ import scala.collection.JavaConverters
 private class ToSparkDataTpe
   extends TypeVisitor.TypeThrowsVisitor[DataType, RuntimeException]("Unknown expression type.") {
 
-  override def visit(`type`: Type.I32): DataType = IntegerType
-  override def visit(`type`: Type.I64): DataType = LongType
+  override def visit(expr: Type.I32): DataType = IntegerType
+  override def visit(expr: Type.I64): DataType = LongType
 
+  override def visit(expr: Type.Decimal): DataType = DecimalType(expr.precision(), expr.scale())
 }
 class TypeConverter extends Logging {
 

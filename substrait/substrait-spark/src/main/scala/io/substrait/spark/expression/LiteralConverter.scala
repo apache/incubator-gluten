@@ -46,6 +46,8 @@ class LiteralConverter extends Logging {
         case Literal(l: Long, LongType) => Nonnull._i64(l)
         case Literal(f: Float, FloatType) => Nonnull._fp32(f)
         case Literal(d: Double, DoubleType) => Nonnull._fp64(d)
+        case Literal(d: Decimal, _) =>
+          decimal(false, d.toJavaBigDecimal, d.precision, d.scale)
         case _ => null
       }
     )

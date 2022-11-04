@@ -34,14 +34,13 @@ import org.scalatest.exceptions.{StackDepthException, TestFailedException}
 
 trait SubstraitPlanTestBase { self: SharedSparkSession =>
 
-  implicit class PlainEquality[T <: relation.Rel](leftSideValue: T) {
+  implicit class PlainEquality[T <: relation.Rel](actual: T) {
     // Like should equal, but does not try to mark diffs in strings with square brackets,
     // so that IntelliJ can show a proper diff.
-    def shouldEqualPlainly(right: T)(implicit equality: Equality[T]): Assertion =
-      if (!equality.areEqual(leftSideValue, right)) {
+    def shouldEqualPlainly(expected: T)(implicit equality: Equality[T]): Assertion =
+      if (!equality.areEqual(actual, expected)) {
         throw new TestFailedException(
-          (e: StackDepthException) =>
-            Some(s"""${tree(leftSideValue)} did not equal ${tree(right)}"""),
+          (e: StackDepthException) => Some(s"""${tree(actual)} did not equal ${tree(expected)}"""),
           None,
           Position.here
         )
@@ -85,7 +84,7 @@ trait SubstraitPlanTestBase { self: SharedSparkSession =>
     val pojoRel = new SubstraitRelVisitor().visit(logicalPlan)
     val logicalPlan2 = new SubstraitLogicalPlanConverter(spark = spark).convert(pojoRel)
     val pojoRel2 = new SubstraitRelVisitor().visit(logicalPlan2)
-    pojoRel.shouldEqualPlainly(pojoRel2)
+    pojoRel2.shouldEqualPlainly(pojoRel)
     logicalPlan2
   }
 

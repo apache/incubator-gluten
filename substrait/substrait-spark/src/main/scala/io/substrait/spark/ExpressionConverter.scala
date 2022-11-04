@@ -31,15 +31,28 @@ import scala.collection.JavaConverters
 abstract class ExpressionConverter {
   protected val binaryOperatorConverter: BinaryExpressionConverter
 
-  def apply(e: Expression, output: Seq[Attribute] = Seq.empty): SExpression = {
-    convert(e, output).getOrElse(
-      throw new UnsupportedOperationException(s"Unable to convert the expression $e"))
+  var reportErrorEarly: Boolean = _
+  private def t(e: Expression): SExpression = {
+    throw new UnsupportedOperationException(s"Unable to convert the expression $e")
   }
-  def convert(e: Expression, output: Seq[Attribute] = Nil): Option[SExpression] =
+  private def throwOrNone(e: Expression): Option[SExpression] = {
+    if (reportErrorEarly) {
+      Some(t(e))
+    } else None
+  }
+  def apply(e: Expression, output: Seq[Attribute] = Seq.empty): SExpression = {
+    convert(e, output, reportEarly = true).getOrElse(t(e))
+  }
+  def convert(
+      e: Expression,
+      output: Seq[Attribute] = Nil,
+      reportEarly: Boolean = false): Option[SExpression] = {
+    reportErrorEarly = reportEarly
     generateExpression(e, output)
+  }
 
-  private def generateExpression(expr: Expression, output: Seq[Attribute]): Option[SExpression] =
-    expr match {
+  private def generateExpression(expr: Expression, output: Seq[Attribute]): Option[SExpression] = {
+    val result = expr match {
       case a: AggregateExpression => None
       case c @ Cast(child, dataType, _, _) =>
         generateExpression(child, output)
@@ -47,7 +60,7 @@ abstract class ExpressionConverter {
       case l: Literal => LiteralConverter.convert(l)
       case a: AttributeReference if output.nonEmpty =>
         val bindReference =
-          BindReferences.bindReference(expr, output, allowFailures = true)
+          BindReferences.bindReference(expr, output, allowFailures = reportErrorEarly)
         if (bindReference == a) {
           None
         } else {
@@ -58,6 +71,13 @@ abstract class ExpressionConverter {
           )
         }
       case a: Alias => generateExpression(a.child, output) // ?
+      case c: CheckOverflow =>
+        generateExpression(c.child, output)
+      case PromotePrecision(cast: Cast) =>
+        // see DecimalPrecision#promotePrecision
+        generateExpression(cast.child, output)
+      case PromotePrecision(check: CheckOverflow) =>
+        generateExpression(check.child, output)
       case b: BinaryExpression =>
         generateExpression(b.left, output).flatMap(
           left =>
@@ -68,6 +88,11 @@ abstract class ExpressionConverter {
           .flatMap(singleChild => binaryOperatorConverter.convert(u, singleChild :: Nil))
       case _ => None
     }
+    result match {
+      case Some(_) => result
+      case None => throwOrNone(expr)
+    }
+  }
 }
 
 object ExpressionConverter {
