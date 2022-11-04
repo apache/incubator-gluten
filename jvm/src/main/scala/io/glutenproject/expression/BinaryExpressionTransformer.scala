@@ -152,6 +152,34 @@ class LikeTransformer(left: Expression, right: Expression, original: Expression)
   }
 }
 
+class RLikeTransformer(left: Expression, right: Expression, original: Expression)
+  extends RLike(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.RLIKE, Seq(left.dataType, right.dataType)))
+
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeBoolean(nullable)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class ContainsTransformer(left: Expression, right: Expression, original: Expression)
   extends Contains(left: Expression, right: Expression)
     with ExpressionTransformer
@@ -258,6 +286,8 @@ object BinaryExpressionTransformer {
         new ContainsTransformer(left, right, c)
       case l: Like =>
         new LikeTransformer(left, right, l)
+      case rl: RLike =>
+        new RLikeTransformer(left, right, rl)
       case s: ShiftLeft =>
         new ShiftLeftTransformer(left, right, s)
       case s: ShiftRight =>

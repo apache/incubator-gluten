@@ -54,9 +54,9 @@ public class CHNativeBlock {
     return nativeNumColumns(blockAddress);
   }
 
-  private native String nativeColumnType(long blockAddress, int position);
+  private native byte[] nativeColumnType(long blockAddress, int position);
 
-  public String getTypeByPosition(int position) {
+  public byte[] getTypeByPosition(int position) {
     return nativeColumnType(blockAddress, position);
   }
 
@@ -78,8 +78,8 @@ public class CHNativeBlock {
   public ColumnarBatch toColumnarBatch() {
     ColumnVector[] vectors = new ColumnVector[numColumns()];
     for (int i = 0; i < numColumns(); i++) {
-      vectors[i] = new CHColumnVector(CHExecUtil.inferSparkDataType(getTypeByPosition(i)),
-          blockAddress, i);
+      vectors[i] = new CHColumnVector(CHExecUtil.inferSparkDataType(
+        getTypeByPosition(i)), blockAddress, i);
     }
     int numRows = 0;
     if (numColumns() != 0) {

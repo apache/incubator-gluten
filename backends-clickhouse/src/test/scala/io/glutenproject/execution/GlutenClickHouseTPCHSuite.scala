@@ -191,6 +191,43 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 227302L)
   }
 
+  test("test 'select count(1)' with empty columns to read") {
+    val df = spark.sql(
+      """
+        |select count(1) from lineitem
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 600572L)
+  }
+
+  test("test 'select count(*)' with empty columns to read") {
+    val df = spark.sql(
+      """
+        |select count(*) from lineitem
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 600572L)
+  }
+
+  test("test 'select sum(2)' with empty columns to read") {
+    val df = spark.sql(
+      """
+        |select sum(2) from lineitem
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
+  test("test 'select 1' with empty columns to read") {
+    val df = spark.sql(
+      """
+        |select 1 from lineitem limit 2
+        |""".stripMargin)
+    val result = df.collect()
+    assert(result.size == 2)
+    assert(result(0).getInt(0) == 1 && result(1).getInt(0) == 1)
+  }
+
   ignore("TPCH Q21") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),

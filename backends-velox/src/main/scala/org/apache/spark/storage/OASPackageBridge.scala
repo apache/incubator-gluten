@@ -15,23 +15,12 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package org.apache.spark.storage
 
-import io.glutenproject.execution.SparkRowIterator;
-import io.glutenproject.row.SparkRowInfo;
+import java.io.InputStream
 
-public class BlockNativeConverter {
-
-  // for ch columnar -> spark row
-  public native SparkRowInfo convertColumnarToRow(long blockAddress);
-
-  // for ch columnar -> spark row
-  public native void freeMemory(long address, long size);
-
-  // for spark row -> ch columnar
-  public native long convertSparkRowsToCHColumn(SparkRowIterator iter, String[] names,
-    byte[][] types);
-
-  // for spark row -> ch columnar
-  public native void freeBlock(long blockAddress);
+object OASPackageBridge {
+  def unwrapBufferReleasingInputStream(in: BufferReleasingInputStream): InputStream = {
+    in.delegate
+  }
 }

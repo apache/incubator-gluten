@@ -23,18 +23,23 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class StructNode implements TypeNode, Serializable {
+  private final Boolean nullable;
   private final ArrayList<TypeNode> types = new ArrayList<>();
 
-  StructNode(ArrayList<TypeNode> types) {
+  StructNode(Boolean nullable, ArrayList<TypeNode> types) {
+    this.nullable = nullable;
     this.types.addAll(types);
   }
 
   @Override
   public Type toProtobuf() {
     Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+    structBuilder.setNullability(
+        nullable ? Type.Nullability.NULLABILITY_NULLABLE : Type.Nullability.NULLABILITY_REQUIRED);
     for (TypeNode typeNode : types) {
       structBuilder.addTypes(typeNode.toProtobuf());
     }
+
     Type.Builder builder = Type.newBuilder();
     builder.setStruct(structBuilder.build());
     return builder.build();

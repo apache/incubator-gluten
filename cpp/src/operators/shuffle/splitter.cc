@@ -1349,6 +1349,7 @@ arrow::Status Splitter::SplitBinaryType(
     auto r = reducer_offset_offset_[pid]; /*128k*/
     auto size = reducer_offset_offset_[pid + 1] - r;
 
+    auto multiply = 1;
     for (register uint32_t x = 0; x < size; x++) {
       auto src_offset = reducer_offsets_[x + r]; /*128k*/
       auto strlength =
@@ -1356,9 +1357,11 @@ arrow::Status Splitter::SplitBinaryType(
       value_offset = dst_offset_base[x + 1] = value_offset + strlength;
       if (ARROW_PREDICT_FALSE(value_offset >= capacity)) {
         // allocate value buffer again
-        // enlarge the buffer by 1.5x
-        capacity = capacity + std::max((capacity >> 1), (uint64_t)strlength);
-
+        // enlarge the buffer by 8x
+        auto old_capacity = capacity;
+        capacity =
+            capacity + std::max((capacity >> multiply), (uint64_t)strlength);
+        multiply = std::min(3, multiply + 1);
         auto value_buffer = std::static_pointer_cast<arrow::ResizableBuffer>(
             partition_buffers_[fixed_width_col_cnt_ + binary_idx][pid][2]);
         value_buffer->Reserve(capacity);
@@ -1366,9 +1369,9 @@ arrow::Status Splitter::SplitBinaryType(
         dst_addrs[pid].valueptr = value_buffer->mutable_data();
         dst_addrs[pid].value_capacity = capacity;
         dst_value_base = dst_addrs[pid].valueptr + value_offset - strlength;
-        std::cout << " value buffer resized colid = " << binary_idx
+        std::cout << "Split value buffer resized colid = " << binary_idx
                   << " dst_start " << dst_offset_base[x] << " dst_end "
-                  << dst_offset_base[x + 1] << " old size = " << capacity
+                  << dst_offset_base[x + 1] << " old size = " << old_capacity
                   << " new size = " << capacity
                   << " row = " << partition_buffer_idx_base_[pid]
                   << " strlen = " << strlength << std::endl;

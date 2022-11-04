@@ -79,6 +79,7 @@
     <spark32bundle.version>3.2</spark32bundle.version>
     <spark33bundle.version>3.3</spark33bundle.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
+    <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
   </properties>
 
   <profiles>
@@ -417,6 +418,11 @@
         <version>${fasterxml.version}</version>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.2.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -535,6 +541,21 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.2.1</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.scalastyle</groupId>
         <artifactId>scalastyle-maven-plugin</artifactId>

@@ -15,23 +15,30 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.substrait.type;
 
-import io.glutenproject.execution.SparkRowIterator;
-import io.glutenproject.row.SparkRowInfo;
+import io.substrait.proto.Type;
 
-public class BlockNativeConverter {
+import java.io.Serializable;
 
-  // for ch columnar -> spark row
-  public native SparkRowInfo convertColumnarToRow(long blockAddress);
+public class FP32TypeNode implements TypeNode, Serializable {
+  private final Boolean nullable;
 
-  // for ch columnar -> spark row
-  public native void freeMemory(long address, long size);
+  FP32TypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
 
-  // for spark row -> ch columnar
-  public native long convertSparkRowsToCHColumn(SparkRowIterator iter, String[] names,
-    byte[][] types);
+  @Override
+  public Type toProtobuf() {
+    Type.FP32.Builder doubleBuilder = Type.FP32.newBuilder();
+    if (nullable) {
+      doubleBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
+    } else {
+      doubleBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
+    }
 
-  // for spark row -> ch columnar
-  public native void freeBlock(long blockAddress);
+    Type.Builder builder = Type.newBuilder();
+    builder.setFp32(doubleBuilder.build());
+    return builder.build();
+  }
 }

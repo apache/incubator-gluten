@@ -21,9 +21,19 @@ package io.glutenproject.vectorized;
  * For being called from C++ code only.
  */
 public interface JniByteInputStream {
+  /**
+   * Read fixed size of data into an address.
+   * @return the read bytes; 0 if end of stream.
+   */
   long read(long destAddress, long maxSize);
 
+  /**
+   * Position of this stream.
+   */
   long tell();
 
+  /**
+   * Close and reclaim the resources.
+   */
   void close();
 }

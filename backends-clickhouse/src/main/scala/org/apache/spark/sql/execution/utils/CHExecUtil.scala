@@ -41,21 +41,15 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import io.substrait.proto.Type;
 
 object CHExecUtil {
 
-  def inferSparkDataType(typeName: String): DataType = typeName match {
-    case "Date" => DateType
-    case "Float" => FloatType
-    case "Double" => DoubleType
-    case "Integer" => IntegerType
-    case "Long" => LongType
-    case "Byte" => ByteType
-    case "Short" => ShortType
-    case "String" => StringType
-    case "Binary" => BinaryType
-    case "Boolean" => BooleanType
+  def inferSparkDataType(substraitType: Array[Byte]): DataType = {
+    val (datatype, nullable) = ConverterUtils.parseFromSubstraitType(Type.parseFrom(substraitType))
+    datatype
   }
+
   // scalastyle:off argcount
   def genShuffleDependency(
       rdd: RDD[ColumnarBatch],
