@@ -18,11 +18,13 @@
 package io.glutenproject.execution
 
 import java.util
+
 import scala.collection.JavaConverters._
+
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -32,6 +34,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -492,22 +495,21 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
     }
   }
 
-  override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan])
-  : UnionExecTransformer =
+  override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan]
+                                                ): UnionExecTransformer =
     copy(children = newChildren)
 
   def columnarInputRDD: RDD[ColumnarBatch] = {
     if (children.size == 0) {
       throw new IllegalArgumentException(s"Empty children")
     }
-    val retRDD = children.map {
+    children.map {
       case c => Seq(c.executeColumnar())
     }.reduce {
       (a, b) => a ++ b
     }.reduce(
       (a, b) => a.union(b)
     )
-    retRDD
   }
 
   protected override def doExecute()
@@ -515,13 +517,9 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    columnarInputRDD
-  }
+  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  def doValidate(): Boolean = {
-    true
-  }
+  def doValidate(): Boolean = true
 }
 
 /** Contains functions for the comparision and separation of the filter conditions

@@ -48,14 +48,14 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
     // val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
     //   "cmake-build-release/utils/local-engine/libch.so"
     val libPath = "/usr/local/clickhouse/lib/libch.so"
-    val thrdCnt = 4
-    val shufflePartitions = 12
+    val thrdCnt = 8
+    val shufflePartitions = 8
     val shuffleManager = "sort"
     // val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
     val ioCompressionCodec = "SNAPPY"
     val columnarColumnToRow = "true"
     val useV2 = "false"
-    val separateScanRDD = "true"
+    val separateScanRDD = "false"
     val coalesceBatches = "true"
     val broadcastThreshold = "10MB"
     val adaptiveEnabled = "true"
@@ -212,6 +212,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.sql.codegen.comments", "true")
         .config("spark.ui.retainedJobs", "2500")
         .config("spark.ui.retainedStages", "5000")
+        .config(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED, "true")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1
@@ -237,13 +238,14 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
       // createClickHouseTable(spark, parquetFilesPath, fileFormat)
       // createLocationClickHouseTable(spark)
       // createTables(spark, parquetFilesPath, fileFormat)
-      createClickHouseTables(
+      /* createClickHouseTables(
         spark,
         "/data1/gazelle-jni-warehouse/tpch100_ch_data",
         "default",
         false,
         "ch_",
-        "100")
+        "100") */
+      createTablesNew(spark)
     }
     val refreshTable = false
     if (refreshTable) {
@@ -311,42 +313,14 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         val df = spark.sql(
           s"""
              |SELECT
-             |    supp_nation,
-             |    cust_nation,
-             |    l_year,
-             |    sum(volume) AS revenue
-             |FROM (
-             |    SELECT
-             |        n1.n_name AS supp_nation,
-             |        n2.n_name AS cust_nation,
-             |        extract(year FROM l_shipdate) AS l_year,
-             |        l_extendedprice * (1 - l_discount) AS volume
-             |    FROM
-             |        supplier100,
-             |        lineitem100,
-             |        orders100,
-             |        customer100,
-             |        nation100 n1,
-             |        nation100 n2
-             |    WHERE
-             |        s_suppkey = l_suppkey
-             |        AND o_orderkey = l_orderkey
-             |        AND c_custkey = o_custkey
-             |        AND s_nationkey = n1.n_nationkey
-             |        AND c_nationkey = n2.n_nationkey
-             |        AND ((n1.n_name = 'FRANCE'
-             |                AND n2.n_name = 'GERMANY')
-             |            OR (n1.n_name = 'GERMANY'
-             |                AND n2.n_name = 'FRANCE'))
-             |        AND l_shipdate BETWEEN date'1995-01-01' AND date'1996-12-31') AS shipping
-             |GROUP BY
-             |    supp_nation,
-             |    cust_nation,
-             |    l_year
-             |ORDER BY
-             |    supp_nation,
-             |    cust_nation,
-             |    l_year;
+             |    sum(l_extendedprice * l_discount) AS revenue
+             |FROM
+             |    lineitem
+             |WHERE
+             |    l_shipdate >= date'1994-01-01'
+             |    AND l_shipdate < date'1994-01-01' + interval 1 year
+             |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+             |    AND l_quantity < 24;
              |
              |""".stripMargin) // .show(30, false)
         // df.queryExecution.debug.codegen
@@ -365,13 +339,22 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
 
       println(tookTimeArr.mkString(","))
 
-      if (executedCnt >= 10) {
+      if (executedCnt >= 30) {
         import spark.implicits._
         val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
         df.summary().show(100, false)
       }
     } catch {
       case e: Exception => e.printStackTrace()
+    }
+  }
+
+  def createTablesNew(spark: SparkSession): Unit = {
+    val bucketSQL = GenTPCHTableScripts.genTPCHParquetBucketTables()
+
+    for (sql <- bucketSQL) {
+      println(s"execute: ${sql}")
+      spark.sql(sql).show(10, false)
     }
   }
 

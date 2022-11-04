@@ -36,11 +36,12 @@ trait BaseNativeFilePartition extends Partition with InputPartition {
   def substraitPlan: Array[Byte]
 }
 
-case class NativePartition(index: Int, substraitPlan: Array[Byte])
+case class NativePartition(index: Int,
+                           substraitPlan: Array[Byte],
+                           locations: Array[String] = Array.empty[String])
   extends BaseNativeFilePartition {
-  override def preferredLocations(): Array[String] = {
-    Array.empty[String]
-  }
+
+  override def preferredLocations(): Array[String] = locations
 }
 
 case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
@@ -61,6 +62,24 @@ case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
     }.reverse.take(3).map {
       case (host, numBytes) => host
     }.toArray
+  }
+}
+
+case class NativeMergeTreePartition(index: Int,
+                                    engine: String,
+                                    database: String,
+                                    table: String,
+                                    tablePath: String,
+                                    minParts: Long,
+                                    maxParts: Long,
+                                    substraitPlan: Array[Byte] = Array.empty[Byte])
+  extends BaseNativeFilePartition {
+  override def preferredLocations(): Array[String] = {
+    Array.empty[String]
+  }
+
+  def copySubstraitPlan(newSubstraitPlan: Array[Byte]): NativeMergeTreePartition = {
+    this.copy(substraitPlan = newSubstraitPlan)
   }
 }
 
