@@ -30,9 +30,10 @@
 class TestSubstrait : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
-      gazellecpp::compute::Initialize();
-      gluten::SetBackendFactory(
-      [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
+    gazellecpp::compute::Initialize();
+    gluten::SetBackendFactory([] {
+      return std::make_shared<gazellecpp::compute::ArrowExecBackend>();
+    });
     // setenv("MEMKIND_HBW_NODES", "0", 1);
   }
 
