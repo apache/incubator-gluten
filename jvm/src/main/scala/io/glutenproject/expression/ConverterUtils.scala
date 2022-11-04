@@ -462,6 +462,15 @@ object ConverterUtils extends Logging {
   final val GREATEST = "greatest"
   final val LEAST = "least"
 
+  // PrestoSQL Math fucctions of Velox
+  final val ACOS = "acos"
+  final val ASIN = "asin"
+  final val ATAN = "atan"
+  final val ATAN2 = "atan2"
+
+
+
+
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
 }

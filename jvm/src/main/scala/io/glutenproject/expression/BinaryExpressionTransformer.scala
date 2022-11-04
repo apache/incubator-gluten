@@ -272,6 +272,33 @@ class RoundTransformer(child: Expression, scale: Expression, original: Expressio
   }
 }
 
+class Atan2Transformer(left: Expression, right: Expression, original: Expression)
+  extends Atan2(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.ATAN2, Seq(left.dataType, right.dataType)))
+
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeBoolean(nullable)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 object BinaryExpressionTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression =
@@ -302,6 +329,8 @@ object BinaryExpressionTransformer {
         new PowTransformer(left, right, p)
       case r: Round =>
         new RoundTransformer(left, right, r)
+      case g: Atan2 =>
+        new Atan2Transformer(left, right, g)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
