@@ -32,15 +32,15 @@ public class SimpleExpressionEval implements AutoCloseable, Iterator<Long> {
 
   private final Long instance;
 
-  public SimpleExpressionEval(ColumnarNativeIterator block_stream,
+  public SimpleExpressionEval(ColumnarNativeIterator blockStream,
                               PlanNode planNode) {
     Plan plan = planNode.toProtobuf();
     LOG.debug("SimpleExpressionEval exec plan: " + plan.toString());
-    byte[] plan_data = plan.toByteArray();
-    instance = createNativeInstance(block_stream, plan_data);
+    byte[] planData = plan.toByteArray();
+    instance = createNativeInstance(blockStream, planData);
   }
 
-  private static native long createNativeInstance(ColumnarNativeIterator block_stream, byte[] plan);
+  private static native long createNativeInstance(ColumnarNativeIterator blockStream, byte[] plan);
 
   private static native void nativeClose(long instance);
 

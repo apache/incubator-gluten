@@ -15,25 +15,37 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+#pragma once
 
-/**
- * For being called from C++ code only.
- */
-public interface JniByteInputStream {
-  /**
-   * Read fixed size of data into an address.
-   * @return the read bytes; 0 if end of stream.
-   */
-  long read(long destAddress, long maxSize);
+#include "allocator.h"
 
-  /**
-   * Position of this stream.
-   */
-  long tell();
+namespace gluten {
+namespace memory {
 
-  /**
-   * Close and reclaim the resources.
-   */
-  void close();
-}
+class HbwMemoryAllocator : public MemoryAllocator {
+ public:
+  bool Allocate(int64_t size, void** out) override;
+
+  bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
+
+  bool AllocateAligned(uint16_t alignment, int64_t size, void** out) override;
+
+  bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
+
+  bool ReallocateAligned(
+      void* p,
+      uint16_t alignment,
+      int64_t size,
+      int64_t new_size,
+      void** out) override;
+
+  bool Free(void* p, int64_t size) override;
+
+  int64_t GetBytes() override;
+
+ private:
+  std::atomic_int64_t bytes_{0};
+};
+
+} // namespace memory
+} // namespace gluten
