@@ -17,16 +17,22 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
+import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
 
-//  override
-//  def blackTestNameList: Seq[String] = Seq("DateFormat", "next_day", "TruncDate",
-//    "unsupported fmt fields for trunc/date_trunc results null", "from_unixtime",
-//    "to_unix_timestamp")
+  override protected def checkEvaluation(expression: => Expression,
+                                         expected: Any,
+                                         inputRow: InternalRow = EmptyRow): Unit = {
+    val resolver = ResolveTimeZone
+    val expr = resolver.resolveTimeZones(expression)
+    assert(expr.resolved)
 
-//  override
-//  def whiteTestNameList: Seq[String] = Seq("next_day")
-
+    val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
+    // Consistent with the evaluation vanilla spark UT to avoid overflow issue in
+    // resultDF.collect() for some corner cases.
+    glutenCheckExpression(expr, catalystValue, inputRow, true)
+  }
 }

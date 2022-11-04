@@ -147,7 +147,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   override protected def checkEvaluation(expression: => Expression,
                                          expected: Any,
                                          inputRow: InternalRow = EmptyRow): Unit = {
-    val serializer = new JavaSerializer(_spark.sparkContext.getConf).newInstance
     val resolver = ResolveTimeZone
     val expr = resolver.resolveTimeZones(expression)
     assert(expr.resolved)
@@ -162,7 +161,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
 
   def glutenCheckExpression(expression: Expression,
                             expected: Any,
-                            inputRow: InternalRow): Unit = {
+                            inputRow: InternalRow, justEvalExpr: Boolean = false): Unit = {
     val df = if (inputRow != EmptyRow) {
       convertInternalRowToDataFrame(inputRow)
     } else {
@@ -172,7 +171,15 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
     val resultDF = df.select(Column(expression))
-    val result = resultDF.collect()
+    val result = if (justEvalExpr) {
+      try {
+        expression.eval(inputRow)
+      } catch {
+        case e: Exception => fail(s"Exception evaluating $expression", e)
+      }
+    } else {
+      resultDF.collect()
+    }
     if (checkDataTypeSupported(expression) &&
         !expression.children.map(checkDataTypeSupported).exists(_ == false)) {
       val projectTransformer = resultDF.queryExecution.executedPlan.collect {
