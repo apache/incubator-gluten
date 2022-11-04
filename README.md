@@ -1,3 +1,5 @@
+# GLuten: A Spark Plugin to Offload SQL Engine to Native Library
+*<b>This plugin is still under active development now. and doesn't have a stable release. Welcome to evaluate it. If you encounter any issues or have any suggestions, please submit to out issue list. We'd love to hear your feedback</b>*
 
 # 1 Introduction
 
