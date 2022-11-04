@@ -78,8 +78,6 @@ function compile_velox_arrow {
             -DARROW_BUILD_SHARED=ON \
             -DARROW_SUBSTRAIT=ON \
             -DARROW_S3=ON \
-            -DARROW_GANDIVA_JAVA=ON \
-            -DARROW_GANDIVA=ON \
             -DARROW_ORC=OFF \
             -DARROW_HDFS=ON \
             -DARROW_BOOST_USE_SHARED=OFF \
@@ -100,7 +98,7 @@ function compile_velox_arrow {
     popd
 
     cd java
-    mvn clean install -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
+    mvn clean install -P arrow-jni -pl dataset,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
         -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
 }
 
@@ -118,8 +116,6 @@ function compile_gazelle_arrow {
             -DARROW_COMPUTE=ON \
             -DARROW_SUBSTRAIT=ON \
             -DARROW_S3=ON \
-            -DARROW_GANDIVA_JAVA=ON \
-            -DARROW_GANDIVA=ON \
             -DARROW_PARQUET=ON \
             -DARROW_ORC=OFF \
             -DARROW_HDFS=ON \
@@ -153,7 +149,7 @@ function compile_gazelle_arrow {
     make install
 
     cd java
-    mvn clean install -P arrow-jni -pl dataset,gandiva,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip -Dmaven.gitcommitid.skip=true
+    mvn clean install -P arrow-jni -pl dataset,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip -Dmaven.gitcommitid.skip=true
 }
 
 echo "CMAKE Arguments:"

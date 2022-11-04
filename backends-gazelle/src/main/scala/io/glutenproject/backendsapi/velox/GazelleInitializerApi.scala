@@ -31,7 +31,6 @@ class GazelleInitializerApi extends IInitializerApi {
     val loader = workspace.libLoader
     loader.newTransaction()
       .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800", false)
-      .loadAndCreateLink("libgandiva.so.800.0.0", "libgandiva.so.800", false)
       .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800", false)
       .loadAndCreateLink("libarrow_dataset.so.800.0.0", "libarrow_dataset.so.800", false)
       .loadAndCreateLink("libarrow_substrait.so.800.0.0", "libarrow_substrait.so.800", false)

@@ -27,8 +27,6 @@
 
 #include <boost/align.hpp>
 
-#include "gandiva/decimal_type_util.h"
-
 namespace gluten {
 namespace columnartorow {
 

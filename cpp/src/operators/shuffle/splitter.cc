@@ -22,9 +22,6 @@
 #include <arrow/type.h>
 #include <arrow/util/bit_util.h>
 #include <arrow/util/checked_cast.h>
-#include <gandiva/node.h>
-#include <gandiva/projector.h>
-#include <gandiva/tree_expr_builder.h>
 #include <immintrin.h>
 #include <x86intrin.h>
 

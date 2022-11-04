@@ -39,8 +39,6 @@ ExternalProject_Add(arrow_ep
     -DARROW_SUBSTRAIT=ON
     -DARROW_COMPUTE=ON
     -DARROW_S3=ON
-    -DARROW_GANDIVA_JAVA=ON
-    -DARROW_GANDIVA=ON
     -DARROW_PARQUET=ON
     -DARROW_CSV=ON
     -DARROW_HDFS=ON
@@ -110,17 +108,5 @@ if(STATIC_ARROW)
       INTERFACE_INCLUDE_DIRECTORIES
       "${ARROW_EP_INSTALL_PREFIX}/include")
   add_dependencies(Arrow::arrow arrow_ep)
-
-  # Load Static Gandiva Library
-  set(
-      GANDIVA_STATIC_LIB
-      "${ARROW_EP_INSTALL_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${GANDIVA_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}"
-  )
-  add_library(Arrow::gandiva STATIC IMPORTED)
-  set_target_properties(Arrow::gandiva
-      PROPERTIES IMPORTED_LOCATION "${GANDIVA_STATIC_LIB}"
-      INTERFACE_INCLUDE_DIRECTORIES
-      "${ARROW_EP_INSTALL_PREFIX}/include")
-  add_dependencies(Arrow::gandiva arrow_ep)
 
 endif()

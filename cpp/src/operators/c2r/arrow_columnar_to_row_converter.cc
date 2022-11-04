@@ -19,6 +19,8 @@
 
 #include <immintrin.h>
 #include <iostream>
+#include <arrow/array/array_decimal.h>
+#include <arrow/util/decimal.h>
 
 namespace gluten {
 namespace columnartorow {

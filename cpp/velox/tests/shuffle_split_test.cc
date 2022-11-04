@@ -375,20 +375,9 @@ TEST_F(SplitterTest, TestSplitterMemoryLeak) {
   ASSERT_TRUE(pool->bytes_allocated() == 0);
 }
 
-TEST_F(SplitterTest, TestHashSplitter) {
+TEST_F(SplitterTest, DISABLED_TestHashSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
-
-  auto f_0 = TreeExprBuilder::MakeField(schema_->field(1));
-  auto f_1 = TreeExprBuilder::MakeField(schema_->field(2));
-  auto f_2 = TreeExprBuilder::MakeField(schema_->field(3));
-
-  auto node_0 = TreeExprBuilder::MakeFunction("add", {f_0, f_1}, int8());
-  auto expr_0 = TreeExprBuilder::MakeExpression(node_0, field("res0", int8()));
-  auto expr_1 =
-      TreeExprBuilder::MakeExpression(f_2, field("f_uint64", uint64()));
-
-  gandiva::ExpressionVector expr_array = {expr_0, expr_1};
 
   ARROW_ASSIGN_OR_THROW(
       splitter_,
@@ -396,8 +385,6 @@ TEST_F(SplitterTest, TestHashSplitter) {
           "hash",
           schema_,
           num_partitions,
-          (const uint8_t*)expr_array.data(),
-          expr_array.size(),
           split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
@@ -1090,7 +1077,7 @@ TEST_F(SplitterTest, TestRoundRobinMapArraySplitter) {
   }
 }
 
-TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
+TEST_F(SplitterTest, DISABLED_TestHashListArraySplitterWithMorePartitions) {
   int32_t num_partitions = 5;
   split_options_.buffer_size = 4;
 
@@ -1104,18 +1091,12 @@ TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_batch_1_data, rb_schema, &input_batch_arr);
 
-  auto f_2 = TreeExprBuilder::MakeField(f_uint64);
-  auto expr_1 =
-      TreeExprBuilder::MakeExpression(f_2, field("f_uint64", uint64()));
-  gandiva::ExpressionVector expr_array = {expr_1};
   ARROW_ASSIGN_OR_THROW(
       splitter_,
       Splitter::Make(
           "hash",
           rb_schema,
           num_partitions,
-          (const uint8_t*)expr_array.data(),
-          expr_array.size(),
           split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));

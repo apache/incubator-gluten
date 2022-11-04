@@ -21,9 +21,7 @@
 #include <arrow/filesystem/localfs.h>
 #include <arrow/io/api.h>
 #include <arrow/record_batch.h>
-#include <gandiva/arrow.h>
-#include <gandiva/gandiva_aliases.h>
-#include <gandiva/projector.h>
+#include <arrow/type_traits.h>
 
 #include <numeric>
 #include <random>

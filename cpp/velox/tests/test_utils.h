@@ -25,8 +25,6 @@
 #include <arrow/record_batch.h>
 #include <arrow/status.h>
 #include <arrow/type.h>
-#include <gandiva/node.h>
-#include <gandiva/tree_expr_builder.h>
 
 #include <iostream>
 #include <memory>
@@ -34,9 +32,6 @@
 
 #include "utils/macros.h"
 using namespace arrow;
-
-using TreeExprBuilder = gandiva::TreeExprBuilder;
-using FunctionNode = gandiva::FunctionNode;
 
 #define ASSERT_NOT_OK(status)                  \
   do {                                         \
@@ -109,34 +104,5 @@ void MakeInputBatch(
   }
 
   *input_batch = RecordBatch::Make(sch, length, array_list);
-  return;
-}
-
-void ConstructNullInputBatch(std::shared_ptr<arrow::RecordBatch>* null_batch) {
-  std::vector<std::shared_ptr<arrow::Array>> columns;
-  arrow::Int64Builder builder1;
-  builder1.AppendNull();
-  builder1.Append(1);
-
-  arrow::Int64Builder builder2;
-  builder2.Append(1);
-  builder2.AppendNull();
-
-  std::shared_ptr<arrow::Array> array1;
-  builder1.Finish(&array1);
-  std::shared_ptr<arrow::Array> array2;
-  builder2.Finish(&array2);
-
-  columns.push_back(array1);
-  columns.push_back(array2);
-
-  std::vector<std::shared_ptr<arrow::Field>> schema_vec{
-      arrow::field("col1", arrow::int64()),
-      arrow::field("col2", arrow::int64()),
-  };
-
-  std::shared_ptr<arrow::Schema> schema{
-      std::make_shared<arrow::Schema>(schema_vec)};
-  *null_batch = arrow::RecordBatch::Make(schema, 2, columns);
   return;
 }

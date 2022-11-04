@@ -124,9 +124,9 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
   };
 
   // not thread safe
-  Status Close() override {
+  arrow::Status Close() override {
     if (closed_) {
-      return Status::OK();
+      return arrow::Status::OK();
     }
     JNIEnv* env;
     AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
@@ -135,7 +135,7 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
     env->DeleteGlobalRef(jni_in_);
     vm_->DetachCurrentThread();
     closed_ = true;
-    return Status::OK();
+    return arrow::Status::OK();
   }
 
   arrow::Result<int64_t> Tell() const override {

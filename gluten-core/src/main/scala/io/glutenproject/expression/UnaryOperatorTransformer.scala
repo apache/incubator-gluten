@@ -344,9 +344,6 @@ class NormalizeNaNAndZeroTransformer(child: Expression, original: NormalizeNaNAn
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // TODO: A Temporary workaround to make shuffle repartition expression
-    // pass with double/float type.
-    // We need to support converting substrait to gandiva expressions in native.
     child.asInstanceOf[ExpressionTransformer].doTransform(args)
   }
 }
