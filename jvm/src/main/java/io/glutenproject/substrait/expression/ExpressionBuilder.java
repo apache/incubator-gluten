@@ -20,6 +20,8 @@ package io.glutenproject.substrait.expression;
 import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
 import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.BinaryType;
+import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.Decimal;
@@ -27,6 +29,7 @@ import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.DoubleType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 
 import java.util.ArrayList;
@@ -63,6 +66,14 @@ public class ExpressionBuilder {
     return new IntListNode(intConstants);
   }
 
+  public static ByteLiteralNode makeByteLiteral(Byte byteConstant) {
+    return new ByteLiteralNode(byteConstant);
+  }
+
+  public static ShortLiteralNode makeShortLiteral(Short shortConstant) {
+    return new ShortLiteralNode(shortConstant);
+  }
+
   public static LongLiteralNode makeLongLiteral(Long longConstant) {
     return new LongLiteralNode(longConstant);
   }
@@ -79,6 +90,10 @@ public class ExpressionBuilder {
     return new DoubleListNode(doubleConstants);
   }
 
+  public static FloatLiteralNode makeFloatLiteral(Float floatConstant) {
+    return new FloatLiteralNode(floatConstant);
+  }
+
   public static DateLiteralNode makeDateLiteral(Integer dateConstant) {
     return new DateLiteralNode(dateConstant);
   }
@@ -87,12 +102,20 @@ public class ExpressionBuilder {
     return new DateListNode(dateConstants);
   }
 
+  public static TimestampLiteralNode makeTimestampLiteral(Long tsConstants) {
+    return new TimestampLiteralNode(tsConstants);
+  }
+
   public static StringLiteralNode makeStringLiteral(String strConstant) {
     return new StringLiteralNode(strConstant);
   }
 
   public static StringListNode makeStringList(ArrayList<String> strConstants) {
     return new StringListNode(strConstants);
+  }
+
+  public static BinaryLiteralNode makeBinaryLiteral(byte[] bytesConstant) {
+    return new BinaryLiteralNode(bytesConstant);
   }
 
   public static DecimalLiteralNode makeDecimalLiteral(Decimal decimalConstant) {
@@ -105,6 +128,18 @@ public class ExpressionBuilder {
         return makeNullLiteral(TypeBuilder.makeI32(nullable));
       } else {
         return makeIntLiteral((Integer) obj);
+      }
+    } else if (dataType instanceof ByteType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeI8(nullable));
+      } else {
+        return makeByteLiteral((Byte) obj);
+      }
+    } else if (dataType instanceof ShortType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeI16(nullable));
+      } else {
+        return makeShortLiteral((Short) obj);
       }
     } else if (dataType instanceof LongType) {
       if (obj == null) {
@@ -136,13 +171,22 @@ public class ExpressionBuilder {
       } else {
         return makeStringLiteral(obj.toString());
       }
+    } else if (dataType instanceof BinaryType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeBinary(nullable));
+      } else {
+        return makeBinaryLiteral((byte[]) obj);
+      }
     } else if (dataType instanceof DecimalType) {
       if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeDecimal(nullable, 0, 0));
+        DecimalType decimal = (DecimalType)dataType;
+        return makeNullLiteral(TypeBuilder.makeDecimal(nullable, decimal.precision(),
+          decimal.scale()));
       } else {
         return makeDecimalLiteral((Decimal) obj);
       }
     } else {
+      /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
       throw new UnsupportedOperationException(
           String.format("Type not supported: %s.", dataType.toString()));
     }

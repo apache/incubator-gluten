@@ -77,7 +77,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"),
     "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
-      sparkContext, "number of dynamic filters accepted"))
+      sparkContext, "number of dynamic filters accepted"),
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   val inputRows: SQLMetric = longMetric("inputRows")
   val inputVectors: SQLMetric = longMetric("inputVectors")
@@ -96,8 +97,11 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   val numDynamicFiltersAccepted: SQLMetric = longMetric("numDynamicFiltersAccepted")
 
   override lazy val supportsColumnar: Boolean = {
+    /*
     relation.fileFormat
       .supportBatch(relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
+    */
+    GlutenConfig.getConf.enableColumnarIterator
   }
 
   override def filterExprs(): Seq[Expression] = dataFilters
