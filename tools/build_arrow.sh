@@ -92,6 +92,7 @@ function compile_velox_arrow {
             -DARROW_RUNTIME_SIMD_LEVEL=MAX \
             -DARROW_DEPENDENCY_SOURCE=BUNDLED \
             -Dre2_SOURCE=AUTO \
+            -DProtobuf_SOURCE=AUTO \
             -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
             -DCMAKE_INSTALL_LIBDIR=lib \
             ..
@@ -142,6 +143,7 @@ function compile_gazelle_arrow {
             -DARROW_RUNTIME_SIMD_LEVEL=MAX \
             -DARROW_DEPENDENCY_SOURCE=BUNDLED \
             -Dre2_SOURCE=AUTO \
+            -DProtobuf_SOURCE=AUTO \
             -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
             -DCMAKE_INSTALL_LIBDIR=lib \
             cpp

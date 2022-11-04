@@ -73,6 +73,10 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     return ParseProtobuf(data, size, &plan_);
   }
 
+  const ::substrait::Plan& GetPlan() {
+    return plan_;
+  }
+
   /// Parse and get the input schema from the cached plan.
   const std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>&
   GetInputSchemaMap() {
