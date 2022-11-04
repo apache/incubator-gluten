@@ -16,17 +16,37 @@
  */
 package io.substrait.spark
 
+import io.substrait.spark.debug.TreePrinter.tree
 import io.substrait.spark.logical.{SubstraitLogicalPlanConverter, SubstraitRelVisitor}
 
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.test.SharedSparkSession
 
+import io.substrait.{proto, relation}
 import io.substrait.expression.proto.FunctionCollector
 import io.substrait.plan.{Plan, PlanProtoConverter, ProtoPlanConverter}
-import io.substrait.proto
 import io.substrait.relation.RelProtoConverter
+import org.scalactic.Equality
+import org.scalactic.source.Position
+import org.scalatest.Succeeded
+import org.scalatest.compatible.Assertion
+import org.scalatest.exceptions.{StackDepthException, TestFailedException}
 
 trait SubstraitPlanTestBase { self: SharedSparkSession =>
+
+  implicit class PlainEquality[T <: relation.Rel](leftSideValue: T) {
+    // Like should equal, but does not try to mark diffs in strings with square brackets,
+    // so that IntelliJ can show a proper diff.
+    def shouldEqualPlainly(right: T)(implicit equality: Equality[T]): Assertion =
+      if (!equality.areEqual(leftSideValue, right)) {
+        throw new TestFailedException(
+          (e: StackDepthException) =>
+            Some(s"""${tree(leftSideValue)} did not equal ${tree(right)}"""),
+          None,
+          Position.here
+        )
+      } else Succeeded
+  }
 
   def sqlToProtoPlan(sql: String): proto.Plan = {
     val convert = new SubstraitRelVisitor()
@@ -65,7 +85,7 @@ trait SubstraitPlanTestBase { self: SharedSparkSession =>
     val pojoRel = new SubstraitRelVisitor().visit(logicalPlan)
     val logicalPlan2 = new SubstraitLogicalPlanConverter(spark = spark).convert(pojoRel)
     val pojoRel2 = new SubstraitRelVisitor().visit(logicalPlan2)
-    assertResult(pojoRel)(pojoRel2)
+    pojoRel.shouldEqualPlainly(pojoRel2)
     logicalPlan2
   }
 

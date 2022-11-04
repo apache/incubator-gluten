@@ -18,14 +18,13 @@ package io.substrait.spark.expression
 
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Count, Sum}
 
 import scala.reflect.ClassTag
 
 case class Sig(expClass: Class[_], name: String, builder: Seq[Expression] => Expression) {
   def makeCall(args: Seq[Expression]): Expression =
     builder(args)
-
 }
 
 class FunctionMappings {
@@ -54,7 +53,8 @@ class FunctionMappings {
   )
 
   val AGGREGATE_SIGS: Seq[Sig] = Seq(
-    s[Sum]("sum")
+    s[Sum]("sum"),
+    s[Count]("count")
   )
 
   lazy val scalar_functions_map: Map[Class[_], Sig] = SCALAR_SIGS.map(s => (s.expClass, s)).toMap

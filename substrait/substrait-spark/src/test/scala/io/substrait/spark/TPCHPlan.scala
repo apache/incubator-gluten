@@ -31,4 +31,23 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
     val query = "select p_size  from part where p_partkey > cast(100 as bigint)"
     assertSqlSubstraitRelRoundTrip(query)
   }
+
+  test("simpleTest2") {
+    val query = "select l_partkey, l_discount from lineitem where l_orderkey > cast(100 as bigint)"
+    assertSqlSubstraitRelRoundTrip(query)
+  }
+
+  test("simpleTestAgg") {
+    assertSqlSubstraitRelRoundTrip(
+      "select l_partkey, count(l_tax), COUNT(distinct l_discount) from lineitem group by l_partkey")
+
+    // group by an expression
+//    assertSqlSubstraitRelRoundTrip(
+//      "select count(l_tax), COUNT(distinct l_discount)" +
+//        " from lineitem group by l_partkey + l_orderkey")
+
+    assertSqlSubstraitRelRoundTrip(
+      "select l_partkey + l_orderkey, count(l_tax), COUNT(distinct l_discount)" +
+        " from lineitem group by l_partkey + l_orderkey")
+  }
 }

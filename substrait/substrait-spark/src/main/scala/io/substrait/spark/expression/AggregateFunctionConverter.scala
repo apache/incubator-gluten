@@ -40,26 +40,16 @@ class AggregateFunctionConverter(functions: Seq[SimpleExtension.AggregateFunctio
 
     val sparkAggregate = sparkExp.asInstanceOf[AggregateExpression]
 
-    val invocation = if (sparkAggregate.isDistinct) {
-      AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_DISTINCT
-    } else {
-      AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_ALL
-    }
     ExpressionCreator.aggregateFunction(
       function,
       outputType,
-      to(sparkAggregate.mode),
+      AggregateFunctionConverter.fromSpark(sparkAggregate.mode),
       Collections.emptyList[SExpression.SortField](),
-      invocation,
-      JavaConverters.asJavaIterable(arguments))
+      AggregateFunctionConverter.fromSpark(sparkAggregate.isDistinct),
+      JavaConverters.asJavaIterable(arguments)
+    )
   }
 
-  private def to(mode: AggregateMode): SExpression.AggregationPhase = mode match {
-    case Partial => SExpression.AggregationPhase.INITIAL_TO_INTERMEDIATE
-    case PartialMerge => SExpression.AggregationPhase.INTERMEDIATE_TO_INTERMEDIATE
-    case Final => SExpression.AggregationPhase.INTERMEDIATE_TO_RESULT
-    case other => throw new UnsupportedOperationException(s"not currently supported: $other.")
-  }
   override def getSigs: Seq[Sig] = FunctionMappings.AGGREGATE_SIGS
 
   def convert(
@@ -69,11 +59,39 @@ class AggregateFunctionConverter(functions: Seq[SimpleExtension.AggregateFunctio
       .filter(m => m.allowedArgCount(2))
       .flatMap(m => m.attemptMatch(expression, operands))
   }
+
+  def apply(
+      expression: AggregateExpression,
+      operands: Seq[SExpression]): AggregateFunctionInvocation = {
+    convert(expression, operands).getOrElse(
+      throw new UnsupportedOperationException(
+        s"Unable to find binding for call ${expression.aggregateFunction}"))
+  }
 }
 
 object AggregateFunctionConverter {
-  def apply(
-      functions: Seq[SimpleExtension.AggregateFunctionVariant]): AggregateFunctionConverter = {
-    new AggregateFunctionConverter(functions)
+  def fromSpark(mode: AggregateMode): SExpression.AggregationPhase = mode match {
+    case Partial => SExpression.AggregationPhase.INITIAL_TO_INTERMEDIATE
+    case PartialMerge => SExpression.AggregationPhase.INTERMEDIATE_TO_INTERMEDIATE
+    case Final => SExpression.AggregationPhase.INTERMEDIATE_TO_RESULT
+    case Complete => SExpression.AggregationPhase.INITIAL_TO_RESULT
+    case other => throw new UnsupportedOperationException(s"not currently supported: $other.")
   }
+  def toSpark(phase: SExpression.AggregationPhase): AggregateMode = phase match {
+    case SExpression.AggregationPhase.INITIAL_TO_INTERMEDIATE => Partial
+    case SExpression.AggregationPhase.INTERMEDIATE_TO_INTERMEDIATE => PartialMerge
+    case SExpression.AggregationPhase.INTERMEDIATE_TO_RESULT => Final
+    case SExpression.AggregationPhase.INITIAL_TO_RESULT => Complete
+  }
+  def fromSpark(isDistinct: Boolean): AggregateFunction.AggregationInvocation = if (isDistinct) {
+    AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_DISTINCT
+  } else {
+    AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_ALL
+  }
+
+  def toSpark(innovation: AggregateFunction.AggregationInvocation): Boolean = innovation match {
+    case AggregateFunction.AggregationInvocation.AGGREGATION_INVOCATION_DISTINCT => true
+    case _ => false
+  }
+
 }

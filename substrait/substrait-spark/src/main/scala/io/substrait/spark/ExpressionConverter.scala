@@ -77,9 +77,8 @@ object ExpressionConverter {
     override protected val binaryOperatorConverter: BinaryExpressionConverter =
       BinaryExpressionConverter(
         JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.scalarFunctions()))
-
-    protected val aggregateConverter: AggregateFunctionConverter =
-      AggregateFunctionConverter(
-        JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.aggregateFunctions()))
   }
+
+  val aggregateConverter: AggregateFunctionConverter = new AggregateFunctionConverter(
+    JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.aggregateFunctions()))
 }

@@ -16,8 +16,7 @@
  */
 package io.substrait.spark.expression
 
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
-import org.apache.spark.sql.catalyst.expressions.{Cast, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, Expression, Literal}
 import org.apache.spark.substrait.TypeConverter
 
 import io.substrait.`type`.{StringTypeVisitor, Type}
@@ -32,7 +31,7 @@ class SubstraitExpressionConverter(
 ) extends exp.AbstractExpressionVisitor[Expression, RuntimeException]
   with exp.FunctionArg.FuncArgVisitor[Expression, RuntimeException] {
 
-  var output: Seq[UnresolvedAttribute] = Nil
+  var output: Seq[Attribute] = Nil
 
   override def visitFallback(expr: SExpression): Expression =
     throw new UnsupportedOperationException(
@@ -63,7 +62,7 @@ class SubstraitExpressionConverter(
     if (expr.isSimpleRootReference) {
       val segment = expr.segments().get(0)
       segment match {
-        case f: exp.FieldReference.StructField => UnresolvedAttribute(output(f.offset()).name)
+        case f: exp.FieldReference.StructField => output(f.offset()).clone()
         case _ => throw new IllegalArgumentException(s"Unhandled type: $segment")
       }
     } else {

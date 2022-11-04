@@ -22,7 +22,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.analysis.{AnsiTypeCoercion, TypeCoercion}
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.types.{DataType, IntegerType}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.types.DataType
 import org.apache.spark.substrait.TypeConverter
 
 import com.google.common.collect.{ArrayListMultimap, Multimap}
@@ -124,7 +125,7 @@ object FunctionFinder extends SQLConfHelper {
    * Returns the most general of a set of types (that is, one type to which they can all be cast),
    * or [[None]] if conversion is not possible. The result may be a new type that is less
    * restrictive than any of the input types, e.g. <code>leastRestrictive(INT, NUMERIC(3, 2))</code>
-   * could be {@code NUMERIC(12, 2)}.
+   * could be <code>NUMERIC(12, 2)</code>.
    *
    * @param types
    *   input types to be combined using union (not null, not empty)
@@ -253,7 +254,10 @@ class FunctionFinder[F <: SimpleExtension.Function, T](
       val funcArgs: Seq[FunctionArg] = operands
       Option(parent.generateBinding(expression, variant, funcArgs, outputType))
     } else if (singularInputType.isDefined) {
-      val types = expression.children.map(_.dataType)
+      val types = expression match {
+        case agg: AggregateExpression => agg.aggregateFunction.children.map(_.dataType)
+        case other => other.children.map(_.dataType)
+      }
       val nullable = expression.children.exists(e => e.nullable)
       FunctionFinder
         .leastRestrictive(types)

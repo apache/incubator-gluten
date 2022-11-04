@@ -19,8 +19,11 @@ package io.substrait.spark.logical
 import io.substrait.spark.ExpressionConverter
 import io.substrait.spark.expression.LiteralConverter
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.analysis.MultiAlias
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2Relation, DataSourceV2ScanRelation}
@@ -31,10 +34,13 @@ import io.substrait.expression.{Expression => SExpression, ExpressionCreator}
 import io.substrait.relation
 import io.substrait.relation.Rel
 
+import java.util.Collections
+
+import scala.annotation.tailrec
 import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.collection.mutable.ArrayBuffer
+class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] with Logging {
 
-class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] {
   private def t(): relation.Rel = throw new UnsupportedOperationException()
 
   override def default(p: LogicalPlan): relation.Rel = p match {
@@ -42,7 +48,68 @@ class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] {
     case _ => t()
   }
 
-  override def visitAggregate(p: Aggregate): relation.Rel = t()
+  @tailrec
+  private def checkNoExtraExpr(x: Expression): Boolean = x match {
+    case Alias(child, _) => checkNoExtraExpr(child)
+    case MultiAlias(child, _) => checkNoExtraExpr(child)
+    case _: AggregateExpression => true
+    case _ => false
+  }
+
+  private def fromGroupSet(
+      e: Seq[Expression],
+      output: Seq[Attribute]): relation.Aggregate.Grouping = {
+
+    relation.Aggregate.Grouping.builder
+      .addAllExpressions(e.map(toExpression(output)).asJava)
+      .build()
+  }
+
+  private def fromAggCall(
+      expression: AggregateExpression,
+      output: Seq[Attribute]): relation.Aggregate.Measure = {
+    val substraitExps = expression.aggregateFunction.children.map(toExpression(output))
+    val invocation = ExpressionConverter.aggregateConverter.apply(expression, substraitExps)
+    relation.Aggregate.Measure.builder.function(invocation).build()
+  }
+
+  /**
+   * The current substrait [[relation.Aggregate]] can't specify output, but spark [[Aggregate]]
+   * allow. So we can't support #1 <code>select max(b) from table group by a</code>, and #2
+   * <code>select a, max(b) + 1 from table group by a</code>
+   *
+   * We need create [[Project]] on top of [[Aggregate]] to correctly support it.
+   *
+   * TODO: support [[Rollup]] and [[GroupingSets]]
+   */
+  override def visitAggregate(agg: Aggregate): relation.Rel = {
+    val input = visit(agg.child)
+    val actualResultExprs = agg.aggregateExpressions
+    val actualGroupExprs = agg.groupingExpressions
+    val (aggInResult, projectInResult) = actualResultExprs.partition(_.find {
+      case _: AggregateExpression => true
+      case _ => false
+    }.isDefined)
+    val aggregates = aggInResult.flatMap(_.collect { case agg: AggregateExpression => agg })
+
+    if (
+      aggInResult.forall(checkNoExtraExpr) &&
+      projectInResult.size == actualGroupExprs.size &&
+      aggregates.size == aggInResult.size
+    ) {
+
+      val groupings = Collections.singletonList(fromGroupSet(projectInResult, agg.child.output))
+      val aggCalls = aggregates.map(fromAggCall(_, agg.child.output)).asJava
+
+      relation.Aggregate.builder
+        .input(input)
+        .addAllGroupings(groupings)
+        .addAllMeasures(aggCalls)
+        .build
+    } else {
+      t()
+    }
+  }
 
   override def visitDistinct(p: Distinct): relation.Rel = t()
 
