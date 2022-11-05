@@ -57,7 +57,12 @@ abstract class ExpressionConverter {
       case c @ Cast(child, dataType, _, _) =>
         generateExpression(child, output)
           .map(ExpressionCreator.cast(TypeConverter.convertWithThrow(dataType, c.nullable), _))
-      case l: Literal => LiteralConverter.convert(l)
+      case l: Literal =>
+        if (reportErrorEarly) {
+          Some(LiteralConverter.convertWithThrow(l))
+        } else {
+          LiteralConverter.convert(l)
+        }
       case a: AttributeReference if output.nonEmpty =>
         val bindReference =
           BindReferences.bindReference(expr, output, allowFailures = reportErrorEarly)

@@ -22,11 +22,14 @@ import org.apache.spark.sql.types._
 import org.apache.spark.substrait.TypeConverter
 
 import io.substrait.expression.{Expression => SExpression}
-import io.substrait.expression.ExpressionCreator._
+import io.substrait.expression.ExpressionCreator.{decimal, _}
 
 class LiteralConverter extends Logging {
 
   object Nonnull {
+    private def sparkDecimal2Substrait(d: Decimal): SExpression.Literal =
+      decimal(false, d.toJavaBigDecimal, d.precision, d.scale)
+
     val _bool: Boolean => SExpression.Literal = bool(false, _)
     val _i8: Byte => SExpression.Literal = i8(false, _)
     val _i16: Short => SExpression.Literal = i16(false, _)
@@ -34,6 +37,8 @@ class LiteralConverter extends Logging {
     val _i64: Long => SExpression.Literal = i64(false, _)
     val _fp32: Float => SExpression.Literal = fp32(false, _)
     val _fp64: Double => SExpression.Literal = fp64(false, _)
+    val _decimal: Decimal => SExpression.Literal = sparkDecimal2Substrait
+    val _date: Int => SExpression.Literal = date(false, _)
   }
 
   private def convertWithValue(literal: Literal): Option[SExpression.Literal] = {
@@ -46,8 +51,8 @@ class LiteralConverter extends Logging {
         case Literal(l: Long, LongType) => Nonnull._i64(l)
         case Literal(f: Float, FloatType) => Nonnull._fp32(f)
         case Literal(d: Double, DoubleType) => Nonnull._fp64(d)
-        case Literal(d: Decimal, _) =>
-          decimal(false, d.toJavaBigDecimal, d.precision, d.scale)
+        case Literal(d: Decimal, _) => Nonnull._decimal(d)
+        case Literal(d: Integer, DateType) => Nonnull._date(d)
         case _ => null
       }
     )

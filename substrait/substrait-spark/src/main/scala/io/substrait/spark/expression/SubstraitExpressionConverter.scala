@@ -62,6 +62,10 @@ class SubstraitExpressionConverter(
     Literal(Decimal(decimal))
   }
 
+  override def visit(expr: SExpression.DateLiteral): Expression = {
+    Literal(expr.value(), TypeConverter.convert(expr.getType))
+  }
+
   override def visit(expr: SExpression.Cast): Expression = {
     val childExp = expr.input().accept(this)
     Cast(childExp, TypeConverter.convert(expr.getType))

@@ -27,18 +27,20 @@ import io.substrait.function.TypeExpression
 
 import scala.collection.JavaConverters
 
-private class ToSparkDataTpe
+private class ToSparkDataType
   extends TypeVisitor.TypeThrowsVisitor[DataType, RuntimeException]("Unknown expression type.") {
 
   override def visit(expr: Type.I32): DataType = IntegerType
   override def visit(expr: Type.I64): DataType = LongType
 
   override def visit(expr: Type.Decimal): DataType = DecimalType(expr.precision(), expr.scale())
+
+  override def visit(expr: Type.Date): DataType = DateType
 }
 class TypeConverter extends Logging {
 
   def convert(typeExpression: TypeExpression): DataType = {
-    typeExpression.accept(new ToSparkDataTpe)
+    typeExpression.accept(new ToSparkDataType)
   }
 
   def convert(dataType: DataType, nullable: Boolean): Option[Type] = {
