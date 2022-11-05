@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package io.glutenproject.backendsapi
+package io.glutenproject.backendsapi.clickhouse
 
-trait IBackendsApi {
+import io.glutenproject.backendsapi.IInitializerApi
+import io.glutenproject.GlutenConfig
 
-  /**
-   * Get the backend api name.
-   */
-  def getBackendName: String
+class CHInitializerApi extends IInitializerApi {
+  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

@@ -32,32 +32,11 @@ public class ExpressionEvaluatorJniWrapper {
   /**
    * Wrapper for native API.
    */
-  public ExpressionEvaluatorJniWrapper(String tmpDir, List<String> listJars, String libName,
-                                       String libPath, String customBackendLib,
-                                       boolean loadArrowAndGandiva)
+  public ExpressionEvaluatorJniWrapper(List<String> listJars)
       throws IllegalStateException {
-    final JniWorkspace workspace = JniWorkspace.createOrGet(tmpDir);
+    final JniWorkspace workspace = JniWorkspace.getDefault();
     final JniLibLoader loader = workspace.libLoader();
-
-    // some complex if-else conditions from the original JniInstance.java
-    if (loadArrowAndGandiva) {
-      loader.loadArrowLibs();
-    }
-    if (StringUtils.isNotBlank(libPath)) {
-      // Path based load. Ignore all other loadees.
-      JniLibLoader.loadFromPath(libPath);
-    } else {
-      if (StringUtils.isNotBlank(libName)) {
-        loader.mapAndLoad(libName);
-      } else {
-        loader.loadGlutenLib();
-      }
-      if (StringUtils.isNotBlank(customBackendLib)) {
-        loader.mapAndLoad(customBackendLib);
-      }
-    }
     final JniResourceHelper resourceHelper = workspace.resourceHelper();
-
     resourceHelper.extractHeaders();
     resourceHelper.extractJars(listJars);
     tmpDirPath = workspace.getWorkDir();

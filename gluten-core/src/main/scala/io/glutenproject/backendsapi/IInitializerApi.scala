@@ -17,10 +17,6 @@
 
 package io.glutenproject.backendsapi
 
-trait IBackendsApi {
-
-  /**
-   * Get the backend api name.
-   */
-  def getBackendName: String
+trait IInitializerApi extends IBackendsApi {
+  def initialize(): Unit = {}
 }

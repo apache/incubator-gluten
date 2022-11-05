@@ -145,12 +145,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val loadNative: Boolean =
   conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
 
-  // This config is used for deciding whether to load Arrow and Gandiva libraries from
-  // the native library. If the native library does not depend on Arrow and Gandiva,
-  // this config should will set as false.
-  val loadArrow: Boolean =
-  conf.getConfString(GlutenConfig.GLUTEN_LOAD_ARROW, "true").toBoolean
-
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
     conf.getConfString(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
@@ -242,7 +236,6 @@ object GlutenConfig {
   val GLUTEN_LOAD_NATIVE = "spark.gluten.sql.columnar.loadnative"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
-  val GLUTEN_LOAD_ARROW = "spark.gluten.sql.columnar.loadarrow"
   val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
 
   // Hive configurations.
@@ -281,7 +274,7 @@ object GlutenConfig {
   var random_temp_dir_path: String = _
 
   /**
-   * @deprecated We should avoid caching this value in entire JVM. us
+   * @deprecated We should avoid caching this value in entire JVM. use #getSessionConf instead.
    */
   @deprecated
   def getConf: GlutenConfig = synchronized {

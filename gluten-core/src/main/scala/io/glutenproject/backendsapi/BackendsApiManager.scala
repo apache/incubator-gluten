@@ -27,6 +27,8 @@ object BackendsApiManager {
 
   protected var glutenBackenName: String = ""
 
+  protected var initializerApiInstance: IInitializerApi = null
+
   protected var iteratorApiInstance: IIteratorApi = null
 
   protected var sparkPlanExecApiInstance: ISparkPlanExecApi = null
@@ -66,6 +68,19 @@ object BackendsApiManager {
     } else {
       glutenBackenLibName
     }
+
+    // initialize IInitializerApi instance
+    if (initializerApiInstance == null) {
+      val serviceLoader = JavaConverters.iterableAsScalaIterable(
+        ServiceLoader.load(classOf[IInitializerApi]))
+      assert(serviceLoader != null, "Can not initialize IInitializerApi instance.")
+      for (ele <- serviceLoader) {
+        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
+          initializerApiInstance = ele
+        }
+      }
+    }
+    assert(initializerApiInstance != null, "Can not initialize IInitializerApi instance.")
 
     // initialize IIteratorApi instance
     if (iteratorApiInstance == null) {
@@ -107,6 +122,13 @@ object BackendsApiManager {
     assert(transformerApiInstance != null, "Can not initialize ITransformerApi instance.")
 
     glutenBackenName
+  }
+
+  def getInitializerApiInstance: IInitializerApi = {
+    if (initializerApiInstance == null) {
+      throw new RuntimeException("IInitializer instance is null.")
+    }
+    initializerApiInstance
   }
 
   def getIteratorApiInstance: IIteratorApi = {

@@ -42,35 +42,10 @@ public class ExpressionEvaluator implements AutoCloseable {
     this(java.util.Collections.emptyList());
   }
 
-  public ExpressionEvaluator(List<String> listJars) throws IOException, IllegalAccessException,
-      IllegalStateException {
-    this(listJars, GlutenConfig.getConf().nativeLibName());
-  }
 
-  public ExpressionEvaluator(List<String> listJars, String libName) throws IOException,
-      IllegalAccessException, IllegalStateException {
-    this(listJars, libName,
-        GlutenConfig.getConf().nativeLibPath(),
-        GlutenConfig.getConf().glutenBackendLib(),
-        GlutenConfig.getConf().loadArrow());
-  }
-
-  public ExpressionEvaluator(String libPath)
+  public ExpressionEvaluator(List<String> listJars)
       throws IOException, IllegalAccessException, IllegalStateException {
-    this(java.util.Collections.emptyList(), null, libPath, null,
-        GlutenConfig.getConf().loadArrow());
-  }
-
-  public ExpressionEvaluator(List<String> listJars, String libName,
-                             String libPath, String customBackendLib,
-                             boolean loadArrowAndGandiva)
-      throws IOException, IllegalAccessException, IllegalStateException {
-    String tmp_dir = GlutenConfig.getTempFile();
-    if (tmp_dir == null) {
-      tmp_dir = System.getProperty("java.io.tmpdir");
-    }
-    jniWrapper = new ExpressionEvaluatorJniWrapper(tmp_dir, listJars, libName, libPath,
-        customBackendLib, loadArrowAndGandiva);
+    jniWrapper = new ExpressionEvaluatorJniWrapper(listJars);
   }
 
   long getInstanceId() {

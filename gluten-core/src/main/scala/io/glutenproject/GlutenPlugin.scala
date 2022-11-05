@@ -52,7 +52,8 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     // Initialize Backends API
-    val glutenBackenLibName = BackendsApiManager.initialize
+    val glutenBackenLibName = BackendsApiManager.initialize()
+    BackendsApiManager.getInitializerApiInstance.initialize()
     // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
     if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
       conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
@@ -86,7 +87,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
         s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
-    val glutenBackenLibName = BackendsApiManager.initialize
+    val glutenBackenLibName = BackendsApiManager.initialize()
     // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
     if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
       conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
@@ -185,8 +186,7 @@ private[glutenproject] object GlutenPlugin {
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
         conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
         customGlutenLib,
-        customBackendLib,
-        conf.getBoolean(GlutenConfig.GLUTEN_LOAD_ARROW, defaultValue = true))
+        customBackendLib)
       if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
         // Initialize the native backend with spark confs.
         initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)

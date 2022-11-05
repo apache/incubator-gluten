@@ -1,5 +1,6 @@
 package io.glutenproject.vectorized;
 
+import io.glutenproject.GlutenConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,7 @@ public class JniWorkspace {
 
   private static JniWorkspace createDefault() {
     try {
-      final String tempRoot = System.getProperty("java.io.tmpdir");
+      final String tempRoot = GlutenConfig.getTempFile();
       return createOrGet(tempRoot);
     } catch (Exception e) {
       throw new RuntimeException(e);
