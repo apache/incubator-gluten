@@ -20,7 +20,7 @@ import org.apache.spark.sql.TPCHBase
 
 class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
 
-  ignore("simpleJoin") {
+  test("simpleJoin") {
     assertSqlSubstraitRelRoundTrip(
       "select l_partkey + l_orderkey, l_extendedprice * 0.1 + 100.0, o_orderkey from lineitem " +
         "join orders on l_orderkey = o_orderkey where l_shipdate < date '1998-01-01' ")
@@ -151,7 +151,7 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
         "((l_orderkey, L_COMMITDATE), (l_orderkey, L_COMMITDATE, l_linestatus), l_shipdate, ())")
   }
 
-  test("tpch_q1_variant") {
+  ignore("tpch_q1_variant") {
     // difference from tpch_q1 : 1) remove order by clause; 2) remove interval date literal
     assertSqlSubstraitRelRoundTrip(
       "select\n"

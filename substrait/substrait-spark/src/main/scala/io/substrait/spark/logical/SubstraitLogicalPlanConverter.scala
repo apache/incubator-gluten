@@ -21,10 +21,11 @@ import io.substrait.spark.ExpressionConverter.EXTENSION_COLLECTION
 import io.substrait.spark.expression._
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.analysis.{UnresolvedAlias, UnresolvedAttribute, UnresolvedRelation}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.analysis.{UnresolvedAlias, UnresolvedRelation}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project, Subquery, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Join, JoinHint, LogicalPlan, Project, SubqueryAlias}
 import org.apache.spark.sql.execution.QueryExecution
 
 import io.substrait.`type`.{StringTypeVisitor, Type}
@@ -42,17 +43,15 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 class SubstraitLogicalPlanConverter(spark: SparkSession)
   extends relation.AbstractRelVisitor[LogicalPlan, RuntimeException] {
 
-  private var currentOutput: Seq[Attribute] = Nil
-
   private val expressionConverter = new SubstraitExpressionConverter(
     BinaryExpressionConverter(JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.scalarFunctions())))
 
   override def visitFallback(rel: relation.Rel): LogicalPlan =
     throw new UnsupportedOperationException(
-      s"Rel $rel of type ${rel.getClass.getCanonicalName}" +
+      s"Type ${rel.getClass.getCanonicalName}" +
         s" not handled by visitor type ${getClass.getCanonicalName}.")
   private def fromMeasure(measure: relation.Aggregate.Measure): AggregateExpression = {
-    // this functions is called in withCurrentOutput
+    // this functions is called in createParentwithChild
     val arguments = measure.getFunction.arguments().asScala.zipWithIndex.map {
       case (arg, i) =>
         arg.accept(measure.getFunction.declaration(), i, expressionConverter)
@@ -87,9 +86,9 @@ class SubstraitLogicalPlanConverter(spark: SparkSession)
     )
   }
   override def visit(aggregate: relation.Aggregate): LogicalPlan = {
-    val child = aggregate.getInput.accept(this)
     require(aggregate.getGroupings.size() == 1)
-    withCurrentOutput(currentOutput) {
+    val child = aggregate.getInput.accept(this)
+    withChild(child) {
       val groupBy = aggregate.getGroupings
         .get(0)
         .getExpressions
@@ -105,42 +104,60 @@ class SubstraitLogicalPlanConverter(spark: SparkSession)
       Aggregate(groupBy, outputs ++= aggregateExpressions, child)
     }
   }
-  override def visit(project: relation.Project): LogicalPlan = {
 
-    /**
-     * Always resolve [[Project]] to avoid `Project(Add(c, d) , _)`, in such case we can't create a
-     * [[UnresolvedAttribute]]
-     */
-    val child = resolve(project.getInput.accept(this))
-    val projectList = withCurrentOutput(currentOutput) {
-      project.getExpressions.asScala.map(expr => expr.accept(expressionConverter)).map {
-        case e @ (_: NamedExpression) => e
-        case other => Alias(other, "project")()
+  override def visit(join: relation.Join): LogicalPlan = {
+    val left = join.getLeft.accept(this)
+    val right = join.getRight.accept(this)
+    withChild(left, right) {
+      val condition = Option(join.getCondition.orElse(null))
+        .map(_.accept(expressionConverter))
+
+      val joinType = join.getJoinType match {
+        case relation.Join.JoinType.INNER => Inner
+        case relation.Join.JoinType.LEFT => LeftOuter
+        case relation.Join.JoinType.RIGHT => RightOuter
+        case relation.Join.JoinType.OUTER => FullOuter
+        case relation.Join.JoinType.SEMI => LeftSemi
+        case relation.Join.JoinType.ANTI => LeftAnti
+        case relation.Join.JoinType.UNKNOWN =>
+          throw new UnsupportedOperationException("Unknown join type is not supported")
       }
+
+      Join(left, right, joinType, condition, hint = JoinHint.NONE)
     }
-    val result = Project(projectList, child)
-    currentOutput = result.output
-    result
+  }
+
+  override def visit(project: relation.Project): LogicalPlan = {
+    val child = project.getInput.accept(this)
+
+    withChild(child) {
+      val projectList =
+        project.getExpressions.asScala.map(expr => expr.accept(expressionConverter)).map {
+          case e @ (_: NamedExpression) => e
+          case other => Alias(other, "project")()
+        }
+      Project(projectList, child)
+    }
   }
 
   override def visit(filter: relation.Filter): LogicalPlan = {
     val child = filter.getInput.accept(this)
-    withCurrentOutput(currentOutput) {
+    withChild(child) {
       val condition = filter.getCondition.accept(expressionConverter)
       Filter(condition, child)
     }
   }
 
   override def visit(namedScan: relation.NamedScan): LogicalPlan = {
-    currentOutput = namedScan.getInitialSchema.names().asScala.map(s => UnresolvedAttribute(s))
-    UnresolvedRelation(namedScan.getNames.asScala)
+    resolve(UnresolvedRelation(namedScan.getNames.asScala))
   }
 
-  private def withCurrentOutput[T](output: Seq[Attribute])(body: => T): T = {
+  private def withChild(child: LogicalPlan*)(body: => LogicalPlan): LogicalPlan = {
     val oldOutput = expressionConverter.output
+    val output = child.flatMap(_.output)
     try {
       expressionConverter.output = output
-      body
+      resolve(body)
     } finally {
       expressionConverter.output = oldOutput
     }
