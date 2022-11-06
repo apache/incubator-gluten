@@ -45,14 +45,14 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def main(args: Array[String]): Unit = {
 
-    // val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
-    //   "cmake-build-release/utils/local-engine/libch.so"
-    val libPath = "/usr/local/clickhouse/lib/libch.so"
+    val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
+      "cmake-build-release/utils/local-engine/libch.so"
+    // val libPath = "/usr/local/clickhouse/lib/libch.so"
     val thrdCnt = 8
     val shufflePartitions = 8
-    val shuffleManager = "sort"
-    // val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
-    val ioCompressionCodec = "SNAPPY"
+    // val shuffleManager = "sort"
+    val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
+    val ioCompressionCodec = "LZ4"
     val columnarColumnToRow = "true"
     val useV2 = "false"
     val separateScanRDD = "false"
@@ -213,6 +213,8 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.ui.retainedJobs", "2500")
         .config("spark.ui.retainedStages", "5000")
         .config(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED, "true")
+        .config("spark.extraListeners", "io.glutenproject.softaffinity.scheduler.SoftAffinityListener")
+        .config("spark.gluten.sql.columnar.backend.ch.runtime_conf.logger.level", "error")
 
       if (!warehouse.isEmpty) {
         sessionBuilderTmp1
