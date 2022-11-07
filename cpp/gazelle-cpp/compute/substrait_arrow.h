@@ -48,7 +48,7 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
   std::shared_ptr<arrow::Schema> output_schema_;
   std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>> schema_map_;
 
-/// Parse and get the input schema from the cached plan.
+  /// Parse and get the input schema from the cached plan.
   const std::unordered_map<uint64_t, std::shared_ptr<arrow::Schema>>&
   GetInputSchemaMap() {
     if (schema_map_.empty()) {
@@ -68,7 +68,30 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
     }
     return schema_map_;
   }
-// This method is used to get the input schema in InputRel.
+
+  arrow::Result<std::shared_ptr<arrow::DataType>> subTypeToArrowType(
+      const ::substrait::Type& stype) {
+    // TODO: need to add more types here.
+    switch (stype.kind_case()) {
+      case ::substrait::Type::KindCase::kBool:
+        return arrow::boolean();
+      case ::substrait::Type::KindCase::kI32:
+        return arrow::int32();
+      case ::substrait::Type::KindCase::kI64:
+        return arrow::int64();
+      case ::substrait::Type::KindCase::kFp64:
+        return arrow::float64();
+      case ::substrait::Type::KindCase::kString:
+        return arrow::utf8();
+      case ::substrait::Type::KindCase::kDate:
+        return arrow::date32();
+      default:
+        return arrow::Status::Invalid(
+            "Type not supported: " + std::to_string(stype.kind_case()));
+    }
+  }
+  
+  // This method is used to get the input schema in InputRel.
   arrow::Status GetIterInputSchemaFromRel(const ::substrait::Rel& srel);
   void ReplaceSourceDecls(
       std::vector<arrow::compute::Declaration> source_decls);
