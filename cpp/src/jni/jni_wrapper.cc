@@ -837,6 +837,28 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
 }
 
 JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeSpill(
+    JNIEnv* env,
+    jobject,
+    jlong splitter_id,
+    jlong size,
+    jboolean callBySelf) {
+  JNI_METHOD_START
+  auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
+  if (!splitter) {
+    std::string error_message =
+        "Invalid splitter id " + std::to_string(splitter_id);
+    gluten::JniThrow(error_message);
+  }
+  jlong spilled_size;
+  gluten::JniAssertOkOrThrow(
+      splitter->SpillFixedSize(size, &spilled_size),
+      "(shuffle) nativeSpill: spill failed");
+  return spilled_size;
+  JNI_METHOD_END(-1L)
+}
+
+JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_split(
     JNIEnv* env,
     jobject,

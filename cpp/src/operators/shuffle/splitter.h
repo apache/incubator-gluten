@@ -349,6 +349,9 @@ class HashSplitter : public Splitter {
       int32_t num_partitions,
       std::shared_ptr<arrow::Schema> schema,
       SplitOptions options);
+  const std::shared_ptr<arrow::Schema>& input_schema() const override {
+    return input_schema_;
+  }
 
  private:
   HashSplitter(
@@ -361,6 +364,10 @@ class HashSplitter : public Splitter {
       const arrow::RecordBatch& rb) override;
 
   arrow::Status Split(const arrow::RecordBatch& rb) override;
+
+  arrow::Status Init() override;
+
+  std::shared_ptr<arrow::Schema> input_schema_;
 };
 
 class FallbackRangeSplitter : public Splitter {

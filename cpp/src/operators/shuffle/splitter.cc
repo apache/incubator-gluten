@@ -860,7 +860,7 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(
             binary_array_empirical_size_[i - fixed_width_col_cnt_] == 0)) {
       auto arr = rb.column_data(array_idx_[i]);
       auto cid = rb.column(array_idx_[i])->type_id();
-      ARROW_CHECK_EQ(arr->buffers.size(), 3);
+      // ARROW_CHECK_EQ(arr->buffers.size(), 3);
       // offset array_data
       if (ARROW_PREDICT_TRUE(arr->buffers[1] != nullptr)) {
         auto offsetbuf = arr->buffers[1]->data();
@@ -1509,6 +1509,12 @@ arrow::Status RoundRobinSplitter::ComputeAndCountPartitionId(
 // ----------------------------------------------------------------------
 // HashSplitter
 
+arrow::Status HashSplitter::Init() {
+  input_schema_ = std::move(schema_);
+  ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
+  return Splitter::Init();
+}
+
 arrow::Result<std::shared_ptr<HashSplitter>> HashSplitter::Create(
     int32_t num_partitions,
     std::shared_ptr<arrow::Schema> schema,
@@ -1521,6 +1527,13 @@ arrow::Result<std::shared_ptr<HashSplitter>> HashSplitter::Create(
 
 arrow::Status HashSplitter::ComputeAndCountPartitionId(
     const arrow::RecordBatch& rb) {
+  if (rb.column(0)->type_id() != arrow::Type::INT32) {
+    return arrow::Status::Invalid(
+        "RecordBatch field 0 should be ",
+        arrow::int32()->ToString(),
+        ", actual is ",
+        rb.column(0)->type()->ToString());
+  }
   auto num_rows = rb.num_rows();
   partition_id_.resize(num_rows);
   std::fill(std::begin(partition_id_cnt_), std::end(partition_id_cnt_), 0);

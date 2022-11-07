@@ -142,6 +142,7 @@ function compile_gazelle_arrow {
             -DProtobuf_SOURCE=AUTO \
             -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
             -DCMAKE_INSTALL_LIBDIR=lib \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             cpp
 
     make -j$NPROC
