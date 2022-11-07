@@ -196,7 +196,21 @@ class SubstraitRelVisitor extends LogicalPlanVisitor[relation.Rel] with Logging 
 
   override def visitTail(p: Tail): relation.Rel = t(p)
 
-  override def visitSort(sort: Sort): relation.Rel = t(sort)
+  private def toSortField(output: Seq[Attribute] = Nil)(order: SortOrder): SExpression.SortField = {
+    val direction = (order.direction, order.nullOrdering) match {
+      case (Ascending, NullsFirst) => SExpression.SortDirection.ASC_NULLS_FIRST
+      case (Descending, NullsFirst) => SExpression.SortDirection.DESC_NULLS_FIRST
+      case (Ascending, NullsLast) => SExpression.SortDirection.ASC_NULLS_LAST
+      case (Descending, NullsLast) => SExpression.SortDirection.DESC_NULLS_LAST
+    }
+    val expr = toExpression(output)(order.child)
+    SExpression.SortField.builder().expr(expr).direction(direction).build()
+  }
+  override def visitSort(sort: Sort): relation.Rel = {
+    val input = visit(sort.child)
+    val fields = sort.order.map(toSortField(sort.child.output)).asJava
+    relation.Sort.builder.addAllSortFields(fields).input(input).build
+  }
 
   override def visitWithCTE(p: WithCTE): relation.Rel = t(p)
 

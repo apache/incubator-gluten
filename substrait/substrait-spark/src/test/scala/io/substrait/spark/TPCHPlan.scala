@@ -35,21 +35,21 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
         "full join orders on l_orderkey = o_orderkey where l_shipdate < date '1998-01-01' ")
   }
 
-  ignore("simpleOrderByClause") {
+  test("simpleOrderByClause") {
     assertSqlSubstraitRelRoundTrip(
       "select l_partkey from lineitem where l_shipdate < date '1998-01-01' " +
         "order by l_shipdate, l_discount")
     assertSqlSubstraitRelRoundTrip(
       "select l_partkey from lineitem where l_shipdate < date '1998-01-01' " +
         "order by l_shipdate asc, l_discount desc")
-    assertSqlSubstraitRelRoundTrip(
-      "select l_partkey from lineitem where l_shipdate < date '1998-01-01' " +
-        "order by l_shipdate asc, l_discount desc limit 100 offset 1000")
-    assertSqlSubstraitRelRoundTrip(
-      "select l_partkey from lineitem where l_shipdate < date '1998-01-01' " +
-        "order by l_shipdate asc, l_discount desc limit 100")
-    assertSqlSubstraitRelRoundTrip(
-      "select l_partkey from lineitem where l_shipdate < date '1998-01-01' limit 100")
+//    assertSqlSubstraitRelRoundTrip(
+//      "select l_partkey from lineitem where l_shipdate < date '1998-01-01' " +
+//        "order by l_shipdate asc, l_discount desc limit 100 offset 1000")
+//    assertSqlSubstraitRelRoundTrip(
+//      "select l_partkey from lineitem where l_shipdate < date '1998-01-01' " +
+//        "order by l_shipdate asc, l_discount desc limit 100")
+//    assertSqlSubstraitRelRoundTrip(
+//      "select l_partkey from lineitem where l_shipdate < date '1998-01-01' limit 100")
     assertSqlSubstraitRelRoundTrip(
       "select l_partkey from lineitem where l_shipdate < date '1998-01-01' " +
         "order by l_shipdate asc, l_discount desc nulls first")

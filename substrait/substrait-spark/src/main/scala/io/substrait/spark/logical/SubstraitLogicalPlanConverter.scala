@@ -22,10 +22,10 @@ import io.substrait.spark.expression._
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.{UnresolvedAlias, UnresolvedRelation}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, LeftAnti, LeftOuter, LeftSemi, RightOuter}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, Join, JoinHint, LogicalPlan, Project, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.QueryExecution
 
 import io.substrait.`type`.{StringTypeVisitor, Type}
@@ -124,6 +124,26 @@ class SubstraitLogicalPlanConverter(spark: SparkSession)
       }
 
       Join(left, right, joinType, condition, hint = JoinHint.NONE)
+    }
+  }
+
+  private def toSortOrder(sortField: SExpression.SortField): SortOrder = {
+    val expression = sortField.expr().accept(expressionConverter)
+    val (direction, nullOrdering) = sortField.direction() match {
+      case SExpression.SortDirection.ASC_NULLS_FIRST => (Ascending, NullsFirst)
+      case SExpression.SortDirection.DESC_NULLS_FIRST => (Descending, NullsFirst)
+      case SExpression.SortDirection.ASC_NULLS_LAST => (Ascending, NullsLast)
+      case SExpression.SortDirection.DESC_NULLS_LAST => (Descending, NullsLast)
+      case other =>
+        throw new RuntimeException(s"Unexpected Expression.SortDirection enum: $other !")
+    }
+    SortOrder(expression, direction, nullOrdering, Seq.empty)
+  }
+  override def visit(sort: relation.Sort): LogicalPlan = {
+    val child = sort.getInput.accept(this)
+    withChild(child) {
+      val sortOrders = sort.getSortFields.asScala.map(toSortOrder)
+      Sort(sortOrders, global = true, child)
     }
   }
 
