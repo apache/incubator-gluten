@@ -31,8 +31,8 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     assert(expr.resolved)
 
     val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
-    // Consistent with the evaluation vanilla spark UT to avoid overflow issue in
-    // resultDF.collect() for some corner cases.
+    // Consistent with the evaluation approach in vanilla spark UT to avoid overflow issue
+    // in resultDF.collect() for some corner cases.
     glutenCheckExpression(expr, catalystValue, inputRow, true)
   }
 }
