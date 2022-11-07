@@ -850,6 +850,7 @@ arrow::Result<int32_t> Splitter::SpillLargestPartition(int64_t* size) {
   }
   return partition_to_spill;
 }
+
 Splitter::row_offset_type Splitter::CalculateSplitBatchSize(
     const arrow::RecordBatch& rb) {
   uint32_t size_per_row = 0;
@@ -1526,7 +1527,8 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(
   // first column is partition key hash value
   auto pid_arr = std::dynamic_pointer_cast<arrow::Int32Array>(rb.column(0));
   if (pid_arr == nullptr) {
-    return arrow::Status::Invalid("failed to cast outputs.at(0)");
+    return arrow::Status::Invalid(
+        "failed to cast rb.column(0), this column should be hash_partition_key");
   }
   for (auto i = 0; i < num_rows; ++i) {
     // positive mod
@@ -1541,6 +1543,15 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(
     partition_id_[i] = pid;
     partition_id_cnt_[pid]++;
   }
+  return arrow::Status::OK();
+}
+
+arrow::Status HashSplitter::Split(const arrow::RecordBatch& rb) {
+  EVAL_START("split", options_.thread_id)
+  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
+  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  RETURN_NOT_OK(DoSplit(*remove_pid));
+  EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
 }
 

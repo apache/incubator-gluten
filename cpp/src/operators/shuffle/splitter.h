@@ -123,10 +123,6 @@ class Splitter {
     return total_compress_time_;
   }
 
-  int64_t TotalComputePidTime() const {
-    return total_compute_pid_time_;
-  }
-
   const std::vector<int64_t>& PartitionLengths() const {
     return partition_lengths_;
   }
@@ -309,7 +305,6 @@ class Splitter {
   int64_t total_write_time_ = 0;
   int64_t total_spill_time_ = 0;
   int64_t total_compress_time_ = 0;
-  int64_t total_compute_pid_time_ = 0;
   int64_t peak_memory_allocated_ = 0;
 
   std::vector<int64_t> partition_lengths_;
@@ -364,6 +359,8 @@ class HashSplitter : public Splitter {
 
   arrow::Status ComputeAndCountPartitionId(
       const arrow::RecordBatch& rb) override;
+
+  arrow::Status Split(const arrow::RecordBatch& rb) override;
 };
 
 class FallbackRangeSplitter : public Splitter {

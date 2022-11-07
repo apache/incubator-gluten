@@ -56,7 +56,6 @@ object VeloxExecUtil {
                            dataSize: SQLMetric,
                            bytesSpilled: SQLMetric,
                            numInputRows: SQLMetric,
-                           computePidTime: SQLMetric,
                            splitTime: SQLMetric,
                            spillTime: SQLMetric,
                            compressTime: SQLMetric,
@@ -124,7 +123,6 @@ object VeloxExecUtil {
                   cb).column)).toArray
             newColumns.foreach(
               _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(cb.numRows))
-            computePidTime.add(System.nanoTime() - startTime)
             (0, new ColumnarBatch(newColumns, cb.numRows))
           }
       }
@@ -208,7 +206,6 @@ object VeloxExecUtil {
         dataSize = dataSize,
         bytesSpilled = bytesSpilled,
         numInputRows = numInputRows,
-        computePidTime = computePidTime,
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,

@@ -90,7 +90,7 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
             "Type not supported: " + std::to_string(stype.kind_case()));
     }
   }
-  
+
   // This method is used to get the input schema in InputRel.
   arrow::Status GetIterInputSchemaFromRel(const ::substrait::Rel& srel);
   void ReplaceSourceDecls(

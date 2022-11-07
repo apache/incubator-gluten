@@ -55,7 +55,6 @@ object CHExecUtil {
       dataSize: SQLMetric,
       bytesSpilled: SQLMetric,
       numInputRows: SQLMetric,
-      computePidTime: SQLMetric,
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
@@ -66,12 +65,7 @@ object CHExecUtil {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, Array.empty[Byte])
       case HashPartitioning(exprs, n) =>
-        val fields = exprs.zipWithIndex.map {
-          case (expr, i) =>
-            val attr = ConverterUtils.getAttrFromExpr(expr)
-            ConverterUtils.genColumnNameWithExprId(attr)
-        }
-        new NativePartitioning("hash", n, null, fields.mkString(",").getBytes)
+        new NativePartitioning("hash", n, null)
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
@@ -210,7 +204,6 @@ object CHExecUtil {
         dataSize = dataSize,
         bytesSpilled = bytesSpilled,
         numInputRows = numInputRows,
-        computePidTime = computePidTime,
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,

@@ -21,7 +21,6 @@ package io.glutenproject.vectorized;
  * POJO to hold native split result
  */
 public class SplitResult {
-  private final long totalComputePidTime;
   private final long totalWriteTime;
   private final long totalSpillTime;
   private final long totalCompressTime; // overlaps with totalSpillTime and totalWriteTime
@@ -31,7 +30,6 @@ public class SplitResult {
   private final long[] rawPartitionLengths;
 
   public SplitResult(
-      long totalComputePidTime,
       long totalWriteTime,
       long totalSpillTime,
       long totalCompressTime,
@@ -39,7 +37,6 @@ public class SplitResult {
       long totalBytesSpilled,
       long[] partitionLengths,
       long[] rawPartitionLengths) {
-    this.totalComputePidTime = totalComputePidTime;
     this.totalWriteTime = totalWriteTime;
     this.totalSpillTime = totalSpillTime;
     this.totalCompressTime = totalCompressTime;
@@ -47,10 +44,6 @@ public class SplitResult {
     this.totalBytesSpilled = totalBytesSpilled;
     this.partitionLengths = partitionLengths;
     this.rawPartitionLengths = rawPartitionLengths;
-  }
-
-  public long getTotalComputePidTime() {
-    return totalComputePidTime;
   }
 
   public long getTotalWriteTime() {
