@@ -928,8 +928,12 @@ trait HashJoinLikeExecTransformer
     val inputTypeNodes = output.map { attr =>
       ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
     }
+    // Normally the enhancement node is only used for plan validation. But here the enhancement
+    // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
+    // so that it can be correctly parsed into json string on the cpp side.
     Any.pack(TypeBuilder.makeStruct(false,
-      new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf)
+      new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf,
+      /* typeUrlPrefix */"")
   }
 
   protected def createExtensionNode(output: Seq[Attribute],
