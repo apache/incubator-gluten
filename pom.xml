@@ -32,6 +32,7 @@
   <modules>
     <module>shims</module>
     <module>gluten-core</module>
+    <module>ep/build-arrow</module>
   </modules>
 
   <properties>
@@ -186,6 +187,7 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
+        <module>ep/build-arrow</module>
         <module>gluten-data</module>
         <module>backends-velox</module>
         <module>package/velox</module>
@@ -201,6 +203,7 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
+        <module>ep/build-arrow</module>
         <module>gluten-data</module>
         <module>backends-velox</module>
         <module>backends-gazelle</module>
