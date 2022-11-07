@@ -18,7 +18,7 @@ package io.substrait.spark.expression
 
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{Count, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 import scala.reflect.ClassTag
 
@@ -54,7 +54,8 @@ class FunctionMappings {
 
   val AGGREGATE_SIGS: Seq[Sig] = Seq(
     s[Sum]("sum"),
-    s[Count]("count")
+    s[Count]("count"),
+    s[HyperLogLogPlusPlus]("approx_count_distinct")
   )
 
   lazy val scalar_functions_map: Map[Class[_], Sig] = SCALAR_SIGS.map(s => (s.expClass, s)).toMap

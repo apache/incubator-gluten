@@ -105,7 +105,7 @@ class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
     assertSqlSubstraitRelRoundTrip("select count(l_tax), count(distinct l_discount) from lineitem")
   }
 
-  ignore("simpleTestApproxCountDistinct") {
+  test("simpleTestApproxCountDistinct") {
     val query = "select approx_count_distinct(l_tax)  from lineitem"
     val plan = assertSqlSubstraitRelRoundTrip(query)
   }
