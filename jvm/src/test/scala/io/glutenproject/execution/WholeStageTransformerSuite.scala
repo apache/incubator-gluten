@@ -25,6 +25,7 @@ import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
 
 import scala.io.Source
+import scala.reflect.ClassTag
 
 abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSparkSession {
 
@@ -139,6 +140,10 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     assert(df.collect().length == len)
     assert(df.queryExecution.executedPlan
       .find(_.isInstanceOf[TransformSupport]).isDefined)
+  }
+
+  def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]) {
+    assert(df.queryExecution.executedPlan.find(_.getClass == tag.runtimeClass).isDefined)
   }
 
   /**

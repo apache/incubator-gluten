@@ -261,27 +261,26 @@ class TestOperator extends WholeStageTransformerSuite {
 
   test("Test round function") {
     val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
-      "from lineitem limit 1") { _ => }
+      "from lineitem limit 1") { checkOperatorMatch[ProjectExecTransformer] }
     df.show()
     df.explain(false)
     df.printSchema()
-    checkLengthAndPlan(df, 1)
   }
 
   test("Test greatest function") {
-    val df = spark.sql("SELECT greatest(l_orderkey, l_orderkey) from lineitem limit 1")
+    val df = runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
     df.show()
     df.explain(false)
     df.printSchema()
-    checkLengthAndPlan(df, 1)
   }
 
   test("Test least function") {
-    val df = spark.sql("SELECT least(l_orderkey, l_orderkey) from lineitem limit 1")
+    val df = runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
     df.show()
     df.explain(false)
     df.printSchema()
-    checkLengthAndPlan(df, 1)
   }
 
   // VeloxRuntimeError, wait to fix
