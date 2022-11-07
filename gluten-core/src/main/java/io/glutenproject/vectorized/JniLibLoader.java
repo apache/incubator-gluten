@@ -132,27 +132,10 @@ public class JniLibLoader {
     return new JniLoadTransaction();
   }
 
-  public static synchronized void unloadAll() {
-    LOADED_LIBRARY_PATHS.clear();
-    try {
-      ClassLoader classLoader = JniLibLoader.class.getClassLoader();
-      Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
-      field.setAccessible(true);
-      Vector<Object> libs = (Vector<Object>) field.get(classLoader);
-      Iterator it = libs.iterator();
-      while (it.hasNext()) {
-        Object object = it.next();
-        Method finalize = object.getClass().getDeclaredMethod("finalize");
-        finalize.setAccessible(true);
-        finalize.invoke(object);
-      }
-    } catch (Throwable th) {
-      LOG.error("Unload native library error: ", th);
-    }
-  }
-
   public static synchronized void unloadFromPath(String libPath) {
-    LOADED_LIBRARY_PATHS.remove(libPath);
+    if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
+      throw new IllegalStateException("Library not exist: " + libPath);
+    }
 
     try {
       while (Files.isSymbolicLink(Paths.get(libPath))) {
