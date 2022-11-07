@@ -17,9 +17,11 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GlutenConfig;
+import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Function0;
+import scala.runtime.BoxedUnit;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -30,9 +32,13 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -43,11 +49,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import scala.Function0;
-import scala.runtime.BoxedUnit;
-
-import org.apache.spark.util.GlutenShutdownManager;
-
 /**
  * LoadXXX methods in the utility prevents reloading of a library internally.
  * It's not necessary for caller
@@ -57,7 +58,19 @@ public class JniLibLoader {
   private static final Logger LOG =
       LoggerFactory.getLogger(JniLibLoader.class);
 
-  public static Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
+  public static Set<String> LOADED_LIBRARY_PATHS = new LinkedHashSet<>();
+
+  static {
+    GlutenShutdownManager.registerUnloadLibShutdownHook(new Function0<BoxedUnit>() {
+      @Override
+      public BoxedUnit apply() {
+        List<String> loaded = new ArrayList<>(LOADED_LIBRARY_PATHS);
+        Collections.reverse(loaded); // use reversed order to unload
+        loaded.forEach(JniLibLoader::unloadFromPath);
+        return BoxedUnit.UNIT;
+      }
+    });
+  }
 
   private final String workDir;
   private final Set<String> loadedLibraries = new HashSet<>();
@@ -75,18 +88,6 @@ public class JniLibLoader {
     System.load(libPath);
     LOADED_LIBRARY_PATHS.add(libPath);
     LOG.info("Library {} has been loaded using path-loading method", libPath);
-    // Unload native lib.
-    // gazelle backend will coredump after all the queries passed if with this shutdown hook
-    // may because so lib repeated link in dataset.so
-    if (!BACKEND_NAME.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND())) {
-      GlutenShutdownManager.registerUnloadLibShutdownHook(new Function0<BoxedUnit>() {
-        @Override
-        public BoxedUnit apply() {
-          JniLibLoader.unloadNativeLibs(libPath);
-          return BoxedUnit.UNIT;
-        }
-      });
-    }
   }
 
   public static void loadFromPath(String libPath) {
@@ -123,7 +124,7 @@ public class JniLibLoader {
     return new JniLoadTransaction();
   }
 
-  public static synchronized void unloadAllNativeLibs() {
+  public static synchronized void unloadAll() {
     LOADED_LIBRARY_PATHS.clear();
     try {
       ClassLoader classLoader = JniLibLoader.class.getClassLoader();
@@ -142,12 +143,12 @@ public class JniLibLoader {
     }
   }
 
-  public static synchronized void unloadNativeLibs(String libName) {
-    LOADED_LIBRARY_PATHS.remove(libName);
+  public static synchronized void unloadFromPath(String libPath) {
+    LOADED_LIBRARY_PATHS.remove(libPath);
 
     try {
-      while (Files.isSymbolicLink(Paths.get(libName))) {
-        libName = Files.readSymbolicLink(Paths.get(libName)).toString();
+      while (Files.isSymbolicLink(Paths.get(libPath))) {
+        libPath = Files.readSymbolicLink(Paths.get(libPath)).toString();
       }
 
       ClassLoader classLoader = JniLibLoader.class.getClassLoader();
@@ -162,7 +163,7 @@ public class JniLibLoader {
           if (fs[k].getName().equals("name")) {
             fs[k].setAccessible(true);
             String dllPath = fs[k].get(object).toString();
-            if (dllPath.endsWith(libName)) {
+            if (dllPath.endsWith(libPath)) {
               Method finalize = object.getClass().getDeclaredMethod("finalize");
               finalize.setAccessible(true);
               finalize.invoke(object);
