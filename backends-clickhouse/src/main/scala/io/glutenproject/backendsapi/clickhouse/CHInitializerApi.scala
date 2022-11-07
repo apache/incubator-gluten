@@ -19,7 +19,27 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.IInitializerApi
 import io.glutenproject.GlutenConfig
+import io.glutenproject.vectorized.JniLibLoader
+import io.glutenproject.vectorized.JniWorkspace
+import org.apache.commons.lang3.StringUtils
 
 class CHInitializerApi extends IInitializerApi {
   override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
+
+  override def initialize(): Unit = {
+    val workspace = JniWorkspace.getDefault
+    val loader = workspace.libLoader
+    val sessionConf = GlutenConfig.getSessionConf
+    val libPath = sessionConf.nativeLibPath
+    if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
+      JniLibLoader.loadFromPath(libPath)
+      return
+    }
+    val baseLibName = sessionConf.nativeLibName
+    loader.mapAndLoad(baseLibName)
+    val backendLibName = sessionConf.glutenBackendLib
+    if (StringUtils.isNotBlank(backendLibName)) {
+      loader.mapAndLoad(backendLibName)
+    }
+  }
 }
