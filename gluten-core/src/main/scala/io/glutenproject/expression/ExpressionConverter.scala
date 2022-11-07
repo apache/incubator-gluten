@@ -72,6 +72,26 @@ object ExpressionConverter extends Logging {
       case b: BoundReference =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         new BoundReferenceTransformer(b.ordinal, b.dataType, b.nullable)
+      case r: Round =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        RoundOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            r.child,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            r.scale,
+            attributeSeq),
+          expr)
+      case r: BRound =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        RoundOperatorTransformer.create(
+          replaceWithExpressionTransformer(
+            r.child,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            r.scale,
+            attributeSeq),
+          expr)
       case b: BinaryOperator =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         BinaryOperatorTransformer.create(
@@ -126,6 +146,16 @@ object ExpressionConverter extends Logging {
         logDebug(s"colBanches: $colBranches")
         logDebug(s"colElseValue: $colElseValue")
         CaseWhenOperatorTransformer.create(colBranches, colElseValue, expr)
+      case g: Greatest =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        ComplexTypeMergeingOperatorTransformer.createGreatestOrLeast(
+          g.children.map(
+            child => replaceWithExpressionTransformer(child, attributeSeq)), g)
+      case l: Least =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        ComplexTypeMergeingOperatorTransformer.createGreatestOrLeast(
+          l.children.map(
+            child => replaceWithExpressionTransformer(child, attributeSeq)), l)
       case c: Coalesce =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         val exprs = c.children.map { expr =>
@@ -163,6 +193,9 @@ object ExpressionConverter extends Logging {
             t.third,
             attributeSeq),
           expr)
+      case l: LeafExpression =>
+        logInfo(s"${expr.getClass} $expr is supported")
+        LeafOperatorTransformer.create(l)
       case u: UnaryExpression =>
         logInfo(s"${expr.getClass} $expr is supported")
         if (!u.isInstanceOf[CheckOverflow] || !u.child.isInstanceOf[Divide]) {
@@ -198,22 +231,6 @@ object ExpressionConverter extends Logging {
             attributeSeq)
         }
         ConcatExpressionTransformer.create(exprs, expr)
-      case g: Greatest =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        val exprs = g.children.map { expr =>
-          replaceWithExpressionTransformer(
-            expr,
-            attributeSeq)
-        }
-        new GreatestTransformer(exprs, expr)
-      case l: Least =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        val exprs = l.children.map { expr =>
-          replaceWithExpressionTransformer(
-            expr,
-            attributeSeq)
-        }
-        new LeastTransformer(exprs, expr)
       case m: Murmur3Hash =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         val exprs = m.children.map { expr =>

@@ -18,8 +18,12 @@
 package org.apache.spark.sql
 
 class GlutenDataFrameFunctionsSuite extends DataFrameFunctionsSuite with GlutenSQLTestsTrait {
+  override def whiteTestNameList: Seq[String] = Seq(
+    "conditional function: least",
+    "conditional function: greatest"
+
+  )
 
   override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
   )
 }

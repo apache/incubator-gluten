@@ -18,8 +18,31 @@
 package org.apache.spark.sql
 
 class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTrait {
+  override def whiteTestNameList: Seq[String] = Seq(
+    // "round/bround", // Scale argument of round/bround function currently don't support negative.
+    // "radians",      // Relies on the transformation of function `CheckOverflow`.
+    // "degrees",      // Relies on the transformation of function `CheckOverflow`.
+    // "hex",          // Leading 0 is cut in different ways between CH and Spark.
+    // "log1p",        // In CH log1p(1) returns -inf, in spark it returns null.
+    // "rint",         // Relies on the right transformation of function `cast` when null is input
+    "cos",
+    "cosh",
+    "sin",
+    "sinh",
+    "tan",
+    "tanh",
+    "acos",
+    "asin",
+    "atan",
+    "atan2",
+    "cbrt",
+    "unhex",
+    "hypot",
+    "log10",
+    "log2",
+    "log / ln"
+  )
 
   override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
   )
 }
