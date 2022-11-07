@@ -162,8 +162,8 @@ public class JniLibLoader {
         for (int k = 0; k < fs.length; k++) {
           if (fs[k].getName().equals("name")) {
             fs[k].setAccessible(true);
-            String dllPath = fs[k].get(object).toString();
-            if (dllPath.endsWith(libPath)) {
+            String verbosePath = fs[k].get(object).toString();
+            if (verbosePath.endsWith(libPath)) {
               Method finalize = object.getClass().getDeclaredMethod("finalize");
               finalize.setAccessible(true);
               finalize.invoke(object);
