@@ -137,6 +137,8 @@ public class JniLibLoader {
       throw new IllegalStateException("Library not exist: " + libPath);
     }
 
+    REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
+
     try {
       while (Files.isSymbolicLink(Paths.get(libPath))) {
         libPath = Files.readSymbolicLink(Paths.get(libPath)).toString();
