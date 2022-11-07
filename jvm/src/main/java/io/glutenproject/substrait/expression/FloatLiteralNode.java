@@ -15,23 +15,27 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution
+package io.glutenproject.substrait.expression;
 
-case class NativeMergeTreePartition(
-    index: Int,
-    engine: String,
-    database: String,
-    table: String,
-    tablePath: String,
-    minParts: Long,
-    maxParts: Long,
-    substraitPlan: Array[Byte] = Array.empty[Byte])
-    extends BaseNativeFilePartition {
-  override def preferredLocations(): Array[String] = {
-    Array.empty[String]
+import io.substrait.proto.Expression;
+
+import java.io.Serializable;
+
+public class FloatLiteralNode implements ExpressionNode, Serializable {
+  private final Float value;
+
+  public FloatLiteralNode(Float value) {
+    this.value = value;
   }
 
-  def copySubstraitPlan(newSubstraitPlan: Array[Byte]): NativeMergeTreePartition = {
-    this.copy(substraitPlan = newSubstraitPlan)
+  @Override
+  public Expression toProtobuf() {
+    Expression.Literal.Builder floatBuilder =
+        Expression.Literal.newBuilder();
+    floatBuilder.setFp32(value);
+
+    Expression.Builder builder = Expression.newBuilder();
+    builder.setLiteral(floatBuilder.build());
+    return builder.build();
   }
 }

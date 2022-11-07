@@ -199,22 +199,27 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     }
     val inputValues = values.map {
       _ match {
-        case utf8String: UTF8String =>
-          structFileSeq.append(StructField("s", StringType, utf8String == null))
-        case byteArr: Array[Byte] =>
-          structFileSeq.append(StructField("a", BinaryType, byteArr == null))
-        case integer: java.lang.Integer =>
-          structFileSeq.append(StructField("i", IntegerType, integer == null))
-        case long: java.lang.Long =>
-          structFileSeq.append(StructField("l", LongType, long == null))
-        case double: java.lang.Double =>
-          structFileSeq.append(StructField("d", DoubleType, double == null))
-        case short: java.lang.Short =>
-          structFileSeq.append(StructField("sh", ShortType, short == null))
-        case byte: java.lang.Byte =>
-          structFileSeq.append(StructField("b", ByteType, byte == null))
         case boolean: java.lang.Boolean =>
-          structFileSeq.append(StructField("t", BooleanType, boolean == null))
+          structFileSeq.append(StructField("bool", BooleanType, boolean == null))
+        case short: java.lang.Short =>
+          structFileSeq.append(StructField("i16", ShortType, short == null))
+        case byte: java.lang.Byte =>
+          structFileSeq.append(StructField("i8", ByteType, byte == null))
+        case integer: java.lang.Integer =>
+          structFileSeq.append(StructField("i32", IntegerType, integer == null))
+        case long: java.lang.Long =>
+          structFileSeq.append(StructField("i64", LongType, long == null))
+        case float: java.lang.Float =>
+          structFileSeq.append(StructField("fp32", FloatType, float == null))
+        case double: java.lang.Double =>
+          structFileSeq.append(StructField("fp64", DoubleType, double == null))
+        case utf8String: UTF8String =>
+          structFileSeq.append(StructField("str", StringType, utf8String == null))
+        case byteArr: Array[Byte] =>
+          structFileSeq.append(StructField("vbin", BinaryType, byteArr == null))
+        case decimal: Decimal =>
+          structFileSeq.append(StructField("dec",
+            DecimalType(decimal.precision, decimal.scale), decimal == null))
         case _ =>
           // for null
           structFileSeq.append(StructField("n", IntegerType, true))

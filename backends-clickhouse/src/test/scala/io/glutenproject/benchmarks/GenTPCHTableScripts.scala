@@ -17,12 +17,185 @@
 
 package io.glutenproject.benchmarks
 
+import scala.collection.mutable.ArrayBuffer
+
 object GenTPCHTableScripts {
 
   def main(args: Array[String]): Unit = {
-    genTPCHCSV2ParquetSQL()
-    genTPCHMergeTreeTables()
-    genTPCHParquetTables()
+    // genTPCHCSV2ParquetSQL()
+    // genTPCHMergeTreeTables()
+    // genTPCHParquetTables()
+    genTPCHParquetBucketTables()
+  }
+
+  def genTPCHParquetBucketTables(): ArrayBuffer[String] = {
+    // scalastyle:off println
+    val dbName = "tpch100bucketdb"
+    val dataPathRoot = "/data1/test_output/tpch-data-sf100-bucket/"
+    val sourceDbName = "default"
+
+    val tablePrefix = "tpch100bucketdb."
+    val tableSuffix = ""
+
+    val notNullStr = " not null"
+
+    val customerTbl = "customer"
+    val lineitemTbl = "lineitem"
+    val nationTbl = "nation"
+    val regionTbl = "region"
+    val ordersTbl = "orders"
+    val ordersPath = "order"
+    val partTbl = "part"
+    val partsuppTbl = "partsupp"
+    val supplierTbl = "supplier"
+    // scalastyle:off println
+    val res = new ArrayBuffer[String]()
+    res +=
+      s"""
+         |CREATE DATABASE IF NOT EXISTS ${dbName}
+         |WITH DBPROPERTIES (engine='Parquet');
+         |""".stripMargin
+
+    res += s"""use ${dbName};"""
+
+    // lineitem
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + lineitemTbl}'
+         | CLUSTERED BY (l_orderkey) SORTED BY (l_shipdate, l_orderkey) INTO 24 BUCKETS
+         | AS SELECT /*+ REPARTITION(3) */ * FROM ${sourceDbName}.${lineitemTbl}100
+         |""".stripMargin
+
+    // order
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + ordersPath}'
+         | CLUSTERED BY (o_orderkey) SORTED BY (o_orderkey, o_orderdate) INTO 24 BUCKETS
+         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${ordersTbl}100
+         |""".stripMargin
+
+    // customer
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + customerTbl}'
+         | CLUSTERED BY (c_custkey) SORTED BY (c_custkey) INTO 12 BUCKETS
+         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${customerTbl}100
+         |""".stripMargin
+
+    // part
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + partTbl}'
+         | CLUSTERED BY (p_partkey) SORTED BY (p_partkey) INTO 12 BUCKETS
+         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${partTbl}100
+         |""".stripMargin
+
+    // partsupp
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + partsuppTbl}'
+         | CLUSTERED BY (ps_partkey) SORTED BY (ps_partkey) INTO 12 BUCKETS
+         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${partsuppTbl}100
+         |""".stripMargin
+
+    // supplier
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + supplierTbl}'
+         | CLUSTERED BY (s_suppkey) SORTED BY (s_suppkey) INTO 2 BUCKETS
+         | AS SELECT /*+ REPARTITION(1) */ * FROM ${sourceDbName}.${supplierTbl}100
+         |""".stripMargin
+
+    // nation
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + nationTbl}'
+         | AS SELECT /*+ REPARTITION(1) */ * FROM ${sourceDbName}.${nationTbl}100
+         |""".stripMargin
+
+    // region
+    res +=
+      s"""
+         |DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};
+         |""".stripMargin
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix}
+         | USING PARQUET
+         | LOCATION 'file://${dataPathRoot + regionTbl}'
+         | AS SELECT /*+ REPARTITION(1) */ * FROM ${sourceDbName}.${regionTbl}100
+         |""".stripMargin
+    // scalastyle:on println
+    res
+  }
+
+  def genOneTPCDSParquetTableSQL(res: ArrayBuffer[String],
+                                 dataPathRoot: String,
+                                 tblName: String,
+                                 tblFields: String,
+                                 tblPartitionCols: String,
+                                 tablePrefix: String,
+                                 tableSuffix: String): Unit = {
+    // scalastyle:off println
+    println(s"start to generate sqls for table ${tblName}")
+    // scalastyle:on println
+    res += s"""DROP TABLE IF EXISTS ${tablePrefix}${tblName}${tableSuffix};"""
+    res +=
+      s"""
+         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${tblName}${tableSuffix} (
+         |${tblFields}
+         | )
+         | USING PARQUET
+         | ${tblPartitionCols}
+         | LOCATION '${dataPathRoot + tblName}'
+         | ;
+         |""".stripMargin
+
+    if (!tblPartitionCols.isEmpty) {
+      res += s"""MSCK REPAIR TABLE ${tablePrefix}${tblName}${tableSuffix};"""
+    }
   }
 
   def genTPCHMergeTreeTables(): Unit = {

@@ -48,8 +48,8 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     // plan (this) in the closure.
     val localSchema = this.schema
     val fieldNames = output.map(ConverterUtils.genColumnNameWithExprId(_)).toArray
-    val fieldTypes = output.map(_.dataType.typeName).toArray
-    val nullables = output.map(_.nullable).toArray
+    val fieldTypes = output.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
+      .toProtobuf.toByteArray).toArray
     child.execute().mapPartitions { rowIterator =>
       val projection = UnsafeProjection.create(localSchema)
       val cvt = new BlockNativeConverter
@@ -78,8 +78,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
             last_address = cvt.convertSparkRowsToCHColumn(
               sparkRowIterator,
               fieldNames,
-              fieldTypes,
-              nullables)
+              fieldTypes);
             elapse += System.nanoTime() - start
             val block = new CHNativeBlock(last_address)
 

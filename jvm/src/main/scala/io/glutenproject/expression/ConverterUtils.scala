@@ -20,6 +20,7 @@ package io.glutenproject.expression
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.substrait.proto.Type;
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -27,6 +28,7 @@ import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
 
@@ -122,27 +124,104 @@ object ConverterUtils extends Logging {
     }
   }
 
-  def getTypeNode(datatye: DataType, nullable: Boolean): TypeNode = {
-    datatye match {
+  def isNullable(nullability: Type.Nullability): Boolean = {
+    return nullability == Type.Nullability.NULLABILITY_NULLABLE
+  }
+
+  def parseFromSubstraitType(substraitType: Type): (DataType, Boolean) = {
+    substraitType.getKindCase match {
+      case Type.KindCase.BOOL =>
+        (BooleanType, isNullable(substraitType.getBool.getNullability))
+      case Type.KindCase.I8 =>
+        (ByteType, isNullable(substraitType.getI8.getNullability))
+      case Type.KindCase.I16 =>
+        (ShortType, isNullable(substraitType.getI16.getNullability))
+      case Type.KindCase.I32 =>
+        (IntegerType, isNullable(substraitType.getI32.getNullability))
+      case Type.KindCase.I64 =>
+        (LongType, isNullable(substraitType.getI64.getNullability))
+      case Type.KindCase.FP32 =>
+        (FloatType, isNullable(substraitType.getFp32.getNullability))
+      case Type.KindCase.FP64 =>
+        (DoubleType, isNullable(substraitType.getFp64.getNullability))
+      case Type.KindCase.STRING =>
+        (StringType, isNullable(substraitType.getString.getNullability))
+      case Type.KindCase.BINARY =>
+        (BinaryType, isNullable(substraitType.getBinary.getNullability))
+      case Type.KindCase.TIMESTAMP =>
+        (TimestampType, isNullable(substraitType.getTimestamp.getNullability))
+      case Type.KindCase.DATE =>
+        (DateType, isNullable(substraitType.getDate.getNullability))
+      case Type.KindCase.DECIMAL =>
+        val decimal = substraitType.getDecimal
+        val precision = decimal.getPrecision
+        val scale = decimal.getScale
+        (DecimalType(precision, scale), isNullable(decimal.getNullability))
+      case Type.KindCase.STRUCT =>
+        val struct_ = substraitType.getStruct
+        val fields = new java.util.ArrayList[StructField]
+        for (typ <- struct_.getTypesList.asScala) {
+          val (field, nullable) = parseFromSubstraitType(typ)
+          fields.add(StructField("", field, nullable))
+        }
+        (StructType(fields),
+          isNullable(substraitType.getStruct.getNullability))
+      case Type.KindCase.LIST =>
+        val list = substraitType.getList
+        val (elementType, containsNull) = parseFromSubstraitType(list.getType)
+        (ArrayType(elementType, containsNull),
+          isNullable(substraitType.getList.getNullability))
+      case Type.KindCase.MAP =>
+        val map = substraitType.getMap
+        val (keyType, _) = parseFromSubstraitType(map.getKey)
+        val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue())
+        (MapType(keyType, valueType, valueContainsNull),
+          isNullable(substraitType.getMap.getNullability))
+      case unsupported =>
+        throw new UnsupportedOperationException(s"Type $unsupported not supported.")
+    }
+  }
+
+  def getTypeNode(datatype: DataType, nullable: Boolean): TypeNode = {
+    datatype match {
       case BooleanType =>
         TypeBuilder.makeBoolean(nullable)
+      case FloatType =>
+        TypeBuilder.makeFP32(nullable)
       case DoubleType =>
         TypeBuilder.makeFP64(nullable)
-      case StringType =>
-        TypeBuilder.makeString(nullable)
       case LongType =>
         TypeBuilder.makeI64(nullable)
       case IntegerType =>
         TypeBuilder.makeI32(nullable)
+      case ShortType =>
+        TypeBuilder.makeI16(nullable)
+      case ByteType =>
+        TypeBuilder.makeI8(nullable)
+      case StringType =>
+        TypeBuilder.makeString(nullable)
+      case BinaryType =>
+        TypeBuilder.makeBinary(nullable)
       case DateType =>
         TypeBuilder.makeDate(nullable)
       case DecimalType() =>
-        val decimalType = datatye.asInstanceOf[DecimalType]
+        val decimalType = datatype.asInstanceOf[DecimalType]
         val precision = decimalType.precision
         val scale = decimalType.scale
         TypeBuilder.makeDecimal(nullable, precision, scale)
       case TimestampType =>
         TypeBuilder.makeTimestamp(nullable)
+      case m: MapType =>
+        TypeBuilder.makeMap(nullable, getTypeNode(m.keyType, false),
+          getTypeNode(m.valueType, m.valueContainsNull))
+      case a: ArrayType =>
+        TypeBuilder.makeList(nullable, getTypeNode(a.elementType, a.containsNull))
+      case s: StructType =>
+        val fieldNodes = new java.util.ArrayList[TypeNode]
+        for (structField <- s.fields) {
+          fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
+        }
+        TypeBuilder.makeStruct(nullable, fieldNodes)
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }
@@ -250,18 +329,34 @@ object ConverterUtils extends Logging {
         case BooleanType =>
           // TODO: Not in Substrait yet.
           typedFuncName.concat("bool")
+        case ByteType =>
+          typedFuncName.concat("i8")
+        case ShortType =>
+          typedFuncName.concat("i16")
         case IntegerType =>
           typedFuncName.concat("i32")
         case LongType =>
           typedFuncName.concat("i64")
+        case FloatType =>
+          typedFuncName.concat("fp32")
         case DoubleType =>
           typedFuncName.concat("fp64")
         case DateType =>
           typedFuncName.concat("date")
+        case TimestampType =>
+          typedFuncName.concat("ts")
         case StringType =>
           typedFuncName.concat("str")
+        case BinaryType =>
+          typedFuncName.concat("vbin")
         case DecimalType() =>
           typedFuncName.concat("dec")
+        case ArrayType(_, _) =>
+          typedFuncName.concat("list")
+        case StructType(_) =>
+          typedFuncName.concat("struct")
+        case MapType(_, _, _) =>
+          typedFuncName.concat("map")
         case other =>
           throw new UnsupportedOperationException(s"Type $other not supported.")
       }
@@ -326,6 +421,8 @@ object ConverterUtils extends Logging {
   final val OR = "or"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
+  final val RLIKE = "rlike"
+  final val REGEXP_EXTRACT = "regexp_extract"
   final val EQUAL = "equal"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"

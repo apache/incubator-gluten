@@ -55,6 +55,16 @@ object InSetOperatorTransformer {
                     leftNode: ExpressionNode,
                     values: Set[Any]): ExpressionNode = {
     val expressionNodes = value.dataType match {
+      case _: ByteType =>
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeByteLiteral(value.asInstanceOf[java.lang.Byte])
+        }).asJava)
+      case _: ShortType =>
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeShortLiteral(value.asInstanceOf[java.lang.Short])
+        }).asJava)
       case _: IntegerType =>
         new util.ArrayList[ExpressionNode](values.map({
           value =>
@@ -64,6 +74,11 @@ object InSetOperatorTransformer {
         new util.ArrayList[ExpressionNode](values.map({
           value =>
             ExpressionBuilder.makeLongLiteral(value.asInstanceOf[java.lang.Long])
+        }).asJava)
+      case _: FloatType =>
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeFloatLiteral(value.asInstanceOf[java.lang.Float])
         }).asJava)
       case _: DoubleType =>
         new util.ArrayList[ExpressionNode](values.map({
@@ -75,10 +90,25 @@ object InSetOperatorTransformer {
           value =>
             ExpressionBuilder.makeDateLiteral(value.asInstanceOf[java.lang.Integer])
         }).asJava)
+      case _: TimestampType =>
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeTimestampLiteral(value.asInstanceOf[java.lang.Long])
+        }).asJava)
       case _: StringType =>
         new util.ArrayList[ExpressionNode](values.map({
           value =>
             ExpressionBuilder.makeStringLiteral(value.toString)
+        }).asJava)
+      case _: BinaryType =>
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeBinaryLiteral(value.asInstanceOf[Array[Byte]])
+        }).asJava)
+      case _: DecimalType =>
+        new util.ArrayList[ExpressionNode](values.map({
+          value =>
+            ExpressionBuilder.makeDecimalLiteral(value.asInstanceOf[Decimal])
         }).asJava)
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")

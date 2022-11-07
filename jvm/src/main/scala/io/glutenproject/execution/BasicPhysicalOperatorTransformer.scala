@@ -18,9 +18,12 @@
 package io.glutenproject.execution
 
 import java.util
+
 import scala.collection.JavaConverters._
+
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
@@ -31,6 +34,7 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -172,7 +176,7 @@ abstract class FilterExecBaseTransformer(condition: Expression,
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
     }
   }
@@ -452,7 +456,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(input, projExprNodeList, extensionNode, context, operatorId)
     }
   }
@@ -472,7 +476,8 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     copy(child = newChild)
 }
 
-case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with TransformSupport {
+// An alternatives for UnionExec.
+case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
@@ -490,30 +495,21 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
     }
   }
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
-  }
+  override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan]
+                                                ): UnionExecTransformer =
+    copy(children = newChildren)
 
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
-  }
-
-  override def getChild: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
-  }
-
-  override def doValidate(): Boolean = false
-
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  def columnarInputRDD: RDD[ColumnarBatch] = {
+    if (children.size == 0) {
+      throw new IllegalArgumentException(s"Empty children")
+    }
+    children.map {
+      case c => Seq(c.executeColumnar())
+    }.reduce {
+      (a, b) => a ++ b
+    }.reduce(
+      (a, b) => a.union(b)
+    )
   }
 
   protected override def doExecute()
@@ -521,9 +517,9 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
-  override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan])
-      : UnionExecTransformer =
-    copy(children = newChildren)
+  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
+
+  def doValidate(): Boolean = true
 }
 
 /** Contains functions for the comparision and separation of the filter conditions
