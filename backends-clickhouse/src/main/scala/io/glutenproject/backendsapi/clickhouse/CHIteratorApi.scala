@@ -35,6 +35,7 @@ import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskCon
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
+import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
@@ -53,36 +54,38 @@ class CHIteratorApi extends IIteratorApi with Logging {
       index: Int,
       partitions: Seq[InputPartition],
       wsCxt: WholestageTransformContext): BaseNativeFilePartition = {
-    val localFilesNodes = partitions.indices.map(i =>
+    val localFilesNodesWithLocations = partitions.indices.map(i =>
       partitions(i) match {
         case p: NativeMergeTreePartition =>
-          ExtensionTableBuilder
-            .makeExtensionTable(p.minParts, p.maxParts, p.database, p.table, p.tablePath)
-        case FilePartition(index, files) =>
+          (ExtensionTableBuilder
+            .makeExtensionTable(p.minParts, p.maxParts, p.database, p.table, p.tablePath),
+            SoftAffinityUtil.getNativeMergeTreePartitionLocations(p))
+        case f: FilePartition =>
           val paths = new java.util.ArrayList[String]()
           val starts = new java.util.ArrayList[java.lang.Long]()
           val lengths = new java.util.ArrayList[java.lang.Long]()
-          files.foreach { f =>
-            paths.add(f.filePath)
-            starts.add(java.lang.Long.valueOf(f.start))
-            lengths.add(java.lang.Long.valueOf(f.length))
+          f.files.foreach { file =>
+            paths.add(file.filePath)
+            starts.add(java.lang.Long.valueOf(file.start))
+            lengths.add(java.lang.Long.valueOf(file.length))
           }
-          LocalFilesBuilder.makeLocalFiles(
-            index,
+          (LocalFilesBuilder.makeLocalFiles(
+            f.index,
             paths,
             starts,
             lengths,
-            wsCxt.substraitContext.getFileFormat.get(i))
+            wsCxt.substraitContext.getFileFormat.get(i)),
+            SoftAffinityUtil.getFilePartitionLocations(f))
         case _ =>
           throw new UnsupportedOperationException(s"Unsupport operators.")
       })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
-    wsCxt.substraitContext.setLocalFilesNodes(localFilesNodes)
+    wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
     if (index < 3) {
       logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
     }
-    NativePartition(index, substraitPlan.toByteArray)
+    NativePartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
   }
 
   /**

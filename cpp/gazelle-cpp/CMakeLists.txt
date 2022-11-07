@@ -44,3 +44,7 @@ target_link_libraries(gazelle_cpp spark_columnar_jni Arrow::arrow_substrait Arro
 set_target_properties(gazelle_cpp PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
+
+if(BUILD_TESTS)
+    add_test_case(test_substrait SOURCES tests/test_substrait.cc EXTRA_LINK_LIBS gazelle_cpp)
+  endif()

@@ -77,13 +77,17 @@ public class JniLibLoader {
     LOADED_LIBRARY_PATHS.add(libPath);
     LOG.info("Library {} has been loaded using path-loading method", libPath);
     // Unload native lib.
-    GlutenShutdownManager.registerUnloadLibShutdownHook(new Function0<BoxedUnit>() {
-      @Override
-      public BoxedUnit apply() {
-        JniLibLoader.unloadNativeLibs(libPath);
-        return BoxedUnit.UNIT;
-      }
-    });
+    // gazelle backend will coredump after all the queries passed if with this shutdown hook
+    // may because so lib repeated link in dataset.so
+    if (!BACKEND_NAME.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND())) {
+      GlutenShutdownManager.registerUnloadLibShutdownHook(new Function0<BoxedUnit>() {
+        @Override
+        public BoxedUnit apply() {
+          JniLibLoader.unloadNativeLibs(libPath);
+          return BoxedUnit.UNIT;
+        }
+      });
+    }
   }
 
   public static void loadFromPath(String libPath) {

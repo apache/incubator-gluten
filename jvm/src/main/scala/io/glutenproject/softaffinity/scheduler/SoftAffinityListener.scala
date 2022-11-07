@@ -15,23 +15,23 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution
+package io.glutenproject.softaffinity.scheduler
 
-case class NativeMergeTreePartition(
-    index: Int,
-    engine: String,
-    database: String,
-    table: String,
-    tablePath: String,
-    minParts: Long,
-    maxParts: Long,
-    substraitPlan: Array[Byte] = Array.empty[Byte])
-    extends BaseNativeFilePartition {
-  override def preferredLocations(): Array[String] = {
-    Array.empty[String]
+import io.glutenproject.softaffinity.SoftAffinityManager
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorAdded, SparkListenerExecutorRemoved}
+
+class SoftAffinityListener extends SparkListener with Logging {
+
+  override def onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit = {
+    val execId = executorAdded.executorId
+    val host = executorAdded.executorInfo.executorHost
+    SoftAffinityManager.handleExecutorAdded((execId, host))
   }
 
-  def copySubstraitPlan(newSubstraitPlan: Array[Byte]): NativeMergeTreePartition = {
-    this.copy(substraitPlan = newSubstraitPlan)
+  override def onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit = {
+    val execId = executorRemoved.executorId
+    SoftAffinityManager.handleExecutorRemoved(execId)
   }
 }
