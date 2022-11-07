@@ -17,8 +17,6 @@
 
 package io.glutenproject.columnarbatch;
 
-import io.glutenproject.vectorized.JniWorkspace;
-
 public class ColumnarBatchJniWrapper {
   public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
 

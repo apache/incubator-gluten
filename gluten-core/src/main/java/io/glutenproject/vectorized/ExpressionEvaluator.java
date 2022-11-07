@@ -17,19 +17,16 @@
 
 package io.glutenproject.vectorized;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import scala.collection.JavaConverters;
-
-import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 import io.glutenproject.row.RowIterator;
 import io.glutenproject.substrait.plan.PlanNode;
-
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+import scala.collection.JavaConverters;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ExpressionEvaluator implements AutoCloseable {
   private long nativeHandler = 0;

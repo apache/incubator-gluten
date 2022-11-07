@@ -17,10 +17,6 @@
 
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.GlutenConfig;
-import io.glutenproject.vectorized.JniLibLoader;
-import io.glutenproject.vectorized.JniWorkspace;
-
 public class NativeMemoryAllocator {
 
   private final long nativeInstanceId;
