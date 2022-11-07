@@ -32,7 +32,6 @@
   <modules>
     <module>shims</module>
     <module>gluten-core</module>
-    <module>gluten-data</module>
   </modules>
 
   <properties>
@@ -187,6 +186,7 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
+        <module>gluten-data</module>
         <module>backends-velox</module>
         <module>package/velox</module>
       </modules>
@@ -201,6 +201,7 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
+        <module>gluten-data</module>
         <module>backends-velox</module>
         <module>backends-gazelle</module>
         <module>package/gazelle</module>
