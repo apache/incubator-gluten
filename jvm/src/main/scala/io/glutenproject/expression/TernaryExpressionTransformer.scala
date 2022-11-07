@@ -21,9 +21,98 @@ import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+
+class LocateTransformer(first: Expression, second: Expression,
+                        third: Expression, original: Expression)
+  extends StringLocate(first: Expression, second: Expression, second: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val firstNode =
+      first.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val secondNode =
+      second.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val thirdNode =
+      third.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!firstNode.isInstanceOf[ExpressionNode] ||
+      !secondNode.isInstanceOf[ExpressionNode] ||
+      !thirdNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.LOCATE,
+      Seq(first.dataType, second.dataType, third.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode)
+    val typeNode = TypeBuilder.makeI64(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class LPadTransformer(first: Expression, second: Expression,
+                        third: Expression, original: Expression)
+  extends StringLPad(first: Expression, second: Expression, second: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val firstNode =
+      first.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val secondNode =
+      second.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val thirdNode =
+      third.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!firstNode.isInstanceOf[ExpressionNode] ||
+      !secondNode.isInstanceOf[ExpressionNode] ||
+      !thirdNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.LPAD,
+      Seq(first.dataType, second.dataType, third.dataType),
+      FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    // val typeNode = TypeBuilder.makeI64(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class RPadTransformer(first: Expression, second: Expression,
+                      third: Expression, original: Expression)
+  extends StringRPad(first: Expression, second: Expression, second: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val firstNode =
+      first.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val secondNode =
+      second.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val thirdNode =
+      third.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!firstNode.isInstanceOf[ExpressionNode] ||
+      !secondNode.isInstanceOf[ExpressionNode] ||
+      !thirdNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(ConverterUtils.RPAD,
+      Seq(first.dataType, second.dataType, third.dataType),
+      FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
 
 class RegExpExtractTransformer(subject: Expression, regexp: Expression,
                                index: Expression, original: Expression)
@@ -128,18 +217,26 @@ class SubStringTransformer(str: Expression, pos: Expression, len: Expression, or
   }
 }
 
-object TernaryOperatorTransformer {
+object TernaryExpressionTransformer {
 
-  def create(str: Expression, pos: Expression, len: Expression, original: Expression): Expression =
-    original match {
+  def create(first: Expression, second: Expression, third: Expression,
+    original: Expression): Expression = original match {
+      case _: StringLocate =>
+        // locate() gets incorrect results, so fall back to Vanilla Spark
+        throw new UnsupportedOperationException("Not supported: locate().")
+      case _: StringSplit =>
+        // split() gets incorrect results, so fall back to Vanilla Spark
+        throw new UnsupportedOperationException("Not supported: locate().")
+      case lpad: StringLPad =>
+        new LPadTransformer(first, second, third, lpad)
+      case rpad: StringRPad =>
+        new RPadTransformer(first, second, third, rpad)
       case extract: RegExpExtract =>
-        new RegExpExtractTransformer(str, pos, len, extract)
-      case split: StringSplit =>
-        new SplitTransformer(str, pos, len, split)
+        new RegExpExtractTransformer(first, second, third, extract)
       case replace: StringReplace =>
-        new ReplaceTransformer(str, pos, len, replace)
+        new ReplaceTransformer(first, second, third, replace)
       case ss: Substring =>
-        new SubStringTransformer(str, pos, len, ss)
+        new SubStringTransformer(first, second, third, ss)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
