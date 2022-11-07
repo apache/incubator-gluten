@@ -39,7 +39,7 @@
     <spark33.version>3.3.0</spark33.version>
     <delta2.version>2.0.0</delta2.version>
     <delta1.version>1.2.1</delta1.version>
-    <scala.version>2.12.10</scala.version>
+    <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
     <spark.version>3.2.2</spark.version>
     <delta.version>${delta1.version}</delta.version>
