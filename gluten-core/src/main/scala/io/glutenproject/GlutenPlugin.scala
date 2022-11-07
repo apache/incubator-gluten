@@ -53,11 +53,11 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     val conf = pluginContext.conf()
     // Initialize Backends API
     val glutenBackenLibName = BackendsApiManager.initialize()
-    BackendsApiManager.getInitializerApiInstance.initialize()
     // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
     if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
       conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
     }
+    BackendsApiManager.getInitializerApiInstance.initialize()
     GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
     Collections.emptyMap()
