@@ -158,7 +158,6 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .config("spark.gluten.sql.columnar.backend.ch.use.v2", useV2)
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")

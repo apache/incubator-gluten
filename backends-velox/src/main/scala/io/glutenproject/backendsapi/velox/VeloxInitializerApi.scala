@@ -28,7 +28,10 @@ class VeloxInitializerApi extends IInitializerApi {
   override def initialize(): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    loader.loadArrowLibs()
+    loader.newTransaction()
+      .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000")
+      .loadAndCreateLink("libgandiva.so.1000.0.0", "libgandiva.so.1000")
+      .commit()
     val sessionConf = GlutenConfig.getSessionConf
     val libPath = sessionConf.nativeLibPath
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.

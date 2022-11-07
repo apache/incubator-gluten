@@ -182,11 +182,7 @@ private[glutenproject] object GlutenPlugin {
     if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
       val customGlutenLib = conf.get(GlutenConfig.GLUTEN_LIB_PATH, "")
       val customBackendLib = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-      JniLibLoader.BACKEND_NAME = customBackendLib
-      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String],
-        conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni"),
-        customGlutenLib,
-        customBackendLib)
+      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String])
       if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
         // Initialize the native backend with spark confs.
         initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)

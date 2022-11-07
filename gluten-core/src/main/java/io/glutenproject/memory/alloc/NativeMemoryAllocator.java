@@ -22,16 +22,6 @@ import io.glutenproject.vectorized.JniLibLoader;
 import io.glutenproject.vectorized.JniWorkspace;
 
 public class NativeMemoryAllocator {
-  static {
-    // only for velox backend
-    if (!System.getProperty("spark.sql.testkey", "false")
-        .equalsIgnoreCase("true")) {
-      if (!GlutenConfig.getConf().isClickHouseBackend()) {
-        final JniLibLoader loader = JniWorkspace.getDefault().libLoader();
-        loader.loadEssentials();
-      }
-    }
-  }
 
   private final long nativeInstanceId;
   private final ReservationListener listener;

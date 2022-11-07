@@ -88,7 +88,6 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
       GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
       conf
-        .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")

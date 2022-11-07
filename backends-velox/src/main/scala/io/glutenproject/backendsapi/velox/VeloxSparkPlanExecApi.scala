@@ -310,5 +310,5 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    *
    * @return
    */
-  override def getBackendName: String = GlutenConfig.GLUTEN_VELOX_BACKEND
+  override def getBackendName: String = GlutenConfig.GLUTEN_GAZELLE_BACKEND
 }

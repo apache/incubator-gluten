@@ -23,7 +23,6 @@ public class ColumnarBatchJniWrapper {
   public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
 
   private ColumnarBatchJniWrapper() {
-    JniWorkspace.getDefault().libLoader().loadEssentials();
   }
 
   public native String getType(long handle);

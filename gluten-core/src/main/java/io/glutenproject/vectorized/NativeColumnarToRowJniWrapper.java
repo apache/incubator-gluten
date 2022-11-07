@@ -22,7 +22,6 @@ import java.io.IOException;
 public class NativeColumnarToRowJniWrapper {
 
   public NativeColumnarToRowJniWrapper() throws IOException {
-    JniWorkspace.getDefault().libLoader().loadEssentials();
   }
 
   public native NativeColumnarToRowInfo nativeConvertColumnarToRow(

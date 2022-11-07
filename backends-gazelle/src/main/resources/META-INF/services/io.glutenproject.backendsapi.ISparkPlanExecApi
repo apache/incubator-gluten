@@ -1,1 +1,1 @@
-io.glutenproject.backendsapi.velox.VeloxSparkPlanExecApi
+io.glutenproject.backendsapi.velox.GazelleSparkPlanExecApi

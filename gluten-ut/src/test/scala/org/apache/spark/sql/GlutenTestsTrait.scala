@@ -118,7 +118,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
       _spark = if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
         GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
         sparkBuilder
-          .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
           .config("spark.io.compression.codec", "LZ4")
           .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
           .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")

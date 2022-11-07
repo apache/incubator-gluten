@@ -35,7 +35,6 @@ public class ExpressionEvaluatorJniWrapper {
   public ExpressionEvaluatorJniWrapper(List<String> listJars)
       throws IllegalStateException {
     final JniWorkspace workspace = JniWorkspace.getDefault();
-    final JniLibLoader loader = workspace.libLoader();
     final JniResourceHelper resourceHelper = workspace.resourceHelper();
     resourceHelper.extractHeaders();
     resourceHelper.extractJars(listJars);
