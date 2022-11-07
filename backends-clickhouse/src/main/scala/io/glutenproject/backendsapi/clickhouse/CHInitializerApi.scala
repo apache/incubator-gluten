@@ -34,6 +34,6 @@ class CHInitializerApi extends IInitializerApi {
         "Please set spark.gluten.sql.columnar.libpath to enable clickhouse backend")
     }
     // Path based load. Ignore all other loadees.
-    JniLibLoader.loadFromPath(libPath)
+    JniLibLoader.loadFromPath(libPath, true)
   }
 }

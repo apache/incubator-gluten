@@ -58,13 +58,14 @@ public class JniLibLoader {
   private static final Logger LOG =
       LoggerFactory.getLogger(JniLibLoader.class);
 
-  public static Set<String> LOADED_LIBRARY_PATHS = new LinkedHashSet<>();
+  public static Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
+  public static Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
 
   static {
     GlutenShutdownManager.registerUnloadLibShutdownHook(new Function0<BoxedUnit>() {
       @Override
       public BoxedUnit apply() {
-        List<String> loaded = new ArrayList<>(LOADED_LIBRARY_PATHS);
+        List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
         Collections.reverse(loaded); // use reversed order to unload
         loaded.forEach(JniLibLoader::unloadFromPath);
         return BoxedUnit.UNIT;
@@ -80,23 +81,30 @@ public class JniLibLoader {
     this.workDir = workDir;
   }
 
-  private static synchronized void loadFromPath0(String libPath) {
+  private static synchronized void loadFromPath0(String libPath, boolean requireUnload) {
     if (LOADED_LIBRARY_PATHS.contains(libPath)) {
       LOG.debug("Library in path {} has already been loaded, skipping", libPath);
-      return;
+    } else {
+      System.load(libPath);
+      LOADED_LIBRARY_PATHS.add(libPath);
+      LOG.info("Library {} has been loaded using path-loading method", libPath);
     }
-    System.load(libPath);
-    LOADED_LIBRARY_PATHS.add(libPath);
-    LOG.info("Library {} has been loaded using path-loading method", libPath);
+    if (requireUnload) {
+      REQUIRE_UNLOAD_LIBRARY_PATHS.add(libPath);
+    }
   }
 
   public static void loadFromPath(String libPath) {
+    loadFromPath(libPath, false);
+  }
+
+  public static void loadFromPath(String libPath, boolean requireUnload) {
     final File file = new File(libPath);
     if (!file.isFile() || !file.exists()) {
       throw new RuntimeException("library at path: " + libPath
           + " is not a file or does not exist");
     }
-    loadFromPath0(file.getAbsolutePath());
+    loadFromPath0(file.getAbsolutePath(), requireUnload);
   }
 
   public void mapAndLoad(String unmappedLibName) {
@@ -308,7 +316,7 @@ public class JniLibLoader {
 
     private void loadWithLink(String workDir, LoadRequest req) throws IOException {
       String libPath = req.file.getAbsolutePath();
-      loadFromPath0(libPath);
+      loadFromPath0(libPath, false);
       LOG.info("Library {} has been loaded", libPath);
       if (!req.requireLinking()) {
         LOG.debug("Symbolic link not required for library {}, skipping", libPath);
