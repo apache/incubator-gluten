@@ -140,7 +140,13 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
     }.toString()
   }
 
-  override def output: Seq[Attribute] = child.output
+  override def output: Seq[Attribute] = {
+    outputPartitioning match {
+      case HashPartitioning(_, _) =>
+        child.output.drop(1)
+      case _ => child.output
+    }
+  }
 
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()
@@ -290,7 +296,13 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
     }.toString()
   }
 
-  override def output: Seq[Attribute] = child.output
+  override def output: Seq[Attribute] = {
+    outputPartitioning match {
+      case HashPartitioning(_, _) =>
+        child.output.drop(1)
+      case _ => child.output
+    }
+  }
 
   protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeAdaptor =
     copy(child = newChild)
