@@ -19,6 +19,7 @@
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 
+#include <google/protobuf/message.h>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -26,7 +27,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <google/protobuf/message.h>
 
 // Common for both projector and filters.
 bool ParseProtobuf(

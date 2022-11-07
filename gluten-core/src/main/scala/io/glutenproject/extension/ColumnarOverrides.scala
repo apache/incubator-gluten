@@ -180,6 +180,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
           }
         } else {
+          val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
           plan.withNewChildren(Seq(child))
         }
       case plan: ShuffledHashJoinExec =>

@@ -381,11 +381,7 @@ TEST_F(SplitterTest, DISABLED_TestHashSplitter) {
 
   ARROW_ASSIGN_OR_THROW(
       splitter_,
-      Splitter::Make(
-          "hash",
-          schema_,
-          num_partitions,
-          split_options_))
+      Splitter::Make("hash", schema_, num_partitions, split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
@@ -1093,11 +1089,7 @@ TEST_F(SplitterTest, DISABLED_TestHashListArraySplitterWithMorePartitions) {
 
   ARROW_ASSIGN_OR_THROW(
       splitter_,
-      Splitter::Make(
-          "hash",
-          rb_schema,
-          num_partitions,
-          split_options_));
+      Splitter::Make("hash", rb_schema, num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
 

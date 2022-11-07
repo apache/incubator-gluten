@@ -17,10 +17,10 @@
 
 #include "arrow_columnar_to_row_converter.h"
 
-#include <immintrin.h>
-#include <iostream>
 #include <arrow/array/array_decimal.h>
 #include <arrow/util/decimal.h>
+#include <immintrin.h>
+#include <iostream>
 
 namespace gluten {
 namespace columnartorow {
