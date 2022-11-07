@@ -58,7 +58,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
       conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
     }
-    BackendsApiManager.getInitializerApiInstance.initialize()
+    BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
     Collections.emptyMap()
@@ -94,7 +94,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
       conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
     }
-    BackendsApiManager.getInitializerApiInstance.initialize()
+    BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(ctx.conf())
   }
 
