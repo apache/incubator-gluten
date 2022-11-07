@@ -230,7 +230,7 @@ case class CHHashAggregateExecTransformer(
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(
         input,
         groupingList,

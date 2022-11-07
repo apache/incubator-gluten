@@ -30,8 +30,7 @@ public class LongLiteralNode implements ExpressionNode, Serializable {
 
   @Override
   public Expression toProtobuf() {
-    Expression.Literal.Builder longBuilder =
-        Expression.Literal.newBuilder();
+    Expression.Literal.Builder longBuilder = Expression.Literal.newBuilder();
     longBuilder.setI64(value);
 
     Expression.Builder builder = Expression.newBuilder();

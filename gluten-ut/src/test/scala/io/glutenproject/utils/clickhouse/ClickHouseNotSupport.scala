@@ -23,5 +23,7 @@ import org.apache.spark.sql.catalyst.expressions._
 object ClickHouseNotSupport extends NotSupport {
 
   override lazy val notSupportSuiteList: Map[String, Map[String, ExpressionInfo]] = Map.empty
-  override lazy val fullSupportSuiteList: Set[String] = Set.empty
+  override lazy val fullSupportSuiteList: Set[String] = Set(
+    "ComplexTypesSuite"
+  )
 }

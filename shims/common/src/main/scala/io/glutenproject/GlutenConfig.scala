@@ -232,6 +232,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  val transformPlanLogLevel: String =
+    conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
+
 }
 
 object GlutenConfig {
@@ -261,6 +264,18 @@ object GlutenConfig {
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = true
   val GLUTEN_CLICKHOUSE_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend.ch"
+
+  // For Soft Affinity Scheduling
+  // Enable Soft Affinity Scheduling, defalut value is false
+  val GLUTEN_SOFT_AFFINITY_ENABLED = "spark.gluten.soft-affinity.enabled"
+  val GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE = false
+  // Calculate the number of the replcations for scheduling to the target executors per file
+  val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM = "spark.gluten.soft-affinity.replications.num"
+  val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE = 2
+  // For on HDFS, if there are already target hosts,
+  // and then prefer to use the orginal target hosts to schedule
+  val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
+  val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
   var ins: GlutenConfig = _
   var random_temp_dir_path: String = _

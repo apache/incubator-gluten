@@ -1,8 +1,8 @@
-# Velox Backend
+Velox Backend
 
 Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
 
-## Prerequisite
+# Prerequisite
 
 Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries can't be installed.
 Velox also requires ninja for compilation. So we need to install them manually:
@@ -17,7 +17,7 @@ export JAVA_HOME=path/to/java/home
 export PATH=$JAVA_HOME/bin:$PATH
 ```
 
-## Build Velox Jar
+# Build Velox Jar
 
 Since the mvn script calls setup-ubuntu.sh to install dependency libraries, so we need to run it from root group.
 
@@ -29,7 +29,7 @@ mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
-You may compile spark3.2 and spark3.3 at the same time by -Pspark3.2 -Pspark3.3
+You may compile spark3.2 and spark3.3 at the same time by -Pspark-3.2 -Pspark-3.3
 
 The command generates the Jar file in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark. So as spark3.3.
 
@@ -76,7 +76,17 @@ Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its 
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
 
-## High-Bandwidth Memory (HBM) support
+# Coverage
+
+Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 53 functions.
+
+Here is the operator support list:
+
+![image](https://user-images.githubusercontent.com/47296334/199826049-2ed7235a-f461-499d-917c-a83452b326c7.png)
+
+Union operator is implemented in JVM, needn't to offload to native.
+
+# High-Bandwidth Memory (HBM) support
 
 Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It requires [Memkind library](http://memkind.github.io/memkind/) to be installed. Please follow memkind's [readme](https://github.com/memkind/memkind#memkind) to build and install all the dependencies and the library. 
 
@@ -90,15 +100,15 @@ Note that memory allocation fallback is also supported and cannot be turned off.
 During testing, we found that it is possible that HBM is detected but not being used at runtime. The workaround is to set `MEMKIND_HBW_NODES` enviroment variable in the runtime environment. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`
 
 
-## Test TPC-H on Gluten with Velox backend
+# Test TPC-H on Gluten with Velox backend
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
 
-### Data preparation
+## Data preparation
 
 Considering current Velox does not fully support Decimal and Date data type, the [datagen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.scala) transforms "Decimal-to-Double" and "Date-to-String". As a result, we need to modify the TPCH queries a bit. You can find the [modified TPC-H queries](../backends-velox/workload/tpch/tpch.queries.updated/).
 
-### Submit the Spark SQL job
+## Submit the Spark SQL job
 
 Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
 
@@ -131,11 +141,11 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
 
 Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
 
-### Result
+## Result
 
 ![TPC-H Q6](./image/TPC-H_Q6_DAG.png)
 
-### Performance
+## Performance
 
 Below table shows the TPC-H Q1 and Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
 Both Parquet and ORC datasets are sf1024.

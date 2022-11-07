@@ -26,7 +26,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
-  
+
   final val LENGTH = 1000
 
   override def beforeAll(): Unit = {

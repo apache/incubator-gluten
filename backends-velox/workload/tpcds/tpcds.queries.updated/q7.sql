@@ -17,4 +17,3 @@
        d_year = 2000
  GROUP BY i_item_id
  ORDER BY i_item_id LIMIT 100
-            
