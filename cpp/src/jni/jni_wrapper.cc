@@ -356,7 +356,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(split_result_class);
   env->DeleteGlobalRef(serialized_arrow_array_iterator_class);
   env->DeleteGlobalRef(native_columnar_to_row_info_class);
-
   env->DeleteGlobalRef(byte_array_class);
 }
 
