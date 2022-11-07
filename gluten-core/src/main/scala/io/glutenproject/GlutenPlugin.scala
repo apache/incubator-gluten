@@ -54,6 +54,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     // Initialize Backends API
     val glutenBackenLibName = BackendsApiManager.initialize()
     // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
+    // FIXME identify backend lib in IInitializerApi.initialize().
     if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
       conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
     }

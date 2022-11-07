@@ -56,7 +56,8 @@ object BackendsApiManager {
   /**
    * Initialize all backends api.
    *
-   * @param glutenBackenLibName
+   * FIXME too many service types. Only a single factory API is enough for instantiating
+   * all API types.
    */
   private def initializeInternal(glutenBackenLibName: String): String = {
     glutenBackenName = if (StringUtils.isEmpty(glutenBackenLibName)) {
