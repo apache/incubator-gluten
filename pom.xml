@@ -32,7 +32,6 @@
   <modules>
     <module>shims</module>
     <module>gluten-core</module>
-    <module>ep/build-arrow</module>
   </modules>
 
   <properties>
