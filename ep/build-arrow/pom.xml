@@ -12,6 +12,7 @@
 
     <artifactId>build-arrow</artifactId>
     <packaging>pom</packaging>
+    <name>Build Arrow</name>
 
     <properties>
         <core.enable_ep_cache>${enable_ep_cache}</core.enable_ep_cache>
