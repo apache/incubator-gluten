@@ -139,13 +139,12 @@ object CHExecUtil {
           case (ord, i) =>
             ord.copy(child = BoundReference(i, ord.dataType, ord.nullable))
         }
-        // scalastyle:off println
-        println(s"xxx ${outputAttributes}")
         implicit val ordering = new LazilyGeneratedOrdering(orderingAttributes)
         val generator = new RangePartitionerBoundsGenerator(
           numPartitions, rddForSampling, sortingExpressions, outputAttributes,
           true, samplePointsPerPartitionHint = 20)
         val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
+        // scalastyle:off println
         println(s"xxx orderingAndRangeBounds=${orderingAndRangeBounds}")
 
         new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes())
@@ -279,8 +278,6 @@ object CHExecUtil {
                 options.setPartitionNum(n)
                 options.setName("range")
                 val expr_str = new String(nativePartitioning.getExprList)
-                // scalastyle:off println
-                println(expr_str)
                 options.setExpr(expr_str)
                 val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
                   val splitIterator = new BlockSplitIterator(

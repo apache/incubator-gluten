@@ -145,7 +145,6 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
     val pb = projExprNode.toProtobuf
     if (!pb.hasSelection()) {
       // scalastyle:off println
-      println(s"xxx ${pb}")
       throw new IllegalArgumentException(s"A sorting field should be an attribute")
     }
     pb.getSelection().getDirectReference().getStructField.getField()
@@ -219,7 +218,6 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
 
   // Make a json structure that can be passed to native engine
   def getRangeBoundsJsonString(): String = {
-    val bounds = getRangeBounds()
     val data = Json.toJson(
       Map(
         "ordering" -> buildOrderingJson(ordering),

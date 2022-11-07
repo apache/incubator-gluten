@@ -340,7 +340,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
               // If it is a range-partition sort, we put the projection ahead of
               // range-partition shuffle
               val child = ProjectExec(originalInputs ++ projectAttrs, shuffle.child)
-              TransformHints.tagNotTransformable(child)
+              TransformHints.tagTransformable(child)
               logDebug(s"xxx projectNode1 ${child}; ${child.output}")
               // the ordering in RangePartitioning should be the same as in
               // the SortExec
@@ -348,7 +348,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
               val newShuffle = ShuffleExchangeExec(rangePartitioning,
                 child,
                 shuffle.shuffleOrigin)
-              TransformHints.tagNotTransformable(newShuffle)
+              TransformHints.tagTransformable(newShuffle)
 
               replaceWithTransformerPlan(newShuffle, isSupportAdaptive)
             case _ =>
