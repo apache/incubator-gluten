@@ -17,9 +17,6 @@
 
 package io.glutenproject.spark.sql.execution.datasources.velox;
 
-import io.glutenproject.vectorized.JniLibLoader;
-import io.glutenproject.vectorized.JniWorkspace;
-
 import java.io.IOException;
 
 public class DwrfDatasourceJniWrapper {
