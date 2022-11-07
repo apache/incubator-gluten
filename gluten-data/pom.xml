@@ -18,6 +18,7 @@
             <artifactId>build-arrow</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
+            <type>pom</type>
         </dependency>
         <dependency>
             <groupId>io.glutenproject</groupId>
