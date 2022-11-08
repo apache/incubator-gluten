@@ -93,21 +93,6 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
     {
       "ordering":[
         {
-          "expression":"...",
-          "data_type":"...",
-          "direction":0
-        },
-        ...
-      ],
-      "range_bounds":[
-        [...],
-        [...],
-        ...
-      ]
-    }
-    {
-      "ordering":[
-        {
           "column_ref":0,
           "data_type":"xxx",
           "is_nullable":true,
@@ -134,8 +119,6 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
       }
     }
   */
-  // we need resolve the column reference, so we utilize the
-  // io.substrait.proto.Expression here.
   def getExpressionFiedlReference(ordering: SortOrder): Int = {
     val substraitCtx = new SubstraitContext()
     val funcs = substraitCtx.registeredFunction
@@ -144,7 +127,6 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
     val projExprNode = colExpr.asInstanceOf[ExpressionTransformer].doTransform(funcs)
     val pb = projExprNode.toProtobuf
     if (!pb.hasSelection()) {
-      // scalastyle:off println
       throw new IllegalArgumentException(s"A sorting field should be an attribute")
     }
     pb.getSelection().getDirectReference().getStructField.getField()
@@ -177,6 +159,7 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
       case _: FloatType => Json.toJson(row.getFloat(field))
       case _: DoubleType => Json.toJson(row.getDouble(field))
       case _: StringType => Json.toJson(row.getString(field))
+      case _: DateType => Json.toJson(row.getShort(field))
       case d =>
         throw new IllegalArgumentException(s"Unsupported data type ${d.toString}")
     }

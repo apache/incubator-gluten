@@ -357,7 +357,6 @@ object SortExecTransformer {
     (Seq[NamedExpression], Seq[SortOrder]) = {
     val projectionAttrs = new util.ArrayList[NamedExpression]()
     val newSortOrders = new util.ArrayList[SortOrder]()
-    // projectionAttrs.addAll(inputAttributes.asJava)
     var aliasNo = 0
     sortOrders.foreach(
       order => {

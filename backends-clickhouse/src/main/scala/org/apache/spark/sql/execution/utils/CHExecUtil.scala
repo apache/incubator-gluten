@@ -144,9 +144,6 @@ object CHExecUtil {
           numPartitions, rddForSampling, sortingExpressions, outputAttributes,
           true, samplePointsPerPartitionHint = 20)
         val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
-        // scalastyle:off println
-        println(s"xxx orderingAndRangeBounds=${orderingAndRangeBounds}")
-
         new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes())
       case p =>
         throw new IllegalStateException(s"Unknow partition type: ${p.getClass.toString}")

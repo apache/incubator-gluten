@@ -149,7 +149,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: ProjectExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        logDebug(s"xxxx ${plan.projectList}; ${plan.output}; ${plan.child.output}")
         ProjectExecTransformer(plan.projectList, columnarChild)
       case plan: FilterExec =>
         // Push down the left conditions in Filter into Scan.
@@ -191,7 +190,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: SortExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        // SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
         transformSupportSortWithProjection(plan, isSupportAdaptive)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -315,7 +313,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   }
 
   def transformSupportSortWithProjection(plan: SortExec, isSupportAdaptive: Boolean) : SparkPlan = {
-    logDebug(s"xxxx sort input atrtributes:${plan.child.output}")
     val needProjection = SortExecTransformer.needProjection(plan.sortOrder)
     if (!needProjection) {
       val newChild = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
@@ -341,7 +338,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
               // range-partition shuffle
               val child = ProjectExec(originalInputs ++ projectAttrs, shuffle.child)
               TransformHints.tagTransformable(child)
-              logDebug(s"xxx projectNode1 ${child}; ${child.output}")
               // the ordering in RangePartitioning should be the same as in
               // the SortExec
               val rangePartitioning = RangePartitioning(newOrderings, n)
@@ -357,11 +353,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         case c =>
           replaceWithTransformerPlan(c, isSupportAdaptive)
       }
-      logDebug(s"xxxx update sort child is:${sortChild}")
       val newSort = SortExecTransformer(newOrderings, plan.global,
         sortChild, plan.testSpillFrequency)
       val ret = ProjectExecTransformer(originalInputs, newSort)
-      logDebug(s"final sort is : ${ret}")
       ret
     }
   }
