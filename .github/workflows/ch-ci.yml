@@ -10,11 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: khan/pull-request-comment-trigger@master
-        id: check
+      - name: Pull Request Comment Trigger
+        # You may pin to the exact commit or the version.
+        # uses: Khan/pull-request-comment-trigger@af6260d48c05e1f2f1641f9d14794bd04687c023
+        uses: Khan/pull-request-comment-trigger@1.0.0
         with:
-          trigger: 'ttttt'
-          reaction: rocket
-        env:
-          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
-      - run: 'echo Found it!'
-        if: steps.check.outputs.triggered == 'true'
+          # The emoji "reaction" to put on the comment to indicate that the trigger was detected. For example, "rocket"
+          reaction: 'rocket'# optional
+          # The string to look for in pull-request descriptions and comments. For example "#build/android"
+          trigger: '#testch'
