@@ -1,0 +1,20 @@
+on:
+  pull_request:
+    types: [opened]
+  issue_comment:
+    types: [created]
+    
+jobs:
+  ch-backend-test:
+    runs-on: libch-self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - uses: khan/pull-request-comment-trigger@master
+        id: check
+        with:
+          trigger: '@deploy'
+          reaction: rocket
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+      - run: 'echo Found it!'
+        if: steps.check.outputs.triggered == 'true'
