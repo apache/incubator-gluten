@@ -14,24 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.extension
 
-import scala.collection.JavaConverters._
-
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.plans.logical.{
-  AppendData,
-  CreateTableAsSelect,
-  CreateV2Table,
-  LogicalPlan
-}
+import org.apache.spark.sql.catalyst.plans.logical.{AppendData, CreateTableAsSelect, CreateV2Table, LogicalPlan}
 import org.apache.spark.sql.connector.catalog.{CatalogV2Util, StagingTableCatalog}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
+import scala.collection.JavaConverters._
 
 case class CHDataSourceV2Strategy(spark: SparkSession) extends Strategy {
 

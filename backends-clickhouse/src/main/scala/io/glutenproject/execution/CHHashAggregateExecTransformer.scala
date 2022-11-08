@@ -14,21 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import java.util
-import java.util.Locale
-
-import com.google.protobuf.Any
 import io.glutenproject.expression._
-import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
-import io.glutenproject.substrait.expression.{
-  AggregateFunctionNode,
-  ExpressionBuilder,
-  ExpressionNode
-}
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
+import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 
@@ -38,6 +29,11 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.exchange.Exchange
 
+import com.google.protobuf.Any
+
+import java.util
+import java.util.Locale
+
 case class CHHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
@@ -46,14 +42,14 @@ case class CHHashAggregateExecTransformer(
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan)
-    extends HashAggregateExecBaseTransformer(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      aggregateExpressions,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      child) {
+  extends HashAggregateExecBaseTransformer(
+    requiredChildDistributionExpressions,
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes,
+    initialInputBufferOffset,
+    resultExpressions,
+    child) {
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
@@ -69,8 +65,10 @@ case class CHHashAggregateExecTransformer(
     val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
       // are in the one WholeStageTransformer.
-      if (child.isInstanceOf[CHHashAggregateExecTransformer] &&
-          childCtx.outputAttributes == aggregateResultAttributes) {
+      if (
+        child.isInstanceOf[CHHashAggregateExecTransformer] &&
+        childCtx.outputAttributes == aggregateResultAttributes
+      ) {
         (
           getAggRel(context, operatorId, aggParams, childCtx.root),
           childCtx.outputAttributes,
@@ -91,8 +89,10 @@ case class CHHashAggregateExecTransformer(
       val nameList = new util.ArrayList[String]()
       // When the child is file scan operator
       val (inputAttrs, outputAttrs) =
-        if (child.find(_.isInstanceOf[Exchange]).isEmpty
-            && child.find(_.isInstanceOf[QueryStageExec]).isEmpty) {
+        if (
+          child.find(_.isInstanceOf[Exchange]).isEmpty
+          && child.find(_.isInstanceOf[QueryStageExec]).isEmpty
+        ) {
           for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
             nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
@@ -114,11 +114,13 @@ case class CHHashAggregateExecTransformer(
             if (colName.toLowerCase(Locale.ROOT).startsWith("avg#")) {
               val originalExpr = aggregateExpressions.find(_.resultAttribute == attr)
               val originalType =
-                if (originalExpr.isDefined &&
-                    originalExpr.get
-                      .asInstanceOf[AggregateExpression]
-                      .aggregateFunction
-                      .isInstanceOf[Average]) {
+                if (
+                  originalExpr.isDefined &&
+                  originalExpr.get
+                    .asInstanceOf[AggregateExpression]
+                    .aggregateFunction
+                    .isInstanceOf[Average]
+                ) {
                   originalExpr.get
                     .asInstanceOf[AggregateExpression]
                     .aggregateFunction
@@ -184,43 +186,47 @@ case class CHHashAggregateExecTransformer(
     val args = context.registeredFunction
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
-    groupingExpressions.foreach(expr => {
-      // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
-      // may be different for each backend.
-      val groupingExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(expr, child.output)
-      val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      groupingList.add(exprNode)
-    })
+    groupingExpressions.foreach(
+      expr => {
+        // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
+        // may be different for each backend.
+        val groupingExpr: Expression = ExpressionConverter
+          .replaceWithExpressionTransformer(expr, child.output)
+        val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+        groupingList.add(exprNode)
+      })
     // Get the aggregate function nodes.
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
-    aggregateExpressions.foreach(aggExpr => {
-      val aggregateFunc = aggExpr.aggregateFunction
-      val childrenNodeList = new util.ArrayList[ExpressionNode]()
-      val childrenNodes = aggExpr.mode match {
-        case Partial =>
-          aggregateFunc.children.toList.map(expr => {
-            val aggExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(expr, child.output)
-            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-          })
-        case Final =>
-          val aggTypesExpr: Expression = ExpressionConverter
-            .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
-          Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
-        case other =>
-          throw new UnsupportedOperationException(s"$other not supported.")
-      }
-      for (node <- childrenNodes) {
-        childrenNodeList.add(node)
-      }
-      val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-        AggregateFunctionsBuilder.create(args, aggregateFunc),
-        childrenNodeList,
-        modeToKeyWord(aggExpr.mode),
-        ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable))
-      aggregateFunctionList.add(aggFunctionNode)
-    })
+    aggregateExpressions.foreach(
+      aggExpr => {
+        val aggregateFunc = aggExpr.aggregateFunction
+        val childrenNodeList = new util.ArrayList[ExpressionNode]()
+        val childrenNodes = aggExpr.mode match {
+          case Partial =>
+            aggregateFunc.children.toList.map(
+              expr => {
+                val aggExpr: Expression = ExpressionConverter
+                  .replaceWithExpressionTransformer(expr, child.output)
+                aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+              })
+          case Final =>
+            val aggTypesExpr: Expression = ExpressionConverter
+              .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
+            Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+          case other =>
+            throw new UnsupportedOperationException(s"$other not supported.")
+        }
+        for (node <- childrenNodes) {
+          childrenNodeList.add(node)
+        }
+        val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+          AggregateFunctionsBuilder.create(args, aggregateFunc),
+          childrenNodeList,
+          modeToKeyWord(aggExpr.mode),
+          ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable)
+        )
+        aggregateFunctionList.add(aggFunctionNode)
+      })
     if (!validation) {
       RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, context, operatorId)
     } else {

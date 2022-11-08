@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
 import org.apache.spark.internal.Logging
@@ -36,9 +35,7 @@ class ClickHouseBatchWrite(info: LogicalWriteInfo) extends BatchWrite with Loggi
     new ClickHouseWriterFactory()
   }
 
-  override def commit(messages: Array[WriterCommitMessage]): Unit = {
-  }
+  override def commit(messages: Array[WriterCommitMessage]): Unit = {}
 
-  override def abort(messages: Array[WriterCommitMessage]): Unit = {
-  }
+  override def abort(messages: Array[WriterCommitMessage]): Unit = {}
 }
