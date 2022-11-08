@@ -28,6 +28,8 @@ public class NativePartitioning implements Serializable {
   private final int numPartitions;
   private final byte[] schema;
 
+  private final byte[] exprList;
+
   /**
    * Constructs a new instance.
    *
@@ -36,11 +38,18 @@ public class NativePartitioning implements Serializable {
    *                                              "range" -> RangePartitioning
    * @param numPartitions Partitioning numPartitions
    * @param schema        serialized arrow schema
+   * @param exprList Serialized expressions
    */
-  public NativePartitioning(String shortName, int numPartitions, byte[] schema) {
+
+  public NativePartitioning(String shortName, int numPartitions, byte[] schema, byte[] exprList) {
     this.shortName = shortName;
     this.numPartitions = numPartitions;
     this.schema = schema;
+    this.exprList = exprList;
+  }
+
+  public NativePartitioning(String shortName, int numPartitions, byte[] schema) {
+    this(shortName, numPartitions, schema, null);
   }
 
   public String getShortName() {
@@ -53,6 +62,10 @@ public class NativePartitioning implements Serializable {
 
   public byte[] getSchema() {
     return schema;
+  }
+
+  public byte[] getExprList() {
+    return exprList;
   }
 
 }

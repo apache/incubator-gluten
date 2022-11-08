@@ -65,7 +65,12 @@ object CHExecUtil {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, Array.empty[Byte])
       case HashPartitioning(exprs, n) =>
-        new NativePartitioning("hash", n, null)
+        val fields = exprs.zipWithIndex.map {
+          case (expr, i) =>
+            val attr = ConverterUtils.getAttrFromExpr(expr)
+            ConverterUtils.genColumnNameWithExprId(attr)
+        }
+        new NativePartitioning("hash", n, null, fields.mkString(",").getBytes)
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&

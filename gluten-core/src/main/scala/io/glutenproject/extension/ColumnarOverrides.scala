@@ -183,30 +183,39 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        var child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
         if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
           columnarConf.enableColumnarShuffle) {
-          plan.outputPartitioning match {
-            case HashPartitioning(exprs, _) =>
-              val projectChild = getProjectWithHash(exprs, child, isSupportAdaptive)
-              if (projectChild.supportsColumnar) {
-                if (isSupportAdaptive) {
-                  ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, projectChild,
-                    removeHashColumn = true)
+          if (columnarConf.isVeloxBackend) {
+            plan.outputPartitioning match {
+              case HashPartitioning(exprs, _) =>
+                val projectChild = getProjectWithHash(exprs, child, isSupportAdaptive)
+                if (projectChild.supportsColumnar) {
+                  if (isSupportAdaptive) {
+                    ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, projectChild,
+                      removeHashColumn = true)
+                  } else {
+                    CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning,
+                      projectChild, removeHashColumn = true))
+                  }
                 } else {
-                  CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning,
-                    projectChild, removeHashColumn = true))
+                  plan.withNewChildren(Seq(child))
                 }
-              } else {
-                plan.withNewChildren(Seq(child))
-              }
-            case _ =>
-              if (isSupportAdaptive) {
-                ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
-              } else {
-                CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
-              }
+              case _ =>
+                if (isSupportAdaptive) {
+                  ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
+                } else {
+                  CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
+                }
+            }
+          } else {
+            if (isSupportAdaptive) {
+              ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
+            } else {
+              CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
+            }
           }
+
         } else {
           plan.withNewChildren(Seq(child))
         }

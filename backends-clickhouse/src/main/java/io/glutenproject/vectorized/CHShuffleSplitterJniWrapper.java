@@ -33,6 +33,7 @@ public class CHShuffleSplitterJniWrapper {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
+        part.getExprList(),
         mapId,
         bufferSize,
         codec,
@@ -43,6 +44,7 @@ public class CHShuffleSplitterJniWrapper {
   public native long nativeMake(
       String shortName,
       int numPartitions,
+      byte[] exprList,
       long mapId,
       int bufferSize,
       String codec,
