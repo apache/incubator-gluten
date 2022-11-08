@@ -245,7 +245,8 @@ public class JniLibLoader {
                 }
                 // load only libraries not loaded yet
                 final File file = moveToWorkDir(workDir, req.libName);
-                return Stream.of(new LoadAction(req.libName, req.linkName, req.requireUnload, file));
+                return Stream.of(
+                    new LoadAction(req.libName, req.linkName, req.requireUnload, file));
               } catch (IOException ex) {
                 throw new RuntimeException(ex);
               }
