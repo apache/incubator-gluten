@@ -94,10 +94,6 @@ public class JniLibLoader {
     }
   }
 
-  public static void loadFromPath(String libPath) {
-    loadFromPath(libPath, false);
-  }
-
   public static void loadFromPath(String libPath, boolean requireUnload) {
     final File file = new File(libPath);
     if (!file.isFile() || !file.exists()) {

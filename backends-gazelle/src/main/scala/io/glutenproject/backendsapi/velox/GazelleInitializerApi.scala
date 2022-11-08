@@ -38,7 +38,7 @@ class GazelleInitializerApi extends IInitializerApi {
       .commit()
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
-      JniLibLoader.loadFromPath(libPath)
+      JniLibLoader.loadFromPath(libPath, true)
       return
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
