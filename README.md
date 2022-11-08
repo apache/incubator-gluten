@@ -96,7 +96,7 @@ Gluten project welcomes everyone to contribute.
 
 ## 4.1 Community
 
-Currently we communicate with all developers and users in a wechat group(Chinese only), Spark channel in Velox Slack group. Contact us if you would like to join in. Refer to Contact info below
+Currently we communicate with all developers and users in a wechat group(Chinese only), and a Spark channel in Velox Slack group. Contact us if you would like to join in. Refer to Contact info below
 
 ## 4.2 Bug Reports
 
