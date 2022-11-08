@@ -80,6 +80,7 @@
     <spark33bundle.version>3.3</spark33bundle.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
+    <scala.recompile.mode>all</scala.recompile.mode>
   </properties>
 
   <profiles>
@@ -140,24 +141,6 @@
       </properties>
     </profile>
     <profile>
-      <id>incremental-scala-compiler</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-        <scala.recompile.mode>incremental</scala.recompile.mode>
-      </properties>
-    </profile>
-    <profile>
-      <id>full-scala-compiler</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <properties>
-        <scala.recompile.mode>all</scala.recompile.mode>
-      </properties>
-    </profile>
-    <profile>
       <id>arrow-netty</id>
       <activation>
         <activeByDefault>false</activeByDefault>
@@ -192,6 +175,8 @@
       <properties>
         <backend_type>velox</backend_type>
         <arrow.version>10.0.0-SNAPSHOT</arrow.version>
+        <build_cpp>ON</build_cpp>
+        <build_velox>ON</build_velox>
       </properties>
     </profile>
     <profile>
@@ -207,6 +192,8 @@
       <properties>
         <backend_type>gazelle_cpp</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
+        <build_cpp>ON</build_cpp>
+        <build_gazelle_cpp>ON</build_gazelle_cpp>
       </properties>
     </profile>
     <profile>

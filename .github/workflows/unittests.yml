@@ -70,15 +70,11 @@ jobs:
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID --detach" NON_INTERACTIVE=ON gluten-te/cbash.sh sleep 14400
-      - name: Install Gluten Velox-backend spark3.2
+      - name: Install Gluten Velox-backend spark3.2 and Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -DskipTests -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
-            -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON'
-      - name: Run unit tests
-        run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn test -Pspark-3.2 -Pspark-ut -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Pbackends-velox -Dbackend_type=velox'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
+            -Dbuild_protobuf=OFF -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
       - name: Install Gluten Velox-backend spark3.3 and Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
