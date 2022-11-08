@@ -31,8 +31,8 @@ class VeloxInitializerApi extends IInitializerApi {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
     loader.newTransaction()
-      .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000")
-      .loadAndCreateLink("libgandiva.so.1000.0.0", "libgandiva.so.1000")
+      .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000", false)
+      .loadAndCreateLink("libgandiva.so.1000.0.0", "libgandiva.so.1000", false)
       .commit()
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
@@ -40,10 +40,10 @@ class VeloxInitializerApi extends IInitializerApi {
       return
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
-    loader.mapAndLoad(baseLibName)
+    loader.mapAndLoad(baseLibName, true)
     val backendLibName = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
     if (StringUtils.isNotBlank(backendLibName)) {
-      loader.mapAndLoad(backendLibName)
+      loader.mapAndLoad(backendLibName, true)
     }
   }
 }

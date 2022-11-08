@@ -107,25 +107,22 @@ public class JniLibLoader {
     loadFromPath0(file.getAbsolutePath(), requireUnload);
   }
 
-  public void mapAndLoad(String unmappedLibName) {
+  public void mapAndLoad(String unmappedLibName, boolean requireUnload) {
     newTransaction()
-        .mapAndLoad(unmappedLibName)
+        .mapAndLoad(unmappedLibName, requireUnload)
         .commit();
   }
 
-  public void load(String libName) {
+  public void load(String libName, boolean requireUnload) {
     newTransaction()
-        .load(libName)
+        .load(libName, requireUnload)
         .commit();
   }
 
-  public void loadAndCreateLink(String libName, String linkName) {
+  public void loadAndCreateLink(String libName, String linkName, boolean requireUnload) {
     newTransaction()
-        .loadAndCreateLink(libName, linkName)
+        .loadAndCreateLink(libName, linkName, requireUnload)
         .commit();
-  }
-
-  public void loadArrowLibs() {
   }
 
   public JniLoadTransaction newTransaction() {
@@ -172,16 +169,26 @@ public class JniLibLoader {
   private static final class LoadRequest {
     final String libName;
     final String linkName;
-    final File file;
+    final boolean requireUnload;
 
-    private LoadRequest(String libName, String linkName, File file) {
+    private LoadRequest(String libName, String linkName, boolean requireUnload) {
       this.libName = libName;
       this.linkName = linkName;
-      this.file = file;
+      this.requireUnload = requireUnload;
     }
+  }
 
-    LoadRequest(String libName, File file) {
-      this(libName, null, file);
+  private static final class LoadAction {
+    final String libName;
+    final String linkName;
+    final boolean requireUnload;
+    final File file;
+
+    private LoadAction(String libName, String linkName, boolean requireUnload, File file) {
+      this.libName = libName;
+      this.linkName = linkName;
+      this.requireUnload = requireUnload;
+      this.file = file;
     }
 
     public boolean requireLinking() {
@@ -191,16 +198,16 @@ public class JniLibLoader {
 
   public class JniLoadTransaction {
     private final AtomicBoolean finished = new AtomicBoolean(false);
-    private final Map<String, String> toLoad = new LinkedHashMap<>(); // ordered
+    private final Map<String, LoadRequest> toLoad = new LinkedHashMap<>(); // ordered
 
     private JniLoadTransaction() {
       JniLibLoader.this.sync.lock();
     }
 
-    public JniLoadTransaction mapAndLoad(String unmappedLibName) {
+    public JniLoadTransaction mapAndLoad(String unmappedLibName, boolean requireUnload) {
       try {
         final String mappedLibName = System.mapLibraryName(unmappedLibName);
-        load(mappedLibName);
+        load(mappedLibName, requireUnload);
         return this;
       } catch (Exception e) {
         abort();
@@ -208,9 +215,9 @@ public class JniLibLoader {
       }
     }
 
-    public JniLoadTransaction load(String libName) {
+    public JniLoadTransaction load(String libName, boolean requireUnload) {
       try {
-        toLoad.put(libName, null);
+        toLoad.put(libName, new LoadRequest(libName, null, requireUnload));
         return this;
       } catch (Exception e) {
         abort();
@@ -218,9 +225,10 @@ public class JniLibLoader {
       }
     }
 
-    public JniLoadTransaction loadAndCreateLink(String libName, String linkName) {
+    public JniLoadTransaction loadAndCreateLink(
+        String libName, String linkName, boolean requireUnload) {
       try {
-        toLoad.put(libName, linkName);
+        toLoad.put(libName, new LoadRequest(libName, linkName, requireUnload));
         return this;
       } catch (Exception e) {
         abort();
@@ -234,15 +242,14 @@ public class JniLibLoader {
         toLoad.entrySet().stream()
             .flatMap(e -> {
               try {
-                final String libName = e.getKey();
-                final String linkName = e.getValue();
-                if (loadedLibraries.contains(libName)) {
-                  LOG.debug("Library {} has already been loaded, skipping", libName);
+                final LoadRequest req = e.getValue();
+                if (loadedLibraries.contains(req.libName)) {
+                  LOG.debug("Library {} has already been loaded, skipping", req.libName);
                   return Stream.empty();
                 }
                 // load only libraries not loaded yet
-                final File file = moveToWorkDir(workDir, libName);
-                return Stream.of(new LoadRequest(libName, linkName, file));
+                final File file = moveToWorkDir(workDir, req.libName);
+                return Stream.of(new LoadAction(req.libName, req.linkName, req.requireUnload, file));
               } catch (IOException ex) {
                 throw new RuntimeException(ex);
               }
@@ -299,7 +306,7 @@ public class JniLibLoader {
       return temp;
     }
 
-    private void loadWithLink(String workDir, LoadRequest req) throws IOException {
+    private void loadWithLink(String workDir, LoadAction req) throws IOException {
       String libPath = req.file.getAbsolutePath();
       loadFromPath0(libPath, false);
       LOG.info("Library {} has been loaded", libPath);

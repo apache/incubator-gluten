@@ -30,11 +30,11 @@ class GazelleInitializerApi extends IInitializerApi {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
     loader.newTransaction()
-      .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800")
-      .loadAndCreateLink("libgandiva.so.800.0.0", "libgandiva.so.800")
-      .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800")
-      .loadAndCreateLink("libarrow_dataset.so.800.0.0", "libarrow_dataset.so.800")
-      .loadAndCreateLink("libarrow_substrait.so.800.0.0", "libarrow_substrait.so.800")
+      .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800", false)
+      .loadAndCreateLink("libgandiva.so.800.0.0", "libgandiva.so.800", false)
+      .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800", false)
+      .loadAndCreateLink("libarrow_dataset.so.800.0.0", "libarrow_dataset.so.800", false)
+      .loadAndCreateLink("libarrow_substrait.so.800.0.0", "libarrow_substrait.so.800", false)
       .commit()
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
@@ -42,10 +42,10 @@ class GazelleInitializerApi extends IInitializerApi {
       return
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
-    loader.mapAndLoad(baseLibName)
+    loader.mapAndLoad(baseLibName, true)
     val backendLibName = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
     if (StringUtils.isNotBlank(backendLibName)) {
-      loader.mapAndLoad(backendLibName)
+      loader.mapAndLoad(backendLibName, false) // setting to true leads to sigsegv
     }
   }
 
