@@ -115,7 +115,6 @@ object DSV2Q1ColumnarBenchmarkTest {
         // .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", "false")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "true")
         // .config("spark.sql.planChangeLog.level", "info")

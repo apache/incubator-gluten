@@ -22,6 +22,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.ArrowColumnarRules.ArrowWritePostRule
 import org.apache.spark.sql.catalyst.rules.Rule
 
+// FIXME Methods in this class never get called since no service file is registered for it
 class GazelleSparkPlanExecApi extends VeloxSparkPlanExecApi {
 
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
