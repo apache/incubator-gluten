@@ -60,7 +60,7 @@ function process_script {
 
 function compile {
     scripts/setup-ubuntu.sh
-    make release EXTRA_CMAKE_FLAGS=" -DVELOX_ENABLE_PARQUET=ON -DVELOX_ENABLE_ARROW=ON -DVELOX_ENABLE_HDFS=ON"
+    make release EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_ENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
 }
 
 echo "Velox Installation"
