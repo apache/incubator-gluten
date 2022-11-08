@@ -28,7 +28,7 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 
 ## 1.3 Target User
 
-Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is a plunin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seamlessly, no code changes are needed. However as an plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md)
+Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is a plugin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seamlessly, no code changes are needed. However as a plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md)
 
 ## 1.4 References:
 
@@ -119,7 +119,7 @@ The testing environment is using a 8-nodes AWS cluster with 1TB datasize and usi
 
 
 
-# 5 License
+# 6 License
 
 Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
 
