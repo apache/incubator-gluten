@@ -100,13 +100,7 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
         },
         ...
       ],
-      "range_bounds":{
-        "options": {
-          "direction": 0,
-          "data_type":"...",
-          "is_nullable":false,
-        },
-        "bounds":[
+      "range_bounds":[
           {
             "is_null":false,
             "value": ...
@@ -115,8 +109,7 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
             "is_null":true
           },
           ...
-        ]
-      }
+      ]
     }
   */
   def getExpressionFiedlReference(ordering: SortOrder): Int = {
