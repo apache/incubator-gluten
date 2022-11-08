@@ -136,7 +136,7 @@ case class LimitTransformer(
         inputTypeNodes.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodes).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodes).toProtobuf))
       RelBuilder.makeFetchRel(input, offset, count, extensionNode, context, operatorId)
     }
   }
