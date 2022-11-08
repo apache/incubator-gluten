@@ -308,7 +308,7 @@ public class JniLibLoader {
 
     private void loadWithLink(String workDir, LoadAction req) throws IOException {
       String libPath = req.file.getAbsolutePath();
-      loadFromPath0(libPath, false);
+      loadFromPath0(libPath, req.requireUnload);
       LOG.info("Library {} has been loaded", libPath);
       if (!req.requireLinking()) {
         LOG.debug("Symbolic link not required for library {}, skipping", libPath);
