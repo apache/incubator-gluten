@@ -34,7 +34,6 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
-      .set("spark.gluten.sql.columnar.limit", "true")
   }
 
   test("TPCH Q1") {
