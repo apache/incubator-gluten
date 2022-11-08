@@ -215,7 +215,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
 
   val enableColumnarLimit: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.limit", "false").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.limit", "true").toBoolean
 
   val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
