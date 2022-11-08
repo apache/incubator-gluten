@@ -37,7 +37,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitioning,
                                        child: SparkPlan,
-                                       shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS)
+                                       shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
+                                       removeHashColumn: Boolean = false)
   extends Exchange {
 
   private[sql] lazy val writeMetrics =
@@ -141,11 +142,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   }
 
   override def output: Seq[Attribute] = {
-    outputPartitioning match {
-      case HashPartitioning(_, _) =>
-        child.output.drop(1)
-      case _ => child.output
-    }
+    if (removeHashColumn) child.output.drop(1) else child.output
   }
 
   override def doExecute(): RDD[InternalRow] = {
@@ -165,7 +162,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
 case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Partitioning,
                                      child: SparkPlan,
-                                     shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS)
+                                     shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
+                                          removeHashColumn: Boolean = false)
   extends ShuffleExchangeLike {
 
   private[sql] lazy val writeMetrics =
@@ -297,11 +295,7 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
   }
 
   override def output: Seq[Attribute] = {
-    outputPartitioning match {
-      case HashPartitioning(_, _) =>
-        child.output.drop(1)
-      case _ => child.output
-    }
+    if (removeHashColumn) child.output.drop(1) else child.output
   }
 
   protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeAdaptor =

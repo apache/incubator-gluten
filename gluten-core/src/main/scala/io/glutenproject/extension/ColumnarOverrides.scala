@@ -43,7 +43,7 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, Murmur3Hash}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
@@ -62,6 +62,28 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case _ => logDebug(_)
     }
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+
+  private def getProjectWithHash(exprs: Seq[Expression], child: SparkPlan,
+                                 isSupportAdaptive: Boolean)
+  : SparkPlan = {
+    val hashExpression = new Murmur3Hash(exprs)
+    hashExpression.withNewChildren(exprs)
+    val project = child match {
+      case exec: ProjectExec =>
+        // merge the project node
+        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()
+        ) ++ child.output, exec.child)
+      case transformer: ProjectExecTransformer =>
+        // merge the project node
+        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()
+        ) ++ child.output, transformer.child)
+      case _ =>
+        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()
+        ) ++ child.output, child)
+    }
+    AddTransformHintRule().apply(project)
+    replaceWithTransformerPlan(project, isSupportAdaptive)
+  }
 
   def replaceWithTransformerPlan(plan: SparkPlan, isSupportAdaptive: Boolean): SparkPlan = {
     TransformHints.getHint(plan) match {
@@ -160,27 +182,32 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
       case plan: ShuffleExchangeExec =>
-        var child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        var child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
         if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
           columnarConf.enableColumnarShuffle) {
           plan.outputPartitioning match {
             case HashPartitioning(exprs, _) =>
-              val hashExpression = new Murmur3Hash(exprs);
-              hashExpression.withNewChildren(exprs)
-              val project = ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()
-                ) ++ child.output, child)
-              AddTransformHintRule().apply(project)
-              child = replaceWithTransformerPlan(project, isSupportAdaptive)
+              val projectChild = getProjectWithHash(exprs, child, isSupportAdaptive)
+              if (projectChild.supportsColumnar) {
+                if (isSupportAdaptive) {
+                  ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, projectChild,
+                    removeHashColumn = true)
+                } else {
+                  CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning,
+                    projectChild, removeHashColumn = true))
+                }
+              } else {
+                plan.withNewChildren(Seq(child))
+              }
             case _ =>
-          }
-          if (isSupportAdaptive) {
-            ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
-          } else {
-            CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
+              if (isSupportAdaptive) {
+                ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
+              } else {
+                CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
+              }
           }
         } else {
-          val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
           plan.withNewChildren(Seq(child))
         }
       case plan: ShuffledHashJoinExec =>
