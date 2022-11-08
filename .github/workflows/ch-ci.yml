@@ -5,14 +5,14 @@ on:
     types: [created]
     
 jobs:
-  ch-backend-test:
+  test-trigger:
     runs-on: libch-self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: khan/pull-request-comment-trigger@master
         id: check
         with:
-          trigger: 'test'
+          trigger: 'ttttt'
           reaction: rocket
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
