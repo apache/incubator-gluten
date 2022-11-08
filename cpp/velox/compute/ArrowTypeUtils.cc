@@ -36,11 +36,17 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
   if (type_name == "BIGINT") {
     return arrow::int64();
   }
+  if (type_name == "REAL") {
+    return arrow::float32();
+  }
   if (type_name == "DOUBLE") {
     return arrow::float64();
   }
   if (type_name == "VARCHAR") {
     return arrow::utf8();
+  }
+  if (type_name == "VARBINARY") {
+    return arrow::binary();
   }
   // The type name of Array type is like ARRAY<type>.
   std::string arrayType = "ARRAY";
@@ -63,10 +69,14 @@ std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
       return arrow::int32();
     case TypeKind::BIGINT:
       return arrow::int64();
+    case TypeKind::REAL:
+      return arrow::float32();
     case TypeKind::DOUBLE:
       return arrow::float64();
     case TypeKind::VARCHAR:
       return arrow::utf8();
+    case TypeKind::VARBINARY:
+      return arrow::binary();
     case TypeKind::TIMESTAMP:
       return arrow::timestamp(arrow::TimeUnit::MICRO);
     default:
