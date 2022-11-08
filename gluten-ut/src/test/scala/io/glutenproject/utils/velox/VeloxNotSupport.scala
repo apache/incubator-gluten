@@ -18,6 +18,7 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
+import org.apache.spark.sql.DateFunctionsSuite
 import org.apache.spark.sql.StringFunctionsSuite
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -28,6 +29,7 @@ object VeloxNotSupport extends NotSupport {
   override lazy val fullSupportSuiteList: Set[String] = Set(
     simpleClassName[LiteralExpressionSuite],
     simpleClassName[IntervalExpressionsSuite],
+    simpleClassName[DateExpressionsSuite],
     simpleClassName[DecimalExpressionSuite],
     simpleClassName[StringFunctionsSuite],
     simpleClassName[RegexpExpressionsSuite]

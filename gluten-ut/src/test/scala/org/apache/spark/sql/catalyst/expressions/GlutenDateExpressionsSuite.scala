@@ -17,7 +17,22 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
+import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
+
+  override protected def checkEvaluation(expression: => Expression,
+                                         expected: Any,
+                                         inputRow: InternalRow = EmptyRow): Unit = {
+    val resolver = ResolveTimeZone
+    val expr = resolver.resolveTimeZones(expression)
+    assert(expr.resolved)
+
+    val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
+    // Consistent with the evaluation approach in vanilla spark UT to avoid overflow issue
+    // in resultDF.collect() for some corner cases.
+    glutenCheckExpression(expr, catalystValue, inputRow, true)
+  }
 }
