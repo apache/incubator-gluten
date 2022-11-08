@@ -44,13 +44,9 @@
         <jvm.static_arrow>${static_arrow}</jvm.static_arrow>
         <jvm.arrow_root>${arrow_root}</jvm.arrow_root>
         <jvm.backend_type>${backend_type}</jvm.backend_type>
-        <protobuf.version>3.13.0</protobuf.version>
+        <protobuf.version>3.16.3</protobuf.version>
         <!-- protobuf paths -->
         <protobuf.input.directory>${resource.dir}/substrait/proto</protobuf.input.directory>
-        <protobuf.output.directory>${project.build.directory}/generated-sources
-        </protobuf.output.directory>
-        <protobuf.google.protobuf.directory>${resource.dir}/protoc-include-${protobuf.version}
-        </protobuf.google.protobuf.directory>
         <!-- library versions -->
         <build-helper-maven-plugin.version>3.0.0</build-helper-maven-plugin.version>
         <maven-antrun-plugin.version>1.8</maven-antrun-plugin.version>
@@ -309,96 +305,22 @@
             </extension>
         </extensions>
         <plugins>
-            <!-- copy protoc binary into build directory -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>${maven-dependency-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>copy-protoc</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>copy</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>com.google.protobuf</groupId>
-                                    <artifactId>protoc</artifactId>
-                                    <version>${protobuf.version}</version>
-                                    <classifier>${os.detected.classifier}</classifier>
-                                    <type>exe</type>
-                                    <overWrite>true</overWrite>
-                                    <outputDirectory>${project.build.directory}</outputDirectory>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <!-- compile proto buffer files using copied protoc binary -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>${maven-antrun-plugin.version}</version>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.5.1</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+                    </protocArtifact>
+                    <protoSourceRoot>${protobuf.input.directory}</protoSourceRoot>
+                </configuration>
                 <executions>
                     <execution>
-                        <id>exec-protoc</id>
-                        <phase>generate-sources</phase>
-                        <configuration>
-                            <target>
-                                <property name="protoc.filename"
-                                          value="protoc-${protobuf.version}-${os.detected.classifier}.exe"/>
-                                <property name="protoc.filepath"
-                                          value="${project.build.directory}/${protoc.filename}"/>
-                                <chmod file="${protoc.filepath}" perm="ugo+rx"/>
-                                <mkdir dir="${protobuf.output.directory}"/>
-                                <path id="protobuf.input.filepaths.path">
-                                    <fileset dir="${protobuf.input.directory}">
-                                        <include name="**/*.proto"/>
-                                    </fileset>
-                                </path>
-                                <pathconvert pathsep=" " property="protobuf.input.filepaths"
-                                             refid="protobuf.input.filepaths.path"/>
-                                <exec executable="${protoc.filepath}" failonerror="true">
-                                    <arg value="-I"/>
-                                    <arg value="${protobuf.google.protobuf.directory}"/>
-                                    <arg value="-I"/>
-                                    <arg value="${protobuf.input.directory}"/>
-                                    <arg value="-I"/>
-                                    <arg value="${protobuf.input.directory}/substrait/extensions"/>
-                                    <arg value="-I"/>
-                                    <arg value="${protobuf.input.directory}/substrait"/>
-                                    <arg value="--java_out"/>
-                                    <arg value="${protobuf.output.directory}"/>
-                                    <arg line="${protobuf.input.filepaths}"/>
-                                </exec>
-                            </target>
-                        </configuration>
                         <goals>
-                            <goal>run</goal>
+                            <goal>compile</goal>
+                            <goal>test-compile</goal>
                         </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- add generated proto buffer classes into the package -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>${build-helper-maven-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>add-classes</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>${protobuf.output.directory}</source>
-                            </sources>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
