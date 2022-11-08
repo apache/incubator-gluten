@@ -259,7 +259,7 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test round function") {
+  ignore("Test round function") {
     val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
       "from lineitem limit 1") { checkOperatorMatch[ProjectExecTransformer] }
     df.show()
