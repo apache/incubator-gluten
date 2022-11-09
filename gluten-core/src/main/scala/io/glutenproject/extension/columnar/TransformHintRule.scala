@@ -150,7 +150,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case _: InMemoryTableScanExec =>
-          false
         case plan: ProjectExec =>
           if (!enableColumnarProject) {
             TransformHints.tagNotTransformable(plan)

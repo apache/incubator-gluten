@@ -80,16 +80,6 @@ object ExpressionConverter extends Logging {
             b.right,
             attributeSeq),
           expr)
-      case b: BinaryExpression =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryExpressionTransformer.create(
-          replaceWithExpressionTransformer(
-            b.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            b.right,
-            attributeSeq),
-          expr)
       case i: If =>
         logInfo(s"${expr.getClass} ${expr} is supported")
         IfOperatorTransformer.create(
@@ -243,6 +233,18 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           replaceWithExpressionTransformer(
             r.scale,
+            attributeSeq),
+          expr)
+      // All specifically handling for binary expressions should be
+      // put before the below part.
+      case b: BinaryExpression =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        BinaryExpressionTransformer.create(
+          replaceWithExpressionTransformer(
+            b.left,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            b.right,
             attributeSeq),
           expr)
       case l: StringTrimLeft =>
