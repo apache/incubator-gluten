@@ -152,12 +152,14 @@ echo "STATIC_ARROW=${STATIC_ARROW}"
 echo "ARROW_ROOT=${ARROW_ROOT}"
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+BUILD_DIR="$CURRENT_DIR/../build"
 echo $CURRENT_DIR
+echo $BUILD_DIR
 
 cd ${CURRENT_DIR}
 
 if [ $BUILD_ARROW == "ON" ]; then
-  mkdir -p build
+  mkdir -p $BUILD_DIR
   ARROW_REPO=https://github.com/oap-project/arrow.git
 
   if [ $BACKEND_TYPE == "velox" ]; then
@@ -172,8 +174,8 @@ if [ $BUILD_ARROW == "ON" ]; then
   TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
   echo "Target Arrow commit: $TARGET_BUILD_COMMIT"
   if [ $ENABLE_EP_CACHE == "ON" ]; then
-    if [ -e ${CURRENT_DIR}/build/arrow-commit.cache ]; then
-        LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/build/arrow-commit.cache)"
+    if [ -e ${BUILD_DIR}/arrow-commit.cache ]; then
+        LAST_BUILT_COMMIT="$(cat ${BUILD_DIR}/arrow-commit.cache)"
         if [ -n $LAST_BUILT_COMMIT ]; then
             if [ -z "$TARGET_BUILD_COMMIT" ]
             then
@@ -191,12 +193,12 @@ if [ $BUILD_ARROW == "ON" ]; then
     fi
   fi
 
-  if [ -e ${CURRENT_DIR}/build/arrow-commit.cache ]; then
-      rm -f ${CURRENT_DIR}/build/arrow-commit.cache
+  if [ -e ${BUILD_DIR}/arrow-commit.cache ]; then
+      rm -f ${BUILD_DIR}/arrow-commit.cache
   fi
 
   echo "Building Arrow from Source ..."
-  ARROW_PREFIX="${CURRENT_DIR}/build" # Use build directory as ARROW_PREFIX
+  ARROW_PREFIX="${BUILD_DIR}" # Use build directory as ARROW_PREFIX
   ARROW_SOURCE_DIR="${ARROW_PREFIX}/arrow_ep"
   ARROW_INSTALL_DIR="${ARROW_PREFIX}/arrow_install"
 
@@ -239,7 +241,7 @@ if [ $BUILD_ARROW == "ON" ]; then
   fi
 
   echo "Successfully built Arrow from Source !!!"
-  echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/build/arrow-commit.cache"
+  echo $TARGET_BUILD_COMMIT > "${BUILD_DIR}/arrow-commit.cache"
 else
   echo "Use ARROW_ROOT as Arrow Library Path"
   echo "ARROW_ROOT=${ARROW_ROOT}"

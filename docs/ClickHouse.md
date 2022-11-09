@@ -103,8 +103,8 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
 ### Compile ClickHouse backend
 First need to enter the root directory of the Gluten project.
-run`sudo ./tools/clickhouse/install_ubuntu.sh`,Install the software required for compilation.  
-Create a build directory, such as /tmp/build_clickhouse, run `./tools/clickhouse/build_clickhouse.sh --src = /path /to/clickhouse --build_dir=/tmp/build_clickhouse`.  
+run`sudo ./ep/build-clickhouse/src/install_ubuntu.sh`,Install the software required for compilation.  
+Create a build directory, such as /tmp/build_clickhouse, run `./ep/build-clickhouse/src/build_clickhouse.sh --src = /path /to/clickhouse --build_dir=/tmp/build_clickhouse`.  
 Target file is `/tmp/build_clickhouse/utils/local-engine/libch.so`.   
 
 ### Compile Gluten with ClickHouse backend

@@ -66,18 +66,20 @@ function compile {
 echo "Velox Installation"
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+BUILD_DIR="$CURRENT_DIR/../build"
 echo $CURRENT_DIR
+echo $BUILD_DIR
 
 cd ${CURRENT_DIR}
 
 
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
-    mkdir -p build
+    mkdir -p $BUILD_DIR
     TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
     echo "Target Velox commit: $TARGET_BUILD_COMMIT"
     if [ $ENABLE_EP_CACHE == "ON" ]; then
-        if [ -e ${CURRENT_DIR}/build/velox-commit.cache ]; then
-            LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/build/velox-commit.cache)"
+        if [ -e ${BUILD_DIR}/velox-commit.cache ]; then
+            LAST_BUILT_COMMIT="$(cat ${BUILD_DIR}/velox-commit.cache)"
             if [ -n $LAST_BUILT_COMMIT ]; then
                 if [ -z "$TARGET_BUILD_COMMIT" ]
                 then
@@ -95,11 +97,11 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         fi
     fi
 
-    if [ -e ${CURRENT_DIR}/build/velox-commit.cache ]; then
-        rm -f ${CURRENT_DIR}/build/velox-commit.cache
+    if [ -e ${BUILD_DIR}/velox-commit.cache ]; then
+        rm -f ${BUILD_DIR}/velox-commit.cache
     fi
 
-    VELOX_PREFIX="${CURRENT_DIR}/build" # Use build directory as VELOX_PREFIX
+    VELOX_PREFIX="${BUILD_DIR}" # Use build directory as VELOX_PREFIX
     VELOX_SOURCE_DIR="${VELOX_PREFIX}/velox_ep"
     VELOX_INSTALL_DIR="${VELOX_PREFIX}/velox_install"
 
@@ -138,7 +140,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     process_script
     compile
     echo "Successfully built Velox from Source !!!"
-    echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/build/velox-commit.cache"
+    echo $TARGET_BUILD_COMMIT > "${BUILD_DIR}/velox-commit.cache"
 else
     VELOX_SOURCE_DIR=${VELOX_HOME}
     if [ $COMPILE_VELOX == "ON" ]; then
