@@ -23,7 +23,7 @@ class GlutenStringFunctionsSuite extends StringFunctionsSuite
   with GlutenSQLTestsTrait
   with ExpressionEvalHelper {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def blackTestNameList: Seq[String] = super.blackTestNameList ++ Seq(
     "string / binary length function"
   )
 }
