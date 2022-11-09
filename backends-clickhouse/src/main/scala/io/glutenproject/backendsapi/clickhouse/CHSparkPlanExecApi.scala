@@ -209,6 +209,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       bytesSpilled: SQLMetric,
       numInputRows: SQLMetric,
       splitTime: SQLMetric,
+      computePidTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
       prepareTime: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
@@ -221,6 +222,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       dataSize,
       bytesSpilled,
       numInputRows,
+      computePidTime,
       splitTime,
       spillTime,
       compressTime,
