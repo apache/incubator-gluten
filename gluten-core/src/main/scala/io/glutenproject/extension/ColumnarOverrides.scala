@@ -304,13 +304,33 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: CollectLimitExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
-        val localLimitPlan = LimitTransformer(child, 0L, plan.limit)
-        val collectPlan = ShuffleExchangeExec(SinglePartition, localLimitPlan)
-        LimitTransformer(collectPlan, 0L, plan.limit)
+        if (child.supportsColumnar) {
+          // If the child's rdd partition number is 0, should not enter this
+          // branch.
+          // push the limit down to every node
+          val localLimitPlan = LimitTransformer(child, 0L, plan.limit)
+          CollectLimitTransformer(localLimitPlan, plan.limit)
+        } else {
+          plan.withNewChildren(Seq(child))
+        }
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive))
         p.withNewChildren(children)
+    }
+  }
+
+  def transformShuffleExchangeExec(oldPlan: ShuffleExchangeExec, newChild: SparkPlan,
+                                   isSupportAdaptive: Boolean): SparkPlan = {
+    if ((newChild.supportsColumnar || columnarConf.enablePreferColumnar) &&
+      columnarConf.enableColumnarShuffle) {
+      if (isSupportAdaptive) {
+        ColumnarShuffleExchangeAdaptor(oldPlan.outputPartitioning, newChild)
+      } else {
+        CoalesceBatchesExec(ColumnarShuffleExchangeExec(oldPlan.outputPartitioning, newChild))
+      }
+    } else {
+      oldPlan.withNewChildren(Seq(newChild))
     }
   }
 
