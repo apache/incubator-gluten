@@ -72,7 +72,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
       (args(0), args(1), args(2).toInt, true, args(3), args(4), args(5).toBoolean, args(6))
     } else {
       val rootPath = this.getClass.getResource("/").getPath
-      val resourcePath = rootPath + "../../../../jvm/src/test/resources/"
+      val resourcePath = rootPath + "../../../../gluten-core/src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
       // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
@@ -172,7 +172,6 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .config("spark.gluten.sql.columnar.backend.ch.use.v2", useV2)
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -1058,7 +1057,7 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
   def testSparkTPCH(spark: SparkSession): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     val rootPath = this.getClass.getResource("/").getPath
-    val resourcePath = rootPath + "../../../../jvm/src/test/resources/"
+    val resourcePath = rootPath + "../../../../gluten-core/src/test/resources/"
     val queryPath = resourcePath + "/queries/"
     for (i <- 1 to 22) {
       val startTime = System.nanoTime()

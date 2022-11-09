@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>gluten-parent</artifactId>
+        <groupId>io.glutenproject</groupId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>build-arrow</artifactId>
+    <packaging>pom</packaging>
+    <name>Build Arrow</name>
+
+    <properties>
+        <core.enable_ep_cache>${enable_ep_cache}</core.enable_ep_cache>
+        <core.build_arrow>${build_arrow}</core.build_arrow>
+        <core.cpp_tests>${cpp_tests}</core.cpp_tests>
+        <core.static_arrow>${static_arrow}</core.static_arrow>
+        <core.arrow_root>${arrow_root}</core.arrow_root>
+        <core.backend_type>${backend_type}</core.backend_type>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>exec-maven-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <version>1.6.0</version>
+                <executions>
+                    <execution>
+                        <id>Build arrow</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>${arrow.script.dir}/build_arrow.sh</argument>
+                                <argument>--tests=${core.cpp_tests}</argument>
+                                <argument>--build_arrow=${core.build_arrow}</argument>
+                                <argument>--static_arrow=${core.static_arrow}</argument>
+                                <argument>--arrow_root=${core.arrow_root}</argument>
+                                <argument>--backend_type=${core.backend_type}</argument>
+                                <argument>--enable_ep_cache=${core.enable_ep_cache}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

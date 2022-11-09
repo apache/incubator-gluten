@@ -27,7 +27,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
     with AdaptiveSparkPlanHelper {
 
   override protected val tpcdsQueries: String =
-    rootPath + "../../../../jvm/src/test/resources/tpcds-queries"
+    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries"
   override protected val queriesResults: String = rootPath + "tpcds-queries-output"
 
   /**

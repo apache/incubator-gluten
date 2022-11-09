@@ -27,7 +27,6 @@ import java.io.IOException;
 public class ShuffleSplitterJniWrapper {
 
   public ShuffleSplitterJniWrapper() throws IOException {
-    JniWorkspace.getDefault().libLoader().loadEssentials();
   }
 
   /**

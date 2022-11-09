@@ -37,7 +37,7 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
-using namespace facebook::velox::aggregate::prestosql;
+
 namespace velox {
 namespace compute {
 
@@ -101,7 +101,6 @@ void VeloxInitializer::Init() {
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   registerAllFunctions();
-  registerAllAggregateFunctions();
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {

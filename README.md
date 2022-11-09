@@ -1,3 +1,5 @@
+# GLuten: A Spark Plugin to Offload SQL Engine to Native Library
+*<b>This plugin is still under active development now, and doesn't have a stable release. Welcome to evaluate it. If you encounter any issues or have any suggestions, please submit to our issue list. We'd love to hear your feedback</b>*
 
 # 1 Introduction
 
@@ -9,7 +11,7 @@ Apache Spark is a stable, mature project that has been under development for man
 <img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="800">
 </p>
 
-On the other side, SQL engine is researched for years. There are product or libraries like Clickhouse, Arrow or Velox. By using features like native implementation, columnar data format as well as vectorized data processing, these libraries outperform much of Spark's JVM based SQL eingine. However these libraries are running on single node.
+On the other side, SQL engine is researched for years. There are product or libraries like Clickhouse, Arrow or Velox. By using features like native implementation, columnar data format as well as vectorized data processing, these libraries outperform much of Spark's JVM based SQL engine. However these libraries are running on single node.
 
 ## 1.2 Gluten's Solution
 
@@ -26,7 +28,7 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 
 ## 1.3 Target User
 
-Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is an plunin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seemlessly, no code changes are needed. However as an plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md)
+Gluten targets to the Spark administrators and Spark users who want to improve their spark cluster's performance fundamentally. Gluten is a plugin to Spark. It's designed to offload the SQL engine to native without any dataframe API or SQL query changes. SparkSQL users can run their current Spark job on Gluten seamlessly, no code changes are needed. However as a plugin, Gluten needs some configurations to enable it when you start Spark context. All configurations are listed [here](https://github.com/oap-project/gluten/blob/main/docs/Configuration.md)
 
 ## 1.4 References:
 
@@ -48,14 +50,14 @@ There are several native libraries we may offload. Currently we are working on C
 There are several key component in Gluten:
 * Query plan conversion which convert Spark's physical plan into substrait plan in each stage.
 * Unified memory management in Spark is used to control the native memory allocation as well
-* Columnar shuffle is used to shuffle columnar data directly. The shuffle service still reuse the one in Spark core. The exchange operator is reimplemented to support columnar data format
+* Columnar shuffle is used to shuffle columnar data directly. The shuffle service still reuses the one in Spark core. The exchange operator is reimplemented to support columnar data format
 * For unsupported operators or functions Gluten fallback the operator to Vanilla Spark. There are C2R and R2C converter to convert the columnar data and Spark's internal row data. Both C2R and R2C are implemented natively as well
 * Metrics are very important to get insight of Spark's execution, identify the issues or bottlenecks. Gluten collects the metrics from native library and shows in Spark UI.
-* Shim layer is used to support mutiple releases of Spark. Gluten only plans to support the latest 2-3 spark stable releases, with no plans to add support on older spark releases. Current support is on Spark 3.2 and Spark 3.3.
+* Shim layer is used to support multiple releases of Spark. Gluten only plans to support the latest 2-3 spark stable releases, with no plans to add support on older spark releases. Current support is on Spark 3.2 and Spark 3.3.
 
 # 3 Usage
 
-Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source, copied the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details
+Gluten is still under active development now. There isn't a released binary yet. The only way to use Gluten is to build from source, copy the jar to your spark jars, then enable Gluten plugin when you start your spark context. Here is the simple example. Refer to Velox or Clickhouse backend below for more details
 
 ```export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/gluten-spark3.2_2.12-1.0.0-snapshot-jar-with-dependencies.jar 
 spark-shell 
@@ -78,7 +80,7 @@ If you would like to build and try Gluten with **Velox** backend, please follow 
 
 ![logo](./docs/image/ClickHouse/logo.png)
 
-If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is devleoped by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
+If you would like to build and try  Gluten with **ClickHouse** backend, please follow the steps in [Build with ClickHouse Backend](./docs/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
 ## 3.3 Build and Install Gluten with Arrow backend
 
@@ -94,7 +96,7 @@ Gluten project welcomes everyone to contribute.
 
 ## 4.1 Community
 
-Currently we communicate with all developers and users in a wechat group(Chinese only), Spark channel in Velox Slack group. Contact us if you would like to join in. Refer to Contact info below
+Currently we communicate with all developers and users in a wechat group(Chinese only), and a Spark channel in Velox Slack group. Contact us if you would like to join in. Refer to Contact info below
 
 ## 4.2 Bug Reports
 
@@ -117,7 +119,7 @@ The testing environment is using a 8-nodes AWS cluster with 1TB datasize and usi
 
 
 
-# 5 License
+# 6 License
 
 Gluten is under Apache 2.0 license(https://www.apache.org/licenses/LICENSE-2.0).
 
