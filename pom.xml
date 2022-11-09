@@ -208,6 +208,7 @@
       </activation>
       <modules>
         <module>ep/build-arrow</module>
+        <module>ep/build-velox</module>
         <module>gluten-data</module>
         <module>backends-velox</module>
         <module>package/velox</module>
