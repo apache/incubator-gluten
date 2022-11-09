@@ -308,15 +308,6 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test atan2 function") {
-    val df = runQueryAndCompare("SELECT atan2(l_orderkey, l_orderkey) from " +
-      "lineitem limit 1") { _ => }
-    df.show()
-    df.explain(false)
-    df.printSchema()
-    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
-  }
-
   // VeloxRuntimeError, wait to fix
   ignore("Test isnull function") {
     val df = runQueryAndCompare("SELECT isnull(1)") { _ => }

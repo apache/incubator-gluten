@@ -467,6 +467,11 @@ object ConverterUtils extends Logging {
   final val ASIN = "asin"
   final val ATAN = "atan"
   final val ATAN2 = "atan2"
+  final val COS = "cos"
+  final val COSH = "cosh"
+  final val DEGREES = "degrees"
+  final val LOG10 = "log10"
+
 
 
 
