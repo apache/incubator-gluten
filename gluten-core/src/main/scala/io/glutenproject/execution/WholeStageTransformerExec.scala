@@ -98,8 +98,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
   val sparkConf = sparkContext.getConf
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val enableColumnarSortMergeJoinLazyRead: Boolean =
-    GlutenConfig.getConf.enableColumnarSortMergeJoinLazyRead
 
   override def output: Seq[Attribute] = child.output
 
