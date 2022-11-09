@@ -40,7 +40,7 @@
                         <configuration>
                             <executable>bash</executable>
                             <arguments>
-                                <argument>${arrow.script.dir}/build_arrow.sh</argument>
+                                <argument>${project.basedir}/src/build_arrow.sh</argument>
                                 <argument>--tests=${core.cpp_tests}</argument>
                                 <argument>--benchmarks=${core.cpp_benchmarks}</argument>
                                 <argument>--build_arrow=${core.build_arrow}</argument>

@@ -55,7 +55,7 @@
                         <configuration>
                             <executable>bash</executable>
                             <arguments>
-                                <argument>${velox.script.dir}/build_velox.sh</argument>
+                                <argument>${project.basedir}/src/build_velox.sh</argument>
                                 <argument>
                                     --build_velox_from_source=${velox.build_velox_from_source}
                                 </argument>
