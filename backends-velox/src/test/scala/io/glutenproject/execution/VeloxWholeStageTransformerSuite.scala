@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import java.io.File
+
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.ColumnarInputAdapter
