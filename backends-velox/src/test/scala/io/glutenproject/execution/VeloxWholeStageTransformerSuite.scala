@@ -17,11 +17,9 @@
 
 package io.glutenproject.execution
 
-import java.io.File
+import io.glutenproject.sql.shims.SparkShimLoader
 
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ColumnarInputAdapter
-import org.apache.spark.sql.internal.SQLConf
 
 class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
@@ -114,7 +112,11 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
       val wholeStages = plan.collect {
         case wst: WholeStageTransformerExec => wst
       }
-      assert(wholeStages.length == 1)
+      if (SparkShimLoader.getSparkVersion.startsWith("3.3.")) {
+        assert(wholeStages.length == 3)
+      } else {
+        assert(wholeStages.length == 1)
+      }
 
       // Join should be in `TransformContext`
       val countSHJ = wholeStages.map {
@@ -123,7 +125,11 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
           case _: ShuffledHashJoinExecTransformer => 1
         }.getOrElse(0)
       }.sum
-      assert(countSHJ == 1)
+      if (SparkShimLoader.getSparkVersion.startsWith("3.3.")) {
+        assert(countSHJ == 2)
+      } else {
+        assert(countSHJ == 1)
+      }
     }
   }
 }

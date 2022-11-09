@@ -38,7 +38,7 @@
     <spark32.version>3.2.2</spark32.version>
     <spark32.scala>2.12.15</spark32.scala>
     <spark32bundle.version>3.2</spark32bundle.version>
-    <spark33.version>3.3.0</spark33.version>
+    <spark33.version>3.3.1</spark33.version>
     <spark33.scala>2.12.15</spark33.scala>
     <spark33bundle.version>3.3</spark33bundle.version>
     <delta2.version>2.0.0</delta2.version>
