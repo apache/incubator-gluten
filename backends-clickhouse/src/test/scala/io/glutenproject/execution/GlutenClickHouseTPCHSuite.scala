@@ -17,8 +17,8 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.{Row, TestUtils}
+import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -185,11 +185,10 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("test 'select collect limit'") {
-    val df = spark.sql(
-      """
-        |select l_orderkey from lineitem
-        |where l_orderkey = 1 limit 5
-        |""".stripMargin)
+    val df = spark.sql("""
+                         |select l_orderkey from lineitem
+                         |where l_orderkey = 1 limit 5
+                         |""".stripMargin)
     val result = df.collect()
     assert(result.size == 5)
     val expected = Seq(Row(1), Row(1), Row(1), Row(1), Row(1))
@@ -197,12 +196,11 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("test 'select global/local limit'") {
-    val df = spark.sql(
-      """
-        |select * from (
-        | select * from lineitem limit 10
-        |) where l_suppkey != 0 limit 100;
-        |""".stripMargin)
+    val df = spark.sql("""
+                         |select * from (
+                         | select * from lineitem limit 10
+                         |) where l_suppkey != 0 limit 100;
+                         |""".stripMargin)
     val result = df.collect()
     assert(result.size == 10)
   }
