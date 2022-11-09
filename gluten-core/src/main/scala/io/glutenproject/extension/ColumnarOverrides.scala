@@ -307,20 +307,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     }
   }
 
-  def transformShuffleExchangeExec(oldPlan: ShuffleExchangeExec, newChild: SparkPlan,
-                                   isSupportAdaptive: Boolean): SparkPlan = {
-    if ((newChild.supportsColumnar || columnarConf.enablePreferColumnar) &&
-      columnarConf.enableColumnarShuffle) {
-      if (isSupportAdaptive) {
-        ColumnarShuffleExchangeAdaptor(oldPlan.outputPartitioning, newChild)
-      } else {
-        CoalesceBatchesExec(ColumnarShuffleExchangeExec(oldPlan.outputPartitioning, newChild))
-      }
-    } else {
-      oldPlan.withNewChildren(Seq(newChild))
-    }
-  }
-
   /**
    * Get the build side supported by the execution of vanilla Spark.
    * @param plan: shuffled hash join plan

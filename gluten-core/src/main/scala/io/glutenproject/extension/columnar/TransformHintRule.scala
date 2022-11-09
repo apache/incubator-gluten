@@ -311,13 +311,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             val transformer = LimitTransformer(plan.child, 0L, plan.limit)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-        case plan: CollectLimitExec =>
-          if (!enableColumnarLimit) {
-            TransformHints.tagNotTransformable(plan)
-          } else {
-            val transformer = LimitTransformer(plan.child, 0L, plan.limit)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
-          }
         case _: AQEShuffleReadExec =>
           TransformHints.tagTransformable(plan)
         case _ =>
