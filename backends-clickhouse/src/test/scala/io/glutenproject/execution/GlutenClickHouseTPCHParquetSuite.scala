@@ -27,11 +27,11 @@ import org.apache.spark.sql.functions.{col, rand, when}
 class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val resourcePath: String =
-    "../../../../jvm/src/test/resources/tpch-data"
+    "../../../../gluten-core/src/test/resources/tpch-data"
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../jvm/src/test/resources/queries"
+    rootPath + "../../../../gluten-core/src/test/resources/queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def sparkConf: SparkConf = {

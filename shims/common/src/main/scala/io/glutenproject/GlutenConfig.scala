@@ -82,9 +82,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarSortMergeJoin: Boolean =
   conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean
 
-  val enableColumnarSortMergeJoinLazyRead: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.sortmergejoin.lazyread", "false").toBoolean
-
   // enable or disable columnar union
   val enableColumnarUnion: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.union", "true").toBoolean
@@ -96,14 +93,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar broadcastexchange
   val enableColumnarBroadcastExchange: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.broadcastexchange", "true").toBoolean
-
-  // enable or disable NAN check
-  val enableColumnarNaNCheck: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.nanCheck", "true").toBoolean
-
-  // enable or disable hashcompare in hashjoins or hashagg
-  val hashCompare: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.hashCompare", "true").toBoolean
 
   // enable or disable columnar BroadcastHashJoin
   val enableColumnarBroadcastJoin: Boolean =
@@ -144,12 +133,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // When false, only Java code will be executed for a quick test.
   val loadNative: Boolean =
   conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
-
-  // This config is used for deciding whether to load Arrow and Gandiva libraries from
-  // the native library. If the native library does not depend on Arrow and Gandiva,
-  // this config should will set as false.
-  val loadArrow: Boolean =
-  conf.getConfString(GlutenConfig.GLUTEN_LOAD_ARROW, "true").toBoolean
 
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
@@ -242,7 +225,6 @@ object GlutenConfig {
   val GLUTEN_LOAD_NATIVE = "spark.gluten.sql.columnar.loadnative"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
-  val GLUTEN_LOAD_ARROW = "spark.gluten.sql.columnar.loadarrow"
   val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
 
   // Hive configurations.
@@ -281,7 +263,7 @@ object GlutenConfig {
   var random_temp_dir_path: String = _
 
   /**
-   * @deprecated We should avoid caching this value in entire JVM. us
+   * @deprecated We should avoid caching this value in entire JVM. use #getSessionConf instead.
    */
   @deprecated
   def getConf: GlutenConfig = synchronized {
