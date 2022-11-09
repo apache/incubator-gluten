@@ -193,6 +193,7 @@ add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
 
 if(VELOX_ENABLE_HDFS)
+  add_definitions(-DVELOX_ENABLE_HDFS)
   find_libhdfs3()
   add_library(libhdfs3 SHARED IMPORTED)
   set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")

@@ -53,7 +53,10 @@ On Ubuntu 20.04 the required depedencis are libiberty-dev, libxml2-dev, libkrb5-
 ```
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
-
+To build Gluten with HDFS support, below command is provided:
+```
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Dvelox_enable_hdfs=ON
+```
 Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
 
 This env should be exported in both Spark driver and worker.
@@ -108,10 +111,10 @@ Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its 
 ```
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
-## S3 support
+## 2.5 S3 support
 
-Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten used Velox S3 connector to connect with S3.
-A new build option for S3(velox_enable_s3) is added. Below command is used o enable this feature
+Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
+A new build option for S3(velox_enable_s3) is added. Below command is used to enable this feature
 ```
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Dvelox_enable_s3=ON
 ```

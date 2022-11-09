@@ -36,6 +36,7 @@
         <velox.backend_type>${backend_type}</velox.backend_type>
         <velox.velox_home>${velox_home}</velox.velox_home>
         <velox.velox_enable_s3>${velox_enable_s3}</velox.velox_enable_s3>
+        <velox.velox_enable_hdfs>${velox_enable_hdfs}</velox.velox_enable_hdfs>
     </properties>
 
     <profiles>
