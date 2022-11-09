@@ -343,21 +343,20 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   std::cerr << "JNI_OnUnload" << std::endl;
-  JNIEnv* env;
-  vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
-
-  env->DeleteGlobalRef(serializable_obj_builder_class);
-  env->DeleteGlobalRef(jni_byte_input_stream_class);
-  env->DeleteGlobalRef(split_result_class);
-  env->DeleteGlobalRef(serialized_arrow_array_iterator_class);
-  env->DeleteGlobalRef(native_columnar_to_row_info_class);
-
-  env->DeleteGlobalRef(byte_array_class);
 
   array_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
   shuffle_splitter_holder_.Clear();
   shuffle_reader_holder_.Clear();
+
+  JNIEnv* env;
+  vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
+  env->DeleteGlobalRef(serializable_obj_builder_class);
+  env->DeleteGlobalRef(jni_byte_input_stream_class);
+  env->DeleteGlobalRef(split_result_class);
+  env->DeleteGlobalRef(serialized_arrow_array_iterator_class);
+  env->DeleteGlobalRef(native_columnar_to_row_info_class);
+  env->DeleteGlobalRef(byte_array_class);
 }
 
 JNIEXPORT void JNICALL
