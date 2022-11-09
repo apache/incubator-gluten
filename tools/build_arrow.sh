@@ -46,6 +46,10 @@ do
 done
 
 function compile_velox_arrow {
+    WITH_JSON=OFF
+    if [ $TESTS == ON ]; then
+      WITH_JSON=ON
+    fi
     pushd $ARROW_SOURCE_DIR
     mkdir -p java/build
     pushd java/build
@@ -60,45 +64,30 @@ function compile_velox_arrow {
     cmake -G Ninja \
             -DARROW_BUILD_STATIC=OFF \
             -DARROW_COMPUTE=ON \
-            -DARROW_CSV=ON \
-            -DARROW_DATASET=ON \
-            -DARROW_FILESYSTEM=ON \
-            -DARROW_JSON=ON \
-            -DARROW_PARQUET=ON \
-            -DARROW_SUBSTRAIT=ON \
-            -DARROW_WITH_BROTLI=ON \
-            -DARROW_WITH_BZ2=ON \
-            -DARROW_WITH_LZ4=ON \
             -DARROW_WITH_RE2=ON \
+            -DARROW_FILESYSTEM=ON \
+            -DARROW_WITH_LZ4=ON \
             -DARROW_WITH_SNAPPY=ON \
-            -DARROW_WITH_UTF8PROC=ON \
             -DARROW_WITH_ZLIB=ON \
+            -DARROW_JSON=$WITH_JSON \
             -DARROW_WITH_ZSTD=ON \
-            -DCMAKE_BUILD_TYPE=Release \
             -DARROW_BUILD_SHARED=ON \
-            -DARROW_SUBSTRAIT=ON \
-            -DARROW_S3=ON \
-            -DARROW_ORC=OFF \
-            -DARROW_HDFS=ON \
             -DARROW_BOOST_USE_SHARED=OFF \
             -DARROW_JNI=ON \
-            -DARROW_WITH_PROTOBUF=ON \
-            -DARROW_PROTOBUF_USE_SHARED=OFF \
-            -DARROW_FLIGHT=OFF \
             -DARROW_JEMALLOC=ON \
             -DARROW_SIMD_LEVEL=AVX2 \
             -DARROW_RUNTIME_SIMD_LEVEL=MAX \
             -DARROW_DEPENDENCY_SOURCE=BUNDLED \
             -Dre2_SOURCE=AUTO \
-            -DProtobuf_SOURCE=AUTO \
             -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
             -DCMAKE_INSTALL_LIBDIR=lib \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             ..
     cmake --build . --target install
     popd
 
     cd java
-    mvn clean install -P arrow-jni -pl dataset,c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
+    mvn clean install -P arrow-jni -pl c -am -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib -DskipTests -Dcheckstyle.skip \
         -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
 }
 
@@ -122,27 +111,17 @@ function compile_gazelle_arrow {
             -DARROW_BOOST_USE_SHARED=OFF \
             -DARROW_JNI=ON \
             -DARROW_DATASET=ON \
-            -DARROW_WITH_PROTOBUF=ON \
-            -DARROW_PROTOBUF_USE_SHARED=OFF \
             -DARROW_WITH_SNAPPY=ON \
             -DARROW_WITH_LZ4=ON \
-            -DARROW_WITH_ZSTD=OFF \
-            -DARROW_WITH_BROTLI=OFF \
-            -DARROW_WITH_ZLIB=OFF \
-            -DARROW_WITH_FASTPFOR=OFF \
+            -DARROW_WITH_RE2=ON \
             -DARROW_FILESYSTEM=ON \
-            -DARROW_JSON=ON \
-            -DARROW_CSV=ON \
-            -DARROW_FLIGHT=OFF \
             -DARROW_JEMALLOC=ON \
             -DARROW_SIMD_LEVEL=AVX2 \
             -DARROW_RUNTIME_SIMD_LEVEL=MAX \
             -DARROW_DEPENDENCY_SOURCE=BUNDLED \
             -Dre2_SOURCE=AUTO \
-            -DProtobuf_SOURCE=AUTO \
             -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
             -DCMAKE_INSTALL_LIBDIR=lib \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             cpp
 
     make -j$NPROC

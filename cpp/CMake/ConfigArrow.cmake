@@ -89,7 +89,12 @@ else()
 
   # Copy arrow headers
   set(ARROW_INCLUDE_DST_DIR ${root_directory}/releases/include)
-  set(ARROW_INCLUDE_SUB_DIR arrow parquet)
+  string(TOLOWER "${BACKEND_TYPE}" LOWERCASE_BACKEND_TYPE)
+  if (LOWERCASE_BACKEND_TYPE STREQUAL "velox")
+    set(ARROW_INCLUDE_SUB_DIR arrow)
+  else ()
+    set(ARROW_INCLUDE_SUB_DIR arrow parquet)
+  endif()
   message(STATUS "Copy Arrow headers from ${ARROW_INCLUDE_SRC_DIR} to ${ARROW_INCLUDE_DST_DIR}")
   file(MAKE_DIRECTORY ${ARROW_INCLUDE_DST_DIR})
   foreach(SUB_DIR ${ARROW_INCLUDE_SUB_DIR})
