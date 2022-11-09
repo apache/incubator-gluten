@@ -23,9 +23,9 @@ The command below clones velox source code from [OAP-project/velox](https://gith
 
 ```shell script
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+mvn clean package -Pbackends-velox -Pspark-3.2 -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+mvn clean package -Pbackends-velox -Pspark-3.3 -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
 You may compile spark3.2 and spark3.3 at the same time by -Pspark-3.2 -Pspark-3.3
 
@@ -35,10 +35,11 @@ Refer to [build configurations](GlutenUsage.md) for the list of configurations u
 
 ## 2.1 Velox home directory
 
-You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox=ON, the script applies the patches and build the Velox library. With -Dbuild_velox=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
+You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox_from_source=ON, the script applies the patches and build the Velox library. With -Dbuild_velox_from_source=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
+
 
 ```shell script
-mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
+mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
 ```
 
 ## 2.2 Arrow home directory

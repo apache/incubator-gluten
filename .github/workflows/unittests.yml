@@ -70,15 +70,11 @@ jobs:
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID --detach" NON_INTERACTIVE=ON gluten-te/cbash.sh sleep 14400
-      - name: Install Gluten Velox-backend spark3.2
+      - name: Install Gluten Velox-backend spark3.2 and Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -DskipTests -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
-            -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON'
-      - name: Run unit tests
-        run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn test -Pspark-3.2 -Pspark-ut -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Pbackends-velox -Dbackend_type=velox'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
+            -Dbuild_protobuf=OFF -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
       - name: Install Gluten Velox-backend spark3.3 and Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
@@ -97,7 +93,6 @@ jobs:
           mvn clean package -Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
-            --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.3
@@ -105,10 +100,9 @@ jobs:
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/gluten-it && \
           mvn clean package -Pspark-3.3 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
-            --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22 \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 --use-existing-data \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1'
+            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1 --use-existing-data'
 
       # Deprecated
       # - name: Run micro benchmarks
