@@ -24,7 +24,6 @@
         <parquet.deps.scope>provided</parquet.deps.scope>
         <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars
         </jars.target.dir>
-        <protobuf.version>3.16.3</protobuf.version>
         <!-- protobuf paths -->
         <protobuf.input.directory>${resource.dir}/substrait/proto</protobuf.input.directory>
         <!-- library versions -->
@@ -81,11 +80,6 @@
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
             <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
             <scope>provided</scope>
         </dependency>
@@ -130,7 +124,11 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+       </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>1.4.195</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -245,25 +243,21 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -312,32 +306,11 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.3.0</version>
-                <configuration>
-                    <recompileMode>${scala.recompile.mode}</recompileMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>scala-compile-first</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>scala-test-compile</id>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <version>${scala.compiler.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -354,26 +327,10 @@
             <plugin>
                 <groupId>org.scalastyle</groupId>
                 <artifactId>scalastyle-maven-plugin</artifactId>
-                <version>1.0.0</version>
+                <version>${scalastyle.version}</version>
                 <configuration>
-                    <verbose>false</verbose>
-                    <failOnViolation>true</failOnViolation>
-                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                    <failOnWarning>false</failOnWarning>
-                    <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
-                    <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
                     <configLocation>${project.basedir}/../scalastyle-config.xml</configLocation>
-                    <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
-                    <outputEncoding>UTF-8</outputEncoding>
                 </configuration>
-                <executions>
-                    <execution>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -413,6 +370,7 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <version>${scalatest-maven-plugin.version}</version>
                 <configuration>
                     <junitxml>.</junitxml>
                 </configuration>
@@ -429,6 +387,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven.jar.plugin}</version>
                 <executions>
                     <execution>
                         <id>prepare-test-jar</id>

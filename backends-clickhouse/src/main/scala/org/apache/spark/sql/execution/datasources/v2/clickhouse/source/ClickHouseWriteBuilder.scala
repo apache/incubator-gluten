@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
 import org.apache.spark.sql.SparkSession
@@ -23,10 +22,12 @@ import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.types.StructType
 
-class ClickHouseWriteBuilder(spark: SparkSession,
-                             table: ClickHouseTableV2,
-                             deltaLog: DeltaLog,
-                             info: LogicalWriteInfo) extends WriteBuilder {
+class ClickHouseWriteBuilder(
+    spark: SparkSession,
+    table: ClickHouseTableV2,
+    deltaLog: DeltaLog,
+    info: LogicalWriteInfo)
+  extends WriteBuilder {
 
   private val options = info.options()
 

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.benchmarks
 
 import scala.collection.mutable.ArrayBuffer
@@ -52,149 +51,150 @@ object GenTPCHTableScripts {
     val res = new ArrayBuffer[String]()
     res +=
       s"""
-         |CREATE DATABASE IF NOT EXISTS ${dbName}
+         |CREATE DATABASE IF NOT EXISTS $dbName
          |WITH DBPROPERTIES (engine='Parquet');
          |""".stripMargin
 
-    res += s"""use ${dbName};"""
+    res += s"""use $dbName;"""
 
     // lineitem
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$lineitemTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$lineitemTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + lineitemTbl}'
          | CLUSTERED BY (l_orderkey) SORTED BY (l_shipdate, l_orderkey) INTO 24 BUCKETS
-         | AS SELECT /*+ REPARTITION(3) */ * FROM ${sourceDbName}.${lineitemTbl}100
+         | AS SELECT /*+ REPARTITION(3) */ * FROM $sourceDbName.${lineitemTbl}100
          |""".stripMargin
 
     // order
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$ordersTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$ordersTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + ordersPath}'
          | CLUSTERED BY (o_orderkey) SORTED BY (o_orderkey, o_orderdate) INTO 24 BUCKETS
-         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${ordersTbl}100
+         | AS SELECT /*+ REPARTITION(2) */ * FROM $sourceDbName.${ordersTbl}100
          |""".stripMargin
 
     // customer
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$customerTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$customerTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + customerTbl}'
          | CLUSTERED BY (c_custkey) SORTED BY (c_custkey) INTO 12 BUCKETS
-         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${customerTbl}100
+         | AS SELECT /*+ REPARTITION(2) */ * FROM $sourceDbName.${customerTbl}100
          |""".stripMargin
 
     // part
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$partTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$partTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + partTbl}'
          | CLUSTERED BY (p_partkey) SORTED BY (p_partkey) INTO 12 BUCKETS
-         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${partTbl}100
+         | AS SELECT /*+ REPARTITION(2) */ * FROM $sourceDbName.${partTbl}100
          |""".stripMargin
 
     // partsupp
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$partsuppTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$partsuppTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + partsuppTbl}'
          | CLUSTERED BY (ps_partkey) SORTED BY (ps_partkey) INTO 12 BUCKETS
-         | AS SELECT /*+ REPARTITION(2) */ * FROM ${sourceDbName}.${partsuppTbl}100
+         | AS SELECT /*+ REPARTITION(2) */ * FROM $sourceDbName.${partsuppTbl}100
          |""".stripMargin
 
     // supplier
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$supplierTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$supplierTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + supplierTbl}'
          | CLUSTERED BY (s_suppkey) SORTED BY (s_suppkey) INTO 2 BUCKETS
-         | AS SELECT /*+ REPARTITION(1) */ * FROM ${sourceDbName}.${supplierTbl}100
+         | AS SELECT /*+ REPARTITION(1) */ * FROM $sourceDbName.${supplierTbl}100
          |""".stripMargin
 
     // nation
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$nationTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$nationTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + nationTbl}'
-         | AS SELECT /*+ REPARTITION(1) */ * FROM ${sourceDbName}.${nationTbl}100
+         | AS SELECT /*+ REPARTITION(1) */ * FROM $sourceDbName.${nationTbl}100
          |""".stripMargin
 
     // region
     res +=
       s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};
+         |DROP TABLE IF EXISTS $tablePrefix$regionTbl$tableSuffix;
          |""".stripMargin
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$regionTbl$tableSuffix
          | USING PARQUET
          | LOCATION 'file://${dataPathRoot + regionTbl}'
-         | AS SELECT /*+ REPARTITION(1) */ * FROM ${sourceDbName}.${regionTbl}100
+         | AS SELECT /*+ REPARTITION(1) */ * FROM $sourceDbName.${regionTbl}100
          |""".stripMargin
     // scalastyle:on println
     res
   }
 
-  def genOneTPCDSParquetTableSQL(res: ArrayBuffer[String],
-                                 dataPathRoot: String,
-                                 tblName: String,
-                                 tblFields: String,
-                                 tblPartitionCols: String,
-                                 tablePrefix: String,
-                                 tableSuffix: String): Unit = {
+  def genOneTPCDSParquetTableSQL(
+      res: ArrayBuffer[String],
+      dataPathRoot: String,
+      tblName: String,
+      tblFields: String,
+      tblPartitionCols: String,
+      tablePrefix: String,
+      tableSuffix: String): Unit = {
     // scalastyle:off println
-    println(s"start to generate sqls for table ${tblName}")
+    println(s"start to generate sqls for table $tblName")
     // scalastyle:on println
-    res += s"""DROP TABLE IF EXISTS ${tablePrefix}${tblName}${tableSuffix};"""
+    res += s"""DROP TABLE IF EXISTS $tablePrefix$tblName$tableSuffix;"""
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${tblName}${tableSuffix} (
-         |${tblFields}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$tblName$tableSuffix (
+         |$tblFields
          | )
          | USING PARQUET
-         | ${tblPartitionCols}
+         | $tblPartitionCols
          | LOCATION '${dataPathRoot + tblName}'
          | ;
          |""".stripMargin
 
     if (!tblPartitionCols.isEmpty) {
-      res += s"""MSCK REPAIR TABLE ${tablePrefix}${tblName}${tableSuffix};"""
+      res += s"""MSCK REPAIR TABLE $tablePrefix$tblName$tableSuffix;"""
     }
   }
 
@@ -219,182 +219,182 @@ object GenTPCHTableScripts {
     val supplierTbl = "supplier"
 
     println(s"""
-         |CREATE DATABASE IF NOT EXISTS ${dbName}
-         |WITH DBPROPERTIES (engine='MergeTree');
-         |""".stripMargin)
-    println(s"""use ${dbName};""")
+               |CREATE DATABASE IF NOT EXISTS $dbName
+               |WITH DBPROPERTIES (engine='MergeTree');
+               |""".stripMargin)
+    println(s"""use $dbName;""")
     println("")
 
     // customer
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$customerTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix} (
-         | c_custkey    bigint ${notNullStr},
-         | c_name       string ${notNullStr},
-         | c_address    string ${notNullStr},
-         | c_nationkey  bigint ${notNullStr},
-         | c_phone      string ${notNullStr},
-         | c_acctbal    double ${notNullStr},
-         | c_mktsegment string ${notNullStr},
-         | c_comment    string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + customerTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$customerTbl$tableSuffix (
+               | c_custkey    bigint $notNullStr,
+               | c_name       string $notNullStr,
+               | c_address    string $notNullStr,
+               | c_nationkey  bigint $notNullStr,
+               | c_phone      string $notNullStr,
+               | c_acctbal    double $notNullStr,
+               | c_mktsegment string $notNullStr,
+               | c_comment    string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + customerTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // lineitem
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$lineitemTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix} (
-         | l_orderkey      bigint ${notNullStr},
-         | l_partkey       bigint ${notNullStr},
-         | l_suppkey       bigint ${notNullStr},
-         | l_linenumber    bigint ${notNullStr},
-         | l_quantity      double ${notNullStr},
-         | l_extendedprice double ${notNullStr},
-         | l_discount      double ${notNullStr},
-         | l_tax           double ${notNullStr},
-         | l_returnflag    string ${notNullStr},
-         | l_linestatus    string ${notNullStr},
-         | l_shipdate      date ${notNullStr},
-         | l_commitdate    date ${notNullStr},
-         | l_receiptdate   date ${notNullStr},
-         | l_shipinstruct  string ${notNullStr},
-         | l_shipmode      string ${notNullStr},
-         | l_comment       string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + lineitemTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$lineitemTbl$tableSuffix (
+               | l_orderkey      bigint $notNullStr,
+               | l_partkey       bigint $notNullStr,
+               | l_suppkey       bigint $notNullStr,
+               | l_linenumber    bigint $notNullStr,
+               | l_quantity      double $notNullStr,
+               | l_extendedprice double $notNullStr,
+               | l_discount      double $notNullStr,
+               | l_tax           double $notNullStr,
+               | l_returnflag    string $notNullStr,
+               | l_linestatus    string $notNullStr,
+               | l_shipdate      date $notNullStr,
+               | l_commitdate    date $notNullStr,
+               | l_receiptdate   date $notNullStr,
+               | l_shipinstruct  string $notNullStr,
+               | l_shipmode      string $notNullStr,
+               | l_comment       string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + lineitemTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // nation
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$nationTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix} (
-         | n_nationkey bigint ${notNullStr},
-         | n_name      string ${notNullStr},
-         | n_regionkey bigint ${notNullStr},
-         | n_comment   string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + nationTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$nationTbl$tableSuffix (
+               | n_nationkey bigint $notNullStr,
+               | n_name      string $notNullStr,
+               | n_regionkey bigint $notNullStr,
+               | n_comment   string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + nationTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // region
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$regionTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix} (
-         | r_regionkey bigint ${notNullStr},
-         | r_name      string ${notNullStr},
-         | r_comment   string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + regionTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$regionTbl$tableSuffix (
+               | r_regionkey bigint $notNullStr,
+               | r_name      string $notNullStr,
+               | r_comment   string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + regionTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // orders
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$ordersTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix} (
-         | o_orderkey      bigint ${notNullStr},
-         | o_custkey       bigint ${notNullStr},
-         | o_orderstatus   string ${notNullStr},
-         | o_totalprice    double ${notNullStr},
-         | o_orderdate     date ${notNullStr},
-         | o_orderpriority string ${notNullStr},
-         | o_clerk         string ${notNullStr},
-         | o_shippriority  bigint ${notNullStr},
-         | o_comment       string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + ordersPath}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$ordersTbl$tableSuffix (
+               | o_orderkey      bigint $notNullStr,
+               | o_custkey       bigint $notNullStr,
+               | o_orderstatus   string $notNullStr,
+               | o_totalprice    double $notNullStr,
+               | o_orderdate     date $notNullStr,
+               | o_orderpriority string $notNullStr,
+               | o_clerk         string $notNullStr,
+               | o_shippriority  bigint $notNullStr,
+               | o_comment       string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + ordersPath}';
+               |""".stripMargin)
     println("")
     println("")
 
     // part
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$partTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix} (
-         | p_partkey     bigint ${notNullStr},
-         | p_name        string ${notNullStr},
-         | p_mfgr        string ${notNullStr},
-         | p_brand       string ${notNullStr},
-         | p_type        string ${notNullStr},
-         | p_size        bigint ${notNullStr},
-         | p_container   string ${notNullStr},
-         | p_retailprice double ${notNullStr},
-         | p_comment     string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + partTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$partTbl$tableSuffix (
+               | p_partkey     bigint $notNullStr,
+               | p_name        string $notNullStr,
+               | p_mfgr        string $notNullStr,
+               | p_brand       string $notNullStr,
+               | p_type        string $notNullStr,
+               | p_size        bigint $notNullStr,
+               | p_container   string $notNullStr,
+               | p_retailprice double $notNullStr,
+               | p_comment     string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + partTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // partsupp
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$partsuppTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix} (
-         | ps_partkey    bigint ${notNullStr},
-         | ps_suppkey    bigint ${notNullStr},
-         | ps_availqty   bigint ${notNullStr},
-         | ps_supplycost double ${notNullStr},
-         | ps_comment    string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + partsuppTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$partsuppTbl$tableSuffix (
+               | ps_partkey    bigint $notNullStr,
+               | ps_suppkey    bigint $notNullStr,
+               | ps_availqty   bigint $notNullStr,
+               | ps_supplycost double $notNullStr,
+               | ps_comment    string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + partsuppTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // supplier
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$supplierTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix} (
-         | s_suppkey   bigint ${notNullStr},
-         | s_name      string ${notNullStr},
-         | s_address   string ${notNullStr},
-         | s_nationkey bigint ${notNullStr},
-         | s_phone     string ${notNullStr},
-         | s_acctbal   double ${notNullStr},
-         | s_comment   string ${notNullStr})
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION 'file://${dataPathRoot + supplierTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$supplierTbl$tableSuffix (
+               | s_suppkey   bigint $notNullStr,
+               | s_name      string $notNullStr,
+               | s_address   string $notNullStr,
+               | s_nationkey bigint $notNullStr,
+               | s_phone     string $notNullStr,
+               | s_acctbal   double $notNullStr,
+               | s_comment   string $notNullStr)
+               | USING clickhouse
+               | TBLPROPERTIES (engine='MergeTree'
+               |                )
+               | LOCATION 'file://${dataPathRoot + supplierTbl}';
+               |""".stripMargin)
     println("")
     println("")
     // scalastyle:on println
@@ -419,158 +419,158 @@ object GenTPCHTableScripts {
     val supplierTbl = "supplier"
 
     println(s"""
-         |CREATE DATABASE IF NOT EXISTS ${dbName}
-         |WITH DBPROPERTIES (engine='Parquet');
-         |""".stripMargin)
-    println(s"""use ${dbName};""")
+               |CREATE DATABASE IF NOT EXISTS $dbName
+               |WITH DBPROPERTIES (engine='Parquet');
+               |""".stripMargin)
+    println(s"""use $dbName;""")
     println("")
 
     // customer
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$customerTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix} (
-         | c_custkey    bigint,
-         | c_name       string,
-         | c_address    string,
-         | c_nationkey  bigint,
-         | c_phone      string,
-         | c_acctbal    double,
-         | c_mktsegment string,
-         | c_comment    string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + customerTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$customerTbl$tableSuffix (
+               | c_custkey    bigint,
+               | c_name       string,
+               | c_address    string,
+               | c_nationkey  bigint,
+               | c_phone      string,
+               | c_acctbal    double,
+               | c_mktsegment string,
+               | c_comment    string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + customerTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // lineitem
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$lineitemTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix} (
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + lineitemTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$lineitemTbl$tableSuffix (
+               | l_orderkey      bigint,
+               | l_partkey       bigint,
+               | l_suppkey       bigint,
+               | l_linenumber    bigint,
+               | l_quantity      double,
+               | l_extendedprice double,
+               | l_discount      double,
+               | l_tax           double,
+               | l_returnflag    string,
+               | l_linestatus    string,
+               | l_shipdate      date,
+               | l_commitdate    date,
+               | l_receiptdate   date,
+               | l_shipinstruct  string,
+               | l_shipmode      string,
+               | l_comment       string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + lineitemTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // nation
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$nationTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix} (
-         | n_nationkey bigint,
-         | n_name      string,
-         | n_regionkey bigint,
-         | n_comment   string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + nationTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$nationTbl$tableSuffix (
+               | n_nationkey bigint,
+               | n_name      string,
+               | n_regionkey bigint,
+               | n_comment   string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + nationTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // region
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$regionTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix} (
-         | r_regionkey bigint,
-         | r_name      string,
-         | r_comment   string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + regionTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$regionTbl$tableSuffix (
+               | r_regionkey bigint,
+               | r_name      string,
+               | r_comment   string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + regionTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // orders
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$ordersTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix} (
-         | o_orderkey      bigint,
-         | o_custkey       bigint,
-         | o_orderstatus   string,
-         | o_totalprice    double,
-         | o_orderdate     date,
-         | o_orderpriority string,
-         | o_clerk         string,
-         | o_shippriority  bigint,
-         | o_comment       string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + ordersPath}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$ordersTbl$tableSuffix (
+               | o_orderkey      bigint,
+               | o_custkey       bigint,
+               | o_orderstatus   string,
+               | o_totalprice    double,
+               | o_orderdate     date,
+               | o_orderpriority string,
+               | o_clerk         string,
+               | o_shippriority  bigint,
+               | o_comment       string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + ordersPath}';
+               |""".stripMargin)
     println("")
     println("")
 
     // part
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$partTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix} (
-         | p_partkey     bigint,
-         | p_name        string,
-         | p_mfgr        string,
-         | p_brand       string,
-         | p_type        string,
-         | p_size        bigint,
-         | p_container   string,
-         | p_retailprice double,
-         | p_comment     string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + partTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$partTbl$tableSuffix (
+               | p_partkey     bigint,
+               | p_name        string,
+               | p_mfgr        string,
+               | p_brand       string,
+               | p_type        string,
+               | p_size        bigint,
+               | p_container   string,
+               | p_retailprice double,
+               | p_comment     string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + partTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // partsupp
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$partsuppTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix} (
-         | ps_partkey    bigint,
-         | ps_suppkey    bigint,
-         | ps_availqty   bigint,
-         | ps_supplycost double,
-         | ps_comment    string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + partsuppTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$partsuppTbl$tableSuffix (
+               | ps_partkey    bigint,
+               | ps_suppkey    bigint,
+               | ps_availqty   bigint,
+               | ps_supplycost double,
+               | ps_comment    string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + partsuppTbl}';
+               |""".stripMargin)
     println("")
     println("")
 
     // supplier
     println(s"""
-         |DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};
-         |""".stripMargin)
+               |DROP TABLE IF EXISTS $tablePrefix$supplierTbl$tableSuffix;
+               |""".stripMargin)
     println(s"""
-         |CREATE EXTERNAL TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix} (
-         | s_suppkey   bigint,
-         | s_name      string,
-         | s_address   string,
-         | s_nationkey bigint,
-         | s_phone     string,
-         | s_acctbal   double,
-         | s_comment   string)
-         | STORED AS PARQUET LOCATION 'file://${dataPathRoot + supplierTbl}';
-         |""".stripMargin)
+               |CREATE EXTERNAL TABLE IF NOT EXISTS $tablePrefix$supplierTbl$tableSuffix (
+               | s_suppkey   bigint,
+               | s_name      string,
+               | s_address   string,
+               | s_nationkey bigint,
+               | s_phone     string,
+               | s_acctbal   double,
+               | s_comment   string)
+               | STORED AS PARQUET LOCATION 'file://${dataPathRoot + supplierTbl}';
+               |""".stripMargin)
     println("")
     println("")
     // scalastyle:on println
@@ -603,236 +603,236 @@ object GenTPCHTableScripts {
     val supplierTbl = "supplier"
     val supplierParts = "/*+ REPARTITION(2) */"
 
-    println(s"""CREATE DATABASE IF NOT EXISTS ${dbName};""")
-    println(s"""use ${dbName};""")
+    println(s"""CREATE DATABASE IF NOT EXISTS $dbName;""")
+    println(s"""use $dbName;""")
     println("")
 
     // customer
     println(s"""DROP TABLE IF EXISTS ${customerTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${customerTbl}_csv (
-         | c_custkey    bigint,
-         | c_name       string,
-         | c_address    string,
-         | c_nationkey  bigint,
-         | c_phone      string,
-         | c_acctbal    double,
-         | c_mktsegment string,
-         | c_comment    string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + customerTbl + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${customerTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${customerTbl}_csv (
+               | c_custkey    bigint,
+               | c_name       string,
+               | c_address    string,
+               | c_nationkey  bigint,
+               | c_phone      string,
+               | c_acctbal    double,
+               | c_mktsegment string,
+               | c_comment    string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + customerTbl + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$customerTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${customerTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + customerTbl}'
-         | AS SELECT ${customerParts} * FROM ${customerTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$customerTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + customerTbl}'
+               | AS SELECT $customerParts * FROM ${customerTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
 
     // lineitem
     println(s"""DROP TABLE IF EXISTS ${lineitemTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${lineitemTbl}_csv (
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + lineitemTbl + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${lineitemTbl}_csv (
+               | l_orderkey      bigint,
+               | l_partkey       bigint,
+               | l_suppkey       bigint,
+               | l_linenumber    bigint,
+               | l_quantity      double,
+               | l_extendedprice double,
+               | l_discount      double,
+               | l_tax           double,
+               | l_returnflag    string,
+               | l_linestatus    string,
+               | l_shipdate      date,
+               | l_commitdate    date,
+               | l_receiptdate   date,
+               | l_shipinstruct  string,
+               | l_shipmode      string,
+               | l_comment       string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + lineitemTbl + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$lineitemTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${lineitemTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + lineitemTbl}'
-         | AS SELECT ${lineitemParts} * FROM ${lineitemTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$lineitemTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + lineitemTbl}'
+               | AS SELECT $lineitemParts * FROM ${lineitemTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
 
     // nation
     println(s"""DROP TABLE IF EXISTS ${nationTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${nationTbl}_csv (
-         | n_nationkey bigint,
-         | n_name      string,
-         | n_regionkey bigint,
-         | n_comment   string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + nationTbl + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${nationTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${nationTbl}_csv (
+               | n_nationkey bigint,
+               | n_name      string,
+               | n_regionkey bigint,
+               | n_comment   string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + nationTbl + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$nationTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${nationTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + nationTbl}'
-         | AS SELECT ${nationParts} * FROM ${nationTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$nationTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + nationTbl}'
+               | AS SELECT $nationParts * FROM ${nationTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
 
     // region
     println(s"""DROP TABLE IF EXISTS ${regionTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${regionTbl}_csv (
-         | r_regionkey bigint,
-         | r_name      string,
-         | r_comment   string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + regionTbl + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${regionTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${regionTbl}_csv (
+               | r_regionkey bigint,
+               | r_name      string,
+               | r_comment   string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + regionTbl + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$regionTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${regionTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + regionTbl}'
-         | AS SELECT ${regionParts} * FROM ${regionTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$regionTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + regionTbl}'
+               | AS SELECT $regionParts * FROM ${regionTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
 
     // orders
     println(s"""DROP TABLE IF EXISTS ${ordersTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${ordersTbl}_csv (
-         | o_orderkey      bigint,
-         | o_custkey       bigint,
-         | o_orderstatus   string,
-         | o_totalprice    double,
-         | o_orderdate     date,
-         | o_orderpriority string,
-         | o_clerk         string,
-         | o_shippriority  bigint,
-         | o_comment       string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + ordersPath + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${ordersTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${ordersTbl}_csv (
+               | o_orderkey      bigint,
+               | o_custkey       bigint,
+               | o_orderstatus   string,
+               | o_totalprice    double,
+               | o_orderdate     date,
+               | o_orderpriority string,
+               | o_clerk         string,
+               | o_shippriority  bigint,
+               | o_comment       string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + ordersPath + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$ordersTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${ordersTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + ordersPath}'
-         | AS SELECT ${ordersParts} * FROM ${ordersTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$ordersTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + ordersPath}'
+               | AS SELECT $ordersParts * FROM ${ordersTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
 
     // part
     println(s"""DROP TABLE IF EXISTS ${partTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${partTbl}_csv (
-         | p_partkey     bigint,
-         | p_name        string,
-         | p_mfgr        string,
-         | p_brand       string,
-         | p_type        string,
-         | p_size        bigint,
-         | p_container   string,
-         | p_retailprice double,
-         | p_comment     string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + partTbl + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${partTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${partTbl}_csv (
+               | p_partkey     bigint,
+               | p_name        string,
+               | p_mfgr        string,
+               | p_brand       string,
+               | p_type        string,
+               | p_size        bigint,
+               | p_container   string,
+               | p_retailprice double,
+               | p_comment     string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + partTbl + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$partTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + partTbl}'
-         | AS SELECT ${partParts} * FROM ${partTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$partTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + partTbl}'
+               | AS SELECT $partParts * FROM ${partTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
 
     // partsupp
     println(s"""DROP TABLE IF EXISTS ${partsuppTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${partsuppTbl}_csv (
-         | ps_partkey    bigint,
-         | ps_suppkey    bigint,
-         | ps_availqty   bigint,
-         | ps_supplycost double,
-         | ps_comment    string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + partsuppTbl + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${partsuppTbl}_csv (
+               | ps_partkey    bigint,
+               | ps_suppkey    bigint,
+               | ps_availqty   bigint,
+               | ps_supplycost double,
+               | ps_comment    string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + partsuppTbl + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$partsuppTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${partsuppTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + partsuppTbl}'
-         | AS SELECT ${partsuppParts} * FROM ${partsuppTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$partsuppTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + partsuppTbl}'
+               | AS SELECT $partsuppParts * FROM ${partsuppTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
 
     // supplier
     println(s"""DROP TABLE IF EXISTS ${supplierTbl}_csv;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${supplierTbl}_csv (
-         | s_suppkey   bigint,
-         | s_name      string,
-         | s_address   string,
-         | s_nationkey bigint,
-         | s_phone     string,
-         | s_acctbal   double,
-         | s_comment   string)
-         | USING csv
-         | OPTIONS (
-         |  path '${csvPathRoot + supplierTbl + "/"}',
-         |  header false,
-         |  sep '|'
-         | );
-         |""".stripMargin)
-    println(s"""DROP TABLE IF EXISTS ${tablePrefix}${supplierTbl}${tableSuffix};""")
+               |CREATE TABLE IF NOT EXISTS ${supplierTbl}_csv (
+               | s_suppkey   bigint,
+               | s_name      string,
+               | s_address   string,
+               | s_nationkey bigint,
+               | s_phone     string,
+               | s_acctbal   double,
+               | s_comment   string)
+               | USING csv
+               | OPTIONS (
+               |  path '${csvPathRoot + supplierTbl + "/"}',
+               |  header false,
+               |  sep '|'
+               | );
+               |""".stripMargin)
+    println(s"""DROP TABLE IF EXISTS $tablePrefix$supplierTbl$tableSuffix;""")
     println(s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${supplierTbl}${tableSuffix}
-         | STORED AS PARQUET
-         | LOCATION '${parquetPathRoot + supplierTbl}'
-         | AS SELECT ${supplierParts} * FROM ${supplierTbl}_csv;
-         |""".stripMargin)
+               |CREATE TABLE IF NOT EXISTS $tablePrefix$supplierTbl$tableSuffix
+               | STORED AS PARQUET
+               | LOCATION '${parquetPathRoot + supplierTbl}'
+               | AS SELECT $supplierParts * FROM ${supplierTbl}_csv;
+               |""".stripMargin)
     println("")
     println("")
     // scalastyle:on println

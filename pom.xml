@@ -36,12 +36,17 @@
 
   <properties>
     <spark32.version>3.2.2</spark32.version>
+    <spark32.scala>2.12.15</spark32.scala>
+    <spark32bundle.version>3.2</spark32bundle.version>
     <spark33.version>3.3.0</spark33.version>
+    <spark33.scala>2.12.15</spark33.scala>
+    <spark33bundle.version>3.3</spark33bundle.version>
     <delta2.version>2.0.0</delta2.version>
     <delta1.version>1.2.1</delta1.version>
-    <scala.version>2.12.15</scala.version>
     <scala.binary.version>2.12</scala.binary.version>
-    <spark.version>3.2.2</spark.version>
+    <scala.version>${spark32.scala}</scala.version>
+    <spark.version>${spark32.version}</spark.version>
+    <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
     <delta.version>${delta1.version}</delta.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>${hadoop.version}</hadoop.version>
@@ -66,21 +71,51 @@
     <velox_build_type>release</velox_build_type>
     <debug_build>OFF</debug_build>
     <project.prefix>spark-sql-columnar</project.prefix>
-    <project.name.prefix>Gluten</project.name.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
     <!-- To build built-in backend c++ codes -->
     <build_gazelle_cpp>OFF</build_gazelle_cpp>
     <build_velox>OFF</build_velox>
+    <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
     <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
     <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
-    <spark32bundle.version>3.2</spark32bundle.version>
-    <spark33bundle.version>3.3</spark33bundle.version>
+    <junit.version>4.13.1</junit.version>
+
+    <substrait.version>gluten-0.1</substrait.version>
+    <guava.version>31.1-jre</guava.version>
+    <protobuf.version>3.16.3</protobuf.version>
+    <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
+    <!--spotless-->
+    <spotless.version>2.27.2</spotless.version>
+    <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>
+    <spotless.delimiter>package</spotless.delimiter>
+    <spotless.license.header>
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+    </spotless.license.header>
+
+    <!-- plugin version-->
+    <scala.compiler.version>4.3.0</scala.compiler.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
-    <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-    <scala.recompile.mode>all</scala.recompile.mode>
+    <maven.jar.plugin>3.2.2</maven.jar.plugin>
+    <scalastyle.version>1.0.0</scalastyle.version>
+    <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
   </properties>
 
   <profiles>
@@ -90,6 +125,7 @@
           <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
+        <scala.version>${spark32.scala}</scala.version>
         <spark.version>${spark32.version}</spark.version>
         <delta.version>${delta1.version}</delta.version>
         <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
@@ -98,6 +134,7 @@
     <profile>
         <id>spark-3.2</id>
         <properties>
+          <scala.version>${spark32.scala}</scala.version>
           <spark.version>${spark32.version}</spark.version>
           <delta.version>${delta1.version}</delta.version>
           <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
@@ -106,6 +143,7 @@
     <profile>
       <id>spark-3.3</id>
       <properties>
+        <scala.version>${spark33.scala}</scala.version>
         <spark.version>${spark33.version}</spark.version>
         <delta.version>${delta1.version}</delta.version>
         <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
@@ -274,6 +312,12 @@
       </dependency>
       <!-- test dependencies -->
       <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-core_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
@@ -383,31 +427,26 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-core</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-guava</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.module</groupId>
         <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.maven.plugins</groupId>
@@ -420,6 +459,22 @@
   <build>
     <pluginManagement>
       <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>${maven.jar.plugin}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+              <configuration>
+                <classifier>${scala.binary.version}</classifier>
+                <classifier>${sparkbundle.version}</classifier>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
@@ -438,7 +493,10 @@
         <plugin>
           <groupId>org.scalatest</groupId>
           <artifactId>scalatest-maven-plugin</artifactId>
-          <version>2.1.0</version>
+          <version>${scalatest-maven-plugin.version}</version>
+          <configuration>
+            <junitxml>.</junitxml>
+          </configuration>
           <executions>
             <execution>
               <id>test</id>
@@ -451,12 +509,16 @@
         <plugin>
           <groupId>net.alchim31.maven</groupId>
           <artifactId>scala-maven-plugin</artifactId>
-          <version>3.2.2</version>
+          <version>${scala.compiler.version}</version>
+          <configuration>
+            <recompileMode>${scala.recompile.mode}</recompileMode>
+          </configuration>
           <executions>
             <execution>
               <id>scala-compile-first</id>
               <phase>process-resources</phase>
               <goals>
+                <goal>add-source</goal>
                 <goal>compile</goal>
               </goals>
             </execution>
@@ -480,10 +542,25 @@
         <plugin>
           <groupId>org.scalastyle</groupId>
           <artifactId>scalastyle-maven-plugin</artifactId>
-          <version>1.0.0</version>
+          <version>${scalastyle.version}</version>
           <configuration>
-            <configLocation>${project.basedir}/scalastyle-config.xml</configLocation>
+            <verbose>false</verbose>
+            <failOnViolation>true</failOnViolation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <failOnWarning>false</failOnWarning>
+            <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
+            <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
+            <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
+            <outputEncoding>UTF-8</outputEncoding>
           </configuration>
+          <executions>
+            <execution>
+              <phase>validate</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <artifactId>maven-assembly-plugin</artifactId>
@@ -494,24 +571,52 @@
             </descriptorRefs>
           </configuration>
         </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless.version}</version>
+          <configuration>
+<!--            <java>-->
+<!--              <googleJavaFormat>-->
+<!--                <version>1.7</version>-->
+<!--                <style>AOSP</style>-->
+<!--              </googleJavaFormat>-->
+
+<!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
+<!--              <importOrder>-->
+<!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
+<!--              </importOrder>-->
+
+<!--              <removeUnusedImports />-->
+<!--            </java>-->
+            <scala>
+              <scalafmt>
+                <version>${spotless.scalafmt.version}</version>
+                <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
+              </scalafmt>
+              <licenseHeader>
+                <content>${spotless.license.header}</content>
+                <delimiter>${spotless.delimiter}</delimiter>
+              </licenseHeader>
+            </scala>
+          </configuration>
+          <executions>
+            <execution>
+              <id>spotless-check</id>
+              <phase>validate</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.2.0</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classifier>${scala.binary.version}</classifier>
-              <classifier>${sparkbundle.version}</classifier>
-            </configuration>
-          </execution>
-        </executions>
+        <version>${maven.jar.plugin}</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -547,15 +652,6 @@
           </execution>
         </executions>
       </plugin>
-
-      <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-        <version>1.0.0</version>
-        <configuration>
-          <configLocation>scalastyle-config.xml</configLocation>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
 
@@ -565,9 +661,9 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <version>3.1.1</version>
-<!--        <configuration>-->
-<!--          <configLocation>${project.basedir}/dev/checkstyle.xml</configLocation>-->
-<!--        </configuration>-->
+        <configuration>
+          <configLocation>${project.basedir}/dev/checkstyle.xml</configLocation>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.scalastyle</groupId>
@@ -579,5 +675,4 @@
       </plugin>
     </plugins>
   </reporting>
-
 </project>

@@ -14,37 +14,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
 import io.glutenproject.BackendLib
 
+import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.catalyst.SQLConfHelper
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.plans.logical.{JoinHint, LogicalPlan, SHUFFLE_MERGE}
 import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.plans.logical.{JoinHint, LogicalPlan, SHUFFLE_MERGE}
 import org.apache.spark.sql.execution.{joins, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
-class JoinSelectionOverrideShim(val backendLib: BackendLib) extends Strategy with JoinSelectionHelper with SQLConfHelper{
+class JoinSelectionOverrideShim(val backendLib: BackendLib)
+  extends Strategy
+  with JoinSelectionHelper
+  with SQLConfHelper {
 
-  override def apply(plan: LogicalPlan): Seq[SparkPlan] = ???
+  override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+    throw new UnsupportedOperationException("JoinSelectionOverrideShim.apply()")
+  }
 
   private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
     case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
     case _ => false
   }
 
-  def extractEqualJoinKeyCondition(joinType: JoinType,
-                                   leftKeys: Seq[Expression], rightKeys: Seq[Expression],
-                                   condition: Option[Expression],
-                                   left: LogicalPlan, right: LogicalPlan,
-                                   hint: JoinHint,
-                                   forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
+  def extractEqualJoinKeyCondition(
+      joinType: JoinType,
+      leftKeys: Seq[Expression],
+      rightKeys: Seq[Expression],
+      condition: Option[Expression],
+      left: LogicalPlan,
+      right: LogicalPlan,
+      hint: JoinHint,
+      forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
     if (isBroadcastStage(left) || isBroadcastStage(right)) {
       // equal condition
       val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
@@ -108,16 +115,17 @@ class JoinSelectionOverrideShim(val backendLib: BackendLib) extends Strategy wit
         }
 
         return Option(buildSide)
-          .map { buildSide =>
-            Seq(
-              joins.ShuffledHashJoinExec(
-                leftKeys,
-                rightKeys,
-                joinType,
-                buildSide,
-                condition,
-                planLater(left),
-                planLater(right)))
+          .map {
+            buildSide =>
+              Seq(
+                joins.ShuffledHashJoinExec(
+                  leftKeys,
+                  rightKeys,
+                  joinType,
+                  buildSide,
+                  condition,
+                  planLater(left),
+                  planLater(right)))
           }
           .getOrElse(Nil)
       }
@@ -134,11 +142,9 @@ class JoinSelectionOverrideShim(val backendLib: BackendLib) extends Strategy wit
     }
   }
 
-
   override def canBuildShuffledHashJoinRight(joinType: JoinType): Boolean = {
     joinType match {
-      case _: InnerLike | LeftOuter | FullOuter |
-           LeftSemi | LeftAnti | _: ExistenceJoin => true
+      case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
       // For Velox backend, build right and left are both supported for RightOuter.
       case RightOuter => backendLib.equals(BackendLib.VELOX)
       case _ => false

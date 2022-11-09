@@ -11,7 +11,7 @@
 
     <artifactId>backends-clickhouse</artifactId>
     <packaging>jar</packaging>
-    <name>Gluten-Backends-ClickHouse</name>
+    <name>Gluten Backends ClickHouse</name>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -61,11 +61,6 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -138,8 +133,6 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatestplus</groupId>
@@ -169,25 +162,21 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -209,27 +198,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.3.0</version>
-                <configuration>
-                    <recompileMode>${scala.recompile.mode}</recompileMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>scala-compile-first</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>scala-test-compile</id>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <version>${scala.compiler.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -270,26 +239,22 @@
             <plugin>
                 <groupId>org.scalastyle</groupId>
                 <artifactId>scalastyle-maven-plugin</artifactId>
-                <version>1.0.0</version>
+                <version>${scalastyle.version}</version>
                 <configuration>
-                    <verbose>false</verbose>
-                    <failOnViolation>true</failOnViolation>
-                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                    <failOnWarning>false</failOnWarning>
-                    <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
-                    <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
                     <configLocation>${project.basedir}/../scalastyle-config.xml</configLocation>
-                    <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
-                    <outputEncoding>UTF-8</outputEncoding>
                 </configuration>
-                <executions>
-                    <execution>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <scala>
+                        <scalafmt>
+                            <file>${project.basedir}/../.scalafmt.conf</file>
+                        </scalafmt>
+                    </scala>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
