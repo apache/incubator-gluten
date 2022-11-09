@@ -4,6 +4,7 @@ set -eu
 
 NPROC=$(nproc)
 TESTS=OFF
+BENCHMARKS=OFF
 BUILD_ARROW=OFF
 STATIC_ARROW=OFF
 ARROW_ROOT=/usr/local
@@ -16,6 +17,10 @@ do
     case $arg in
         -t=*|--tests=*)
         TESTS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        -be=*|--benchmarks=*)
+        BENCHMARKS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         -a=*|--build_arrow=*)
@@ -50,6 +55,10 @@ function compile_velox_arrow {
     if [ $TESTS == ON ]; then
       WITH_JSON=ON
     fi
+    WITH_PARQUET=OFF
+    if [ $BENCHMARKS == ON ]; then
+      WITH_PARQUET=ON
+    fi
     pushd $ARROW_SOURCE_DIR
     mkdir -p java/build
     pushd java/build
@@ -70,6 +79,7 @@ function compile_velox_arrow {
             -DARROW_WITH_SNAPPY=ON \
             -DARROW_WITH_ZLIB=ON \
             -DARROW_JSON=$WITH_JSON \
+            -DARROW_PARQUET=$WITH_PARQUET \
             -DARROW_WITH_ZSTD=ON \
             -DARROW_BUILD_SHARED=ON \
             -DARROW_BOOST_USE_SHARED=OFF \
@@ -111,6 +121,8 @@ function compile_gazelle_arrow {
             -DARROW_BOOST_USE_SHARED=OFF \
             -DARROW_JNI=ON \
             -DARROW_DATASET=ON \
+            -DARROW_WITH_PROTOBUF=ON \
+            -DARROW_PROTOBUF_USE_SHARED=OFF \
             -DARROW_WITH_SNAPPY=ON \
             -DARROW_WITH_LZ4=ON \
             -DARROW_WITH_RE2=ON \
@@ -120,6 +132,7 @@ function compile_gazelle_arrow {
             -DARROW_RUNTIME_SIMD_LEVEL=MAX \
             -DARROW_DEPENDENCY_SOURCE=BUNDLED \
             -Dre2_SOURCE=AUTO \
+            -DProtobuf_SOURCE=AUTO \
             -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
             -DCMAKE_INSTALL_LIBDIR=lib \
             cpp

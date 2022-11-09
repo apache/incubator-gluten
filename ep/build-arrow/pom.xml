@@ -18,6 +18,7 @@
         <core.enable_ep_cache>${enable_ep_cache}</core.enable_ep_cache>
         <core.build_arrow>${build_arrow}</core.build_arrow>
         <core.cpp_tests>${cpp_tests}</core.cpp_tests>
+        <core.cpp_benchmarks>${cpp_benchmarks}</core.cpp_benchmarks>
         <core.static_arrow>${static_arrow}</core.static_arrow>
         <core.arrow_root>${arrow_root}</core.arrow_root>
         <core.backend_type>${backend_type}</core.backend_type>
@@ -41,6 +42,7 @@
                             <arguments>
                                 <argument>${arrow.script.dir}/build_arrow.sh</argument>
                                 <argument>--tests=${core.cpp_tests}</argument>
+                                <argument>--benchmarks=${core.cpp_benchmarks}</argument>
                                 <argument>--build_arrow=${core.build_arrow}</argument>
                                 <argument>--static_arrow=${core.static_arrow}</argument>
                                 <argument>--arrow_root=${core.arrow_root}</argument>
