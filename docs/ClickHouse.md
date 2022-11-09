@@ -264,7 +264,7 @@ options(
 ```
 
 ##### Use Hive+HDFS as DataSource
-Assumption that you have set up hive and hdfs, you can query the data on hive directly.
+Suppose that you have set up hive and hdfs, you can query the data on hive directly.
 
 - Copy `hive-site.xml` into `/path_to_spark/conf/`
 - Copy `hdfs-site.xml` into `/path_to_spark/conf/`, and edit `spark-env.sh`
