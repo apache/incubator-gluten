@@ -124,9 +124,9 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
   };
 
   // not thread safe
-  Status Close() override {
+  arrow::Status Close() override {
     if (closed_) {
-      return Status::OK();
+      return arrow::Status::OK();
     }
     JNIEnv* env;
     AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
@@ -135,7 +135,7 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
     env->DeleteGlobalRef(jni_in_);
     vm_->DetachCurrentThread();
     closed_ = true;
-    return Status::OK();
+    return arrow::Status::OK();
   }
 
   arrow::Result<int64_t> Tell() const override {
@@ -730,7 +730,6 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
     jstring partitioning_name_jstr,
     jint num_partitions,
     jlong c_schema,
-    jbyteArray expr_arr,
     jlong offheap_per_task,
     jint buffer_size,
     jstring compression_type_jstr,
@@ -824,22 +823,11 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   }
   splitOptions.batch_compress_threshold = batch_compress_threshold;
 
-  // Get the hash expressions.
-  const uint8_t* expr_data = nullptr;
-  int expr_size = 0;
-  if (expr_arr != NULL) {
-    expr_data = reinterpret_cast<const uint8_t*>(
-        env->GetByteArrayElements(expr_arr, 0));
-    expr_size = env->GetArrayLength(expr_arr);
-  }
-
   auto splitter = gluten::JniGetOrThrow(
       Splitter::Make(
           partitioning_name,
           std::move(schema),
           num_partitions,
-          expr_data,
-          expr_size,
           std::move(splitOptions)),
       "Failed create native shuffle splitter");
 
@@ -848,12 +836,13 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeMake(
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
+JNIEXPORT jlong JNICALL
+Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_nativeSpill(
     JNIEnv* env,
     jobject,
     jlong splitter_id,
-    jstring compression_type_jstr) {
+    jlong size,
+    jboolean callBySelf) {
   JNI_METHOD_START
   auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
   if (!splitter) {
@@ -861,16 +850,12 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_setCompressType(
         "Invalid splitter id " + std::to_string(splitter_id);
     gluten::JniThrow(error_message);
   }
-
-  if (compression_type_jstr != NULL) {
-    auto compression_type_result =
-        GetCompressionType(env, compression_type_jstr);
-    if (compression_type_result.status().ok()) {
-      gluten::JniAssertOkOrThrow(
-          splitter->SetCompressType(compression_type_result.MoveValueUnsafe()));
-    }
-  }
-  JNI_METHOD_END()
+  jlong spilled_size;
+  gluten::JniAssertOkOrThrow(
+      splitter->SpillFixedSize(size, &spilled_size),
+      "(shuffle) nativeSpill: spill failed");
+  return spilled_size;
+  JNI_METHOD_END(-1L)
 }
 
 JNIEXPORT jlong JNICALL
@@ -930,7 +915,7 @@ Java_io_glutenproject_vectorized_ShuffleSplitterJniWrapper_stop(
   jobject split_result = env->NewObject(
       split_result_class,
       split_result_constructor,
-      splitter->TotalComputePidTime(),
+      0L,
       splitter->TotalWriteTime(),
       splitter->TotalSpillTime(),
       splitter->TotalCompressTime(),

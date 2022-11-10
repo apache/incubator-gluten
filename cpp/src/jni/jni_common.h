@@ -26,9 +26,6 @@
 #include <arrow/status.h>
 #include <arrow/type.h>
 #include <arrow/util/parallel.h>
-#include <gandiva/arrow.h>
-#include <gandiva/gandiva_aliases.h>
-#include <gandiva/tree_expr_builder.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <jni.h>
 
@@ -365,7 +362,7 @@ arrow::Result<arrow::Compression::type> GetCompressionType(
   return compression_type;
 }
 
-Status DecompressBuffer(
+arrow::Status DecompressBuffer(
     const arrow::Buffer& buffer,
     arrow::util::Codec* codec,
     std::shared_ptr<arrow::Buffer>* out,
@@ -386,14 +383,14 @@ Status DecompressBuffer(
           uncompressed_size,
           uncompressed->mutable_data()));
   if (actual_decompressed != uncompressed_size) {
-    return Status::Invalid(
+    return arrow::Status::Invalid(
         "Failed to fully decompress buffer, expected ",
         uncompressed_size,
         " bytes but decompressed ",
         actual_decompressed);
   }
   *out = std::move(uncompressed);
-  return Status::OK();
+  return arrow::Status::OK();
 }
 
 arrow::Status DecompressBuffers(

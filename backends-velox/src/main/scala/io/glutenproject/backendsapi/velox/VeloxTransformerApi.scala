@@ -52,22 +52,6 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
           return false
       }
     }
-    // check repartition expression
-    val substraitContext = new SubstraitContext
-    outputPartitioning match {
-      case HashPartitioning(exprs, _) =>
-        exprs.foreach(expr => {
-          val node = ExpressionConverter
-            .replaceWithExpressionTransformer(expr, outputAttributes)
-            .asInstanceOf[ExpressionTransformer]
-            .doTransform(substraitContext.registeredFunction)
-          if (!node.isInstanceOf[SelectionNode]) {
-            logInfo("Expressions are not supported in HashPartitioning.")
-            return false
-          }
-        })
-      case _ =>
-    }
     true
   }
 

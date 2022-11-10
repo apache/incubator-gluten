@@ -17,6 +17,7 @@
 
 #include "columnar_to_row_base.h"
 
+#include <arrow/util/decimal.h>
 namespace gluten {
 namespace columnartorow {
 

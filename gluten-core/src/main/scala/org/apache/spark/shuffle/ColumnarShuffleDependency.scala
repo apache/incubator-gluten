@@ -45,7 +45,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
  * @param nativePartitioning     hold partitioning parameters needed by native splitter
  * @param dataSize               for shuffle data size tracking
  * @param bytesSpilled           for shuffle spill size tracking
- * @param computePidTime         partition id computation time metric
+ * @param computePidTime partition id computation time metric
  * @param splitTime              native split time metric
  * @param prepareTime            native split prepare time metric
  */

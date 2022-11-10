@@ -32,7 +32,6 @@ class VeloxInitializerApi extends IInitializerApi {
     val loader = workspace.libLoader
     loader.newTransaction()
       .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000", false)
-      .loadAndCreateLink("libgandiva.so.1000.0.0", "libgandiva.so.1000", false)
       .commit()
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
