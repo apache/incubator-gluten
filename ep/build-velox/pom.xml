@@ -15,8 +15,6 @@
     <name>Build Velox</name>
 
     <properties>
-        <cpp.dir>${session.executionRootDirectory}/cpp/</cpp.dir>
-        <cpp.build.dir>${session.executionRootDirectory}/cpp/build/releases/</cpp.build.dir>
         <velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
         <velox.compile_velox>${compile_velox}</velox.compile_velox>
         <velox.enable_ep_cache>${enable_ep_cache}</velox.enable_ep_cache>

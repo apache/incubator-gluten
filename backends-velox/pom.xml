@@ -17,6 +17,8 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
+        <cpp.dir>${session.executionRootDirectory}/cpp/</cpp.dir>
+        <cpp.build.dir>${session.executionRootDirectory}/cpp/build/releases/</cpp.build.dir>
         <velox.build_cpp>${build_cpp}</velox.build_cpp>
         <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
         <velox.cpp_benchmarks>${cpp_benchmarks}</velox.cpp_benchmarks>
