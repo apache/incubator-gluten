@@ -14,11 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.clickhouse
 
-import scala.collection.JavaConverters._
-import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterHandler, TransformContext, TransformSupport}
 import io.glutenproject.substrait.SubstraitContext
@@ -26,13 +23,18 @@ import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 
-import java.util
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
 
-case class CHFilterExecTransformer(condition: Expression,
-                                      child: SparkPlan)
-  extends FilterExecBaseTransformer(condition, child) with TransformSupport {
+import com.google.common.collect.Lists
+
+import java.util
+
+import scala.collection.JavaConverters._
+
+case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
+  extends FilterExecBaseTransformer(condition, child)
+  with TransformSupport {
 
   override def doValidate(): Boolean = {
     val leftCondition = getLeftCondition
@@ -44,14 +46,20 @@ case class CHFilterExecTransformer(condition: Expression,
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode = try {
-      getRelNode(
-        substraitContext, leftCondition, child.output, operatorId, null, validation = true)
-    } catch {
-      case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-        return false
-    }
+    val relNode =
+      try {
+        getRelNode(
+          substraitContext,
+          leftCondition,
+          child.output,
+          operatorId,
+          null,
+          validation = true)
+      } catch {
+        case e: Throwable =>
+          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          return false
+      }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
@@ -80,13 +88,23 @@ case class CHFilterExecTransformer(condition: Expression,
 
     val currRel = if (childCtx != null) {
       getRelNode(
-        context, leftCondition, child.output, operatorId, childCtx.root, validation = false)
+        context,
+        leftCondition,
+        child.output,
+        operatorId,
+        childCtx.root,
+        validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context, leftCondition, child.output, operatorId,
-        RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
+      getRelNode(
+        context,
+        leftCondition,
+        child.output,
+        operatorId,
+        RelBuilder.makeReadRel(attrList, context, operatorId),
+        validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
     val inputAttributes = if (childCtx != null) {
@@ -112,8 +130,8 @@ case class CHFilterExecTransformer(condition: Expression,
     if (scanFilters.isEmpty) {
       condition
     } else {
-      val leftFilters = FilterHandler.getLeftFilters(
-        scanFilters, FilterHandler.flattenCondition(condition))
+      val leftFilters =
+        FilterHandler.getLeftFilters(scanFilters, FilterHandler.flattenCondition(condition))
       leftFilters.reduceLeftOption(And).orNull
     }
   }
