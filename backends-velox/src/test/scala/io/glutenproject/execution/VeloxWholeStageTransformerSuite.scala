@@ -114,10 +114,10 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
       val wholeStages = plan.collect {
         case wst: WholeStageTransformerExec => wst
       }
-      if (SparkShimLoader.getSparkVersion.startsWith("3.3.")) {
-        assert(wholeStages.length == 3)
-      } else {
+      if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
         assert(wholeStages.length == 1)
+      } else {
+        assert(wholeStages.length == 3)
       }
 
       // Join should be in `TransformContext`
@@ -127,10 +127,10 @@ class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
           case _: ShuffledHashJoinExecTransformer => 1
         }.getOrElse(0)
       }.sum
-      if (SparkShimLoader.getSparkVersion.startsWith("3.3.")) {
-        assert(countSHJ == 2)
-      } else {
+      if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
         assert(countSHJ == 1)
+      } else {
+        assert(countSHJ == 2)
       }
     }
   }
