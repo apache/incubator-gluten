@@ -45,6 +45,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
  * @param nativePartitioning     hold partitioning parameters needed by native splitter
  * @param dataSize               for shuffle data size tracking
  * @param bytesSpilled           for shuffle spill size tracking
+ * @param computePidTime partition id computation time metric
  * @param splitTime              native split time metric
  * @param prepareTime            native split prepare time metric
  */
@@ -60,6 +61,7 @@ class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
             val dataSize: SQLMetric,
             val bytesSpilled: SQLMetric,
             val numInputRows: SQLMetric,
+            val computePidTime: SQLMetric,
             val splitTime: SQLMetric,
             val spillTime: SQLMetric,
             val compressTime: SQLMetric,
