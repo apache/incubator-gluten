@@ -20,6 +20,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, TestUtils}
+
 import scala.collection.JavaConverters
 
 class TestOperator extends WholeStageTransformerSuite {
@@ -183,6 +184,13 @@ class TestOperator extends WholeStageTransformerSuite {
       "select l_orderkey, sum(l_partkey) as sum from lineitem " +
         "where l_orderkey < 3 group by l_orderkey") { _ => }
     checkLengthAndPlan(df, 2)
+  }
+
+  test("test_group sets") {
+    val result = runQueryAndCompare(
+      "select l_orderkey, l_partkey, sum(l_suppkey) from lineitem " +
+        "where l_orderkey < 3 group by ROLLUP(l_orderkey, l_partkey) " +
+        "order by l_orderkey, l_partkey ") { _ => }
   }
 
   ignore("test_orderby") {

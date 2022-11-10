@@ -18,17 +18,18 @@
 package org.apache.spark.sql
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.execution.VeloxRowToArrowColumnarExec
+import io.glutenproject.execution.{CustomExpandExec, VeloxRowToArrowColumnarExec}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
