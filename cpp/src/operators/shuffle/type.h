@@ -38,6 +38,13 @@ static constexpr int32_t kIpcContinuationToken = -1;
 
 const unsigned ONES[] = {1, 1, 1, 1, 1, 1, 1, 1};
 
+struct ReaderOptions {
+  arrow::ipc::IpcReadOptions ipc_read_options =
+      arrow::ipc::IpcReadOptions::Defaults();
+
+  static ReaderOptions Defaults();
+};
+
 struct SplitOptions {
   int64_t offheap_per_task = 0;
   int32_t buffer_size = kDefaultSplitterBufferSize;

@@ -44,6 +44,7 @@
 #include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/core/Expressions.h"
 #include "velox/core/ITypedExpr.h"
 #include "velox/core/PlanNode.h"
@@ -231,6 +232,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
 
  private:
+  void setInputPlanNode(const ::substrait::SortRel& sSort);
+
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
 
   void setInputPlanNode(const ::substrait::ProjectRel& sproject);

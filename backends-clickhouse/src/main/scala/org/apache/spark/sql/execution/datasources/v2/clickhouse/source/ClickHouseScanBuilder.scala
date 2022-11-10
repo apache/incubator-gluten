@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
-
-import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
@@ -30,13 +27,16 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
+import scala.collection.JavaConverters._
+
 class ClickHouseScanBuilder(
-                             sparkSession: SparkSession,
-                             table: ClickHouseTableV2,
-                             tableSchema: StructType,
-                             options: CaseInsensitiveStringMap
-                           )
-  extends ScanBuilder with SupportsPushDownFilters with SupportsPushDownRequiredColumns {
+    sparkSession: SparkSession,
+    table: ClickHouseTableV2,
+    tableSchema: StructType,
+    options: CaseInsensitiveStringMap
+) extends ScanBuilder
+  with SupportsPushDownFilters
+  with SupportsPushDownRequiredColumns {
 
   lazy val hadoopConf = {
     val caseSensitiveMap = options.asCaseSensitiveMap.asScala.toMap
@@ -53,9 +53,16 @@ class ClickHouseScanBuilder(
     val isCaseSensitive = sqlConf.caseSensitiveAnalysis
     val parquetSchema =
       new SparkToParquetSchemaConverter(sparkSession.sessionState.conf).convert(tableSchema)
-    val parquetFilters = new ParquetFilters(parquetSchema, pushDownDate, pushDownTimestamp,
-      pushDownDecimal, pushDownStringStartWith, pushDownInFilterThreshold, isCaseSensitive,
-      RebaseSpec(LegacyBehaviorPolicy.CORRECTED))
+    val parquetFilters = new ParquetFilters(
+      parquetSchema,
+      pushDownDate,
+      pushDownTimestamp,
+      pushDownDecimal,
+      pushDownStringStartWith,
+      pushDownInFilterThreshold,
+      isCaseSensitive,
+      RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
+    )
     parquetFilters.convertibleFilters(this.filters).toArray
   }
   protected val supportsNestedSchemaPruning = true
@@ -64,16 +71,22 @@ class ClickHouseScanBuilder(
   private var filters: Array[Filter] = Array.empty
 
   override def build(): Scan = {
-    new ClickHouseScan(sparkSession, table, tableSchema, readDataSchema(),
-      pushedParquetFilters, options)
+    new ClickHouseScan(
+      sparkSession,
+      table,
+      tableSchema,
+      readDataSchema(),
+      pushedParquetFilters,
+      options)
   }
 
   protected def readDataSchema(): StructType = {
     val requiredNameSet = createRequiredNameSet()
     val schema = if (supportsNestedSchemaPruning) requiredSchema else tableSchema
-    val fields = schema.fields.filter { field =>
-      val colName = PartitioningUtils.getColName(field, isCaseSensitive)
-      requiredNameSet.contains(colName)
+    val fields = schema.fields.filter {
+      field =>
+        val colName = PartitioningUtils.getColName(field, isCaseSensitive)
+        requiredNameSet.contains(colName)
     }
     StructType(fields)
   }

@@ -21,23 +21,18 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
+import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import org.slf4j.LoggerFactory
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.types._
-import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.vectorized.ArrowWritableColumnVector
-import io.glutenproject.vectorized.NativeColumnarToRowInfo
-import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
-import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.c.ArrowSchema
-
 import org.apache.spark.TaskContext
-import org.slf4j.LoggerFactory
 
 case class VeloxNativeColumnarToRowExec(child: SparkPlan)
   extends NativeColumnarToRowExec(child = child) {
@@ -59,9 +54,8 @@ case class VeloxNativeColumnarToRowExec(child: SparkPlan)
         case d: FloatType =>
         case d: DoubleType =>
         case d: StringType =>
-        case d: DateType =>
-        case d: DecimalType =>
         case d: TimestampType =>
+        case d: DateType =>
         case d: BinaryType =>
         case _ =>
           throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
@@ -96,17 +90,17 @@ case class VeloxNativeColumnarToRowExec(child: SparkPlan)
 
           val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
           ArrowColumnarBatches
-            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
             .rowIterator().asScala.map(toUnsafe)
         } else {
           var info: NativeColumnarToRowInfo = null
           val beforeConvert = System.nanoTime()
           val offloaded =
-            ArrowColumnarBatches.ensureOffloaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+            ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
           val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
           info = jniWrapper.nativeConvertColumnarToRow(
             batchHandle,
-            SparkMemoryUtils.contextNativeAllocator().getNativeInstanceId)
+            NativeMemoryAllocators.contextInstance().getNativeInstanceId)
 
           convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 

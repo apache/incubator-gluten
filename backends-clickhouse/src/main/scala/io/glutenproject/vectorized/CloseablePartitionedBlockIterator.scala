@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized
 
 import org.apache.spark.TaskContext
@@ -26,19 +25,20 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * properly.
  */
 class CloseablePartitionedBlockIterator(itr: Iterator[Product2[Int, ColumnarBatch]])
-    extends Iterator[Product2[Int, ColumnarBatch]]
-    with Logging {
+  extends Iterator[Product2[Int, ColumnarBatch]]
+  with Logging {
   var cb: ColumnarBatch = null
 
   override def hasNext: Boolean = {
     itr.hasNext
   }
 
-  TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-    {
-      closeCurrentBatch()
-      if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
-    }
+  TaskContext.get().addTaskCompletionListener[Unit] {
+    _ =>
+      {
+        closeCurrentBatch()
+        if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
+      }
   }
 
   override def next(): Product2[Int, ColumnarBatch] = {

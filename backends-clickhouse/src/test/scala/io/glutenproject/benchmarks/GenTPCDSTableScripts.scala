@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.benchmarks
 
 import scala.collection.mutable.ArrayBuffer
@@ -630,11 +629,11 @@ object GenTPCDSTableScripts {
     val res = new ArrayBuffer[String]()
     res +=
       s"""
-         |CREATE DATABASE IF NOT EXISTS ${dbName}
+         |CREATE DATABASE IF NOT EXISTS $dbName
          |WITH DBPROPERTIES (engine='Parquet');
          |""".stripMargin
 
-    res += s"""use ${dbName};"""
+    res += s"""use $dbName;"""
 
     // catalog_sales
     genOneTPCDSParquetTableSQL(
@@ -877,7 +876,7 @@ object GenTPCDSTableScripts {
       tableSuffix)
 
     // scalastyle:off println
-    println(res.mkString("\n\n"))
+    // println(res.mkString("\n\n"))
     // scalastyle:on println
     res
   }
@@ -891,22 +890,22 @@ object GenTPCDSTableScripts {
       tablePrefix: String,
       tableSuffix: String): Unit = {
     // scalastyle:off println
-    println(s"start to generate sqls for table ${tblName}")
+    println(s"start to generate sqls for table $tblName")
     // scalastyle:on println
-    res += s"""DROP TABLE IF EXISTS ${tablePrefix}${tblName}${tableSuffix};"""
+    res += s"""DROP TABLE IF EXISTS $tablePrefix$tblName$tableSuffix;"""
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${tblName}${tableSuffix} (
-         |${tblFields}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$tblName$tableSuffix (
+         |$tblFields
          | )
          | USING PARQUET
-         | ${tblPartitionCols}
+         | $tblPartitionCols
          | LOCATION '${dataPathRoot + tblName}'
          | ;
          |""".stripMargin
 
     if (!tblPartitionCols.isEmpty) {
-      res += s"""MSCK REPAIR TABLE ${tablePrefix}${tblName}${tableSuffix};"""
+      res += s"""MSCK REPAIR TABLE $tablePrefix$tblName$tableSuffix;"""
     }
   }
 
@@ -1016,12 +1015,12 @@ object GenTPCDSTableScripts {
     val res = new ArrayBuffer[String]()
     res +=
       s"""
-         |CREATE DATABASE IF NOT EXISTS ${parquetDbName}
+         |CREATE DATABASE IF NOT EXISTS $parquetDbName
          |WITH DBPROPERTIES (engine='Parquet');
          |""".stripMargin
 
-    res += s"""CREATE DATABASE IF NOT EXISTS ${dbName};"""
-    res += s"""use ${dbName};"""
+    res += s"""CREATE DATABASE IF NOT EXISTS $dbName;"""
+    res += s"""use $dbName;"""
 
     // catalog_sales
     genOneTPCDSCSV2ParquetSQL(
@@ -1165,7 +1164,8 @@ object GenTPCDSTableScripts {
       customerDemographicsPartitionCols,
       customerDemographicsParts,
       tablePrefix,
-      tableSuffix)
+      tableSuffix
+    )
 
     // date_dim
     genOneTPCDSCSV2ParquetSQL(
@@ -1189,7 +1189,8 @@ object GenTPCDSTableScripts {
       householdDemographicsPartitionCols,
       householdDemographicsParts,
       tablePrefix,
-      tableSuffix)
+      tableSuffix
+    )
 
     // income_band
     genOneTPCDSCSV2ParquetSQL(
@@ -1312,7 +1313,7 @@ object GenTPCDSTableScripts {
       tableSuffix)
 
     // scalastyle:off println
-    println(res.mkString("\n\n"))
+    // println(res.mkString("\n\n"))
     // scalastyle:on println
     res
   }
@@ -1328,13 +1329,13 @@ object GenTPCDSTableScripts {
       tablePrefix: String,
       tableSuffix: String): Unit = {
     // scalastyle:off println
-    println(s"start to generate sqls for table ${tblName}")
+    println(s"start to generate sqls for table $tblName")
     // scalastyle:on println
     res += s"""DROP TABLE IF EXISTS ${tblName}_csv;"""
     res +=
       s"""
          |CREATE TABLE IF NOT EXISTS ${tblName}_csv (
-         |${tblFields}
+         |$tblFields
          | )
          | USING csv
          | OPTIONS (
@@ -1343,14 +1344,14 @@ object GenTPCDSTableScripts {
          |  sep '|'
          | );
          |""".stripMargin
-    res += s"""DROP TABLE IF EXISTS ${tablePrefix}${tblName}${tableSuffix};"""
+    res += s"""DROP TABLE IF EXISTS $tablePrefix$tblName$tableSuffix;"""
     res +=
       s"""
-         |CREATE TABLE IF NOT EXISTS ${tablePrefix}${tblName}${tableSuffix}
+         |CREATE TABLE IF NOT EXISTS $tablePrefix$tblName$tableSuffix
          | USING PARQUET
-         | ${tblPartitionCols}
+         | $tblPartitionCols
          | LOCATION '${parquetPathRoot + tblName}'
-         | AS SELECT ${tblParts} * FROM ${tblName}_csv;
+         | AS SELECT $tblParts * FROM ${tblName}_csv;
          |""".stripMargin
   }
 

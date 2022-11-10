@@ -26,9 +26,6 @@
 #include <arrow/status.h>
 #include <arrow/type.h>
 #include <arrow/util/parallel.h>
-#include <gandiva/arrow.h>
-#include <gandiva/gandiva_aliases.h>
-#include <gandiva/tree_expr_builder.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <jni.h>
 
@@ -365,7 +362,7 @@ arrow::Result<arrow::Compression::type> GetCompressionType(
   return compression_type;
 }
 
-Status DecompressBuffer(
+arrow::Status DecompressBuffer(
     const arrow::Buffer& buffer,
     arrow::util::Codec* codec,
     std::shared_ptr<arrow::Buffer>* out,
@@ -386,14 +383,14 @@ Status DecompressBuffer(
           uncompressed_size,
           uncompressed->mutable_data()));
   if (actual_decompressed != uncompressed_size) {
-    return Status::Invalid(
+    return arrow::Status::Invalid(
         "Failed to fully decompress buffer, expected ",
         uncompressed_size,
         " bytes but decompressed ",
         actual_decompressed);
   }
   *out = std::move(uncompressed);
-  return Status::OK();
+  return arrow::Status::OK();
 }
 
 arrow::Status DecompressBuffers(
@@ -429,6 +426,29 @@ arrow::Status DecompressBuffers(
 
   return ::arrow::internal::OptionalParallelFor(
       options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
+}
+
+void AttachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
+  int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), JNI_VERSION);
+  if (getEnvStat == JNI_EDETACHED) {
+#ifdef GLUTEN_PRINT_DEBUG
+    std::cout << "JNIEnv was not attached to current thread." << std::endl;
+#endif
+    // Reattach current thread to JVM
+    getEnvStat =
+        vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
+    if (getEnvStat != JNI_OK) {
+      throw gluten::GlutenException(
+          "Failed to reattach current thread to JVM.");
+    }
+#ifdef GLUTEN_PRINT_DEBUG
+    std::cout << "Succeeded attaching current thread." << std::endl;
+#endif
+    return;
+  }
+  if (getEnvStat != JNI_OK) {
+    throw gluten::GlutenException("Failed to attach current thread to JVM.");
+  }
 }
 
 void CheckException(JNIEnv* env) {

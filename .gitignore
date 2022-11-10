@@ -5,6 +5,9 @@
 # logs
 *.log
 
+# cache files
+*.cache
+
 # IDEA config files
 .idea/
 *.iml

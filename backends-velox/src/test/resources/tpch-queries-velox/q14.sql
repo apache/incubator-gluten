@@ -1,14 +1,16 @@
-SELECT
-    100.00 * sum(
-        CASE WHEN p_type LIKE 'PROMO%' THEN
-            l_extendedprice * (1 - l_discount)
-        ELSE
-            0
-        END) / sum(l_extendedprice * (1 - l_discount)) AS promo_revenue
-FROM
-    lineitem,
-    part
-WHERE
-    l_partkey = p_partkey
-    AND l_shipdate >= 9374
-    AND l_shipdate < 9404;
+-- using default substitutions
+
+
+select
+	100.00 * sum(case
+		when p_type like 'PROMO%'
+			then l_extendedprice * (1 - l_discount)
+		else 0
+	end) / sum(l_extendedprice * (1 - l_discount)) as promo_revenue
+from
+	lineitem,
+	part
+where
+	l_partkey = p_partkey
+	and l_shipdate >= '1995-09-01'
+	and l_shipdate < '1995-10-01'

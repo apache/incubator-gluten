@@ -43,7 +43,7 @@ INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 set(JEMALLOC_BUILD_VERSION "5.2.1")
 
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
-set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../jvm/src/main/resources/substrait/proto)
+set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../gluten-core/src/main/resources/substrait/proto)
 set(substrait_proto_directory ${proto_directory}/substrait)
 message(STATUS "Set Proto Directory in ${proto_directory}")
 
@@ -57,8 +57,7 @@ endif(CCACHE_FOUND)
 macro(build_protobuf)
   message(STATUS "Building Protocol Buffers from Source")
   set (PROTOBUF_SOURCE_URL
-       "https://github.com/protocolbuffers/protobuf/releases/download/v3.13.0/protobuf-all-3.13.0.tar.gz"
-        "https://github.com/ursa-labs/thirdparty/releases/download/latest/protobuf-v3.13.0.tar.gz"
+       "https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz"
   )
   set(PROTOBUF_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/protobuf_ep-install")
   set(PROTOBUF_INCLUDE_DIR "${PROTOBUF_PREFIX}/include")
@@ -95,7 +94,7 @@ macro(build_protobuf)
                       BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
                       BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
                       BUILD_IN_SOURCE 1
-                      URL_MD5 cafa623d51361228c83c874d95f51992
+                      URL_MD5 802d3c1d31d1c295de18f8f6b4a488ef
                       URL ${PROTOBUF_SOURCE_URL}
   )
 
@@ -238,6 +237,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/protobuf_utils.cc
         operators/c2r/arrow_columnar_to_row_converter.cc
         operators/c2r/columnar_to_row_base.cc
+        operators/shuffle/reader.cc
         operators/shuffle/splitter.cc
         )
 
@@ -246,7 +246,20 @@ add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(spark_columnar_jni jni_proto)
 
 find_arrow_lib(${ARROW_LIB_NAME})
-find_arrow_lib(${GANDIVA_LIB_NAME})
+
+if(ENABLE_HBM)
+  find_library(MEMKIND_LIBRARY memkind)
+  if(MEMKIND_LIBRARY STREQUAL "MEMKIND_LIBRARY-NOTFOUND")
+    message(FATAL_ERROR "Memkind Library Not Found")
+  endif()
+  message(STATUS "Found Memkind Library: ${MEMKIND_LIBRARY}")
+  target_sources(spark_columnar_jni PRIVATE memory/hbw_allocator.cc)
+  target_link_libraries(spark_columnar_jni PUBLIC ${MEMKIND_LIBRARY})
+  add_definitions(-DGLUTEN_ENABLE_HBM)
+  if(BUILD_TESTS)
+    add_test_case(hbw_allocator_test SOURCES tests/hbw_allocator_test.cc)
+  endif()
+endif()
 
 if(BUILD_PROTOBUF)
   build_protobuf()
@@ -297,7 +310,7 @@ else()
 endif()
 
 target_link_libraries(spark_columnar_jni
-    PUBLIC Arrow::arrow Arrow::gandiva)
+    PUBLIC Arrow::arrow)
 
 install(TARGETS spark_columnar_jni
         DESTINATION ${CMAKE_INSTALL_LIBDIR})

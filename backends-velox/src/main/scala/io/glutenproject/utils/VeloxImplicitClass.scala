@@ -18,9 +18,10 @@
 package io.glutenproject.utils
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.vector.util.VectorBatchAppender
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object VeloxImplicitClass {
@@ -29,7 +30,7 @@ object VeloxImplicitClass {
     def retain(): Unit = {
       (0 until cb.numCols).toList.foreach(i =>
         ArrowColumnarBatches
-          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+          .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
           .column(i).asInstanceOf[ArrowWritableColumnVector].retain())
     }
   }
@@ -38,11 +39,11 @@ object VeloxImplicitClass {
     (0 until targetBatch.numCols).toList.foreach { i =>
       val targetVector =
         ArrowColumnarBatches
-          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), targetBatch)
+          .ensureLoaded(ArrowBufferAllocators.contextInstance(), targetBatch)
           .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
       val vectorsToAppend = batchesToAppend.map { cb =>
         ArrowColumnarBatches
-          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), cb)
+          .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
           .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
       }
       VectorBatchAppender.batchAppend(targetVector, vectorsToAppend: _*)

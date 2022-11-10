@@ -20,42 +20,13 @@ name: Gluten Unit Tests Suite
 on:
   pull_request
 
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
 
   arrow-backend-test:
-    runs-on: sr404-self-hosted
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'zulu'
-          java-version: '8'
-          java-package: jdk
-      - run: sudo swapoff -a
-      - run: free
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y cmake ccache build-essential
-      - run: sudo apt-get install -y maven
-      - run: sudo apt-get install -y libboost-all-dev libcurl4-openssl-dev
-      - run: sudo apt-get install -y libssl-dev
-      - run: sudo apt-get install -y libz-dev
-      - run: sudo apt-get install -y llvm clang
-      - name: Install Gluten Arrow-backend
-        run: |
-          rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
-          rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
-          cp backends-velox/target/gluten-1.0.0-snapshot-jar-with-dependencies.jar /tmp/gluten_jars/
-      # - name: Run unit tests
-      #   run: |
-      #     mvn test -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
-      - name: Run TPCDS q82,q85,q37,q60,q26
-        run: |
-          cd /home/sparkuser/tpcds/
-          bash tpcds.sh
-
-  velox-backend-test:
     runs-on: sr404-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -75,59 +46,76 @@ jobs:
       - run: sudo apt-get install -y libssl-dev
       - run: sudo apt-get install -y libz-dev
       - run: sudo apt-get install -y llvm clang
-      - run: sudo apt-get install -y libdwarf-dev
-      - run: sudo apt-get install -y libre2-dev
-      #  no need to cache these as it's running on self host server
-      #- name: ccache cache files
-      #  uses: actions/cache@v2
-      #  with:
-      #    path: ~/.ccache
-      #    key: ${{ github.job }}-ccache
-      #    restore-keys: |
-      #      ${{ github.job }}-ccache
-      #- name: Cache local Maven repository
-      #  uses: actions/cache@v2
-      #  with:
-      #    path: ~/.m2/repository
-      #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-      #    restore-keys: |
-      #      ${{ runner.os }}-maven-
-      - name: Install Googletest
-        run: |
-          sudo apt-get install -y libgtest-dev
-          cd /usr/src/gtest
-          sudo cmake CMakeLists.txt -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
-          sudo make -j$(nproc)
-          sudo apt-get install -y google-mock
-      - name: Install Gluten Velox-backend
+      - name: Install Gluten Arrow-backend
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean install -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -DskipTests -Pbackends-velox -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON -Dcpp_tests=ON -Dcpp_benchmarks=ON
-      - name: Run unit tests
+          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
+          cp package/gazelle/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
+      # - name: Run unit tests
+      #   run: |
+      #     mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
+      - name: Run TPCDS q82,q85,q37,q60,q26
         run: |
-          mvn test -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Dexec.skip -Pbackends-velox -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913
-          cd cpp/
-          mkdir -p build
-          cd build
-          cmake .. -DBUILD_ARROW=0 -DTESTS=1
-          make -j$(nproc)
-          # ctest -V
-      #- name: Run micro benchmarks
-      #  run: |
-      #    cd cpp/velox/benchmarks/
-      #    ./generic_benchmark \
-      #    hash_join.json \
-      #    parquet/bm_lineitem/part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet \
-      #    parquet/bm_part/part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet
+          cd /home/sparkuser/tpcds/
+          bash tpcds_spark.sh
 
-      - name: TPC-H Parquet SF1.0 local
+  velox-backend-test:
+    runs-on: sr596-self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - name: Checkout gluten-te code
         run: |
-          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
-          cd gluten-it
-          mvn clean package -Dhttps.proxyHost=child-prc.intel.com -Dhttps.proxyPort=913 -Darrow.version=10.0.0-SNAPSHOT
-          java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+          git clone -b main https://github.com/zhztheplayer/gluten-te.git gluten-te
+      - name: Setup docker container
+        run: |
+          EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID --detach" NON_INTERACTIVE=ON gluten-te/cbash.sh sleep 14400
+      - name: Install Gluten Velox-backend spark3.2 and Unit test
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
+            -Dbuild_protobuf=OFF -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
+      - name: Install Gluten Velox-backend spark3.3 and Unit test
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox'
+      - name: Build spark3.2 and spark3.3 at the same time
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pspark-3.3 -DskipTests -Dcheckstyle.skip -Dscalastyle.skip=true -Pbackends-velox'
+      - name: Checkout gluten-it code in docker
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
+          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it'
+      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/gluten-it && \
+          mvn clean package -Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
-            --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1'
+      - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.3
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/gluten-it && \
+          mvn clean package -Pspark-3.3 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 --use-existing-data \
+          && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
+            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1 --use-existing-data'
+
+      # Deprecated
+      # - name: Run micro benchmarks
+      #   run: |
+      #     cd cpp/velox/benchmarks/
+      #     ./generic_benchmark \
+      #     hash_join.json \
+      #     parquet/bm_lineitem/part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet \
+      #     parquet/bm_part/part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet
+      - name: Exit docker container
+        if: ${{ always() }}
+        run: |
+          docker stop velox-backend-test-$GITHUB_RUN_ID || true
 
   ch-backend-test:
     runs-on: libch-self-hosted
@@ -171,7 +159,7 @@ jobs:
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
 
   formatting-check:
     name: Formatting Check

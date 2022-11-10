@@ -24,14 +24,16 @@ import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, ArrowConverterUtils, VeloxAliasTransformer}
-import io.glutenproject.vectorized.{ArrowColumnarBatchSerializer, ArrowWritableColumnVector}
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
+
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.VeloxShuffleUtil
-import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.{SparkSession, Strategy}
+import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
@@ -39,8 +41,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan, VeloxBuildSideRelation}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+import org.apache.spark.sql.execution.{SparkPlan, VeloxBuildSideRelation}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -118,12 +119,12 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * Generate ShuffledHashJoinExecTransformer.
    */
   def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                         rightKeys: Seq[Expression],
-                                         joinType: JoinType,
-                                         buildSide: BuildSide,
-                                         condition: Option[Expression],
-                                         left: SparkPlan,
-                                         right: SparkPlan): ShuffledHashJoinExecTransformer =
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan): ShuffledHashJoinExecTransformer =
     VeloxShuffledHashJoinExecTransformer(
       leftKeys, rightKeys, joinType, buildSide, condition, left, right)
 
@@ -131,28 +132,28 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * Generate BroadcastHashJoinExecTransformer.
    */
   def genBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                          rightKeys: Seq[Expression],
-                                          joinType: JoinType,
-                                          buildSide: BuildSide,
-                                          condition: Option[Expression],
-                                          left: SparkPlan,
-                                          right: SparkPlan,
-                                          isNullAwareAntiJoin: Boolean = false)
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isNullAwareAntiJoin: Boolean = false)
   : BroadcastHashJoinExecTransformer = VeloxBroadcastHashJoinExecTransformer(
-      leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+    leftKeys, rightKeys, joinType, buildSide, condition, left, right, isNullAwareAntiJoin)
 
   /**
    * Generate Alias transformer.
    *
    * @param child The computation being performed
-   * @param name The name to be associated with the result of computing.
+   * @param name  The name to be associated with the result of computing.
    * @param exprId
    * @param qualifier
    * @param explicitMetadata
    * @return a transformer for alias
    */
   def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
-                          qualifier: Seq[String], explicitMetadata: Option[Metadata])
+    qualifier: Seq[String], explicitMetadata: Option[Metadata])
   : AliasBaseTransformer =
     new VeloxAliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
 
@@ -163,18 +164,18 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    */
   // scalastyle:off argcount
   override def genShuffleDependency(rdd: RDD[ColumnarBatch],
-                                    outputAttributes: Seq[Attribute],
-                                    newPartitioning: Partitioning,
-                                    serializer: Serializer,
-                                    writeMetrics: Map[String, SQLMetric],
-                                    dataSize: SQLMetric,
-                                    bytesSpilled: SQLMetric,
-                                    numInputRows: SQLMetric,
-                                    computePidTime: SQLMetric,
-                                    splitTime: SQLMetric,
-                                    spillTime: SQLMetric,
-                                    compressTime: SQLMetric,
-                                    prepareTime: SQLMetric)
+    outputAttributes: Seq[Attribute],
+    newPartitioning: Partitioning,
+    serializer: Serializer,
+    writeMetrics: Map[String, SQLMetric],
+    dataSize: SQLMetric,
+    bytesSpilled: SQLMetric,
+    numInputRows: SQLMetric,
+    computePidTime: SQLMetric,
+    splitTime: SQLMetric,
+    spillTime: SQLMetric,
+    compressTime: SQLMetric,
+    prepareTime: SQLMetric)
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     VeloxExecUtil.genShuffleDependency(
@@ -210,20 +211,20 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * @return
    */
   override def createColumnarBatchSerializer(
-                                              schema: StructType,
-                                              readBatchNumRows: SQLMetric,
-                                              numOutputRows: SQLMetric,
-                                              dataSize: SQLMetric): Serializer = {
-    new ArrowColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
+    schema: StructType,
+    readBatchNumRows: SQLMetric,
+    numOutputRows: SQLMetric,
+    dataSize: SQLMetric): Serializer = {
+    new GlutenColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
   }
 
   /**
    * Create broadcast relation for BroadcastExchangeExec
    */
   override def createBroadcastRelation(mode: BroadcastMode,
-                                       child: SparkPlan,
-                                       numOutputRows: SQLMetric,
-                                       dataSize: SQLMetric): BuildSideRelation = {
+    child: SparkPlan,
+    numOutputRows: SQLMetric,
+    dataSize: SQLMetric): BuildSideRelation = {
     val countsAndBytes = child
       .executeColumnar()
       .mapPartitions { iter =>
@@ -233,7 +234,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
         while (iter.hasNext) {
           val batch = iter.next
           val acb = ArrowColumnarBatches
-            .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), batch)
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
           (0 until acb.numCols).foreach(i => {
             acb.column(i).asInstanceOf[ArrowWritableColumnVector].retain()
           })

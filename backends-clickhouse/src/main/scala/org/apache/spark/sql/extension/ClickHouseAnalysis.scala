@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.extension
-
-import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -32,19 +29,23 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouse
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
+import scala.collection.JavaConverters._
+
 class ClickHouseAnalysis(session: SparkSession, conf: SQLConf)
-    extends Rule[LogicalPlan]
-    with AnalysisHelper
-    with DeltaLogging {
+  extends Rule[LogicalPlan]
+  with AnalysisHelper
+  with DeltaLogging {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsDown {
     // This rule falls back to V1 nodes according to 'spark.gluten.sql.columnar.backend.ch.use.v2'
     case dsv2 @ DataSourceV2Relation(tableV2: ClickHouseTableV2, _, _, _, options) =>
-      if (conf
-            .getConfString(
-              ClickHouseConfig.USE_DATASOURCE_V2,
-              ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
-            .toBoolean) {
+      if (
+        conf
+          .getConfString(
+            ClickHouseConfig.USE_DATASOURCE_V2,
+            ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
+          .toBoolean
+      ) {
         dsv2
       } else {
         ClickHouseAnalysis.fromV2Relation(tableV2, dsv2, options)

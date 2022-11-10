@@ -22,9 +22,6 @@
 #include <arrow/type.h>
 #include <arrow/util/bit_util.h>
 #include <arrow/util/checked_cast.h>
-#include <gandiva/node.h>
-#include <gandiva/projector.h>
-#include <gandiva/tree_expr_builder.h>
 #include <immintrin.h>
 #include <x86intrin.h>
 
@@ -46,6 +43,13 @@ using arrow::internal::checked_cast;
 // by default, allocate 8M block, 2M page size
 #define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
 #endif
+
+// #define SKIPWRITE
+
+static const std::vector<arrow::Compression::type> supported_codec = {
+    arrow::Compression::LZ4_FRAME,
+    arrow::Compression::ZSTD,
+    arrow::Compression::GZIP};
 
 template <typename T>
 std::string __m128i_toString(const __m128i var) {
@@ -203,17 +207,10 @@ arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
     const std::string& short_name,
     std::shared_ptr<arrow::Schema> schema,
     int num_partitions,
-    const uint8_t* expr_data,
-    int expr_size,
     SplitOptions options) {
   if (short_name == "hash") {
-    if (expr_data == nullptr || expr_size == 0) {
-      return arrow::Status::Invalid("Invalid expression data or size.");
-    }
-    substrait::Rel subRel;
-    ParseProtobuf(expr_data, expr_size, &subRel);
     return HashSplitter::Create(
-        num_partitions, std::move(schema), subRel, std::move(options));
+        num_partitions, std::move(schema), std::move(options));
   } else if (short_name == "rr") {
     return RoundRobinSplitter::Create(
         num_partitions, std::move(schema), std::move(options));
@@ -225,20 +222,6 @@ arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
   }
   return arrow::Status::NotImplemented(
       "Partitioning " + short_name + " not supported yet.");
-}
-
-arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
-    const std::string& short_name,
-    std::shared_ptr<arrow::Schema> schema,
-    int num_partitions,
-    SplitOptions options) {
-  return Make(
-      short_name,
-      std::move(schema),
-      num_partitions,
-      nullptr,
-      0,
-      std::move(options));
 }
 
 arrow::Status Splitter::Init() {
@@ -342,17 +325,11 @@ arrow::Status Splitter::Init() {
         options_.data_file, CreateTempShuffleFile(configured_dirs_[0]));
   }
 
+  RETURN_NOT_OK(SetCompressType(options_.compression_type));
+
   auto& ipc_write_options = options_.ipc_write_options;
   ipc_write_options.memory_pool = options_.memory_pool.get();
   ipc_write_options.use_threads = false;
-
-  if (options_.compression_type == arrow::Compression::LZ4_FRAME) {
-    ARROW_ASSIGN_OR_RAISE(
-        ipc_write_options.codec,
-        arrow::util::Codec::Create(arrow::Compression::LZ4_FRAME));
-  } else {
-    ipc_write_options.codec = nullptr;
-  }
 
   // initialize tiny batch write options
   tiny_bach_write_options_ = ipc_write_options;
@@ -409,10 +386,13 @@ int64_t Splitter::CompressedSize(const arrow::RecordBatch& rb) {
 
 arrow::Status Splitter::SetCompressType(
     arrow::Compression::type compressed_type) {
-  if (compressed_type == arrow::Compression::LZ4_FRAME) {
+  if (std::any_of(
+          supported_codec.begin(),
+          supported_codec.end(),
+          [&](const auto& codec) { return codec == compressed_type; })) {
     ARROW_ASSIGN_OR_RAISE(
         options_.ipc_write_options.codec,
-        arrow::util::Codec::Create(arrow::Compression::LZ4_FRAME));
+        arrow::util::Codec::Create(compressed_type));
   } else {
     options_.ipc_write_options.codec = nullptr;
   }
@@ -836,7 +816,8 @@ arrow::Status Splitter::SpillPartition(int32_t partition_id) {
       partition_buffers_.begin(),
       partition_buffers_.end(),
       [partition_id](std::vector<arrow::BufferVector>& bufs) {
-        if (bufs[partition_id][0] != nullptr) {
+        if (bufs[partition_id].size() != 0 &&
+            bufs[partition_id][0] != nullptr) {
           // initialize all true once allocated
           auto addr = bufs[partition_id][0]->mutable_data();
           memset(addr, 0xff, bufs[partition_id][0]->capacity());
@@ -869,6 +850,7 @@ arrow::Result<int32_t> Splitter::SpillLargestPartition(int64_t* size) {
   }
   return partition_to_spill;
 }
+
 Splitter::row_offset_type Splitter::CalculateSplitBatchSize(
     const arrow::RecordBatch& rb) {
   uint32_t size_per_row = 0;
@@ -878,7 +860,7 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(
             binary_array_empirical_size_[i - fixed_width_col_cnt_] == 0)) {
       auto arr = rb.column_data(array_idx_[i]);
       auto cid = rb.column(array_idx_[i])->type_id();
-      ARROW_CHECK_EQ(arr->buffers.size(), 3);
+      // ARROW_CHECK_EQ(arr->buffers.size(), 3);
       // offset array_data
       if (ARROW_PREDICT_TRUE(arr->buffers[1] != nullptr)) {
         auto offsetbuf = arr->buffers[1]->data();
@@ -1344,6 +1326,7 @@ arrow::Status Splitter::SplitBinaryType(
     auto r = reducer_offset_offset_[pid]; /*128k*/
     auto size = reducer_offset_offset_[pid + 1] - r;
 
+    auto multiply = 1;
     for (register uint32_t x = 0; x < size; x++) {
       auto src_offset = reducer_offsets_[x + r]; /*128k*/
       auto strlength =
@@ -1351,9 +1334,11 @@ arrow::Status Splitter::SplitBinaryType(
       value_offset = dst_offset_base[x + 1] = value_offset + strlength;
       if (ARROW_PREDICT_FALSE(value_offset >= capacity)) {
         // allocate value buffer again
-        // enlarge the buffer by 1.5x
-        capacity = capacity + std::max((capacity >> 1), (uint64_t)strlength);
-
+        // enlarge the buffer by 8x
+        auto old_capacity = capacity;
+        capacity =
+            capacity + std::max((capacity >> multiply), (uint64_t)strlength);
+        multiply = std::min(3, multiply + 1);
         auto value_buffer = std::static_pointer_cast<arrow::ResizableBuffer>(
             partition_buffers_[fixed_width_col_cnt_ + binary_idx][pid][2]);
         value_buffer->Reserve(capacity);
@@ -1361,9 +1346,9 @@ arrow::Status Splitter::SplitBinaryType(
         dst_addrs[pid].valueptr = value_buffer->mutable_data();
         dst_addrs[pid].value_capacity = capacity;
         dst_value_base = dst_addrs[pid].valueptr + value_offset - strlength;
-        std::cout << " value buffer resized colid = " << binary_idx
+        std::cout << "Split value buffer resized colid = " << binary_idx
                   << " dst_start " << dst_offset_base[x] << " dst_end "
-                  << dst_offset_base[x + 1] << " old size = " << capacity
+                  << dst_offset_base[x + 1] << " old size = " << old_capacity
                   << " new size = " << capacity
                   << " row = " << partition_buffer_idx_base_[pid]
                   << " strlen = " << strlength << std::endl;
@@ -1524,119 +1509,39 @@ arrow::Status RoundRobinSplitter::ComputeAndCountPartitionId(
 // ----------------------------------------------------------------------
 // HashSplitter
 
+arrow::Status HashSplitter::Init() {
+  input_schema_ = std::move(schema_);
+  ARROW_ASSIGN_OR_RAISE(schema_, input_schema_->RemoveField(0))
+  return Splitter::Init();
+}
+
 arrow::Result<std::shared_ptr<HashSplitter>> HashSplitter::Create(
     int32_t num_partitions,
     std::shared_ptr<arrow::Schema> schema,
-    const substrait::Rel& subRel,
     SplitOptions options) {
   std::shared_ptr<HashSplitter> res(
       new HashSplitter(num_partitions, std::move(schema), std::move(options)));
   RETURN_NOT_OK(res->Init());
-  RETURN_NOT_OK(res->CreateGandivaExpr(subRel));
-  RETURN_NOT_OK(res->CreateProjector());
   return res;
-}
-
-arrow::Status HashSplitter::CreateGandivaExpr(const substrait::Rel& subRel) {
-  // Parse the ProjectRel to get hash expression.
-  // Currently, only filed is supported.
-  substrait::ProjectRel subProject;
-  if (subRel.has_project()) {
-    subProject = subRel.project();
-  }
-  for (auto& sexpr : subProject.expressions()) {
-    switch (sexpr.rex_type_case()) {
-      case substrait::Expression::RexTypeCase::kSelection: {
-        auto sfield = sexpr.selection();
-        switch (sfield.reference_type_case()) {
-          case substrait::Expression::FieldReference::ReferenceTypeCase::
-              kDirectReference: {
-            auto sref = sfield.direct_reference();
-            switch (sref.reference_type_case()) {
-              case substrait::Expression::ReferenceSegment::ReferenceTypeCase::
-                  kStructField: {
-                hashIndices_.push_back(sref.struct_field().field());
-                break;
-              }
-              default:
-                return arrow::Status::Invalid("Unrecognized reference.");
-            }
-            break;
-          }
-          default:
-            return arrow::Status::Invalid("Unrecognized expression.");
-        }
-        break;
-      }
-      default:
-        return arrow::Status::Invalid(
-            "Only Fields are supported as hash keys.");
-    }
-  }
-  for (auto idx : hashIndices_) {
-    const auto& field = schema_->field(idx);
-    auto node = gandiva::TreeExprBuilder::MakeField(field);
-    exprVector_.push_back(gandiva::TreeExprBuilder::MakeExpression(
-        std::move(node), arrow::field("res_" + field->name(), field->type())));
-  }
-  return arrow::Status::OK();
-}
-
-arrow::Status HashSplitter::CreateProjector() {
-  // same seed as spark's
-  auto hash = gandiva::TreeExprBuilder::MakeLiteral((int32_t)42);
-  for (const auto& expr : exprVector_) {
-    switch (expr->root()->return_type()->id()) {
-      case arrow::NullType::type_id:
-        break;
-      case arrow::BooleanType::type_id:
-      case arrow::Int8Type::type_id:
-      case arrow::Int16Type::type_id:
-      case arrow::Int32Type::type_id:
-      case arrow::FloatType::type_id:
-      case arrow::Date32Type::type_id:
-        hash = gandiva::TreeExprBuilder::MakeFunction(
-            "hash32_spark", {expr->root(), hash}, arrow::int32());
-        break;
-      case arrow::Int64Type::type_id:
-      case arrow::DoubleType::type_id:
-        hash = gandiva::TreeExprBuilder::MakeFunction(
-            "hash64_spark", {expr->root(), hash}, arrow::int32());
-        break;
-      case arrow::StringType::type_id:
-        hash = gandiva::TreeExprBuilder::MakeFunction(
-            "hashbuf_spark", {expr->root(), hash}, arrow::int32());
-        break;
-      default:
-        hash = gandiva::TreeExprBuilder::MakeFunction(
-            "hash32", {expr->root(), hash}, arrow::int32());
-        /*return arrow::Status::NotImplemented("HashSplitter::CreateProjector
-           doesn't support type ", expr->result()->type()->ToString());*/
-    }
-  }
-  auto hash_expr = gandiva::TreeExprBuilder::MakeExpression(
-      hash, arrow::field("pid", arrow::int32()));
-  return gandiva::Projector::Make(schema_, {hash_expr}, &projector_);
 }
 
 arrow::Status HashSplitter::ComputeAndCountPartitionId(
     const arrow::RecordBatch& rb) {
+  if (rb.column(0)->type_id() != arrow::Type::INT32) {
+    return arrow::Status::Invalid(
+        "RecordBatch field 0 should be ",
+        arrow::int32()->ToString(),
+        ", actual is ",
+        rb.column(0)->type()->ToString());
+  }
   auto num_rows = rb.num_rows();
   partition_id_.resize(num_rows);
   std::fill(std::begin(partition_id_cnt_), std::end(partition_id_cnt_), 0);
-
-  arrow::ArrayVector outputs;
-  TIME_NANO_OR_RAISE(
-      total_compute_pid_time_,
-      projector_->Evaluate(rb, options_.memory_pool.get(), &outputs));
-  if (outputs.size() != 1) {
-    return arrow::Status::Invalid(
-        "Projector result should have one field, actual is ",
-        std::to_string(outputs.size()));
-  }
-  auto pid_arr = std::dynamic_pointer_cast<arrow::Int32Array>(outputs.at(0));
+  // first column is partition key hash value
+  auto pid_arr = std::dynamic_pointer_cast<arrow::Int32Array>(rb.column(0));
   if (pid_arr == nullptr) {
-    return arrow::Status::Invalid("failed to cast outputs.at(0)");
+    return arrow::Status::Invalid(
+        "failed to cast rb.column(0), this column should be hash_partition_key");
   }
   for (auto i = 0; i < num_rows; ++i) {
     // positive mod
@@ -1651,6 +1556,15 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(
     partition_id_[i] = pid;
     partition_id_cnt_[pid]++;
   }
+  return arrow::Status::OK();
+}
+
+arrow::Status HashSplitter::Split(const arrow::RecordBatch& rb) {
+  EVAL_START("split", options_.thread_id)
+  RETURN_NOT_OK(ComputeAndCountPartitionId(rb));
+  ARROW_ASSIGN_OR_RAISE(auto remove_pid, rb.RemoveColumn(0));
+  RETURN_NOT_OK(DoSplit(*remove_pid));
+  EVAL_END("split", options_.thread_id, options_.task_attempt_id)
   return arrow::Status::OK();
 }
 

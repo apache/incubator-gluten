@@ -29,13 +29,11 @@ import scala.io.Source
 abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
-  override protected val resourcePath: String = "/tpch-data-orc-velox"
-  override protected val fileFormat: String = "orc"
+  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val fileFormat: String = "parquet"
 
-  // TODO: the tpch query was changed a bit. Because date was converted into double in the test
-  //  dataset, the queries were changed accordingly. Since dwrf is already supported in Gluten,
-  //  next we will update the test suite. The dataset will be changed into dwrf, and string will
-  //  be used to replace date.
+  // TODO: the tpch query was changed a bit. Because date was converted into string in the test
+  //  dataset, the queries were changed accordingly.
   protected val veloxTPCHQueries: String = rootPath + "/tpch-queries-velox"
 
   // TODO: result comparison is not supported currently.

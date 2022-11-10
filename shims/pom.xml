@@ -20,20 +20,13 @@
   <parent>
     <groupId>io.glutenproject</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>1.0.0-snapshot</version>
+    <version>1.0.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>spark-sql-columnar-shims</artifactId>
-  <name>${project.name.prefix} Shims</name>
+  <name>Gluten Shims</name>
   <packaging>pom</packaging>
- 
-  <properties>
-    <scala.version>2.12.10</scala.version>
-    <scala.binary.version>2.12</scala.binary.version>
-    <scala.plugin.version>4.3.0</scala.plugin.version>
-    <scalatest-maven-plugin.version>3.2.2</scalatest-maven-plugin.version>
-  </properties>
 
   <dependencies>
       <dependency>
@@ -47,12 +40,6 @@
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
           <version>1.7.30</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-          <version>1.2.17</version>
           <scope>test</scope>
       </dependency>
       <dependency>
@@ -83,27 +70,12 @@
           <module>spark32</module>
         </modules>
     </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <modules>
+          <module>common</module>
+          <module>spark33</module>
+      </modules>
+    </profile>
   </profiles>
-
-  <build>
-    <plugins>
-        <plugin>
-            <groupId>net.alchim31.maven</groupId>
-            <artifactId>scala-maven-plugin</artifactId>
-             <version>${scala.plugin.version}</version>
-        </plugin>
-        <plugin>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                  <id>test</id>
-                  <goals>
-                      <goal>test</goal>
-                  </goals>
-              </execution>
-            </executions>
-        </plugin>
-    </plugins>
-  </build>
 </project>

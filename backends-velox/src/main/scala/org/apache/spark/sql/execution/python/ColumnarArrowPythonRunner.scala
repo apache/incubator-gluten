@@ -22,13 +22,13 @@ import java.net._
 import java.util.concurrent.atomic.AtomicBoolean
 
 import io.glutenproject.expression._
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.api.python.{BasePythonRunner, ChainedPythonFunctions, PythonRDD, SpecialLengths}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
@@ -67,7 +67,7 @@ class ColumnarArrowPythonRunner(
 
     new ReaderIterator(stream, writerThread, startTime, env,
                        worker, pid, releasedOrClosed, context) {
-      private val allocator = SparkMemoryUtils.contextArrowAllocator().newChildAllocator(
+      private val allocator = ArrowBufferAllocators.contextInstance().newChildAllocator(
         s"stdin reader for $pythonExec", 0, Long.MaxValue)
 
       private var reader: ArrowStreamReader = _
@@ -148,7 +148,7 @@ class ColumnarArrowPythonRunner(
       protected override def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
         var numRows: Long = 0
         val arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId)
-        val allocator = SparkMemoryUtils.contextArrowAllocator().newChildAllocator(
+        val allocator = ArrowBufferAllocators.contextInstance().newChildAllocator(
           s"stdout writer for $pythonExec", 0, Long.MaxValue)
         val root = VectorSchemaRoot.create(arrowSchema, allocator)
 

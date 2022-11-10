@@ -14,19 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.utils
-
-import scala.collection.JavaConverters._
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.vectorized.{
-  BlockSplitIterator,
-  CHNativeBlock,
-  CloseablePartitionedBlockIterator,
-  NativePartitioning
-}
+import io.glutenproject.vectorized.{BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
 import org.apache.spark.ShuffleDependency
@@ -42,20 +34,17 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import io.substrait.proto.Type
+
+import scala.collection.JavaConverters._;
+
 object CHExecUtil {
 
-  def inferSparkDataType(typeName: String): DataType = typeName match {
-    case "Date" => DateType
-    case "Float" => FloatType
-    case "Double" => DoubleType
-    case "Integer" => IntegerType
-    case "Long" => LongType
-    case "Byte" => ByteType
-    case "Short" => ShortType
-    case "String" => StringType
-    case "Binary" => BinaryType
-    case "Boolean" => BooleanType
+  def inferSparkDataType(substraitType: Array[Byte]): DataType = {
+    val (datatype, nullable) = ConverterUtils.parseFromSubstraitType(Type.parseFrom(substraitType))
+    datatype
   }
+
   // scalastyle:off argcount
   def genShuffleDependency(
       rdd: RDD[ColumnarBatch],
@@ -99,7 +88,7 @@ object CHExecUtil {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(
-              (_, cbIter) => cbIter.map { cb => (0, cb) },
+              (_, cbIter) => cbIter.map(cb => (0, cb)),
               isOrderSensitive = isOrderSensitive)
         }
       } else {
@@ -125,12 +114,13 @@ object CHExecUtil {
                         cb =>
                           CHNativeBlock
                             .fromColumnarBatch(cb)
-                            .orElseThrow(() =>
-                              new IllegalStateException("unsupported columnar batch"))
+                            .orElseThrow(
+                              () => new IllegalStateException("unsupported columnar batch"))
                             .blockAddress()
                             .asInstanceOf[java.lang.Long])
                       .asJava,
-                    options)
+                    options
+                  )
 
                   override def hasNext: Boolean = splitIterator.hasNext
 
@@ -141,7 +131,8 @@ object CHExecUtil {
                 }
                 new CloseablePartitionedBlockIterator(iter)
               },
-              isOrderSensitive = isOrderSensitive)
+              isOrderSensitive = isOrderSensitive
+            )
           case RoundRobinPartitioning(n) =>
             rdd.mapPartitionsWithIndexInternal(
               (_, cbIter) => {
@@ -154,12 +145,13 @@ object CHExecUtil {
                         cb =>
                           CHNativeBlock
                             .fromColumnarBatch(cb)
-                            .orElseThrow(() =>
-                              new IllegalStateException("unsupported columnar batch"))
+                            .orElseThrow(
+                              () => new IllegalStateException("unsupported columnar batch"))
                             .blockAddress()
                             .asInstanceOf[java.lang.Long])
                       .asJava,
-                    options)
+                    options
+                  )
 
                   override def hasNext: Boolean = splitIterator.hasNext
 
@@ -170,7 +162,8 @@ object CHExecUtil {
                 }
                 new CloseablePartitionedBlockIterator(iter)
               },
-              isOrderSensitive = isOrderSensitive)
+              isOrderSensitive = isOrderSensitive
+            )
           case SinglePartition =>
             rdd.mapPartitionsWithIndexInternal(
               (_, cbIter) => {
@@ -183,12 +176,13 @@ object CHExecUtil {
                         cb =>
                           CHNativeBlock
                             .fromColumnarBatch(cb)
-                            .orElseThrow(() =>
-                              new IllegalStateException("unsupported columnar batch"))
+                            .orElseThrow(
+                              () => new IllegalStateException("unsupported columnar batch"))
                             .blockAddress()
                             .asInstanceOf[java.lang.Long])
                       .asJava,
-                    options)
+                    options
+                  )
 
                   override def hasNext: Boolean = splitIterator.hasNext
 
@@ -199,7 +193,8 @@ object CHExecUtil {
                 }
                 new CloseablePartitionedBlockIterator(iter)
               },
-              isOrderSensitive = isOrderSensitive)
+              isOrderSensitive = isOrderSensitive
+            )
           case _ =>
             throw new UnsupportedOperationException(s"Unsupport operators.")
         }
@@ -219,7 +214,8 @@ object CHExecUtil {
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,
-        prepareTime = prepareTime)
+        prepareTime = prepareTime
+      )
 
     dependency
   }

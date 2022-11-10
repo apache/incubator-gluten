@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -22,33 +21,50 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.SparkPlan
 
-case class CHShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                             rightKeys: Seq[Expression],
-                                             joinType: JoinType,
-                                             buildSide: BuildSide,
-                                             condition: Option[Expression],
-                                             left: SparkPlan,
-                                             right: SparkPlan)
+case class CHShuffledHashJoinExecTransformer(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan)
   extends ShuffledHashJoinExecTransformer(
-    leftKeys, rightKeys, joinType, buildSide, condition, left, right) {
+    leftKeys,
+    rightKeys,
+    joinType,
+    buildSide,
+    condition,
+    left,
+    right) {
 
   override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): CHShuffledHashJoinExecTransformer =
+      newLeft: SparkPlan,
+      newRight: SparkPlan): CHShuffledHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 }
 
-case class CHBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                              rightKeys: Seq[Expression],
-                                              joinType: JoinType,
-                                              buildSide: BuildSide,
-                                              condition: Option[Expression],
-                                              left: SparkPlan,
-                                              right: SparkPlan,
-                                              isNullAwareAntiJoin: Boolean = false)
+case class CHBroadcastHashJoinExecTransformer(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isNullAwareAntiJoin: Boolean)
   extends BroadcastHashJoinExecTransformer(
-    leftKeys, rightKeys, joinType, buildSide, condition, left, right) {
+    leftKeys,
+    rightKeys,
+    joinType,
+    buildSide,
+    condition,
+    left,
+    right,
+    isNullAwareAntiJoin) {
 
   override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): CHBroadcastHashJoinExecTransformer =
+      newLeft: SparkPlan,
+      newRight: SparkPlan): CHBroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 }

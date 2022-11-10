@@ -14,18 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.io.File
-
-import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.benchmarks.GenTPCDSTableScripts
 import io.glutenproject.utils.UTSystemParameters
-import org.apache.commons.io.FileUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -33,9 +26,14 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.types.DoubleType
 
-abstract class GlutenClickHouseTPCDSAbstractSuite
-    extends WholeStageTransformerSuite
-    with Logging {
+import org.apache.commons.io.FileUtils
+
+import java.io.File
+
+import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
+
+abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
 
   override protected val backend: String = "ch"
   override protected val resourcePath: String = UTSystemParameters.getTpcdsDataPath() + "/"
@@ -75,9 +73,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       spark.sql(sql).show(10, false)
     }
     spark.sql("use tpcdsdb;")
-    val result = spark.sql(s"""
-         | show tables;
-         |""".stripMargin).collect()
+    val result = spark
+      .sql(s"""
+              | show tables;
+              |""".stripMargin)
+      .collect()
     assert(result.size == 24)
   }
 
@@ -98,7 +98,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-      .set(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -110,7 +109,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       metaStorePathAbsolute + "/metastore_db"};create=true") */
   }
 
-  protected override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     ClickHouseLog.clearCache()
     super.afterAll()
     FileUtils.forceDelete(new File(basePath))

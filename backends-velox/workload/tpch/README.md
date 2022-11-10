@@ -1,9 +1,9 @@
-#Test on Velox backends with TPCH workloads
+# Test on Velox backend with TPC-H workload
 
 ## Test datasets
-As Parquet format is not perfectly supported by Velox right now, DWRF(a fork of the ORC file format) format files are used. Here's the steps to generate the testing datasets:
+Parquet and DWRF(a fork of the ORC file format) format files are both supported. Here are the steps to generate the testing datasets:
 
-### Generate the Parquet dataset.
+### Generate the Parquet dataset
 Please refer to the scripts in ./gen_data/parquet_dataset/ directory to generate parquet dataset. Note this script relies on the [spark-sql-perf](https://github.com/databricks/spark-sql-perf) package from Databricks.
 
 In tpch_datagen_parquet.sh, several parameters should be configured according to the system.
@@ -26,7 +26,7 @@ val dbgenDir = "/PATH/TO/TPCH_DBGEN" // location of dbgen
 ```
 
 Currently, Gluten with Velox can support both Parquet and DWRF file format and three compression codec including snappy, gzip, zstd.
-Below step, to convert Parquet to DWRF, is an optional if you are using Parquet format to run the testing.
+Below step, to convert Parquet to DWRF, is optional if you are using Parquet format to run the testing.
 
 ### Convert the Parquet dataset to DWRF dataset(OPTIONAL)
 And then please refer to the scripts in ./gen_data/dwrf_dataset/ directory to convert the Parquet dataset to DWRF dataset.
@@ -47,5 +47,5 @@ val dwrf_file_path = "/PATH/TO/TPCH_DWRF_PATH"
 ```
 
 ## Test Queries
-We provided the test queries in ./tpch.queries.updated directory, which changed all DATE feilds to STRING since DATE type is not well supported in Gluten with Velox backend.
+We provided the test queries in ./tpch.queries.updated directory, which changed all DATE fields to STRING since DATE type is not well supported in Gluten with Velox backend.
 We also provided a scala code in ./run_tpch/ directory about how to run TPC-H queries. Please note if you are using dwrf test, please remember to set the file format to dwrf in the code.

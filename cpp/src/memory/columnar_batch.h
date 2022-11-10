@@ -17,7 +17,10 @@
 
 #include <memory>
 
+#include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
+#include "arrow/record_batch.h"
+#include "utils/exception.h"
 
 #pragma once
 
@@ -56,16 +59,48 @@ class GlutenColumnarBatch {
   int64_t exportNanos_;
 };
 
+class GlutenArrowColumnarBatch : public GlutenColumnarBatch {
+ public:
+  explicit GlutenArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
+      : GlutenColumnarBatch(batch->num_columns(), batch->num_rows()),
+        batch_(std::move(batch)) {}
+
+  ~GlutenArrowColumnarBatch() override = default;
+
+  std::string GetType() override {
+    return "arrow";
+  }
+
+  std::shared_ptr<ArrowSchema> exportArrowSchema() override {
+    std::shared_ptr<ArrowSchema> c_schema = std::make_shared<ArrowSchema>();
+    GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*batch_->schema(), c_schema.get()));
+    return c_schema;
+  }
+
+  std::shared_ptr<ArrowArray> exportArrowArray() override {
+    std::shared_ptr<ArrowArray> c_array = std::make_shared<ArrowArray>();
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch_, c_array.get()));
+    return c_array;
+  }
+
+ private:
+  std::shared_ptr<arrow::RecordBatch> batch_;
+};
+
 class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
  public:
   GlutenArrowCStructColumnarBatch(
       std::unique_ptr<ArrowSchema> cSchema,
       std::unique_ptr<ArrowArray> cArray)
-      : GlutenColumnarBatch(cArray->n_children, cArray->length),
-        cSchema_(std::move(cSchema)),
-        cArray_(std::move(cArray)) {}
+      : GlutenColumnarBatch(cArray->n_children, cArray->length) {
+    ArrowSchemaMove(cSchema.get(), cSchema_.get());
+    ArrowArrayMove(cArray.get(), cArray_.get());
+  }
 
-  ~GlutenArrowCStructColumnarBatch() override {}
+  ~GlutenArrowCStructColumnarBatch() override {
+    ArrowSchemaRelease(cSchema_.get());
+    ArrowArrayRelease(cArray_.get());
+  }
 
   std::string GetType() override {
     return "arrow_array";
@@ -80,8 +115,8 @@ class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
   }
 
  private:
-  std::shared_ptr<ArrowSchema> cSchema_;
-  std::shared_ptr<ArrowArray> cArray_;
+  std::shared_ptr<ArrowSchema> cSchema_ = std::make_shared<ArrowSchema>();
+  std::shared_ptr<ArrowArray> cArray_ = std::make_shared<ArrowArray>();
 };
 
 } // namespace memory

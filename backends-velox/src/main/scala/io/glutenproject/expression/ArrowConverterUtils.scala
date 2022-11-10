@@ -22,27 +22,21 @@ import java.nio.channels.Channels
 import scala.collection.JavaConverters._
 import com.google.common.collect.Lists
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
 import org.apache.arrow.flatbuf.MessageHeader
-import org.apache.arrow.gandiva.exceptions.GandivaException
-import org.apache.arrow.gandiva.expression.{ExpressionTree, TreeBuilder, TreeNode}
-import org.apache.arrow.gandiva.ipc.GandivaTypes
-import org.apache.arrow.gandiva.ipc.GandivaTypes.ExpressionList
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, ValueVector}
 import org.apache.arrow.vector.ipc.{ReadChannel, WriteChannel}
 import org.apache.arrow.vector.ipc.message._
-import org.apache.arrow.vector.types.TimeUnit
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.util.DateTimeConstants
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils, SparkVectorUtils}
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtils
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 object ArrowConverterUtils extends Logging {
 
@@ -77,7 +71,7 @@ object ArrowConverterUtils extends Logging {
     iter.foreach { columnarBatch =>
       val vectors = (0 until columnarBatch.numCols)
         .map(i => ArrowColumnarBatches
-          .ensureLoaded(SparkMemoryUtils.contextArrowAllocator(), columnarBatch)
+          .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
           .column(i).asInstanceOf[ArrowWritableColumnVector])
         .toList
       try {
@@ -107,11 +101,10 @@ object ArrowConverterUtils extends Logging {
     SparkVectorUtils.toArrowRecordBatch(numRowsInBatch, cols)
   }
 
-  def convertFromNetty(
-                        attributes: Seq[Attribute],
-                        input: InputStream): Iterator[ColumnarBatch] = {
+  def convertFromNetty(attributes: Seq[Attribute],
+                       input: InputStream): Iterator[ColumnarBatch] = {
     new Iterator[ColumnarBatch] {
-      val allocator = SparkMemoryUtils.contextArrowAllocator()
+      val allocator = ArrowBufferAllocators.contextInstance()
       var messageReader =
         new MessageChannelReader(new ReadChannel(Channels.newChannel(input)), allocator)
       var schema: Schema = null
@@ -174,11 +167,10 @@ object ArrowConverterUtils extends Logging {
     }
   }
 
-  def convertFromNetty(
-                        attributes: Seq[Attribute],
-                        data: Array[Array[Byte]],
-                        columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
-    if (data.size == 0) {
+  def convertFromNetty(attributes: Seq[Attribute],
+                       data: Array[Array[Byte]],
+                       columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
+    if (data.length == 0) {
       return new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = false
 
@@ -200,7 +192,7 @@ object ArrowConverterUtils extends Logging {
     }
     new Iterator[ColumnarBatch] {
       var array_id = 0
-      val allocator = SparkMemoryUtils.contextArrowAllocator()
+      val allocator = ArrowBufferAllocators.contextInstance()
       var input = new ByteArrayInputStream(data(array_id))
       var messageReader =
         new MessageChannelReader(new ReadChannel(Channels.newChannel(input)), allocator)
@@ -208,16 +200,16 @@ object ArrowConverterUtils extends Logging {
       var result: MessageResult = null
 
       override def hasNext: Boolean =
-        if (array_id < (data.size - 1) || input.available > 0) {
-          return true
+        if (array_id < (data.length - 1) || input.available > 0) {
+          true
         } else {
-          messageReader.close
-          return false
+          messageReader.close()
+          false
         }
 
       override def next(): ColumnarBatch = {
         if (input.available == 0) {
-          messageReader.close
+          messageReader.close()
           array_id += 1
           input = new ByteArrayInputStream(data(array_id))
           messageReader =
@@ -238,35 +230,34 @@ object ArrowConverterUtils extends Logging {
               throw new IOException("Unexpected end of input. Missing schema.");
             }
 
-            if (result.getMessage().headerType() != MessageHeader.Schema) {
+            if (result.getMessage.headerType() != MessageHeader.Schema) {
               throw new IOException(
-                "Expected schema but header was " + result.getMessage().headerType());
+                "Expected schema but header was " + result.getMessage.headerType());
             }
 
-            schema = MessageSerializer.deserializeSchema(result.getMessage());
-
+            schema = MessageSerializer.deserializeSchema(result.getMessage)
           }
 
           result = messageReader.readNext();
-          if (result.getMessage().headerType() == MessageHeader.Schema) {
+          if (result.getMessage.headerType() == MessageHeader.Schema) {
             result = messageReader.readNext();
           }
 
-          if (result.getMessage().headerType() != MessageHeader.RecordBatch) {
+          if (result.getMessage.headerType() != MessageHeader.RecordBatch) {
             throw new IOException(
-              "Expected recordbatch but header was " + result.getMessage().headerType());
+              "Expected recordbatch but header was " + result.getMessage.headerType());
           }
-          var bodyBuffer = result.getBodyBuffer();
+          var bodyBuffer = result.getBodyBuffer
 
           // For zero-length batches, need an empty buffer to deserialize the batch
           if (bodyBuffer == null) {
-            bodyBuffer = allocator.getEmpty();
+            bodyBuffer = allocator.getEmpty
           }
 
-          val batch = MessageSerializer.deserializeRecordBatch(result.getMessage(), bodyBuffer);
+          val batch = MessageSerializer.deserializeRecordBatch(result.getMessage, bodyBuffer);
           val vectors = fromArrowRecordBatch(schema, batch, allocator)
           val length = batch.getLength
-          batch.close
+          batch.close()
           if (columnIndices == null) {
             new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), length)
           } else {
@@ -277,7 +268,7 @@ object ArrowConverterUtils extends Logging {
 
         } catch {
           case e: Throwable =>
-            messageReader.close
+            messageReader.close()
             throw e
         }
       }
@@ -348,13 +339,6 @@ object ArrowConverterUtils extends Logging {
     MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(in)))
   }
 
-  @throws[GandivaException]
-  def getExprListBytesBuf(exprs: List[ExpressionTree]): Array[Byte] = {
-    val builder: ExpressionList.Builder = GandivaTypes.ExpressionList.newBuilder
-    exprs.foreach { expr => builder.addExprs(expr.toProtobuf) }
-    builder.build.toByteArray
-  }
-
   def checkIfTypeSupported(dt: DataType): Unit = dt match {
     case d: BooleanType =>
     case d: ByteType =>
@@ -388,93 +372,6 @@ object ArrowConverterUtils extends Logging {
   def createArrowField(attr: Attribute): Field =
     createArrowField(s"${attr.name}#${attr.exprId.id}", attr.dataType)
 
-  def convertTimestampZone(inNode: TreeNode, inType: ArrowType,
-                           toZone: String): (TreeNode, ArrowType) = {
-    throw new UnsupportedOperationException("not implemented") // fixme 20210602 hongze
-    val inTimestamp = asTimestampType(inType)
-    val fromZone = inTimestamp.getTimezone
-
-    val (outNode0: TreeNode, outTimestamp0: ArrowType.Timestamp) =
-      if (SparkSchemaUtils.timeZoneIDEquals(fromZone, toZone)) {
-        val outType = new ArrowType.Timestamp(inTimestamp.getUnit, toZone)
-        (inNode, outType)
-      } else {
-        // todo conversion
-      }
-    (outNode0, outTimestamp0)
-  }
-
-  def toInt32(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
-    val toType = ArrowUtils.toArrowType(IntegerType, null)
-    val toNode = TreeBuilder.makeFunction("castINT", Lists.newArrayList(inNode),
-      toType)
-    (toNode, toType)
-  }
-
-  // use this carefully
-  def toGandivaMicroUTCTimestamp(inNode: TreeNode, inType: ArrowType,
-                                 timeZoneId: Option[String] = None): (TreeNode, ArrowType) = {
-    val zoneId = timeZoneId.orElse(Some(SparkSchemaUtils.getLocalTimezoneID())).get
-    val utcTimestampNodeOriginal = inNode
-    val inTimestampType = asTimestampType(inType)
-    val inTimestampTypeUTC = new ArrowType.Timestamp(inTimestampType.getUnit,
-      "UTC")
-    ArrowConverterUtils.convertTimestampToMicro(utcTimestampNodeOriginal,
-      inTimestampTypeUTC)
-  }
-
-  def convertTimestampToMicro(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
-    val inTimestamp = asTimestampType(inType)
-    inTimestamp.getUnit match {
-      case TimeUnit.MICROSECOND => (inNode, inType)
-      case TimeUnit.MILLISECOND =>
-        // truncate from micro to milli
-        val outType = new ArrowType.Timestamp(TimeUnit.MICROSECOND,
-          inTimestamp.getTimezone)
-        (TreeBuilder.makeFunction(
-          "convertTimestampUnit",
-          Lists.newArrayList(inNode), outType), outType)
-    }
-  }
-
-  // use this carefully
-  def toGandivaTimestamp(inNode: TreeNode, inType: ArrowType,
-                         timeZoneId: Option[String] = None): (TreeNode, ArrowType) = {
-    val zoneId = timeZoneId.orElse(Some(SparkSchemaUtils.getLocalTimezoneID())).get
-
-    val utcTimestampNodeOriginal = inNode
-    val utcTimestampNodeMilli = ArrowConverterUtils.convertTimestampToMilli(
-      utcTimestampNodeOriginal, inType)._1
-    val utcTimestampNodeLong = TreeBuilder.makeFunction("castBIGINT",
-      Lists.newArrayList(utcTimestampNodeMilli), new ArrowType.Int(64,
-        true))
-    val diff = SparkSchemaUtils.getTimeZoneIDOffset(zoneId) *
-      DateTimeConstants.MILLIS_PER_SECOND
-
-    val localizedTimestampNodeLong = TreeBuilder.makeFunction("add",
-      Lists.newArrayList(utcTimestampNodeLong,
-        TreeBuilder.makeLiteral(java.lang.Long.valueOf(diff))),
-      new ArrowType.Int(64, true))
-    val localized = new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)
-    val localizedTimestampNode = TreeBuilder.makeFunction("castTIMESTAMP",
-      Lists.newArrayList(localizedTimestampNodeLong), localized)
-    (localizedTimestampNode, localized)
-  }
-
-  def convertTimestampToMilli(inNode: TreeNode, inType: ArrowType): (TreeNode, ArrowType) = {
-    val inTimestamp = asTimestampType(inType)
-    inTimestamp.getUnit match {
-      case TimeUnit.MILLISECOND => (inNode, inType)
-      case TimeUnit.MICROSECOND =>
-        // truncate from micro to milli
-        val outType = new ArrowType.Timestamp(TimeUnit.MILLISECOND,
-          inTimestamp.getTimezone)
-        (TreeBuilder.makeFunction(
-          "convertTimestampUnit",
-          Lists.newArrayList(inNode), outType), outType)
-    }
-  }
-
   private def asTimestampType(inType: ArrowType): ArrowType.Timestamp = {
     if (inType.getTypeID != ArrowTypeID.Timestamp) {
       throw new IllegalArgumentException(s"Value type to convert must be timestamp")
@@ -482,21 +379,22 @@ object ArrowConverterUtils extends Logging {
     inType.asInstanceOf[ArrowType.Timestamp]
   }
 
-  def toSparkTimestamp(inNode: TreeNode, inType: ArrowType,
-                       timeZoneId: Option[String] = None): (TreeNode, ArrowType) = {
-    throw new UnsupportedOperationException()
-  }
-
   def toSchema(batch: ColumnarBatch): Schema = {
     val fields = new java.util.ArrayList[Field](batch.numCols)
     for (i <- 0 until batch.numCols) {
       val col: ColumnVector = batch.column(i)
-      fields.add(col.asInstanceOf[ArrowWritableColumnVector].getValueVector.getField)
+      fields.add(col match {
+        case vector: ArrowWritableColumnVector =>
+          vector.getValueVector.getField
+        case _ =>
+          throw new UnsupportedOperationException(
+            s"Unexpected vector type: ${col.getClass.toString}")
+      })
     }
     new Schema(fields)
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     s"ArrowConverterUtils"
   }
 }

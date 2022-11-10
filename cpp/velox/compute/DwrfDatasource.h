@@ -22,10 +22,12 @@
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <hdfs/hdfs.h>
 
 #include "operators/c2r/arrow_columnar_to_row_converter.h"
 #include "operators/c2r/columnar_to_row_base.h"
 #include "velox/common/file/FileSystems.h"
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsReadFile.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"

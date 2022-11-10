@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasource.arrow
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
@@ -28,7 +29,6 @@ import org.apache.parquet.hadoop.codec.CodecConfig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
@@ -63,7 +63,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
         new OutputWriter {
           override def write(row: InternalRow): Unit = {
             val batch = row.asInstanceOf[FakeRow].batch
-            val allocator = SparkMemoryUtils.contextArrowAllocator()
+            val allocator = ArrowBufferAllocators.contextInstance()
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
             ArrowColumnarBatches.ensureLoaded(allocator, batch)

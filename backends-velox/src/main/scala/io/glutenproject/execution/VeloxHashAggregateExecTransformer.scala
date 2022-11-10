@@ -113,7 +113,7 @@ case class VeloxHashAggregateExecTransformer(
       RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId)
     } else {
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(getPartialAggOutTypes).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
       RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId)
     }
   }
@@ -142,7 +142,7 @@ case class VeloxHashAggregateExecTransformer(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
               modeToKeyWord(aggregateMode),
-              TypeBuilder.makeStruct(structTypeNodes))
+              TypeBuilder.makeStruct(false, structTypeNodes))
             aggregateNodeList.add(avgNode)
           case Final =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
@@ -183,7 +183,7 @@ case class VeloxHashAggregateExecTransformer(
               val structTypeNodes = new util.ArrayList[TypeNode]()
               structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
               structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-              typeNodeList.add(TypeBuilder.makeStruct(structTypeNodes))
+              typeNodeList.add(TypeBuilder.makeStruct(false, structTypeNodes))
             case Final =>
               typeNodeList.add(
                 ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
@@ -230,7 +230,7 @@ case class VeloxHashAggregateExecTransformer(
     ).asJava)
 
     ExpressionBuilder.makeScalarFunction(
-      functionId, childNodes, TypeBuilder.makeStruct(structTypeNodes))
+      functionId, childNodes, TypeBuilder.makeStruct(false, structTypeNodes))
   }
 
   // Add a projection node before aggregation for row constructing.
@@ -291,7 +291,7 @@ case class VeloxHashAggregateExecTransformer(
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId)
     }
 
