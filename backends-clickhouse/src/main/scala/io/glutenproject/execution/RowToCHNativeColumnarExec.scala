@@ -24,7 +24,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
  * @param child
  */
 case class RowToCHNativeColumnarExec(child: SparkPlan)
-  extends RowToArrowColumnarExec(child = child) {
+  extends GlutenRowToColumnarExec(child = child) {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")

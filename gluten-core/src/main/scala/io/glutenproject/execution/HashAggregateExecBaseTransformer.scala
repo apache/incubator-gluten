@@ -252,14 +252,6 @@ abstract class HashAggregateExecBaseTransformer(
   val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
   val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
 
-  lazy val aggregateResultAttributes = {
-    val groupingAttributes = groupingExpressions.map(expr => {
-      ConverterUtils.getAttrFromExpr(expr).toAttribute
-    })
-    groupingAttributes ++ aggregateExpressions.map(expr => {
-      expr.resultAttribute
-    })
-  }
   val sparkConf = sparkContext.getConf
   val resAttributes: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 

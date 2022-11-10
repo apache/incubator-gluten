@@ -38,14 +38,16 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class TransformContext(inputAttributes: Seq[Attribute],
-                            outputAttributes: Seq[Attribute],
-                            root: RelNode)
+case class TransformContext(
+    inputAttributes: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
+    root: RelNode)
 
-case class WholestageTransformContext(inputAttributes: Seq[Attribute],
-                                      outputAttributes: Seq[Attribute],
-                                      root: PlanNode,
-                                      substraitContext: SubstraitContext = null)
+case class WholestageTransformContext(
+    inputAttributes: Seq[Attribute],
+    outputAttributes: Seq[Attribute],
+    root: PlanNode,
+    substraitContext: SubstraitContext = null)
 
 trait TransformSupport extends SparkPlan {
 
@@ -89,7 +91,7 @@ trait TransformSupport extends SparkPlan {
 }
 
 case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode
+    extends UnaryExecNode
     with TransformSupport {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
@@ -109,15 +111,16 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(transformStageId.asInstanceOf[Integer])
 
-  override def generateTreeString(depth: Int,
-                                  lastChildren: Seq[Boolean],
-                                  append: String => Unit,
-                                  verbose: Boolean,
-                                  prefix: String = "",
-                                  addSuffix: Boolean = false,
-                                  maxFields: Int,
-                                  printNodeId: Boolean,
-                                  indent: Int = 0): Unit = {
+  override def generateTreeString(
+      depth: Int,
+      lastChildren: Seq[Boolean],
+      append: String => Unit,
+      verbose: Boolean,
+      prefix: String = "",
+      addSuffix: Boolean = false,
+      maxFields: Int,
+      printNodeId: Boolean,
+      indent: Int = 0): Unit = {
     val res = child.generateTreeString(
       depth,
       lastChildren,
@@ -151,8 +154,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getFlattenPartitions.map(p =>
         BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(-1, null, wsCxt))
-      logDebug(
-        s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
+      logDebug(s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
       val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition, false)
       wsRDD
@@ -188,12 +190,12 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def checkBatchScanExecTransformerChild(): Option[BasicScanExecTransformer] = {
     var currentOp = child
     while (currentOp.isInstanceOf[TransformSupport] &&
-      !currentOp.isInstanceOf[BasicScanExecTransformer] &&
-      currentOp.asInstanceOf[TransformSupport].getChild != null) {
+           !currentOp.isInstanceOf[BasicScanExecTransformer] &&
+           currentOp.asInstanceOf[TransformSupport].getChild != null) {
       currentOp = currentOp.asInstanceOf[TransformSupport].getChild
     }
     if (currentOp != null &&
-      currentOp.isInstanceOf[BasicScanExecTransformer]) {
+        currentOp.isInstanceOf[BasicScanExecTransformer]) {
       currentOp match {
         case op: BatchScanExecTransformer =>
           Some(currentOp.asInstanceOf[BatchScanExecTransformer])
@@ -211,9 +213,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   def checkBatchScanExecTransformerChildren(): Seq[BasicScanExecTransformer] = {
     val basicScanExecTransformers = new mutable.ListBuffer[BasicScanExecTransformer]()
 
-    def transformChildren(plan: SparkPlan,
-                          basicScanExecTransformers: mutable.ListBuffer[BasicScanExecTransformer]
-                         ): Unit = {
+    def transformChildren(
+        plan: SparkPlan,
+        basicScanExecTransformers: mutable.ListBuffer[BasicScanExecTransformer]): Unit = {
       if (plan != null && plan.isInstanceOf[TransformSupport]) {
         plan match {
           case transformer: BasicScanExecTransformer =>
@@ -233,7 +235,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
 
     transformChildren(child, basicScanExecTransformers)
-    basicScanExecTransformers.toSeq.map( scan => {
+    basicScanExecTransformers.toSeq.map(scan => {
       scan match {
         case op: BatchScanExecTransformer =>
           op.asInstanceOf[BatchScanExecTransformer]
@@ -260,11 +262,17 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     // Check if BatchScan exists.
     val basicScanExecTransformer = checkBatchScanExecTransformerChildren()
 
-    // If containing scan exec transformer, a new RDD is created.
     if (basicScanExecTransformer.nonEmpty) {
+
+      /**
+       * If containing scan exec transformer
+       * this "whole stage" generates a RDD which itself takes care of SCAN
+       * there won't be any other RDD for SCAN
+       * as a result, genFirstStageIterator rather than genFinalStageIterator will be invoked
+       */
       // the partition size of the all BasicScanExecTransformer must be the same
       val allScanPartitions = basicScanExecTransformer.map(_.getFlattenPartitions)
-      val partitionLength = allScanPartitions(0).size
+      val partitionLength = allScanPartitions.head.size
       if (allScanPartitions.exists(_.size != partitionLength)) {
         throw new RuntimeException(
           "The partition length of all the scan transformer are not the same.")
@@ -302,6 +310,16 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         updateMetrics,
         metricsUpdatingFunction)
     } else {
+      /**
+       * the whole stage contains NO BasicScanExecTransformer.
+       * this the default case for:
+       *   1. SCAN with clickhouse backend (check ColumnarCollapseCodegenStages#separateScanRDD())
+       *   2. test case where query plan is constructed from simple dataframes
+       *   (e.g. GlutenDataFrameAggregateSuite)
+       * in these cases, separate RDDs takes care of SCAN
+       * as a result, genFinalStageIterator rather than genFirstStageIterator will be invoked
+
+       */
       val startTime = System.nanoTime()
       val resCtx = doWholestageTransform()
       logInfo(
@@ -334,7 +352,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       }
 
       new WholeStageZippedPartitionsRDD(
-        sparkContext, genFinalNewRDDsForBroadcast(inputRDDs), genFinalStageIterator)
+        sparkContext,
+        genFinalNewRDDsForBroadcast(inputRDDs),
+        genFinalStageIterator)
     }
   }
 
@@ -375,19 +395,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
    * @param operatorMetrics: a list of metrics to merge
    * @return the merged metrics
    */
-  private def mergeMetrics(operatorMetrics: java.util.ArrayList[OperatorMetrics])
-    : OperatorMetrics = {
+  private def mergeMetrics(
+      operatorMetrics: java.util.ArrayList[OperatorMetrics]): OperatorMetrics = {
     if (operatorMetrics.size() == 0) {
       return null
     }
 
     // We are accessing the metrics from end to start. So the input metrics are got from the
     // last suite of metrics, and the output metrics are got from the first suite.
-    val inputRows = operatorMetrics.get(operatorMetrics.size() -1).inputRows
-    val inputVectors = operatorMetrics.get(operatorMetrics.size() -1).inputVectors
-    val inputBytes = operatorMetrics.get(operatorMetrics.size() -1).inputBytes
-    val rawInputRows = operatorMetrics.get(operatorMetrics.size() -1).rawInputRows
-    val rawInputBytes = operatorMetrics.get(operatorMetrics.size() -1).rawInputBytes
+    val inputRows = operatorMetrics.get(operatorMetrics.size() - 1).inputRows
+    val inputVectors = operatorMetrics.get(operatorMetrics.size() - 1).inputVectors
+    val inputBytes = operatorMetrics.get(operatorMetrics.size() - 1).inputBytes
+    val rawInputRows = operatorMetrics.get(operatorMetrics.size() - 1).rawInputRows
+    val rawInputBytes = operatorMetrics.get(operatorMetrics.size() - 1).rawInputBytes
 
     val outputRows = operatorMetrics.get(0).outputRows
     val outputVectors = operatorMetrics.get(0).outputVectors
@@ -414,11 +434,22 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
 
     new OperatorMetrics(
-      inputRows, inputVectors, inputBytes, rawInputRows, rawInputBytes, outputRows, outputVectors,
-      outputBytes, count, wallNanos, peakMemoryBytes, numMemoryAllocations,
-      numDynamicFiltersProduced, numDynamicFiltersAccepted, numReplacedWithDynamicFilterRows)
+      inputRows,
+      inputVectors,
+      inputBytes,
+      rawInputRows,
+      rawInputBytes,
+      outputRows,
+      outputVectors,
+      outputBytes,
+      count,
+      wallNanos,
+      peakMemoryBytes,
+      numMemoryAllocations,
+      numDynamicFiltersProduced,
+      numDynamicFiltersAccepted,
+      numReplacedWithDynamicFilterRows)
   }
-
 
   /**
    * A recursive function updating the metrics of one transformer and its child.
@@ -438,13 +469,16 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       metrics: Metrics,
       metricsIdx: Int,
       joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): (java.lang.Long, Int) = {
+      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams])
+      : (java.lang.Long, Int) = {
     val operatorMetrics = new java.util.ArrayList[OperatorMetrics]()
     var curMetricsIdx = metricsIdx
-    relMap.get(operatorIdx).forEach(_ => {
-      operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
-      curMetricsIdx -= 1
-    })
+    relMap
+      .get(operatorIdx)
+      .forEach(_ => {
+        operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
+        curMetricsIdx -= 1
+      })
 
     curChild match {
       case joinTransformer: HashJoinLikeExecTransformer =>
@@ -452,15 +486,23 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         // Therefore, fetch one more suite of metrics here.
         operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
         curMetricsIdx -= 1
-        joinTransformer.updateJoinMetrics(operatorMetrics, metrics.getSingleMetrics,
+        joinTransformer.updateJoinMetrics(
+          operatorMetrics,
+          metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))
 
         var newOperatorIdx: java.lang.Long = operatorIdx - 1
         var newMetricsIdx: Int = curMetricsIdx
         joinTransformer.buildPlan match {
           case transformer: TransformSupport =>
-            val result = updateTransformerMetrics(transformer, relMap, newOperatorIdx,
-              metrics, newMetricsIdx, joinParamsMap, aggParamsMap)
+            val result = updateTransformerMetrics(
+              transformer,
+              relMap,
+              newOperatorIdx,
+              metrics,
+              newMetricsIdx,
+              joinParamsMap,
+              aggParamsMap)
             newOperatorIdx = result._1
             newMetricsIdx = result._2
           case _ =>
@@ -468,16 +510,21 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
         joinTransformer.streamedPlan match {
           case transformer: TransformSupport =>
-            val result = updateTransformerMetrics(transformer, relMap, newOperatorIdx,
-              metrics, newMetricsIdx, joinParamsMap, aggParamsMap)
+            val result = updateTransformerMetrics(
+              transformer,
+              relMap,
+              newOperatorIdx,
+              metrics,
+              newMetricsIdx,
+              joinParamsMap,
+              aggParamsMap)
             newOperatorIdx = result._1
             newMetricsIdx = result._2
           case _ =>
         }
         (newOperatorIdx, newMetricsIdx)
       case aggTransformer: HashAggregateExecBaseTransformer =>
-        aggTransformer.updateAggregationMetrics(
-          operatorMetrics, aggParamsMap.get(operatorIdx))
+        aggTransformer.updateAggregationMetrics(operatorMetrics, aggParamsMap.get(operatorIdx))
 
         var newOperatorIdx: java.lang.Long = operatorIdx - 1
         var newMetricsIdx: Int = curMetricsIdx
@@ -487,8 +534,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         }
         curChild.getChild match {
           case transformer: TransformSupport =>
-            val result = updateTransformerMetrics(transformer, relMap, newOperatorIdx,
-              metrics, newMetricsIdx, joinParamsMap, aggParamsMap)
+            val result = updateTransformerMetrics(
+              transformer,
+              relMap,
+              newOperatorIdx,
+              metrics,
+              newMetricsIdx,
+              joinParamsMap,
+              aggParamsMap)
             newOperatorIdx = result._1
             newMetricsIdx = result._2
           case _ =>
@@ -506,8 +559,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         }
         curChild.getChild match {
           case transformer: TransformSupport =>
-            val result = updateTransformerMetrics(transformer, relMap, newOperatorIdx,
-              metrics, newMetricsIdx, joinParamsMap, aggParamsMap)
+            val result = updateTransformerMetrics(
+              transformer,
+              relMap,
+              newOperatorIdx,
+              metrics,
+              newMetricsIdx,
+              joinParamsMap,
+              aggParamsMap)
             newOperatorIdx = result._1
             newMetricsIdx = result._2
           case _ =>
@@ -525,12 +584,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
    * @param joinParamsMap the map between operator index and join parameters
    * @param aggParamsMap the map between operator index and aggregation parameters
    */
-  def updateNativeMetrics(resIter: GeneralOutIterator,
-                          relMap: java.util.HashMap[java.lang.Long,
-                            java.util.ArrayList[java.lang.Long]],
-                          joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-                          aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams])
-    : Unit = {
+  def updateNativeMetrics(
+      resIter: GeneralOutIterator,
+      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
+      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
+      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): Unit = {
     if (nativeMetricsUpdated) return
     try {
       val metrics = resIter.getMetrics
@@ -569,8 +627,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   // Recreate the broadcast build side rdd with matched partition number.
   // Used when whole stage transformer contains scan.
-  def genFirstNewRDDsForBroadcast(rddSeq: Seq[RDD[ColumnarBatch]], partitions: Int)
-  : Seq[RDD[ColumnarBatch]] = {
+  def genFirstNewRDDsForBroadcast(
+      rddSeq: Seq[RDD[ColumnarBatch]],
+      partitions: Int): Seq[RDD[ColumnarBatch]] = {
     rddSeq.map {
       case rdd: BroadcastBuildSideRDD =>
         rdd.copy(numPartitions = partitions)

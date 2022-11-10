@@ -44,15 +44,15 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
   override def nodeName: String = s"InputAdapter"
 
   override def generateTreeString(
-                                   depth: Int,
-                                   lastChildren: Seq[Boolean],
-                                   append: String => Unit,
-                                   verbose: Boolean,
-                                   prefix: String = "",
-                                   addSuffix: Boolean = false,
-                                   maxFields: Int,
-                                   printNodeId: Boolean,
-                                   indent: Int = 0): Unit = {
+      depth: Int,
+      lastChildren: Seq[Boolean],
+      append: String => Unit,
+      verbose: Boolean,
+      prefix: String = "",
+      addSuffix: Boolean = false,
+      maxFields: Int,
+      printNodeId: Boolean,
+      indent: Int = 0): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
@@ -106,17 +106,18 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
  * is created, e.g. for special fallback handling when an existing WholeStageCodegenExec
  * failed to generate/compile code.
  */
-case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
-                                         codegenStageCounter: AtomicInteger =
-                                         ColumnarCollapseCodegenStages.codegenStageCounter)
-  extends Rule[SparkPlan] {
+case class ColumnarCollapseCodegenStages(
+    glutenConfig: GlutenConfig,
+    codegenStageCounter: AtomicInteger = ColumnarCollapseCodegenStages.codegenStageCounter)
+    extends Rule[SparkPlan] {
 
   def columnarWholeStageEnabled: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.wholestagetransform",
-      "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
 
-  def separateScanRDDForCH: Boolean = glutenConfig.isClickHouseBackend && conf
-      .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false").toBoolean
+  def separateScanRDD: Boolean =
+    glutenConfig.isClickHouseBackend && conf
+      .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false")
+      .toBoolean
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (columnarWholeStageEnabled) {
@@ -131,7 +132,7 @@ case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
    * BasicScanExecTransformer will not be included in WholeStageTransformerExec.
    */
   private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
-    case _: BasicScanExecTransformer if separateScanRDDForCH => true
+    case _: BasicScanExecTransformer if separateScanRDD => true
     case _ => false
   }
 
@@ -154,7 +155,7 @@ case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
 
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
-      case t: TransformSupport if !isSeparateBasicScanExecTransformer(t) =>
+      case t if supportTransform(t) =>
         WholeStageTransformerExec(t.withNewChildren(t.children.map(insertInputAdapter)))(
           codegenStageCounter.incrementAndGet())
       case other =>
