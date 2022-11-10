@@ -14,12 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.joins
-
-import java.io.ByteArrayInputStream
-
-import scala.collection.JavaConverters._
 
 import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeIterator}
 import io.glutenproject.utils.PlanNodesUtil
@@ -31,13 +26,17 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeR
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.io.ByteArrayInputStream
+
+import scala.collection.JavaConverters._
+
 case class ClickHouseBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
     newBuildKeys: Seq[Expression] = Seq.empty)
-    extends BuildSideRelation
-    with Logging {
+  extends BuildSideRelation
+  with Logging {
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
@@ -88,37 +87,38 @@ case class ClickHouseBuildSideRelation(
     try {
       // convert columnar to row
       val converter = new BlockNativeConverter()
-      asScalaIterator(expressionEval).flatMap { block =>
-        val batch = new CHNativeBlock(block)
-        if (batch.numRows == 0) {
-          Iterator.empty
-        } else {
-          val info = converter.convertColumnarToRow(block)
+      asScalaIterator(expressionEval).flatMap {
+        block =>
+          val batch = new CHNativeBlock(block)
+          if (batch.numRows == 0) {
+            Iterator.empty
+          } else {
+            val info = converter.convertColumnarToRow(block)
 
-          new Iterator[InternalRow] {
-            var rowId = 0
-            val row = new UnsafeRow(batch.numColumns())
-            var closed = false
+            new Iterator[InternalRow] {
+              var rowId = 0
+              val row = new UnsafeRow(batch.numColumns())
+              var closed = false
 
-            override def hasNext: Boolean = {
-              val result = rowId < batch.numRows()
-              if (!result && !closed) {
-                converter.freeMemory(info.memoryAddress, info.totalSize)
-                closed = true
+              override def hasNext: Boolean = {
+                val result = rowId < batch.numRows()
+                if (!result && !closed) {
+                  converter.freeMemory(info.memoryAddress, info.totalSize)
+                  closed = true
+                }
+                result
               }
-              result
-            }
 
-            override def next: UnsafeRow = {
-              if (rowId >= batch.numRows()) throw new NoSuchElementException
+              override def next: UnsafeRow = {
+                if (rowId >= batch.numRows()) throw new NoSuchElementException
 
-              val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-              row.pointTo(null, info.memoryAddress + offset, length.toInt)
-              rowId += 1
-              row.copy()
+                val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+                row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                rowId += 1
+                row.copy()
+              }
             }
           }
-        }
       }.toArray
     } finally {
       blockReader.close()

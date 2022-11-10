@@ -14,12 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
-
-import java.util.OptionalLong
-
-import org.apache.hadoop.fs.Path
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -33,15 +28,20 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
+import org.apache.hadoop.fs.Path
+
+import java.util.OptionalLong
+
 case class ClickHouseScan(
-                           sparkSession: SparkSession,
-                           @transient table: ClickHouseTableV2,
-                           dataSchema: StructType,
-                           readDataSchema: StructType,
-                           pushedFilters: Array[Filter],
-                           options: CaseInsensitiveStringMap,
-                           partitionFilters: Seq[Expression] = Seq.empty,
-                           dataFilters: Seq[Expression] = Seq.empty) extends FileScan {
+    sparkSession: SparkSession,
+    @transient table: ClickHouseTableV2,
+    dataSchema: StructType,
+    readDataSchema: StructType,
+    pushedFilters: Array[Filter],
+    options: CaseInsensitiveStringMap,
+    partitionFilters: Seq[Expression] = Seq.empty,
+    dataFilters: Seq[Expression] = Seq.empty)
+  extends FileScan {
 
   override def isSplitable(path: Path): Boolean = false
 
@@ -49,8 +49,9 @@ case class ClickHouseScan(
 
   override def fileIndex: PartitioningAwareFileIndex = null
 
-  override def withFilters(partitionFilters: Seq[Expression],
-                           dataFilters: Seq[Expression]): FileScan =
+  override def withFilters(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): FileScan =
     this.copy(partitionFilters = partitionFilters, dataFilters = dataFilters)
 
   override def toBatch: Batch = this
@@ -83,7 +84,7 @@ case class ClickHouseScan(
   override def equals(obj: Any): Boolean = obj match {
     case p: ClickHouseScan =>
       super.equals(p) && dataSchema == p.dataSchema && options == p.options &&
-        equivalentFilters(pushedFilters, p.pushedFilters)
+      equivalentFilters(pushedFilters, p.pushedFilters)
     case _ => false
   }
 

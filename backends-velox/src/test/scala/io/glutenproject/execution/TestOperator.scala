@@ -259,6 +259,30 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
+  ignore("Test round function") {
+    val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
+      "from lineitem limit 1") { checkOperatorMatch[ProjectExecTransformer] }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test greatest function") {
+    val df = runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test least function") {
+    val df = runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
   // VeloxRuntimeError, wait to fix
   ignore("Test isnull function") {
     val df = runQueryAndCompare("SELECT isnull(1)") { _ => }

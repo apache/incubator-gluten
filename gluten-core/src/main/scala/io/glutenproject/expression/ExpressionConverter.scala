@@ -196,16 +196,22 @@ object ExpressionConverter extends Logging {
             attributeSeq)
         }
         ConcatExpressionTransformer.create(exprs, expr)
-      case r: Round =>
+      case g: Greatest =>
         logInfo(s"${expr.getClass} ${expr} is supported")
-        RoundOperatorTransformer.create(
+        val exprs = g.children.map { expr =>
           replaceWithExpressionTransformer(
-            r.child,
-            attributeSeq),
+            expr,
+            attributeSeq)
+        }
+        new GreatestTransformer(exprs, expr)
+      case l: Least =>
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        val exprs = l.children.map { expr =>
           replaceWithExpressionTransformer(
-            r.scale,
-            attributeSeq),
-          expr)
+            expr,
+            attributeSeq)
+        }
+        new LeastTransformer(exprs, expr)
       case l: StringTrimLeft =>
         if (l.trimStr != None) {
           throw new UnsupportedOperationException(s"not supported yet.")

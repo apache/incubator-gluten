@@ -1,11 +1,12 @@
 /*
- * Copyright 2020 Intel Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.sql.shims
+
+import org.apache.spark.SPARK_VERSION
+import org.apache.spark.internal.Logging
 
 import java.util.ServiceLoader
 
 import scala.collection.JavaConverters._
-
-import org.apache.spark.SPARK_VERSION
-import org.apache.spark.internal.Logging
 
 object SparkShimLoader extends Logging {
   private var sparkShims: SparkShims = null
@@ -29,28 +29,28 @@ object SparkShimLoader extends Logging {
 
   def getSparkShims: SparkShims = {
     if (sparkShims == null) {
-      val provider = getSparkShimProvider()
+      val provider = getSparkShimProvider
       sparkShims = provider.createShim
     }
     sparkShims
   }
 
   def getSparkVersion: String = {
-      SPARK_VERSION
+    SPARK_VERSION
   }
 
   def setSparkShimProviderClass(providerClass: String): Unit = {
     sparkShimProviderClass = providerClass
   }
-  
+
   private def loadSparkShimProvider(): SparkShimProvider = {
     // Match and load Shim provider for current Spark version.
     val sparkVersion = getSparkVersion
     logInfo(s"Loading Spark Shims for version: $sparkVersion")
 
-    //Load and filter the providers based on version
-    val shimProviders = ServiceLoader.load(classOf[SparkShimProvider])
-      .asScala.filter(_.matches(sparkVersion))
+    // Load and filter the providers based on version
+    val shimProviders =
+      ServiceLoader.load(classOf[SparkShimProvider]).asScala.filter(_.matches(sparkVersion))
     if (shimProviders.size > 1) {
       throw new IllegalStateException(s"More than one SparkShimProvider found: $shimProviders")
     }
@@ -64,10 +64,12 @@ object SparkShimLoader extends Logging {
     shimProvider
   }
 
-  private def getSparkShimProvider(): SparkShimProvider = {
+  private def getSparkShimProvider: SparkShimProvider = {
     if (sparkShimProviderClass != null) {
       logInfo(s"Using Spark Shim Provider specified by $sparkShimProviderClass. ")
+      // scalastyle:off classforname
       val providerClass = Class.forName(sparkShimProviderClass)
+      // scalastyle:on classforname
       val providerConstructor = providerClass.getConstructor()
       providerConstructor.newInstance().asInstanceOf[SparkShimProvider]
     } else {

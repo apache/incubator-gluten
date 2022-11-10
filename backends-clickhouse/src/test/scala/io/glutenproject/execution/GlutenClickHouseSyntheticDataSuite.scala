@@ -14,20 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.io.File
-import java.time.LocalDate
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
-import org.apache.commons.io.FileUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+
+import org.apache.commons.io.FileUtils
+
+import java.io.File
+import java.time.LocalDate
 
 class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with Logging {
 
@@ -89,7 +89,7 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
         metaStorePathAbsolute + "/metastore_db"};create=true") */
   }
 
-  protected override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     ClickHouseLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll
@@ -148,7 +148,7 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
             Some(true))
 //          (None, None, None, None, None)
         )
-        val df_source = source.toDF(supportedTypes.map(x => s"c_${x}"): _*)
+        val df_source = source.toDF(supportedTypes.map(x => s"c_$x"): _*)
 //        df_source.createOrReplaceTempView("table_all_types_temp")
 //        spark.sql("insert into table_all_types select * from table_all_types_temp")
         df_source.createOrReplaceTempView("table_all_types")
@@ -162,23 +162,25 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
     withSQLConf(vanillaSparkConfs(): _*) {
       val supportedAggs = "count" :: "avg" :: "sum" :: "min" :: "max" :: Nil
       val selected = supportedAggs
-        .flatMap(agg => {
-          Range(0, supportedTypes.size).map(i => s"${agg}(c_${supportedTypes.apply(i)})")
-        })
-        .filterNot(x => {
-          List(
-            // unsupported by spark, so it's ok
-            "avg(c_date)",
-            "avg(c_string)",
-            "avg(c_boolean)",
-            "sum(c_date)",
-            "sum(c_string)",
-            "sum(c_boolean)",
-            "avg(c_bigint)"
-            // supported by spark, unsupported by gluten, need to fix
-            // 1. byte/short/float/string case
-          ).contains(x)
-        })
+        .flatMap(
+          agg => {
+            Range(0, supportedTypes.size).map(i => s"$agg(c_${supportedTypes.apply(i)})")
+          })
+        .filterNot(
+          x => {
+            List(
+              // unsupported by spark, so it's ok
+              "avg(c_date)",
+              "avg(c_string)",
+              "avg(c_boolean)",
+              "sum(c_date)",
+              "sum(c_string)",
+              "sum(c_boolean)",
+              "avg(c_bigint)"
+              // supported by spark, unsupported by gluten, need to fix
+              // 1. byte/short/float/string case
+            ).contains(x)
+          })
         .mkString(",")
       sqlStr = s"select $selected from table_all_types"
 
@@ -205,12 +207,12 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
       spark.sql("insert into test_table select * from test_table_temp")
 
       sqlStr = s"""
-           |select cast(c_date as date) as a, cast ('1998-04-08' as date) as b
-           |   from test_table
-           |   where c_date between (cast ('1998-04-08' as date) - interval '30' day)
-           |                    and (cast ('1998-04-08' as date) + interval '30' day)
-           |order by a desc
-           |""".stripMargin
+                  |select cast(c_date as date) as a, cast ('1998-04-08' as date) as b
+                  |   from test_table
+                  |   where c_date between (cast ('1998-04-08' as date) - interval '30' day)
+                  |                    and (cast ('1998-04-08' as date) + interval '30' day)
+                  |order by a desc
+                  |""".stripMargin
 
       val df = spark.sql(sqlStr)
       expected = df.collect()
@@ -237,8 +239,8 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
         .createOrReplaceTempView("test_table")
 
       sqlStr = s"""
-           | select max(c_date) from test_table
-           |""".stripMargin
+                  | select max(c_date) from test_table
+                  |""".stripMargin
 
       val df = spark.sql(sqlStr)
       expected = df.collect()

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.clickhouse
+
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.IInitializerApi
+import io.glutenproject.vectorized.JniLibLoader
 
 import org.apache.spark.SparkConf
 
-import io.glutenproject.backendsapi.IInitializerApi
-import io.glutenproject.GlutenConfig
-import io.glutenproject.vectorized.JniLibLoader
 import org.apache.commons.lang3.StringUtils
 
 class CHInitializerApi extends IInitializerApi {
