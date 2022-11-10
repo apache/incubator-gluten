@@ -26,9 +26,11 @@ import org.apache.spark.sql.execution.{CodegenSupport, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.internal.SQLConf
 
-// We need to pass the grouping sets to velox.
-// And this class is aim to pass the groupingExpression
-// from Aggreagate to ExpandExec.
+// When offload to velox GroupIdNode, it need the grouping sets and aggregate sets.
+// But the the projections in ExpandExec operator contain both grouping sets and aggregate sets.
+// So we create CustomExpand to store the grouping sets. And then we can calculate the aggregate
+// sets based on the grouping sets.
+// This class refer the ExpandExec operator in Spark.
 case class CustomExpandExec(
                        projections: Seq[Seq[Expression]],
                        groupExpression: Seq[NamedExpression],

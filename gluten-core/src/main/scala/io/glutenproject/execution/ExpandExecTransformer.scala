@@ -148,10 +148,11 @@ case class ExpandExecTransformer(
     for (i <- 0 until (groupSize - 1)) {
       selectNodes.add(ExpressionBuilder.makeSelection(i))
     }
+
     // Add groupID col index
     selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
 
-    // pass the reordered index agg + groupingsets + GID
+    // Pass the reordered index agg + groupingsets + GID
     if (!validation) {
       RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId)
     } else {
