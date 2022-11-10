@@ -9,8 +9,8 @@ COMPILE_VELOX=OFF
 ENABLE_EP_CACHE=OFF
 VELOX_HOME=/root/velox
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/rui-mo/velox.git
+VELOX_BRANCH=exists
 
 for arg in "$@"
 do
@@ -64,7 +64,7 @@ function process_script {
 
 function compile {
     scripts/setup-ubuntu.sh
-    make release EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_ENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
+    make release EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_ENABLE_HIVE_CONNECTOR=ON -DVELOX_ENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_BUILD_TEST_UTILS=ON"
 }
 
 echo "Velox Installation"

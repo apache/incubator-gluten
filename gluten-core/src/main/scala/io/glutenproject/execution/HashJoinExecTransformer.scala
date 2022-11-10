@@ -759,12 +759,12 @@ trait HashJoinLikeExecTransformer
   }
 
   protected def createPreProjectionIfNeeded(keyExprs: Seq[Expression],
-                                          inputNode: RelNode,
-                                          inputNodeOutput: Seq[Attribute],
-                                          joinOutput: Seq[Attribute],
-                                          substraitContext: SubstraitContext,
-                                          operatorId: java.lang.Long,
-                                          validation: Boolean)
+                                            inputNode: RelNode,
+                                            inputNodeOutput: Seq[Attribute],
+                                            joinOutput: Seq[Attribute],
+                                            substraitContext: SubstraitContext,
+                                            operatorId: java.lang.Long,
+                                            validation: Boolean)
   : (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
     if (!preProjectionNeeded(keyExprs)) {
       // Skip pre-projection if all keys are [AttributeReference]s,
@@ -876,23 +876,39 @@ trait HashJoinLikeExecTransformer
     // Result projection will drop the appended keys, and exchange columns order if BuildLeft.
     val resultProjection = if (exchangeTable) {
       val (leftOutput, rightOutput) =
-        getResultProjectionOutput(inputBuildOutput, inputStreamedOutput)
-      // Exchange the order of build and streamed.
-      leftOutput.indices.map(idx =>
-        ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
-        rightOutput.indices
-          .map(ExpressionBuilder.makeSelection(_))
+        getDirectJoinOutput(inputBuildOutput, inputStreamedOutput)
+      joinType match {
+        case _: ExistenceJoin =>
+          inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
+            Seq(ExpressionBuilder.makeSelection(buildOutput.size))
+        case LeftExistence(_) =>
+          leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
+        case _ =>
+          // Exchange the order of build and streamed.
+          leftOutput.indices.map(idx =>
+            ExpressionBuilder.makeSelection(idx + streamedOutput.size)) ++
+            rightOutput.indices
+              .map(ExpressionBuilder.makeSelection(_))
+      }
     } else {
       val (leftOutput, rightOutput) =
-        getResultProjectionOutput(inputStreamedOutput, inputBuildOutput)
-      leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
-        rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
+        getDirectJoinOutput(inputStreamedOutput, inputBuildOutput)
+      if (joinType.isInstanceOf[ExistenceJoin]) {
+        inputStreamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
+          Seq(ExpressionBuilder.makeSelection(streamedOutput.size))
+      } else {
+        leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
+          rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
+      }
     }
 
     RelBuilder.makeProjectRel(
       joinRel,
       new java.util.ArrayList[ExpressionNode](resultProjection.asJava),
-      createExtensionNode(streamedOutput ++ buildOutput, validation),
+      createExtensionNode(
+        if (exchangeTable) getDirectJoinOutputSeq(buildOutput, streamedOutput)
+        else getDirectJoinOutputSeq(streamedOutput, buildOutput),
+        validation),
       substraitContext,
       operatorId)
   }
@@ -944,6 +960,8 @@ trait HashJoinLikeExecTransformer
     joinParametersStr.append("isBHJ=").append(isBHJ).append("\n")
       .append("isNullAwareAntiJoin=").append(isNullAwareAntiJoin).append("\n")
       .append("buildHashTableId=").append(buildHashTableId).append("\n")
+      .append("isExistenceJoin=").append(
+      if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0).append("\n")
     Any.newBuilder
       .setValue(ByteString.copyFromUtf8(joinParametersStr.toString))
       .setTypeUrl("/google.protobuf.StringValue")
@@ -953,9 +971,15 @@ trait HashJoinLikeExecTransformer
     (0, 0, "")
   }
 
-  // The output of result projection should be consistent with ShuffledJoin.output
-  protected def getResultProjectionOutput(leftOutput: Seq[Attribute],
-                                          rightOutput: Seq[Attribute])
+  protected def getDirectJoinOutputSeq(leftOutput: Seq[Attribute],
+                                       rightOutput: Seq[Attribute]): Seq[Attribute] = {
+    val (left, right) = getDirectJoinOutput(leftOutput, rightOutput)
+    left ++ right
+  }
+
+  // Return the direct join output.
+  protected def getDirectJoinOutput(leftOutput: Seq[Attribute],
+                                    rightOutput: Seq[Attribute])
     : (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
