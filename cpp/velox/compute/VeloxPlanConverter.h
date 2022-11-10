@@ -80,10 +80,10 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 
 class VeloxInitializer {
  public:
-  VeloxInitializer() {
-    Init();
+  VeloxInitializer(std::unordered_map<std::string, std::string> conf) {
+    Init(conf);
   }
-  void Init();
+  void Init(std::unordered_map<std::string, std::string> conf);
 };
 
 class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {

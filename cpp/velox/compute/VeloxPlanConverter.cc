@@ -72,7 +72,7 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 }
 
 // The Init will be called per executor.
-void VeloxInitializer::Init() {
+void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   // Setup and register.
   filesystems::registerLocalFileSystem();
 
@@ -92,17 +92,20 @@ void VeloxInitializer::Init() {
   }
   auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
   auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
-  static const std::unordered_map<std::string, std::string> hdfsConfig(
+  std::unordered_map<std::string, std::string> hdfsConfig(
       {{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
   configurationValues.merge(hdfsConfig);
 #endif
 
 #ifdef VELOX_ENABLE_S3
   filesystems::registerS3FileSystem();
-  // TODO(yuan): should passing thru config?
-  std::string awsAccessKey = "minio";
-  std::string awsSecretKey = "miniopass";
-  std::string awsEndpoint = "localhost:9000";
+
+  std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
+  std::string awsSecretKey = conf["spark.hadoop.fs.s3a.secret.key"];
+  std::string awsEndpoint = conf["spark.hadoop.fs.s3a.endpoint"];
+  std::string sslEnabled = conf["spark.hadoop.fs.s3a.connection.ssl.enabled"];
+  std::string pathStyleAccess = conf["spark.hadoop.fs.s3a.path.style.access"];
+
   const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
   if (envAwsAccessKey != nullptr) {
     awsAccessKey = std::string(envAwsAccessKey);
@@ -115,12 +118,13 @@ void VeloxInitializer::Init() {
   if (envAwsEndpoint != nullptr) {
     awsEndpoint = std::string(envAwsEndpoint);
   }
+
   std::unordered_map<std::string, std::string> S3Config({
       {"hive.s3.aws-access-key", awsAccessKey},
       {"hive.s3.aws-secret-key", awsSecretKey},
       {"hive.s3.endpoint", awsEndpoint},
-      {"hive.s3.ssl.enabled", "false"},
-      {"hive.s3.path-style-access", "true"},
+      {"hive.s3.ssl.enabled", sslEnabled},
+      {"hive.s3.path-style-access", pathStyleAccess},
   });
   configurationValues.merge(S3Config);
 #endif

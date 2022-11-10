@@ -246,6 +246,7 @@
                                 <argument>${velox.backend_type}</argument>
                                 <argument>${velox.enable_hbm}</argument>
                                 <argument>${velox.velox_enable_s3}</argument>
+                                <argument>${velox.velox_enable_hdfs}</argument>
                             </arguments>
                         </configuration>
                     </execution>
