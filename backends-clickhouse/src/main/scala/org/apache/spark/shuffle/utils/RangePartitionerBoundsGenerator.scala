@@ -16,65 +16,65 @@
  */
 package org.apache.spark.shuffle.utils
 
-import io.glutenproject.vectorized.{BlockNativeConverter, BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
-
-import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
-import org.apache.spark.rdd.{PartitionPruningRDD, RDD}
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, SortOrder, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
-import org.apache.spark.sql.types._
+import io.glutenproject.execution.SortExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.vectorized.{BlockNativeConverter, BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import io.glutenproject.execution.SortExecTransformer
+
+import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
+import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.{PartitionPruningRDD, RDD}
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import play.api.libs.json._
+import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import io.substrait.proto.ProjectRel
 import io.substrait.proto.Rel
 import io.substrait.proto.RelCommon
-import org.apache.spark.internal.Logging
+import play.api.libs.json._
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 import scala.util.hashing.byteswap32
-
 // In spark RangePartitioner, the rangeBounds is private, so we make a copied-implementation here.
 // It is based on the fact that, there has been a pre-projection before the range partition
 // and remove all function expressions in the sort ordering expressions.
-class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
-(
-  partitions: Int,
-  rdd: RDD[_ <: Product2[K, V]],
-  ordering: Seq[SortOrder],
-  inputAttributes: Seq[Attribute],
-  private var ascending: Boolean = true,
-  val samplePointsPerPartitionHint: Int = 20
+class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
+    partitions: Int,
+    rdd: RDD[_ <: Product2[K, V]],
+    ordering: Seq[SortOrder],
+    inputAttributes: Seq[Attribute],
+    private var ascending: Boolean = true,
+    val samplePointsPerPartitionHint: Int = 20
 ) {
-    def getRangeBounds(): Array[K] = {
-         if (partitions <= 1) {
-             Array.empty
-         } else {
-             val sampleSize = math.min(samplePointsPerPartitionHint.toDouble * partitions, 1e6)
-             val sampleSizePerPartition = math.ceil(3.0 * sampleSize / rdd.partitions.length).toInt
-             val (numItems, sketched) = RangePartitioner.sketch(rdd.map(_._1), sampleSizePerPartition)
+  def getRangeBounds(): Array[K] = {
+    if (partitions <= 1) {
+      Array.empty
+    } else {
+      val sampleSize = math.min(samplePointsPerPartitionHint.toDouble * partitions, 1e6)
+      val sampleSizePerPartition = math.ceil(3.0 * sampleSize / rdd.partitions.length).toInt
+      val (numItems, sketched) = RangePartitioner.sketch(rdd.map(_._1), sampleSizePerPartition)
       if (numItems == 0L) {
         Array.empty
       } else {
         val fraction = math.min(sampleSize / math.max(numItems, 1L), 1.0)
         val candidates = ArrayBuffer.empty[(K, Float)]
         val imbalancedPartitions = mutable.Set.empty[Int]
-        sketched.foreach { case (idx, n, sample) =>
-          if (fraction * n > sampleSizePerPartition) {
-            imbalancedPartitions += idx
-          } else {
-            val weight = (n.toDouble / sample.length).toFloat
-            for (key <- sample) {
-              candidates += ((key, weight))
+        sketched.foreach {
+          case (idx, n, sample) =>
+            if (fraction * n > sampleSizePerPartition) {
+              imbalancedPartitions += idx
+            } else {
+              val weight = (n.toDouble / sample.length).toFloat
+              for (key <- sample) {
+                candidates += ((key, weight))
+              }
             }
-          }
         }
         if (imbalancedPartitions.nonEmpty) {
           val imbalanced = new PartitionPruningRDD(rdd.map(_._1), imbalancedPartitions.contains)
@@ -89,34 +89,34 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
   }
 
   /*
-    return json structure
-    {
-      "ordering":[
+  return json structure
+  {
+    "ordering":[
+      {
+        "column_ref":0,
+        "data_type":"xxx",
+        "is_nullable":true,
+        "direction":0
+      },
+        ...
+    ],
+    "range_bounds":[
         {
-          "column_ref":0,
-          "data_type":"xxx",
-          "is_nullable":true,
-          "direction":0
+          "is_null":false,
+          "value": ...
+        },
+        {
+          "is_null":true
         },
         ...
-      ],
-      "range_bounds":[
-          {
-            "is_null":false,
-            "value": ...
-          },
-          {
-            "is_null":true
-          },
-          ...
-      ]
-    }
-  */
+    ]
+  }
+   */
   def getExpressionFiedlReference(ordering: SortOrder): Int = {
     val substraitCtx = new SubstraitContext()
     val funcs = substraitCtx.registeredFunction
-    val colExpr = ExpressionConverter.replaceWithExpressionTransformer(
-      ordering.child, inputAttributes)
+    val colExpr =
+      ExpressionConverter.replaceWithExpressionTransformer(ordering.child, inputAttributes)
     val projExprNode = colExpr.asInstanceOf[ExpressionTransformer].doTransform(funcs)
     val pb = projExprNode.toProtobuf
     if (!pb.hasSelection()) {
@@ -126,18 +126,19 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
   }
   def buildOrderingJson(ordering: Seq[SortOrder]): JsValue = {
     val data = ordering.map {
-      order => {
-        val orderJson = Json.toJson(Map(
-          // expression is a protobuf of io.substrait.proto.Expression
-          "column_ref" -> Json.toJson(getExpressionFiedlReference(order)),
-          "data_type" -> Json.toJson(order.dataType.toString),
-          "is_nullable" -> Json.toJson(order.nullable),
-          "direction" -> Json.toJson(
-            SortExecTransformer.transformSortDirection(order.direction.sql,
-              order.nullOrdering.sql))
-        ))
-        orderJson
-      }
+      order =>
+        {
+          val orderJson = Json.toJson(
+            Map(
+              // expression is a protobuf of io.substrait.proto.Expression
+              "column_ref" -> Json.toJson(getExpressionFiedlReference(order)),
+              "data_type" -> Json.toJson(order.dataType.toString),
+              "is_nullable" -> Json.toJson(order.nullable),
+              "direction" -> Json.toJson(SortExecTransformer
+                .transformSortDirection(order.direction.sql, order.nullOrdering.sql))
+            ))
+          orderJson
+        }
     }
     Json.toJson(data)
   }
@@ -160,19 +161,22 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
   def buildRangeBoundJson(row: UnsafeRow, ordering: Seq[SortOrder]): JsValue = {
     val data = Json.toJson(
       (0 until row.numFields).map {
-        i => {
-          if (row.isNullAt(i)) {
-            Json.toJson(Map(
-              "is_null" -> Json.toJson(true)
-            ))
-          } else {
-            val order = ordering(i)
-            Json.toJson(Map(
-              "is_null" -> Json.toJson(false),
-              "value" -> getFieldValue(row, order.dataType, i)
-            ))
+        i =>
+          {
+            if (row.isNullAt(i)) {
+              Json.toJson(
+                Map(
+                  "is_null" -> Json.toJson(true)
+                ))
+            } else {
+              val order = ordering(i)
+              Json.toJson(
+                Map(
+                  "is_null" -> Json.toJson(false),
+                  "value" -> getFieldValue(row, order.dataType, i)
+                ))
+            }
           }
-        }
       }
     )
     data
@@ -186,8 +190,7 @@ class RangePartitionerBoundsGenerator [K : Ordering : ClassTag, V]
           // Be careful, it should be an unsafe row here
           val row = bound.asInstanceOf[UnsafeRow]
           buildRangeBoundJson(row, ordering)
-        }
-      )
+        })
     )
     data
   }
