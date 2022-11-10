@@ -10,6 +10,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>gluten-ut</artifactId>
+    <packaging>jar</packaging>
+    <name>Gluten Unit Test</name>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -19,11 +21,6 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <scope>provided</scope>
-        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -109,32 +106,26 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
-            <scope>test</scope>
         </dependency>
         <!-- Fasterxml -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-            <version>${fasterxml.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -279,32 +270,11 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.3.0</version>
-                <configuration>
-                    <recompileMode>${scala.recompile.mode}</recompileMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>scala-compile-first</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>scala-test-compile</id>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <version>${scala.compiler.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -321,26 +291,10 @@
             <plugin>
                 <groupId>org.scalastyle</groupId>
                 <artifactId>scalastyle-maven-plugin</artifactId>
-                <version>1.0.0</version>
+                <version>${scalastyle.version}</version>
                 <configuration>
-                    <verbose>false</verbose>
-                    <failOnViolation>true</failOnViolation>
-                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                    <failOnWarning>false</failOnWarning>
-                    <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
-                    <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
                     <configLocation>${project.basedir}/../scalastyle-config.xml</configLocation>
-                    <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
-                    <outputEncoding>UTF-8</outputEncoding>
                 </configuration>
-                <executions>
-                    <execution>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

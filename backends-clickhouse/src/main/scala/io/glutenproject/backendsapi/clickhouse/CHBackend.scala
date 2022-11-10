@@ -14,16 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.backendsapi.IBackendsApi
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.IBackendsApi
 
 class CHBackend extends IBackendsApi {
 
-  /**
-   * Get the backend api name.
-   */
+  /** Get the backend api name. */
   override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

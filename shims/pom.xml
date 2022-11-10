@@ -25,14 +25,8 @@
   </parent>
 
   <artifactId>spark-sql-columnar-shims</artifactId>
-  <name>${project.name.prefix} Shims</name>
+  <name>Gluten Shims</name>
   <packaging>pom</packaging>
- 
-  <properties>
-    <scala.version>2.12.15</scala.version>
-    <scala.binary.version>2.12</scala.binary.version>
-    <scala.plugin.version>4.3.0</scala.plugin.version>
-  </properties>
 
   <dependencies>
       <dependency>

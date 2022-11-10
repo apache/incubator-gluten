@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.utils
-
-import scala.collection.mutable.ArrayBuffer
 
 import io.glutenproject.execution.NativeMergeTreePartition
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
+
+import scala.collection.mutable.ArrayBuffer
 
 object MergeTreePartsPartitionsUtil {
 
@@ -62,16 +61,17 @@ object MergeTreePartsPartitionsUtil {
 
     val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
     // Assign files to partitions using "Next Fit Decreasing"
-    partsFiles.foreach { parts =>
-      if (currentSize + parts.bytesOnDisk > maxSplitBytes) {
-        closePartition()
-      }
-      // Add the given file to the current partition.
-      currentSize += parts.bytesOnDisk + openCostInBytes
-      if (currentMinPartsNum == -1L) {
-        currentMinPartsNum = parts.minBlockNumber
-      }
-      currentMaxPartsNum = parts.maxBlockNumber
+    partsFiles.foreach {
+      parts =>
+        if (currentSize + parts.bytesOnDisk > maxSplitBytes) {
+          closePartition()
+        }
+        // Add the given file to the current partition.
+        currentSize += parts.bytesOnDisk + openCostInBytes
+        if (currentMinPartsNum == -1L) {
+          currentMinPartsNum = parts.minBlockNumber
+        }
+        currentMaxPartsNum = parts.maxBlockNumber
     }
     closePartition()
     partitions

@@ -14,16 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.table
-
-import java.{util => ju}
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
-
-import org.apache.hadoop.fs.Path
-import org.sparkproject.guava.cache.{CacheBuilder, CacheLoader}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
@@ -35,17 +26,7 @@ import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions._
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.connector.write._
-import org.apache.spark.sql.delta.{
-  ColumnWithDefaultExprUtils,
-  DeltaColumnMapping,
-  DeltaErrors,
-  DeltaFileFormat,
-  DeltaLog,
-  DeltaTableIdentifier,
-  DeltaTableUtils,
-  DeltaTimeTravelSpec,
-  Snapshot
-}
+import org.apache.spark.sql.delta.{ColumnWithDefaultExprUtils, DeltaColumnMapping, DeltaErrors, DeltaFileFormat, DeltaLog, DeltaTableIdentifier, DeltaTableUtils, DeltaTimeTravelSpec, Snapshot}
 import org.apache.spark.sql.delta.actions.{AddFile, Metadata, SingleAction}
 import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.SchemaUtils
@@ -53,23 +34,27 @@ import org.apache.spark.sql.delta.sources.{DeltaDataSource, DeltaSQLConf}
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseConfig, ClickHouseLog}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{
-  AddFileTags,
-  AddMergeTreeParts
-}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.{
-  ClickHouseScanBuilder,
-  ClickHouseWriteBuilder
-}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.{ClickHouseScanBuilder, ClickHouseWriteBuilder}
 import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
+import org.apache.hadoop.fs.Path
+import org.sparkproject.guava.cache.{CacheBuilder, CacheLoader}
+
+import java.{util => ju}
+import java.util.concurrent.TimeUnit
+
+import scala.collection.JavaConverters._
+
 /**
  * The data source V2 representation of a ClickHouse table that exists.
  *
- * @param path            The path to the table
- * @param tableIdentifier The table identifier for this table
+ * @param path
+ *   The path to the table
+ * @param tableIdentifier
+ *   The table identifier for this table
  */
 case class ClickHouseTableV2(
     spark: SparkSession,
@@ -79,12 +64,12 @@ case class ClickHouseTableV2(
     timeTravelOpt: Option[DeltaTimeTravelSpec] = None,
     options: Map[String, String] = Map.empty,
     cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty())
-    extends Table
-    with SupportsWrite
-    with SupportsRead
-    with V2TableWithV1Fallback
-    with DeltaFileFormat
-    with DeltaLogging {
+  extends Table
+  with SupportsWrite
+  with SupportsRead
+  with V2TableWithV1Fallback
+  with DeltaFileFormat
+  with DeltaLogging {
 
   // The loading of the DeltaLog is lazy in order to reduce the amount of FileSystem calls,
   // in cases where we will fallback to the V1 behavior.
@@ -92,18 +77,19 @@ case class ClickHouseTableV2(
 
   lazy val snapshot: Snapshot = {
     timeTravelSpec
-      .map { spec =>
-        val (version, accessType) =
-          DeltaTableUtils.resolveTimeTravelVersion(spark.sessionState.conf, deltaLog, spec)
-        val source = spec.creationSource.getOrElse("unknown")
-        recordDeltaEvent(
-          deltaLog,
-          s"delta.timeTravel.$source",
-          data = Map(
-            "tableVersion" -> deltaLog.snapshot.version,
-            "queriedVersion" -> version,
-            "accessType" -> accessType))
-        deltaLog.getSnapshotAt(version)
+      .map {
+        spec =>
+          val (version, accessType) =
+            DeltaTableUtils.resolveTimeTravelVersion(spark.sessionState.conf, deltaLog, spec)
+          val source = spec.creationSource.getOrElse("unknown")
+          recordDeltaEvent(
+            deltaLog,
+            s"delta.timeTravel.$source",
+            data = Map(
+              "tableVersion" -> deltaLog.snapshot.version,
+              "queriedVersion" -> version,
+              "accessType" -> accessType))
+          deltaLog.getSnapshotAt(version)
       }
       .getOrElse(updateSnapshot())
   }
@@ -142,8 +128,8 @@ case class ClickHouseTableV2(
   override def schema(): StructType = tableSchema
 
   override def partitioning(): Array[Transform] = {
-    snapshot.metadata.partitionColumns.map { col =>
-      new IdentityTransform(new FieldReference(Seq(col)))
+    snapshot.metadata.partitionColumns.map {
+      col => new IdentityTransform(new FieldReference(Seq(col)))
     }.toArray
   }
 
@@ -175,9 +161,7 @@ case class ClickHouseTableV2(
     new ClickHouseScanBuilder(spark, this, tableSchema, options)
   }
 
-  /**
-   * Return V1Table.
-   */
+  /** Return V1Table. */
   override def v1Table: CatalogTable = {
     if (catalogTable.isEmpty) {
       throw new IllegalStateException("v1Table call is not expected with path based DeltaTableV2")
@@ -207,9 +191,7 @@ case class ClickHouseTableV2(
     createV1Relation(partitionPredicates, Some(snapshot), timeTravelSpec.isDefined, cdcOptions)
   }
 
-  /**
-   * Create ClickHouseFileIndex and HadoopFsRelation for DS V1.
-   */
+  /** Create ClickHouseFileIndex and HadoopFsRelation for DS V1. */
   def createV1Relation(
       partitionFilters: Seq[Expression] = Nil,
       snapshotToUseOpt: Option[Snapshot] = None,
@@ -221,13 +203,8 @@ case class ClickHouseTableV2(
       // out in this case.
       throw DeltaErrors.pathNotExistsException(deltaLog.dataPath.toString)
     }
-    val fileIndex = ClickHouseFileIndex(
-      spark,
-      deltaLog,
-      deltaLog.dataPath,
-      this,
-      snapshotToUse,
-      partitionFilters)
+    val fileIndex =
+      ClickHouseFileIndex(spark, deltaLog, deltaLog.dataPath, this, snapshotToUse, partitionFilters)
     var bucketSpec: Option[BucketSpec] = None
     new HadoopFsRelation(
       fileIndex,
@@ -244,7 +221,10 @@ case class ClickHouseTableV2(
       // `metadata.format.options` is not set today. Even if we support it in future, we shouldn't
       // store any file system options since they may contain credentials. Hence, it will never
       // conflict with `DeltaLog.options`.
-      snapshotToUse.metadata.format.options ++ options)(spark) with InsertableRelation {
+      snapshotToUse.metadata.format.options ++ options
+    )(
+      spark
+    ) with InsertableRelation {
       def insert(data: DataFrame, overwrite: Boolean): Unit = {
         val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
         // Insert MergeTree data through DataSource V1
@@ -252,9 +232,7 @@ case class ClickHouseTableV2(
     }
   }
 
-  /**
-   * Check the passed in options and existing timeTravelOpt, set new time travel by options.
-   */
+  /** Check the passed in options and existing timeTravelOpt, set new time travel by options. */
   def withOptions(options: Map[String, String]): ClickHouseTableV2 = {
     val ttSpec = DeltaDataSource.getTimeTravelVersion(options)
     if (timeTravelOpt.nonEmpty && ttSpec.nonEmpty) {
@@ -267,9 +245,7 @@ case class ClickHouseTableV2(
     }
   }
 
-  /**
-   * Refresh table to load latest snapshot
-   */
+  /** Refresh table to load latest snapshot */
   def refresh(): Unit = {
     updateSnapshot(true)
   }

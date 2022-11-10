@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.velox
 
 import org.apache.spark.sql.SparkSession
@@ -26,20 +25,22 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class DwrfScan(sparkSession: SparkSession,
-                    fileIndex: PartitioningAwareFileIndex,
-                    readDataSchema: StructType,
-                    readPartitionSchema: StructType,
-                    pushedFilters: Array[Filter],
-                    options: CaseInsensitiveStringMap,
-                    partitionFilters: Seq[Expression] = Seq.empty,
-                    dataFilters: Seq[Expression] = Seq.empty)
+case class DwrfScan(
+    sparkSession: SparkSession,
+    fileIndex: PartitioningAwareFileIndex,
+    readDataSchema: StructType,
+    readPartitionSchema: StructType,
+    pushedFilters: Array[Filter],
+    options: CaseInsensitiveStringMap,
+    partitionFilters: Seq[Expression] = Seq.empty,
+    dataFilters: Seq[Expression] = Seq.empty)
   extends FileScan {
   override def createReaderFactory(): PartitionReaderFactory = {
     null
   }
 
-  override def withFilters(partitionFilters: Seq[Expression],
-                           dataFilters: Seq[Expression]): FileScan =
+  override def withFilters(
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): FileScan =
     this.copy(partitionFilters = partitionFilters, dataFilters = dataFilters)
 }

@@ -246,6 +246,16 @@ class PowTransformer(left: Expression, right: Expression, original: Expression)
   }
 }
 
+class RoundTransformer(child: Expression, scale: Expression, original: Expression)
+  extends Round(child: Expression, scale: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException(s"not supported yet.")
+  }
+}
+
 object BinaryExpressionTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression =
@@ -274,6 +284,8 @@ object BinaryExpressionTransformer {
         new UnixTimestampTransformer(left, right)
       case p: Pow =>
         new PowTransformer(left, right, p)
+      case r: Round =>
+        new RoundTransformer(left, right, r)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
