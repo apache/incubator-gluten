@@ -232,6 +232,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
 
  private:
+  void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
+
   void setInputPlanNode(const ::substrait::ExpandRel& sExpand);
 
   void setInputPlanNode(const ::substrait::SortRel& sSort);
