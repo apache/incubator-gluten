@@ -34,6 +34,7 @@
         <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
         <velox.debug_build>${debug_build}</velox.debug_build>
         <velox.backend_type>${backend_type}</velox.backend_type>
+        <velox.velox_home>${velox_home}</velox.velox_home>
     </properties>
 
     <profiles>
