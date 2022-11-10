@@ -16,6 +16,22 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <resource.dir>${project.basedir}/src/main/resources</resource.dir>
+        <velox.build_cpp>${build_cpp}</velox.build_cpp>
+        <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
+        <velox.cpp_benchmarks>${cpp_benchmarks}</velox.cpp_benchmarks>
+        <velox.enable_hbm>${enable_hbm}</velox.enable_hbm>
+        <velox.build_arrow>OFF</velox.build_arrow>
+        <velox.static_arrow>${static_arrow}</velox.static_arrow>
+        <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
+        <velox.arrow_root>${arrow_root}</velox.arrow_root>
+        <velox.arrow.bfs.dir>${arrow.bfs.dir}</velox.arrow.bfs.dir>
+        <velox.build_jemalloc>${build_jemalloc}</velox.build_jemalloc>
+        <velox.build_gazelle_cpp>${build_gazelle_cpp}</velox.build_gazelle_cpp>
+        <velox.build_velox>${build_velox}</velox.build_velox>
+        <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
+        <velox.debug_build>${debug_build}</velox.debug_build>
+        <velox.backend_type>${backend_type}</velox.backend_type>
     </properties>
 
     <profiles>
@@ -193,6 +209,42 @@
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
         <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
         <plugins>
+            <plugin>
+                <artifactId>exec-maven-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <version>1.6.0</version>
+                <executions>
+                    <execution>
+                        <id>Build cpp</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>${cpp.dir}/compile.sh</argument>
+                                <argument>${velox.build_cpp}</argument>
+                                <argument>${velox.cpp_tests}</argument>
+                                <argument>${velox.build_arrow}</argument>
+                                <argument>${velox.static_arrow}</argument>
+                                <argument>${velox.build_protobuf}</argument>
+                                <argument>${velox.arrow_root}</argument>
+                                <argument>${velox.arrow.bfs.dir}</argument>
+                                <argument>${velox.build_jemalloc}</argument>
+                                <argument>${velox.build_gazelle_cpp}</argument>
+                                <argument>${velox.build_velox}</argument>
+                                <argument>${velox.velox_home}</argument>
+                                <argument>${velox.velox_build_type}</argument>
+                                <argument>${velox.debug_build}</argument>
+                                <argument>${velox.cpp_benchmarks}</argument>
+                                <argument>${velox.backend_type}</argument>
+                                <argument>${velox.enable_hbm}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
