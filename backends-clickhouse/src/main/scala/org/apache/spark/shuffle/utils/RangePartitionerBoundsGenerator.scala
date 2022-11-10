@@ -112,7 +112,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     ]
   }
    */
-  def getExpressionFiedlReference(ordering: SortOrder): Int = {
+  private def getExpressionFiedlReference(ordering: SortOrder): Int = {
     val substraitCtx = new SubstraitContext()
     val funcs = substraitCtx.registeredFunction
     val colExpr =
@@ -124,7 +124,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     }
     pb.getSelection().getDirectReference().getStructField.getField()
   }
-  def buildOrderingJson(ordering: Seq[SortOrder]): JsValue = {
+  private def buildOrderingJson(ordering: Seq[SortOrder]): JsValue = {
     val data = ordering.map {
       order =>
         {
@@ -143,7 +143,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     Json.toJson(data)
   }
 
-  def getFieldValue(row: UnsafeRow, dataType: DataType, field: Int): JsValue = {
+  private def getFieldValue(row: UnsafeRow, dataType: DataType, field: Int): JsValue = {
     dataType match {
       case _: BooleanType => Json.toJson(row.getBoolean(field))
       case _: ByteType => Json.toJson(row.getByte(field))
@@ -158,7 +158,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
         throw new IllegalArgumentException(s"Unsupported data type ${d.toString}")
     }
   }
-  def buildRangeBoundJson(row: UnsafeRow, ordering: Seq[SortOrder]): JsValue = {
+  private def buildRangeBoundJson(row: UnsafeRow, ordering: Seq[SortOrder]): JsValue = {
     val data = Json.toJson(
       (0 until row.numFields).map {
         i =>
@@ -182,7 +182,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     data
   }
 
-  def buildRangeBoundsJson(): JsValue = {
+  private def buildRangeBoundsJson(): JsValue = {
     val bounds = getRangeBounds()
     val data = Json.toJson(
       bounds.map(
