@@ -15,20 +15,31 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils.velox
+package org.apache.spark.rdd
 
-import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.DateFunctionsSuite
-import org.apache.spark.sql.catalyst.expressions._
+import scala.reflect.ClassTag
 
-object VeloxNotSupport extends NotSupport {
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 
-  override lazy val partialSupportSuiteList: Map[String, Seq[String]] = Map.empty
+/**
+ * This file is copied from Spark
+ *
+ * Changed it from a 0-partition RDD to a 1-partition RDD, where the single partition
+ * returns empty iterator
+ *
+ * This can stop mapper stage to be skipped, solving
+ * https://github.com/Kyligence/ClickHouse/issues/161
+ */
+private[spark] class EmptyRDD[T: ClassTag](sc: SparkContext) extends RDD[T](sc, Nil) {
 
-  override lazy val fullSupportSuiteList: Set[String] = Set(
-    simpleClassName[LiteralExpressionSuite],
-    simpleClassName[IntervalExpressionsSuite],
-    simpleClassName[DecimalExpressionSuite],
-    simpleClassName[DateExpressionsSuite]
-  )
+  override def getPartitions: Array[Partition] = Array(new MyEmptyRDDPartition(0))
+
+  override def compute(split: Partition, context: TaskContext): Iterator[T] = {
+    Iterator.empty
+  }
 }
+
+private[spark] class MyEmptyRDDPartition(idx: Int) extends Partition {
+  val index = idx
+}
+

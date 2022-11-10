@@ -240,7 +240,7 @@ object RowToColumnConverter {
  * would only be to reduce code.
  */
 case class VeloxRowToArrowColumnarExec(child: SparkPlan)
-  extends RowToArrowColumnarExec(child = child) with UnaryExecNode {
+  extends GlutenRowToColumnarExec(child = child) with UnaryExecNode {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")

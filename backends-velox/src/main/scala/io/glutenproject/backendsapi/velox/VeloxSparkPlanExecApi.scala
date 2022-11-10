@@ -74,7 +74,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * @param child
    * @return
    */
-  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec =
+  override def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec =
     new VeloxRowToArrowColumnarExec(child)
 
   // scalastyle:off argcount

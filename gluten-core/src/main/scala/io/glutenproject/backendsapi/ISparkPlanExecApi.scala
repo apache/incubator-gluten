@@ -17,7 +17,7 @@
 
 package io.glutenproject.backendsapi
 
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, ShuffledHashJoinExecTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, GlutenRowToColumnarExec, ShuffledHashJoinExecTransformer}
 import io.glutenproject.expression.AliasBaseTransformer
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
@@ -59,7 +59,7 @@ trait ISparkPlanExecApi extends IBackendsApi {
    * @param child
    * @return
    */
-  def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec
+  def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec
 
   /**
    * Generate FilterExecTransformer.

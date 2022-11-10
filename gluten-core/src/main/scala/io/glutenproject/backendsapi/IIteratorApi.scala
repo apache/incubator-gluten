@@ -68,6 +68,7 @@ trait IIteratorApi extends IBackendsApi {
 
   /**
    * Generate Iterator[ColumnarBatch] for first stage.
+   * ("first" means it does not depend on other SCAN inputs)
    *
    * @return
    */
@@ -81,6 +82,7 @@ trait IIteratorApi extends IBackendsApi {
 
   /**
    * Generate Iterator[ColumnarBatch] for final stage.
+   * ("Final" means it depends on other SCAN inputs, maybe it was a mistake to use the word "final")
    *
    * @return
    */

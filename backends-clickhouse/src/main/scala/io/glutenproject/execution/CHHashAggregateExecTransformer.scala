@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.expression._
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
@@ -24,9 +25,10 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Final, Partial, PartialMerge}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
+import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.exchange.Exchange
 
 import com.google.protobuf.Any
@@ -34,6 +36,20 @@ import com.google.protobuf.Any
 import java.util
 import java.util.Locale
 
+object CHHashAggregateExecTransformer {
+  def getAggregateResultAttributes(
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression]): Seq[Attribute] = {
+    val groupingAttributes = groupingExpressions.map(
+      expr => {
+        ConverterUtils.getAttrFromExpr(expr).toAttribute
+      })
+    groupingAttributes ++ aggregateExpressions.map(
+      expr => {
+        expr.resultAttribute
+      })
+  }
+}
 case class CHHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
@@ -50,6 +66,9 @@ case class CHHashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child) {
+
+  lazy val aggregateResultAttributes =
+    getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
@@ -97,10 +116,11 @@ case class CHHashAggregateExecTransformer(
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
             nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
           }
+
           (child.output, aggregateResultAttributes)
         } else {
           for (attr <- aggregateResultAttributes) {
-            val colName = if (aggregateAttributes.exists(_ == attr)) {
+            val colName = if (aggregateAttributes.contains(attr)) {
               // for aggregate func
               ConverterUtils.genColumnNameWithExprId(attr) +
                 "#Partial#" + ConverterUtils.getShortAttributeName(attr)
@@ -197,6 +217,15 @@ case class CHHashAggregateExecTransformer(
       })
     // Get the aggregate function nodes.
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
+
+    val distinct_modes = aggregateExpressions.map(_.mode).distinct
+    // quick check
+    if (distinct_modes.contains(PartialMerge)) {
+      if (distinct_modes.contains(Final)) {
+        throw new IllegalStateException("PartialMerge co-exists with Final")
+      }
+    }
+
     aggregateExpressions.foreach(
       aggExpr => {
         val aggregateFunc = aggExpr.aggregateFunction
@@ -209,7 +238,24 @@ case class CHHashAggregateExecTransformer(
                   .replaceWithExpressionTransformer(expr, child.output)
                 aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
               })
-          case Final =>
+          case PartialMerge if distinct_modes.contains(Partial) =>
+            // this is the case where PartialMerge co-exists with Partial
+            // so far, it only happens in a three-stage count distinct case
+            // e.g. select sum(a), count(distinct b) from f
+            if (!child.isInstanceOf[BaseAggregateExec]) {
+              throw new UnsupportedOperationException(
+                "PartialMerge's child not being HashAggregateExecBaseTransformer" +
+                  " is unsupported yet")
+            }
+            val aggTypesExpr: Expression = ExpressionConverter
+              .replaceWithExpressionTransformer(
+                aggExpr.resultAttribute,
+                CHHashAggregateExecTransformer.getAggregateResultAttributes(
+                  child.asInstanceOf[BaseAggregateExec].groupingExpressions,
+                  child.asInstanceOf[BaseAggregateExec].aggregateExpressions)
+              )
+            Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+          case Final | PartialMerge =>
             val aggTypesExpr: Expression = ExpressionConverter
               .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
             Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))

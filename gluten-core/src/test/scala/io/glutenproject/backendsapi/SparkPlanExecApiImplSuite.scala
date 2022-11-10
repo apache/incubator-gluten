@@ -17,7 +17,7 @@
 
 package io.glutenproject.backendsapi
 
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, ShuffledHashJoinExecTransformer}
+import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, GlutenRowToColumnarExec, ShuffledHashJoinExecTransformer}
 import io.glutenproject.expression.AliasBaseTransformer
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
@@ -61,7 +61,7 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    * @param child
    * @return
    */
-  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec = null
+  override def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec = null
 
   /**
    * Generate FilterExecTransformer.

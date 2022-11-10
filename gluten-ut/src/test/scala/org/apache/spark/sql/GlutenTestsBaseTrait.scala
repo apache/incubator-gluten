@@ -33,16 +33,31 @@ trait GlutenTestsBaseTrait {
   def blackTestNameList: Seq[String] =
     NotSupport.NotYetSupportCase(getClass.getSuperclass.getSimpleName)
 
+
   def whiteBlackCheck(testName: String): Boolean = {
     if (testName.startsWith(GlutenTestConstants.GLUTEN_TEST)) {
       true
     } else if (blackTestNameList.isEmpty && whiteTestNameList.isEmpty) {
       true
     } else if (blackTestNameList.nonEmpty &&
-      blackTestNameList.head.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL)) {
+               blackTestNameList.head.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL)) {
       false
     } else if (blackTestNameList.nonEmpty) {
-      !blackTestNameList.contains(testName)
+      val exactContain = blackTestNameList.contains(testName)
+      if (exactContain) return false
+
+      // some test cases' names start with SPARK-ISSUE_ID:
+      // we allow simply put SPARK-ISSUE_ID in blacklist for short
+      var fuzzyContain = false
+      if (testName.startsWith("SPARK-")) {
+        import scala.util.matching.Regex
+        val issueIDPattern = "SPARK-[0-9]+".r
+        val issueID = issueIDPattern.findFirstIn(testName) match {
+          case Some(x: String) => x
+        }
+        fuzzyContain = blackTestNameList.exists(_.startsWith(issueID))
+      }
+      !fuzzyContain
     } else if (whiteTestNameList.nonEmpty) {
       whiteTestNameList.contains(testName)
     } else {
