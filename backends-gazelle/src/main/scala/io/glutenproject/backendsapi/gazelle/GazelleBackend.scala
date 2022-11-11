@@ -14,15 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi.clickhouse
+package io.glutenproject.backendsapi.gazelle
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{Backend, IInitializerApi, IIteratorApi, ISparkPlanExecApi, ITransformerApi}
+import io.glutenproject.backendsapi._
+import io.glutenproject.backendsapi.velox.{VeloxIteratorApi, VeloxSparkPlanExecApi, VeloxTransformerApi}
 
-class CHBackend extends Backend {
-  override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
-  override def initializerApi(): IInitializerApi = new CHInitializerApi
-  override def iteratorApi(): IIteratorApi = new CHIteratorApi
-  override def sparkPlanExecApi(): ISparkPlanExecApi = new CHSparkPlanExecApi
-  override def transformerApi(): ITransformerApi = new CHTransformerApi
+// FIXME The backend reuses a bunch of Velox BE's code even Velox BE's name. Code cleanup is needed
+//  to avoid this.
+class GazelleBackend extends Backend {
+  override def name(): String = GlutenConfig.GLUTEN_VELOX_BACKEND
+  override def initializerApi(): IInitializerApi = new GazelleInitializerApi
+  override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new VeloxTransformerApi
 }

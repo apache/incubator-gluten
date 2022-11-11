@@ -44,7 +44,6 @@ trait SparkShims {
   // https://issues.apache.org/jira/browse/SPARK-36745
   def applyPlan(
       plan: LogicalPlan,
-      forceShuffledHashJoin: Boolean,
-      backendLib: BackendLib): Seq[SparkPlan]
+      forceShuffledHashJoin: Boolean): Seq[SparkPlan]
 
 }

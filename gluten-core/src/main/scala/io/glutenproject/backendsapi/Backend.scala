@@ -15,19 +15,12 @@
  * limitations under the License.
  */
 
-package io.glutenproject.backendsapi.velox
+package io.glutenproject.backendsapi
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.ArrowColumnarRules.ArrowWritePostRule
-import org.apache.spark.sql.catalyst.rules.Rule
-
-// FIXME Methods in this class never get called since no service file is registered for it
-class GazelleSparkPlanExecApi extends VeloxSparkPlanExecApi {
-
-  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    val arrowRule = (spark: SparkSession)
-    => ArrowWritePostRule(spark)
-    super.genExtendedColumnarPostRules():+ arrowRule
-  }
+trait Backend {
+  def name(): String
+  def initializerApi(): IInitializerApi
+  def iteratorApi(): IIteratorApi
+  def sparkPlanExecApi(): ISparkPlanExecApi
+  def transformerApi(): ITransformerApi
 }

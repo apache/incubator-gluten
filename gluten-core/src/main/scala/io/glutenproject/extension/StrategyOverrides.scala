@@ -30,8 +30,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     SparkShimLoader.getSparkShims.applyPlan(plan,
-      GlutenConfig.getSessionConf.forceShuffledHashJoin,
-      BackendLib.valueOf(GlutenConfig.getConf.glutenBackendLib.toUpperCase()))
+      GlutenConfig.getSessionConf.forceShuffledHashJoin)
   }
 }
 

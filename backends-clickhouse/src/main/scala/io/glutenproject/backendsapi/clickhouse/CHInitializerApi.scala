@@ -21,11 +21,9 @@ import io.glutenproject.backendsapi.IInitializerApi
 import io.glutenproject.vectorized.JniLibLoader
 
 import org.apache.spark.SparkConf
-
 import org.apache.commons.lang3.StringUtils
 
 class CHInitializerApi extends IInitializerApi {
-  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 
   override def initialize(conf: SparkConf): Unit = {
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)

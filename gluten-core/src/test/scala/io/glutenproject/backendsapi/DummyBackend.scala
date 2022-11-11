@@ -14,15 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi.clickhouse
+package io.glutenproject.backendsapi
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{Backend, IInitializerApi, IIteratorApi, ISparkPlanExecApi, ITransformerApi}
-
-class CHBackend extends Backend {
-  override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
-  override def initializerApi(): IInitializerApi = new CHInitializerApi
-  override def iteratorApi(): IIteratorApi = new CHIteratorApi
-  override def sparkPlanExecApi(): ISparkPlanExecApi = new CHSparkPlanExecApi
-  override def transformerApi(): ITransformerApi = new CHTransformerApi
+class DummyBackend extends Backend {
+  override def name(): String = "dummy"
+  override def initializerApi(): IInitializerApi = new DummyInitializerApi
+  override def iteratorApi(): IIteratorApi = new DummyIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new DummySparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new DummyTransformerApi
 }

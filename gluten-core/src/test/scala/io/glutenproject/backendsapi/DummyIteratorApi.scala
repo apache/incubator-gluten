@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskMemoryResourceManager
 
-class IteratorApiImplSuite extends IIteratorApi {
+class DummyIteratorApi extends IIteratorApi {
   /**
    * Generate native row partition.
    *
@@ -140,10 +140,4 @@ class IteratorApiImplSuite extends IIteratorApi {
                                     numOutputBatches: SQLMetric,
                                     scanTime: SQLMetric): RDD[ColumnarBatch] = null
 
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = "default"
 }

@@ -25,6 +25,16 @@ case class GlutenNumaBindingInfo(
     numCoresPerExecutor: Int = -1) {}
 
 class GlutenConfig(conf: SQLConf) extends Logging {
+  val glutenBackendLib: String = BackendLib.getLoadedBackendName.toString
+
+  val isVeloxBackend: Boolean =
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
+
+  val isClickHouseBackend: Boolean =
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+
+  val isGazelleBackend: Boolean =
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND)
 
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean
@@ -119,23 +129,19 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
 
   // whether to use ColumnarShuffleManager
-  val isUseColumnarShufflemanager: Boolean =
+  val isUseColumnarShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
   // enable or disable columnar exchange
   val enableColumnarShuffle: Boolean =
-    if (
-      conf
-        .getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-        .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-    ) {
+    if (isClickHouseBackend) {
       conf
         .getConfString("spark.gluten.sql.columnar.shuffle", "true")
         .toBoolean
     } else {
-      isUseColumnarShufflemanager
+      isUseColumnarShuffleManager
     }
 
   // prefer to use columnar operators if set to true
@@ -158,19 +164,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // This config is used for specifying the absolute path of the native library.
   val nativeLibPath: String =
     conf.getConfString(GlutenConfig.GLUTEN_LIB_PATH, "")
-
-  // customized backend library name
-  val glutenBackendLib: String =
-    conf.getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-
-  val isVeloxBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
-
-  val isClickHouseBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-
-  val isGazelleBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND)
 
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
@@ -245,7 +238,6 @@ object GlutenConfig {
   val GLUTEN_LOAD_NATIVE = "spark.gluten.sql.columnar.loadnative"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
-  val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
 
   // Hive configurations.
   val HIVE_EXEC_ORC_STRIPE_SIZE = "hive.exec.orc.stripe.size"
