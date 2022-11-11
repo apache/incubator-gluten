@@ -17,11 +17,11 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterHandler, TransformContext, TransformSupport}
+import io.glutenproject.execution._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
+import io.glutenproject.vectorized.ExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
@@ -76,7 +76,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       case c: TransformSupport =>
         c.doTransform(context)
       case _ =>
-        null
+        throw new IllegalStateException(s"child doesn't support transform.");
     }
 
     val operatorId = context.nextOperatorId
@@ -119,10 +119,8 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
   private def getLeftCondition: Expression = {
     val scanFilters = child match {
       // Get the filters including the manually pushed down ones.
-      case batchScanTransformer: BatchScanExecTransformer =>
-        batchScanTransformer.filterExprs()
-      case fileScanTransformer: FileSourceScanExecTransformer =>
-        fileScanTransformer.filterExprs()
+      case basicScanTransformer: BasicScanExecTransformer =>
+        basicScanTransformer.filterExprs()
       // In ColumnarGuardRules, the child is still row-based. Need to get the original filters.
       case _ =>
         FilterHandler.getScanFilters(child)
@@ -135,6 +133,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       leftFilters.reduceLeftOption(And).orNull
     }
   }
+
   override protected def withNewChildInternal(newChild: SparkPlan): CHFilterExecTransformer =
     copy(child = newChild)
 }
