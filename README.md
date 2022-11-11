@@ -90,6 +90,17 @@ If you would like to build and try Gluten with **Arrow** backend, please follow 
 
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
+## 3.5 Jar conflicts
+
+Several libraries Gluten used is newer than Spark's, including protobuf, flatbuffers, and arrow-* (Velox backend). These libraries are compiled from source and packed into Gluten.jars. Jvm should search them from Gluten.jar firstly and load them. But for some reason jvm loads the jars from spark_home/jars which causes conflict. You may use below commands to remove the jars from spark_home/jars. We are still investigating the root cause. Welcome to share if you have good solution.
+
+```
+rm -rf $SPARK_HOME/jars/protobuf-*
+rm -rf $SPARK_HOME/jars/flatbuffers-*
+# velox backend only
+rm -rf $SPARK_HOME/jars/arrow-*
+```
+
 # 4 Contribution
 
 Gluten project welcomes everyone to contribute. 
