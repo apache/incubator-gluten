@@ -25,12 +25,14 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <thread>
 
 #include "compute/VeloxPlanConverter.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
+DEFINE_int32(iterations, 0, "The number of iterations to run this benchmark");
 
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
@@ -133,6 +135,8 @@ std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(
 }
 
 void setCpu(uint32_t cpuindex) {
+  static const auto total_cores = std::thread::hardware_concurrency();
+  cpuindex = cpuindex % total_cores;
   cpu_set_t cs;
   CPU_ZERO(&cs);
   CPU_SET(cpuindex, &cs);
