@@ -116,7 +116,6 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop velox-backend-test-$GITHUB_RUN_ID || true
-
   ch-backend-test:
     runs-on: libch-self-hosted
     steps:
@@ -132,34 +131,25 @@ jobs:
       - run: free
       - run: sudo apt-get update
       - run: sudo apt-get install -y maven
-      #  no need to cache these as it's running on self host server
-      #- name: ccache cache files
-      #  uses: actions/cache@v2
-      #  with:
-      #    path: ~/.ccache
-      #    key: ${{ github.job }}-ccache
-      #    restore-keys: |
-      #      ${{ github.job }}-ccache
-      #- name: Cache local Maven repository
-      #  uses: actions/cache@v2
-      #  with:
-      #    path: ~/.m2/repository
-      #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-      #    restore-keys: |
-      #      ${{ runner.os }}-maven-
       - name: Install and Check ClickHouse Backend lib
-        run: |
-          new_md5=$(curl https://devopsnexus.kyligence.io/service/rest/v1/search/assets | jq -r '.items[0].checksum.md5') 
-          old_md5=$(md5sum /usr/local/clickhouse/lib/libch.so | awk '{print $1}')
-          if [ "$new_md5" != "$old_md5" ];then
-            wget -O /usr/local/clickhouse/lib/libch.so.new https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
-            mv /usr/local/clickhouse/lib/libch.so.new /usr/local/clickhouse/lib/libch.so          
-          fi
-          ls -alt /usr/local/clickhouse/lib/libch.so
+        uses: liuneng1994/pull-request-comment-trigger@master
+        id: ch_version
+        with:
+          trigger: 'test by CH\[\[(\S*)]]'
+      - run: |
+          wget -O /tmp/libch.so.new https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
+          mv /tmp/libch.so.new /tmp/libch.so
+        if: steps.ch_version.outputs.triggered == 'false'
+      - run: |
+          cd /home/qwe1398775315/code/ClickHouse
+          gh pr checkout ${{ steps.ch_version.outputs.trigger_var }}
+          sudo docker run  --rm --volume=/tmp/ch_output:/output --volume=/home/qwe1398775315/code/ClickHouse:/clickhouse --volume=/home/qwe1398775315/.cache:/ccache -e ENABLE_EMBEDDED_COMPILER=ON qwe1398775315/libchbuilder:0.1.0
+          cp /tmp/ch_output/libch*.so /tmp/libch.so
+        if: steps.ch_version.outputs.triggered == 'true'
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so
 
   formatting-check:
     name: Formatting Check

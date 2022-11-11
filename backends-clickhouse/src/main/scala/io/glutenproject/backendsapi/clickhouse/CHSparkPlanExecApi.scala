@@ -38,7 +38,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
+import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -114,7 +116,16 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecBaseTransformer = FilterExecTransformer(condition, child)
+      child: SparkPlan): FilterExecBaseTransformer = {
+    child match {
+      case scan: FileSourceScanExec if scan.relation.location.isInstanceOf[ClickHouseFileIndex] =>
+        CHFilterExecTransformer(condition, child)
+      case scan: BatchScanExec if scan.batch.isInstanceOf[ClickHouseScan] =>
+        CHFilterExecTransformer(condition, child)
+      case _ =>
+        FilterExecTransformer(condition, child)
+    }
+  }
 
   /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(

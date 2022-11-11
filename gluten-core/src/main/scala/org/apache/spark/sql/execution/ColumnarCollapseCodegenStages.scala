@@ -116,7 +116,7 @@ case class ColumnarCollapseCodegenStages(glutenConfig: GlutenConfig,
       "true").toBoolean
 
   def separateScanRDDForCH: Boolean = glutenConfig.isClickHouseBackend && conf
-      .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "true").toBoolean
+      .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false").toBoolean
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (columnarWholeStageEnabled) {
