@@ -46,7 +46,7 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
     return arrow::utf8();
   }
   if (type_name == "VARBINARY") {
-    return arrow::binary();
+    return arrow::utf8();
   }
   // The type name of Array type is like ARRAY<type>.
   std::string arrayType = "ARRAY";
@@ -76,7 +76,7 @@ std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
     case TypeKind::VARCHAR:
       return arrow::utf8();
     case TypeKind::VARBINARY:
-      return arrow::binary();
+      return arrow::utf8();
     case TypeKind::TIMESTAMP:
       return arrow::timestamp(arrow::TimeUnit::MICRO);
     default:

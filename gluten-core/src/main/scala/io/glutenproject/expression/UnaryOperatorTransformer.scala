@@ -206,9 +206,7 @@ class LengthTransformer(child: Expression, original: Expression)
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]
-      || child.dataType.isInstanceOf[BinaryType]) {
-      // length(BinaryType) got incorrect result, so fall back to Vanilla Spark.
+    if (!childNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
 
