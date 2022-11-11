@@ -20,7 +20,6 @@ package org.apache.spark.sql
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute

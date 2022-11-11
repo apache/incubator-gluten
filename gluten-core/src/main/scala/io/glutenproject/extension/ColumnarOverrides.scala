@@ -28,6 +28,7 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
+import io.glutenproject.execution.CustomExpandExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.SQLConf
 import io.glutenproject.GlutenConfig
@@ -39,6 +40,7 @@ import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.TransformHint
+import io.glutenproject.extension.columnar.StoreExpandGroupExpression
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
@@ -173,10 +175,10 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
           replaceWithTransformerPlan(_, isSupportAdaptive))
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         UnionExecTransformer(children)
-      case plan: ExpandExec =>
+      case plan: CustomExpandExec =>
         val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ExpandExecTransformer(plan.projections, plan.output, child)
+        ExpandExecTransformer(plan.projections, plan.groupExpression, plan.output, child)
       case plan: SortExec =>
         val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -420,7 +422,8 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
   // while creating the rules. At this time SQLConf may not be there yet.
 
   def preOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List((_: SparkSession) => AddTransformHintRule(),
+    List((_: SparkSession) => StoreExpandGroupExpression(),
+      (_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(),
       (_: SparkSession) => RemoveTransformHintRule()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()

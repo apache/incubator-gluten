@@ -77,6 +77,15 @@ object TransformHints {
   }
 }
 
+case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
+    case agg @ HashAggregateExec(_, _, _, _, _, _, _, _, child: ExpandExec) =>
+      agg.copy(child = CustomExpandExec(
+        child.projections, agg.groupingExpressions,
+        child.output, child.child))
+  }
+}
+
 // This rule will try to convert a plan into plan transformer.
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
@@ -188,11 +197,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             val transformer = UnionExecTransformer(plan.children)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-        case plan: ExpandExec =>
+        case plan: CustomExpandExec =>
           if (!enableColumnarExpand) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)
+            val transformer = ExpandExecTransformer(plan.projections,
+              plan.groupExpression, plan.output, plan.child)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: SortExec =>
