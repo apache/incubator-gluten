@@ -124,7 +124,6 @@ object VeloxExecUtil {
                   cb).column)).toArray
             newColumns.foreach(
               _.asInstanceOf[ArrowWritableColumnVector].getValueVector.setValueCount(cb.numRows))
-            computePidTime.add(System.nanoTime() - startTime)
             (0, new ColumnarBatch(newColumns, cb.numRows))
           }
       }
@@ -145,23 +144,10 @@ object VeloxExecUtil {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, serializeSchema(arrowFields))
       case HashPartitioning(exprs, n) =>
-        // Function map is not expected to be used.
-        val functionMap = new java.util.HashMap[String, java.lang.Long]()
-        val exprNodeList = new java.util.ArrayList[ExpressionNode]()
-        exprs.foreach(expr => {
-          exprNodeList.add(ExpressionConverter
-            .replaceWithExpressionTransformer(expr, outputAttributes)
-            .asInstanceOf[ExpressionTransformer]
-            .doTransform(functionMap))
-        })
-        val context: SubstraitContext = new SubstraitContext
-        val projectRel = RelBuilder.makeProjectRel(
-          null, exprNodeList, context, context.nextOperatorId)
         new NativePartitioning(
           "hash",
           n,
-          serializeSchema(arrowFields),
-          projectRel.toProtobuf().toByteArray)
+          serializeSchema(arrowFields))
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
         val pidField = Field.nullable("pid", new ArrowType.Int(32, true))

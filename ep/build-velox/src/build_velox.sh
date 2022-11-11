@@ -43,18 +43,22 @@ function process_script {
     git checkout scripts/setup-ubuntu.sh
     sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
     sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
+    sed -i '/^sudo --preserve-env apt install/a\  *thrift* \\' scripts/setup-ubuntu.sh
     sed -i '/^sudo --preserve-env apt install/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
     sed -i '/^sudo --preserve-env apt install/a\  libxml2-dev \\' scripts/setup-ubuntu.sh
     sed -i '/^sudo --preserve-env apt install/a\  libkrb5-dev \\' scripts/setup-ubuntu.sh
     sed -i '/^sudo --preserve-env apt install/a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
     sed -i '/^sudo --preserve-env apt install/a\  libuuid1 \\' scripts/setup-ubuntu.sh
     sed -i '/^sudo --preserve-env apt install/a\  uuid-dev \\' scripts/setup-ubuntu.sh
+    sed -i '/^sudo --preserve-env apt install/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
     sed -i 's/^  liblzo2-dev.*/  liblzo2-dev \\/g' scripts/setup-ubuntu.sh
     sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
     sed -i '/^function install_fmt.*/i function install_libhdfs3 {\n  github_checkout apache/hawq master\n  cd depends/libhdfs3\n sed -i "/FIND_PACKAGE(GoogleTest REQUIRED)/d" ./CMakeLists.txt\n  sed -i "s/dumpversion/dumpfullversion/" ./CMake/Platform.cmake\n sed -i "s/dfs.domain.socket.path\\", \\"\\"/dfs.domain.socket.path\\", \\"\\/var\\/lib\\/hadoop-hdfs\\/dn_socket\\"/g" src/common/SessionConfig.cpp\n cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^function install_fmt.*/i function install_folly {\n  github_checkout facebook/folly v2022.07.11.00\n  cmake_install -DBUILD_TESTS=OFF\n}\n' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_folly' scripts/setup-ubuntu.sh
+    sed -i '/^function install_fmt.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_folly' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
     sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
 }
 
@@ -66,18 +70,20 @@ function compile {
 echo "Velox Installation"
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+BUILD_DIR="$CURRENT_DIR/../build"
 echo $CURRENT_DIR
+echo $BUILD_DIR
 
 cd ${CURRENT_DIR}
 
 
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
-    mkdir -p build
+    mkdir -p $BUILD_DIR
     TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
     echo "Target Velox commit: $TARGET_BUILD_COMMIT"
     if [ $ENABLE_EP_CACHE == "ON" ]; then
-        if [ -e ${CURRENT_DIR}/build/velox-commit.cache ]; then
-            LAST_BUILT_COMMIT="$(cat ${CURRENT_DIR}/build/velox-commit.cache)"
+        if [ -e ${BUILD_DIR}/velox-commit.cache ]; then
+            LAST_BUILT_COMMIT="$(cat ${BUILD_DIR}/velox-commit.cache)"
             if [ -n $LAST_BUILT_COMMIT ]; then
                 if [ -z "$TARGET_BUILD_COMMIT" ]
                 then
@@ -95,11 +101,11 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         fi
     fi
 
-    if [ -e ${CURRENT_DIR}/build/velox-commit.cache ]; then
-        rm -f ${CURRENT_DIR}/build/velox-commit.cache
+    if [ -e ${BUILD_DIR}/velox-commit.cache ]; then
+        rm -f ${BUILD_DIR}/velox-commit.cache
     fi
 
-    VELOX_PREFIX="${CURRENT_DIR}/build" # Use build directory as VELOX_PREFIX
+    VELOX_PREFIX="${BUILD_DIR}" # Use build directory as VELOX_PREFIX
     VELOX_SOURCE_DIR="${VELOX_PREFIX}/velox_ep"
     VELOX_INSTALL_DIR="${VELOX_PREFIX}/velox_install"
 
@@ -138,7 +144,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
     process_script
     compile
     echo "Successfully built Velox from Source !!!"
-    echo $TARGET_BUILD_COMMIT > "${CURRENT_DIR}/build/velox-commit.cache"
+    echo $TARGET_BUILD_COMMIT > "${BUILD_DIR}/velox-commit.cache"
 else
     VELOX_SOURCE_DIR=${VELOX_HOME}
     if [ $COMPILE_VELOX == "ON" ]; then

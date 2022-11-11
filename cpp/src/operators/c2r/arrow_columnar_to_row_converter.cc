@@ -17,6 +17,8 @@
 
 #include "arrow_columnar_to_row_converter.h"
 
+#include <arrow/array/array_decimal.h>
+#include <arrow/util/decimal.h>
 #include <immintrin.h>
 #include <iostream>
 

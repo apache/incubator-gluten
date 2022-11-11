@@ -465,6 +465,8 @@ object ConverterUtils extends Logging {
   final val GREATEST = "greatest"
   final val LEAST = "least"
 
+  final val MURMUR3HASH = "murmur3hash"
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
+
 }
