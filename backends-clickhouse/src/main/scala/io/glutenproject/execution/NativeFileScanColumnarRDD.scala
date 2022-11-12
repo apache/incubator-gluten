@@ -27,7 +27,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
-
 import scala.collection.JavaConverters._
 
 class NativeFileScanColumnarRDD(
