@@ -41,9 +41,12 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 import scala.util.hashing.byteswap32
-// In spark RangePartitioner, the rangeBounds is private, so we make a copied-implementation here.
-// It is based on the fact that, there has been a pre-projection before the range partition
-// and remove all function expressions in the sort ordering expressions.
+
+/**
+ * In spark RangePartitioner, the rangeBounds is private, so we make a copied-implementation here.
+ * It is based on the fact that, there has been a pre-projection before the range partition and
+ * remove all function expressions in the sort ordering expressions.
+ */
 class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     partitions: Int,
     rdd: RDD[_ <: Product2[K, V]],
@@ -89,11 +92,11 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   }
 
   /*
-  return json structure
-  {
+   return json structure
+   {
     "ordering":[
       {
-        "column_ref":0,
+       "column_ref":0,
         "data_type":"xxx",
         "is_nullable":true,
         "direction":0
@@ -101,16 +104,16 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
         ...
     ],
     "range_bounds":[
-        {
-          "is_null":false,
-          "value": ...
-        },
-        {
-          "is_null":true
-        },
-        ...
+     {
+         "is_null":false,
+         "value": ...
+       },
+       {
+         "is_null":true
+       },
+       ...
     ]
-  }
+    }
    */
   private def getExpressionFiedlReference(ordering: SortOrder): Int = {
     val substraitCtx = new SubstraitContext()
