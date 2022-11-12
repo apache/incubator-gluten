@@ -17,6 +17,9 @@
 
 package org.apache.spark.sql
 
+import io.glutenproject.utils.SystemParameters
+import io.glutenproject.GlutenConfig
+
 class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTrait {
   override def whiteTestNameList: Seq[String] = Seq(
     // "round/bround", // Scale argument of round/bround function currently don't support negative.
@@ -43,6 +46,11 @@ class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTra
     "log / ln"
   )
 
-  override def blackTestNameList: Seq[String] = Seq(
-  )
+  override def blackTestNameList: Seq[String] = {
+    if (SystemParameters.getGlutenBackend.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
+      Seq(GlutenTestConstants.IGNORE_ALL)
+    } else {
+      Seq.empty
+    }
+  }
 }
