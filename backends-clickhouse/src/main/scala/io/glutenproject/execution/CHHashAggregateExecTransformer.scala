@@ -50,6 +50,7 @@ object CHHashAggregateExecTransformer {
       })
   }
 }
+
 case class CHHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],

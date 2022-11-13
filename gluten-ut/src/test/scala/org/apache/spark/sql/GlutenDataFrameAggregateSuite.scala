@@ -61,32 +61,6 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 //    )
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "multiple column distinct count") {
-    // [wishlist] does not support count distinct
-    //    val df1 = Seq(
-//      ("a", "b", "c"),
-//      ("a", "b", "c"),
-//      ("a", "b", "d"),
-//      ("x", "y", "z"),
-//      ("x", "q", null.asInstanceOf[String]))
-//      .toDF("key1", "key2", "key3")
-//
-//    checkAnswer(
-//      df1.agg(count_distinct($"key1", $"key2")),
-//      Row(3)
-//    )
-//
-//    checkAnswer(
-//      df1.agg(count_distinct($"key1", $"key2", $"key3")),
-//      Row(3)
-//    )
-//
-//    checkAnswer(
-//      df1.groupBy($"key1").agg(count_distinct($"key2", $"key3")),
-//      Seq(Row("a", 2), Row("x", 1))
-//    )
-  }
-
   test(GlutenTestConstants.GLUTEN_TEST + "groupBy") {
     checkAnswer(testData2.groupBy("a").agg(sum($"b")), Seq(Row(1, 3), Row(2, 3), Row(3, 3)))
     checkAnswer(testData2.groupBy("a").agg(sum($"b").as("totB")).agg(sum($"totB")), Row(9))
