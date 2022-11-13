@@ -420,6 +420,8 @@ object ConverterUtils extends Logging {
   final val AND = "and"
   final val OR = "or"
   final val CAST = "cast"
+  final val BITWISE_AND = "bitwise_and"
+  final val BITWISE_OR = "bitwise_or"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
   final val RLIKE = "rlike"
