@@ -29,7 +29,7 @@ object ClickHouseNotSupport extends NotSupport {
       "groupBy", // [overwritten by Gluten - xxx]
       "count", // [overwritten by Gluten - xxx]
       "null count", // [overwritten by Gluten - xxx]
-      "multiple column distinct count", // [overwritten by Gluten - xxx]
+      "multiple column distinct count", // [not urgent, function with multiple params]
       "agg without groups and functions", // [not urgent]
       "zero moments", // [not urgent]
       "collect functions", // [not urgent]

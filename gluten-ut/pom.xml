@@ -21,7 +21,7 @@
     </properties>
 
     <dependencies>
-        <!-- put gluten-jvm at first so that overwritten spark classes (such as BatchScanExec,
+        <!-- put gluten-core at first so that overwritten spark classes (such as BatchScanExec,
              EmptyRDD, etc.) can be loaded first -->
         <dependency>
             <groupId>io.glutenproject</groupId>
