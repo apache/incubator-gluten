@@ -156,20 +156,16 @@ class BitwiseAndTransformer(left: Expression, right: Expression, original: Expre
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.BITWISE_AND, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(
       leftNode, rightNode)
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
-
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    val childTypeNode = ConverterUtils.getTypeNode(LongType, nullable)
+    val childNode = ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, childTypeNode)
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, original.nullable)
+    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
   }
 }
 
@@ -184,20 +180,16 @@ class BitwiseOrTransformer(left: Expression, right: Expression, original: Expres
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
 
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-        !rightNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.BITWISE_OR, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(
       leftNode, rightNode)
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
-
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    val childTypeNode = ConverterUtils.getTypeNode(LongType, nullable)
+    val childNode = ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, childTypeNode)
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, original.nullable)
+    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
   }
 }
 
