@@ -48,6 +48,29 @@ std::string getExampleFilePath(const std::string& fileName) {
       "cpp/velox/benchmarks", "data/" + fileName);
 }
 
+arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
+  std::string currentPath = fs::current_path().c_str();
+  auto generatedFilePath =
+      currentPath + "/../../../backends-velox/generated-native-benchmark/";
+  fs::directory_entry filePath{generatedFilePath + fileName};
+  if (filePath.is_regular_file() &&
+      filePath.path().extension().native() == ".json") {
+    // If fileName points to a regular file, it should be substrait json plan.
+    return filePath.path().c_str();
+  } else if (filePath.is_directory()) {
+    // If fileName points to a directory, get the generated parquet data.
+    auto dirItr = fs::directory_iterator(fs::path(filePath));
+    for (auto& itr : dirItr) {
+      if (itr.is_regular_file() &&
+          itr.path().extension().native() == ".parquet") {
+        return itr.path().c_str();
+      }
+    }
+  }
+  return arrow::Status::Invalid(
+      "Could not get generated file from given path: " + fileName);
+}
+
 void InitVeloxBackend() {
   gluten::SetBackendFactory([] {
     return std::make_shared<::velox::compute::VeloxPlanConverter>(confMap);

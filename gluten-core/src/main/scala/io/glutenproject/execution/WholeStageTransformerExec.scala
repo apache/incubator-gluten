@@ -18,9 +18,11 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
+import com.google.protobuf.WrappersProto
+import com.google.protobuf.util.JsonFormat
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
@@ -29,7 +31,7 @@ import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
 import io.glutenproject.vectorized._
-
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -101,6 +103,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   val sparkConf = sparkContext.getConf
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
+  var planJson: String = ""
+
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
@@ -121,17 +125,22 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       maxFields: Int,
       printNodeId: Boolean,
       indent: Int = 0): Unit = {
-    val res = child.generateTreeString(
+    val prefix = if (printNodeId) "* " else s"*($transformStageId) "
+    child.generateTreeString(
       depth,
       lastChildren,
       append,
       verbose,
-      if (printNodeId) "* " else s"*($transformStageId) ",
+      prefix,
       false,
       maxFields,
       printNodeId,
       indent)
-    res
+    if (verbose && planJson.nonEmpty) {
+      append(prefix + "Substrait plan: ")
+      append(planJson)
+      append("\n")
+    }
   }
 
   override def nodeName: String = s"WholeStageCodegenTransformer (${transformStageId})"
@@ -178,6 +187,15 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     }
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
+
+    val planNodeProto = planNode.toProtobuf
+    val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
+    val registry = com.google.protobuf.TypeRegistry.newBuilder()
+      .add(planNodeProto.getDescriptorForType())
+      .add(defaultRegistry)
+      .build()
+    planJson = JsonFormat.printer.usingTypeRegistry(registry).print(planNode.toProtobuf)
+    logWarning("Generated substrait plan " + planJson)
 
     WholestageTransformContext(
       childCtx.inputAttributes,
