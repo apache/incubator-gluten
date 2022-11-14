@@ -326,31 +326,6 @@ class TestOperator extends WholeStageTransformerSuite {
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 
-  test("Test hash function") {
-    val df = spark.sql("SELECT hash(l_orderkey) from lineitem limit 1")
-    val result = df.collect()
-    assert(result.length == 1)
-    val expected = Seq(Row(-1712319331))
-    TestUtils.compareAnswers(result, expected)
-    df.show()
-    df.explain(false)
-    df.printSchema()
-    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
-  }
-
-  test("Test get_json_object function") {
-    val df = spark.sql("SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
-      "from lineitem limit 1;")
-    val result = df.collect()
-    assert(result.length == 1)
-    val expected = Seq(Row(1, "b"))
-    TestUtils.compareAnswers(result, expected)
-    df.show()
-    df.explain(false)
-    df.printSchema()
-    assert(df.queryExecution.executedPlan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
-  }
-
   // VeloxRuntimeError, wait to fix
   ignore("Test isnull function") {
     val df = spark.sql("SELECT isnull(1)")
