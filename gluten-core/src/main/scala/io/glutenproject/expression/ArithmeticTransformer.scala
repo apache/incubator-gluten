@@ -162,8 +162,10 @@ class BitwiseAndTransformer(left: Expression, right: Expression, original: Expre
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(
       leftNode, rightNode)
+    // velox returns bigint type.
     val childTypeNode = ConverterUtils.getTypeNode(LongType, nullable)
     val childNode = ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, childTypeNode)
+    // Cast bigint type to left.dataType in order to keep consistent with vanilla spark.
     val typeNode = ConverterUtils.getTypeNode(left.dataType, original.nullable)
     ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
   }
@@ -186,8 +188,10 @@ class BitwiseOrTransformer(left: Expression, right: Expression, original: Expres
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(
       leftNode, rightNode)
+    // velox returns bigint type.
     val childTypeNode = ConverterUtils.getTypeNode(LongType, nullable)
     val childNode = ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, childTypeNode)
+    // Cast bigint type to left.dataType in order to keep consistent with vanilla spark.
     val typeNode = ConverterUtils.getTypeNode(left.dataType, original.nullable)
     ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
   }
