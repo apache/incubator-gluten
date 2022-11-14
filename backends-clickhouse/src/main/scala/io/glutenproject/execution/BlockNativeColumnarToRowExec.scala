@@ -16,8 +16,6 @@
  */
 package io.glutenproject.execution
 
-import scala.concurrent.duration.NANOSECONDS
-
 import io.glutenproject.vectorized.{BlockNativeConverter, CHNativeBlock}
 
 import org.apache.spark.rdd.RDD
@@ -27,8 +25,10 @@ import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 
+import scala.concurrent.duration.NANOSECONDS
+
 case class BlockNativeColumnarToRowExec(child: SparkPlan)
-    extends NativeColumnarToRowExec(child = child) {
+  extends NativeColumnarToRowExec(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"
 
   override def supportCodegen: Boolean = false
@@ -64,57 +64,59 @@ case class BlockNativeColumnarToRowExec(child: SparkPlan)
     val numInputBatches = longMetric("numInputBatches")
     val convertTime = longMetric("convertTime")
 
-    child.executeColumnar().mapPartitions { batches =>
-      val jniWrapper = new BlockNativeConverter()
+    child.executeColumnar().mapPartitions {
+      batches =>
+        val jniWrapper = new BlockNativeConverter()
 
-      batches.flatMap { batch =>
-        numInputBatches += 1
-        numOutputRows += batch.numRows()
+        batches.flatMap {
+          batch =>
+            numInputBatches += 1
+            numOutputRows += batch.numRows()
 
-        if (batch.numRows == 0) {
-          logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
-          Iterator.empty
-        } else {
-          val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
-          val beforeConvert = System.nanoTime()
-          val blockAddress = nativeBlock
-            .orElseThrow(() => new IllegalStateException("Logic error"))
-            .blockAddress()
-          val info = jniWrapper.convertColumnarToRow(blockAddress)
+            if (batch.numRows == 0) {
+              logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
+              Iterator.empty
+            } else {
+              val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
+              val beforeConvert = System.nanoTime()
+              val blockAddress = nativeBlock
+                .orElseThrow(() => new IllegalStateException("Logic error"))
+                .blockAddress()
+              val info = jniWrapper.convertColumnarToRow(blockAddress)
 
-          convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
+              convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
 
-          new Iterator[InternalRow] {
-            var rowId = 0
-            val row = new UnsafeRow(batch.numCols())
-            var closed = false
+              new Iterator[InternalRow] {
+                var rowId = 0
+                val row = new UnsafeRow(batch.numCols())
+                var closed = false
 
-            override def hasNext: Boolean = {
-              val result = rowId < batch.numRows()
-              if (!result && !closed) {
-                jniWrapper.freeMemory(info.memoryAddress, info.totalSize)
-                closed = true
+                override def hasNext: Boolean = {
+                  val result = rowId < batch.numRows()
+                  if (!result && !closed) {
+                    jniWrapper.freeMemory(info.memoryAddress, info.totalSize)
+                    closed = true
+                  }
+                  return result
+                }
+
+                override def next: UnsafeRow = {
+                  if (rowId >= batch.numRows()) throw new NoSuchElementException
+
+                  val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+                  row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                  rowId += 1
+                  row
+                }
               }
-              return result
             }
-
-            override def next: UnsafeRow = {
-              if (rowId >= batch.numRows()) throw new NoSuchElementException
-
-              val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-              row.pointTo(null, info.memoryAddress + offset, length.toInt)
-              rowId += 1
-              row
-            }
-          }
         }
-      }
     }
   }
 
   override def equals(other: Any): Boolean = other match {
     case that: BlockNativeColumnarToRowExec =>
-      (that canEqual this) && super.equals(that)
+      (that.canEqual(this)) && super.equals(that)
     case _ => false
   }
 

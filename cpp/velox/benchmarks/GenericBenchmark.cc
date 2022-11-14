@@ -47,29 +47,31 @@ auto BM_Generic = [](::benchmark::State& state,
   }
   auto plan = std::move(maybePlan).ValueOrDie();
 
-  auto backend = gluten::CreateBackend();
-  std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputIters;
-  std::transform(
-      input_files.cbegin(),
-      input_files.cend(),
-      std::back_inserter(inputIters),
-      getInputIterator);
-  std::vector<BatchIteratorWrapper*> inputItersRaw;
-  std::transform(
-      inputIters.begin(),
-      inputIters.end(),
-      std::back_inserter(inputItersRaw),
-      [](std::shared_ptr<gluten::GlutenResultIterator> iter) {
-        return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
-      });
-
   auto startTime = std::chrono::steady_clock::now();
-  backend->ParsePlan(plan->data(), plan->size());
-  auto resultIter = backend->GetResultIterator(
-      gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
-  auto outputSchema = backend->GetOutputSchema();
+  int64_t collectBatchTime = 0;
 
   for (auto _ : state) {
+    auto backend = gluten::CreateBackend();
+    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputIters;
+    std::transform(
+        input_files.cbegin(),
+        input_files.cend(),
+        std::back_inserter(inputIters),
+        getInputIterator);
+    std::vector<BatchIteratorWrapper*> inputItersRaw;
+    std::transform(
+        inputIters.begin(),
+        inputIters.end(),
+        std::back_inserter(inputItersRaw),
+        [](std::shared_ptr<gluten::GlutenResultIterator> iter) {
+          return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
+        });
+
+    backend->ParsePlan(plan->data(), plan->size());
+    auto resultIter = backend->GetResultIterator(
+        gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
+    auto outputSchema = backend->GetOutputSchema();
+
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
       if (FLAGS_print_result) {
@@ -83,20 +85,28 @@ auto BM_Generic = [](::benchmark::State& state,
         state.ResumeTiming();
       }
     }
+
+    collectBatchTime += std::accumulate(
+        inputItersRaw.begin(),
+        inputItersRaw.end(),
+        0,
+        [](int64_t sum, BatchIteratorWrapper* iter) {
+          return sum + iter->GetCollectBatchTime();
+        });
+
+    auto* rawIter =
+        static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
+    const auto& task = rawIter->task_;
+    const auto& planNode = rawIter->planNode_;
+    auto statsStr = ::facebook::velox::exec::printPlanWithStats(
+        *planNode, task->taskStats(), true);
+    std::cout << statsStr << std::endl;
   }
 
   auto endTime = std::chrono::steady_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
           .count();
-  auto collectBatchTime = std::accumulate(
-      inputItersRaw.begin(),
-      inputItersRaw.end(),
-      0,
-      [](int64_t sum, BatchIteratorWrapper* iter) {
-        return sum + iter->GetCollectBatchTime();
-      });
-  duration -= collectBatchTime;
 
   state.counters["collect_batch_time"] = benchmark::Counter(
       collectBatchTime,
@@ -106,37 +116,6 @@ auto BM_Generic = [](::benchmark::State& state,
       duration,
       benchmark::Counter::kAvgIterations,
       benchmark::Counter::OneK::kIs1000);
-
-  auto* rawIter =
-      static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
-  const auto& task = rawIter->task_;
-  const auto& planNode = rawIter->planNode_;
-  auto statsStr = ::facebook::velox::exec::printPlanWithStats(
-      *planNode, task->taskStats(), true);
-  std::cout << statsStr << std::endl;
-
-  auto taskStats = task->taskStats();
-  for (const auto& pStat : taskStats.pipelineStats) {
-    for (const auto& opStat : pStat.operatorStats) {
-      if (opStat.operatorType != "N/A") {
-        // ${pipelineId}_${operatorId}_${planNodeId}_${operatorType}_${metric}
-        // Different operators may have same planNodeId, e.g. HashBuild and
-        // HashProbe from same HashNode.
-        const auto& opId = std::to_string(opStat.pipelineId) + "_" +
-            std::to_string(opStat.operatorId) + "_" + opStat.planNodeId + "_" +
-            opStat.operatorType;
-        state.counters[opId + "_addInputTiming"] = benchmark::Counter(
-            opStat.addInputTiming.cpuNanos,
-            benchmark::Counter::Flags::kAvgIterations);
-        state.counters[opId + "_getOutputTiming"] = benchmark::Counter(
-            opStat.getOutputTiming.cpuNanos,
-            benchmark::Counter::Flags::kAvgIterations);
-        state.counters[opId + "_finishTiming"] = benchmark::Counter(
-            opStat.finishTiming.cpuNanos,
-            benchmark::Counter::Flags::kAvgIterations);
-      }
-    }
-  }
 };
 
 int main(int argc, char** argv) {
@@ -144,10 +123,20 @@ int main(int argc, char** argv) {
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  std::string substraitJsonFile = argv[1];
+  std::string substraitJsonFile;
   std::vector<std::string> inputFiles;
-  for (auto i = 2; i < argc; ++i) {
-    inputFiles.emplace_back(argv[i]);
+  if (argc < 2) {
+    std::cout << "No input args. Running example..." << std::endl;
+    substraitJsonFile = "plan/example.json";
+    inputFiles.emplace_back(
+        "parquet/example/t1/part-00000-d14c419b-9051-40ec-bc2d-7edb9f4ddcbc-c000.snappy.parquet");
+    inputFiles.emplace_back(
+        "parquet/example/t0/part-00000-6083f01b-cd22-46dd-aa05-2ddb4e153c47-c000.snappy.parquet");
+  } else {
+    substraitJsonFile = argv[1];
+    for (auto i = 2; i < argc; ++i) {
+      inputFiles.emplace_back(argv[i]);
+    }
   }
 
 #define GENERIC_BENCHMARK(NAME, FUNC)                                     \
@@ -160,6 +149,9 @@ int main(int argc, char** argv) {
       bm->Threads(FLAGS_threads);                                         \
     } else {                                                              \
       bm->ThreadRange(1, std::thread::hardware_concurrency());            \
+    }                                                                     \
+    if (FLAGS_iterations > 0) {                                           \
+      bm->Iterations(FLAGS_iterations);                                   \
     }                                                                     \
   } while (0)
 

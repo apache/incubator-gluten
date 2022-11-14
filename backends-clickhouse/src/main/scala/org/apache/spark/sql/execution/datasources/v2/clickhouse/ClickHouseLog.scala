@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
-
-import java.io.File
-
-import org.apache.hadoop.fs.Path
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.{DeltaLog, DeltaTableIdentifier}
 import org.apache.spark.util.{Clock, SystemClock}
+
+import org.apache.hadoop.fs.Path
+
+import java.io.File
 
 object ClickHouseLog {
 
@@ -44,10 +43,7 @@ object ClickHouseLog {
 
   /** Helper for creating a log when it stored at the root of the data. */
   def forTable(spark: SparkSession, dataPath: File, clock: Clock): DeltaLog = {
-    DeltaLog.apply(
-      spark,
-      new Path(dataPath.getAbsolutePath, ClickHouseConfig.METADATA_DIR),
-      clock)
+    DeltaLog.apply(spark, new Path(dataPath.getAbsolutePath, ClickHouseConfig.METADATA_DIR), clock)
   }
 
   /** Helper for creating a log when it stored at the root of the data. */
@@ -95,10 +91,7 @@ object ClickHouseLog {
 
   /** Helper for creating a log for the table. */
   def forTable(spark: SparkSession, table: CatalogTable, clock: Clock): DeltaLog = {
-    DeltaLog.apply(
-      spark,
-      new Path(new Path(table.location), ClickHouseConfig.METADATA_DIR),
-      clock)
+    DeltaLog.apply(spark, new Path(new Path(table.location), ClickHouseConfig.METADATA_DIR), clock)
   }
 
   /** Helper for creating a log when it stored at the root of the data. */

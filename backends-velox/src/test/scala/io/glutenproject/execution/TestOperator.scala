@@ -20,6 +20,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{Row, TestUtils}
+
 import scala.collection.JavaConverters
 
 class TestOperator extends WholeStageTransformerSuite {
@@ -185,6 +186,13 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 2)
   }
 
+  test("test_group sets") {
+    val result = runQueryAndCompare(
+      "select l_orderkey, l_partkey, sum(l_suppkey) from lineitem " +
+        "where l_orderkey < 3 group by ROLLUP(l_orderkey, l_partkey) " +
+        "order by l_orderkey, l_partkey ") { _ => }
+  }
+
   ignore("test_orderby") {
     val df = runQueryAndCompare(
       "select l_suppkey from lineitem " +
@@ -259,53 +267,28 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test round function") {
+  ignore("Test round function") {
     val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
-      "from lineitem limit 1") { _ => }
+      "from lineitem limit 1") { checkOperatorMatch[ProjectExecTransformer] }
     df.show()
     df.explain(false)
     df.printSchema()
-    checkLengthAndPlan(df, 1)
   }
 
   test("Test greatest function") {
-    val df = spark.sql("SELECT greatest(l_orderkey, l_orderkey) from lineitem limit 1")
+    val df = runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
     df.show()
     df.explain(false)
     df.printSchema()
-    checkLengthAndPlan(df, 1)
   }
 
   test("Test least function") {
-    val df = spark.sql("SELECT least(l_orderkey, l_orderkey) from lineitem limit 1")
+    val df = runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
     df.show()
     df.explain(false)
     df.printSchema()
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("Test acos function") {
-    val df = runQueryAndCompare("SELECT acos(l_orderkey) from lineitem limit 1") { _ => }
-    df.show()
-    df.explain(false)
-    df.printSchema()
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("Test asin function") {
-    val df = runQueryAndCompare("SELECT asin(l_orderkey) from lineitem limit 1") { _ => }
-    df.show()
-    df.explain(false)
-    df.printSchema()
-    checkLengthAndPlan(df, 1)
-  }
-
-  test("Test atan function") {
-    val df = runQueryAndCompare("SELECT atan(l_orderkey) from lineitem limit 1") { _ => }
-    df.show()
-    df.explain(false)
-    df.printSchema()
-    checkLengthAndPlan(df, 1)
   }
 
   // VeloxRuntimeError, wait to fix

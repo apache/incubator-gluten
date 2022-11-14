@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.shuffle
-
-import java.io.IOException
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized._
@@ -28,13 +25,15 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
+import java.io.IOException
+
 class CHColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, V],
     mapId: Long,
     writeMetrics: ShuffleWriteMetricsReporter)
-    extends ShuffleWriter[K, V]
-    with Logging {
+  extends ShuffleWriter[K, V]
+  with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
 

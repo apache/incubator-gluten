@@ -11,7 +11,7 @@
 
     <artifactId>backends-gazelle</artifactId>
     <packaging>jar</packaging>
-    <name>Gluten-Backends-Gazelle</name>
+    <name>Gluten Backends Gazelle</name>
 
     <profiles>
         <profile>
@@ -50,7 +50,7 @@
         </dependency>
         <dependency>
             <groupId>io.glutenproject</groupId>
-            <artifactId>gluten-jvm</artifactId>
+            <artifactId>gluten-core</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -124,27 +124,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.3.0</version>
-                <configuration>
-                    <recompileMode>${scala.recompile.mode}</recompileMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>scala-compile-first</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>scala-test-compile</id>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <version>${scala.compiler.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

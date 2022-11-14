@@ -14,20 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import java.util.concurrent.TimeUnit.NANOSECONDS
-
-import scala.collection.JavaConverters._
-
 import io.glutenproject.GlutenConfig
-import io.glutenproject.vectorized.{
-  CloseableCHColumnBatchIterator,
-  ExpressionEvaluator,
-  GeneralInIterator,
-  GeneralOutIterator
-}
+import io.glutenproject.vectorized.{CloseableCHColumnBatchIterator, ExpressionEvaluator, GeneralInIterator, GeneralOutIterator}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -36,6 +26,10 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.util.concurrent.TimeUnit.NANOSECONDS
+
+import scala.collection.JavaConverters._
+
 class NativeFileScanColumnarRDD(
     sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
@@ -43,7 +37,7 @@ class NativeFileScanColumnarRDD(
     numOutputRows: SQLMetric,
     numOutputBatches: SQLMetric,
     scanTime: SQLMetric)
-    extends RDD[ColumnarBatch](sc, Nil) {
+  extends RDD[ColumnarBatch](sc, Nil) {
 
   val loadNative: Boolean = GlutenConfig.getConf.loadNative
 
@@ -60,7 +54,7 @@ class NativeFileScanColumnarRDD(
         inBatchIters,
         outputAttributes.asJava)
       scanTime += NANOSECONDS.toMillis(System.nanoTime() - startNs)
-      TaskContext.get().addTaskCompletionListener[Unit] { _ => resIter.close() }
+      TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     }
     val iter = new Iterator[Any] {
       var scanTotalTime = 0L

@@ -70,15 +70,11 @@ jobs:
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID --detach" NON_INTERACTIVE=ON gluten-te/cbash.sh sleep 14400
-      - name: Install Gluten Velox-backend spark3.2
+      - name: Install Gluten Velox-backend spark3.2 and Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -DskipTests -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
-            -Dbuild_protobuf=OFF -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_gazelle_cpp=OFF -Dbuild_arrow=ON'
-      - name: Run unit tests
-        run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn test -Pspark-3.2 -Pspark-ut -DtagsToExclude=io.glutenproject.tags.SkipTestTags -Dcheckstyle.skip -Pbackends-velox -Dbackend_type=velox'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
+            -Dbuild_protobuf=OFF -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
       - name: Install Gluten Velox-backend spark3.3 and Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
@@ -97,7 +93,6 @@ jobs:
           mvn clean package -Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
-            --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.3
@@ -105,24 +100,19 @@ jobs:
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/gluten-it && \
           mvn clean package -Pspark-3.3 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 \
-            --queries=q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22 \
+            --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 --use-existing-data \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
-            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1'
+            --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1 --use-existing-data'
 
-      # Deprecated
       # - name: Run micro benchmarks
       #   run: |
       #     cd cpp/velox/benchmarks/
-      #     ./generic_benchmark \
-      #     hash_join.json \
-      #     parquet/bm_lineitem/part-00000-8bd1ea02-5f13-449f-b7ef-e32a0f11583d-c000.snappy.parquet \
-      #     parquet/bm_part/part-00000-d8bbcbeb-f056-4b7f-8f80-7e5ee7260b9f-c000.snappy.parquet
+      #     ./generic_benchmark
+
       - name: Exit docker container
         if: ${{ always() }}
         run: |
           docker stop velox-backend-test-$GITHUB_RUN_ID || true
-
   ch-backend-test:
     runs-on: libch-self-hosted
     steps:
@@ -138,34 +128,26 @@ jobs:
       - run: free
       - run: sudo apt-get update
       - run: sudo apt-get install -y maven
-      #  no need to cache these as it's running on self host server
-      #- name: ccache cache files
-      #  uses: actions/cache@v2
-      #  with:
-      #    path: ~/.ccache
-      #    key: ${{ github.job }}-ccache
-      #    restore-keys: |
-      #      ${{ github.job }}-ccache
-      #- name: Cache local Maven repository
-      #  uses: actions/cache@v2
-      #  with:
-      #    path: ~/.m2/repository
-      #    key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-      #    restore-keys: |
-      #      ${{ runner.os }}-maven-
       - name: Install and Check ClickHouse Backend lib
-        run: |
-          new_md5=$(curl https://devopsnexus.kyligence.io/service/rest/v1/search/assets | jq -r '.items[0].checksum.md5') 
-          old_md5=$(md5sum /usr/local/clickhouse/lib/libch.so | awk '{print $1}')
-          if [ "$new_md5" != "$old_md5" ];then
-            wget -O /usr/local/clickhouse/lib/libch.so.new https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
-            mv /usr/local/clickhouse/lib/libch.so.new /usr/local/clickhouse/lib/libch.so          
-          fi
-          ls -alt /usr/local/clickhouse/lib/libch.so
+        uses: liuneng1994/pull-request-comment-trigger@master
+        id: ch_version
+        with:
+          trigger: 'test by CH\[\[(\S*)]]'
+      - run: |
+          wget -O /tmp/libch.so.new https://devopsnexus.kyligence.io/repository/raw-tars-hosted/io.kyligence.clickhouse/clickhouse_backend/latest/libch.so
+          mv /tmp/libch.so.new /tmp/libch.so
+        if: steps.ch_version.outputs.triggered == 'false'
+      - run: |
+          cd /home/qwe1398775315/code/ClickHouse
+          gh pr checkout ${{ steps.ch_version.outputs.trigger_var }} --force
+          sudo rm -f /tmp/ch_output/*
+          sudo docker run  --rm --volume=/tmp/ch_output:/output --volume=/home/qwe1398775315/code/ClickHouse:/clickhouse --volume=/home/qwe1398775315/.cache:/ccache -e ENABLE_EMBEDDED_COMPILER=ON qwe1398775315/libchbuilder:0.1.0
+          cp /tmp/ch_output/libch*.so /tmp/libch.so
+        if: steps.ch_version.outputs.triggered == 'true'
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/usr/local/clickhouse/lib/libch.so
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so
 
   formatting-check:
     name: Formatting Check

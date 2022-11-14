@@ -14,13 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.benchmarks
-
-import java.io.File
-
-import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
 
 import io.glutenproject.GlutenConfig
 
@@ -28,22 +22,27 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
+import java.io.File
+
+import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
+
 // scalastyle:off
 object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def main(args: Array[String]): Unit = {
 
-    // val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
-    //   "cmake-build-release/utils/local-engine/libch.so"
-    val libPath = "/usr/local/clickhouse/lib/libch.so"
-    val thrdCnt = 12
-    val shufflePartitions = 12
+    val libPath = "/home/myubuntu/Works/c_cpp_projects/Kyligence-ClickHouse-1/" +
+      "cmake-build-release/utils/local-engine/libch.so"
+    // val libPath = "/usr/local/clickhouse/lib/libch.so"
+    val thrdCnt = 8
+    val shufflePartitions = 8
     val shuffleManager = "sort"
     // val shuffleManager = "org.apache.spark.shuffle.sort.ColumnarShuffleManager"
     val ioCompressionCodec = "SNAPPY"
     val columnarColumnToRow = "true"
     val useV2 = "false"
-    val separateScanRDD = "true"
+    val separateScanRDD = "false"
     val coalesceBatches = "true"
     val broadcastThreshold = "10MB" // 100KB  10KB
     val adaptiveEnabled = "true"
@@ -60,7 +59,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       (args(0), args(1), args(2).toInt, true, args(3), args(4), args(5).toBoolean, args(6))
     } else {
       val rootPath = this.getClass.getResource("/").getPath
-      val resourcePath = rootPath + "../../../../jvm/src/test/resources/"
+      val resourcePath = rootPath + "../../../../gluten-core/src/test/resources/"
       val dataPath = resourcePath + "/tpch-data/"
       val queryPath = resourcePath + "/queries/"
       // (new File(dataPath).getAbsolutePath, "parquet", 1, false, queryPath + "q06.sql", "", true,
@@ -76,7 +75,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         "/data1/gazelle-jni-warehouse")
     }
 
-    val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (!metaRootPath.isEmpty) {
+    val (warehouse, metaStorePathAbsolute, hiveMetaStoreDB) = if (metaRootPath.nonEmpty) {
       (
         metaRootPath + "/spark-warehouse",
         metaRootPath + "/meta",
@@ -85,7 +84,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       ("/tmp/spark-warehouse", "/tmp/meta", "/tmp/meta/metastore_db")
     }
 
-    if (!warehouse.isEmpty) {
+    if (warehouse.nonEmpty) {
       val warehouseDir = new File(warehouse)
       if (!warehouseDir.exists()) {
         warehouseDir.mkdirs()
@@ -104,7 +103,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     val sessionBuilder = if (!configed) {
       val sessionBuilderTmp1 = sessionBuilderTmp
-        .master(s"local[${thrdCnt}]")
+        .master(s"local[$thrdCnt]")
         .config("spark.driver.maxResultSize", "1g")
         .config("spark.driver.memory", "30G")
         .config("spark.driver.memoryOverhead", "10G")
@@ -160,7 +159,6 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .config("spark.gluten.sql.columnar.backend.ch.use.v2", useV2)
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
         .config("spark.gluten.sql.columnar.iterator", "true")
         .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -200,8 +198,13 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         .config("spark.sql.codegen.comments", "true")
         .config("spark.ui.retainedJobs", "2500")
         .config("spark.ui.retainedStages", "5000")
+        .config(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED, "true")
+        .config(
+          "spark.extraListeners",
+          "io.glutenproject.softaffinity.scheduler.SoftAffinityListener")
+        .config("spark.gluten.sql.columnar.backend.ch.runtime_conf.logger.level", "error")
 
-      if (!warehouse.isEmpty) {
+      if (warehouse.nonEmpty) {
         sessionBuilderTmp1
           .config("spark.sql.warehouse.dir", warehouse)
           .config(
@@ -256,7 +259,7 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
     if (stopFlagFile.isEmpty) {
       Thread.sleep(1800000)
     } else {
-      while ((new File(stopFlagFile)).exists()) {
+      while (new File(stopFlagFile).exists()) {
         Thread.sleep(1000)
       }
     }
@@ -265,9 +268,11 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
   }
 
   def testTPCDSOne(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(s"""
-         |use tpcdsdb;
-         |""".stripMargin).show(1000, false)
+    spark
+      .sql(s"""
+              |use tpcdsdb;
+              |""".stripMargin)
+      .show(1000, truncate = false)
 
     val tookTimeArr = ArrayBuffer[Long]()
     val sqlFilePath = "/data2/tpcds-data-gen/tpcds10-queries/"
@@ -284,28 +289,30 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       df.explain(false)
       val plan = df.queryExecution.executedPlan
       DSV2BenchmarkTest.collectAllJoinSide(plan)
-      println(result.size)
+      println(result.length)
       // result.foreach(r => println(r.mkString(",")))
       result.foreach(r => println(r.mkString("|-|")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
+      println(s"Execute $i time, time: $tookTime")
       tookTimeArr += tookTime
       // Thread.sleep(5000)
     }
 
     println(tookTimeArr.mkString(","))
 
-    if (executedCnt >= 10) {
+    if (executedCnt >= 30) {
       import spark.implicits._
-      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-      df.summary().show(100, false)
+      val df = spark.sparkContext.parallelize(tookTimeArr, 1).toDF("time")
+      df.summary().show(100, truncate = false)
     }
   }
 
   def testTPCDSAll(spark: SparkSession): Unit = {
-    spark.sql(s"""
-         |use tpcdsdb;
-         |""".stripMargin).show(1000, false)
+    spark
+      .sql(s"""
+              |use tpcdsdb;
+              |""".stripMargin)
+      .show(1000, truncate = false)
 
     val tookTimeArr = ArrayBuffer[Long]()
     val executedCnt = 1
@@ -328,13 +335,13 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         val sqlFile = sqlFilePath + sqlNum + ".sql"
         val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
         println("")
-        println(s"execute sql: ${sqlNum}")
+        println(s"execute sql: $sqlNum")
         for (j <- 1 to executedCnt) {
           val startTime = System.nanoTime()
           val df = spark.sql(sqlStr)
           val result = df.collect()
           if (executeExplain) df.explain(false)
-          println(result.size)
+          println(result.length)
           if (printData) result.foreach(r => println(r.mkString(",")))
           // .show(30, false)
           // .explain(false)
@@ -350,15 +357,17 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     if (executedCnt >= 10) {
       import spark.implicits._
-      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-      df.summary().show(100, false)
+      val df = spark.sparkContext.parallelize(tookTimeArr, 1).toDF("time")
+      df.summary().show(100, truncate = false)
     }
   }
 
   def testTPCDSDecimalOne(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(s"""
-         |use tpcdsdb_decimal;
-         |""".stripMargin).show(1000, false)
+    spark
+      .sql(s"""
+              |use tpcdsdb_decimal;
+              |""".stripMargin)
+      .show(1000, truncate = false)
 
     val tookTimeArr = ArrayBuffer[Long]()
     val sqlFilePath = "/data2/tpcds-data-gen/tpcds10-queries/"
@@ -373,10 +382,10 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
       df.explain(false)
-      println(result.size)
+      println(result.length)
       result.foreach(r => println(r.mkString(",")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
+      println(s"Execute $i time, time: $tookTime")
       tookTimeArr += tookTime
       // Thread.sleep(5000)
     }
@@ -386,14 +395,16 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
     if (executedCnt >= 10) {
       import spark.implicits._
       val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-      df.summary().show(100, false)
+      df.summary().show(100, truncate = false)
     }
   }
 
   def testTPCDSDecimalAll(spark: SparkSession): Unit = {
-    spark.sql(s"""
-         |use tpcdsdb_decimal;
-         |""".stripMargin).show(1000, false)
+    spark
+      .sql(s"""
+              |use tpcdsdb_decimal;
+              |""".stripMargin)
+      .show(1000, truncate = false)
 
     val tookTimeArr = ArrayBuffer[Long]()
     val executedCnt = 1
@@ -417,13 +428,13 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
         val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
         println("")
         println("")
-        println(s"execute sql: ${sqlNum}")
+        println(s"execute sql: $sqlNum")
         for (j <- 1 to executedCnt) {
           val startTime = System.nanoTime()
           val df = spark.sql(sqlStr)
           val result = df.collect()
           if (executeExplain) df.explain(false)
-          println(result.size)
+          println(result.length)
           if (printData) result.foreach(r => println(r.mkString(",")))
           // .show(30, false)
           // .explain(false)
@@ -439,36 +450,38 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
     if (executedCnt >= 10) {
       import spark.implicits._
-      val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-      df.summary().show(100, false)
+      val df = spark.sparkContext.parallelize(tookTimeArr, 1).toDF("time")
+      df.summary().show(100, truncate = false)
     }
   }
 
   def benchmarkTPCH(spark: SparkSession, executedCnt: Int): Unit = {
-    spark.sql(s"""
-         |use tpcdsdb;
-         |""".stripMargin).show(1000, false)
+    spark
+      .sql(s"""
+              |use tpcdsdb;
+              |""".stripMargin)
+      .show(1000, truncate = false)
 
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
       val df = spark.sql(s"""
-           |
-           |""".stripMargin) // .show(30, false)
+                            |
+                            |""".stripMargin) // .show(30, false)
       // df.explain(false)
       val result = df.collect() // .show(100, false)  //.collect()
-      println(result.size)
+      println(result.length)
       // result.foreach(r => println(r.mkString(",")))
       val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
+      println(s"Execute $i time, time: $tookTime")
       tookTimeArr += tookTime
     }
 
     println(tookTimeArr.mkString(","))
 
     import spark.implicits._
-    val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-    df.summary().show(100, false)
+    val df = spark.sparkContext.parallelize(tookTimeArr, 1).toDF("time")
+    df.summary().show(100, truncate = false)
   }
 
   def createTables(spark: SparkSession, parquetFilesPath: String, fileFormat: String): Unit = {
@@ -499,8 +512,8 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       "")
 
     for (sql <- csv2Parquet) {
-      println(s"execute: ${sql}")
-      spark.sql(sql).show(10, false)
+      println(s"execute: $sql")
+      spark.sql(sql).show(10, truncate = false)
     }
   }
 
@@ -508,18 +521,26 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
 
   def refreshClickHouseTable(spark: SparkSession): Unit = {
     val tableName = ""
-    spark.sql(s"""
-         | refresh table ${tableName}
-         |""".stripMargin).show(100, false)
-    spark.sql(s"""
-         | desc formatted ${tableName}
-         |""".stripMargin).show(100, false)
-    spark.sql(s"""
-         | refresh table ch_clickhouse
-         |""".stripMargin).show(100, false)
-    spark.sql(s"""
-         | desc formatted ch_clickhouse
-         |""".stripMargin).show(100, false)
+    spark
+      .sql(s"""
+              | refresh table $tableName
+              |""".stripMargin)
+      .show(100, truncate = false)
+    spark
+      .sql(s"""
+              | desc formatted $tableName
+              |""".stripMargin)
+      .show(100, truncate = false)
+    spark
+      .sql(s"""
+              | refresh table ch_clickhouse
+              |""".stripMargin)
+      .show(100, truncate = false)
+    spark
+      .sql(s"""
+              | desc formatted ch_clickhouse
+              |""".stripMargin)
+      .show(100, truncate = false)
   }
 }
 // scalastyle:on
