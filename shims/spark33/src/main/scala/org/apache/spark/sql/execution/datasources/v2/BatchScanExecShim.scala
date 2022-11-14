@@ -14,24 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
 
 import io.glutenproject.GlutenConfig
 
+import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.KeyGroupedPartitioning
+import org.apache.spark.sql.catalyst.util.InternalRowSet
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.SparkException
-import org.apache.spark.sql.catalyst.util.InternalRowSet
 
-class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
-                               runtimeFilters: Seq[Expression],
-                               pushdownFilters: Seq[Expression] = Seq())
+class BatchScanExecShim(
+    output: Seq[AttributeReference],
+    @transient scan: Scan,
+    runtimeFilters: Seq[Expression],
+    pushdownFilters: Seq[Expression] = Seq())
   extends BatchScanExec(output, scan, runtimeFilters) {
 
   override lazy val metrics: Map[String, SQLMetric] = Map()
@@ -46,7 +47,7 @@ class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecShim =>
-      (that canEqual this) && super.equals(that)
+      (that.canEqual(this)) && super.equals(that)
     case _ => false
   }
 
@@ -73,9 +74,10 @@ class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
       originalPartitioning match {
         case p: KeyGroupedPartitioning =>
           if (newPartitions.exists(!_.isInstanceOf[HasPartitionKey])) {
-            throw new SparkException("Data source must have preserved the original partitioning " +
-              "during runtime filtering: not all partitions implement HasPartitionKey after " +
-              "filtering")
+            throw new SparkException(
+              "Data source must have preserved the original partitioning " +
+                "during runtime filtering: not all partitions implement HasPartitionKey after " +
+                "filtering")
           }
 
           val newRows = new InternalRowSet(p.expressions.map(_.dataType))
@@ -83,15 +85,17 @@ class BatchScanExecShim(output: Seq[AttributeReference], @transient scan: Scan,
           val oldRows = p.partitionValuesOpt.get
 
           if (oldRows.size != newRows.size) {
-            throw new SparkException("Data source must have preserved the original partitioning " +
-              "during runtime filtering: the number of unique partition values obtained " +
-              s"through HasPartitionKey changed: before ${oldRows.size}, after ${newRows.size}")
+            throw new SparkException(
+              "Data source must have preserved the original partitioning " +
+                "during runtime filtering: the number of unique partition values obtained " +
+                s"through HasPartitionKey changed: before ${oldRows.size}, after ${newRows.size}")
           }
 
           if (!oldRows.forall(newRows.contains)) {
-            throw new SparkException("Data source must have preserved the original partitioning " +
-              "during runtime filtering: the number of unique partition values obtained " +
-              s"through HasPartitionKey remain the same but do not exactly match")
+            throw new SparkException(
+              "Data source must have preserved the original partitioning " +
+                "during runtime filtering: the number of unique partition values obtained " +
+                s"through HasPartitionKey remain the same but do not exactly match")
           }
 
           groupPartitions(newPartitions).get.map(_._2)

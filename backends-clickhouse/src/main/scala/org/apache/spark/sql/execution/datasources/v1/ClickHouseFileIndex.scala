@@ -14,12 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v1
-
-import java.util.Objects
-
-import org.apache.hadoop.fs.{FileStatus, Path}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
@@ -32,6 +27,10 @@ import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitions
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.types.StructType
 
+import org.apache.hadoop.fs.{FileStatus, Path}
+
+import java.util.Objects
+
 case class ClickHouseFileIndex(
     override val spark: SparkSession,
     override val deltaLog: DeltaLog,
@@ -40,7 +39,7 @@ case class ClickHouseFileIndex(
     snapshotAtAnalysis: Snapshot,
     partitionFilters: Seq[Expression] = Nil,
     isTimeTravelQuery: Boolean = false)
-    extends TahoeFileIndex(spark, deltaLog, path) {
+  extends TahoeFileIndex(spark, deltaLog, path) {
 
   override val sizeInBytes: Long = table.listFiles().map(_.bytesOnDisk).sum
 
@@ -71,16 +70,18 @@ case class ClickHouseFileIndex(
       dataFilters: Seq[Expression]): Seq[PartitionDirectory] = {
     table
       .listFiles()
-      .map(parts => {
-        val fileStats = new FileStatus(
-          /* length */ parts.bytesOnDisk,
-          /* isDir */ false,
-          /* blockReplication */ 0,
-          /* blockSize */ 1,
-          /* modificationTime */ parts.modificationTime,
-          absolutePath(parts.path))
-        PartitionDirectory(new GenericInternalRow(Array.empty[Any]), Seq(fileStats))
-      })
+      .map(
+        parts => {
+          val fileStats = new FileStatus(
+            /* length */ parts.bytesOnDisk,
+            /* isDir */ false,
+            /* blockReplication */ 0,
+            /* blockSize */ 1,
+            /* modificationTime */ parts.modificationTime,
+            absolutePath(parts.path)
+          )
+          PartitionDirectory(new GenericInternalRow(Array.empty[Any]), Seq(fileStats))
+        })
   }
 
   def partsPartitions: Seq[InputPartition] =
@@ -91,7 +92,7 @@ case class ClickHouseFileIndex(
   override def equals(that: Any): Boolean = that match {
     case t: ClickHouseFileIndex =>
       t.path == path && t.deltaLog.isSameLogAs(deltaLog) &&
-        t.versionToUse == versionToUse && t.partitionFilters == partitionFilters
+      t.versionToUse == versionToUse && t.partitionFilters == partitionFilters
     case _ => false
   }
 

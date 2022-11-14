@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
-
-import java.util.Objects
 
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
@@ -29,14 +26,15 @@ import org.apache.spark.sql.catalyst.util.{truncatedString, InternalRowSet}
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 
-/**
- * Physical plan node for scanning a batch of data from a data source v2.
- */
+import java.util.Objects
+
+/** Physical plan node for scanning a batch of data from a data source v2. */
 case class BatchScanExec(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    keyGroupedPartitioning: Option[Seq[Expression]] = None) extends DataSourceV2ScanExecBase {
+    keyGroupedPartitioning: Option[Seq[Expression]] = None)
+  extends DataSourceV2ScanExecBase {
 
   @transient lazy val batch = scan.toBatch
 
@@ -71,7 +69,8 @@ case class BatchScanExec(
       originalPartitioning match {
         case p: KeyGroupedPartitioning =>
           if (newPartitions.exists(!_.isInstanceOf[HasPartitionKey])) {
-            throw new SparkException("Data source must have preserved the original partitioning " +
+            throw new SparkException(
+              "Data source must have preserved the original partitioning " +
                 "during runtime filtering: not all partitions implement HasPartitionKey after " +
                 "filtering")
           }
@@ -81,13 +80,15 @@ case class BatchScanExec(
           val oldRows = p.partitionValuesOpt.get
 
           if (oldRows.size != newRows.size) {
-            throw new SparkException("Data source must have preserved the original partitioning " +
+            throw new SparkException(
+              "Data source must have preserved the original partitioning " +
                 "during runtime filtering: the number of unique partition values obtained " +
                 s"through HasPartitionKey changed: before ${oldRows.size}, after ${newRows.size}")
           }
 
           if (!oldRows.forall(newRows.contains)) {
-            throw new SparkException("Data source must have preserved the original partitioning " +
+            throw new SparkException(
+              "Data source must have preserved the original partitioning " +
                 "during runtime filtering: the number of unique partition values obtained " +
                 s"through HasPartitionKey remain the same but do not exactly match")
           }
@@ -96,7 +97,7 @@ case class BatchScanExec(
 
         case _ =>
           // no validation is needed as the data source did not report any specific partitioning
-        newPartitions.map(Seq(_))
+          newPartitions.map(Seq(_))
       }
 
     } else {
@@ -112,7 +113,11 @@ case class BatchScanExec(
       sparkContext.parallelize(Array.empty[InternalRow], 1)
     } else {
       new DataSourceRDD(
-        sparkContext, filteredPartitions, readerFactory, supportsColumnar, customMetrics)
+        sparkContext,
+        filteredPartitions,
+        readerFactory,
+        supportsColumnar,
+        customMetrics)
     }
   }
 
@@ -121,7 +126,8 @@ case class BatchScanExec(
       output = output.map(QueryPlan.normalizeExpressions(_, output)),
       runtimeFilters = QueryPlan.normalizePredicates(
         runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output))
+        output)
+    )
   }
 
   override def simpleString(maxFields: Int): String = {

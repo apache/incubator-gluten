@@ -21,9 +21,7 @@
 #include <arrow/filesystem/localfs.h>
 #include <arrow/io/api.h>
 #include <arrow/record_batch.h>
-#include <gandiva/arrow.h>
-#include <gandiva/gandiva_aliases.h>
-#include <gandiva/projector.h>
+#include <arrow/type_traits.h>
 
 #include <numeric>
 #include <random>
@@ -56,14 +54,6 @@ class Splitter {
   };
 
  public:
-  static arrow::Result<std::shared_ptr<Splitter>> Make(
-      const std::string& short_name,
-      std::shared_ptr<arrow::Schema> schema,
-      int num_partitions,
-      const uint8_t* expr_data,
-      int expr_size,
-      SplitOptions options = SplitOptions::Defaults());
-
   static arrow::Result<std::shared_ptr<Splitter>> Make(
       const std::string& short_name,
       std::shared_ptr<arrow::Schema> schema,
@@ -131,10 +121,6 @@ class Splitter {
 
   int64_t TotalCompressTime() const {
     return total_compress_time_;
-  }
-
-  int64_t TotalComputePidTime() const {
-    return total_compute_pid_time_;
   }
 
   const std::vector<int64_t>& PartitionLengths() const {
@@ -319,7 +305,6 @@ class Splitter {
   int64_t total_write_time_ = 0;
   int64_t total_spill_time_ = 0;
   int64_t total_compress_time_ = 0;
-  int64_t total_compute_pid_time_ = 0;
   int64_t peak_memory_allocated_ = 0;
 
   std::vector<int64_t> partition_lengths_;
@@ -363,8 +348,10 @@ class HashSplitter : public Splitter {
   static arrow::Result<std::shared_ptr<HashSplitter>> Create(
       int32_t num_partitions,
       std::shared_ptr<arrow::Schema> schema,
-      const substrait::Rel& subRel,
       SplitOptions options);
+  const std::shared_ptr<arrow::Schema>& input_schema() const override {
+    return input_schema_;
+  }
 
  private:
   HashSplitter(
@@ -373,15 +360,14 @@ class HashSplitter : public Splitter {
       SplitOptions options)
       : Splitter(num_partitions, std::move(schema), std::move(options)) {}
 
-  arrow::Status CreateGandivaExpr(const substrait::Rel& subRel);
-  arrow::Status CreateProjector();
-
   arrow::Status ComputeAndCountPartitionId(
       const arrow::RecordBatch& rb) override;
 
-  std::vector<u_int32_t> hashIndices_;
-  gandiva::ExpressionVector exprVector_;
-  std::shared_ptr<gandiva::Projector> projector_;
+  arrow::Status Split(const arrow::RecordBatch& rb) override;
+
+  arrow::Status Init() override;
+
+  std::shared_ptr<arrow::Schema> input_schema_;
 };
 
 class FallbackRangeSplitter : public Splitter {

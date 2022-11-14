@@ -14,23 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
 
 import io.glutenproject.GlutenConfig
 
+import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.SparkException
 
-class BatchScanExecShim(output: Seq[AttributeReference],
-                        @transient scan: Scan,
-                        runtimeFilters: Seq[Expression],
-                        pushdownFilters: Seq[Expression] = Seq())
+class BatchScanExecShim(
+    output: Seq[AttributeReference],
+    @transient scan: Scan,
+    runtimeFilters: Seq[Expression],
+    pushdownFilters: Seq[Expression] = Seq())
   extends BatchScanExec(output, scan, runtimeFilters) {
 
   override lazy val metrics: Map[String, SQLMetric] = Map()
@@ -43,7 +43,7 @@ class BatchScanExecShim(output: Seq[AttributeReference],
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecShim =>
-      (that canEqual this) && super.equals(that)
+      (that.canEqual(this)) && super.equals(that)
     case _ => false
   }
 

@@ -22,6 +22,7 @@
 #include <arrow/compute/registry.h>
 #include <arrow/dataset/plan.h>
 #include <arrow/dataset/scanner.h>
+#include <arrow/type_fwd.h>
 #include <arrow/util/async_generator.h>
 
 #include "compute/exec_backend.h"
@@ -29,7 +30,7 @@
 namespace gazellecpp {
 namespace compute {
 
-const FieldVector kAugmentedFields{
+const arrow::FieldVector kAugmentedFields{
     field("__fragment_index", arrow::int32()),
     field("__batch_index", arrow::int32()),
     field("__last_in_fragment", arrow::boolean()),
@@ -69,6 +70,7 @@ ArrowExecBackend::GetResultIterator(
   // Prepare and add source decls
   if (!inputs.empty()) {
     std::vector<arrow::compute::Declaration> source_decls;
+    GetInputSchemaMap();
     for (auto i = 0; i < inputs.size(); ++i) {
       auto it = schema_map_.find(i);
       if (it == schema_map_.end()) {
@@ -184,6 +186,90 @@ void ArrowExecBackend::PushDownFilter() {
       visited.push_back(&input_decl);
     }
   }
+}
+
+// This method is used to get the input schema in InputRel.
+arrow::Status ArrowExecBackend::GetIterInputSchemaFromRel(
+    const ::substrait::Rel& srel) {
+  // TODO: need to support more Substrait Rels here.
+  if (srel.has_aggregate() && srel.aggregate().has_input()) {
+    return GetIterInputSchemaFromRel(srel.aggregate().input());
+  }
+  if (srel.has_project() && srel.project().has_input()) {
+    return GetIterInputSchemaFromRel(srel.project().input());
+  }
+  if (srel.has_filter() && srel.filter().has_input()) {
+    return GetIterInputSchemaFromRel(srel.filter().input());
+  }
+  if (srel.has_join()) {
+    if (srel.join().has_left() && srel.join().has_right()) {
+      RETURN_NOT_OK(GetIterInputSchemaFromRel(srel.join().left()));
+      RETURN_NOT_OK(GetIterInputSchemaFromRel(srel.join().right()));
+      return arrow::Status::OK();
+    }
+    return arrow::Status::Invalid("Incomplete Join Rel.");
+  }
+  if (!srel.has_read()) {
+    return arrow::Status::Invalid("Read Rel expected.");
+  }
+  const auto& sread = srel.read();
+
+  // Get the iterator index.
+  int iterIdx = -1;
+  if (sread.has_local_files()) {
+    const auto& fileList = sread.local_files().items();
+    if (fileList.size() == 0) {
+      return arrow::Status::Invalid("At least one file path is expected.");
+    }
+    std::string filePath = fileList[0].uri_file();
+    std::string prefix = "iterator:";
+    std::size_t pos = filePath.find(prefix);
+    if (pos == std::string::npos) {
+      // This is not an iterator input, but a scan input.
+      return arrow::Status::OK();
+    }
+    std::string idxStr = filePath.substr(pos + prefix.size(), filePath.size());
+    iterIdx = std::stoi(idxStr);
+  }
+  if (iterIdx < 0) {
+    return arrow::Status::Invalid("Invalid iterator index.");
+  }
+
+  // Construct the input schema.
+  if (!sread.has_base_schema()) {
+    return arrow::Status::Invalid("Base schema expected.");
+  }
+  const auto& baseSchema = sread.base_schema();
+  // Get column names from input schema.
+  std::vector<std::string> colNameList;
+  for (const auto& name : baseSchema.names()) {
+    colNameList.push_back(name);
+  }
+  // Get column types from input schema.
+  const auto& stypes = baseSchema.struct_().types();
+  std::vector<std::shared_ptr<arrow::DataType>> arrowTypes;
+  arrowTypes.reserve(stypes.size());
+  for (const auto& type : stypes) {
+    auto typeRes = subTypeToArrowType(type);
+    if (!typeRes.status().ok()) {
+      return arrow::Status::Invalid(typeRes.status().message());
+    }
+    arrowTypes.emplace_back(std::move(typeRes).ValueOrDie());
+  }
+  if (colNameList.size() != arrowTypes.size()) {
+    return arrow::Status::Invalid("Incorrect column names or types.");
+  }
+  // Create input fields.
+  std::vector<std::shared_ptr<arrow::Field>> inputFields;
+  for (int colIdx = 0; colIdx < colNameList.size(); colIdx++) {
+    inputFields.push_back(
+        arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
+  }
+
+  // Set up the schema map.
+  schema_map_[iterIdx] = arrow::schema(inputFields);
+
+  return arrow::Status::OK();
 }
 
 void ArrowExecBackend::FieldPathToName(

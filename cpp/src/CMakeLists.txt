@@ -43,7 +43,7 @@ INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 set(JEMALLOC_BUILD_VERSION "5.2.1")
 
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
-set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../jvm/src/main/resources/substrait/proto)
+set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../gluten-core/src/main/resources/substrait/proto)
 set(substrait_proto_directory ${proto_directory}/substrait)
 message(STATUS "Set Proto Directory in ${proto_directory}")
 
@@ -246,7 +246,6 @@ add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(spark_columnar_jni jni_proto)
 
 find_arrow_lib(${ARROW_LIB_NAME})
-find_arrow_lib(${GANDIVA_LIB_NAME})
 
 if(ENABLE_HBM)
   find_library(MEMKIND_LIBRARY memkind)
@@ -311,7 +310,7 @@ else()
 endif()
 
 target_link_libraries(spark_columnar_jni
-    PUBLIC Arrow::arrow Arrow::gandiva)
+    PUBLIC Arrow::arrow)
 
 install(TARGETS spark_columnar_jni
         DESTINATION ${CMAKE_INSTALL_LIBDIR})

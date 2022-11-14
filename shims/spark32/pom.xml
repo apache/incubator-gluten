@@ -25,7 +25,7 @@
   </parent>
 
   <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-  <name>${project.name.prefix} Shims for Spark 3.2</name>
+  <name>Gluten Shims for Spark 3.2</name>
   <packaging>jar</packaging>
 
   <dependencies>
@@ -51,13 +51,6 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-catalyst_2.12</artifactId>
-      <version>${spark32.version}</version>
-      <scope>provided</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.12</artifactId>
       <version>${spark32.version}</version>
       <scope>provided</scope>
@@ -68,6 +61,31 @@
       <artifactId>hadoop-common</artifactId>
       <version>${hadoop.version}</version>
       <scope>provided</scope>
+    </dependency>
+
+    <!--test-->
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_${scala.binary.version}</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_${scala.binary.version}</artifactId>
+      <version>${spark32.version}</version>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.binary.version}</artifactId>
+      <version>${spark32.version}</version>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+      <version>${spark32.version}</version>
+      <type>test-jar</type>
     </dependency>
   </dependencies>
 
@@ -80,10 +98,27 @@
       <plugin>
         <groupId>org.scalastyle</groupId>
         <artifactId>scalastyle-maven-plugin</artifactId>
+        <version>${scalastyle.version}</version>
+        <configuration>
+          <configLocation>${project.basedir}/../../scalastyle-config.xml</configLocation>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <scala>
+            <scalafmt>
+              <file>${project.basedir}/../../.scalafmt.conf</file>
+            </scalafmt>
+          </scala>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
+        <version>${scala.compiler.version}</version>
       </plugin>
       <plugin>
         <groupId>org.scalatest</groupId>

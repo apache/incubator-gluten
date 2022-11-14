@@ -82,7 +82,7 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
    * build type, planned build side and the preferred build side.
    */
   override lazy val exchangeTable: Boolean = hashJoinType match {
-    case LeftOuter | LeftSemi => joinBuildSide match {
+    case LeftOuter | LeftSemi | ExistenceJoin(_) => joinBuildSide match {
       case BuildLeft =>
         // Exchange build and stream side when left side or none is preferred as the build side,
         // and RightOuter or RightSemi wil be used.
@@ -138,7 +138,7 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
         JoinRel.JoinType.JOIN_TYPE_LEFT
       }
     }
-    case LeftSemi => joinBuildSide match {
+    case LeftSemi | ExistenceJoin(_) => joinBuildSide match {
       case BuildLeft => if (preferredBuildSide == PreferredBuildSide.RIGHT) {
         JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       } else {
@@ -154,7 +154,6 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
       JoinRel.JoinType.JOIN_TYPE_ANTI
     case _ =>
       // TODO: Support cross join with Cross Rel
-      // TODO: Support existence join
       JoinRel.JoinType.UNRECOGNIZED
   }
 

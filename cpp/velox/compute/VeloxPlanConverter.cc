@@ -37,7 +37,7 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
-using namespace facebook::velox::aggregate::prestosql;
+
 namespace velox {
 namespace compute {
 
@@ -101,7 +101,15 @@ void VeloxInitializer::Init() {
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   registerAllFunctions();
-  registerAllAggregateFunctions();
+}
+
+void VeloxPlanConverter::setInputPlanNode(
+    const ::substrait::ExpandRel& sexpand) {
+  if (sexpand.has_input()) {
+    setInputPlanNode(sexpand.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
@@ -225,6 +233,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.join());
   } else if (srel.has_sort()) {
     setInputPlanNode(srel.sort());
+  } else if (srel.has_expand()) {
+    setInputPlanNode(srel.expand());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
