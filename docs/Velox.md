@@ -19,7 +19,7 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 Since the mvn script calls setup-ubuntu.sh to install dependency libraries, so we need to run it from <b>root</b> group.
 
-The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
+The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to ep/build-velox/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
 
 ```shell script
 # For spark3.2.x
@@ -68,7 +68,7 @@ If running in Spark Yarn cluster mode, the env variable need to be set on each e
 ```
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
-By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/tools/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
+By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
 
 ```
 sudo mkdir -p /var/lib/hadoop-hdfs/

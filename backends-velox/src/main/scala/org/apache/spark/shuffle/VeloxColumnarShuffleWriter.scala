@@ -171,11 +171,10 @@ class VeloxColumnarShuffleWriter[K, V](
     splitResult = splitterJniWrapper.stop(nativeSplitter)
 
     dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
-      splitResult.getTotalWriteTime - splitResult.getTotalComputePidTime -
+      splitResult.getTotalWriteTime -
       splitResult.getTotalCompressTime)
     dep.spillTime.add(splitResult.getTotalSpillTime)
     dep.compressTime.add(splitResult.getTotalCompressTime)
-    dep.computePidTime.add(splitResult.getTotalComputePidTime)
     dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)

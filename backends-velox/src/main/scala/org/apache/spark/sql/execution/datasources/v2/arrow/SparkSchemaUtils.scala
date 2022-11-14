@@ -35,27 +35,6 @@ object SparkSchemaUtils {
     ArrowUtils.toArrowSchema(schema, timeZoneId)
   }
 
-  @deprecated // experimental
-  def getGandivaCompatibleTimeZoneID(): String = {
-    val zone = SQLConf.get.sessionLocalTimeZone
-    validateGandivaCompatibleTimezoneID(zone)
-    zone
-  }
-
-  def validateGandivaCompatibleTimezoneID(zoneId: String): Unit = {
-    throw new UnsupportedOperationException("not implemented") // fixme 20210602 hongze
-    if (!isTimeZoneIDGandivaCompatible(zoneId)) {
-      throw new RuntimeException("Running Spark with Native SQL engine in non-UTC timezone" +
-        " environment is forbidden. Consider setting session timezone within Spark config " +
-        "spark.sql.session.timeZone. E.g. spark.sql.session.timeZone = UTC")
-    }
-  }
-
-  def isTimeZoneIDGandivaCompatible(zoneId: String): Boolean = {
-    // Only UTC supported by Gandiva kernels so far
-    isTimeZoneIDEquivalentToUTC(zoneId)
-  }
-
   def isTimeZoneIDEquivalentToUTC(zoneId: String): Boolean = {
     getTimeZoneIDOffset(zoneId) == 0
   }
