@@ -139,8 +139,8 @@ jobs:
         if: steps.ch_version.outputs.triggered == 'false'
       - run: |
           cd /home/qwe1398775315/code/ClickHouse
-          gh pr checkout ${{ steps.ch_version.outputs.trigger_var }}
-          sudo rm /tmp/ch_output/*
+          gh pr checkout ${{ steps.ch_version.outputs.trigger_var }} --force
+          sudo rm -f /tmp/ch_output/*
           sudo docker run  --rm --volume=/tmp/ch_output:/output --volume=/home/qwe1398775315/code/ClickHouse:/clickhouse --volume=/home/qwe1398775315/.cache:/ccache -e ENABLE_EMBEDDED_COMPILER=ON qwe1398775315/libchbuilder:0.1.0
           cp /tmp/ch_output/libch*.so /tmp/libch.so
         if: steps.ch_version.outputs.triggered == 'true'
