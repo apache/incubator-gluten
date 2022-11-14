@@ -148,56 +148,17 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           i.hset,
           expr)
-      case ss: StringReplace =>
+      case t: TernaryExpression =>
         logInfo(s"${expr.getClass} ${expr} is supported.")
-        TernaryOperatorTransformer.create(
+        TernaryExpressionTransformer.create(
           replaceWithExpressionTransformer(
-            ss.srcExpr,
+            t.first,
             attributeSeq),
           replaceWithExpressionTransformer(
-            ss.searchExpr,
+            t.second,
             attributeSeq),
           replaceWithExpressionTransformer(
-            ss.replaceExpr,
-            attributeSeq),
-          expr)
-      case ss: StringSplit =>
-        logInfo(s"${expr.getClass} ${expr} is supported.")
-        TernaryOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            ss.str,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            ss.regex,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            ss.limit,
-            attributeSeq),
-          expr)
-      case ss: RegExpExtract =>
-        logInfo(s"${expr.getClass} ${expr} is supported.")
-        TernaryOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            ss.subject,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            ss.regexp,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            ss.idx,
-            attributeSeq),
-          expr)
-      case ss: Substring =>
-        logInfo(s"${expr.getClass} ${expr} is supported.")
-        TernaryOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            ss.str,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            ss.pos,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            ss.len,
+            t.third,
             attributeSeq),
           expr)
       case u: UnaryExpression =>

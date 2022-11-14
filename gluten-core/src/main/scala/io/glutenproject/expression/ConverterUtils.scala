@@ -444,8 +444,11 @@ object ConverterUtils extends Logging {
   final val LENGTH = "char_length" // length
   final val LOWER = "lower"
   final val UPPER = "upper"
+  final val LOCATE = "locate"
   final val LTRIM = "ltrim"
   final val RTRIM = "rtrim"
+  final val LPAD = "lpad"
+  final val RPAD = "rpad"
   final val REPLACE = "replace"
   final val SPLIT = "split"
   final val STARTS_WITH = "starts_with"
