@@ -55,6 +55,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     private var ascending: Boolean = true,
     val samplePointsPerPartitionHint: Int = 20
 ) {
+
   def getRangeBounds(): Array[K] = {
     if (partitions <= 1) {
       Array.empty
