@@ -217,7 +217,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
               CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
             }
           }
-
         } else {
           plan.withNewChildren(Seq(child))
         }
@@ -293,6 +292,14 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
           plan.partitionSpec,
           plan.orderSpec,
           replaceWithTransformerPlan(plan.child, isSupportAdaptive))
+      case plan: GlobalLimitExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        LimitTransformer(child, 0L, plan.limit)
+      case plan: LocalLimitExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        val child = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+        LimitTransformer(child, 0L, plan.limit)
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive))

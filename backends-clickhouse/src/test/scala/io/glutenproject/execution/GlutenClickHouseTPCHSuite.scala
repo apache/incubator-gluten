@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
@@ -181,6 +182,16 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 275436L)
+  }
+
+  test("test 'select global/local limit'") {
+    val df = spark.sql("""
+                         |select * from (
+                         | select * from lineitem limit 10
+                         |) where l_suppkey != 0 limit 100;
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result.size == 10)
   }
 
   test("test 'select count(1)'") {
