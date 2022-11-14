@@ -30,6 +30,7 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation,
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
 class CHTransformerApi extends ITransformerApi with Logging {
+
   /**
    * Do validate for ColumnarShuffleExchangeExec. For ClickHouse backend, it will return true
    * directly.
