@@ -79,7 +79,6 @@ class LPadTransformer(first: Expression, second: Expression,
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    // val typeNode = TypeBuilder.makeI64(original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
