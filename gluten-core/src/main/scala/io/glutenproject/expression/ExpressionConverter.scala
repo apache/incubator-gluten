@@ -29,6 +29,10 @@ import org.apache.spark.sql.types.DecimalType
 
 object ExpressionConverter extends Logging {
 
+  /**
+   * Add the validation for Velox unsupported or mismatched expressions with specific input type,
+   * such as Cast(ArrayType).
+   */
   def doValidate(blacklist: Map[String, String], expr: Expression): Boolean = {
     val value = blacklist.get(expr.prettyName.toLowerCase())
     if (value.isEmpty) {
@@ -47,8 +51,12 @@ object ExpressionConverter extends Logging {
     true
   }
 
+  /**
+   * Do validate the expressions based on the specific backend blacklist,
+   * the existed expression will fall back to Vanilla Spark.
+   */
   def doValidate(expr: Expression): Boolean =
-    GlutenConfig.enableVeloxBackend() && !doValidate(VELOX_EXPR_BLACKLIST, expr)
+    GlutenConfig.getSessionConf.isVeloxBackend && !doValidate(VELOX_EXPR_BLACKLIST, expr)
 
   def replaceWithExpressionTransformer(expr: Expression,
       attributeSeq: Seq[Attribute]): Expression = {
