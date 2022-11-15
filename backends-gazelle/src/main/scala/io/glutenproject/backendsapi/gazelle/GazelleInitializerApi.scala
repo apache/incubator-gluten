@@ -41,6 +41,6 @@ class GazelleInitializerApi extends IInitializerApi {
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
     loader.mapAndLoad(baseLibName, true)
-    loader.mapAndLoad(GlutenConfig.GLUTEN_GAZELLE_BACKEND, true)
+    loader.mapAndLoad(GlutenConfig.GLUTEN_GAZELLE_BACKEND, false)
   }
 }
