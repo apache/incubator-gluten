@@ -43,6 +43,9 @@ object AggregateFunctionsBuilder {
       case max: Max =>
         ConverterUtils.makeFuncName(
           ConverterUtils.MAX, Seq(max.child.dataType), FunctionConfig.OPT)
+      case stddevSamp: StddevSamp =>
+        ConverterUtils.makeFuncName(
+          ConverterUtils.STDDEV_SAMP, Seq(stddevSamp.child.dataType), FunctionConfig.OPT)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
