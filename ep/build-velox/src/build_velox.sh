@@ -10,7 +10,7 @@ ENABLE_EP_CACHE=OFF
 VELOX_HOME=/root/velox
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_BRANCH=pull/72/head
 
 for arg in "$@"
 do
@@ -134,8 +134,9 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
         if [ -d $VELOX_SOURCE_DIR ]; then
             rm -rf $VELOX_SOURCE_DIR
         fi
-        git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
+        git clone $VELOX_REPO -b main $VELOX_SOURCE_DIR
         pushd $VELOX_SOURCE_DIR
+        git fetch origin $VELOX_BRANCH
         git checkout $TARGET_BUILD_COMMIT
     fi
     #sync submodules
