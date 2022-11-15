@@ -17,9 +17,10 @@
 
 package io.glutenproject.expression
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{NativeColumnarToRowExec, WholeStageTransformerExec}
-
+import io.glutenproject.expression.ConverterUtils.VELOX_EXPR_BLACKLIST
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
@@ -27,9 +28,33 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.types.DecimalType
 
 object ExpressionConverter extends Logging {
-  def replaceWithExpressionTransformer(
-                                        expr: Expression,
-                                        attributeSeq: Seq[Attribute]): Expression =
+
+  def doValidate(blacklist: Map[String, String], expr: Expression): Boolean = {
+    val value = blacklist.get(expr.prettyName.toLowerCase())
+    if (value.isEmpty) {
+      return true
+    }
+    val inputTypeName = value.get
+    if (inputTypeName.equals("")) {
+      return false
+    } else {
+      for (input <- expr.children) {
+        if (inputTypeName.equals(input.dataType.typeName)) {
+          return false
+        }
+      }
+    }
+    true
+  }
+
+  def doValidate(expr: Expression): Boolean =
+    GlutenConfig.enableVeloxBackend() && !doValidate(VELOX_EXPR_BLACKLIST, expr)
+
+  def replaceWithExpressionTransformer(expr: Expression,
+      attributeSeq: Seq[Attribute]): Expression = {
+    if (!doValidate(expr)) {
+      throw new UnsupportedOperationException(s"Not supported: $expr.")
+    }
     expr match {
       case a: Alias =>
         logInfo(s"${expr.getClass} ${expr} is supported")
@@ -242,6 +267,7 @@ object ExpressionConverter extends Logging {
         throw new UnsupportedOperationException(
           s"${expr.getClass} or ${expr} is not currently supported.")
     }
+  }
 
   def containsSubquery(expr: Expression): Boolean =
     expr match {

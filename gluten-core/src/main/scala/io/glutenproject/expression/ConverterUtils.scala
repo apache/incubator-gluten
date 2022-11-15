@@ -419,10 +419,13 @@ object ConverterUtils extends Logging {
   final val DIVIDE = "divide"
   final val AND = "and"
   final val OR = "or"
+  final val CAST = "cast"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
   final val RLIKE = "rlike"
+  final val REGEXP_REPLACE = "regexp_replace"
   final val REGEXP_EXTRACT = "regexp_extract"
+  final val REGEXP_EXTRACT_ALL = "regexp_extract_all"
   final val EQUAL = "equal"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"
@@ -441,18 +444,22 @@ object ConverterUtils extends Logging {
   final val CONCAT = "concat"
   final val CONTAINS = "contains"
   final val INSTR = "strpos" // instr
-  final val LENGTH = "char_length" // length
+  final val CHAR_LENGTH = "char_length" // length
+  final val LENGTH = "length"
   final val LOWER = "lower"
   final val UPPER = "upper"
   final val LOCATE = "locate"
   final val LTRIM = "ltrim"
   final val RTRIM = "rtrim"
+  final val TRIM = "trim"
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
   final val SPLIT = "split"
+  final val SPLIT_PART = "split_part"
   final val STARTS_WITH = "starts_with"
   final val SUBSTRING = "substring"
+  final val TRANSLATE = "translate"
 
   // SparkSQL Math fucctions of Velox
   final val ABS = "abs"
@@ -469,4 +476,17 @@ object ConverterUtils extends Logging {
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
 
+  // The blacklist for Velox unsupported or mismatched expressions with specific input type,
+  // such as Cast(ArrayType)
+  final val EMPTY_TYPE = ""
+  final val ARRAY_TYPE = "array"
+  final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
+    CAST -> ARRAY_TYPE,
+    REGEXP_REPLACE -> EMPTY_TYPE,
+    REGEXP_EXTRACT_ALL -> EMPTY_TYPE,
+    SPLIT -> EMPTY_TYPE,
+    SPLIT_PART -> EMPTY_TYPE,
+    LENGTH -> DataTypes.BinaryType.typeName,
+    TRIM -> EMPTY_TYPE,
+    TRANSLATE -> EMPTY_TYPE)
 }

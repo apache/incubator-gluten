@@ -326,4 +326,12 @@ object GlutenConfig {
   def setRandomTempDir(path: String): Unit = synchronized {
     random_temp_dir_path = path
   }
+
+  def enableVeloxBackend(): Boolean = {
+    if (ins == null) {
+      false
+    } else {
+      ins.isVeloxBackend
+    }
+  }
 }

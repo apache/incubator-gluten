@@ -212,7 +212,8 @@ class LengthTransformer(child: Expression, original: Expression)
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.LENGTH, Seq(child.dataType), FunctionConfig.OPT))
+      ConverterUtils.makeFuncName(ConverterUtils.CHAR_LENGTH, Seq(child.dataType),
+      FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode)
     val typeNode = TypeBuilder.makeI32(original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
