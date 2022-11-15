@@ -56,7 +56,7 @@ object ExpressionConverter extends Logging {
    * the existed expression will fall back to Vanilla Spark.
    */
   def doValidate(expr: Expression): Boolean =
-    GlutenConfig.getSessionConf.isVeloxBackend && !doValidate(VELOX_EXPR_BLACKLIST, expr)
+    GlutenConfig.getSessionConf.isVeloxBackend && doValidate(VELOX_EXPR_BLACKLIST, expr)
 
   def replaceWithExpressionTransformer(expr: Expression,
       attributeSeq: Seq[Attribute]): Expression = {
