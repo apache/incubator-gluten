@@ -24,9 +24,8 @@ import io.glutenproject.utils.velox.VeloxNotSupport
 import org.apache.spark.sql.GlutenTestConstants
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
-import scala.reflect.ClassTag
 
-import io.glutenproject.backendsapi.BackendsApiManager
+import scala.reflect.ClassTag
 
 abstract class NotSupport {
   protected def partialSupportSuiteList: Map[String, Seq[String]]
@@ -52,13 +51,15 @@ abstract class NotSupport {
 
 object NotSupport {
   def NotYetSupportCase(suiteName: String): Seq[String] = {
-    val result =
-      if (GlutenConfig.getSessionConf.isClickHouseBackend) {
+    val result = GlutenConfig.getSessionConf.glutenBackendLib match {
+      case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
         ClickHouseNotSupport.NotYetSupportCase(suiteName)
-      } else {
+      case GlutenConfig.GLUTEN_VELOX_BACKEND || GlutenConfig.GLUTEN_GAZELLE_BACKEND =>
         // FIXME here we reuse Velox backend's code
         VeloxNotSupport.NotYetSupportCase(suiteName)
-      }
+      case _ =>
+        throw new IllegalStateException()
+    }
     result.getOrElse(Seq(GlutenTestConstants.IGNORE_ALL))
   }
 }
