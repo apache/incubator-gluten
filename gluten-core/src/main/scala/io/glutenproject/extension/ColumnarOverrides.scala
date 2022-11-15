@@ -114,7 +114,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             }
           case p =>
             return p.withNewChildren(
-              plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+              p.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
         }
     }
     plan match {
