@@ -39,8 +39,4 @@ object SystemParameters {
       SystemParameters.TPCDS_DATA_PATH_KEY,
       SystemParameters.TPCDS_DATA_PATH_DEFAULT_VALUE)
   }
-
-  def getGlutenBackend: String = {
-    BackendsApiManager.getBackendName
-  }
 }

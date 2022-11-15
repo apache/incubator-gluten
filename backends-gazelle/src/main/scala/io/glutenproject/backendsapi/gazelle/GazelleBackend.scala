@@ -20,10 +20,10 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 import io.glutenproject.backendsapi.velox.{VeloxIteratorApi, VeloxSparkPlanExecApi, VeloxTransformerApi}
 
-// FIXME The backend reuses a bunch of Velox BE's code even Velox BE's name. Code cleanup is needed
+// FIXME The backend reuses some of Velox BE's code. Cleanup is needed
 //  to avoid this.
 class GazelleBackend extends Backend {
-  override def name(): String = GlutenConfig.GLUTEN_VELOX_BACKEND
+  override def name(): String = GlutenConfig.GLUTEN_GAZELLE_BACKEND
   override def initializerApi(): IInitializerApi = new GazelleInitializerApi
   override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
