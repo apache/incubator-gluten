@@ -26,6 +26,10 @@ case class GlutenNumaBindingInfo(
 
 class GlutenConfig(conf: SQLConf) extends Logging {
 
+  // With this setting, row based input will be used in the fallback case of data source v1.
+  // TODO: remove this setting if vanilla spark's vectorized input is supported.
+  conf.setConfString("spark.sql.parquet.enableVectorizedReader", "false")
+
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean
 
