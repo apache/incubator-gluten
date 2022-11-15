@@ -70,7 +70,7 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
 
   override def sparkConf: SparkConf = {
     // Native SQL configs
-    val conf = super.sparkConf
+    super.sparkConf
       .setAppName("Gluten-UT")
       .set("spark.driver.memory", "1G")
       .set("spark.sql.adaptive.enabled", "true")
@@ -82,20 +82,7 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set("spark.sql.warehouse.dir", warehouse)
-
-    if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
-          GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
-      conf
-        .set("spark.io.compression.codec", "LZ4")
-        .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
-        .set("spark.gluten.sql.enable.native.validation", "false")
-        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
-        .set("spark.sql.files.openCostInBytes", "134217728")
-        .set("spark.unsafe.exceptionOnMemoryLeak", "true")
-    } else {
-      conf.set("spark.unsafe.exceptionOnMemoryLeak", "false")
-    }
+      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
   }
 
   override protected def checkAnswer(df: => DataFrame, expectedAnswer: Seq[Row]): Unit = {

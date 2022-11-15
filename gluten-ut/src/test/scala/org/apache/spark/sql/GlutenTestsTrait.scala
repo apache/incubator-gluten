@@ -40,7 +40,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
+trait GlutenTestusTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
 
   protected override def beforeAll(): Unit = {
     // prepare working paths
@@ -113,24 +113,9 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid static evaluation for literal input by spark catalyst.
         .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-            NullPropagation.ruleName)
-
-      _spark = if (SystemParameters.getGlutenBackend.equalsIgnoreCase(
-        GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
-        sparkBuilder
-          .config("spark.io.compression.codec", "LZ4")
-          .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-          .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
-          .config("spark.gluten.sql.enable.native.validation", "false")
-          .config("spark.sql.files.openCostInBytes", "134217728")
-          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
-          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
-          .getOrCreate()
-      } else {
-        sparkBuilder
-          .config("spark.unsafe.exceptionOnMemoryLeak", "false")
-          .getOrCreate()
-      }
+          NullPropagation.ruleName)
+        .config("spark.unsafe.exceptionOnMemoryLeak", "false")
+        .getOrCreate()
     }
   }
 
