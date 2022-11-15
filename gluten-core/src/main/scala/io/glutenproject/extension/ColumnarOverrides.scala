@@ -94,26 +94,26 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case TransformHint.TRANSFORM_UNSUPPORTED =>
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {
-          case plan: ShuffledHashJoinExec =>
+          case shj: ShuffledHashJoinExec =>
             if (columnarConf.isVeloxBackend) {
               // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
               // RightOuter, need to change the build side back if this join fallback into vanilla
               // Spark for execution.
               return ShuffledHashJoinExec(
-                plan.leftKeys,
-                plan.rightKeys,
-                plan.joinType,
-                getSparkSupportedBuildSide(plan),
-                plan.condition,
-                replaceWithTransformerPlan(plan.left, isSupportAdaptive),
-                replaceWithTransformerPlan(plan.right, isSupportAdaptive),
-                plan.isSkewJoin)
+                shj.leftKeys,
+                shj.rightKeys,
+                shj.joinType,
+                getSparkSupportedBuildSide(shj),
+                shj.condition,
+                replaceWithTransformerPlan(shj.left, isSupportAdaptive),
+                replaceWithTransformerPlan(shj.right, isSupportAdaptive),
+                shj.isSkewJoin)
             } else {
-              return plan.withNewChildren(
-                plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
+              return shj.withNewChildren(
+                shj.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
             }
-          case _ =>
-            return plan.withNewChildren(
+          case p =>
+            return p.withNewChildren(
               plan.children.map(replaceWithTransformerPlan(_, isSupportAdaptive)))
         }
     }
@@ -151,7 +151,12 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         val newChild =
           if (plan.child.isInstanceOf[FileSourceScanExec] ||
             plan.child.isInstanceOf[BatchScanExec]) {
-            FilterHandler.applyFilterPushdownToScan(plan)
+            TransformHints.getHint(plan.child) match {
+              case TransformHint.TRANSFORM_SUPPORTED =>
+                FilterHandler.applyFilterPushdownToScan(plan)
+              case _ =>
+                replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+            }
           } else {
             replaceWithTransformerPlan(plan.child, isSupportAdaptive)
           }

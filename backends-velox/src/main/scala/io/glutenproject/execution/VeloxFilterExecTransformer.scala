@@ -106,7 +106,8 @@ case class VeloxFilterExecTransformer(condition: Expression,
         fileScanTransformer.filterExprs()
       // In ColumnarGuardRules, the child is still row-based. Need to get the original filters.
       case _ =>
-        FilterHandler.getScanFilters(child)
+        Seq.empty[Expression]
+//        FilterHandler.getScanFilters(child)
     }
     if (scanFilters.isEmpty) {
       condition
