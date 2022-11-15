@@ -168,6 +168,18 @@ private[glutenproject] object GlutenPlugin {
         GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
     }
 
+    // S3 config
+    nativeConfMap.put(
+      GlutenConfig.SPARK_S3_ACCESS_KEY, conf.get(GlutenConfig.SPARK_S3_ACCESS_KEY, "minio"))
+    nativeConfMap.put(
+      GlutenConfig.SPARK_S3_SECRET_KEY, conf.get(GlutenConfig.SPARK_S3_SECRET_KEY, "miniopass"))
+    nativeConfMap.put(
+      GlutenConfig.SPARK_S3_ENDPOINT, conf.get(GlutenConfig.SPARK_S3_ENDPOINT, "localhost:9000"))
+    nativeConfMap.put(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED,
+      conf.get(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED, "false"))
+    nativeConfMap.put(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS,
+      conf.get(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS, "true"))
+
     conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
       .foreach{ case (k, v) => nativeConfMap.put(k, v) }
 

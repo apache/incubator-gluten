@@ -72,13 +72,17 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 }
 
 // The Init will be called per executor.
-void VeloxInitializer::Init() {
+void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   // Setup and register.
   filesystems::registerLocalFileSystem();
-  filesystems::registerHdfsFileSystem();
+
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
 
+  std::unordered_map<std::string, std::string> configurationValues;
+
+#ifdef VELOX_ENABLE_HDFS
+  filesystems::registerHdfsFileSystem();
   // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
   // LIBHDFS3_CONF
   std::string hdfsUri = "localhost:9000";
@@ -88,8 +92,43 @@ void VeloxInitializer::Init() {
   }
   auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
   auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
-  static const std::unordered_map<std::string, std::string> configurationValues(
+  std::unordered_map<std::string, std::string> hdfsConfig(
       {{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
+  configurationValues.merge(hdfsConfig);
+#endif
+
+#ifdef VELOX_ENABLE_S3
+  filesystems::registerS3FileSystem();
+
+  std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
+  std::string awsSecretKey = conf["spark.hadoop.fs.s3a.secret.key"];
+  std::string awsEndpoint = conf["spark.hadoop.fs.s3a.endpoint"];
+  std::string sslEnabled = conf["spark.hadoop.fs.s3a.connection.ssl.enabled"];
+  std::string pathStyleAccess = conf["spark.hadoop.fs.s3a.path.style.access"];
+
+  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
+  if (envAwsAccessKey != nullptr) {
+    awsAccessKey = std::string(envAwsAccessKey);
+  }
+  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
+  if (envAwsSecretKey != nullptr) {
+    awsSecretKey = std::string(envAwsSecretKey);
+  }
+  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
+  if (envAwsEndpoint != nullptr) {
+    awsEndpoint = std::string(envAwsEndpoint);
+  }
+
+  std::unordered_map<std::string, std::string> S3Config({
+      {"hive.s3.aws-access-key", awsAccessKey},
+      {"hive.s3.aws-secret-key", awsSecretKey},
+      {"hive.s3.endpoint", awsEndpoint},
+      {"hive.s3.ssl.enabled", sslEnabled},
+      {"hive.s3.path-style-access", pathStyleAccess},
+  });
+  configurationValues.merge(S3Config);
+#endif
+
   auto properties =
       std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector =
