@@ -43,7 +43,6 @@ object SystemParameters {
   }
 
   def getGlutenBackend: String = {
-    System.getProperty(
-      GlutenConfig.GLUTEN_BACKEND_LIB, GLUTEN_BACKEND)
+    BackendsApiManager.getBackendName
   }
 }
