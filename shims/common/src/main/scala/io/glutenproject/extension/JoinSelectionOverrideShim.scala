@@ -29,10 +29,7 @@ import org.apache.spark.sql.execution.{joins, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
-class JoinSelectionOverrideShim()
-  extends Strategy
-  with JoinSelectionHelper
-  with SQLConfHelper {
+class JoinSelectionOverrideShim() extends Strategy with JoinSelectionHelper with SQLConfHelper {
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     throw new UnsupportedOperationException("JoinSelectionOverrideShim.apply()")

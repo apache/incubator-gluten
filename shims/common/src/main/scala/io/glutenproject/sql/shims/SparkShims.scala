@@ -42,8 +42,6 @@ trait SparkShims {
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
 
   // https://issues.apache.org/jira/browse/SPARK-36745
-  def applyPlan(
-      plan: LogicalPlan,
-      forceShuffledHashJoin: Boolean): Seq[SparkPlan]
+  def applyPlan(plan: LogicalPlan, forceShuffledHashJoin: Boolean): Seq[SparkPlan]
 
 }
