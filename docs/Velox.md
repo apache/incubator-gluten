@@ -75,7 +75,7 @@ sudo mkdir -p /var/lib/hadoop-hdfs/
 sudo chown <sparkuser>:<sparkuser> /var/lib/hadoop-hdfs/
 ```
 
-You also need to add configuration to the "*HADOOP_HOME*/etc/hadoop/hdfs-site.xml" as below:
+You also need to add configuration to the "hdfs-site.xml" as below:
 
 ```
 <property>
