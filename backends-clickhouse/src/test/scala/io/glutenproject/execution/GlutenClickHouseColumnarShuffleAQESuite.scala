@@ -48,11 +48,11 @@ class GlutenClickHouseColumnarShuffleAQESuite
           case csr: ColumnarAQEShuffleReadExec => csr
         }
         assert(colCustomShuffleReaderExecs.size == 2)
-        val coalescedPartitionSpec1 = colCustomShuffleReaderExecs(0)
+        val coalescedPartitionSpec0 = colCustomShuffleReaderExecs(0)
           .partitionSpecs(0)
           .asInstanceOf[CoalescedPartitionSpec]
-        assert(coalescedPartitionSpec1.startReducerIndex == 0)
-        assert(coalescedPartitionSpec1.endReducerIndex == 5)
+        assert(coalescedPartitionSpec0.startReducerIndex == 0)
+        assert(coalescedPartitionSpec0.endReducerIndex == 5)
         val coalescedPartitionSpec1 = colCustomShuffleReaderExecs(1)
           .partitionSpecs(0)
           .asInstanceOf[CoalescedPartitionSpec]

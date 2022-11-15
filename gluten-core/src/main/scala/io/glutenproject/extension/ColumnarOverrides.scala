@@ -228,7 +228,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
               ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
             } else {
-              CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
+              shufflePlan
             }
           }
         } else {
@@ -325,11 +325,10 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       SortExecTransformer(plan.sortOrder, plan.global, newChild, plan.testSpillFrequency)
     }
     else {
-      // A little more complicated transform.
-      // 1) we put a projection ahead of sort, add new columns for the sort orderings
-      // 2) update all related attributes with the new projection
-      // 3) append the sort operator
-      // 4) add a new projection to remove the columns introduced by sort orderings
+      // In the case of that the child of sort is a range partition
+      // we need to remove the projection after the transformed range partition to
+      // reduce the computation. So we don't apply SortExecTransformer on this plan
+      // node directly.
       val partitioning = plan.child.asInstanceOf[ShuffleExchangeExec]
         .outputPartitioning.asInstanceOf[RangePartitioning]
       val orderings = partitioning.ordering
@@ -361,8 +360,31 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       }
       val newSort = SortExecTransformer(newOrderings, plan.global,
         sortChild, plan.testSpillFrequency)
-      val ret = ProjectExecTransformer(originalInputs, newSort)
-      ret
+      ProjectExecTransformer(originalInputs, newSort)
+      val newChild = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
+      val orderings = plan.sortOrder
+      val (projectAttrs, newOrderings) = SortExecTransformer
+        .buildProjectionAttributesByOrderings(orderings)
+      val originalInputs = plan.child.output
+      val sortChild = newChild match {
+        case projection: ProjectExecTransformer =>
+          // in case the sort's child is a range partition operator, we remove
+          // the projection after the range partition operator
+          val projectionChildOutputStr = s"${projection.child.output}"
+          val toProjectionOutputStr = s"${originalInputs ++ projectAttrs}"
+          logDebug(s"xxx-${projectionChildOutputStr}")
+          logDebug(s"xxx-${toProjectionOutputStr}")
+          if (projectionChildOutputStr != toProjectionOutputStr) {
+            ProjectExecTransformer(originalInputs ++ projectAttrs, newChild)
+          } else {
+            projection.child
+          }
+        case _ =>
+          ProjectExecTransformer(originalInputs ++ projectAttrs, newChild)
+      }
+      val newSort = SortExecTransformer(newOrderings, plan.global,
+        sortChild, plan.testSpillFrequency)
+      ProjectExecTransformer(originalInputs, newSort)
     }
   }
 
