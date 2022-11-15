@@ -24,8 +24,10 @@ import org.apache.spark.sql.types.BinaryType;
 import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
+import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.FloatType;
 import org.apache.spark.sql.types.DoubleType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
@@ -123,11 +125,11 @@ public class ExpressionBuilder {
   }
 
   public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
-    if (dataType instanceof IntegerType) {
+    if (dataType instanceof BooleanType) {
       if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeI32(nullable));
+        return makeNullLiteral(TypeBuilder.makeBoolean(nullable));
       } else {
-        return makeIntLiteral((Integer) obj);
+        return makeBooleanLiteral((Boolean) obj);
       }
     } else if (dataType instanceof ByteType) {
       if (obj == null) {
@@ -141,11 +143,23 @@ public class ExpressionBuilder {
       } else {
         return makeShortLiteral((Short) obj);
       }
+    } else if (dataType instanceof IntegerType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeI32(nullable));
+      } else {
+        return makeIntLiteral((Integer) obj);
+      }
     } else if (dataType instanceof LongType) {
       if (obj == null) {
         return makeNullLiteral(TypeBuilder.makeI64(nullable));
       } else {
         return makeLongLiteral((Long) obj);
+      }
+    } else if (dataType instanceof FloatType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeFP32(nullable));
+      } else {
+        return makeFloatLiteral((Float) obj);
       }
     } else if (dataType instanceof DoubleType) {
       if (obj == null) {
@@ -153,17 +167,17 @@ public class ExpressionBuilder {
       } else {
         return makeDoubleLiteral((Double) obj);
       }
-    }  else if (dataType instanceof BooleanType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeBoolean(nullable));
-      } else {
-        return makeBooleanLiteral((Boolean) obj);
-      }
     } else if (dataType instanceof DateType) {
       if (obj == null) {
         return makeNullLiteral(TypeBuilder.makeDate(nullable));
       } else {
         return makeDateLiteral((Integer) obj);
+      }
+    } else if (dataType instanceof TimestampType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeTimestamp(nullable));
+      } else {
+        return makeTimestampLiteral((Long) obj);
       }
     } else if (dataType instanceof StringType) {
       if (obj == null) {
