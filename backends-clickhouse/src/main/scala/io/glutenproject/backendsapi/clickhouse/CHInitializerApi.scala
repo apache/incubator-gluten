@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.IInitializerApi
 import io.glutenproject.vectorized.JniLibLoader
 
 import org.apache.spark.SparkConf
+
 import org.apache.commons.lang3.StringUtils
 
 class CHInitializerApi extends IInitializerApi {
