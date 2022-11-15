@@ -134,7 +134,8 @@ class JoinSelectionOverrideShim() extends Strategy with JoinSelectionHelper with
     joinType match {
       case _: InnerLike | RightOuter | FullOuter => true
       // For Velox backend, build right and left are both supported for LeftOuter and LeftSemi.
-      case LeftOuter | LeftSemi => GlutenConfig.getConf.isVeloxBackend ||
+      case LeftOuter | LeftSemi =>
+        GlutenConfig.getConf.isVeloxBackend ||
         GlutenConfig.getConf.isGazelleBackend
       case _ => false
     }
@@ -144,7 +145,8 @@ class JoinSelectionOverrideShim() extends Strategy with JoinSelectionHelper with
     joinType match {
       case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
       // For Velox backend, build right and left are both supported for RightOuter.
-      case RightOuter => GlutenConfig.getConf.isVeloxBackend ||
+      case RightOuter =>
+        GlutenConfig.getConf.isVeloxBackend ||
         GlutenConfig.getConf.isGazelleBackend
       case _ => false
     }
