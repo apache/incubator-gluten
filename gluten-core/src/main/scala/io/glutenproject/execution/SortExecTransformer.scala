@@ -352,23 +352,4 @@ object SortExecTransformer {
     }
     needsProjection
   }
-
-  def buildProjectionAttributesByOrderings(sortOrders: Seq[SortOrder]):
-    (Seq[NamedExpression], Seq[SortOrder]) = {
-    val projectionAttrs = new util.ArrayList[NamedExpression]()
-    val newSortOrders = new util.ArrayList[SortOrder]()
-    var aliasNo = 0
-    sortOrders.foreach(
-      order => {
-        if (!order.child.isInstanceOf[Attribute]) {
-          val alias = new Alias(order.child, s"sort_col_${aliasNo}")()
-          aliasNo += 1
-          projectionAttrs.add(alias)
-          newSortOrders.add(SortOrder(alias.toAttribute, order.direction,
-            order.nullOrdering, order.sameOrderExpressions))
-        }
-      }
-    )
-    (projectionAttrs.asScala, newSortOrders.asScala)
-  }
 }
