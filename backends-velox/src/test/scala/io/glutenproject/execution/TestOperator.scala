@@ -291,12 +291,11 @@ class TestOperator extends WholeStageTransformerSuite {
     df.printSchema()
   }
 
-  // VeloxRuntimeError, wait to fix
-  ignore("Test isnull function") {
+  // Test "SELECT ..." without a from clause.
+  test("Test isnull function") {
     val df = runQueryAndCompare("SELECT isnull(1)") { _ => }
     df.show()
     df.explain(false)
-    checkLengthAndPlan(df, 1)
   }
 
   // VeloxRuntimeError, wait to fix

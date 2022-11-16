@@ -321,11 +321,20 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   }
 
   def apply(plan: SparkPlan): SparkPlan = {
-    logOnLevel(s"${ruleName} before plan ${plan.toString()}")
-    val newPlan = replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
-    planChangeLogger.logRule(ruleName, plan, newPlan)
-    logOnLevel(s"${ruleName} after plan ${plan.toString()}")
-    newPlan
+    var checkOneRowRelation = false
+    if (plan.find(_.isInstanceOf[RDDScanExec]).isDefined) {
+      val rddScan = plan.find(_.isInstanceOf[RDDScanExec]).get
+      checkOneRowRelation = rddScan.asInstanceOf[RDDScanExec].name.equals("OneRowRelation")
+    }
+    if (checkOneRowRelation) {
+      plan
+    } else {
+      logOnLevel(s"${ruleName} before plan ${plan.toString()}")
+      val newPlan = replaceWithTransformerPlan(plan, ColumnarOverrides.supportAdaptive(plan))
+      planChangeLogger.logRule(ruleName, plan, newPlan)
+      logOnLevel(s"${ruleName} after plan ${plan.toString()}")
+      newPlan
+    }
   }
 }
 
