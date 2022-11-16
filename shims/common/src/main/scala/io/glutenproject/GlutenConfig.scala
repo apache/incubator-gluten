@@ -255,6 +255,18 @@ object GlutenConfig {
   val HIVE_EXEC_ORC_COMPRESS = "hive.exec.orc.compress"
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = "spark." + HIVE_EXEC_ORC_COMPRESS
 
+  // S3 config
+  val S3_ACCESS_KEY = "hadoop.fs.s3a.access.key"
+  val SPARK_S3_ACCESS_KEY: String = "spark." + S3_ACCESS_KEY
+  val S3_SECRET_KEY = "hadoop.fs.s3a.secret.key"
+  val SPARK_S3_SECRET_KEY: String = "spark." + S3_SECRET_KEY
+  val S3_ENDPOINT = "hadoop.fs.s3a.endpoint"
+  val SPARK_S3_ENDPOINT: String = "spark." + S3_ENDPOINT
+  val S3_CONNECTION_SSL_ENABLED = "hadoop.fs.s3a.connection.ssl.enabled"
+  val SPARK_S3_CONNECTION_SSL_ENABLED: String = "spark." + S3_CONNECTION_SSL_ENABLED
+  val S3_PATH_STYLE_ACCESS = "hadoop.fs.s3a.path.style.access"
+  val SPARK_S3_PATH_STYLE_ACCESS: String = "spark." + S3_PATH_STYLE_ACCESS
+
   val SPARK_BATCH_SIZE = "spark.sql.execution.arrow.maxRecordsPerBatch"
 
   // Backends.

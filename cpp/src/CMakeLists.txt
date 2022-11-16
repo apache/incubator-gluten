@@ -246,6 +246,9 @@ add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(spark_columnar_jni jni_proto)
 
 find_arrow_lib(${ARROW_LIB_NAME})
+if(BUILD_BENCHMARKS)
+  find_arrow_lib(${PARQUET_LIB_NAME})
+endif()
 
 if(ENABLE_HBM)
   find_library(MEMKIND_LIBRARY memkind)
@@ -302,6 +305,11 @@ endif()
 if(BUILD_TESTS)
   add_test_case(exec_backend_test SOURCES compute/exec_backend_test.cc)
 endif()
+
+if(BUILD_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
+
 
 if(DEFINED ENV{HADOOP_HOME})
   set(LIBHDFS3_DESTINATION $ENV{HADOOP_HOME}/lib/native)

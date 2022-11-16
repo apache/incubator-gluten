@@ -122,7 +122,9 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
                     file_path_.substr(5)),
                 reader_options);
     return toArrowSchema(reader->rowType());
-  } else if (strncmp(file_path_.c_str(), "hdfs:", 5) == 0) {
+  }
+#ifdef VELOX_ENABLE_HDFS
+  else if (strncmp(file_path_.c_str(), "hdfs:", 5) == 0) {
     struct hdfsBuilder* builder = hdfsNewBuilder();
     // read hdfs client conf from hdfs-client.xml from LIBHDFS3_CONF
     hdfsBuilderSetNameNode(builder, "default");
@@ -138,7 +140,9 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
                 std::make_unique<dwio::common::ReadFileInputStream>(&readFile),
                 reader_options);
     return toArrowSchema(reader->rowType());
-  } else {
+  }
+#endif
+  else {
     throw std::runtime_error(
         "The path is not local file path when inspect shcema with DWRF format!");
   }
