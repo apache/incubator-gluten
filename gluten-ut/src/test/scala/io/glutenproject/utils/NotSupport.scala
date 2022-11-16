@@ -17,16 +17,16 @@
 
 package io.glutenproject.utils
 
-import java.util.Locale
+import scala.reflect.ClassTag
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.clickhouse.ClickHouseNotSupport
 import io.glutenproject.utils.velox.VeloxNotSupport
 
 import org.apache.spark.sql.GlutenTestConstants
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
-import scala.reflect.ClassTag
 
 abstract class NotSupport {
   protected def partialSupportSuiteList: Map[String, Seq[String]]
@@ -52,7 +52,7 @@ abstract class NotSupport {
 
 object NotSupport {
   def NotYetSupportCase(suiteName: String): Seq[String] = {
-    val result = GlutenConfig.getSessionConf.glutenBackendLib.toLowerCase(Locale.ROOT) match {
+    val result = BackendsApiManager.getBackendName match {
       case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
         ClickHouseNotSupport.NotYetSupportCase(suiteName)
       case GlutenConfig.GLUTEN_VELOX_BACKEND =>

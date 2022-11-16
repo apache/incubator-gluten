@@ -23,26 +23,19 @@ import scala.collection.JavaConverters
 
 object BackendsApiManager {
 
-  private var glutenBackendName: Option[String] = None
-  private var initializerApiInstance: Option[IInitializerApi] = None
-  private var iteratorApiInstance: Option[IIteratorApi] = None
-  private var sparkPlanExecApiInstance: Option[ISparkPlanExecApi] = None
-  private var transformerApiInstance: Option[ITransformerApi] = None
+  private case class Wrapper(
+      glutenBackendName: String,
+      initializerApiInstance: IInitializerApi,
+      iteratorApiInstance: IIteratorApi,
+      sparkPlanExecApiInstance: ISparkPlanExecApi,
+      transformerApiInstance: ITransformerApi)
 
-  /**
-   * Automatically detect the backend api.
-   * @return
-   */
-  def initialize(): String = synchronized {
-    initializeInternal()
-  }
+  private lazy val manager: Wrapper = initializeInternal()
 
-  /**
-   * Initialize all backends api.
-   */
-  private def initializeInternal(): String = {
-    val discoveredBackends = JavaConverters.iterableAsScalaIterable(
-      ServiceLoader.load(classOf[Backend])).toSeq
+  /** Initialize all backends api. */
+  private def initializeInternal(): Wrapper = {
+    val discoveredBackends =
+      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toSeq
     if (discoveredBackends.isEmpty) {
       throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
     }
@@ -52,34 +45,39 @@ object BackendsApiManager {
           s"${discoveredBackends.map(_.name()).toList}")
     }
     val backend = discoveredBackends.head
-    glutenBackendName = Some(backend.name())
-    initializerApiInstance = Some(backend.initializerApi())
-    iteratorApiInstance = Some(backend.iteratorApi())
-    sparkPlanExecApiInstance = Some(backend.sparkPlanExecApi())
-    transformerApiInstance = Some(backend.transformerApi())
-    glutenBackendName.getOrElse(throw new IllegalStateException())
+    Wrapper(
+      backend.name(),
+      backend.initializerApi(),
+      backend.iteratorApi(),
+      backend.sparkPlanExecApi(),
+      backend.transformerApi())
+  }
+
+  /**
+   * Automatically detect the backend api.
+   * @return
+   */
+  def initialize(): String = {
+    getBackendName
   }
 
   def getBackendName: String = {
-    glutenBackendName.getOrElse(throw new IllegalStateException("Backend not initialized"))
+    manager.glutenBackendName
   }
 
   def getInitializerApiInstance: IInitializerApi = {
-    initializerApiInstance.getOrElse(
-      throw new IllegalStateException("IInitializerApi not instantiated"))
+    manager.initializerApiInstance
   }
 
   def getIteratorApiInstance: IIteratorApi = {
-    iteratorApiInstance.getOrElse(throw new IllegalStateException("IIteratorApi not instantiated"))
+    manager.iteratorApiInstance
   }
 
   def getSparkPlanExecApiInstance: ISparkPlanExecApi = {
-    sparkPlanExecApiInstance.getOrElse(
-      throw new IllegalStateException("ISparkPlanExecApi not instantiated"))
+    manager.sparkPlanExecApiInstance
   }
 
   def getTransformerApiInstance: ITransformerApi = {
-    transformerApiInstance.getOrElse(
-      throw new IllegalStateException("ITransformerApi not instantiated"))
+    manager.transformerApiInstance
   }
 }
