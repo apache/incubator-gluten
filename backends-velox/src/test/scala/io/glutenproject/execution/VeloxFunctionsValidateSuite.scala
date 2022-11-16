@@ -121,7 +121,7 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("Test Power function") {
-    val df = runQueryAndCompare("SELECT power(l_orderkey, 2.0) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT power(l_orderkey, 2) from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     df.show()
