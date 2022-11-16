@@ -19,7 +19,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.sql.{Row, TestUtils}
+import org.apache.spark.sql.Row
 
 import scala.collection.JavaConverters
 
@@ -223,41 +223,62 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 1)
   }
 
-  ignore("test_union_all two tables") {
-    val result = runSql(
-      """
-        |select count(orderkey) from (
-        | select l_orderkey as orderkey from lineitem
-        | union all
-        | select o_orderkey as orderkey from orders
-        |);
-        |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 75175L)
+  test("test_union_all two tables") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      val df = runQueryAndCompare(
+        """
+          |select count(orderkey) from (
+          | select l_orderkey as orderkey from lineitem
+          | union all
+          | select o_orderkey as orderkey from orders
+          |);
+          |""".stripMargin) { _ => }
+      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+    }
   }
 
-  ignore("test_union_all three tables") {
-    val result = runSql(
-      """
-        |select count(orderkey) from (
-        | select l_orderkey as orderkey from lineitem
-        | union all
-        | select o_orderkey as orderkey from orders
-        | union all
-        | (select o_orderkey as orderkey from orders limit 100)
-        |);
-        |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 75275L)
+  test("test_union_all three tables") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      val df = runQueryAndCompare(
+        """
+          |select count(orderkey) from (
+          | select l_orderkey as orderkey from lineitem
+          | union all
+          | select o_orderkey as orderkey from orders
+          | union all
+          | (select o_orderkey as orderkey from orders limit 100)
+          |);
+          |""".stripMargin) { _ => }
+      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+    }
   }
 
-  ignore("test_union two tables") {
-    val result = runSql(
-      """
-        |select count(orderkey) from (
-        | select l_orderkey as orderkey from lineitem
-        | union
-        | select o_orderkey as orderkey from orders
-        |);
-        |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 15000L)
+  test("test_union two tables") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      val df = runQueryAndCompare(
+        """
+          |select count(orderkey) from (
+          | select l_orderkey as orderkey from lineitem
+          | union
+          | select o_orderkey as orderkey from orders
+          |);
+          |""".stripMargin) {
+        _ =>
+      }
+      assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
+    }
+  }
+
+  test("test 'select global/local limit'") {
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      runQueryAndCompare(
+        """
+          |select * from (
+          | select * from lineitem limit 10
+          |) where l_suppkey != 0 limit 100;
+          |""".stripMargin) {
+        checkOperatorMatch[LimitTransformer]
+      }
+    }
   }
 }
