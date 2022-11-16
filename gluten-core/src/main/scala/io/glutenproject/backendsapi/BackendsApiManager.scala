@@ -48,7 +48,8 @@ object BackendsApiManager {
     }
     if (discoveredBackends.size != 1) {
       throw new IllegalStateException(
-        "More than one Backend implementation discovered from JVM classpath")
+        s"More than one Backend implementation discovered from JVM classpath: " +
+          s"${discoveredBackends.map(_.name()).toList}")
     }
     val backend = discoveredBackends.head
     glutenBackendName = Some(backend.name())
