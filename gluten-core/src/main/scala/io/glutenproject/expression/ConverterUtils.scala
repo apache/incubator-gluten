@@ -475,10 +475,12 @@ object ConverterUtils extends Logging {
   final val DEGREES = "degrees"
   final val LOG10 = "log10"
 
-  // Hash fucctions
+  // JSON functions
+  final val GET_JSON_OBJECT = "get_json_object"
+
+  // Hash functions
   final val MURMUR3HASH = "murmur3hash"
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
-
 }

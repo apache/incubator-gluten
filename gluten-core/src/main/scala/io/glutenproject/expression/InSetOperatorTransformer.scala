@@ -25,7 +25,6 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types._
 
 class InSetTransformer(value: Expression, hset: Set[Any], original: Expression)
   extends InSet(value: Expression, hset: Set[Any])
@@ -54,65 +53,11 @@ object InSetOperatorTransformer {
   def toTransformer(value: Expression,
                     leftNode: ExpressionNode,
                     values: Set[Any]): ExpressionNode = {
-    val expressionNodes = value.dataType match {
-      case _: ByteType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeByteLiteral(value.asInstanceOf[java.lang.Byte])
-        }).asJava)
-      case _: ShortType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeShortLiteral(value.asInstanceOf[java.lang.Short])
-        }).asJava)
-      case _: IntegerType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeIntLiteral(value.asInstanceOf[java.lang.Integer])
-        }).asJava)
-      case _: LongType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeLongLiteral(value.asInstanceOf[java.lang.Long])
-        }).asJava)
-      case _: FloatType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeFloatLiteral(value.asInstanceOf[java.lang.Float])
-        }).asJava)
-      case _: DoubleType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeDoubleLiteral(value.asInstanceOf[java.lang.Double])
-        }).asJava)
-      case _: DateType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeDateLiteral(value.asInstanceOf[java.lang.Integer])
-        }).asJava)
-      case _: TimestampType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeTimestampLiteral(value.asInstanceOf[java.lang.Long])
-        }).asJava)
-      case _: StringType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeStringLiteral(value.toString)
-        }).asJava)
-      case _: BinaryType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeBinaryLiteral(value.asInstanceOf[Array[Byte]])
-        }).asJava)
-      case _: DecimalType =>
-        new util.ArrayList[ExpressionNode](values.map({
-          value =>
-            ExpressionBuilder.makeDecimalLiteral(value.asInstanceOf[Decimal])
-        }).asJava)
-      case other =>
-        throw new UnsupportedOperationException(s"$other is not supported.")
-    }
+    val literalType = value.dataType
+    val expressionNodes = new util.ArrayList[ExpressionNode](values.map({
+      value =>
+        ExpressionBuilder.makeLiteral(value, literalType, value == null)
+    }).asJava)
 
     ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
   }

@@ -83,8 +83,7 @@ class Splitter::PartitionWriter {
 #ifndef SKIPWRITE
     RETURN_NOT_OK(EnsureOpened());
 #endif
-    RETURN_NOT_OK(
-        WriteRecordBatchPayload(spilled_file_os_.get(), partition_id_));
+    RETURN_NOT_OK(WriteRecordBatchPayload(spilled_file_os_.get()));
     ClearCache();
     return arrow::Status::OK();
   }
@@ -106,7 +105,7 @@ class Splitter::PartitionWriter {
       }
     }
 
-    RETURN_NOT_OK(WriteRecordBatchPayload(data_file_os.get(), partition_id_));
+    RETURN_NOT_OK(WriteRecordBatchPayload(data_file_os.get()));
     RETURN_NOT_OK(WriteEOS(data_file_os.get()));
     ClearCache();
 
@@ -161,9 +160,7 @@ class Splitter::PartitionWriter {
     return arrow::Status::OK();
   }
 
-  arrow::Status WriteRecordBatchPayload(
-      arrow::io::OutputStream* os,
-      int32_t partition_id) {
+  arrow::Status WriteRecordBatchPayload(arrow::io::OutputStream* os) {
     int32_t metadata_length = 0; // unused
 #ifndef SKIPWRITE
     for (auto& payload :
@@ -1004,6 +1001,7 @@ arrow::Status Splitter::DoSplit(const arrow::RecordBatch& rb) {
 
   return arrow::Status::OK();
 }
+
 template <typename T>
 arrow::Status Splitter::SplitFixedType(
     const uint8_t* src_addr,

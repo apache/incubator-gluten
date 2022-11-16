@@ -85,8 +85,13 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(connector::hive "${VELOX_COMPONENTS_PATH}/connectors/hive/libvelox_hive_connector.a")
   add_velox_dependency(connector "${VELOX_COMPONENTS_PATH}/connectors/libvelox_connector.a")
+if(VELOX_ENABLE_HDFS)
   add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
-
+endif()
+if(VELOX_ENABLE_S3)
+  add_velox_dependency(connector::hive::s3fs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a")
+endif()
+  add_velox_dependency(dwio::dwrf::test_utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/test/utils/libvelox_dwrf_test_utils.a")
   add_velox_dependency(dwio::dwrf::writer "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
   add_velox_dependency(dwio::dwrf::reader "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
   add_velox_dependency(dwio::dwrf::utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/utils/libvelox_dwio_dwrf_utils.a")
@@ -147,6 +152,12 @@ macro(find_libhdfs3)
   endif()
 endmacro()
 
+macro(find_awssdk)
+  set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
+endmacro()
+
+
 # Build Velox backend.
 set(VELOX_SRCS
     jni/jni_wrapper.cc
@@ -181,10 +192,13 @@ target_link_libraries(velox PUBLIC spark_columnar_jni)
 add_velox_dependencies()
 target_link_libraries(velox PUBLIC Folly::folly)
 
-find_libhdfs3()
-add_library(libhdfs3 SHARED IMPORTED)
-set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
-target_link_libraries(velox PUBLIC libhdfs3)
+if(VELOX_ENABLE_HDFS)
+  add_definitions(-DVELOX_ENABLE_HDFS)
+  find_libhdfs3()
+  add_library(libhdfs3 SHARED IMPORTED)
+  set_target_properties(libhdfs3 PROPERTIES IMPORTED_LOCATION "${LIBHDFS3_LIBRARY}")
+  target_link_libraries(velox PUBLIC libhdfs3)
+endif()
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
@@ -192,4 +206,10 @@ endif()
 
 if(BUILD_TESTS)
   add_test_case(shuffle_test SOURCES tests/shuffle_split_test.cc)
+endif()
+
+if(VELOX_ENABLE_S3)
+  add_definitions(-DVELOX_ENABLE_S3)
+  find_awssdk()
+  target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()
