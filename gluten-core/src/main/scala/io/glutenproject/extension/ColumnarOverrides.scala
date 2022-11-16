@@ -196,7 +196,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: SortExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        transformSupportSortWithProjection(plan, isSupportAdaptive)
+        SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
@@ -228,7 +228,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
               ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
             } else {
-              shufflePlan
+              CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning,
+                child))
             }
           }
         } else {
@@ -315,76 +316,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)
         p.withNewChildren(children)
-    }
-  }
-
-  def transformSupportSortWithProjection(plan: SortExec, isSupportAdaptive: Boolean) : SparkPlan = {
-    val needProjection = SortExecTransformer.needProjection(plan.sortOrder)
-    if (!needProjection) {
-      val newChild = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
-      SortExecTransformer(plan.sortOrder, plan.global, newChild, plan.testSpillFrequency)
-    }
-    else {
-      // In the case of that the child of sort is a range partition
-      // we need to remove the projection after the transformed range partition to
-      // reduce the computation. So we don't apply SortExecTransformer on this plan
-      // node directly.
-      val partitioning = plan.child.asInstanceOf[ShuffleExchangeExec]
-        .outputPartitioning.asInstanceOf[RangePartitioning]
-      val orderings = partitioning.ordering
-      val originalInputs = plan.child.output
-      val (projectAttrs, newOrderings) = SortExecTransformer
-        .buildProjectionAttributesByOrderings(orderings)
-      val sortChild = plan.child match {
-        case shuffle: ShuffleExchangeExec =>
-          shuffle.outputPartitioning match {
-            case RangePartitioning(_, n) =>
-              // If it is a range-partition sort, we put the projection ahead of
-              // range-partition shuffle
-              val child = ProjectExec(originalInputs ++ projectAttrs, shuffle.child)
-              TransformHints.tagTransformable(child)
-              // the ordering in RangePartitioning should be the same as in
-              // the SortExec
-              val rangePartitioning = RangePartitioning(newOrderings, n)
-              val newShuffle = ShuffleExchangeExec(rangePartitioning,
-                child,
-                shuffle.shuffleOrigin)
-              TransformHints.tagTransformable(newShuffle)
-
-              replaceWithTransformerPlan(newShuffle, isSupportAdaptive)
-            case _ =>
-              replaceWithTransformerPlan(shuffle, isSupportAdaptive)
-          }
-        case c =>
-          replaceWithTransformerPlan(c, isSupportAdaptive)
-      }
-      val newSort = SortExecTransformer(newOrderings, plan.global,
-        sortChild, plan.testSpillFrequency)
-      ProjectExecTransformer(originalInputs, newSort)
-      val newChild = replaceWithTransformerPlan(plan.child, isSupportAdaptive)
-      val orderings = plan.sortOrder
-      val (projectAttrs, newOrderings) = SortExecTransformer
-        .buildProjectionAttributesByOrderings(orderings)
-      val originalInputs = plan.child.output
-      val sortChild = newChild match {
-        case projection: ProjectExecTransformer =>
-          // in case the sort's child is a range partition operator, we remove
-          // the projection after the range partition operator
-          val projectionChildOutputStr = s"${projection.child.output}"
-          val toProjectionOutputStr = s"${originalInputs ++ projectAttrs}"
-          logDebug(s"xxx-${projectionChildOutputStr}")
-          logDebug(s"xxx-${toProjectionOutputStr}")
-          if (projectionChildOutputStr != toProjectionOutputStr) {
-            ProjectExecTransformer(originalInputs ++ projectAttrs, newChild)
-          } else {
-            projection.child
-          }
-        case _ =>
-          ProjectExecTransformer(originalInputs ++ projectAttrs, newChild)
-      }
-      val newSort = SortExecTransformer(newOrderings, plan.global,
-        sortChild, plan.testSpillFrequency)
-      ProjectExecTransformer(originalInputs, newSort)
     }
   }
 

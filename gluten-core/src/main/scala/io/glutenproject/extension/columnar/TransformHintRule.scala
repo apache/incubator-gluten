@@ -124,7 +124,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     plan.withNewChildren(plan.children.map(addTransformableTags))
   }
 
-  def addTransformableTag(plan: SparkPlan): Unit = {
+  private def addTransformableTag(plan: SparkPlan): Unit = {
     if (TransformHints.isAlreadyTagged(plan)) {
       logDebug(
         s"Skipping executing" +

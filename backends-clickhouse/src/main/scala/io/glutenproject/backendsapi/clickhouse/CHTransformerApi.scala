@@ -29,6 +29,8 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
+import scala.util.control.Breaks.{break, breakable}
+
 class CHTransformerApi extends ITransformerApi with Logging {
 
   /**
@@ -61,7 +63,18 @@ class CHTransformerApi extends ITransformerApi with Logging {
               }
             })
           .exists(_ == false))
-      case RangePartitioning(_, _) => true
+      case RangePartitioning(orderings, _) =>
+        var enableRangePartitioning = true
+        // TODO. support complicated expressions in orderings
+        breakable {
+          for (ordering <- orderings) {
+            if (!ordering.child.isInstanceOf[Attribute]) {
+              enableRangePartitioning = false
+              break
+            }
+          }
+        }
+        enableRangePartitioning
       case _ => true
     }
   }
