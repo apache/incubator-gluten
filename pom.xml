@@ -73,6 +73,8 @@
     <!-- To build built-in backend c++ codes -->
     <build_gazelle_cpp>OFF</build_gazelle_cpp>
     <build_velox>OFF</build_velox>
+    <velox_enable_s3>OFF</velox_enable_s3>
+    <velox_enable_hdfs>OFF</velox_enable_hdfs>
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>

@@ -19,14 +19,12 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ITransformerApi
-import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.SelectionNode
-import io.glutenproject.utils.InputPartitionsUtil
-
+import io.glutenproject.expression.ArrowConverterUtils
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import io.glutenproject.utils.{InputPartitionsUtil, VeloxExpressionUtil}
+import io.glutenproject.utils.VeloxExpressionUtil.VELOX_EXPR_BLACKLIST
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
@@ -34,6 +32,34 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
 
 class VeloxTransformerApi extends ITransformerApi with Logging {
+
+  /**
+   * Add the validation for Velox unsupported or mismatched expressions with specific input type,
+   * such as Cast(ArrayType).
+   */
+  def doValidate(blacklist: Map[String, String], expr: Expression): Boolean = {
+    val value = blacklist.get(expr.prettyName.toLowerCase())
+    if (value.isEmpty) {
+      return true
+    }
+    val inputTypeName = value.get
+    if (inputTypeName.equals(VeloxExpressionUtil.EMPTY_TYPE)) {
+      return false
+    } else {
+      for (input <- expr.children) {
+        if (inputTypeName.equals(input.dataType.typeName)) {
+          return false
+        }
+      }
+    }
+    true
+  }
+
+  /**
+   * Do validate the expressions based on the specific backend blacklist,
+   * the existed expression will fall back to Vanilla Spark.
+   */
+  override def doValidate(expr: Expression): Boolean = doValidate(VELOX_EXPR_BLACKLIST, expr)
 
   /**
    * Do validate for ColumnarShuffleExchangeExec.

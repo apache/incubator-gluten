@@ -103,7 +103,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     return std::make_shared<::velox::compute::VeloxPlanConverter>(sparkConfs_);
   });
   static auto veloxInitializer =
-      std::make_shared<::velox::compute::VeloxInitializer>();
+      std::make_shared<::velox::compute::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()
 }
 
