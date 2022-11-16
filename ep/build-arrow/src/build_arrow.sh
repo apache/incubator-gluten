@@ -11,6 +11,7 @@ ARROW_ROOT=/usr/local
 # option gazelle_cpp
 BACKEND_TYPE=velox
 ENABLE_EP_CACHE=OFF
+BUILD_TYPE=RelWithDebInfo
 
 for arg in "$@"
 do
@@ -41,6 +42,10 @@ do
         ;;
         --enable_ep_cache=*)
         ENABLE_EP_CACHE=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_type=*)
+        BUILD_TYPE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -91,7 +96,7 @@ function compile_velox_arrow {
             -Dre2_SOURCE=AUTO \
             -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
             -DCMAKE_INSTALL_LIBDIR=lib \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             ..
     cmake --build . --target install
     popd

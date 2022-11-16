@@ -18,6 +18,11 @@
         <velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
         <velox.compile_velox>${compile_velox}</velox.compile_velox>
         <velox.enable_ep_cache>${enable_ep_cache}</velox.enable_ep_cache>
+        <velox.velox_enable_s3>${velox_enable_s3}</velox.velox_enable_s3>
+        <velox.velox_enable_hdfs>${velox_enable_hdfs}</velox.velox_enable_hdfs>
+        <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
+        <velox.build_folly>${build_folly}</velox.build_folly>
+        <velox.build_type>${build_type}</velox.build_type>
         <velox.velox_home>${velox_home}</velox.velox_home>
     </properties>
 
@@ -46,6 +51,21 @@
                                 </argument>
                                 <argument>
                                     --enable_ep_cache=${velox.enable_ep_cache}
+                                </argument>
+                                <argument>
+                                    --velox_enable_s3=${velox.velox_enable_s3}
+                                </argument>
+                                <argument>
+                                    --velox_enable_hdfs=${velox.velox_enable_hdfs}
+                                </argument>
+                                <argument>
+                                    --build_protobuf=${velox.build_protobuf}
+                                </argument>
+                                <argument>
+                                    --velox_build_folly=${velox.build_folly}
+                                </argument>
+                                <argument>
+                                    --velox_build_type=${velox.build_type}
                                 </argument>
                                 <argument>
                                     --velox_home=${velox.velox_home}

@@ -49,7 +49,7 @@ jobs:
       - name: Install Gluten Arrow-backend
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp_backend=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
           cp package/gazelle/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
       # - name: Run unit tests
@@ -74,7 +74,7 @@ jobs:
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
-            -Dbuild_protobuf=OFF -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
+            -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
       - name: Run Cpp Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
