@@ -38,7 +38,8 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
 
-case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) extends Exchange {
+case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
+  extends BroadcastExchangeLike {
   override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of Rows"),
@@ -54,7 +55,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
     promise.future
 
   @transient
-  private[sql] lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] = {
+  override lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] = {
     SQLExecution.withThreadLocalCaptured[broadcast.Broadcast[Any]](
       session,
       BroadcastExchangeExec.executionContext) {
@@ -120,7 +121,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
         s"ColumnarBroadcastExchange only support HashRelationMode")
   }
 
-  private[sql] val runId: UUID = UUID.randomUUID
+  override val runId: UUID = UUID.randomUUID
 
   @transient
   private val timeout: Long = SQLConf.get.broadcastTimeout
@@ -171,41 +172,6 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarBroadcastExchangeExec =
     copy(child = newChild)
-}
-
-case class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPlan)
-  extends BroadcastExchangeLike {
-  val plan: ColumnarBroadcastExchangeExec = new ColumnarBroadcastExchangeExec(mode, child)
-
-  override lazy val metrics: Map[String, SQLMetric] = plan.metrics
-
-  @transient
-  lazy override val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
-    plan.completionFuture
-
-  @transient
-  override lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] =
-    plan.relationFuture
-
-  @transient
-  private lazy val promise = plan.promise
-
-  override val runId: UUID = plan.runId
-
-  val buildKeyExprs: Seq[Expression] = plan.buildKeyExprs
-
-  @transient
-  private val timeout: Long = SQLConf.get.broadcastTimeout
-
-  override def supportsColumnar: Boolean = true
-
-  override def nodeName: String = plan.nodeName
-
-  override def output: Seq[Attribute] = plan.output
-
-  override def outputPartitioning: Partitioning = plan.outputPartitioning
-
-  override def doCanonicalize(): SparkPlan = plan.doCanonicalize()
 
   // Ported from BroadcastExchangeExec
   override def runtimeStatistics: Statistics = {
@@ -213,24 +179,4 @@ case class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPla
     val rowCount = metrics("numOutputRows").value
     Statistics(dataSize, Some(rowCount))
   }
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[ColumnarShuffleExchangeAdaptor]
-
-  override def equals(other: Any): Boolean = other match {
-    case that: ColumnarShuffleExchangeAdaptor =>
-      (that canEqual this) && super.equals(that)
-    case _ => false
-  }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override protected def doPrepare(): Unit = plan.doPrepare()
-
-  override protected def doExecute(): RDD[InternalRow] = plan.doExecute()
-
-  override protected[sql] def doExecuteBroadcast[T](): broadcast.Broadcast[T] =
-    plan.doExecuteBroadcast[T]()
-
-  protected def withNewChildInternal(newChild: SparkPlan): ColumnarBroadcastExchangeAdaptor =
-    copy(child = newChild)
 }
