@@ -33,6 +33,8 @@ void registerCustomFunctions() {
 }
 
 void registerAllFunctions() {
+  // The registration order matters. Spark sql functions are registered after
+  // presto sql functions to overwrite the registration for same named functions.
   functions::prestosql::registerAllScalarFunctions();
   functions::sparksql::registerFunctions("");
   registerCustomFunctions();

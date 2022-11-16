@@ -160,14 +160,10 @@ class BitwiseAndTransformer(left: Expression, right: Expression, original: Expre
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.BITWISE_AND, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressionNodes = Lists.newArrayList(
-      leftNode, rightNode)
-    // velox returns bigint type.
-    val childTypeNode = ConverterUtils.getTypeNode(LongType, nullable)
-    val childNode = ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, childTypeNode)
-    // Cast bigint type to left.dataType in order to keep consistent with vanilla spark.
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    // Use left data type as result type.
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -186,14 +182,10 @@ class BitwiseOrTransformer(left: Expression, right: Expression, original: Expres
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.BITWISE_OR, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressionNodes = Lists.newArrayList(
-      leftNode, rightNode)
-    // velox returns bigint type.
-    val childTypeNode = ConverterUtils.getTypeNode(LongType, nullable)
-    val childNode = ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, childTypeNode)
-    // Cast bigint type to left.dataType in order to keep consistent with vanilla spark.
-    val typeNode = ConverterUtils.getTypeNode(left.dataType, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    // Use left data type as result type.
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
