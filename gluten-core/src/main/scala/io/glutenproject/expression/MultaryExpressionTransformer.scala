@@ -17,14 +17,13 @@
 
 package io.glutenproject.expression
 
-import scala.collection.mutable.ArrayBuffer
-
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.DataType
+
+import scala.collection.mutable.ArrayBuffer
 
 class Murmur3HashTransformer(exps: Seq[Expression], original: Expression)
   extends Murmur3Hash(exps: Seq[Expression])
@@ -50,3 +49,4 @@ class Murmur3HashTransformer(exps: Seq[Expression], original: Expression)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }
+

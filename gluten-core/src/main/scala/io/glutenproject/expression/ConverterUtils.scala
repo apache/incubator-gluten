@@ -472,8 +472,12 @@ object ConverterUtils extends Logging {
   final val GREATEST = "greatest"
   final val LEAST = "least"
 
+  // JSON functions
+  final val GET_JSON_OBJECT = "get_json_object"
+
+  // Hash functions
   final val MURMUR3HASH = "murmur3hash"
+
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
-
 }

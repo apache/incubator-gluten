@@ -53,7 +53,7 @@ void InitVeloxBackend() {
     return std::make_shared<::velox::compute::VeloxPlanConverter>(confMap);
   });
   auto veloxInitializer =
-      std::make_shared<::velox::compute::VeloxInitializer>();
+      std::make_shared<::velox::compute::VeloxInitializer>(confMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
