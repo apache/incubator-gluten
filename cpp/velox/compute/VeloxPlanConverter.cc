@@ -143,6 +143,15 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 }
 
 void VeloxPlanConverter::setInputPlanNode(
+    const ::substrait::FetchRel& fetchRel) {
+  if (fetchRel.has_input()) {
+    setInputPlanNode(fetchRel.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
+void VeloxPlanConverter::setInputPlanNode(
     const ::substrait::ExpandRel& sexpand) {
   if (sexpand.has_input()) {
     setInputPlanNode(sexpand.input());
@@ -274,6 +283,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.sort());
   } else if (srel.has_expand()) {
     setInputPlanNode(srel.expand());
+  } else if (srel.has_fetch()) {
+    setInputPlanNode(srel.fetch());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
