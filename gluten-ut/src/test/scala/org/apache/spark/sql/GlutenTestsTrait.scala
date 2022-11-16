@@ -40,7 +40,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-trait GlutenTestusTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
+trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
 
   protected override def beforeAll(): Unit = {
     // prepare working paths

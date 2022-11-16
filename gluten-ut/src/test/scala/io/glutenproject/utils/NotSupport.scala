@@ -54,7 +54,9 @@ object NotSupport {
     val result = GlutenConfig.getSessionConf.glutenBackendLib match {
       case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
         ClickHouseNotSupport.NotYetSupportCase(suiteName)
-      case GlutenConfig.GLUTEN_VELOX_BACKEND || GlutenConfig.GLUTEN_GAZELLE_BACKEND =>
+      case GlutenConfig.GLUTEN_VELOX_BACKEND =>
+        VeloxNotSupport.NotYetSupportCase(suiteName)
+      case GlutenConfig.GLUTEN_GAZELLE_BACKEND =>
         // FIXME here we reuse Velox backend's code
         VeloxNotSupport.NotYetSupportCase(suiteName)
       case _ =>
