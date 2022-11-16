@@ -30,21 +30,17 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import io.glutenproject.execution.CustomExpandExec
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.internal.SQLConf
 import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenSparkExtensionsInjector
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.TransformHint
 import io.glutenproject.extension.columnar.StoreExpandGroupExpression
-import io.glutenproject.extension.ColumnarOverrides.{sanityCheck, supportAdaptive}
-import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.sql.shims.SparkShimLoader
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
@@ -194,7 +190,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
-                  if (supportAdaptive(plan)) {
+                  if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
                     ColumnarShuffleExchangeAdaptor(
                       plan.outputPartitioning, projectChild, removeHashColumn = true)
                   } else {
@@ -205,14 +201,14 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
-                if (supportAdaptive(plan)) {
+                if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
                   ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
                 } else {
                   CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
                 }
             }
           } else {
-            if (supportAdaptive(plan)) {
+            if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
               ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
             } else {
               CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
@@ -485,22 +481,6 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
 }
 
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {
-
-  def sanityCheck(plan: SparkPlan): Boolean =
-    plan.logicalLink.isDefined
-
-  def supportAdaptive(plan: SparkPlan): Boolean = {
-    // TODO migrate dynamic-partition-pruning onto adaptive execution.
-    // Only QueryStage will have Exchange as Leaf Plan
-    val isLeafPlanExchange = plan match {
-      case _: Exchange => true
-      case _ => false
-    }
-    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled && (sanityCheck(plan) &&
-      !plan.logicalLink.exists(_.isStreaming) &&
-      plan.children.forall(supportAdaptive)))
-  }
-
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectColumnar(ColumnarOverrideRules)
   }

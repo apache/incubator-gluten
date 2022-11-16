@@ -47,4 +47,7 @@ trait SparkShims {
       forceShuffledHashJoin: Boolean,
       backendLib: BackendLib): Seq[SparkPlan]
 
+  protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
+
+  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
 }
