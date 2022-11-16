@@ -86,6 +86,22 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
+  test("json_array_length") {
+    runQueryAndCompare(s"select l_orderkey, json_array_length('[1,2,3,4]') " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+//    runQueryAndCompare(s"select l_orderkey, json_array_length(l_comment) " +
+//      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, json_array_length(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("md5") {
+    runQueryAndCompare(s"select l_orderkey, md5(l_comment) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, md5(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
   test("lower") {
     runQueryAndCompare(s"select l_orderkey, lower(l_comment) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
@@ -118,6 +134,15 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
     runQueryAndCompare(s"select l_orderkey, locate(l_comment, 'a', 1) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, locate(null, 'a', 1) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("trim") {
+    runQueryAndCompare(s"select l_orderkey, trim('    SparkSQL   ') " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, trim(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, trim(l_comment) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
@@ -235,6 +260,24 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
+  test("regexp_extract_all") {
+    runQueryAndCompare("select l_orderkey, regexp_extract_all('l_comment', '([a-z])', 1) " +
+      "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare("select l_orderkey, l_comment, " +
+      "regexp_extract_all(l_comment, '([a-z]+)', 0) " +
+      "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  ignore("regexp_replace") {
+    runQueryAndCompare("select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
+      "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare("select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
+      "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    // todo incorrect results
+    runQueryAndCompare("select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 10) " +
+      "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
   test("replace") {
     runQueryAndCompare(s"select l_orderkey, replace(l_comment, ' ', 'hello') " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
@@ -246,10 +289,28 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  test("split") {
-    val df = runQueryAndCompare(s"select l_orderkey, split(l_comment, 'h', 3) " +
-      s"from lineitem limit $LENGTH") { _ => }
-    assert(df.collect().length == LENGTH)
+  test("reverse") {
+    runQueryAndCompare("select l_orderkey, l_comment, reverse(l_comment) " +
+      "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+
+    // fall back because of unsupported cast(array)
+    runQueryAndCompare("select l_orderkey, l_comment, reverse(array(l_comment, l_comment)) " +
+      "from lineitem limit 5") { _ => }
+  }
+
+  ignore("split") {
+    runQueryAndCompare("select l_orderkey, l_comment, split(l_comment, ' ', 3) " +
+          "from lineitem limit 5") { _ => }
+
+    // todo incorrect results
+    runQueryAndCompare("select l_orderkey, l_comment, split(l_comment, '[a]', 3) " +
+      "from lineitem limit 5") { _ => }
+
+    runQueryAndCompare("select l_orderkey, split(l_comment, ' ') " +
+      "from lineitem limit 5") { _ => }
+
+    runQueryAndCompare("select l_orderkey, split(l_comment, 'h') " +
+      "from lineitem limit 5") { _ => }
   }
 
   test("substr") {

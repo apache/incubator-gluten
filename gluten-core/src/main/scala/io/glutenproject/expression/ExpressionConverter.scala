@@ -194,6 +194,22 @@ object ExpressionConverter extends Logging {
             t.third,
             attributeSeq),
           expr)
+      case t: QuaternaryExpression =>
+        logInfo(s"${expr.getClass} ${expr} is supported.")
+        QuaternaryExpressionTransformer.create(
+          replaceWithExpressionTransformer(
+            t.first,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            t.second,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            t.third,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            t.fourth,
+            attributeSeq),
+          expr)
       case u: UnaryExpression =>
         logInfo(s"${expr.getClass} $expr is supported")
         if (!u.isInstanceOf[CheckOverflow] || !u.child.isInstanceOf[Divide]) {
@@ -253,6 +269,14 @@ object ExpressionConverter extends Logging {
             attributeSeq)
         }
         new Murmur3HashTransformer(exprs, expr)
+      case l: StringTrim =>
+        if (l.trimStr != None) {
+          throw new UnsupportedOperationException(s"not supported yet.")
+        }
+        logInfo(s"${expr.getClass} ${expr} is supported")
+        TrimOperatorTransformer.create(
+          replaceWithExpressionTransformer(l.srcStr, attributeSeq),
+          expr)
       case l: StringTrimLeft =>
         if (l.trimStr != None) {
           throw new UnsupportedOperationException(s"not supported yet.")

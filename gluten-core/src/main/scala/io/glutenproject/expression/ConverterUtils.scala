@@ -426,6 +426,8 @@ object ConverterUtils extends Logging {
   final val REGEXP_REPLACE = "regexp_replace"
   final val REGEXP_EXTRACT = "regexp_extract"
   final val REGEXP_EXTRACT_ALL = "regexp_extract_all"
+  final val JSON_ARRAY_LENGTH = "json_array_length"
+  final val MD5 = "md5"
   final val EQUAL = "equal"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"
@@ -455,6 +457,7 @@ object ConverterUtils extends Logging {
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
+  final val REVERSE = "reverse"
   final val SPLIT = "split"
   final val SPLIT_PART = "split_part"
   final val STARTS_WITH = "starts_with"
@@ -482,11 +485,11 @@ object ConverterUtils extends Logging {
   final val ARRAY_TYPE = "array"
   final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
     CAST -> ARRAY_TYPE,
-    REGEXP_REPLACE -> EMPTY_TYPE,
-    REGEXP_EXTRACT_ALL -> EMPTY_TYPE,
+//    REGEXP_REPLACE -> EMPTY_TYPE,
+//    REGEXP_EXTRACT_ALL -> EMPTY_TYPE,
     SPLIT -> EMPTY_TYPE,
     SPLIT_PART -> EMPTY_TYPE,
     LENGTH -> DataTypes.BinaryType.typeName,
-    TRIM -> EMPTY_TYPE,
-    TRANSLATE -> EMPTY_TYPE)
+    // TRIM -> EMPTY_TYPE,
+    LOCATE -> EMPTY_TYPE)
 }

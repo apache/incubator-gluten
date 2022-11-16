@@ -19,22 +19,15 @@ package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
-import org.apache.spark.sql.types.BooleanType;
-import org.apache.spark.sql.types.BinaryType;
-import org.apache.spark.sql.types.ByteType;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DateType;
-import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.DoubleType;
-import org.apache.spark.sql.types.IntegerType;
-import org.apache.spark.sql.types.LongType;
-import org.apache.spark.sql.types.ShortType;
-import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
+import org.apache.spark.sql.types.*;
+import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** Contains helper functions for constructing substrait relations. */
 public class ExpressionBuilder {
@@ -122,6 +115,10 @@ public class ExpressionBuilder {
     return new DecimalLiteralNode(decimalConstant);
   }
 
+  public static StringListNode makeListLiteral(ArrayList<String> values) {
+    return new StringListNode(values);
+  }
+
   public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
     if (dataType instanceof IntegerType) {
       if (obj == null) {
@@ -184,6 +181,23 @@ public class ExpressionBuilder {
           decimal.scale()));
       } else {
         return makeDecimalLiteral((Decimal) obj);
+      }
+    }  else if (dataType instanceof ArrayType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeDecimal(nullable, 0, 0));
+      } else {
+        Object[] arrays = ((GenericArrayData) obj).array();
+        Arrays.stream(arrays).collect(Collectors.toList());
+        ArrayList<String> list = new ArrayList<>();
+        for (Object array : arrays) {
+          if (array instanceof UTF8String) {
+            list.add(array.toString());
+          } else {
+            throw new UnsupportedOperationException(
+                    String.format("Type not supported: %s.", dataType.toString()));
+          }
+        }
+        return makeListLiteral(list);
       }
     } else {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
