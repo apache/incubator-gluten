@@ -31,7 +31,7 @@ trait GlutenTestsBaseTrait {
 
   // prefer to use blackTestNameList
   def blackTestNameList: Seq[String] =
-    NotSupport.NotYetSupportCase(getClass.getSuperclass.getSimpleName)
+    NotSupport.notYetSupportCase(getClass.getSuperclass.getSimpleName)
 
 
   def whiteBlackCheck(testName: String): Boolean = {
