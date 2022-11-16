@@ -27,7 +27,7 @@ object VeloxExpressionUtil {
    * The blacklist for Velox unsupported or mismatched expressions with specific input type,
    * such as Cast(ArrayType)
    */
-  // The expression with empty type me
+  // The expression with empty type will fall back directly.
   final val EMPTY_TYPE = ""
   final val ARRAY_TYPE = "array"
   final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
