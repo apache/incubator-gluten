@@ -436,7 +436,7 @@ object ConverterUtils extends Logging {
   final val IS_NULL = "is_null"
   final val NOT = "not"
 
-  // SparkSQL String fucctions of Velox
+  // SparkSQL String functions of Velox
   final val ASCII = "ascii"
   final val CHR = "chr"
   final val EXTRACT = "extract"
@@ -461,7 +461,7 @@ object ConverterUtils extends Logging {
   final val SUBSTRING = "substring"
   final val TRANSLATE = "translate"
 
-  // SparkSQL Math fucctions of Velox
+  // SparkSQL Math functions of Velox
   final val ABS = "abs"
   final val CEIL = "ceil"
   final val FLOOR = "floor"
@@ -476,17 +476,4 @@ object ConverterUtils extends Logging {
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
 
-  // The blacklist for Velox unsupported or mismatched expressions with specific input type,
-  // such as Cast(ArrayType)
-  final val EMPTY_TYPE = ""
-  final val ARRAY_TYPE = "array"
-  final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
-    CAST -> ARRAY_TYPE,
-    REGEXP_REPLACE -> EMPTY_TYPE,
-    REGEXP_EXTRACT_ALL -> EMPTY_TYPE,
-    SPLIT -> EMPTY_TYPE,
-    SPLIT_PART -> EMPTY_TYPE,
-    LENGTH -> DataTypes.BinaryType.typeName,
-    TRIM -> EMPTY_TYPE,
-    TRANSLATE -> EMPTY_TYPE)
 }
