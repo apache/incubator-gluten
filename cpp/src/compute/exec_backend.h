@@ -29,6 +29,11 @@
 #include "substrait/plan.pb.h"
 #include "utils/exception.h"
 #include "utils/metrics.h"
+
+#ifdef GLUTEN_PRINT_DEBUG
+#include <iostream>
+#endif
+
 namespace gluten {
 using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
 using GlutenIterator =
