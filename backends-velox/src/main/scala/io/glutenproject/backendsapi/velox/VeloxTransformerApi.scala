@@ -59,8 +59,7 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * Do validate the expressions based on the specific backend blacklist,
    * the existed expression will fall back to Vanilla Spark.
    */
-  override def doValidate(expr: Expression): Boolean =
-    GlutenConfig.getSessionConf.isVeloxBackend && doValidate(VELOX_EXPR_BLACKLIST, expr)
+  override def doValidate(expr: Expression): Boolean = doValidate(VELOX_EXPR_BLACKLIST, expr)
 
   /**
    * Do validate for ColumnarShuffleExchangeExec.
