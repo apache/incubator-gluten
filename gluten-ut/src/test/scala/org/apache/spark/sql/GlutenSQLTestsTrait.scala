@@ -17,21 +17,24 @@
 
 package org.apache.spark.sql
 
+import java.io.File
+import java.util.TimeZone
+
+import scala.collection.JavaConverters._
+
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
+import org.junit.Assert
+import org.scalactic.source.Position
+import org.scalatest.{Assertions, Tag}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.test.SharedSparkSession
-import org.junit.Assert
-import org.scalactic.source.Position
-import org.scalatest.{Assertions, Tag}
-
-import java.io.File
-import java.util.TimeZone
-import scala.collection.JavaConverters._
 
 /**
  * Basic trait for Gluten SQL test cases
@@ -70,7 +73,7 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
 
   override def sparkConf: SparkConf = {
     // Native SQL configs
-    super.sparkConf
+    val conf = super.sparkConf
       .setAppName("Gluten-UT")
       .set("spark.driver.memory", "1G")
       .set("spark.sql.adaptive.enabled", "true")
@@ -82,7 +85,22 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set("spark.sql.warehouse.dir", warehouse)
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+
+    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+      conf
+        .set("spark.io.compression.codec", "LZ4")
+        .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+        .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+        .set("spark.sql.files.openCostInBytes", "134217728")
+        .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+    } else {
+      conf.set("spark.unsafe.exceptionOnMemoryLeak", "false")
+    }
+
+    conf
   }
 
   override protected def checkAnswer(df: => DataFrame, expectedAnswer: Seq[Row]): Unit = {

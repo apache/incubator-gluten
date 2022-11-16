@@ -22,20 +22,20 @@ import java.io.File
 
 import scala.collection.mutable.ArrayBuffer
 
-import org.apache.commons.io.FileUtils
-import org.scalactic.source.Position
-import org.scalatest.{Args, Status, Tag}
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.SystemParameters
+import org.apache.commons.io.FileUtils
+import org.scalactic.source.Position
+import org.scalatest.{Args, Status, Tag}
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
+import org.apache.spark.sql.catalyst.optimizer.{ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -112,10 +112,24 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid static evaluation for literal input by spark catalyst.
-        .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-          NullPropagation.ruleName)
-        .config("spark.unsafe.exceptionOnMemoryLeak", "false")
-        .getOrCreate()
+        .config("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)
+
+      _spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+        GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+        sparkBuilder
+          .config("spark.io.compression.codec", "LZ4")
+          .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+          .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+          .config("spark.gluten.sql.enable.native.validation", "false")
+          .config("spark.sql.files.openCostInBytes", "134217728")
+          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+          .getOrCreate()
+      } else {
+        sparkBuilder
+          .config("spark.unsafe.exceptionOnMemoryLeak", "false")
+          .getOrCreate()
+      }
     }
   }
 
