@@ -23,6 +23,7 @@ import io.glutenproject.substrait.expression.SelectionNode
 import io.glutenproject.utils.InputPartitionsUtil
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
@@ -63,7 +64,18 @@ class CHTransformerApi extends ITransformerApi with Logging {
               }
             })
           .exists(_ == false))
-      case RangePartitioning(_, _) => true
+      case RangePartitioning(orderings, _) =>
+        var enableRangePartitioning = true
+        // TODO. support complex data type in orderings
+        breakable {
+          for (ordering <- orderings) {
+            if (!RangePartitionerBoundsGenerator.supportedFieldType(ordering.dataType)) {
+              enableRangePartitioning = false
+              break
+            }
+          }
+        }
+        enableRangePartitioning
       case _ => true
     }
   }

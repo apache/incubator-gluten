@@ -290,3 +290,20 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     Json.stringify(data)
   }
 }
+
+object RangePartitionerBoundsGenerator {
+  def supportedFieldType(dataType: DataType): Boolean = {
+    dataType match {
+      case _: BooleanType => true
+      case _: ByteType => true
+      case _: ShortType => true
+      case _: IntegerType => true
+      case _: LongType => true
+      case _: FloatType => true
+      case _: DoubleType => true
+      case _: StringType => true
+      case _: DateType => true
+      case _ => false
+    }
+  }
+}
