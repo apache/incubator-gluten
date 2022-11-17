@@ -20,14 +20,18 @@ import io.glutenproject.execution.SortExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{BlockNativeConverter, BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.{PartitionPruningRDD, RDD}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, SortOrder, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, BoundReference, NamedExpression, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -37,6 +41,11 @@ import io.substrait.proto.Rel
 import io.substrait.proto.RelCommon
 import play.api.libs.json._
 
+import java.util
+import java.util.Base64
+
+import scala.collection.JavaConverters._
+import scala.collection.Seq
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -116,26 +125,77 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     ]
     }
    */
-  private def getExpressionFiedlReference(ordering: SortOrder): Int = {
-    val substraitCtx = new SubstraitContext()
-    val funcs = substraitCtx.registeredFunction
+  private def getExpressionFieldReference(
+      context: SubstraitContext,
+      ordering: SortOrder,
+      attributes: Seq[Attribute]): Int = {
+    val funcs = context.registeredFunction
     val colExpr =
-      ExpressionConverter.replaceWithExpressionTransformer(ordering.child, inputAttributes)
+      ExpressionConverter.replaceWithExpressionTransformer(ordering.child, attributes)
     val projExprNode = colExpr.asInstanceOf[ExpressionTransformer].doTransform(funcs)
     val pb = projExprNode.toProtobuf
     if (!pb.hasSelection()) {
       throw new IllegalArgumentException(s"A sorting field should be an attribute")
+    } else {
+      pb.getSelection().getDirectReference().getStructField.getField()
     }
-    pb.getSelection().getDirectReference().getStructField.getField()
   }
-  private def buildOrderingJson(ordering: Seq[SortOrder]): JsValue = {
-    val data = ordering.map {
+
+  private def buildProjectionPlan(
+      context: SubstraitContext,
+      sortExpressions: Seq[NamedExpression]): PlanNode = {
+    val args = context.registeredFunction
+    val columnarProjExprs = sortExpressions.map(
+      expr => {
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, attributeSeq = inputAttributes)
+      })
+    val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
+    for (expr <- columnarProjExprs) {
+      projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
+    }
+    val projectRel = RelBuilder.makeProjectRel(null, projExprNodeList, context, 0)
+    val outNames = new util.ArrayList[String]
+    val relNodes = new util.ArrayList[RelNode]()
+    relNodes.add(projectRel)
+    PlanBuilder.makePlan(context, relNodes, outNames)
+  }
+
+  private def buildProjectionAttributesByOrderings(
+      sortOrders: Seq[SortOrder]): (Seq[NamedExpression], Seq[SortOrder]) = {
+    val projectionAttrs = new util.ArrayList[NamedExpression]()
+    val newSortOrders = new util.ArrayList[SortOrder]()
+    var aliasNo = 0
+    sortOrders.foreach(
+      order => {
+        if (!order.child.isInstanceOf[Attribute]) {
+          val alias = new Alias(order.child, s"sort_col_$aliasNo")()
+          aliasNo += 1
+          projectionAttrs.add(alias)
+          newSortOrders.add(
+            SortOrder(
+              alias.toAttribute,
+              order.direction,
+              order.nullOrdering,
+              order.sameOrderExpressions))
+        } else {
+          newSortOrders.add(order)
+        }
+      })
+    (projectionAttrs.asScala, newSortOrders.asScala)
+  }
+
+  private def buildOrderingJson(
+      context: SubstraitContext,
+      orderings: Seq[SortOrder],
+      attributes: Seq[Attribute]): JsValue = {
+
+    val data = orderings.map {
       order =>
         {
           val orderJson = Json.toJson(
             Map(
-              // expression is a protobuf of io.substrait.proto.Expression
-              "column_ref" -> Json.toJson(getExpressionFiedlReference(order)),
+              "column_ref" -> Json.toJson(getExpressionFieldReference(context, order, attributes)),
               "data_type" -> Json.toJson(order.dataType.toString),
               "is_nullable" -> Json.toJson(order.nullable),
               "direction" -> Json.toJson(SortExecTransformer
@@ -201,12 +261,32 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
 
   // Make a json structure that can be passed to native engine
   def getRangeBoundsJsonString(): String = {
-    val data = Json.toJson(
-      Map(
-        "ordering" -> buildOrderingJson(ordering),
-        "range_bounds" -> buildRangeBoundsJson()
-      )
+    val context = new SubstraitContext()
+    val (sortExpressions, newOrderings) = buildProjectionAttributesByOrderings(
+      ordering
     )
+    val totalAttributes = new util.ArrayList[Attribute]()
+    inputAttributes.foreach(attr => totalAttributes.add(attr))
+    sortExpressions.foreach(expr => totalAttributes.add(expr.toAttribute))
+    val data = if (sortExpressions.size == 0) {
+      Json.toJson(
+        Map(
+          "ordering" -> buildOrderingJson(context, newOrderings, totalAttributes.asScala),
+          "range_bounds" -> buildRangeBoundsJson()
+        ))
+    } else {
+      // If there is any expressions in orderings, we build a projection plan and pass
+      // it to backend
+      val projectPlan = buildProjectionPlan(context, sortExpressions).toProtobuf
+      val serializeProjectPlan = Base64.getEncoder().encodeToString(projectPlan.toByteArray)
+      Json.toJson(
+        Map(
+          "projection_plan" -> Json.toJson(serializeProjectPlan),
+          "ordering" -> buildOrderingJson(context, newOrderings, totalAttributes.asScala),
+          "range_bounds" -> buildRangeBoundsJson()
+        ))
+
+    }
     Json.stringify(data)
   }
 }

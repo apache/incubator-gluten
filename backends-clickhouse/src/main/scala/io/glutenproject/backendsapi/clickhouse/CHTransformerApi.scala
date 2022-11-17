@@ -63,18 +63,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
               }
             })
           .exists(_ == false))
-      case RangePartitioning(orderings, _) =>
-        var enableRangePartitioning = true
-        // TODO. support complicated expressions in orderings
-        breakable {
-          for (ordering <- orderings) {
-            if (!ordering.child.isInstanceOf[Attribute]) {
-              enableRangePartitioning = false
-              break
-            }
-          }
-        }
-        enableRangePartitioning
+      case RangePartitioning(_, _) => true
       case _ => true
     }
   }
