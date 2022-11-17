@@ -325,69 +325,6 @@ class AsciiTransformer(child: Expression, original: Expression)
   }
 }
 
-class CosTransformer(child: Expression, original: Expression)
-  extends Cos(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.COS, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = TypeBuilder.makeFP64(original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-
-class AcosTransformer(child: Expression, original: Expression)
-  extends Acos(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.ACOS, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = TypeBuilder.makeFP64(original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-class CoshTransformer(child: Expression, original: Expression)
-  extends Cosh(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.COSH, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = TypeBuilder.makeFP64(original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-
-
 class SinTransformer(child: Expression, original: Expression)
   extends Sin(child: Expression)
     with ExpressionTransformer
@@ -402,26 +339,6 @@ class SinTransformer(child: Expression, original: Expression)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.SIN, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = TypeBuilder.makeFP64(original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-class AsinTransformer(child: Expression, original: Expression)
-  extends Asin(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.ASIN, Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode)
     val typeNode = TypeBuilder.makeFP64(original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
@@ -462,26 +379,6 @@ class TanTransformer(child: Expression, original: Expression)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.TAN, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = TypeBuilder.makeFP64(original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-class AtanTransformer(child: Expression, original: Expression)
-  extends Atan(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.ATAN, Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode)
     val typeNode = TypeBuilder.makeFP64(original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
@@ -797,26 +694,6 @@ class SignumTransformer(child: Expression, original: Expression)
   }
 }
 
-class Log10Transformer(child: Expression, original: Expression)
-  extends Log10(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.LOG10, Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = TypeBuilder.makeFP64(original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
 class Log1pTransformer(child: Expression, original: Expression)
   extends Log1p(child: Expression)
     with ExpressionTransformer
@@ -983,20 +860,12 @@ object UnaryOperatorTransformer {
       new ExpTransformer(child, e)
     case s: Sin =>
       new SinTransformer(child, s)
-    case s: Asin =>
-      new AsinTransformer(child, s)
     case s: Sinh =>
       new SinhTransformer(child, s)
     case c: Cos =>
       new CosTransformer(child, c)
-    case c: Acos =>
-      new AcosTransformer(child, c)
-    case c: Cosh =>
-      new CoshTransformer(child, c)
     case t: Tan =>
       new TanTransformer(child, t)
-    case t: Atan =>
-      new AtanTransformer(child, t)
     case t: Tanh =>
       new TanhTransformer(child, t)
     case s: Sqrt =>
@@ -1011,8 +880,6 @@ object UnaryOperatorTransformer {
       new UnhexTransformer(child, u)
     case s: Signum =>
       new SignumTransformer(child, s)
-    case l: Log10 =>
-      new Log10Transformer(child, l)
     case l: Log1p =>
       new Log1pTransformer(child, l)
     case l: Log2 =>
