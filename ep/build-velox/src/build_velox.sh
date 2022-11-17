@@ -10,7 +10,7 @@ ENABLE_EP_CACHE=OFF
 VELOX_HOME=/root/velox
 
 VELOX_REPO=https://github.com/jinchengchenghh/velox.git
-VELOX_BRANCH=ifthen
+VELOX_BRANCH=casewhen
 
 for arg in "$@"
 do
