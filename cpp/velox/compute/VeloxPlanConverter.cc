@@ -105,6 +105,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   std::string awsEndpoint = conf["spark.hadoop.fs.s3a.endpoint"];
   std::string sslEnabled = conf["spark.hadoop.fs.s3a.connection.ssl.enabled"];
   std::string pathStyleAccess = conf["spark.hadoop.fs.s3a.path.style.access"];
+  std::string useInstanceCredentials = conf["spark.hadoop.fs.s3a.use.instance.credentials"];
 
   const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
   if (envAwsAccessKey != nullptr) {
@@ -119,13 +120,20 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     awsEndpoint = std::string(envAwsEndpoint);
   }
 
-  std::unordered_map<std::string, std::string> S3Config({
+  std::unordered_map<std::string, std::string> S3Config({});
+  if (useInstanceCredentials == "true") {
+    S3Config.insert({
+      {"hive.s3.use-instance-credentials", useInstanceCredentials},
+    });
+  } else {
+    S3Config.insert({
       {"hive.s3.aws-access-key", awsAccessKey},
       {"hive.s3.aws-secret-key", awsSecretKey},
       {"hive.s3.endpoint", awsEndpoint},
       {"hive.s3.ssl.enabled", sslEnabled},
       {"hive.s3.path-style-access", pathStyleAccess},
-  });
+    });
+  }
   configurationValues.merge(S3Config);
 #endif
 

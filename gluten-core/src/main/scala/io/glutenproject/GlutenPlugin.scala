@@ -179,6 +179,8 @@ private[glutenproject] object GlutenPlugin {
       conf.get(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED, "false"))
     nativeConfMap.put(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS,
       conf.get(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS, "true"))
+    nativeConfMap.put(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS,
+      conf.get(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"))
 
     conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
       .foreach{ case (k, v) => nativeConfMap.put(k, v) }
