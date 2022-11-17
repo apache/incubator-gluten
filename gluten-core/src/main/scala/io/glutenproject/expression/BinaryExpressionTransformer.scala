@@ -282,6 +282,16 @@ class GetJsonObjectTransformer(json: Expression, path: Expression, original: Exp
   }
 }
 
+class Atan2Transformer(left: Expression, right: Expression, original: Expression)
+  extends Atan2(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    throw new UnsupportedOperationException(s"not supported yet.")
+  }
+}
+
 object BinaryExpressionTransformer {
 
   def create(left: Expression, right: Expression, original: Expression): Expression =
@@ -312,6 +322,8 @@ object BinaryExpressionTransformer {
         new PowTransformer(left, right, p)
       case r: Round =>
         new RoundTransformer(left, right, r)
+      case g: Atan2 =>
+        new Atan2Transformer(left, right, g)
       case r: GetJsonObject =>
         new GetJsonObjectTransformer(left, right, r)
       case other =>
