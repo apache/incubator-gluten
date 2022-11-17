@@ -155,7 +155,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   }
 
   def checkDataTypeSupported(expr: Expression): Boolean = {
-    GlutenTestConstants.SUPPORTED_DATA_TYPE.contains(expr.dataType)
+    GlutenTestConstants.SUPPORTED_DATA_TYPE.acceptsType(expr.dataType)
   }
 
   def glutenCheckExpression(expression: Expression,
