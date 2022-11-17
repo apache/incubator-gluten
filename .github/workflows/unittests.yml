@@ -61,7 +61,7 @@ jobs:
           bash tpcds_spark.sh
 
   velox-backend-test:
-    runs-on: sr596-self-hosted
+    runs-on: velox-self-hosted 
     steps:
       - uses: actions/checkout@v2
       - name: Checkout gluten-te code
