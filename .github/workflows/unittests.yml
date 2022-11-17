@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Checkout gluten-te code
         run: |
-          git clone -b main https://github.com/zhztheplayer/gluten-te.git gluten-te
+          git clone -b main https://github.com/zhouyuan/gluten-te.git gluten-te
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID --detach" NON_INTERACTIVE=ON gluten-te/cbash.sh sleep 14400
