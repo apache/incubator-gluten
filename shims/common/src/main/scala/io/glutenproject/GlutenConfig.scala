@@ -338,4 +338,5 @@ object GlutenConfig {
   def setRandomTempDir(path: String): Unit = synchronized {
     random_temp_dir_path = path
   }
+
 }
