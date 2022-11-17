@@ -14,19 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.backendsapi
 
-package io.glutenproject.backendsapi;
-
-import org.junit.Assert;
-import org.junit.Test;
-
-public class TestBackendsApisSuite {
-
-  @Test
-  public void testInitializeBackendsApi() {
-    BackendsApiManager.initialize();
-    Assert.assertNotNull(BackendsApiManager.getIteratorApiInstance());
-    Assert.assertNotNull(BackendsApiManager.getTransformerApiInstance());
-    Assert.assertNotNull(BackendsApiManager.getSparkPlanExecApiInstance());
-  }
+class DummyBackend extends Backend {
+  override def name(): String = "dummy"
+  override def initializerApi(): IInitializerApi = new DummyInitializerApi
+  override def iteratorApi(): IIteratorApi = new DummyIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new DummySparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new DummyTransformerApi
 }

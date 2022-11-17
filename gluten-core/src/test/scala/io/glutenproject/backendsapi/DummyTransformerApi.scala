@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 
-class TransformerApiImplSuite extends ITransformerApi {
+class DummyTransformerApi extends ITransformerApi {
 
   /**
    * Do validate for ColumnarShuffleExchangeExec.
@@ -46,11 +46,4 @@ class TransformerApiImplSuite extends ITransformerApi {
   override def genInputPartitionSeq(relation: HadoopFsRelation,
                                     selectedPartitions: Array[PartitionDirectory]
                                    ): Seq[InputPartition] = Seq.empty[InputPartition]
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = "default"
 }

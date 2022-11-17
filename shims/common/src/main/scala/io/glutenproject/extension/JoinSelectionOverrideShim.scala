@@ -16,7 +16,7 @@
  */
 package io.glutenproject.extension
 
-import io.glutenproject.BackendLib
+import io.glutenproject.{BackendLib, GlutenConfig}
 
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.SQLConfHelper
@@ -29,10 +29,7 @@ import org.apache.spark.sql.execution.{joins, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
-class JoinSelectionOverrideShim(val backendLib: BackendLib)
-  extends Strategy
-  with JoinSelectionHelper
-  with SQLConfHelper {
+class JoinSelectionOverrideShim() extends Strategy with JoinSelectionHelper with SQLConfHelper {
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     throw new UnsupportedOperationException("JoinSelectionOverrideShim.apply()")
@@ -83,7 +80,7 @@ class JoinSelectionOverrideShim(val backendLib: BackendLib)
       if (forceShuffledHashJoin) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
-        val (leftBuildable, rightBuildable) = if (backendLib.equals(BackendLib.CH)) {
+        val (leftBuildable, rightBuildable) = if (GlutenConfig.getConf.isClickHouseBackend) {
           // Currently, ClickHouse backend can not support AQE, so it needs to use join hint
           // to decide the build side, after supporting AQE, will remove this.
           val leftHintEnabled = hintToShuffleHashJoinLeft(hint)
@@ -137,7 +134,8 @@ class JoinSelectionOverrideShim(val backendLib: BackendLib)
     joinType match {
       case _: InnerLike | RightOuter | FullOuter => true
       // For Velox backend, build right and left are both supported for LeftOuter and LeftSemi.
-      case LeftOuter | LeftSemi => backendLib.equals(BackendLib.VELOX)
+      case LeftOuter | LeftSemi =>
+        GlutenConfig.getConf.isVeloxBackend
       case _ => false
     }
   }
@@ -146,7 +144,8 @@ class JoinSelectionOverrideShim(val backendLib: BackendLib)
     joinType match {
       case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
       // For Velox backend, build right and left are both supported for RightOuter.
-      case RightOuter => backendLib.equals(BackendLib.VELOX)
+      case RightOuter =>
+        GlutenConfig.getConf.isVeloxBackend
       case _ => false
     }
   }

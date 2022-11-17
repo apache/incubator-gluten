@@ -17,13 +17,13 @@
 
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.backendsapi.IBackendsApi
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.{Backend, IInitializerApi, IIteratorApi, ISparkPlanExecApi, ITransformerApi}
 
-class VeloxBackend extends IBackendsApi {
-
-  /**
-   * Get the backend api name.
-   */
-  override def getBackendName: String = GlutenConfig.GLUTEN_VELOX_BACKEND
+class VeloxBackend extends Backend {
+  override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
+  override def initializerApi(): IInitializerApi = new VeloxInitializerApi
+  override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new VeloxTransformerApi
 }

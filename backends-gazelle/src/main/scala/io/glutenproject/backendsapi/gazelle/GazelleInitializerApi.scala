@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-package io.glutenproject.backendsapi.velox
+package io.glutenproject.backendsapi.gazelle
 
 import org.apache.spark.SparkConf
-
 import io.glutenproject.vectorized.JniLibLoader
 import io.glutenproject.vectorized.JniWorkspace
 import io.glutenproject.GlutenConfig
@@ -42,11 +41,6 @@ class GazelleInitializerApi extends IInitializerApi {
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
     loader.mapAndLoad(baseLibName, true)
-    val backendLibName = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-    if (StringUtils.isNotBlank(backendLibName)) {
-      loader.mapAndLoad(backendLibName, false) // setting to true leads to sigsegv
-    }
+    loader.mapAndLoad(GlutenConfig.GLUTEN_GAZELLE_BACKEND, false)
   }
-
-  override def getBackendName: String = GlutenConfig.GLUTEN_VELOX_BACKEND // ??
 }

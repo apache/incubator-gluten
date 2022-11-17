@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
+class DummySparkPlanExecApi extends ISparkPlanExecApi {
 
   /**
    * Whether support gluten for current SparkPlan
@@ -165,13 +165,6 @@ class SparkPlanExecApiImplSuite extends ISparkPlanExecApi {
    * @return
    */
   override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = List()
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = "default"
 
   /**
    * Create broadcast relation for BroadcastExchangeExec

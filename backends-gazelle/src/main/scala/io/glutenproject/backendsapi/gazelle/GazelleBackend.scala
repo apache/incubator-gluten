@@ -14,19 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.backendsapi.gazelle
 
-package io.glutenproject.backendsapi;
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi._
+import io.glutenproject.backendsapi.velox.{VeloxIteratorApi, VeloxSparkPlanExecApi, VeloxTransformerApi}
 
-import org.junit.Assert;
-import org.junit.Test;
-
-public class TestBackendsApisSuite {
-
-  @Test
-  public void testInitializeBackendsApi() {
-    BackendsApiManager.initialize();
-    Assert.assertNotNull(BackendsApiManager.getIteratorApiInstance());
-    Assert.assertNotNull(BackendsApiManager.getTransformerApiInstance());
-    Assert.assertNotNull(BackendsApiManager.getSparkPlanExecApiInstance());
-  }
+// FIXME The backend reuses some of Velox BE's code. Cleanup is needed
+//  to avoid this.
+class GazelleBackend extends Backend {
+  override def name(): String = GlutenConfig.GLUTEN_GAZELLE_BACKEND
+  override def initializerApi(): IInitializerApi = new GazelleInitializerApi
+  override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new VeloxTransformerApi
 }
