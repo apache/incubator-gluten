@@ -112,6 +112,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     columnarConf.enableColumnarBroadcastJoin && columnarConf.enableColumnarBroadcastExchange
   val enableColumnarArrowUDF: Boolean = columnarConf.enableColumnarArrowUDF
   val enableColumnarLimit: Boolean = columnarConf.enableColumnarLimit
+  val enableColumnarGenerate: Boolean = columnarConf.enableColumnarGenerate
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
   }
@@ -311,6 +312,15 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             val transformer = LimitTransformer(plan.child, 0L, plan.limit)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
+        case plan: GenerateExec =>
+          if (!enableColumnarGenerate) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = GenerateExecTransformer(plan.generator, plan.requiredChildOutput,
+              plan.outer, plan.generatorOutput, plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
+
         case _: AQEShuffleReadExec =>
           TransformHints.tagTransformable(plan)
         case plan: TakeOrderedAndProjectExec =>

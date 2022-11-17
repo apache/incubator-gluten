@@ -229,7 +229,7 @@ public class RelBuilder {
     return new FetchRelNode(input, offset, count, extensionNode);
   }
 
-    public static RelNode makeWindowRel(RelNode input,
+  public static RelNode makeWindowRel(RelNode input,
                                       ArrayList<WindowFunctionNode> windowFunctionNodes,
                                       ArrayList<ExpressionNode> partitionExpressions,
                                       ArrayList<SortField> sorts,
@@ -252,5 +252,19 @@ public class RelBuilder {
     return new WindowRelNode(
         input, windowFunctionNodes,
         partitionExpressions, sorts);
+  }
+
+  public static RelNode makeGenerateRel(RelNode input, ExpressionNode generator,
+      ArrayList<ExpressionNode> childOutput, SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new GenerateRelNode(input, generator, childOutput);
+  }
+
+  public static RelNode makeGenerateRel(RelNode input, ExpressionNode generator,
+      ArrayList<ExpressionNode> childOutput, AdvancedExtensionNode extensionNode,
+      SubstraitContext context, Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new GenerateRelNode(input, generator, childOutput, extensionNode);
   }
 }

@@ -25,6 +25,9 @@ object CHExpressionUtil {
    * specific input type.
    */
   final val EMPTY_TYPE = ""
+  final val ARRAY_TYPE = "array"
+  final val MAP_TYPE = "map"
+  final val STRUCT_TYPE = "struct"
 
   final val CH_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
     COALESCE -> Set(EMPTY_TYPE),
@@ -43,7 +46,10 @@ object CHExpressionUtil {
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     MURMUR3HASH -> Set(EMPTY_TYPE),
     MD5 -> Set(EMPTY_TYPE),
-    SPLIT_PART -> Set(EMPTY_TYPE)
+    SPLIT_PART -> Set(EMPTY_TYPE),
+    // CH arrayJoin function doesn't support map type argument yet.
+    // Wait for https://github.com/ClickHouse/ClickHouse/pull/43239
+    EXPLODE -> Set(MAP_TYPE)
   )
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(

@@ -200,6 +200,27 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result.size == 10)
   }
 
+  test("test 'function explode'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, explode(array(l_returnflag, l_linestatus)),
+                         |  l_suppkey from lineitem);
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
+  test("test 'lateral view explode'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, l_suppkey, col1, col2 from lineitem
+                         |  lateral view explode(array(l_returnflag, l_linestatus)) as col1
+                         |  lateral view explode(array(l_shipmode, l_comment)) as col2)
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 2402288L)
+  }
+
   test("test 'select count(1)'") {
     val df = spark.sql("""
                          |select count(1) from lineitem
