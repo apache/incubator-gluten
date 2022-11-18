@@ -78,7 +78,7 @@ sudo mkdir -p /var/lib/hadoop-hdfs/
 sudo chown <sparkuser>:<sparkuser> /var/lib/hadoop-hdfs/
 ```
 
-You also need to add configuration to the *hdfs-site.xml* as below:
+You also need to add configuration to the "hdfs-site.xml" as below:
 
 ```
 <property>
@@ -90,19 +90,6 @@ You also need to add configuration to the *hdfs-site.xml* as below:
    <name>dfs.domain.socket.path</name>
    <value>/var/lib/hadoop-hdfs/dn_socket</value>
 </property>
-```
-
-Here is an example to configure in "*HADOOP_HOME*/etc/hadoop/hdfs-site.xml"
-```
- <property>
-    <name>dfs.client.read.shortcircuit</name>
-    <value>true</value>
-  </property>
-
- <property>
-    <name>dfs.domain.socket.path</name>
-    <value>/var/lib/hadoop-hdfs/dn_socket</value>
-  </property>
 ```
 
 ## 2.4 Yarn Cluster mode

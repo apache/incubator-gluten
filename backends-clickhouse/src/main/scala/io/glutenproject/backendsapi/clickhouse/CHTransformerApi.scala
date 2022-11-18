@@ -89,11 +89,4 @@ class CHTransformerApi extends ITransformerApi with Logging {
       InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
     }
   }
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

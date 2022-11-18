@@ -63,7 +63,12 @@ public class ArrowColumnarBatches {
 
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
     if (!GlutenColumnarBatches.isIntermediateColumnarBatch(input)) {
-      throw new IllegalArgumentException("input is not intermediate Gluten columnar input");
+      throw new IllegalArgumentException("input is not intermediate Gluten columnar input. " +
+          "Please consider to use vanilla spark's row based input by setting one of the below" +
+          " configs: \n" +
+          "spark.sql.parquet.enableVectorizedReader=false\n" +
+          "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n" +
+          "spark.sql.orc.enableVectorizedReader=false\n");
     }
     if (input.numCols() == 0) {
       return input;

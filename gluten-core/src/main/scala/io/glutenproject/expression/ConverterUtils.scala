@@ -426,8 +426,6 @@ object ConverterUtils extends Logging {
   final val REGEXP_REPLACE = "regexp_replace"
   final val REGEXP_EXTRACT = "regexp_extract"
   final val REGEXP_EXTRACT_ALL = "regexp_extract_all"
-  final val JSON_ARRAY_LENGTH = "json_array_length"
-  final val MD5 = "md5"
   final val EQUAL = "equal"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"
@@ -474,6 +472,16 @@ object ConverterUtils extends Logging {
   final val ROUND = "round"
   final val GREATEST = "greatest"
   final val LEAST = "least"
+
+  // PrestoSQL Math fucctions of Velox
+  final val ACOS = "acos"
+  final val ASIN = "asin"
+  final val ATAN = "atan"
+  final val ATAN2 = "atan2"
+  final val COS = "cos"
+  final val COSH = "cosh"
+  final val DEGREES = "degrees"
+  final val LOG10 = "log10"
 
   // SparkSQL DateTime functions of Velox
   final val DAYOFMONTH = "day_of_month"

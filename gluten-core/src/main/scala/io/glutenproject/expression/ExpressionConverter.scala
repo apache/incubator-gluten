@@ -262,7 +262,6 @@ object ExpressionConverter extends Logging {
         TrimOperatorTransformer.create(
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
           expr)
-
       case expr =>
         logDebug(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(

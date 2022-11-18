@@ -20,9 +20,11 @@ package io.glutenproject.execution
 import java.nio.file.Files
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{Row, TestUtils}
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
+import org.apache.spark.sql.functions.{col, expr}
+
 
 import scala.collection.JavaConverters._
 
@@ -75,6 +77,97 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     spark.catalog.createTable("datatab", parquetPath, fileFormat)
   }
 
+  test("Test chr function") {
+    val df = runQueryAndCompare("SELECT chr(l_orderkey + 64) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+  }
+
+  test("Test abs function") {
+    val df = runQueryAndCompare("SELECT abs(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+  }
+
+  test("Test ceil function") {
+    val df = runQueryAndCompare("SELECT ceil(cast(l_orderkey as long)) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test floor function") {
+    val df = runQueryAndCompare("SELECT floor(cast(l_orderkey as long)) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test Exp function") {
+    val df = runQueryAndCompare("SELECT exp(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test Power function") {
+    val df = runQueryAndCompare("SELECT power(l_orderkey, 2) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test Pmod function") {
+    val df = runQueryAndCompare("SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  ignore("Test round function") {
+    val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
+      "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test greatest function") {
+    val df = runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test least function") {
+    val df = runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
+      "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
   test("Test hash function") {
     val df = runQueryAndCompare("SELECT hash(l_orderkey) from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
@@ -111,5 +204,86 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
       s"from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, json_array_length(null) " +
       s"from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("Test acos function") {
+    val df = runQueryAndCompare("SELECT acos(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test asin function") {
+    val df = runQueryAndCompare("SELECT asin(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test atan function") {
+    val df = runQueryAndCompare("SELECT atan(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  ignore("Test atan2 function datatab") {
+    val df = runQueryAndCompare("SELECT atan2(double_field1, 0) from datatab limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test ceiling function") {
+    val df = runQueryAndCompare("SELECT ceiling(cast(l_orderkey as long)) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test cos function") {
+    val df = runQueryAndCompare("SELECT cos(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test cosh function") {
+    val df = runQueryAndCompare("SELECT cosh(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test degrees function") {
+    val df = runQueryAndCompare("SELECT degrees(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test log10 function") {
+    val df = runQueryAndCompare("SELECT log10(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
   }
 }
