@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import com.google.protobuf.{Any, ByteString}
+import com.google.protobuf.{Any, ByteString, StringValue}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
@@ -30,7 +30,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.substrait.proto.JoinRel
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -42,11 +41,10 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import java.{lang, util}
 
+import java.{lang, util}
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
-
 import io.glutenproject.sql.shims.SparkShimLoader
 
 trait ColumnarShuffledJoin extends BaseJoinExec {
@@ -966,8 +964,12 @@ trait HashJoinLikeExecTransformer
       .append("buildHashTableId=").append(buildHashTableId).append("\n")
       .append("isExistenceJoin=").append(
       if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0).append("\n")
+    val message = StringValue
+      .newBuilder()
+      .setValue(joinParametersStr.toString)
+      .build()
     Any.newBuilder
-      .setValue(ByteString.copyFromUtf8(joinParametersStr.toString))
+      .setValue(message.toByteString)
       .setTypeUrl("/google.protobuf.StringValue")
   }
 

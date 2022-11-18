@@ -18,7 +18,7 @@
 package io.glutenproject.substrait.rel;
 
 import com.google.protobuf.Any;
-import com.google.protobuf.ByteString;
+import com.google.protobuf.StringValue;
 import io.substrait.proto.ReadRel;
 
 import java.io.Serializable;
@@ -48,8 +48,10 @@ public class ExtensionTableNode implements Serializable {
 
   public ReadRel.ExtensionTable toProtobuf() {
     ReadRel.ExtensionTable.Builder extensionTableBuilder = ReadRel.ExtensionTable.newBuilder();
-    extensionTableBuilder.setDetail(
-        Any.newBuilder().setValue(ByteString.copyFromUtf8(extensionTableStr.toString())));
+    StringValue extensionTable =  StringValue.newBuilder()
+            .setValue(extensionTableStr.toString()).build();
+    extensionTableBuilder.setDetail(Any.newBuilder()
+            .setValue(extensionTable.toByteString()));
     return extensionTableBuilder.build();
   }
 }
