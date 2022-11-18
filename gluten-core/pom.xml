@@ -391,13 +391,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <excludes>
-                        <!-- Do not include test backend configs since we don't yet support
-                          multiple backends to be discovered -->
-                        <exclude>META-INF/services/io.glutenproject.backendsapi.Backend</exclude>
-                    </excludes>
-                </configuration>
             </plugin>
         </plugins>
     </build>
