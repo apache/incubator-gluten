@@ -195,7 +195,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       .add(defaultRegistry)
       .build()
     planJson = JsonFormat.printer.usingTypeRegistry(registry).print(planNode.toProtobuf)
-    logWarning("Generated substrait plan " + planJson)
+    logDebug("Generated substrait plan " + planJson)
 
     WholestageTransformContext(
       childCtx.inputAttributes,
