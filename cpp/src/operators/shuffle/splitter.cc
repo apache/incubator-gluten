@@ -1525,6 +1525,9 @@ arrow::Result<std::shared_ptr<HashSplitter>> HashSplitter::Create(
 
 arrow::Status HashSplitter::ComputeAndCountPartitionId(
     const arrow::RecordBatch& rb) {
+  if (rb.num_columns() == 0) {
+    return arrow::Status::Invalid("Recordbatch missing partition id column.");
+  }
   if (rb.column(0)->type_id() != arrow::Type::INT32) {
     return arrow::Status::Invalid(
         "RecordBatch field 0 should be ",
