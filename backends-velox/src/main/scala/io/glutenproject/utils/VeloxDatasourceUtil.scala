@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
-import org.apache.arrow.vector.util.SchemaUtility
-import org.apache.hadoop.fs.FileStatus
 
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 import org.apache.spark.sql.types.StructType
+
+import org.apache.arrow.vector.util.SchemaUtility
+import org.apache.hadoop.fs.FileStatus
 
 object VeloxDatasourceUtil {
   def readSchema(files: Seq[FileStatus]): Option[StructType] = {

@@ -14,16 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
-import java.io._
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
-
-import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
-import com.esotericsoftware.kryo.io.{Input, Output}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression._
@@ -43,23 +35,31 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.KnownSizeEstimation
 
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
+import java.io._
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * The default implementation of CachedBatch.
  *
- * @param numRows The total number of rows in this batch
- * @param buffers The buffers for serialized columns
- * @param stats   The stat of columns
+ * @param numRows
+ *   The total number of rows in this batch
+ * @param buffers
+ *   The buffers for serialized columns
+ * @param stats
+ *   The stat of columns
  */
-case class ArrowCachedBatch(
-                             var numRows: Int,
-                             var buffer: Array[ColumnarBatch],
-                             stats: InternalRow)
+case class ArrowCachedBatch(var numRows: Int, var buffer: Array[ColumnarBatch], stats: InternalRow)
   extends SimpleMetricsCachedBatch
-    with KryoSerializable
-    with Externalizable
-    with KnownSizeEstimation
-    with Logging
-    with AutoCloseable {
+  with KryoSerializable
+  with Externalizable
+  with KnownSizeEstimation
+  with Logging
+  with AutoCloseable {
   def this() = {
     this(0, null, null)
   }
@@ -72,9 +72,10 @@ case class ArrowCachedBatch(
 
   override def estimatedSize: Long = {
     var size: Long = 0
-    buffer.foreach(batch => {
-      size += ArrowConverterUtils.calcuateEstimatedSize(batch)
-    })
+    buffer.foreach(
+      batch => {
+        size += ArrowConverterUtils.calcuateEstimatedSize(batch)
+      })
     size
   }
 
@@ -96,21 +97,19 @@ case class ArrowCachedBatch(
   override def readExternal(in: ObjectInput): Unit = {
     numRows = in.readObject().asInstanceOf[Integer]
     val rawArrowData = in.readObject().asInstanceOf[Array[Byte]]
-    buffer = ArrowConverterUtils.convertFromNetty(null,
-      new ByteArrayInputStream(rawArrowData)).toArray
+    buffer =
+      ArrowConverterUtils.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
   }
 
   override def read(kryo: Kryo, in: Input): Unit = {
     numRows = kryo.readObject(in, classOf[Integer]).asInstanceOf[Integer]
     val rawArrowData = kryo.readObject(in, classOf[Array[Byte]]).asInstanceOf[Array[Byte]]
-    buffer = ArrowConverterUtils.convertFromNetty(null,
-      new ByteArrayInputStream(rawArrowData)).toArray
+    buffer =
+      ArrowConverterUtils.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
   }
 }
 
-/**
- * The default implementation of CachedBatchSerializer.
- */
+/** The default implementation of CachedBatchSerializer. */
 class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
   var isInputSupportColumnar: Boolean = true
 
@@ -123,10 +122,10 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
     Option(Seq.fill(attributes.length)(classOf[ArrowWritableColumnVector].getName))
 
   override def convertColumnarBatchToCachedBatch(
-                                                  input: RDD[ColumnarBatch],
-                                                  schema: Seq[Attribute],
-                                                  storageLevel: StorageLevel,
-                                                  conf: SQLConf): RDD[CachedBatch] = {
+      input: RDD[ColumnarBatch],
+      schema: Seq[Attribute],
+      storageLevel: StorageLevel,
+      conf: SQLConf): RDD[CachedBatch] = {
     isInputSupportColumnar = true
     val batchSize = conf.columnBatchSize
     val useCompression = conf.useCompression
@@ -134,63 +133,71 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
   }
 
   def convertForColumnarCacheInternal(
-                                       input: RDD[ColumnarBatch],
-                                       output: Seq[Attribute],
-                                       batchSize: Int,
-                                       useCompression: Boolean): RDD[CachedBatch] = {
-    input.mapPartitions { iter =>
-      var processed = false
-      new Iterator[ArrowCachedBatch] {
-        def next(): ArrowCachedBatch = {
-          processed = true
-          var _numRows: Int = 0
-          val _input = new ArrayBuffer[ColumnarBatch]()
-          while (iter.hasNext) {
-            val batch = iter.next
-            if (batch.numRows > 0) {
-              (0 until batch.numCols).foreach(i =>
-                ArrowColumnarBatches
-                  .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-                    batch).column(i).asInstanceOf[ArrowWritableColumnVector].retain())
-              _numRows += batch.numRows
-              _input += batch
+      input: RDD[ColumnarBatch],
+      output: Seq[Attribute],
+      batchSize: Int,
+      useCompression: Boolean): RDD[CachedBatch] = {
+    input.mapPartitions {
+      iter =>
+        var processed = false
+        new Iterator[ArrowCachedBatch] {
+          def next(): ArrowCachedBatch = {
+            processed = true
+            var _numRows: Int = 0
+            val _input = new ArrayBuffer[ColumnarBatch]()
+            while (iter.hasNext) {
+              val batch = iter.next
+              if (batch.numRows > 0) {
+                (0 until batch.numCols).foreach(
+                  i =>
+                    ArrowColumnarBatches
+                      .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+                      .column(i)
+                      .asInstanceOf[ArrowWritableColumnVector]
+                      .retain())
+                _numRows += batch.numRows
+                _input += batch
+              }
             }
+            // To avoid mem copy, we only save columnVector reference here
+            val res = ArrowCachedBatch(_numRows, _input.toArray, null)
+            res
           }
-          // To avoid mem copy, we only save columnVector reference here
-          val res = ArrowCachedBatch(_numRows, _input.toArray, null)
-          res
-        }
 
-        def hasNext: Boolean = !processed
-      }
+          def hasNext: Boolean = !processed
+        }
     }
   }
 
   override def convertInternalRowToCachedBatch(
-                                                input: RDD[InternalRow],
-                                                schema: Seq[Attribute],
-                                                storageLevel: StorageLevel,
-                                                conf: SQLConf): RDD[CachedBatch] = {
+      input: RDD[InternalRow],
+      schema: Seq[Attribute],
+      storageLevel: StorageLevel,
+      conf: SQLConf): RDD[CachedBatch] = {
     isInputSupportColumnar = false
     super.convertInternalRowToCachedBatch(input, schema, storageLevel, conf)
   }
 
   override def convertCachedBatchToInternalRow(
-                                                input: RDD[CachedBatch],
-                                                cacheAttributes: Seq[Attribute],
-                                                selectedAttributes: Seq[Attribute],
-                                                conf: SQLConf): RDD[InternalRow] = {
+      input: RDD[CachedBatch],
+      cacheAttributes: Seq[Attribute],
+      selectedAttributes: Seq[Attribute],
+      conf: SQLConf): RDD[InternalRow] = {
     if (isInputSupportColumnar) {
       // Find the ordinals and data types of the requested columns.
       val columnarBatchRdd =
         convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
-      columnarBatchRdd.mapPartitions { batches =>
-        val toUnsafe = UnsafeProjection.create(selectedAttributes, selectedAttributes)
-        batches.flatMap { batch =>
-          ArrowColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-            .rowIterator().asScala.map(toUnsafe)
-        }
+      columnarBatchRdd.mapPartitions {
+        batches =>
+          val toUnsafe = UnsafeProjection.create(selectedAttributes, selectedAttributes)
+          batches.flatMap {
+            batch =>
+              ArrowColumnarBatches
+                .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+                .rowIterator()
+                .asScala
+                .map(toUnsafe)
+          }
       }
     } else {
       super.convertCachedBatchToInternalRow(input, cacheAttributes, selectedAttributes, conf)
@@ -198,10 +205,10 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
   }
 
   override def convertCachedBatchToColumnarBatch(
-                                                  input: RDD[CachedBatch],
-                                                  cacheAttributes: Seq[Attribute],
-                                                  selectedAttributes: Seq[Attribute],
-                                                  conf: SQLConf): RDD[ColumnarBatch] = {
+      input: RDD[CachedBatch],
+      cacheAttributes: Seq[Attribute],
+      selectedAttributes: Seq[Attribute],
+      conf: SQLConf): RDD[ColumnarBatch] = {
     if (isInputSupportColumnar) {
       val columnIndices =
         selectedAttributes.map(a => cacheAttributes.map(o => o.exprId).indexOf(a.exprId)).toArray
@@ -221,9 +228,11 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
               override def hasNext: Boolean = batchIdx < numBatches
 
               override def next(): ColumnarBatch = {
-                val vectors = columnIndices.map(i => ArrowColumnarBatches
-                  .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-                    rawData(batchIdx)).column(i))
+                val vectors = columnIndices.map(
+                  i =>
+                    ArrowColumnarBatches
+                      .ensureLoaded(ArrowBufferAllocators.contextInstance(), rawData(batchIdx))
+                      .column(i))
                 vectors.foreach(v => v.asInstanceOf[ArrowWritableColumnVector].retain())
                 val numRows = rawData(batchIdx).numRows
                 batchIdx += 1
@@ -236,8 +245,9 @@ class ArrowColumnarCachedBatchSerializer extends DefaultCachedBatchSerializer {
             if (iter != null) {
               iter.next
             } else {
-              val resultStructType = StructType(selectedAttributes.map(a =>
-                StructField(a.name, a.dataType, a.nullable, a.metadata)))
+              val resultStructType = StructType(
+                selectedAttributes.map(
+                  a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
               val resultColumnVectors =
                 ArrowWritableColumnVector.allocateColumns(0, resultStructType).toArray
               new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)

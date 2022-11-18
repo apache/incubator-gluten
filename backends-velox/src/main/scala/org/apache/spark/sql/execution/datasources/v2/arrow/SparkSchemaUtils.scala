@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.arrow
-
-import java.util.{Objects, TimeZone}
-
-import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
+
+import org.apache.arrow.vector.types.pojo.Schema
+
+import java.util.{Objects, TimeZone}
 
 object SparkSchemaUtils {
 
@@ -49,7 +48,8 @@ object SparkSchemaUtils {
 
   def getTimeZoneIDOffset(zoneId: String): Int = {
     Objects.requireNonNull(zoneId)
-    TimeZone.getTimeZone(zoneId)
+    TimeZone
+      .getTimeZone(zoneId)
       .toZoneId
       .getRules
       .getOffset(java.time.Instant.now())

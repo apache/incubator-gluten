@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.python
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -34,14 +33,19 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq[Attribute],
-                                          child: SparkPlan, evalType: Int)
-  extends EvalPythonExec with TransformSupport {
+case class ArrowEvalPythonExecTransformer(
+    udfs: Seq[PythonUDF],
+    resultAttrs: Seq[Attribute],
+    child: SparkPlan,
+    evalType: Int)
+  extends EvalPythonExec
+  with TransformSupport {
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_arrow_udf"))
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_arrow_udf")
+  )
 
   private val batchSize = conf.arrowMaxRecordsPerBatch
   private val sessionLocalTimeZone = conf.sessionLocalTimeZone
@@ -72,22 +76,22 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
   }
 
   protected def evaluate(
-                          funcs: Seq[ChainedPythonFunctions],
-                          argOffsets: Array[Array[Int]],
-                          iter: Iterator[InternalRow],
-                          schema: StructType,
-                          context: TaskContext): Iterator[InternalRow] = {
+      funcs: Seq[ChainedPythonFunctions],
+      argOffsets: Array[Array[Int]],
+      iter: Iterator[InternalRow],
+      schema: StructType,
+      context: TaskContext): Iterator[InternalRow] = {
     // scalastyle:off throwerror
     throw new NotImplementedError("evaluate Internal row is not supported")
     // scalastyle:on throwerror
   }
 
   protected def evaluateColumnar(
-                                  funcs: Seq[ChainedPythonFunctions],
-                                  argOffsets: Array[Array[Int]],
-                                  iter: Iterator[ColumnarBatch],
-                                  schema: StructType,
-                                  context: TaskContext): Iterator[ColumnarBatch] = {
+      funcs: Seq[ChainedPythonFunctions],
+      argOffsets: Array[Array[Int]],
+      iter: Iterator[ColumnarBatch],
+      schema: StructType,
+      context: TaskContext): Iterator[ColumnarBatch] = {
 
     val outputTypes = output.drop(child.output.length).map(_.dataType)
 
@@ -103,17 +107,23 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
       sessionLocalTimeZone,
       pythonRunnerConf).compute(batchIter, context.partitionId(), context)
 
-    columnarBatchIter.map { batch =>
-      val actualDataTypes = (0 until batch.numCols()).map(i => ArrowColumnarBatches
-        .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-          batch).column(i).dataType())
-      assert(outputTypes == actualDataTypes, "Invalid schema from arrow_udf: " +
-        s"expected ${outputTypes.mkString(", ")}, got ${actualDataTypes.mkString(", ")}")
-      batch
+    columnarBatchIter.map {
+      batch =>
+        val actualDataTypes = (0 until batch.numCols()).map(
+          i =>
+            ArrowColumnarBatches
+              .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+              .column(i)
+              .dataType())
+        assert(
+          outputTypes == actualDataTypes,
+          "Invalid schema from arrow_udf: " +
+            s"expected ${outputTypes.mkString(", ")}, got ${actualDataTypes.mkString(", ")}")
+        batch
     }
   }
 
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 

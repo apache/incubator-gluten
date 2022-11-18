@@ -14,30 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
-import java.io._
-
-import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
-import com.esotericsoftware.kryo.io.{Input, Output}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, SerializableObject}
-import sun.misc.Cleaner
 
 import org.apache.spark.sql.execution.ColumnarHashedRelation.Deallocator
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.KnownSizeEstimation
 
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+import sun.misc.Cleaner
+
+import java.io._
+
 class ColumnarHashedRelation(
-                              var hashRelationObj: SerializableObject,
-                              var arrowColumnarBatch: Array[ColumnarBatch],
-                              var arrowColumnarBatchSize: Int)
+    var hashRelationObj: SerializableObject,
+    var arrowColumnarBatch: Array[ColumnarBatch],
+    var arrowColumnarBatchSize: Int)
   extends Externalizable
-    with KryoSerializable
-    with KnownSizeEstimation {
+  with KryoSerializable
+  with KnownSizeEstimation {
 
   createCleaner(hashRelationObj, arrowColumnarBatch)
 
@@ -118,10 +118,13 @@ class ColumnarHashedRelation(
         idx += 1
         val cb = arrowColumnarBatch(tmp_idx)
         // retain all cols
-        (0 until cb.numCols).toList.foreach(i =>
-          ArrowColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(),
-              cb).column(i).asInstanceOf[ArrowWritableColumnVector].retain())
+        (0 until cb.numCols).toList.foreach(
+          i =>
+            ArrowColumnarBatches
+              .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
+              .column(i)
+              .asInstanceOf[ArrowWritableColumnVector]
+              .retain())
         cb
       }
     }
@@ -131,8 +134,9 @@ class ColumnarHashedRelation(
 object ColumnarHashedRelation {
 
   private class Deallocator(
-                             var hashRelationObj: SerializableObject,
-                             var arrowColumnarBatch: Array[ColumnarBatch]) extends Runnable {
+      var hashRelationObj: SerializableObject,
+      var arrowColumnarBatch: Array[ColumnarBatch])
+    extends Runnable {
 
     override def run(): Unit = {
       try {

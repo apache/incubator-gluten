@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
-
-import org.apache.arrow.vector.types.pojo.ArrowType
 
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ArrowUtils
+
+import org.apache.arrow.vector.types.pojo.ArrowType
 
 object CodeGeneration {
   private val defaultTimeZoneId = SparkSchemaUtils.getLocalTimezoneID()
@@ -50,7 +49,7 @@ object CodeGeneration {
       new ArrowType.Utf8()
     case other =>
       throw new UnsupportedOperationException(s"getResultType doesn't support $other.")
-      */
+     */
   }
 
   def getResultType(): ArrowType = {
@@ -64,8 +63,9 @@ object CodeGeneration {
       case t: ArrowType.FloatingPoint =>
         8
       case _ =>
-        throw new UnsupportedOperationException(s"Unable to get precise level of" +
-          s"$dataType ${dataType.getClass}.")
+        throw new UnsupportedOperationException(
+          s"Unable to get precise level of" +
+            s"$dataType ${dataType.getClass}.")
     }
   }
 
@@ -75,7 +75,7 @@ object CodeGeneration {
         s"castFLOAT" +
           s"${4 * dataType.asInstanceOf[ArrowType.FloatingPoint].getPrecision().getFlatbufID()}"
       case _ =>
-        throw new UnsupportedOperationException(s"getCastFuncName(${dataType}) is not supported.")
+        throw new UnsupportedOperationException(s"getCastFuncName($dataType) is not supported.")
     }
   }
 }

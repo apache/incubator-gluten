@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.velox
-
-import scala.collection.mutable.ArrayBuffer
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
@@ -37,9 +34,9 @@ import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
-import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{SparkPlan, VeloxBuildSideRelation}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
@@ -48,6 +45,8 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.VeloxExecUtil
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.mutable.ArrayBuffer
 
 class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
 
@@ -82,12 +81,16 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   /**
    * Generate FilterExecTransformer.
    *
-   * @param condition : the filter condition
-   * @param child     : the chid of FilterExec
-   * @return the transformer of FilterExec
+   * @param condition
+   *   : the filter condition
+   * @param child
+   *   : the chid of FilterExec
+   * @return
+   *   the transformer of FilterExec
    */
-  override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
-  : FilterExecBaseTransformer =
+  override def genFilterExecTransformer(
+      condition: Expression,
+      child: SparkPlan): FilterExecBaseTransformer =
     if (GlutenConfig.getSessionConf.isGazelleBackend) {
       // Use the original Filter for Arrow backend.
       FilterExecTransformer(condition, child)
@@ -95,17 +98,15 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
       VeloxFilterExecTransformer(condition, child)
     }
 
-  /**
-   * Generate HashAggregateExecTransformer.
-   */
+  /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(
-    requiredChildDistributionExpressions: Option[Seq[Expression]],
-    groupingExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[AggregateExpression],
-    aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
-    resultExpressions: Seq[NamedExpression],
-    child: SparkPlan): HashAggregateExecBaseTransformer =
+      requiredChildDistributionExpressions: Option[Seq[Expression]],
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute],
+      initialInputBufferOffset: Int,
+      resultExpressions: Seq[NamedExpression],
+      child: SparkPlan): HashAggregateExecBaseTransformer =
     VeloxHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions,
@@ -115,46 +116,63 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
       resultExpressions,
       child)
 
-  /**
-   * Generate ShuffledHashJoinExecTransformer.
-   */
-  def genShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-    rightKeys: Seq[Expression],
-    joinType: JoinType,
-    buildSide: BuildSide,
-    condition: Option[Expression],
-    left: SparkPlan,
-    right: SparkPlan): ShuffledHashJoinExecTransformer =
+  /** Generate ShuffledHashJoinExecTransformer. */
+  def genShuffledHashJoinExecTransformer(
+      leftKeys: Seq[Expression],
+      rightKeys: Seq[Expression],
+      joinType: JoinType,
+      buildSide: BuildSide,
+      condition: Option[Expression],
+      left: SparkPlan,
+      right: SparkPlan): ShuffledHashJoinExecTransformer =
     VeloxShuffledHashJoinExecTransformer(
-      leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+      leftKeys,
+      rightKeys,
+      joinType,
+      buildSide,
+      condition,
+      left,
+      right)
 
-  /**
-   * Generate BroadcastHashJoinExecTransformer.
-   */
-  def genBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-    rightKeys: Seq[Expression],
-    joinType: JoinType,
-    buildSide: BuildSide,
-    condition: Option[Expression],
-    left: SparkPlan,
-    right: SparkPlan,
-    isNullAwareAntiJoin: Boolean = false)
-  : BroadcastHashJoinExecTransformer = VeloxBroadcastHashJoinExecTransformer(
-    leftKeys, rightKeys, joinType, buildSide, condition, left, right, isNullAwareAntiJoin)
+  /** Generate BroadcastHashJoinExecTransformer. */
+  def genBroadcastHashJoinExecTransformer(
+      leftKeys: Seq[Expression],
+      rightKeys: Seq[Expression],
+      joinType: JoinType,
+      buildSide: BuildSide,
+      condition: Option[Expression],
+      left: SparkPlan,
+      right: SparkPlan,
+      isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer =
+    VeloxBroadcastHashJoinExecTransformer(
+      leftKeys,
+      rightKeys,
+      joinType,
+      buildSide,
+      condition,
+      left,
+      right,
+      isNullAwareAntiJoin)
 
   /**
    * Generate Alias transformer.
    *
-   * @param child The computation being performed
-   * @param name  The name to be associated with the result of computing.
+   * @param child
+   *   The computation being performed
+   * @param name
+   *   The name to be associated with the result of computing.
    * @param exprId
    * @param qualifier
    * @param explicitMetadata
-   * @return a transformer for alias
+   * @return
+   *   a transformer for alias
    */
-  def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
-    qualifier: Seq[String], explicitMetadata: Option[Metadata])
-  : AliasBaseTransformer =
+  def genAliasTransformer(
+      child: Expression,
+      name: String,
+      exprId: ExprId,
+      qualifier: Seq[String],
+      explicitMetadata: Option[Metadata]): AliasBaseTransformer =
     new VeloxAliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
 
   /**
@@ -163,20 +181,20 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * @return
    */
   // scalastyle:off argcount
-  override def genShuffleDependency(rdd: RDD[ColumnarBatch],
-    outputAttributes: Seq[Attribute],
-    newPartitioning: Partitioning,
-    serializer: Serializer,
-    writeMetrics: Map[String, SQLMetric],
-    dataSize: SQLMetric,
-    bytesSpilled: SQLMetric,
-    numInputRows: SQLMetric,
-    computePidTime: SQLMetric,
-    splitTime: SQLMetric,
-    spillTime: SQLMetric,
-    compressTime: SQLMetric,
-    prepareTime: SQLMetric)
-  : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+  override def genShuffleDependency(
+      rdd: RDD[ColumnarBatch],
+      outputAttributes: Seq[Attribute],
+      newPartitioning: Partitioning,
+      serializer: Serializer,
+      writeMetrics: Map[String, SQLMetric],
+      dataSize: SQLMetric,
+      bytesSpilled: SQLMetric,
+      numInputRows: SQLMetric,
+      computePidTime: SQLMetric,
+      splitTime: SQLMetric,
+      spillTime: SQLMetric,
+      compressTime: SQLMetric,
+      prepareTime: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     VeloxExecUtil.genShuffleDependency(
       rdd,
@@ -191,7 +209,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
       splitTime,
       spillTime,
       compressTime,
-      prepareTime)
+      prepareTime
+    )
   }
   // scalastyle:on argcount
 
@@ -200,8 +219,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    *
    * @return
    */
-  override def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V])
-  : GlutenShuffleWriterWrapper[K, V] = {
+  override def genColumnarShuffleWriter[K, V](
+      parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V] = {
     VeloxShuffleUtil.genColumnarShuffleWriter(parameters)
   }
 
@@ -211,40 +230,41 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    * @return
    */
   override def createColumnarBatchSerializer(
-    schema: StructType,
-    readBatchNumRows: SQLMetric,
-    numOutputRows: SQLMetric,
-    dataSize: SQLMetric): Serializer = {
+      schema: StructType,
+      readBatchNumRows: SQLMetric,
+      numOutputRows: SQLMetric,
+      dataSize: SQLMetric): Serializer = {
     new GlutenColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows)
   }
 
-  /**
-   * Create broadcast relation for BroadcastExchangeExec
-   */
-  override def createBroadcastRelation(mode: BroadcastMode,
-    child: SparkPlan,
-    numOutputRows: SQLMetric,
-    dataSize: SQLMetric): BuildSideRelation = {
+  /** Create broadcast relation for BroadcastExchangeExec */
+  override def createBroadcastRelation(
+      mode: BroadcastMode,
+      child: SparkPlan,
+      numOutputRows: SQLMetric,
+      dataSize: SQLMetric): BuildSideRelation = {
     val countsAndBytes = child
       .executeColumnar()
-      .mapPartitions { iter =>
-        var _numRows: Long = 0
-        val _input = new ArrayBuffer[ColumnarBatch]()
+      .mapPartitions {
+        iter =>
+          var _numRows: Long = 0
+          val _input = new ArrayBuffer[ColumnarBatch]()
 
-        while (iter.hasNext) {
-          val batch = iter.next
-          val acb = ArrowColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
-          (0 until acb.numCols).foreach(i => {
-            acb.column(i).asInstanceOf[ArrowWritableColumnVector].retain()
-          })
-          _numRows += acb.numRows
-          _input += acb
-        }
-        val bytes = ArrowConverterUtils.convertToNetty(_input.toArray)
-        _input.foreach(_.close)
+          while (iter.hasNext) {
+            val batch = iter.next
+            val acb = ArrowColumnarBatches
+              .ensureLoaded(ArrowBufferAllocators.contextInstance(), batch)
+            (0 until acb.numCols).foreach(
+              i => {
+                acb.column(i).asInstanceOf[ArrowWritableColumnVector].retain()
+              })
+            _numRows += acb.numRows
+            _input += acb
+          }
+          val bytes = ArrowConverterUtils.convertToNetty(_input.toArray)
+          _input.foreach(_.close)
 
-        Iterator((_numRows, bytes))
+          Iterator((_numRows, bytes))
       }
       .collect
 
@@ -261,34 +281,28 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   }
 
   /**
-   * Generate extended DataSourceV2 Strategy.
-   * Currently only for ClickHouse backend.
+   * Generate extended DataSourceV2 Strategy. Currently only for ClickHouse backend.
    *
    * @return
    */
-  override def genExtendedDataSourceV2Strategies(): List[SparkSession =>
-    Strategy] = List()
+  override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = List()
 
   /**
-   * Generate extended Analyzer.
-   * Currently only for ClickHouse backend.
+   * Generate extended Analyzer. Currently only for ClickHouse backend.
    *
    * @return
    */
-  override def genExtendedAnalyzers(): List[SparkSession =>
-    Rule[LogicalPlan]] = List()
+  override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = List()
 
   /**
-   * Generate extended columnar pre-rules.
-   * Currently only for Velox backend.
+   * Generate extended columnar pre-rules. Currently only for Velox backend.
    *
    * @return
    */
   override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   /**
-   * Generate extended columnar post-rules.
-   * Currently only for Velox backend.
+   * Generate extended columnar post-rules. Currently only for Velox backend.
    *
    * @return
    */
@@ -296,8 +310,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
     List(spark => OtherWritePostRule(spark), _ => LoadBeforeColumnarToRow())
 
   /**
-   * Generate extended Strategy.
-   * Currently only for Velox backend.
+   * Generate extended Strategy. Currently only for Velox backend.
    *
    * @return
    */

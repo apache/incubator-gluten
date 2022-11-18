@@ -14,28 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.velox
-
-import java.util
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc.{NativeMemoryAllocator, Spiller, VeloxManagedReservationListener, VeloxMemoryAllocatorManager}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized._
-import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
@@ -51,6 +43,14 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
 import org.apache.spark.util.memory.{TaskMemoryResourceManager, TaskMemoryResources}
 
+import org.apache.arrow.vector.types.pojo.Schema
+
+import java.util
+import java.util.concurrent.TimeUnit
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
+
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
   /**
@@ -58,31 +58,32 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    *
    * @return
    */
-  override def genNativeFilePartition(index: Int,
-                                      partitions: Seq[InputPartition],
-                                      wsCxt: WholestageTransformContext
-                                     ): BaseNativeFilePartition = {
-    val localFilesNodesWithLocations = partitions.indices.map(i =>
-      partitions(i) match {
-        case f: FilePartition =>
-          val paths = new java.util.ArrayList[String]()
-          val starts = new java.util.ArrayList[java.lang.Long]()
-          val lengths = new java.util.ArrayList[java.lang.Long]()
-          val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
-          f.files.foreach { file =>
-            paths.add(file.filePath)
-            starts.add(new java.lang.Long(file.start))
-            lengths.add(new java.lang.Long(file.length))
-          }
-          (LocalFilesBuilder.makeLocalFiles(
-            f.index, paths, starts, lengths, fileFormat),
-            SoftAffinityUtil.getFilePartitionLocations(f))
-      }
-    )
+  override def genNativeFilePartition(
+      index: Int,
+      partitions: Seq[InputPartition],
+      wsCxt: WholestageTransformContext): BaseNativeFilePartition = {
+    val localFilesNodesWithLocations = partitions.indices.map(
+      i =>
+        partitions(i) match {
+          case f: FilePartition =>
+            val paths = new java.util.ArrayList[String]()
+            val starts = new java.util.ArrayList[java.lang.Long]()
+            val lengths = new java.util.ArrayList[java.lang.Long]()
+            val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
+            f.files.foreach {
+              file =>
+                paths.add(file.filePath)
+                starts.add(new java.lang.Long(file.start))
+                lengths.add(new java.lang.Long(file.length))
+            }
+            (
+              LocalFilesBuilder.makeLocalFiles(f.index, paths, starts, lengths, fileFormat),
+              SoftAffinityUtil.getFilePartitionLocations(f))
+        })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
-    logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+    logDebug(s"The substrait plan for partition $index:\n${substraitPlan.toString}")
     NativePartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
   }
 
@@ -99,15 +100,15 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @param avgCoalescedNumRows
    * @return
    */
-  override def genCoalesceIterator(iter: Iterator[ColumnarBatch],
-                                   recordsPerBatch: Int,
-                                   numOutputRows: SQLMetric = null,
-                                   numInputBatches: SQLMetric = null,
-                                   numOutputBatches: SQLMetric = null,
-                                   collectTime: SQLMetric = null,
-                                   concatTime: SQLMetric = null,
-                                   avgCoalescedNumRows: SQLMetric = null)
-    : Iterator[ColumnarBatch] = {
+  override def genCoalesceIterator(
+      iter: Iterator[ColumnarBatch],
+      recordsPerBatch: Int,
+      numOutputRows: SQLMetric = null,
+      numInputBatches: SQLMetric = null,
+      numOutputBatches: SQLMetric = null,
+      collectTime: SQLMetric = null,
+      concatTime: SQLMetric = null,
+      avgCoalescedNumRows: SQLMetric = null): Iterator[ColumnarBatch] = {
     import io.glutenproject.utils.VeloxImplicitClass._
 
     val beforeInput = System.nanoTime
@@ -119,10 +120,11 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       new Iterator[ColumnarBatch] {
         var numBatchesTotal: Long = _
         var numRowsTotal: Long = _
-        TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ =>
-          if (avgCoalescedNumRows!= null && numBatchesTotal > 0) {
-            avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
-          }
+        TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] {
+          _ =>
+            if (avgCoalescedNumRows != null && numBatchesTotal > 0) {
+              avgCoalescedNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
+            }
         }
 
         override def hasNext: Boolean = {
@@ -151,14 +153,15 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
 
           // chendi: We need make sure target FieldTypes are exactly the same as src
           val expectedOutputArrowFields = if (batchesToAppend.size > 0) {
-            (0 until batchesToAppend(0).numCols).map(i => {
-              ArrowColumnarBatches
-                .ensureLoaded(
-                  ArrowBufferAllocators.contextInstance(), batchesToAppend(0)).column(i)
-                .asInstanceOf[ArrowWritableColumnVector]
-                .getValueVector
-                .getField
-            })
+            (0 until batchesToAppend(0).numCols).map(
+              i => {
+                ArrowColumnarBatches
+                  .ensureLoaded(ArrowBufferAllocators.contextInstance(), batchesToAppend(0))
+                  .column(i)
+                  .asInstanceOf[ArrowWritableColumnVector]
+                  .getValueVector
+                  .getField
+              })
           } else {
             Nil
           }
@@ -206,8 +209,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @param iter
    * @return
    */
-  override def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch])
-  : Iterator[ColumnarBatch] = {
+  override def genCloseableColumnBatchIterator(
+      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     new CloseableColumnBatchIterator(iter)
   }
 
@@ -216,15 +219,15 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    *
    * @return
    */
-  override def genFirstStageIterator(inputPartition: BaseNativeFilePartition,
-                                     loadNative: Boolean,
-                                     outputAttributes: Seq[Attribute],
-                                     context: TaskContext,
-                                     pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
-                                     updateNativeMetrics: GeneralOutIterator => Unit,
-                                     inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
-  : Iterator[ColumnarBatch] = {
+  override def genFirstStageIterator(
+      inputPartition: BaseNativeFilePartition,
+      loadNative: Boolean,
+      outputAttributes: Seq[Attribute],
+      context: TaskContext,
+      pipelineTime: SQLMetric,
+      updateMetrics: (Long, Long) => Unit,
+      updateNativeMetrics: GeneralOutIterator => Unit,
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     import org.apache.spark.sql.util.OASPackageBridge._
     var inputSchema: Schema = null
     var outputSchema: Schema = null
@@ -232,15 +235,17 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     if (loadNative) {
       val beforeBuild = System.nanoTime()
       val columnarNativeIterators =
-        new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-          new ArrowInIterator(iter.asJava)
+        new util.ArrayList[GeneralInIterator](inputIterators.map {
+          iter => new ArrowInIterator(iter.asJava)
         }.asJava)
       val transKernel = new ExpressionEvaluator()
       outputSchema = ArrowConverterUtils.toArrowSchema(outputAttributes)
       resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.substraitPlan, columnarNativeIterators, outputAttributes.asJava)
+        inputPartition.substraitPlan,
+        columnarNativeIterators,
+        outputAttributes.asJava)
       pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-      TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
+      TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => resIter.close())
     }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
@@ -264,13 +269,14 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
         val cb = resIter.next()
         val bytes: Long = cb match {
           case batch: ColumnarBatch =>
-            (0 until batch.numCols()).map { i =>
-              val vector = Option(batch.column(i))
-              vector.map {
-                case av: ArrowWritableColumnVector =>
-                  av.getValueVector.getBufferSize.toLong
-                case _ => 0L
-              }.sum
+            (0 until batch.numCols()).map {
+              i =>
+                val vector = Option(batch.column(i))
+                vector.map {
+                  case av: ArrowWritableColumnVector =>
+                    av.getValueVector.getBufferSize.toLong
+                  case _ => 0L
+                }.sum
             }.sum
           case _ => 0L
         }
@@ -284,7 +290,8 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     new InterruptibleIterator(
       context,
       new CloseableColumnBatchIterator(
-        iter.asInstanceOf[Iterator[ColumnarBatch]], Some(pipelineTime)))
+        iter.asInstanceOf[Iterator[ColumnarBatch]],
+        Some(pipelineTime)))
   }
 
   // scalastyle:off argcount
@@ -294,43 +301,46 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    *
    * @return
    */
-  override def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
-                                     numaBindingInfo: GlutenNumaBindingInfo,
-                                     listJars: Seq[String],
-                                     signature: String,
-                                     sparkConf: SparkConf,
-                                     outputAttributes: Seq[Attribute],
-                                     rootNode: PlanNode,
-                                     pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
-                                     updateNativeMetrics: GeneralOutIterator => Unit,
-                                     buildRelationBatchHolder: Seq[ColumnarBatch],
-                                     dependentKernels: Seq[ExpressionEvaluator],
-                                     dependentKernelIterators: Seq[GeneralOutIterator])
-  : Iterator[ColumnarBatch] = {
+  override def genFinalStageIterator(
+      inputIterators: Seq[Iterator[ColumnarBatch]],
+      numaBindingInfo: GlutenNumaBindingInfo,
+      listJars: Seq[String],
+      signature: String,
+      sparkConf: SparkConf,
+      outputAttributes: Seq[Attribute],
+      rootNode: PlanNode,
+      pipelineTime: SQLMetric,
+      updateMetrics: (Long, Long) => Unit,
+      updateNativeMetrics: GeneralOutIterator => Unit,
+      buildRelationBatchHolder: Seq[ColumnarBatch],
+      dependentKernels: Seq[ExpressionEvaluator],
+      dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
     val beforeBuild = System.nanoTime()
 
     val execTempDir = GlutenConfig.getTempFile
-    val jarList = listJars.map(jarUrl => {
-      logWarning(s"Get Codegened library Jar ${jarUrl}")
-      UserAddedJarUtils.fetchJarFromSpark(
-        jarUrl,
-        execTempDir,
-        s"spark-columnar-plugin-codegen-precompile-${signature}.jar",
-        sparkConf)
-      s"${execTempDir}/spark-columnar-plugin-codegen-precompile-${signature}.jar"
-    })
+    val jarList = listJars.map(
+      jarUrl => {
+        logWarning(s"Get Codegened library Jar $jarUrl")
+        UserAddedJarUtils.fetchJarFromSpark(
+          jarUrl,
+          execTempDir,
+          s"spark-columnar-plugin-codegen-precompile-$signature.jar",
+          sparkConf)
+        s"$execTempDir/spark-columnar-plugin-codegen-precompile-$signature.jar"
+      })
 
     val transKernel = new ExpressionEvaluator(jarList.asJava)
     val columnarNativeIterator =
-      new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-        new ArrowInIterator(iter.asJava)
+      new util.ArrayList[GeneralInIterator](inputIterators.map {
+        iter => new ArrowInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
-      transKernel.createKernelWithBatchIterator(rootNode, columnarNativeIterator,
+      transKernel.createKernelWithBatchIterator(
+        rootNode,
+        columnarNativeIterator,
         outputAttributes.asJava)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
@@ -351,9 +361,10 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
       }
     }
 
-    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](_ => {
-      nativeResultIterator.close()
-    })
+    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](
+      _ => {
+        nativeResultIterator.close()
+      })
 
     new CloseableColumnBatchIterator(resIter, Some(pipelineTime))
   }
@@ -373,10 +384,10 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    *
    * @return
    */
-  override def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
-                                               spiller: Spiller,
-                                               taskMemoryMetrics: TaskMemoryMetrics
-                                              ): TaskMemoryResourceManager = {
+  override def genNativeMemoryAllocatorManager(
+      taskMemoryManager: TaskMemoryManager,
+      spiller: Spiller,
+      taskMemoryMetrics: TaskMemoryMetrics): TaskMemoryResourceManager = {
     val rl = new VeloxManagedReservationListener(
       new GlutenMemoryConsumer(taskMemoryManager, spiller),
       taskMemoryMetrics
@@ -389,27 +400,26 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    *
    * @return
    */
-  override def genBatchIterator(allocId: java.lang.Long,
-                                wsPlan: Array[Byte],
-                                iterList: Seq[GeneralInIterator],
-                                jniWrapper: ExpressionEvaluatorJniWrapper,
-                                outAttrs: Seq[Attribute]): GeneralOutIterator = {
+  override def genBatchIterator(
+      allocId: java.lang.Long,
+      wsPlan: Array[Byte],
+      iterList: Seq[GeneralInIterator],
+      jniWrapper: ExpressionEvaluatorJniWrapper,
+      outAttrs: Seq[Attribute]): GeneralOutIterator = {
     val batchIteratorInstance =
       jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
     new ArrowOutIterator(batchIteratorInstance, outAttrs.asJava)
   }
 
-  /**
-   * Generate Native FileScanRDD, currently only for ClickHouse Backend.
-   */
-  override def genNativeFileScanRDD(sparkContext: SparkContext,
-                                    wsCxt: WholestageTransformContext,
-                                    fileFormat: ReadFileFormat,
-                                    inputPartitions: Seq[InputPartition],
-                                    numOutputRows: SQLMetric,
-                                    numOutputBatches: SQLMetric,
-                                    scanTime: SQLMetric): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(
-      "Cannot support to generate Native FileScanRDD.")
+  /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
+  override def genNativeFileScanRDD(
+      sparkContext: SparkContext,
+      wsCxt: WholestageTransformContext,
+      fileFormat: ReadFileFormat,
+      inputPartitions: Seq[InputPartition],
+      numOutputRows: SQLMetric,
+      numOutputBatches: SQLMetric,
+      scanTime: SQLMetric): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException("Cannot support to generate Native FileScanRDD.")
   }
 }

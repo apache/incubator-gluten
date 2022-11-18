@@ -14,39 +14,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
-import org.apache.arrow.vector.util.VectorBatchAppender
 
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import org.apache.arrow.vector.util.VectorBatchAppender
 
 object VeloxImplicitClass {
 
   implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
     def retain(): Unit = {
-      (0 until cb.numCols).toList.foreach(i =>
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-          .column(i).asInstanceOf[ArrowWritableColumnVector].retain())
+      (0 until cb.numCols).toList.foreach(
+        i =>
+          ArrowColumnarBatches
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
+            .column(i)
+            .asInstanceOf[ArrowWritableColumnVector]
+            .retain())
     }
   }
 
   def coalesce(targetBatch: ColumnarBatch, batchesToAppend: List[ColumnarBatch]): Unit = {
-    (0 until targetBatch.numCols).toList.foreach { i =>
-      val targetVector =
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), targetBatch)
-          .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
-      val vectorsToAppend = batchesToAppend.map { cb =>
-        ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-          .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector
-      }
-      VectorBatchAppender.batchAppend(targetVector, vectorsToAppend: _*)
+    (0 until targetBatch.numCols).toList.foreach {
+      i =>
+        val targetVector =
+          ArrowColumnarBatches
+            .ensureLoaded(ArrowBufferAllocators.contextInstance(), targetBatch)
+            .column(i)
+            .asInstanceOf[ArrowWritableColumnVector]
+            .getValueVector
+        val vectorsToAppend = batchesToAppend.map {
+          cb =>
+            ArrowColumnarBatches
+              .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
+              .column(i)
+              .asInstanceOf[ArrowWritableColumnVector]
+              .getValueVector
+        }
+        VectorBatchAppender.batchAppend(targetVector, vectorsToAppend: _*)
     }
   }
 }

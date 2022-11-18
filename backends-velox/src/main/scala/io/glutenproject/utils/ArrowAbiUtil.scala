@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
-
-import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.vectorized.ArrowWritableColumnVector
+
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, VectorLoader, VectorSchemaRoot, VectorUnloader}
@@ -29,31 +29,39 @@ import org.apache.arrow.vector.dictionary.DictionaryProvider
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{Field, Schema}
 
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 
 object ArrowAbiUtil {
 
-  def importIntoVectorSchemaRoot(allocator: BufferAllocator,
-                                 array: ArrowArray, root: VectorSchemaRoot,
-                                 provider: DictionaryProvider): Unit = {
+  def importIntoVectorSchemaRoot(
+      allocator: BufferAllocator,
+      array: ArrowArray,
+      root: VectorSchemaRoot,
+      provider: DictionaryProvider): Unit = {
     Data.importIntoVectorSchemaRoot(allocator, array, root, provider)
   }
 
-  def importToArrowRecordBatch(allocator: BufferAllocator,
-                               cSchema: ArrowSchema, cArray: ArrowArray): ArrowRecordBatch = {
+  def importToArrowRecordBatch(
+      allocator: BufferAllocator,
+      cSchema: ArrowSchema,
+      cArray: ArrowArray): ArrowRecordBatch = {
     val vsr = importToVectorSchemaRoot(allocator, cSchema, cArray)
     val unloader = new VectorUnloader(vsr)
     unloader.getRecordBatch
   }
 
-  def importToSparkColumnarBatch(allocator: BufferAllocator,
-                                 cSchema: ArrowSchema, cArray: ArrowArray): ColumnarBatch = {
+  def importToSparkColumnarBatch(
+      allocator: BufferAllocator,
+      cSchema: ArrowSchema,
+      cArray: ArrowArray): ColumnarBatch = {
     val vsr = importToVectorSchemaRoot(allocator, cSchema, cArray)
     toSparkColumnarBatch(vsr)
   }
 
-  private def importToVectorSchemaRoot(allocator: BufferAllocator, cSchema: ArrowSchema,
-                                       cArray: ArrowArray): VectorSchemaRoot = {
+  private def importToVectorSchemaRoot(
+      allocator: BufferAllocator,
+      cSchema: ArrowSchema,
+      cArray: ArrowArray): VectorSchemaRoot = {
     val dictProvider = new CDataDictionaryProvider
     val vsr = Data.importVectorSchemaRoot(allocator, cArray, cSchema, dictProvider)
     try {
@@ -64,8 +72,10 @@ object ArrowAbiUtil {
     }
   }
 
-  def importToSparkColumnarBatch(allocator: BufferAllocator,
-                                 schema: Schema, cArray: ArrowArray): ColumnarBatch = {
+  def importToSparkColumnarBatch(
+      allocator: BufferAllocator,
+      schema: Schema,
+      cArray: ArrowArray): ColumnarBatch = {
     val vsr = toVectorSchemaRoot(allocator, schema, cArray)
     toSparkColumnarBatch(vsr)
   }
@@ -73,13 +83,16 @@ object ArrowAbiUtil {
   private def toSparkColumnarBatch(vsr: VectorSchemaRoot): ColumnarBatch = {
     val rowCount: Int = vsr.getRowCount
     val vectors: Array[ColumnVector] =
-      ArrowWritableColumnVector.loadColumns(rowCount, vsr.getFieldVectors)
+      ArrowWritableColumnVector
+        .loadColumns(rowCount, vsr.getFieldVectors)
         .map(v => v)
     new ColumnarBatch(vectors, rowCount)
   }
 
-  private def toVectorSchemaRoot(allocator: BufferAllocator, schema: Schema, array: ArrowArray)
-  : VectorSchemaRoot = {
+  private def toVectorSchemaRoot(
+      allocator: BufferAllocator,
+      schema: Schema,
+      array: ArrowArray): VectorSchemaRoot = {
     val provider = new CDataDictionaryProvider
 
     val vsr = VectorSchemaRoot.create(schema, allocator);
@@ -93,8 +106,7 @@ object ArrowAbiUtil {
     }
   }
 
-  def importToSchema(allocator: BufferAllocator,
-                     cSchema: ArrowSchema): Schema = {
+  def importToSchema(allocator: BufferAllocator, cSchema: ArrowSchema): Schema = {
     val dictProvider = new CDataDictionaryProvider
     val schema = Data.importSchema(allocator, cSchema, dictProvider)
     try {
@@ -122,8 +134,11 @@ object ArrowAbiUtil {
     }
   }
 
-  def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
-                                   cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
+  def exportFromSparkColumnarBatch(
+      allocator: BufferAllocator,
+      columnarBatch: ColumnarBatch,
+      cSchema: ArrowSchema,
+      cArray: ArrowArray): Unit = {
     val loaded = ArrowColumnarBatches.ensureLoaded(allocator, columnarBatch)
     val schema = ArrowConverterUtils.toSchema(loaded)
     val rb = ArrowConverterUtils.createArrowRecordBatch(loaded)
@@ -134,26 +149,33 @@ object ArrowAbiUtil {
     }
   }
 
-  def exportFromArrowRecordBatch(allocator: BufferAllocator, arrowBatch: ArrowRecordBatch,
-                                 schema: Schema, cSchema: ArrowSchema, cArray: ArrowArray)
-  : Unit = {
+  def exportFromArrowRecordBatch(
+      allocator: BufferAllocator,
+      arrowBatch: ArrowRecordBatch,
+      schema: Schema,
+      cSchema: ArrowSchema,
+      cArray: ArrowArray): Unit = {
     val vsr = toVectorSchemaRoot(allocator, schema, arrowBatch)
     try {
       Data.exportVectorSchemaRoot(allocator, vsr, new CDataDictionaryProvider(), cArray, cSchema)
     } catch {
       case e: Exception =>
         throw new RuntimeException(
-          String.format("error exporting columnar batch with schema: %s, vectors: %s",
-            vsr.getSchema, vsr.getFieldVectors), e)
+          String.format(
+            "error exporting columnar batch with schema: %s, vectors: %s",
+            vsr.getSchema,
+            vsr.getFieldVectors),
+          e)
     } finally {
       vsr.close()
     }
   }
 
   // will release input record batch
-  private def toVectorSchemaRoot(allocator: BufferAllocator, schema: Schema,
-                                 arrowBatch: ArrowRecordBatch)
-  : VectorSchemaRoot = {
+  private def toVectorSchemaRoot(
+      allocator: BufferAllocator,
+      schema: Schema,
+      arrowBatch: ArrowRecordBatch): VectorSchemaRoot = {
     if (arrowBatch.getNodes.size() == 0) {
       return VectorSchemaRoot.of()
     }
@@ -164,10 +186,12 @@ object ArrowAbiUtil {
     root
   }
 
-  private def toVectorSchemaRoot(schema: Schema, fieldVectors: List[FieldVector])
-  : VectorSchemaRoot = {
-    val rowCount = if (fieldVectors.isEmpty) 0
-    else fieldVectors.get(0).getValueCount
+  private def toVectorSchemaRoot(
+      schema: Schema,
+      fieldVectors: List[FieldVector]): VectorSchemaRoot = {
+    val rowCount =
+      if (fieldVectors.isEmpty) 0
+      else fieldVectors.get(0).getValueCount
     new VectorSchemaRoot(schema, fieldVectors, rowCount)
   }
 }

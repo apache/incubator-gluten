@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 import scala.collection.JavaConverters
 
@@ -52,28 +51,28 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("select_part_column") {
-    val df = runQueryAndCompare("select l_shipdate, l_orderkey from lineitem limit 1") { df =>
-      { assert(df.schema.fields.length == 2) }
+    val df = runQueryAndCompare("select l_shipdate, l_orderkey from lineitem limit 1") {
+      df => { assert(df.schema.fields.length == 2) }
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("select_as") {
-    val df = runQueryAndCompare("select l_shipdate as my_col from lineitem limit 1") { df =>
-      { assert(df.schema.fieldNames(0).equals("my_col")) }
+    val df = runQueryAndCompare("select l_shipdate as my_col from lineitem limit 1") {
+      df => { assert(df.schema.fieldNames(0).equals("my_col")) }
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("test_where") {
-    val df = runQueryAndCompare(
-      "select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
+    val df = runQueryAndCompare("select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
     checkLengthAndPlan(df, 59288)
   }
 
   test("test_is_null") {
-    val df = runQueryAndCompare("select l_orderkey from lineitem " +
-      "where l_comment is null") { _ => }
+    val df = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_comment is null") { _ => }
     assert(df.isEmpty)
     checkLengthAndPlan(df, 0)
   }
@@ -105,10 +104,9 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("test_in") {
-    val df = runQueryAndCompare("select l_orderkey from lineitem " +
-      "where l_partkey in (1552, 674, 1062)") {
-      _ =>
-    }
+    val df = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey in (1552, 674, 1062)") { _ => }
     checkLengthAndPlan(df, 122)
   }
 
@@ -142,40 +140,46 @@ class TestOperator extends WholeStageTransformerSuite {
   }
 
   test("coalesce") {
-    var df = runQueryAndCompare("select l_orderkey, coalesce(l_comment, 'default_val') " +
-      "from lineitem limit 5") { _ => }
+    var df = runQueryAndCompare(
+      "select l_orderkey, coalesce(l_comment, 'default_val') " +
+        "from lineitem limit 5") { _ => }
     checkLengthAndPlan(df, 5)
-    df = runQueryAndCompare("select l_orderkey, coalesce(null, l_comment, 'default_val') " +
-      "from lineitem limit 5") { _ => }
+    df = runQueryAndCompare(
+      "select l_orderkey, coalesce(null, l_comment, 'default_val') " +
+        "from lineitem limit 5") { _ => }
     checkLengthAndPlan(df, 5)
-    df = runQueryAndCompare("select l_orderkey, coalesce(null, null, l_comment) " +
-      "from lineitem limit 5") { _ => }
+    df = runQueryAndCompare(
+      "select l_orderkey, coalesce(null, null, l_comment) " +
+        "from lineitem limit 5") { _ => }
     checkLengthAndPlan(df, 5)
-    df = runQueryAndCompare("select l_orderkey, coalesce(null, null, 1, 2) " +
-      "from lineitem limit 5") { _ => }
+    df = runQueryAndCompare(
+      "select l_orderkey, coalesce(null, null, 1, 2) " +
+        "from lineitem limit 5") { _ => }
     checkLengthAndPlan(df, 5)
-    df = runQueryAndCompare("select l_orderkey, coalesce(null, null, null) " +
-      "from lineitem limit 5") { _ => }
+    df = runQueryAndCompare(
+      "select l_orderkey, coalesce(null, null, null) " +
+        "from lineitem limit 5") { _ => }
     checkLengthAndPlan(df, 5)
   }
 
   ignore("test_count") {
-    val df = runQueryAndCompare("select count(*) from lineitem " +
-      "where l_partkey in (1552, 674, 1062)") {
-      _ =>
-    }
+    val df = runQueryAndCompare(
+      "select count(*) from lineitem " +
+        "where l_partkey in (1552, 674, 1062)") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
   ignore("test_avg") {
-    val df = runQueryAndCompare("select avg(l_partkey) from lineitem " +
-      "where l_partkey < 1000") { _ => }
+    val df = runQueryAndCompare(
+      "select avg(l_partkey) from lineitem " +
+        "where l_partkey < 1000") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
   ignore("test_sum") {
-    val df = runQueryAndCompare("select sum(l_partkey) from lineitem " +
-      "where l_partkey < 2000") { _ => }
+    val df = runQueryAndCompare(
+      "select sum(l_partkey) from lineitem " +
+        "where l_partkey < 2000") { _ => }
     checkLengthAndPlan(df, 1)
   }
 
@@ -225,58 +229,52 @@ class TestOperator extends WholeStageTransformerSuite {
 
   test("test_union_all two tables") {
     withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      val df = runQueryAndCompare(
-        """
-          |select count(orderkey) from (
-          | select l_orderkey as orderkey from lineitem
-          | union all
-          | select o_orderkey as orderkey from orders
-          |);
-          |""".stripMargin) { _ => }
+      val df = runQueryAndCompare("""
+                                    |select count(orderkey) from (
+                                    | select l_orderkey as orderkey from lineitem
+                                    | union all
+                                    | select o_orderkey as orderkey from orders
+                                    |);
+                                    |""".stripMargin) { _ => }
       assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
     }
   }
 
   test("test_union_all three tables") {
     withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      val df = runQueryAndCompare(
-        """
-          |select count(orderkey) from (
-          | select l_orderkey as orderkey from lineitem
-          | union all
-          | select o_orderkey as orderkey from orders
-          | union all
-          | (select o_orderkey as orderkey from orders limit 100)
-          |);
-          |""".stripMargin) { _ => }
+      val df = runQueryAndCompare("""
+                                    |select count(orderkey) from (
+                                    | select l_orderkey as orderkey from lineitem
+                                    | union all
+                                    | select o_orderkey as orderkey from orders
+                                    | union all
+                                    | (select o_orderkey as orderkey from orders limit 100)
+                                    |);
+                                    |""".stripMargin) { _ => }
       assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
     }
   }
 
   test("test_union two tables") {
     withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      val df = runQueryAndCompare(
-        """
-          |select count(orderkey) from (
-          | select l_orderkey as orderkey from lineitem
-          | union
-          | select o_orderkey as orderkey from orders
-          |);
-          |""".stripMargin) {
-        _ =>
-      }
+      val df = runQueryAndCompare("""
+                                    |select count(orderkey) from (
+                                    | select l_orderkey as orderkey from lineitem
+                                    | union
+                                    | select o_orderkey as orderkey from orders
+                                    |);
+                                    |""".stripMargin) { _ => }
       assert(df.queryExecution.executedPlan.find(_.isInstanceOf[UnionExecTransformer]).isDefined)
     }
   }
 
   test("test 'select global/local limit'") {
     withSQLConf("spark.sql.adaptive.enabled" -> "false") {
-      runQueryAndCompare(
-        """
-          |select * from (
-          | select * from lineitem limit 10
-          |) where l_suppkey != 0 limit 100;
-          |""".stripMargin) {
+      runQueryAndCompare("""
+                           |select * from (
+                           | select * from lineitem limit 10
+                           |) where l_suppkey != 0 limit 100;
+                           |""".stripMargin) {
         checkOperatorMatch[LimitTransformer]
       }
     }

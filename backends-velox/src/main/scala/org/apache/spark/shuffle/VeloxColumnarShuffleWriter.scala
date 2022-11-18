@@ -14,22 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.shuffle
 
-import java.io.IOException
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
-
-import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
-import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -38,13 +30,21 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
+import org.apache.arrow.c.ArrowArray
+import org.apache.arrow.vector.types.pojo.Schema
+
+import java.io.IOException
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
+
 class VeloxColumnarShuffleWriter[K, V](
-  shuffleBlockResolver: IndexShuffleBlockResolver,
-  handle: BaseShuffleHandle[K, V, V],
-  mapId: Long,
-  writeMetrics: ShuffleWriteMetricsReporter)
+    shuffleBlockResolver: IndexShuffleBlockResolver,
+    handle: BaseShuffleHandle[K, V, V],
+    mapId: Long,
+    writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
-    with Logging {
+  with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
 
@@ -95,8 +95,12 @@ class VeloxColumnarShuffleWriter[K, V](
 
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId,
-        partitionLengths, Array[Long](), null)
+      shuffleBlockResolver.writeMetadataFileAndCommit(
+        dep.shuffleId,
+        mapId,
+        partitionLengths,
+        Array[Long](),
+        null)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }
@@ -113,19 +117,22 @@ class VeloxColumnarShuffleWriter[K, V](
         blockManager.subDirsPerLocalDir,
         localDirs,
         preferSpill,
-        NativeMemoryAllocators.createSpillable(
-          new Spiller() {
+        NativeMemoryAllocators
+          .createSpillable(new Spiller() {
             override def spill(size: Long, trigger: MemoryConsumer): Long = {
               if (nativeSplitter == 0) {
-                throw new IllegalStateException("Fatal: spill() called before a shuffle splitter " +
-                  "evaluator is created. This behavior should be optimized by moving memory " +
-                  "allocations from make() to split()")
+                throw new IllegalStateException(
+                  "Fatal: spill() called before a shuffle splitter " +
+                    "evaluator is created. This behavior should be optimized by moving memory " +
+                    "allocations from make() to split()")
               }
               // fixme pass true when being called by self
               return splitterJniWrapper.nativeSpill(nativeSplitter, size, false)
             }
-          }).getNativeInstanceId,
-        writeSchema)
+          })
+          .getNativeInstanceId,
+        writeSchema
+      )
     }
 
     var schema: Schema = null
@@ -147,8 +154,7 @@ class VeloxColumnarShuffleWriter[K, V](
           firstRecordBatch = false
         }
         try {
-          ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
-            null, cArray)
+          ArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema, null, cArray)
         } finally {
           ArrowConverterUtils.releaseArrowRecordBatch(rb)
         }
@@ -170,9 +176,10 @@ class VeloxColumnarShuffleWriter[K, V](
     val startTime = System.nanoTime()
     splitResult = splitterJniWrapper.stop(nativeSplitter)
 
-    dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
-      splitResult.getTotalWriteTime -
-      splitResult.getTotalCompressTime)
+    dep.splitTime.add(
+      System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+        splitResult.getTotalWriteTime -
+        splitResult.getTotalCompressTime)
     dep.spillTime.add(splitResult.getTotalSpillTime)
     dep.compressTime.add(splitResult.getTotalCompressTime)
     dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)

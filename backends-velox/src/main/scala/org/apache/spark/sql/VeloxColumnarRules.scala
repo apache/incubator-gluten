@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -39,7 +39,7 @@ object VeloxColumnarRules {
 
   case class OtherWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan match {
-      case rc@DataWritingCommandExec(cmd, ColumnarToRowExec(child)) =>
+      case rc @ DataWritingCommandExec(cmd, ColumnarToRowExec(child)) =>
         cmd match {
           case command: InsertIntoHadoopFsRelationCommand =>
             if (command.fileFormat.isInstanceOf[DwrfFileFormat]) {
@@ -49,7 +49,7 @@ object VeloxColumnarRules {
             }
           case _ => plan.withNewChildren(plan.children.map(apply))
         }
-      case rc@DataWritingCommandExec(cmd, child) =>
+      case rc @ DataWritingCommandExec(cmd, child) =>
         cmd match {
           case command: InsertIntoHadoopFsRelationCommand =>
             if (command.fileFormat.isInstanceOf[DwrfFileFormat]) {
@@ -148,7 +148,7 @@ object VeloxColumnarRules {
     override def output: Seq[Attribute] = child.output
 
     override protected def doExecute(): RDD[InternalRow] = {
-      child.executeColumnar().map { cb => new FakeRow(cb) }
+      child.executeColumnar().map(cb => new FakeRow(cb))
     }
 
     // For spark 3.2.
@@ -167,12 +167,12 @@ object VeloxColumnarRules {
 
     override def supportsColumnar: Boolean = true
 
-
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-      child.executeColumnar().mapPartitions { itr =>
-        itr.map { cb =>
-          ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-        }
+      child.executeColumnar().mapPartitions {
+        itr =>
+          itr.map {
+            cb => ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
+          }
       }
     }
 

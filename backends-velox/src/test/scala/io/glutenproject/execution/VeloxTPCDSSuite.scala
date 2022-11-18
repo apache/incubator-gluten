@@ -14,17 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
+
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
+
+import org.junit.Ignore
 
 import java.io.File
 
 import scala.io.Source
-
-import org.junit.Ignore
-
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.SparkConf
 
 // just used to test TPCDS locally
 class VeloxTPCDSSuite extends WholeStageTransformerSuite {
@@ -85,11 +84,12 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
       "web_returns",
       "web_sales",
       "web_site"
-    ).map { table =>
-      val tablePath = new File(resourcePath, table).getAbsolutePath
-      val tableDF = spark.read.format(fileFormat).load(tablePath)
-      tableDF.createOrReplaceTempView(table)
-      (table, tableDF)
+    ).map {
+      table =>
+        val tablePath = new File(resourcePath, table).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+        tableDF.createOrReplaceTempView(table)
+        (table, tableDF)
     }.toMap
   }
 

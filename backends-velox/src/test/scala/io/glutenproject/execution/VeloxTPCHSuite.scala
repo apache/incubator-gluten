@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.io.File
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.ColumnarInputAdapter
 import org.apache.spark.sql.types.DoubleType
+
+import java.io.File
 
 import scala.io.Source
 

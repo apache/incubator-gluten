@@ -14,25 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-import java.util.ArrayList
-
-import scala.collection.JavaConverters._
-import com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import java.util
 
-import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.types.{DoubleType, LongType}
+
+import com.google.protobuf.Any
+
+import java.util
+import java.util.ArrayList
+
+import scala.collection.JavaConverters._
 
 case class VeloxHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
@@ -41,7 +42,8 @@ case class VeloxHashAggregateExecTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan) extends HashAggregateExecBaseTransformer(
+    child: SparkPlan)
+  extends HashAggregateExecBaseTransformer(
     requiredChildDistributionExpressions,
     groupingExpressions,
     aggregateExpressions,
@@ -51,9 +53,10 @@ case class VeloxHashAggregateExecTransformer(
     child) {
 
   /**
-   * Returns whether extracting subfield from struct is needed.
-   * True when the intermediate type of Velox aggregation is a compound type.
-   * @return extracting needed or not.
+   * Returns whether extracting subfield from struct is needed. True when the intermediate type of
+   * Velox aggregation is a compound type.
+   * @return
+   *   extracting needed or not.
    */
   def extractStructNeeded(): Boolean = {
     for (expr <- aggregateExpressions) {
@@ -74,15 +77,20 @@ case class VeloxHashAggregateExecTransformer(
 
   /**
    * Add a projection after aggregation to extract subfields from Struct.
-   * @param context the Substrait context
-   * @param aggRel the aggregation rel
-   * @param operatorId the operator id
-   * @return a project rel
+   * @param context
+   *   the Substrait context
+   * @param aggRel
+   *   the aggregation rel
+   * @param operatorId
+   *   the operator id
+   * @return
+   *   a project rel
    */
-  def applyExtractStruct(context: SubstraitContext,
-                         aggRel: RelNode,
-                         operatorId: Long,
-                         validation: Boolean): RelNode = {
+  def applyExtractStruct(
+      context: SubstraitContext,
+      aggRel: RelNode,
+      operatorId: Long,
+      validation: Boolean): RelNode = {
     val expressionNodes = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
@@ -120,11 +128,11 @@ case class VeloxHashAggregateExecTransformer(
 
   // Create aggregate function node and add to list.
   override protected def addFunctionNode(
-    args: java.lang.Object,
-    aggregateFunction: AggregateFunction,
-    childrenNodeList: ArrayList[ExpressionNode],
-    aggregateMode: AggregateMode,
-    aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
+      args: java.lang.Object,
+      aggregateFunction: AggregateFunction,
+      childrenNodeList: ArrayList[ExpressionNode],
+      aggregateMode: AggregateMode,
+      aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     aggregateFunction match {
       case _: Average =>
@@ -149,7 +157,8 @@ case class VeloxHashAggregateExecTransformer(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
               modeToKeyWord(aggregateMode),
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
+            )
             aggregateNodeList.add(aggFunctionNode)
           case other =>
             throw new UnsupportedOperationException(s"$other is not supported.")
@@ -159,7 +168,8 @@ case class VeloxHashAggregateExecTransformer(
           AggregateFunctionsBuilder.create(args, aggregateFunction),
           childrenNodeList,
           modeToKeyWord(aggregateMode),
-          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
+        )
         aggregateNodeList.add(aggFunctionNode)
     }
   }
@@ -170,31 +180,34 @@ case class VeloxHashAggregateExecTransformer(
    */
   def getPartialAggOutTypes: java.util.ArrayList[TypeNode] = {
     val typeNodeList = new java.util.ArrayList[TypeNode]()
-    groupingExpressions.foreach(expression => {
-      typeNodeList.add(ConverterUtils.getTypeNode(expression.dataType, expression.nullable))
-    })
+    groupingExpressions.foreach(
+      expression => {
+        typeNodeList.add(ConverterUtils.getTypeNode(expression.dataType, expression.nullable))
+      })
     // TODO: consider stddev here.
-    aggregateExpressions.foreach(expression => {
-      val aggregateFunction = expression.aggregateFunction
-      aggregateFunction match {
-        case _: Average =>
-          expression.mode match {
-            case Partial =>
-              val structTypeNodes = new util.ArrayList[TypeNode]()
-              structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-              structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-              typeNodeList.add(TypeBuilder.makeStruct(false, structTypeNodes))
-            case Final =>
-              typeNodeList.add(
-                ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-            case other =>
-              throw new UnsupportedOperationException(s"$other is not supported.")
-          }
-        case _ =>
-          typeNodeList.add(
-            ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
-      }
-    })
+    aggregateExpressions.foreach(
+      expression => {
+        val aggregateFunction = expression.aggregateFunction
+        aggregateFunction match {
+          case _: Average =>
+            expression.mode match {
+              case Partial =>
+                val structTypeNodes = new util.ArrayList[TypeNode]()
+                structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+                structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+                typeNodeList.add(TypeBuilder.makeStruct(false, structTypeNodes))
+              case Final =>
+                typeNodeList.add(
+                  ConverterUtils
+                    .getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+              case other =>
+                throw new UnsupportedOperationException(s"$other is not supported.")
+            }
+          case _ =>
+            typeNodeList.add(
+              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+        }
+      })
     typeNodeList
   }
 
@@ -214,9 +227,10 @@ case class VeloxHashAggregateExecTransformer(
   }
 
   // Return a scalar function node representing row construct function in Velox.
-  private def getRowConstructNode(args: java.lang.Object,
-                                  childNodes: util.ArrayList[ExpressionNode],
-                                  rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
+  private def getRowConstructNode(
+      args: java.lang.Object,
+      childNodes: util.ArrayList[ExpressionNode],
+      rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
       ConverterUtils.ROW_CONSTRUCTOR,
@@ -225,30 +239,37 @@ case class VeloxHashAggregateExecTransformer(
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
     // Use struct type to represent Velox RowType.
-    val structTypeNodes = new util.ArrayList[TypeNode](rowConstructAttributes.map(attr =>
-      ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
-    ).asJava)
+    val structTypeNodes = new util.ArrayList[TypeNode](
+      rowConstructAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava)
 
     ExpressionBuilder.makeScalarFunction(
-      functionId, childNodes, TypeBuilder.makeStruct(false, structTypeNodes))
+      functionId,
+      childNodes,
+      TypeBuilder.makeStruct(false, structTypeNodes))
   }
 
   // Add a projection node before aggregation for row constructing.
   // Currently mainly used for final average.
   // Pre-projection is always not required for final stage.
-  private def getAggRelWithRowConstruct(context: SubstraitContext,
-                                        originalInputAttributes: Seq[Attribute],
-                                        operatorId: Long,
-                                        inputRel: RelNode,
-                                        validation: Boolean): RelNode = {
+  private def getAggRelWithRowConstruct(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      inputRel: RelNode,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // Create a projection for row construct.
     val exprNodes = new util.ArrayList[ExpressionNode]()
-    groupingExpressions.foreach(expr => {
-      exprNodes.add(ExpressionConverter
-        .replaceWithExpressionTransformer(expr, originalInputAttributes)
-        .asInstanceOf[ExpressionTransformer].doTransform(args))
-    })
+    groupingExpressions.foreach(
+      expr => {
+        exprNodes.add(
+          ExpressionConverter
+            .replaceWithExpressionTransformer(expr, originalInputAttributes)
+            .asInstanceOf[ExpressionTransformer]
+            .doTransform(args))
+      })
 
     for (aggregateExpression <- aggregateExpressions) {
       val functionInputAttributes = aggregateExpression.aggregateFunction.inputAggBufferAttributes
@@ -257,14 +278,18 @@ case class VeloxHashAggregateExecTransformer(
           aggregateExpression.mode match {
             case Final =>
               assert(
-                functionInputAttributes.size == 2, "Final Average expects two input attributes.")
+                functionInputAttributes.size == 2,
+                "Final Average expects two input attributes.")
               // Use a Velox function to combine sum and count.
               val childNodes = new util.ArrayList[ExpressionNode](
-                functionInputAttributes.toList.map(attr => {
-                val aggExpr: Expression = ExpressionConverter
-                  .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-                }).asJava)
+                functionInputAttributes.toList
+                  .map(
+                    attr => {
+                      val aggExpr: Expression = ExpressionConverter
+                        .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                      aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+                    })
+                  .asJava)
               exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
@@ -272,11 +297,14 @@ case class VeloxHashAggregateExecTransformer(
         case _ =>
           assert(functionInputAttributes.size == 1, "Only one input attribute is expected.")
           val childNodes = new util.ArrayList[ExpressionNode](
-            functionInputAttributes.toList.map(attr => {
-            val aggExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(attr, originalInputAttributes)
-            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-          }).asJava)
+            functionInputAttributes.toList
+              .map(
+                attr => {
+                  val aggExpr: Expression = ExpressionConverter
+                    .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                  aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+                })
+              .asJava)
           exprNodes.addAll(childNodes)
       }
     }
@@ -298,62 +326,78 @@ case class VeloxHashAggregateExecTransformer(
     // Create aggregation rel.
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
-    groupingExpressions.foreach(_ => {
-      groupingList.add(ExpressionBuilder.makeSelection(colIdx))
-      colIdx += 1
-    })
+    groupingExpressions.foreach(
+      _ => {
+        groupingList.add(ExpressionBuilder.makeSelection(colIdx))
+        colIdx += 1
+      })
 
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
-    aggregateExpressions.foreach(aggExpr => {
-      val aggregateFunc = aggExpr.aggregateFunction
-      val childrenNodes = new util.ArrayList[ExpressionNode]()
-      aggregateFunc match {
-        case Average(_, _) =>
-          // Only occupies one column due to sum and count are combined by previous projection.
-          childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
-          colIdx += 1
-        case _ =>
-          aggregateFunc.children.toList.map(_ => {
+    aggregateExpressions.foreach(
+      aggExpr => {
+        val aggregateFunc = aggExpr.aggregateFunction
+        val childrenNodes = new util.ArrayList[ExpressionNode]()
+        aggregateFunc match {
+          case Average(_, _) =>
+            // Only occupies one column due to sum and count are combined by previous projection.
             childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
             colIdx += 1
-            aggExpr
-          })
-      }
-      addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
-    })
+          case _ =>
+            aggregateFunc.children.toList.map(
+              _ => {
+                childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
+                colIdx += 1
+                aggExpr
+              })
+        }
+        addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
+      })
     RelBuilder.makeAggregateRel(
-      projectRel, groupingList, aggregateFunctionList, context, operatorId)
+      projectRel,
+      groupingList,
+      aggregateFunctionList,
+      context,
+      operatorId)
   }
 
   /**
    * Create and return the Rel for the this aggregation.
-   * @param context the Substrait context
-   * @param operatorId the operator id
-   * @param aggParams the params for aggregation mainly used for metrics updating
-   * @param input tht input rel node
-   * @param validation whether this is for native validation
-   * @return the rel node for this aggregation
+   * @param context
+   *   the Substrait context
+   * @param operatorId
+   *   the operator id
+   * @param aggParams
+   *   the params for aggregation mainly used for metrics updating
+   * @param input
+   *   tht input rel node
+   * @param validation
+   *   whether this is for native validation
+   * @return
+   *   the rel node for this aggregation
    */
-  override protected def getAggRel(context: SubstraitContext,
-                                   operatorId: Long,
-                                   aggParams: AggregationParams,
-                                   input: RelNode = null,
-                                   validation: Boolean = false): RelNode = {
+  override protected def getAggRel(
+      context: SubstraitContext,
+      operatorId: Long,
+      aggParams: AggregationParams,
+      input: RelNode = null,
+      validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val preProjectionNeeded = needsPreProjection
 
     var aggRel = if (preProjectionNeeded) {
       aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(
-        context, originalInputAttributes, operatorId, input, validation)
+      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
     } else {
       if (rowConstructNeeded) {
         aggParams.preProjectionNeeded = true
-        getAggRelWithRowConstruct(
-          context, originalInputAttributes, operatorId, input, validation)
+        getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
       } else {
         getAggRelWithoutPreProjection(
-          context, originalInputAttributes, operatorId, input, validation)
+          context,
+          originalInputAttributes,
+          operatorId,
+          input,
+          validation)
       }
     }
 
@@ -376,8 +420,8 @@ case class VeloxHashAggregateExecTransformer(
 
   def numShufflePartitions: Option[Int] = Some(0)
 
-  override protected def withNewChildInternal(newChild: SparkPlan)
-    : VeloxHashAggregateExecTransformer = {
-      copy(child = newChild)
-    }
+  override protected def withNewChildInternal(
+      newChild: SparkPlan): VeloxHashAggregateExecTransformer = {
+    copy(child = newChild)
+  }
 }

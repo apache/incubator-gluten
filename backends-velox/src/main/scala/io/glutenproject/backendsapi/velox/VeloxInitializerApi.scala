@@ -16,11 +16,13 @@
  */
 package io.glutenproject.backendsapi.velox
 
-import org.apache.spark.SparkConf
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.IInitializerApi
 import io.glutenproject.vectorized.JniLibLoader
 import io.glutenproject.vectorized.JniWorkspace
+
+import org.apache.spark.SparkConf
+
 import org.apache.commons.lang3.StringUtils
 
 class VeloxInitializerApi extends IInitializerApi {
@@ -28,7 +30,8 @@ class VeloxInitializerApi extends IInitializerApi {
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    loader.newTransaction()
+    loader
+      .newTransaction()
       .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000", false)
       .commit()
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)

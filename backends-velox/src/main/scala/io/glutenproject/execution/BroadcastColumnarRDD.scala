@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.vectorized.CloseableColumnBatchIterator
@@ -25,13 +24,13 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-private final case class BroadcastColumnarRDDPartition(index: Int) extends Partition
+final private case class BroadcastColumnarRDDPartition(index: Int) extends Partition
 
 case class BroadcastColumnarRDD(
-                                 @transient private val sc: SparkContext,
-                                 metrics: Map[String, SQLMetric],
-                                 numPartitioning: Int,
-                                 inputByteBuf: broadcast.Broadcast[ColumnarHashedRelation])
+    @transient private val sc: SparkContext,
+    metrics: Map[String, SQLMetric],
+    numPartitioning: Int,
+    inputByteBuf: broadcast.Broadcast[ColumnarHashedRelation])
   extends RDD[ColumnarBatch](sc, Nil) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
@@ -40,6 +39,6 @@ case class BroadcastColumnarRDD(
   }
 
   override protected def getPartitions: Array[Partition] = {
-    (0 until numPartitioning).map { index => new BroadcastColumnarRDDPartition(index) }.toArray
+    (0 until numPartitioning).map(index => new BroadcastColumnarRDDPartition(index)).toArray
   }
 }

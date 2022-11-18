@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
@@ -23,9 +22,9 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 class VeloxAliasTransformer(child: Expression, name: String)(
-  override val exprId: ExprId,
-  override val qualifier: Seq[String],
-  override val explicitMetadata: Option[Metadata])
+    override val exprId: ExprId,
+    override val qualifier: Seq[String],
+    override val explicitMetadata: Option[Metadata])
   extends AliasBaseTransformer(child, name)(exprId, qualifier, explicitMetadata) {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

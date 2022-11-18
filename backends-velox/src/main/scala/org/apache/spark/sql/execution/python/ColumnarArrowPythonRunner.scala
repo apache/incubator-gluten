@@ -14,18 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.python
-
-import java.io._
-import java.net._
-import java.util.concurrent.atomic.AtomicBoolean
 
 import io.glutenproject.expression._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized._
-import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
-import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.api.python.{BasePythonRunner, ChainedPythonFunctions, PythonRDD, SpecialLengths}
@@ -35,16 +28,21 @@ import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.Utils
 
-/**
- * Similar to `PythonUDFRunner`, but exchange data with Python worker via Arrow stream.
- */
+import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
+import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
+
+import java.io._
+import java.net._
+import java.util.concurrent.atomic.AtomicBoolean
+
+/** Similar to `PythonUDFRunner`, but exchange data with Python worker via Arrow stream. */
 class ColumnarArrowPythonRunner(
-                                 funcs: Seq[ChainedPythonFunctions],
-                                 evalType: Int,
-                                 argOffsets: Array[Array[Int]],
-                                 schema: StructType,
-                                 timeZoneId: String,
-                                 conf: Map[String, String])
+    funcs: Seq[ChainedPythonFunctions],
+    evalType: Int,
+    argOffsets: Array[Array[Int]],
+    schema: StructType,
+    timeZoneId: String,
+    conf: Map[String, String])
   extends BasePythonRunner[ColumnarBatch, ColumnarBatch](funcs, evalType, argOffsets) {
 
   override val simplifiedTraceback: Boolean = SQLConf.get.pysparkSimplifiedTraceback
@@ -56,35 +54,44 @@ class ColumnarArrowPythonRunner(
       s"Please change '${SQLConf.PANDAS_UDF_BUFFER_SIZE.key}'.")
 
   protected def newReaderIterator(
-                                   stream: DataInputStream,
-                                   writerThread: WriterThread,
-                                   startTime: Long,
-                                   env: SparkEnv,
-                                   worker: Socket,
-                                   pid: Option[Int],
-                                   releasedOrClosed: AtomicBoolean,
-                                   context: TaskContext): Iterator[ColumnarBatch] = {
+      stream: DataInputStream,
+      writerThread: WriterThread,
+      startTime: Long,
+      env: SparkEnv,
+      worker: Socket,
+      pid: Option[Int],
+      releasedOrClosed: AtomicBoolean,
+      context: TaskContext): Iterator[ColumnarBatch] = {
 
-    new ReaderIterator(stream, writerThread, startTime, env,
-                       worker, pid, releasedOrClosed, context) {
-      private val allocator = ArrowBufferAllocators.contextInstance().newChildAllocator(
-        s"stdin reader for $pythonExec", 0, Long.MaxValue)
+    new ReaderIterator(
+      stream,
+      writerThread,
+      startTime,
+      env,
+      worker,
+      pid,
+      releasedOrClosed,
+      context) {
+      private val allocator = ArrowBufferAllocators
+        .contextInstance()
+        .newChildAllocator(s"stdin reader for $pythonExec", 0, Long.MaxValue)
 
       private var reader: ArrowStreamReader = _
       private var root: VectorSchemaRoot = _
       private var schema: StructType = _
       private var vectors: Array[ColumnVector] = _
 
-      context.addTaskCompletionListener[Unit] { _ =>
-        if (reader != null) {
-          reader.close(false)
-        }
-        allocator.close()
+      context.addTaskCompletionListener[Unit] {
+        _ =>
+          if (reader != null) {
+            reader.close(false)
+          }
+          allocator.close()
       }
 
       private var batchLoaded = true
 
-      protected override def read(): ColumnarBatch = {
+      override protected def read(): ColumnarBatch = {
         if (writerThread.exception.isDefined) {
           throw writerThread.exception.get
         }
@@ -107,8 +114,9 @@ class ColumnarArrowPythonRunner(
                 reader = new ArrowStreamReader(stream, allocator)
                 root = reader.getVectorSchemaRoot()
                 schema = ArrowUtils.fromArrowSchema(root.getSchema())
-                vectors = ArrowWritableColumnVector.loadColumns(root.getRowCount,
-                  root.getFieldVectors).toArray[ColumnVector]
+                vectors = ArrowWritableColumnVector
+                  .loadColumns(root.getRowCount, root.getFieldVectors)
+                  .toArray[ColumnVector]
                 read()
               case SpecialLengths.TIMING_DATA =>
                 handleTimingData()
@@ -125,15 +133,15 @@ class ColumnarArrowPythonRunner(
     }
   }
 
-  protected override def newWriterThread(
-                                          env: SparkEnv,
-                                          worker: Socket,
-                                          inputIterator: Iterator[ColumnarBatch],
-                                          partitionIndex: Int,
-                                          context: TaskContext): WriterThread = {
+  override protected def newWriterThread(
+      env: SparkEnv,
+      worker: Socket,
+      inputIterator: Iterator[ColumnarBatch],
+      partitionIndex: Int,
+      context: TaskContext): WriterThread = {
     new WriterThread(env, worker, inputIterator, partitionIndex, context) {
 
-      protected override def writeCommand(dataOut: DataOutputStream): Unit = {
+      override protected def writeCommand(dataOut: DataOutputStream): Unit = {
 
         // Write config for the worker as a number of key -> value pairs of strings
         dataOut.writeInt(conf.size)
@@ -145,11 +153,12 @@ class ColumnarArrowPythonRunner(
         PythonUDFRunner.writeUDFs(dataOut, funcs, argOffsets)
       }
 
-      protected override def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
+      override protected def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
         var numRows: Long = 0
         val arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId)
-        val allocator = ArrowBufferAllocators.contextInstance().newChildAllocator(
-          s"stdout writer for $pythonExec", 0, Long.MaxValue)
+        val allocator = ArrowBufferAllocators
+          .contextInstance()
+          .newChildAllocator(s"stdout writer for $pythonExec", 0, Long.MaxValue)
         val root = VectorSchemaRoot.create(arrowSchema, allocator)
 
         Utils.tryWithSafeFinally {

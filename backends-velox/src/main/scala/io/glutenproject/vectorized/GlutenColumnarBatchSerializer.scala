@@ -14,20 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized
-
-import java.io._
-import java.nio.ByteBuffer
-
-import scala.reflect.ClassTag
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
-import org.apache.arrow.c.ArrowSchema
-import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.VectorLoader
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
@@ -37,9 +28,21 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
-class GlutenColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMetric,
-  numOutputRows: SQLMetric)
-  extends Serializer with Serializable {
+import org.apache.arrow.c.ArrowSchema
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.VectorLoader
+
+import java.io._
+import java.nio.ByteBuffer
+
+import scala.reflect.ClassTag
+
+class GlutenColumnarBatchSerializer(
+    schema: StructType,
+    readBatchNumRows: SQLMetric,
+    numOutputRows: SQLMetric)
+  extends Serializer
+  with Serializable {
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -47,11 +50,12 @@ class GlutenColumnarBatchSerializer(schema: StructType, readBatchNumRows: SQLMet
   }
 }
 
-private class GlutenColumnarBatchSerializerInstance(schema: StructType,
-  readBatchNumRows: SQLMetric,
-  numOutputRows: SQLMetric)
+private class GlutenColumnarBatchSerializerInstance(
+    schema: StructType,
+    readBatchNumRows: SQLMetric,
+    numOutputRows: SQLMetric)
   extends SerializerInstance
-    with Logging {
+  with Logging {
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
@@ -65,8 +69,8 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         val arrowSchema =
           SparkSchemaUtils.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        val handle = ShuffleReaderJniWrapper.make(
-          JniByteInputStreams.create(in), cSchema.memoryAddress())
+        val handle =
+          ShuffleReaderJniWrapper.make(JniByteInputStreams.create(in), cSchema.memoryAddress())
         cSchema.close()
         handle
       }
@@ -100,14 +104,15 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
           cb = null
         }
         val batch = {
-          val batchHandle = try {
-            ShuffleReaderJniWrapper.next(shuffleReaderHandle)
-          } catch {
-            case ioe: IOException =>
-              this.close()
-              logError("Failed to load next RecordBatch", ioe)
-              throw ioe
-          }
+          val batchHandle =
+            try {
+              ShuffleReaderJniWrapper.next(shuffleReaderHandle)
+            } catch {
+              case ioe: IOException =>
+                this.close()
+                logError("Failed to load next RecordBatch", ioe)
+                throw ioe
+            }
           if (batchHandle == -1L) {
             // EOF reached
             this.close()
@@ -116,7 +121,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
           GlutenColumnarBatches.create(batchHandle)
         }
         val numRows = batch.numRows()
-        logDebug(s"Read ColumnarBatch of ${numRows} rows")
+        logDebug(s"Read ColumnarBatch of $numRows rows")
         numBatchesTotal += 1
         numRowsTotal += numRows
         cb = batch

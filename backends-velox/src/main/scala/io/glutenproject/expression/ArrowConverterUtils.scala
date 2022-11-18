@@ -14,16 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import java.io._
-import java.nio.channels.Channels
-import scala.collection.JavaConverters._
-import com.google.common.collect.Lists
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtils
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+
+import com.google.common.collect.Lists
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
 import org.apache.arrow.flatbuf.MessageHeader
 import org.apache.arrow.memory.BufferAllocator
@@ -32,11 +35,11 @@ import org.apache.arrow.vector.ipc.{ReadChannel, WriteChannel}
 import org.apache.arrow.vector.ipc.message._
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtils
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+
+import java.io._
+import java.nio.channels.Channels
+
+import scala.collection.JavaConverters._
 
 object ArrowConverterUtils extends Logging {
 
@@ -68,32 +71,36 @@ object ArrowConverterUtils extends Logging {
     var schema: Schema = null
     val option = new IpcOption
 
-    iter.foreach { columnarBatch =>
-      val vectors = (0 until columnarBatch.numCols)
-        .map(i => ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
-          .column(i).asInstanceOf[ArrowWritableColumnVector])
-        .toList
-      try {
-        if (schema == null) {
-          schema = new Schema(vectors.map(_.getValueVector().getField).asJava)
-          MessageSerializer.serialize(channel, schema, option)
-        }
-        val batch = ArrowConverterUtils
-          .createArrowRecordBatch(columnarBatch.numRows, vectors.map(_.getValueVector))
+    iter.foreach {
+      columnarBatch =>
+        val vectors = (0 until columnarBatch.numCols)
+          .map(
+            i =>
+              ArrowColumnarBatches
+                .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
+                .column(i)
+                .asInstanceOf[ArrowWritableColumnVector])
+          .toList
         try {
-          MessageSerializer.serialize(channel, batch, option)
-        } finally {
-          batch.close()
+          if (schema == null) {
+            schema = new Schema(vectors.map(_.getValueVector().getField).asJava)
+            MessageSerializer.serialize(channel, schema, option)
+          }
+          val batch = ArrowConverterUtils
+            .createArrowRecordBatch(columnarBatch.numRows, vectors.map(_.getValueVector))
+          try {
+            MessageSerializer.serialize(channel, batch, option)
+          } finally {
+            batch.close()
+          }
+        } catch {
+          case e =>
+            // scalastyle:off println
+            System.err.println(s"Failed converting to Netty. ")
+            e.printStackTrace()
+            // scalastyle:on println
+            throw e
         }
-      } catch {
-        case e =>
-          // scalastyle:off println
-          System.err.println(s"Failed converting to Netty. ")
-          e.printStackTrace()
-          // scalastyle:on println
-          throw e
-      }
     }
   }
 
@@ -101,8 +108,7 @@ object ArrowConverterUtils extends Logging {
     SparkVectorUtils.toArrowRecordBatch(numRowsInBatch, cols)
   }
 
-  def convertFromNetty(attributes: Seq[Attribute],
-                       input: InputStream): Iterator[ColumnarBatch] = {
+  def convertFromNetty(attributes: Seq[Attribute], input: InputStream): Iterator[ColumnarBatch] = {
     new Iterator[ColumnarBatch] {
       val allocator = ArrowBufferAllocators.contextInstance()
       var messageReader =
@@ -167,17 +173,17 @@ object ArrowConverterUtils extends Logging {
     }
   }
 
-  def convertFromNetty(attributes: Seq[Attribute],
-                       data: Array[Array[Byte]],
-                       columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
+  def convertFromNetty(
+      attributes: Seq[Attribute],
+      data: Array[Array[Byte]],
+      columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
     if (data.length == 0) {
       return new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = false
 
         override def next(): ColumnarBatch = {
           val resultStructType = if (columnIndices == null) {
-            StructType(
-              attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
+            StructType(attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
           } else {
             StructType(
               columnIndices
@@ -261,9 +267,7 @@ object ArrowConverterUtils extends Logging {
           if (columnIndices == null) {
             new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), length)
           } else {
-            new ColumnarBatch(
-              columnIndices.map(i => vectors(i).asInstanceOf[ColumnVector]),
-              length)
+            new ColumnarBatch(columnIndices.map(i => vectors(i).asInstanceOf[ColumnVector]), length)
           }
 
         } catch {
@@ -276,18 +280,19 @@ object ArrowConverterUtils extends Logging {
   }
 
   def fromArrowRecordBatch(
-                            recordBatchSchema: Schema,
-                            recordBatch: ArrowRecordBatch,
-                            allocator: BufferAllocator = null): Array[ArrowWritableColumnVector] = {
+      recordBatchSchema: Schema,
+      recordBatch: ArrowRecordBatch,
+      allocator: BufferAllocator = null): Array[ArrowWritableColumnVector] = {
     val numRows = recordBatch.getLength()
     ArrowWritableColumnVector.loadColumns(numRows, recordBatchSchema, recordBatch, allocator)
   }
 
   def releaseArrowRecordBatchList(recordBatchList: Array[ArrowRecordBatch]): Unit = {
-    recordBatchList.foreach({ recordBatch =>
-      if (recordBatch != null) {
-        releaseArrowRecordBatch(recordBatch)
-      }
+    recordBatchList.foreach({
+      recordBatch =>
+        if (recordBatch != null) {
+          releaseArrowRecordBatch(recordBatch)
+        }
     })
   }
 
@@ -310,21 +315,22 @@ object ArrowConverterUtils extends Logging {
   }
 
   def toArrowSchema(attributes: Seq[Attribute]): Schema = {
-    val fields = attributes.map(attr => {
-      Field
-        .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
-    })
+    val fields = attributes.map(
+      attr => {
+        Field
+          .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
+      })
     new Schema(fields.toList.asJava)
   }
 
   def toArrowSchema(schema: StructType): Schema = {
     val fields = schema
-      .map(field => {
-        Field.nullable(field.name, CodeGeneration.getResultType(field.dataType))
-      })
+      .map(
+        field => {
+          Field.nullable(field.name, CodeGeneration.getResultType(field.dataType))
+        })
     new Schema(fields.toList.asJava)
   }
-
 
   @throws[IOException]
   def getSchemaBytesBuf(schema: Schema): Array[Byte] = {
@@ -360,11 +366,11 @@ object ArrowConverterUtils extends Logging {
       new Field(
         name,
         FieldType.nullable(ArrowType.List.INSTANCE),
-        Lists.newArrayList(createArrowField(s"${name}_${dt}", at.elementType)))
+        Lists.newArrayList(createArrowField(s"${name}_$dt", at.elementType)))
     case mt: MapType =>
-      throw new UnsupportedOperationException(s"${dt} is not supported yet")
+      throw new UnsupportedOperationException(s"$dt is not supported yet")
     case st: StructType =>
-      throw new UnsupportedOperationException(s"${dt} is not supported yet")
+      throw new UnsupportedOperationException(s"$dt is not supported yet")
     case _ =>
       Field.nullable(name, CodeGeneration.getResultType(dt))
   }

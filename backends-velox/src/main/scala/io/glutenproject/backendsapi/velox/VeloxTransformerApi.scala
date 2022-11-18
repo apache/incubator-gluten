@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ITransformerApi
 import io.glutenproject.expression.ArrowConverterUtils
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import io.glutenproject.utils.{InputPartitionsUtil, VeloxExpressionUtil}
 import io.glutenproject.utils.VeloxExpressionUtil.VELOX_EXPR_BLACKLIST
+
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
@@ -56,8 +56,8 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
   }
 
   /**
-   * Do validate the expressions based on the specific backend blacklist,
-   * the existed expression will fall back to Vanilla Spark.
+   * Do validate the expressions based on the specific backend blacklist, the existed expression
+   * will fall back to Vanilla Spark.
    */
   override def doValidate(expr: Expression): Boolean = doValidate(VELOX_EXPR_BLACKLIST, expr)
 
@@ -67,8 +67,8 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * @return
    */
   override def validateColumnarShuffleExchangeExec(
-                                                    outputPartitioning: Partitioning,
-                                                    outputAttributes: Seq[Attribute]): Boolean = {
+      outputPartitioning: Partitioning,
+      outputAttributes: Seq[Attribute]): Boolean = {
     // check input datatype
     for (attr <- outputAttributes) {
       try ArrowConverterUtils.createArrowField(attr)
@@ -84,20 +84,20 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
   /**
    * Used for table scan validation.
    *
-   * @return true if backend supports reading the file format.
+   * @return
+   *   true if backend supports reading the file format.
    */
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
     GlutenConfig.getConf.isGazelleBackend && fileFormat.isInstanceOf[ParquetFileFormat] ||
-      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
-      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat] ||
-      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[ParquetFileFormat]
+    GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
+    GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat] ||
+    GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[ParquetFileFormat]
   }
 
-  /**
-   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-   */
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
+  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
+  def genInputPartitionSeq(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
   }
 }

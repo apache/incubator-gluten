@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2.arrow
 
 import org.apache.spark.TaskContext
@@ -23,13 +22,13 @@ import org.apache.spark.util.memory.TaskMemoryResources
 
 object SparkMemoryUtils extends Logging {
 
-  class UnsafeItr[T <: AutoCloseable](delegate: Iterator[T])
-    extends Iterator[T] {
+  class UnsafeItr[T <: AutoCloseable](delegate: Iterator[T]) extends Iterator[T] {
     val holder = new GenericRetainer[T]()
 
-    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit]((_: TaskContext) => {
-      holder.release()
-    })
+    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit](
+      (_: TaskContext) => {
+        holder.release()
+      })
 
     override def hasNext: Boolean = {
       holder.release()

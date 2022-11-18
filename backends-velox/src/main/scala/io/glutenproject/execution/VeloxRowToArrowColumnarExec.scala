@@ -14,26 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import java.util.concurrent.TimeUnit._
+import io.glutenproject.vectorized._
 
+import org.apache.spark.{broadcast, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeRow}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils.UnsafeItr
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.{TaskContext, broadcast}
 
-import io.glutenproject.vectorized._
+import java.util.concurrent.TimeUnit._
 
 class RowToColumnConverter(schema: StructType) extends Serializable {
   private val converters = schema.fields.map {
@@ -63,13 +62,14 @@ object RowToColumnConverter {
       case BinaryType => BinaryConverter
       case CalendarIntervalType => CalendarConverter
       case at: ArrayType => new ArrayConverter(getConverterForType(at.elementType, nullable))
-      case st: StructType => new StructConverter(st.fields.map(
-        (f) => getConverterForType(f.dataType, f.nullable)))
+      case st: StructType =>
+        new StructConverter(st.fields.map((f) => getConverterForType(f.dataType, f.nullable)))
       case dt: DecimalType => new DecimalConverter(dt)
-      case mt: MapType => new MapConverter(getConverterForType(mt.keyType, nullable),
-        getConverterForType(mt.valueType, nullable))
-      case unknown => throw new UnsupportedOperationException(
-        s"Type $unknown not supported")
+      case mt: MapType =>
+        new MapConverter(
+          getConverterForType(mt.keyType, nullable),
+          getConverterForType(mt.valueType, nullable))
+      case unknown => throw new UnsupportedOperationException(s"Type $unknown not supported")
     }
 
     if (nullable) {
@@ -83,11 +83,11 @@ object RowToColumnConverter {
     }
   }
 
-  private abstract class TypeConverter extends Serializable {
+  abstract private class TypeConverter extends Serializable {
     def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit
   }
 
-  private final case class BasicNullableTypeConverter(base: TypeConverter) extends TypeConverter {
+  final private case class BasicNullableTypeConverter(base: TypeConverter) extends TypeConverter {
     override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
       if (row.isNullAt(column)) {
         cv.appendNull
@@ -97,7 +97,7 @@ object RowToColumnConverter {
     }
   }
 
-  private final case class StructNullableTypeConverter(base: TypeConverter) extends TypeConverter {
+  final private case class StructNullableTypeConverter(base: TypeConverter) extends TypeConverter {
     override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
       if (row.isNullAt(column)) {
         cv.appendStruct(true)
@@ -227,20 +227,21 @@ object RowToColumnConverter {
  * [[ColumnarBatch]]. This is inserted whenever such a transition is determined to be needed.
  *
  * This is similar to some of the code in ArrowConverters.scala and
- * [[org.apache.spark.sql.execution.arrow.ArrowWriter]]. That code is more specialized
- * to convert [[InternalRow]] to Arrow formatted data, but in the future if we make
- * [[OffHeapColumnVector]] internally Arrow formatted we may be able to replace much of that code.
+ * [[org.apache.spark.sql.execution.arrow.ArrowWriter]]. That code is more specialized to convert
+ * [[InternalRow]] to Arrow formatted data, but in the future if we make [[OffHeapColumnVector]]
+ * internally Arrow formatted we may be able to replace much of that code.
  *
  * This is also similar to
  * [[org.apache.spark.sql.execution.vectorized.ColumnVectorUtils.populate()]] and
  * [[org.apache.spark.sql.execution.vectorized.ColumnVectorUtils.toBatch()]] toBatch is only ever
- * called from tests and can probably be removed, but populate is used by both Orc and Parquet
- * to initialize partition and missing columns. There is some chance that we could replace
- * populate with [[RowToColumnConverter]], but the performance requirements are different and it
- * would only be to reduce code.
+ * called from tests and can probably be removed, but populate is used by both Orc and Parquet to
+ * initialize partition and missing columns. There is some chance that we could replace populate
+ * with [[RowToColumnConverter]], but the performance requirements are different and it would only
+ * be to reduce code.
  */
 case class VeloxRowToArrowColumnarExec(child: SparkPlan)
-  extends GlutenRowToColumnarExec(child = child) with UnaryExecNode {
+  extends GlutenRowToColumnarExec(child = child)
+  with UnaryExecNode {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
@@ -252,40 +253,42 @@ case class VeloxRowToArrowColumnarExec(child: SparkPlan)
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = this.schema
-    child.execute().mapPartitions { rowIterator =>
-      if (rowIterator.hasNext) {
-        val res = new Iterator[ColumnarBatch] {
-          private val converters = new RowToColumnConverter(localSchema)
-          private var last_cb: ColumnarBatch = null
-          private var elapse: Long = 0
+    child.execute().mapPartitions {
+      rowIterator =>
+        if (rowIterator.hasNext) {
+          val res = new Iterator[ColumnarBatch] {
+            private val converters = new RowToColumnConverter(localSchema)
+            private var last_cb: ColumnarBatch = null
+            private var elapse: Long = 0
 
-          override def hasNext: Boolean = {
-            rowIterator.hasNext
-          }
-
-          override def next(): ColumnarBatch = {
-            val vectors: Seq[WritableColumnVector] =
-              ArrowWritableColumnVector.allocateColumns(numRows, schema)
-            var rowCount = 0
-            while (rowCount < numRows && rowIterator.hasNext) {
-              val row = rowIterator.next()
-              val start = System.nanoTime()
-              converters.convert(row, vectors.toArray)
-              elapse += System.nanoTime() - start
-              rowCount += 1
+            override def hasNext: Boolean = {
+              rowIterator.hasNext
             }
-            vectors.foreach(v => v.asInstanceOf[ArrowWritableColumnVector].setValueCount(rowCount))
-            processTime.set(NANOSECONDS.toMillis(elapse))
-            numInputRows += rowCount
-            numOutputBatches += 1
-            last_cb = new ColumnarBatch(vectors.toArray, rowCount)
-            last_cb
+
+            override def next(): ColumnarBatch = {
+              val vectors: Seq[WritableColumnVector] =
+                ArrowWritableColumnVector.allocateColumns(numRows, schema)
+              var rowCount = 0
+              while (rowCount < numRows && rowIterator.hasNext) {
+                val row = rowIterator.next()
+                val start = System.nanoTime()
+                converters.convert(row, vectors.toArray)
+                elapse += System.nanoTime() - start
+                rowCount += 1
+              }
+              vectors.foreach(
+                v => v.asInstanceOf[ArrowWritableColumnVector].setValueCount(rowCount))
+              processTime.set(NANOSECONDS.toMillis(elapse))
+              numInputRows += rowCount
+              numOutputBatches += 1
+              last_cb = new ColumnarBatch(vectors.toArray, rowCount)
+              last_cb
+            }
           }
+          new UnsafeItr(res)
+        } else {
+          Iterator.empty
         }
-        new UnsafeItr(res)
-      } else {
-        Iterator.empty
-      }
     }
   }
 

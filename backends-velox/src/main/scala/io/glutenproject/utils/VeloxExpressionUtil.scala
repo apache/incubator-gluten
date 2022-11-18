@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, REGEXP_EXTRACT_ALL, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART, TRANSLATE, TRIM}
+
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
 
-
   /**
-   * The blacklist for Velox unsupported or mismatched expressions with specific input type,
-   * such as Cast(ArrayType)
+   * The blacklist for Velox unsupported or mismatched expressions with specific input type, such as
+   * Cast(ArrayType)
    */
   // The expression with empty type will fall back directly.
   final val EMPTY_TYPE = ""
@@ -39,5 +38,6 @@ object VeloxExpressionUtil {
     SPLIT_PART -> EMPTY_TYPE,
     LENGTH -> DataTypes.BinaryType.typeName,
     TRIM -> EMPTY_TYPE,
-    TRANSLATE -> EMPTY_TYPE)
+    TRANSLATE -> EMPTY_TYPE
+  )
 }

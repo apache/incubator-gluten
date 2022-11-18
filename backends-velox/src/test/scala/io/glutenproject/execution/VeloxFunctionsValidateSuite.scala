@@ -14,17 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.nio.file.Files
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 import org.apache.spark.sql.functions.{col, expr}
+import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 
+import java.nio.file.Files
 
 import scala.collection.JavaConverters._
 
@@ -45,8 +43,10 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-        NullPropagation.ruleName)
+      .set(
+        "spark.sql.optimizer.excludedRules",
+        ConstantFolding.ruleName + "," +
+          NullPropagation.ruleName)
   }
 
   override def beforeAll(): Unit = {
@@ -57,10 +57,11 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     lfile.deleteOnExit()
     parquetPath = lfile.getAbsolutePath
 
-    val schema = StructType(Array(
-      StructField("double_field1", DoubleType, true),
-      StructField("string_field1", StringType, true)
-    ))
+    val schema = StructType(
+      Array(
+        StructField("double_field1", DoubleType, true),
+        StructField("string_field1", StringType, true)
+      ))
     val rowData = Seq(
       Row(1.025, "{\"a\":\"b\"}"),
       Row(1.035, null),
@@ -68,7 +69,8 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     )
 
     var dfParquet = spark.createDataFrame(rowData.asJava, schema)
-    dfParquet.coalesce(1)
+    dfParquet
+      .coalesce(1)
       .write
       .format("parquet")
       .mode("overwrite")
@@ -139,8 +141,9 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   ignore("Test round function") {
-    val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
-      "from lineitem limit 1") {
+    val df = runQueryAndCompare(
+      "SELECT round(cast(l_orderkey as int), 2)" +
+        "from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     df.show()
@@ -149,8 +152,9 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("Test greatest function") {
-    val df = runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
-      "from lineitem limit 1") {
+    val df = runQueryAndCompare(
+      "SELECT greatest(l_orderkey, l_orderkey)" +
+        "from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     df.show()
@@ -159,8 +163,9 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("Test least function") {
-    val df = runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
-      "from lineitem limit 1") {
+    val df = runQueryAndCompare(
+      "SELECT least(l_orderkey, l_orderkey)" +
+        "from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     df.show()
@@ -178,8 +183,9 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("Test get_json_object datatab function") {
-    val df = runQueryAndCompare("SELECT get_json_object(string_field1, '$.a') " +
-      "from datatab limit 1;") {
+    val df = runQueryAndCompare(
+      "SELECT get_json_object(string_field1, '$.a') " +
+        "from datatab limit 1;") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     df.show()
@@ -188,8 +194,9 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
   }
 
   test("Test get_json_object lineitem function") {
-    val df = runQueryAndCompare("SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
-      "from lineitem limit 1;") {
+    val df = runQueryAndCompare(
+      "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
+        "from lineitem limit 1;") {
       checkOperatorMatch[ProjectExecTransformer]
     }
     df.show()
