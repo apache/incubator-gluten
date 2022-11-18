@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenDynamicPartitionPruningV2SuiteAEOff extends DynamicPartitionPruningV2SuiteAEOff
+class GlutenDynamicPartitionPruningV2SuiteAEOff
+  extends DynamicPartitionPruningV2SuiteAEOff
   with GlutenSQLTestsTrait {
 
   override def blackTestNameList: Seq[String] = Seq(

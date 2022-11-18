@@ -14,19 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-import org.apache.spark.sql.functions.{
-  avg,
-  count,
-  count_distinct,
-  lit,
-  mean,
-  sum,
-  sumDistinct,
-  sum_distinct
-}
+import org.apache.spark.sql.functions.{avg, count, count_distinct, lit, mean, sum, sum_distinct, sumDistinct}
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenSQLTestsTrait {
@@ -64,9 +54,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   test(GlutenTestConstants.GLUTEN_TEST + "groupBy") {
     checkAnswer(testData2.groupBy("a").agg(sum($"b")), Seq(Row(1, 3), Row(2, 3), Row(3, 3)))
     checkAnswer(testData2.groupBy("a").agg(sum($"b").as("totB")).agg(sum($"totB")), Row(9))
-    checkAnswer(
-      testData2.groupBy("a").agg(count("*")),
-      Row(1, 2) :: Row(2, 2) :: Row(3, 2) :: Nil)
+    checkAnswer(testData2.groupBy("a").agg(count("*")), Row(1, 2) :: Row(2, 2) :: Row(3, 2) :: Nil)
     checkAnswer(
       testData2.groupBy("a").agg(Map("*" -> "count")),
       Row(1, 2) :: Row(2, 2) :: Row(3, 2) :: Nil)

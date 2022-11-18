@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
@@ -31,41 +30,63 @@ class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTes
     // substring from zero position with less-than-full length
     // can not support 0 pos
     checkEvaluation(
-      Substring(s, Literal.create(1, IntegerType), Literal.create(2, IntegerType)), "ex", row)
+      Substring(s, Literal.create(1, IntegerType), Literal.create(2, IntegerType)),
+      "ex",
+      row)
     checkEvaluation(
-      Substring(s, Literal.create(1, IntegerType), Literal.create(2, IntegerType)), "ex", row)
+      Substring(s, Literal.create(1, IntegerType), Literal.create(2, IntegerType)),
+      "ex",
+      row)
 
     // substring from zero position with full length
     checkEvaluation(
-      Substring(s, Literal.create(1, IntegerType), Literal.create(7, IntegerType)), "example", row)
+      Substring(s, Literal.create(1, IntegerType), Literal.create(7, IntegerType)),
+      "example",
+      row)
     checkEvaluation(
-      Substring(s, Literal.create(1, IntegerType), Literal.create(7, IntegerType)), "example", row)
+      Substring(s, Literal.create(1, IntegerType), Literal.create(7, IntegerType)),
+      "example",
+      row)
 
     // substring from zero position with greater-than-full length
-    checkEvaluation(Substring(s, Literal.create(1, IntegerType), Literal.create(100, IntegerType)),
-      "example", row)
-    checkEvaluation(Substring(s, Literal.create(1, IntegerType), Literal.create(100, IntegerType)),
-      "example", row)
+    checkEvaluation(
+      Substring(s, Literal.create(1, IntegerType), Literal.create(100, IntegerType)),
+      "example",
+      row)
+    checkEvaluation(
+      Substring(s, Literal.create(1, IntegerType), Literal.create(100, IntegerType)),
+      "example",
+      row)
 
     // substring from nonzero position with less-than-full length
-    checkEvaluation(Substring(s, Literal.create(2, IntegerType), Literal.create(2, IntegerType)),
-      "xa", row)
+    checkEvaluation(
+      Substring(s, Literal.create(2, IntegerType), Literal.create(2, IntegerType)),
+      "xa",
+      row)
 
     // substring from nonzero position with full length
-    checkEvaluation(Substring(s, Literal.create(2, IntegerType), Literal.create(6, IntegerType)),
-      "xample", row)
+    checkEvaluation(
+      Substring(s, Literal.create(2, IntegerType), Literal.create(6, IntegerType)),
+      "xample",
+      row)
 
     // substring from nonzero position with greater-than-full length
-    checkEvaluation(Substring(s, Literal.create(2, IntegerType), Literal.create(100, IntegerType)),
-      "xample", row)
+    checkEvaluation(
+      Substring(s, Literal.create(2, IntegerType), Literal.create(100, IntegerType)),
+      "xample",
+      row)
 
     // zero-length substring (within string bounds)
-    checkEvaluation(Substring(s, Literal.create(1, IntegerType), Literal.create(0, IntegerType)),
-      "", row)
+    checkEvaluation(
+      Substring(s, Literal.create(1, IntegerType), Literal.create(0, IntegerType)),
+      "",
+      row)
 
     // zero-length substring (beyond string bounds)
-    checkEvaluation(Substring(s, Literal.create(100, IntegerType), Literal.create(4, IntegerType)),
-      "", row)
+    checkEvaluation(
+      Substring(s, Literal.create(100, IntegerType), Literal.create(4, IntegerType)),
+      "",
+      row)
 
     /*
     // substring(null, _, _) -> null
@@ -99,8 +120,13 @@ class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTes
       row)
 
     // Substring with from negative position with negative length
-    checkEvaluation(Substring(s, Literal.create(-1207959552, IntegerType),
-      Literal.create(-1207959552, IntegerType)), "", row)
+    checkEvaluation(
+      Substring(
+        s,
+        Literal.create(-1207959552, IntegerType),
+        Literal.create(-1207959552, IntegerType)),
+      "",
+      row)
 
     val s_notNull = 'a.string.notNull.at(0)
 
@@ -108,10 +134,16 @@ class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTes
     assert(
       Substring(s_notNull, Literal.create(1, IntegerType), Literal.create(2, IntegerType)).nullable
         === false)
-    assert(Substring(s_notNull,
-      Literal.create(null, IntegerType), Literal.create(2, IntegerType)).nullable)
-    assert(Substring(s_notNull,
-      Literal.create(0, IntegerType), Literal.create(null, IntegerType)).nullable)
+    assert(
+      Substring(
+        s_notNull,
+        Literal.create(null, IntegerType),
+        Literal.create(2, IntegerType)).nullable)
+    assert(
+      Substring(
+        s_notNull,
+        Literal.create(0, IntegerType),
+        Literal.create(null, IntegerType)).nullable)
 
     checkEvaluation(s.substr(1, 2), "ex", row)
     checkEvaluation(s.substr(1), "example", row)

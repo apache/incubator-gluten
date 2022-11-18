@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
@@ -37,22 +36,24 @@ class GlutenDataFrameJoinSuite extends DataFrameJoinSuite with GlutenSQLTestsTra
     "SPARK-17685: WholeStageCodegenExec throws IndexOutOfBoundsException"
   )
 
-  /**
-   * re-write the original unit test.
-   */
+  /** re-write the original unit test. */
   test(GlutenTestConstants.GLUTEN_TEST + "broadcast join hint using Dataset.hint") {
     // make sure a giant join is not broadcastable
     val plan1 =
-      spark.range(10e10.toLong)
+      spark
+        .range(10e10.toLong)
         .join(spark.range(10e10.toLong), "id")
-        .queryExecution.executedPlan
+        .queryExecution
+        .executedPlan
     assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size == 0)
 
     // now with a hint it should be broadcasted
     val plan2 =
-      spark.range(10e10.toLong)
+      spark
+        .range(10e10.toLong)
         .join(spark.range(10e10.toLong).hint("broadcast"), "id")
-        .queryExecution.executedPlan
+        .queryExecution
+        .executedPlan
     // Currently, Gluten can not support join hint
     assert(collect(plan2) { case p: ShuffledHashJoinExec => p }.size == 1)
   }

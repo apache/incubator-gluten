@@ -14,18 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
 
-  override protected def checkEvaluation(expression: => Expression,
-                                         expected: Any,
-                                         inputRow: InternalRow = EmptyRow): Unit = {
+  override protected def checkEvaluation(
+      expression: => Expression,
+      expected: Any,
+      inputRow: InternalRow = EmptyRow): Unit = {
     val resolver = ResolveTimeZone
     val expr = resolver.resolveTimeZones(expression)
     assert(expr.resolved)

@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
-
-import scala.reflect.ClassTag
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -27,6 +24,8 @@ import io.glutenproject.utils.velox.VeloxNotSupport
 import org.apache.spark.sql.GlutenTestConstants
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
+
+import scala.reflect.ClassTag
 
 abstract class NotSupport {
   protected def partialSupportSuiteList: Map[String, Seq[String]]

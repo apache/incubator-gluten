@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenDynamicPartitionPruningV1SuiteAEOn extends DynamicPartitionPruningV1SuiteAEOn
+class GlutenDynamicPartitionPruningV1SuiteAEOn
+  extends DynamicPartitionPruningV1SuiteAEOn
   with GlutenSQLTestsTrait {
 
   override def beforeAll(): Unit = {

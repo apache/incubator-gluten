@@ -14,21 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
-
-import java.io.File
-import java.util.TimeZone
-
-import scala.collection.JavaConverters._
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.SystemParameters
-import org.apache.commons.io.FileUtils
-import org.junit.Assert
-import org.scalactic.source.Position
-import org.scalatest.{Assertions, Tag}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.plans.logical
@@ -36,9 +26,17 @@ import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.test.SharedSparkSession
 
-/**
- * Basic trait for Gluten SQL test cases
- */
+import org.apache.commons.io.FileUtils
+import org.junit.Assert
+import org.scalactic.source.Position
+import org.scalatest.{Assertions, Tag}
+
+import java.io.File
+import java.util.TimeZone
+
+import scala.collection.JavaConverters._
+
+/** Basic trait for Gluten SQL test cases */
 trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenTestsBaseTrait {
 
   def prepareWorkDir(): Unit = {
@@ -62,12 +60,12 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     super.afterAll()
   }
 
-  override protected def test(testName: String,
-                              testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
+  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
     if (whiteBlackCheck(testName)) {
       super.test(testName, testTags: _*)(testFun)
     } else {
-      logWarning(s"Ignore test case: ${testName}")
+      logWarning(s"Ignore test case: $testName")
     }
   }
 
@@ -86,8 +84,9 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
       .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set("spark.sql.warehouse.dir", warehouse)
 
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (
+      BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+    ) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
@@ -110,11 +109,11 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
         case ae: AnalysisException =>
           if (ae.plan.isDefined) {
             fail(s"""
-               |Failed to analyze query: $ae
-               |${ae.plan.get}
-               |
-               |${stackTraceToString(ae)}
-               |""".stripMargin)
+                    |Failed to analyze query: $ae
+                    |${ae.plan.get}
+                    |
+                    |${stackTraceToString(ae)}
+                    |""".stripMargin)
           } else {
             throw ae
           }
@@ -132,9 +131,12 @@ object GlutenQueryTest extends Assertions {
   /**
    * Runs the plan and makes sure the answer matches the expected result.
    *
-   * @param df the DataFrame to be executed
-   * @param expectedAnswer the expected result in a Seq of Rows.
-   * @param checkToRDD whether to verify deserialization to an RDD. This runs the query twice.
+   * @param df
+   *   the DataFrame to be executed
+   * @param expectedAnswer
+   *   the expected result in a Seq of Rows.
+   * @param checkToRDD
+   *   whether to verify deserialization to an RDD. This runs the query twice.
    */
   def checkAnswer(df: DataFrame, expectedAnswer: Seq[Row], checkToRDD: Boolean = true): Unit = {
     getErrorMessageInCheckAnswer(df, expectedAnswer, checkToRDD) match {
@@ -144,14 +146,16 @@ object GlutenQueryTest extends Assertions {
   }
 
   /**
-   * Runs the plan and makes sure the answer matches the expected result.
-   * If there was exception during the execution or the contents of the DataFrame does not
-   * match the expected result, an error message will be returned. Otherwise, a None will
-   * be returned.
+   * Runs the plan and makes sure the answer matches the expected result. If there was exception
+   * during the execution or the contents of the DataFrame does not match the expected result, an
+   * error message will be returned. Otherwise, a None will be returned.
    *
-   * @param df the DataFrame to be executed
-   * @param expectedAnswer the expected result in a Seq of Rows.
-   * @param checkToRDD whether to verify deserialization to an RDD. This runs the query twice.
+   * @param df
+   *   the DataFrame to be executed
+   * @param expectedAnswer
+   *   the expected result in a Seq of Rows.
+   * @param checkToRDD
+   *   whether to verify deserialization to an RDD. This runs the query twice.
    */
   def getErrorMessageInCheckAnswer(
       df: DataFrame,
@@ -170,24 +174,25 @@ object GlutenQueryTest extends Assertions {
         case e: Exception =>
           val errorMessage =
             s"""
-             |Exception thrown while executing query:
-             |${df.queryExecution}
-             |== Exception ==
-             |$e
-             |${org.apache.spark.sql.catalyst.util.stackTraceToString(e)}
+               |Exception thrown while executing query:
+               |${df.queryExecution}
+               |== Exception ==
+               |$e
+               |${org.apache.spark.sql.catalyst.util.stackTraceToString(e)}
           """.stripMargin
           return Some(errorMessage)
       }
 
-    sameRows(expectedAnswer, sparkAnswer, isSorted).map { results =>
-      s"""
-         |Results do not match for query:
-         |Timezone: ${TimeZone.getDefault}
-         |Timezone Env: ${sys.env.getOrElse("TZ", "")}
-         |
-         |${df.queryExecution}
-         |== Results ==
-         |$results
+    sameRows(expectedAnswer, sparkAnswer, isSorted).map {
+      results =>
+        s"""
+           |Results do not match for query:
+           |Timezone: ${TimeZone.getDefault}
+           |Timezone Env: ${sys.env.getOrElse("TZ", "")}
+           |
+           |${df.queryExecution}
+           |== Results ==
+           |$results
        """.stripMargin
     }
   }
@@ -231,23 +236,25 @@ object GlutenQueryTest extends Assertions {
       isSorted: Boolean = false): String = {
     val getRowType: Option[Row] => String = row =>
       row
-        .map(row =>
-          if (row.schema == null) {
-            "struct<>"
-          } else {
-            s"${row.schema.catalogString}"
-          })
+        .map(
+          row =>
+            if (row.schema == null) {
+              "struct<>"
+            } else {
+              s"${row.schema.catalogString}"
+            })
         .getOrElse("struct<>")
 
     s"""
        |== Results ==
        |${sideBySide(
-         s"== Correct Answer - ${expectedAnswer.size} ==" +:
-           getRowType(expectedAnswer.headOption) +:
-           prepareAnswer(expectedAnswer, isSorted).map(_.toString()),
-         s"== Spark Answer - ${sparkAnswer.size} ==" +:
-           getRowType(sparkAnswer.headOption) +:
-           prepareAnswer(sparkAnswer, isSorted).map(_.toString())).mkString("\n")}
+        s"== Correct Answer - ${expectedAnswer.size} ==" +:
+          getRowType(expectedAnswer.headOption) +:
+          prepareAnswer(expectedAnswer, isSorted).map(_.toString()),
+        s"== Spark Answer - ${sparkAnswer.size} ==" +:
+          getRowType(sparkAnswer.headOption) +:
+          prepareAnswer(sparkAnswer, isSorted).map(_.toString())
+      ).mkString("\n")}
     """.stripMargin
   }
 
@@ -265,8 +272,8 @@ object GlutenQueryTest extends Assertions {
     case (a: Array[_], b: Array[_]) =>
       a.length == b.length && a.zip(b).forall { case (l, r) => compare(l, r) }
     case (a: Map[_, _], b: Map[_, _]) =>
-      a.size == b.size && a.keys.forall { aKey =>
-        b.keys.find(bKey => compare(aKey, bKey)).exists(bKey => compare(a(aKey), b(bKey)))
+      a.size == b.size && a.keys.forall {
+        aKey => b.keys.find(bKey => compare(aKey, bKey)).exists(bKey => compare(a(aKey), b(bKey)))
       }
     case (a: Iterable[_], b: Iterable[_]) =>
       a.size == b.size && a.zip(b).forall { case (l, r) => compare(l, r) }
@@ -297,9 +304,12 @@ object GlutenQueryTest extends Assertions {
   /**
    * Runs the plan and makes sure the answer is within absTol of the expected result.
    *
-   * @param actualAnswer the actual result in a [[Row]].
-   * @param expectedAnswer the expected result in a[[Row]].
-   * @param absTol the absolute tolerance between actual and expected answers.
+   * @param actualAnswer
+   *   the actual result in a [[Row]].
+   * @param expectedAnswer
+   *   the expected result in a[[Row]].
+   * @param absTol
+   *   the absolute tolerance between actual and expected answers.
    */
   protected def checkAggregatesWithTol(actualAnswer: Row, expectedAnswer: Row, absTol: Double) = {
     require(

@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
+
 import org.apache.spark.sql.DateFunctionsSuite
 import org.apache.spark.sql.StringFunctionsSuite
 import org.apache.spark.sql.catalyst.expressions._

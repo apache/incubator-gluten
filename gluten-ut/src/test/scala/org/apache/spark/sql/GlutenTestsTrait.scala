@@ -14,22 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
-
-
-import java.io.File
-
-import scala.collection.mutable.ArrayBuffer
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.SystemParameters
-import org.apache.commons.io.FileUtils
-import org.scalactic.source.Position
-import org.scalatest.{Args, Status, Tag}
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
@@ -40,9 +31,17 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import org.apache.commons.io.FileUtils
+import org.scalactic.source.Position
+import org.scalatest.{Args, Status, Tag}
+
+import java.io.File
+
+import scala.collection.mutable.ArrayBuffer
+
 trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
 
-  protected override def beforeAll(): Unit = {
+  override protected def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
     if (basePathDir.exists()) {
@@ -56,7 +55,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     _spark.sparkContext.setLogLevel("WARN")
   }
 
-  protected override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     try {
       super.afterAll()
     } finally {
@@ -74,9 +73,10 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         SparkSession.clearDefaultSession()
       }
     }
-    print("Test suite: " + this.getClass.getSimpleName +
-      "; Suite test number: " + TestStats.suiteTestNumber +
-      "; OffloadGluten number: " + TestStats.offloadGlutenTestNumber + "\n")
+    print(
+      "Test suite: " + this.getClass.getSimpleName +
+        "; Suite test number: " + TestStats.suiteTestNumber +
+        "; OffloadGluten number: " + TestStats.offloadGlutenTestNumber + "\n")
     TestStats.reset()
   }
 
@@ -114,37 +114,40 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         // Avoid static evaluation for literal input by spark catalyst.
         .config("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)
 
-      _spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-        GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
-        sparkBuilder
-          .config("spark.io.compression.codec", "LZ4")
-          .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-          .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
-          .config("spark.gluten.sql.enable.native.validation", "false")
-          .config("spark.sql.files.openCostInBytes", "134217728")
-          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
-          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
-          .getOrCreate()
-      } else {
-        sparkBuilder
-          .config("spark.unsafe.exceptionOnMemoryLeak", "false")
-          .getOrCreate()
-      }
+      _spark =
+        if (
+          BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+        ) {
+          sparkBuilder
+            .config("spark.io.compression.codec", "LZ4")
+            .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+            .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+            .config("spark.gluten.sql.enable.native.validation", "false")
+            .config("spark.sql.files.openCostInBytes", "134217728")
+            .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+            .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+            .getOrCreate()
+        } else {
+          sparkBuilder
+            .config("spark.unsafe.exceptionOnMemoryLeak", "false")
+            .getOrCreate()
+        }
     }
   }
 
   protected var _spark: SparkSession = null
 
-  override protected def test(testName: String,
-                              testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
+  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
     if (whiteBlackCheck(testName)) {
       super.test(testName, testTags: _*)(testFun)
     }
   }
 
-  override protected def checkEvaluation(expression: => Expression,
-                                         expected: Any,
-                                         inputRow: InternalRow = EmptyRow): Unit = {
+  override protected def checkEvaluation(
+      expression: => Expression,
+      expected: Any,
+      inputRow: InternalRow = EmptyRow): Unit = {
     val resolver = ResolveTimeZone
     val expr = resolver.resolveTimeZones(expression)
     assert(expr.resolved)
@@ -157,14 +160,15 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     GlutenTestConstants.SUPPORTED_DATA_TYPE.acceptsType(expr.dataType)
   }
 
-  def glutenCheckExpression(expression: Expression,
-                            expected: Any,
-                            inputRow: InternalRow, justEvalExpr: Boolean = false): Unit = {
+  def glutenCheckExpression(
+      expression: Expression,
+      expected: Any,
+      inputRow: InternalRow,
+      justEvalExpr: Boolean = false): Unit = {
     val df = if (inputRow != EmptyRow) {
       convertInternalRowToDataFrame(inputRow)
     } else {
-      val schema = StructType(
-        StructField("a", IntegerType, true) :: Nil)
+      val schema = StructType(StructField("a", IntegerType, true) :: Nil)
       val empData = Seq(Row(1))
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
@@ -178,8 +182,10 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     } else {
       resultDF.collect()
     }
-    if (checkDataTypeSupported(expression) &&
-        !expression.children.map(checkDataTypeSupported).exists(_ == false)) {
+    if (
+      checkDataTypeSupported(expression) &&
+      !expression.children.map(checkDataTypeSupported).exists(_ == false)
+    ) {
       val projectTransformer = resultDF.queryExecution.executedPlan.collect {
         case p: ProjectExecTransformer => p
       }
@@ -223,14 +229,15 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         case byteArr: Array[Byte] =>
           structFileSeq.append(StructField("vbin", BinaryType, byteArr == null))
         case decimal: Decimal =>
-          structFileSeq.append(StructField("dec",
-            DecimalType(decimal.precision, decimal.scale), decimal == null))
+          structFileSeq.append(
+            StructField("dec", DecimalType(decimal.precision, decimal.scale), decimal == null))
         case _ =>
           // for null
           structFileSeq.append(StructField("n", IntegerType, true))
       }
     }
-    _spark.internalCreateDataFrame(_spark.sparkContext.parallelize(Seq(inputRow)),
+    _spark.internalCreateDataFrame(
+      _spark.sparkContext.parallelize(Seq(inputRow)),
       StructType(structFileSeq))
   }
 }

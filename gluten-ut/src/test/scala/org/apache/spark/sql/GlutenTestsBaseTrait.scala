@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import io.glutenproject.utils.NotSupport
@@ -33,14 +32,15 @@ trait GlutenTestsBaseTrait {
   def blackTestNameList: Seq[String] =
     NotSupport.NotYetSupportCase(getClass.getSuperclass.getSimpleName)
 
-
   def whiteBlackCheck(testName: String): Boolean = {
     if (testName.startsWith(GlutenTestConstants.GLUTEN_TEST)) {
       true
     } else if (blackTestNameList.isEmpty && whiteTestNameList.isEmpty) {
       true
-    } else if (blackTestNameList.nonEmpty &&
-               blackTestNameList.head.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL)) {
+    } else if (
+      blackTestNameList.nonEmpty &&
+      blackTestNameList.head.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL)
+    ) {
       false
     } else if (blackTestNameList.nonEmpty) {
       val exactContain = blackTestNameList.contains(testName)
