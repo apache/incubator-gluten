@@ -26,13 +26,13 @@
         <velox.build_arrow>OFF</velox.build_arrow>
         <velox.static_arrow>${static_arrow}</velox.static_arrow>
         <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
+        <velox.build_folly>${build_folly}</velox.build_folly>
         <velox.arrow_root>${arrow_root}</velox.arrow_root>
         <velox.arrow.bfs.dir>${arrow.bfs.dir}</velox.arrow.bfs.dir>
         <velox.build_jemalloc>${build_jemalloc}</velox.build_jemalloc>
-        <velox.build_gazelle_cpp>${build_gazelle_cpp}</velox.build_gazelle_cpp>
-        <velox.build_velox>${build_velox}</velox.build_velox>
-        <velox.velox_build_type>${velox_build_type}</velox.velox_build_type>
-        <velox.debug_build>${debug_build}</velox.debug_build>
+        <velox.build_gazelle_cpp_backend>${build_gazelle_cpp_backend}</velox.build_gazelle_cpp_backend>
+        <velox.build_velox_backend>${build_velox_backend}</velox.build_velox_backend>
+        <velox.build_type>${build_type}</velox.build_type>
         <velox.backend_type>${backend_type}</velox.backend_type>
         <velox.velox_home>${velox_home}</velox.velox_home>
         <velox.velox_enable_s3>${velox_enable_s3}</velox.velox_enable_s3>
@@ -234,14 +234,14 @@
                                 <argument>${velox.build_arrow}</argument>
                                 <argument>${velox.static_arrow}</argument>
                                 <argument>${velox.build_protobuf}</argument>
+                                <argument>${velox.build_folly}</argument>
                                 <argument>${velox.arrow_root}</argument>
                                 <argument>${velox.arrow.bfs.dir}</argument>
                                 <argument>${velox.build_jemalloc}</argument>
-                                <argument>${velox.build_gazelle_cpp}</argument>
-                                <argument>${velox.build_velox}</argument>
+                                <argument>${velox.build_gazelle_cpp_backend}</argument>
+                                <argument>${velox.build_velox_backend}</argument>
                                 <argument>${velox.velox_home}</argument>
-                                <argument>${velox.velox_build_type}</argument>
-                                <argument>${velox.debug_build}</argument>
+                                <argument>${velox.build_type}</argument>
                                 <argument>${velox.cpp_benchmarks}</argument>
                                 <argument>${velox.backend_type}</argument>
                                 <argument>${velox.enable_hbm}</argument>

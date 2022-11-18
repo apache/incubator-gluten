@@ -33,13 +33,33 @@ The command generates the Jar file in the directory: package/velox/spark32/targe
 
 Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
 
-## 2.1 Velox home directory
+## 2.1 Specify velox home directory
 
-You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox_from_source=ON, the script applies the patches and build the Velox library. With -Dbuild_velox_from_source=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
-
+You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it by -Dvelox_home as below.
 
 ```shell script
-mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
+cd $VELOX_HOME
+git clone https://github.com/oap-project/velox
+cd $GLUTEN_ROOT
+#If compiling velox for the first time.
+mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox \
+                  -Dbuild_cpp=ON \
+                  -Dbuild_velox_backend=ON \
+                  -Dvelox_home=${VELOX_HOME} \
+                  -Dbuild_arrow=ON \
+                  -Dcompile_velox=ON \
+                  -Dbuild_type=release
+
+#Just recompile velox without compiling third-party libraries
+mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox \
+                  -Dbuild_cpp=ON \
+                  -Dbuild_velox_backend=ON \
+                  -Dvelox_home=${VELOX_HOME} \
+                  -Dbuild_arrow=OFF \
+                  -Dbuild_protobuf=OFF \
+                  -Dbuild_folly=OFF \
+                  -Dcompile_velox=ON \
+                  -Dbuild_type=release
 ```
 
 ## 2.2 Arrow home directory
@@ -55,7 +75,7 @@ sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1
 ```
 To build Gluten with HDFS support, below command is provided:
 ```
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Dvelox_enable_hdfs=ON
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox_backend=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Dvelox_enable_hdfs=ON
 ```
 Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
 
@@ -103,7 +123,7 @@ sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1
 Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
 A new build option for S3(velox_enable_s3) is added. Below command is used to enable this feature
 ```
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Dvelox_enable_s3=ON
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox_backend=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Dvelox_enable_s3=ON
 ```
 Currently to use S3 connector below configurations are required in spark-defaults.conf
 ```
@@ -133,7 +153,7 @@ Gluten supports allocating memory on HBM. This feature is optional and is disabl
 
 To enable this feature in Gluten, users only need to add `-Denable_hbm=ON` to the maven build command. Here's an example:
 ```
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Denable_hbm=ON
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox_backend=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Denable_hbm=ON
 ```
 
 Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.

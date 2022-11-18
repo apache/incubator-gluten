@@ -22,6 +22,7 @@
         <core.static_arrow>${static_arrow}</core.static_arrow>
         <core.arrow_root>${arrow_root}</core.arrow_root>
         <core.backend_type>${backend_type}</core.backend_type>
+        <core.build_type>${build_type}</core.build_type>
     </properties>
 
     <build>
@@ -48,6 +49,7 @@
                                 <argument>--arrow_root=${core.arrow_root}</argument>
                                 <argument>--backend_type=${core.backend_type}</argument>
                                 <argument>--enable_ep_cache=${core.enable_ep_cache}</argument>
+                                <argument>--build_type=${core.build_type}</argument>
                             </arguments>
                         </configuration>
                     </execution>
