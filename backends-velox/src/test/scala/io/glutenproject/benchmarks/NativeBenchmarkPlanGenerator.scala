@@ -30,6 +30,10 @@ import java.nio.file.{Files, Paths}
 
 import scala.collection.JavaConverters._
 
+import org.scalatest.Tag
+
+object GenerateExample extends Tag("io.glutenproject.tags.GenerateExample")
+
 class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -53,7 +57,7 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 
-  test("Generate example substrait plan") {
+  test("generate example", GenerateExample) {
     val q4_lineitem = spark
       .sql(s"""
               |select l_orderkey from lineitem where l_commitdate < l_receiptdate
