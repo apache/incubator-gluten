@@ -34,10 +34,8 @@ object VeloxExpressionUtil {
     CAST -> ARRAY_TYPE,
     ROUND -> EMPTY_TYPE,
     REGEXP_REPLACE -> EMPTY_TYPE,
-    REGEXP_EXTRACT_ALL -> EMPTY_TYPE,
     SPLIT -> EMPTY_TYPE,
     SPLIT_PART -> EMPTY_TYPE,
     LENGTH -> DataTypes.BinaryType.typeName,
-    TRIM -> EMPTY_TYPE,
     TRANSLATE -> EMPTY_TYPE)
 }

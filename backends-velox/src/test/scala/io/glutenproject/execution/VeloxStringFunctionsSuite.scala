@@ -60,6 +60,13 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
+  test("dayofmonth") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, dayofmonth(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, dayofmonth(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
   test("instr") {
     runQueryAndCompare(s"select l_orderkey, instr(l_comment, 'h') " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
@@ -83,15 +90,6 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
     runQueryAndCompare(s"select l_orderkey, CHARACTER_LENGTH(l_comment) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, CHARACTER_LENGTH(null) " +
-      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-  }
-
-  test("json_array_length") {
-    runQueryAndCompare(s"select l_orderkey, json_array_length('[1,2,3,4]') " +
-      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-//    runQueryAndCompare(s"select l_orderkey, json_array_length(l_comment) " +
-//      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, json_array_length(null) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
@@ -263,9 +261,10 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
   test("regexp_extract_all") {
     runQueryAndCompare("select l_orderkey, regexp_extract_all('l_comment', '([a-z])', 1) " +
       "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    // fall back because of unsupported cast(array)
     runQueryAndCompare("select l_orderkey, l_comment, " +
       "regexp_extract_all(l_comment, '([a-z]+)', 0) " +
-      "from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+      "from lineitem limit 5") { _ => }
   }
 
   ignore("regexp_replace") {

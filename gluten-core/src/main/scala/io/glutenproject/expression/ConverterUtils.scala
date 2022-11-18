@@ -475,6 +475,9 @@ object ConverterUtils extends Logging {
   final val GREATEST = "greatest"
   final val LEAST = "least"
 
+  // SparkSQL DateTime functions of Velox
+  final val DAYOFMONTH = "day_of_month"
+
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
 

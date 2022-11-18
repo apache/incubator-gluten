@@ -107,6 +107,21 @@ class DayOfMonthTransformer(child: Expression) extends DayOfMonth(child) with
   override def getDataType: DataType = dataType
 
   override def getChild: Expression = child
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.DAYOFMONTH,
+        Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(childNode)
+    val typeNode = ConverterUtils.getTypeNode(getDataType, true)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
 }
 
 class DayOfYearTransformer(child: Expression) extends DayOfYear(child) with

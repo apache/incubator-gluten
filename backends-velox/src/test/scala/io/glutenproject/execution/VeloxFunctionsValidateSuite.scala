@@ -103,4 +103,13 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     df.explain(false)
     df.printSchema()
   }
+
+  test("json_array_length") {
+    runQueryAndCompare(s"select *, json_array_length(string_field1) " +
+      s"from datatab limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, json_array_length('[1,2,3,4]') " +
+      s"from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, json_array_length(null) " +
+      s"from lineitem limit 5") { checkOperatorMatch[ProjectExecTransformer] }
+  }
 }
