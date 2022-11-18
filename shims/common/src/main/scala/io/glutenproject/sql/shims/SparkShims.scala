@@ -44,4 +44,7 @@ trait SparkShims {
   // https://issues.apache.org/jira/browse/SPARK-36745
   def applyPlan(plan: LogicalPlan, forceShuffledHashJoin: Boolean): Seq[SparkPlan]
 
+  protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
+
+  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
 }

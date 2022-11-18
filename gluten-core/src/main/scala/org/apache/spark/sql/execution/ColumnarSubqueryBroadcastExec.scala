@@ -76,7 +76,6 @@ case class ColumnarSubqueryBroadcastExec(name: String,
             child
         }
         val rows = if (exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
-          exchangeChild.isInstanceOf[ColumnarBroadcastExchangeAdaptor] ||
           exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]) {
           // transform broadcasted columnar value to Array[InternalRow] by key
           exchangeChild.executeBroadcast[BuildSideRelation].value
