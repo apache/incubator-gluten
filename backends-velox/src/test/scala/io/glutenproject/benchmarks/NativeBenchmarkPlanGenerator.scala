@@ -23,14 +23,13 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
 import org.apache.commons.io.FileUtils
+import org.scalatest.Tag
 
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
 import scala.collection.JavaConverters._
-
-import org.scalatest.Tag
 
 object GenerateExample extends Tag("io.glutenproject.tags.GenerateExample")
 
@@ -68,17 +67,14 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
               |  from orders
               |  where o_orderdate >= '1993-07-01' and o_orderdate < '1993-10-01'
               |""".stripMargin)
-    q4_lineitem
-      .createOrReplaceTempView("q4_lineitem")
-    q4_orders
-      .createOrReplaceTempView("q4_orders")
+    q4_lineitem.createOrReplaceTempView("q4_lineitem")
+    q4_orders.createOrReplaceTempView("q4_orders")
     q4_lineitem.write.format(outputFileFormat).save(generatedPlanDir + "/example_lineitem")
     q4_orders.write.format(outputFileFormat).save(generatedPlanDir + "/example_orders")
 
-    val df =
-      spark.sql("""
-                  |select * from q4_orders left semi join q4_lineitem on l_orderkey = o_orderkey
-                  |""".stripMargin)
+    val df = spark
+      .sql("""|select * from q4_orders left semi join q4_lineitem on l_orderkey = o_orderkey
+              |""".stripMargin)
     df.collect()
 
     val executedPlan = df.queryExecution.executedPlan
