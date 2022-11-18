@@ -46,11 +46,5 @@ class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTra
     "log / ln"
   )
 
-  override def blackTestNameList: Seq[String] = {
-    if (SystemParameters.getGlutenBackend.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
-      Seq(GlutenTestConstants.IGNORE_ALL)
-    } else {
-      Seq.empty
-    }
-  }
+  override def blackTestNameList: Seq[String] = Seq()
 }
