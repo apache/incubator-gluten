@@ -16,18 +16,6 @@
  */
 package io.glutenproject.sql.shims.spark33
 
-import io.glutenproject.BackendLib
-import io.glutenproject.extension.JoinSelectionOverrideShim
-import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
-
-import org.apache.spark.sql.catalyst.expressions.{DynamicPruningSubquery, Expression}
-import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.exchange.Exchange
-import org.apache.spark.sql.internal.SQLConf
-
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
@@ -35,23 +23,6 @@ class Spark33Shims extends SparkShims {
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
-  }
-
-  override def applyPlan(plan: LogicalPlan, forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
-    plan match {
-      // If the build side of BHJ is already decided by AQE, we need to keep the build side.
-      case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, _, left, right, hint) =>
-        new JoinSelectionOverrideShim().extractEqualJoinKeyCondition(
-          joinType,
-          leftKeys,
-          rightKeys,
-          condition,
-          left,
-          right,
-          hint,
-          forceShuffledHashJoin)
-      case _ => Nil
-    }
   }
 
   override def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {

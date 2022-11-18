@@ -14,25 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.sql.shims
+package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.plans.physical.Distribution
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
+import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan}
 
-sealed abstract class ShimDescriptor
-
-case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
-  override def toString(): String = s"$major.$minor.$patch"
-}
-
-trait SparkShims {
-  def getShimDescriptor: ShimDescriptor
-
-  // for this purpose, change HashClusteredDistribution to ClusteredDistribution
-  // https://github.com/apache/spark/pull/32875
-  def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
-
-  protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
-
-  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
+// https://issues.apache.org/jira/browse/SPARK-36745
+object JoinSelectionShim {
+  object ExtractEquiJoinKeysShim {
+    type ReturnType =
+      (
+          JoinType,
+          Seq[Expression],
+          Seq[Expression],
+          Option[Expression],
+          LogicalPlan,
+          LogicalPlan,
+          JoinHint)
+    def unapply(join: Join): Option[ReturnType] = {
+      ExtractEquiJoinKeys.unapply(join)
+    }
+  }
 }

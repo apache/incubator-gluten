@@ -17,25 +17,156 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.{BackendLib, GlutenConfig, GlutenSparkExtensionsInjector}
-import io.glutenproject.sql.shims.SparkShimLoader
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 
 import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.optimizer.JoinSelectionHelper
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.SparkPlan
-
-object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
-
-  override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-    SparkShimLoader.getSparkShims.applyPlan(plan,
-      GlutenConfig.getSessionConf.forceShuffledHashJoin)
-  }
-}
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
+import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.catalyst.plans.logical.{JoinHint, LogicalPlan, SHUFFLE_MERGE}
+import org.apache.spark.sql.execution.{joins, JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
+import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectPlannerStrategy(_ => JoinSelectionOverrides)
+  }
+}
+
+object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
+
+  private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
+    case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
+    case _ => false
+  }
+
+  def extractEqualJoinKeyCondition(
+                                    joinType: JoinType,
+                                    leftKeys: Seq[Expression],
+                                    rightKeys: Seq[Expression],
+                                    condition: Option[Expression],
+                                    left: LogicalPlan,
+                                    right: LogicalPlan,
+                                    hint: JoinHint,
+                                    forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
+    if (isBroadcastStage(left) || isBroadcastStage(right)) {
+      // equal condition
+      val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
+      Seq(
+        BroadcastHashJoinExec(
+          leftKeys,
+          rightKeys,
+          joinType,
+          buildSide,
+          condition,
+          planLater(left),
+          planLater(right)))
+    } else {
+      // non equal condition
+      // Generate BHJ here, avoid to do match in `JoinSelection` again.
+      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, hintOnly = false, conf)
+      if (buildSide.isDefined) {
+        return Seq(
+          joins.BroadcastHashJoinExec(
+            leftKeys,
+            rightKeys,
+            joinType,
+            buildSide.get,
+            condition,
+            planLater(left),
+            planLater(right)))
+      }
+
+      if (forceShuffledHashJoin) {
+        // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
+        // conf setting "spark.sql.join.preferSortMergeJoin".
+        val (leftBuildable, rightBuildable) = if (GlutenConfig.getConf.isClickHouseBackend) {
+          // Currently, ClickHouse backend can not support AQE, so it needs to use join hint
+          // to decide the build side, after supporting AQE, will remove this.
+          val leftHintEnabled = hintToShuffleHashJoinLeft(hint)
+          val rightHintEnabled = hintToShuffleHashJoinRight(hint)
+          val leftHintMergeEnabled = hint.leftHint.exists(_.strategy.contains(SHUFFLE_MERGE))
+          val rightHintMergeEnabled = hint.rightHint.exists(_.strategy.contains(SHUFFLE_MERGE))
+          if (leftHintEnabled || rightHintEnabled) {
+            (leftHintEnabled, rightHintEnabled)
+          } else if (leftHintMergeEnabled || rightHintMergeEnabled) {
+            // hack: when set SHUFFLE_MERGE hint, it means that
+            // it don't use this side as the build side
+            (!leftHintMergeEnabled, !rightHintMergeEnabled)
+          } else {
+            (canBuildShuffledHashJoinLeft(joinType), canBuildShuffledHashJoinRight(joinType))
+          }
+        } else {
+          (canBuildShuffledHashJoinLeft(joinType), canBuildShuffledHashJoinRight(joinType))
+        }
+
+        if (!leftBuildable && !rightBuildable) {
+          return Nil
+        }
+        val buildSide = if (!leftBuildable) {
+          BuildRight
+        } else if (!rightBuildable) {
+          BuildLeft
+        } else {
+          getSmallerSide(left, right)
+        }
+
+        return Option(buildSide)
+          .map {
+            buildSide =>
+              Seq(
+                joins.ShuffledHashJoinExec(
+                  leftKeys,
+                  rightKeys,
+                  joinType,
+                  buildSide,
+                  condition,
+                  planLater(left),
+                  planLater(right)))
+          }
+          .getOrElse(Nil)
+      }
+      Nil
+    }
+  }
+
+  override def canBuildShuffledHashJoinLeft(joinType: JoinType): Boolean = {
+    joinType match {
+      case _: InnerLike | RightOuter | FullOuter => true
+      // For Velox backend, build right and left are both supported for LeftOuter and LeftSemi.
+      case LeftOuter | LeftSemi =>
+        GlutenConfig.getConf.isVeloxBackend
+      case _ => false
+    }
+  }
+
+  override def canBuildShuffledHashJoinRight(joinType: JoinType): Boolean = {
+    joinType match {
+      case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
+      // For Velox backend, build right and left are both supported for RightOuter.
+      case RightOuter =>
+        GlutenConfig.getConf.isVeloxBackend
+      case _ => false
+    }
+  }
+
+  override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+    plan match {
+      // If the build side of BHJ is already decided by AQE, we need to keep the build side.
+      case JoinSelectionShim.ExtractEquiJoinKeysShim(
+      joinType, leftKeys, rightKeys, condition, left, right, hint) =>
+        extractEqualJoinKeyCondition(
+          joinType,
+          leftKeys,
+          rightKeys,
+          condition,
+          left,
+          right,
+          hint,
+          GlutenConfig.getConf.forceShuffledHashJoin)
+      case _ => Nil
+    }
   }
 }
