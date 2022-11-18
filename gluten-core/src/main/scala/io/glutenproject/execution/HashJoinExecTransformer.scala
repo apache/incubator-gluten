@@ -907,8 +907,8 @@ trait HashJoinLikeExecTransformer
         inputNodeOutput ++
           appendedKeys.zipWithIndex.map {
             case (key, idx) =>
-              // Create output attributes for appended keys.
-              // This is used as place holder for finding the right column indexes in post-join filters.
+              // Create output attributes for appended keys. This is used as place holder
+              // for finding the right column indexes in post-join filters.
               AttributeReference(s"col_${idx + offset}", key._2)()
           })
     }

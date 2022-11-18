@@ -21,15 +21,13 @@ import io.glutenproject.GlutenSparkExtensionsInjector
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.execution.CustomExpandExec
-import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar.AddTransformHintRule
 import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.StoreExpandGroupExpression
 import io.glutenproject.extension.columnar.TransformHint
 import io.glutenproject.extension.columnar.TransformHints
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.utils.LogLevel
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -51,17 +49,8 @@ import org.apache.spark.sql.internal.SQLConf
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 // The plan with a row guard on the top of it will not be converted.
-case class TransformPreOverrides() extends Rule[SparkPlan] {
-  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
-  @transient private val logOnLevel: (=> String) => Unit =
-    columnarConf.transformPlanLogLevel match {
-      case "TRACE" => logTrace(_)
-      case "DEBUG" => logDebug(_)
-      case "INFO" => logInfo(_)
-      case "WARN" => logWarning(_)
-      case "ERROR" => logError(_)
-      case _ => logDebug(_)
-    }
+case class TransformPreOverrides() extends Rule[SparkPlan] with LogLevel {
+  private val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   private def getProjectWithHash(
@@ -348,17 +337,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
 // This rule will try to convert the row-to-columnar and columnar-to-row
 // into columnar implementations.
-case class TransformPostOverrides() extends Rule[SparkPlan] {
-  val columnarConf = GlutenConfig.getSessionConf
-  @transient private val logOnLevel: (=> String) => Unit =
-    columnarConf.transformPlanLogLevel match {
-      case "TRACE" => logTrace(_)
-      case "DEBUG" => logDebug(_)
-      case "INFO" => logInfo(_)
-      case "WARN" => logWarning(_)
-      case "ERROR" => logError(_)
-      case _ => logDebug(_)
-    }
+case class TransformPostOverrides() extends Rule[SparkPlan] with LogLevel {
+  private val columnarConf = GlutenConfig.getSessionConf
+
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
@@ -429,18 +410,13 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
   }
 }
 
-case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
+case class ColumnarOverrideRules(session: SparkSession)
+  extends ColumnarRule
+  with Logging
+  with LogLevel {
+
   var isSupportAdaptive: Boolean = true
 
-  @transient private lazy val logOnLevel: (=> String) => Unit =
-    GlutenConfig.getSessionConf.transformPlanLogLevel match {
-      case "TRACE" => logTrace(_)
-      case "DEBUG" => logDebug(_)
-      case "INFO" => logInfo(_)
-      case "WARN" => logWarning(_)
-      case "ERROR" => logError(_)
-      case _ => logDebug(_)
-    }
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
