@@ -24,14 +24,9 @@ public class TestBackendsApisSuite {
 
   @Test
   public void testInitializeBackendsApi() {
-    BackendsApiManager.initialize("default");
+    BackendsApiManager.initialize();
     Assert.assertNotNull(BackendsApiManager.getIteratorApiInstance());
     Assert.assertNotNull(BackendsApiManager.getTransformerApiInstance());
     Assert.assertNotNull(BackendsApiManager.getSparkPlanExecApiInstance());
-  }
-
-  @Test(expected = AssertionError.class)
-  public void testNullBackendsApi() {
-    BackendsApiManager.initialize("none");
   }
 }

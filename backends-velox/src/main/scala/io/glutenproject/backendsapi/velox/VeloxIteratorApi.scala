@@ -412,11 +412,4 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     throw new UnsupportedOperationException(
       "Cannot support to generate Native FileScanRDD.")
   }
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = GlutenConfig.GLUTEN_VELOX_BACKEND
 }

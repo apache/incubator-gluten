@@ -304,11 +304,4 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
   override def genExtendedStrategies(): List[SparkSession => Strategy] = {
     List(_ => SimpleStrategy())
   }
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = GlutenConfig.GLUTEN_VELOX_BACKEND
 }
