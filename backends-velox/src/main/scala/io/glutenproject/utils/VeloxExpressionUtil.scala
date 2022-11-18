@@ -39,7 +39,7 @@ object VeloxExpressionUtil {
     SPLIT_PART -> EMPTY_TYPE,
     LENGTH -> DataTypes.BinaryType.typeName,
     TRIM -> EMPTY_TYPE,
-    TRANSLATE -> EMPTY_TYPE
-    LOG2 -> EMPTY_TYPE
+    TRANSLATE -> EMPTY_TYPE,
+    LOG2 -> EMPTY_TYPE,
     LOG -> EMPTY_TYPE)
 }
