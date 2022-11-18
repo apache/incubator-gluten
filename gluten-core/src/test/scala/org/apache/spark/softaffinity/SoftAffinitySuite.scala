@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.softaffinity
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{NativeMergeTreePartition, NativePartition}
-import io.glutenproject.softaffinity.scheduler.SoftAffinityListener
 import io.glutenproject.softaffinity.SoftAffinityManager
+import io.glutenproject.softaffinity.scheduler.SoftAffinityListener
+
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListenerExecutorAdded, SparkListenerExecutorRemoved}
 import org.apache.spark.scheduler.cluster.ExecutorInfo
@@ -32,16 +32,19 @@ import org.apache.spark.sql.test.SharedSparkSession
 
 class SoftAffinitySuite extends QueryTest with SharedSparkSession with PredicateHelper {
 
-  protected override def sparkConf: SparkConf = super.sparkConf
+  override protected def sparkConf: SparkConf = super.sparkConf
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED, "true")
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM, "2")
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS, "2")
 
   def generateNativePartition1(): Unit = {
-    val partition = FilePartition(0, Seq(
-      PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-      PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-2", "host-3"))
-    ).toArray)
+    val partition = FilePartition(
+      0,
+      Seq(
+        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
+        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-2", "host-3"))
+      ).toArray
+    )
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
@@ -52,10 +55,13 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
   }
 
   def generateNativePartition2(): Unit = {
-    val partition = FilePartition(0, Seq(
-      PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-      PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-4", "host-5"))
-    ).toArray)
+    val partition = FilePartition(
+      0,
+      Seq(
+        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
+        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-4", "host-5"))
+      ).toArray
+    )
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
@@ -67,10 +73,13 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
   }
 
   def generateNativePartition3(): Unit = {
-    val partition = FilePartition(0, Seq(
-      PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-      PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
-    ).toArray)
+    val partition = FilePartition(
+      0,
+      Seq(
+        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
+        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
+      ).toArray
+    )
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
@@ -94,10 +103,13 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
   }
 
   def generateNativePartition5(): Unit = {
-    val partition = FilePartition(0, Seq(
-      PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-      PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
-    ).toArray)
+    val partition = FilePartition(
+      0,
+      Seq(
+        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
+        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
+      ).toArray
+    )
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
@@ -109,21 +121,37 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
   }
 
   test("Soft Affinity Scheduler for CacheFileScanRDD") {
-    val addEvent0 = SparkListenerExecutorAdded(System.currentTimeMillis(), "0",
+    val addEvent0 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "0",
       new ExecutorInfo("host-1", 3, null))
-    val addEvent1 = SparkListenerExecutorAdded(System.currentTimeMillis(), "1",
+    val addEvent1 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "1",
       new ExecutorInfo("host-1", 3, null))
-    val addEvent2 = SparkListenerExecutorAdded(System.currentTimeMillis(), "2",
+    val addEvent2 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "2",
       new ExecutorInfo("host-2", 3, null))
-    val addEvent3 = SparkListenerExecutorAdded(System.currentTimeMillis(), "3",
+    val addEvent3 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "3",
       new ExecutorInfo("host-3", 3, null))
-    val addEvent3_1 = SparkListenerExecutorAdded(System.currentTimeMillis(), "3",
+    val addEvent3_1 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "3",
       new ExecutorInfo("host-5", 3, null))
-    val addEvent4 = SparkListenerExecutorAdded(System.currentTimeMillis(), "4",
+    val addEvent4 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "4",
       new ExecutorInfo("host-3", 3, null))
-    val addEvent5 = SparkListenerExecutorAdded(System.currentTimeMillis(), "5",
+    val addEvent5 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "5",
       new ExecutorInfo("host-2", 3, null))
-    val addEvent6 = SparkListenerExecutorAdded(System.currentTimeMillis(), "6",
+    val addEvent6 = SparkListenerExecutorAdded(
+      System.currentTimeMillis(),
+      "6",
       new ExecutorInfo("host-4", 3, null))
 
     val removedEvent0 = SparkListenerExecutorRemoved(System.currentTimeMillis(), "0", "")

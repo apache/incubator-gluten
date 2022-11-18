@@ -14,21 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
-class LocateTransformer(first: Expression, second: Expression,
-                        third: Expression, original: Expression)
+import com.google.common.collect.Lists
+
+class LocateTransformer(
+    first: Expression,
+    second: Expression,
+    third: Expression,
+    original: Expression)
   extends StringLocate(first: Expression, second: Expression, second: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val firstNode =
@@ -37,15 +41,19 @@ class LocateTransformer(first: Expression, second: Expression,
       second.asInstanceOf[ExpressionTransformer].doTransform(args)
     val thirdNode =
       third.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!firstNode.isInstanceOf[ExpressionNode] ||
+    if (
+      !firstNode.isInstanceOf[ExpressionNode] ||
       !secondNode.isInstanceOf[ExpressionNode] ||
-      !thirdNode.isInstanceOf[ExpressionNode]) {
+      !thirdNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.LOCATE,
-      Seq(first.dataType, second.dataType, third.dataType), FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.LOCATE,
+      Seq(first.dataType, second.dataType, third.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode)
     val typeNode = TypeBuilder.makeI64(original.nullable)
@@ -53,11 +61,14 @@ class LocateTransformer(first: Expression, second: Expression,
   }
 }
 
-class LPadTransformer(first: Expression, second: Expression,
-                        third: Expression, original: Expression)
+class LPadTransformer(
+    first: Expression,
+    second: Expression,
+    third: Expression,
+    original: Expression)
   extends StringLPad(first: Expression, second: Expression, second: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val firstNode =
@@ -66,14 +77,17 @@ class LPadTransformer(first: Expression, second: Expression,
       second.asInstanceOf[ExpressionTransformer].doTransform(args)
     val thirdNode =
       third.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!firstNode.isInstanceOf[ExpressionNode] ||
+    if (
+      !firstNode.isInstanceOf[ExpressionNode] ||
       !secondNode.isInstanceOf[ExpressionNode] ||
-      !thirdNode.isInstanceOf[ExpressionNode]) {
+      !thirdNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.LPAD,
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.LPAD,
       Seq(first.dataType, second.dataType, third.dataType),
       FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
@@ -83,11 +97,14 @@ class LPadTransformer(first: Expression, second: Expression,
   }
 }
 
-class RPadTransformer(first: Expression, second: Expression,
-                      third: Expression, original: Expression)
+class RPadTransformer(
+    first: Expression,
+    second: Expression,
+    third: Expression,
+    original: Expression)
   extends StringRPad(first: Expression, second: Expression, second: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val firstNode =
@@ -96,14 +113,17 @@ class RPadTransformer(first: Expression, second: Expression,
       second.asInstanceOf[ExpressionTransformer].doTransform(args)
     val thirdNode =
       third.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!firstNode.isInstanceOf[ExpressionNode] ||
+    if (
+      !firstNode.isInstanceOf[ExpressionNode] ||
       !secondNode.isInstanceOf[ExpressionNode] ||
-      !thirdNode.isInstanceOf[ExpressionNode]) {
+      !thirdNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.RPAD,
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.RPAD,
       Seq(first.dataType, second.dataType, third.dataType),
       FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
@@ -113,11 +133,14 @@ class RPadTransformer(first: Expression, second: Expression,
   }
 }
 
-class RegExpExtractTransformer(subject: Expression, regexp: Expression,
-                               index: Expression, original: Expression)
+class RegExpExtractTransformer(
+    subject: Expression,
+    regexp: Expression,
+    index: Expression,
+    original: Expression)
   extends RegExpExtract(subject: Expression, regexp: Expression, regexp: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val firstNode =
@@ -126,15 +149,19 @@ class RegExpExtractTransformer(subject: Expression, regexp: Expression,
       regexp.asInstanceOf[ExpressionTransformer].doTransform(args)
     val thirdNode =
       index.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!firstNode.isInstanceOf[ExpressionNode] ||
+    if (
+      !firstNode.isInstanceOf[ExpressionNode] ||
       !secondNode.isInstanceOf[ExpressionNode] ||
-      !thirdNode.isInstanceOf[ExpressionNode]) {
+      !thirdNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.REGEXP_EXTRACT,
-      Seq(subject.dataType, regexp.dataType, index.dataType), FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.REGEXP_EXTRACT,
+      Seq(subject.dataType, regexp.dataType, index.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode)
     val typeNode = TypeBuilder.makeString(original.nullable)
@@ -142,11 +169,14 @@ class RegExpExtractTransformer(subject: Expression, regexp: Expression,
   }
 }
 
-class ReplaceTransformer(str: Expression, search: Expression, replace: Expression,
-                       original: Expression)
+class ReplaceTransformer(
+    str: Expression,
+    search: Expression,
+    replace: Expression,
+    original: Expression)
   extends StringReplace(str: Expression, search: Expression, search: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val strNode =
@@ -155,15 +185,19 @@ class ReplaceTransformer(str: Expression, search: Expression, replace: Expressio
       search.asInstanceOf[ExpressionTransformer].doTransform(args)
     val replaceNode =
       replace.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!strNode.isInstanceOf[ExpressionNode] ||
+    if (
+      !strNode.isInstanceOf[ExpressionNode] ||
       !searchNode.isInstanceOf[ExpressionNode] ||
-      !replaceNode.isInstanceOf[ExpressionNode]) {
+      !replaceNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"Not supported yet.")
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.REPLACE,
-      Seq(str.dataType, search.dataType, replace.dataType), FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.REPLACE,
+      Seq(str.dataType, search.dataType, replace.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(strNode, searchNode, replaceNode)
     val typeNode = TypeBuilder.makeString(original.nullable)
@@ -171,11 +205,14 @@ class ReplaceTransformer(str: Expression, search: Expression, replace: Expressio
   }
 }
 
-class SplitTransformer(str: Expression, delimiter: Expression, limit: Expression,
-                       original: Expression)
+class SplitTransformer(
+    str: Expression,
+    delimiter: Expression,
+    limit: Expression,
+    original: Expression)
   extends StringSplit(str: Expression, delimiter: Expression, limit: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: Split.")
@@ -184,8 +221,8 @@ class SplitTransformer(str: Expression, delimiter: Expression, limit: Expression
 
 class SubStringTransformer(str: Expression, pos: Expression, len: Expression, original: Expression)
   extends Substring(str: Expression, pos: Expression, len: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val strNode =
@@ -195,15 +232,17 @@ class SubStringTransformer(str: Expression, pos: Expression, len: Expression, or
     val lenNode =
       len.asInstanceOf[ExpressionTransformer].doTransform(args)
 
-    if (!strNode.isInstanceOf[ExpressionNode] ||
+    if (
+      !strNode.isInstanceOf[ExpressionNode] ||
       !posNode.isInstanceOf[ExpressionNode] ||
-      !lenNode.isInstanceOf[ExpressionNode]) {
+      !lenNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(
-      ConverterUtils.SUBSTRING, Seq(str.dataType), FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(ConverterUtils.SUBSTRING, Seq(str.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressionNodes = Lists.newArrayList(
       strNode.asInstanceOf[ExpressionNode],
@@ -218,25 +257,28 @@ class SubStringTransformer(str: Expression, pos: Expression, len: Expression, or
 
 object TernaryExpressionTransformer {
 
-  def create(first: Expression, second: Expression, third: Expression,
-    original: Expression): Expression = original match {
-      case _: StringLocate =>
-        // locate() gets incorrect results, so fall back to Vanilla Spark
-        throw new UnsupportedOperationException("Not supported: locate().")
-      case _: StringSplit =>
-        // split() gets incorrect results, so fall back to Vanilla Spark
-        throw new UnsupportedOperationException("Not supported: locate().")
-      case lpad: StringLPad =>
-        new LPadTransformer(first, second, third, lpad)
-      case rpad: StringRPad =>
-        new RPadTransformer(first, second, third, rpad)
-      case extract: RegExpExtract =>
-        new RegExpExtractTransformer(first, second, third, extract)
-      case replace: StringReplace =>
-        new ReplaceTransformer(first, second, third, replace)
-      case ss: Substring =>
-        new SubStringTransformer(first, second, third, ss)
-      case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
-    }
+  def create(
+      first: Expression,
+      second: Expression,
+      third: Expression,
+      original: Expression): Expression = original match {
+    case _: StringLocate =>
+      // locate() gets incorrect results, so fall back to Vanilla Spark
+      throw new UnsupportedOperationException("Not supported: locate().")
+    case _: StringSplit =>
+      // split() gets incorrect results, so fall back to Vanilla Spark
+      throw new UnsupportedOperationException("Not supported: locate().")
+    case lpad: StringLPad =>
+      new LPadTransformer(first, second, third, lpad)
+    case rpad: StringRPad =>
+      new RPadTransformer(first, second, third, rpad)
+    case extract: RegExpExtract =>
+      new RegExpExtractTransformer(first, second, third, extract)
+    case replace: StringReplace =>
+      new ReplaceTransformer(first, second, third, replace)
+    case ss: Substring =>
+      new SubStringTransformer(first, second, third, ss)
+    case other =>
+      throw new UnsupportedOperationException(s"not currently supported: $other.")
+  }
 }

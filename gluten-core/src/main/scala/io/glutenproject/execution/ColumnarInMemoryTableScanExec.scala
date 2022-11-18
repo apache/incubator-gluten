@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.rdd.RDD
@@ -29,9 +28,9 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarInMemoryTableScanExec(
-                                          attributes: Seq[Attribute],
-                                          predicates: Seq[Expression],
-                                          @transient relation: InMemoryRelation)
+    attributes: Seq[Attribute],
+    predicates: Seq[Expression],
+    @transient relation: InMemoryRelation)
   extends LeafExecNode {
 
   override lazy val metrics = Map(
@@ -44,9 +43,10 @@ case class ColumnarInMemoryTableScanExec(
     val buffers = filteredCachedBatches()
     relation.cacheBuilder.serializer
       .convertCachedBatchToColumnarBatch(buffers, relation.output, attributes, conf)
-      .map { cb =>
-        numOutputRows += cb.numRows()
-        cb
+      .map {
+        cb =>
+          numOutputRows += cb.numRows()
+          cb
       }
   }
   private lazy val inputRDD: RDD[InternalRow] = {
@@ -58,11 +58,13 @@ case class ColumnarInMemoryTableScanExec(
 
     // update SQL metrics
     val withMetrics =
-      filteredCachedBatches().mapPartitions { iter =>
-        iter.map { batch =>
-          numOutputRows += batch.numRows
-          batch
-        }
+      filteredCachedBatches().mapPartitions {
+        iter =>
+          iter.map {
+            batch =>
+              numOutputRows += batch.numRows
+              batch
+          }
       }
     serializer.convertCachedBatchToInternalRow(withMetrics, relOutput, attributes, conf)
   }
@@ -74,9 +76,10 @@ case class ColumnarInMemoryTableScanExec(
         super.nodeName
     }
   }
+
   /**
-   * If true, get data from ColumnVector in ColumnarBatch, which are generally faster.
-   * If false, get data from UnsafeRow build from CachedBatch
+   * If true, get data from ColumnVector in ColumnarBatch, which are generally faster. If false, get
+   * data from UnsafeRow build from CachedBatch
    */
   override val supportsColumnar: Boolean = relation.cachedPlan.supportsColumnar
 
@@ -86,7 +89,8 @@ case class ColumnarInMemoryTableScanExec(
     copy(
       attributes = attributes.map(QueryPlan.normalizeExpressions(_, relation.output)),
       predicates = predicates.map(QueryPlan.normalizeExpressions(_, relation.output)),
-      relation = relation.canonicalized.asInstanceOf[InMemoryRelation])
+      relation = relation.canonicalized.asInstanceOf[InMemoryRelation]
+    )
 
   override def vectorTypes: Option[Seq[String]] =
     relation.cacheBuilder.serializer.vectorTypes(attributes, conf)
@@ -111,16 +115,14 @@ case class ColumnarInMemoryTableScanExec(
     // attributes can be pruned so using relation's output.
     // E.g., relation.output is [id, item] but this scan's output can be [item] only.
     val attrMap = AttributeMap(relation.cachedPlan.output.zip(relation.output))
-    expr.transform {
-      case attr: Attribute => attrMap.getOrElse(attr, attr)
-    }
+    expr.transform { case attr: Attribute => attrMap.getOrElse(attr, attr) }
   }
 
-  protected override def doExecute(): RDD[InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     inputRDD
   }
 
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     columnarInputRDD
   }
 

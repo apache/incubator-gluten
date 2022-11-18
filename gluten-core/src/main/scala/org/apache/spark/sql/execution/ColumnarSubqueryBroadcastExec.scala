@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
 import org.apache.spark.rdd.RDD
@@ -30,11 +29,13 @@ import org.apache.spark.util.ThreadUtils
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-case class ColumnarSubqueryBroadcastExec(name: String,
-                                         index: Int,
-                                         buildKeys: Seq[Expression],
-                                         child: SparkPlan
-                                        ) extends BaseSubqueryExec with UnaryExecNode {
+case class ColumnarSubqueryBroadcastExec(
+    name: String,
+    index: Int,
+    buildKeys: Seq[Expression],
+    child: SparkPlan)
+  extends BaseSubqueryExec
+  with UnaryExecNode {
 
   // `ColumnarSubqueryBroadcastExec` is only used with `InSubqueryExec`.
   // No one would reference this output,
@@ -75,25 +76,32 @@ case class ColumnarSubqueryBroadcastExec(name: String,
           case _ =>
             child
         }
-        val rows = if (exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
-          exchangeChild.isInstanceOf[ColumnarBroadcastExchangeAdaptor] ||
-          exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]) {
-          // transform broadcasted columnar value to Array[InternalRow] by key
-          exchangeChild.executeBroadcast[BuildSideRelation].value
-            .transform(buildKeys(index)).distinct
-        } else {
-          val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
-          val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
-            (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
+        val rows =
+          if (
+            exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
+            exchangeChild.isInstanceOf[ColumnarBroadcastExchangeAdaptor] ||
+            exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]
+          ) {
+            // transform broadcasted columnar value to Array[InternalRow] by key
+            exchangeChild
+              .executeBroadcast[BuildSideRelation]
+              .value
+              .transform(buildKeys(index))
+              .distinct
           } else {
-            (broadcastRelation.keys(),
-              BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
-          }
+            val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
+            val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
+              (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
+            } else {
+              (
+                broadcastRelation.keys(),
+                BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+            }
 
-          val proj = UnsafeProjection.create(expr)
-          val keyIter = iter.map(proj).map(_.copy())
-          keyIter.toArray[InternalRow].distinct
-        }
+            val proj = UnsafeProjection.create(expr)
+            val keyIter = iter.map(proj).map(_.copy())
+            keyIter.toArray[InternalRow].distinct
+          }
         val beforeBuild = System.nanoTime()
         longMetric("collectTime") += (beforeBuild - beforeCollect) / 1000000
         val dataSize = rows.map(_.asInstanceOf[UnsafeRow].getSizeInBytes).sum
@@ -104,11 +112,11 @@ case class ColumnarSubqueryBroadcastExec(name: String,
     }(SubqueryBroadcastExec.executionContext)
   }
 
-  protected override def doPrepare(): Unit = {
+  override protected def doPrepare(): Unit = {
     relationFuture
   }
 
-  protected override def doExecute(): RDD[InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
       "SubqueryBroadcastExec does not support the execute() code path.")
   }

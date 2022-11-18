@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
@@ -24,8 +23,8 @@ import org.apache.spark.sql.catalyst.expressions._
 
 class InTransformer(value: Expression, list: Seq[Expression], original: Expression)
   extends In(value: Expression, list: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = value.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -34,9 +33,12 @@ class InTransformer(value: Expression, list: Seq[Expression], original: Expressi
     }
 
     // Stores the values in a List Literal.
-    val values: Set[Any] = list.map(value => {
-      value.asInstanceOf[Literal].value
-    }).toSet
+    val values: Set[Any] = list
+      .map(
+        value => {
+          value.asInstanceOf[Literal].value
+        })
+      .toSet
 
     InSetOperatorTransformer.toTransformer(value, leftNode, values)
   }

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -29,21 +28,21 @@ class DummyTransformerApi extends ITransformerApi {
    *
    * @return
    */
-  override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
-                                                   outputAttributes: Seq[Attribute]
-                                                  ): Boolean = false
+  override def validateColumnarShuffleExchangeExec(
+      outputPartitioning: Partitioning,
+      outputAttributes: Seq[Attribute]): Boolean = false
 
   /**
    * Used for table scan validation.
    *
-   * @return true if backend supports reading the file format.
+   * @return
+   *   true if backend supports reading the file format.
    */
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = false
 
-  /**
-   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-   */
-  override def genInputPartitionSeq(relation: HadoopFsRelation,
-                                    selectedPartitions: Array[PartitionDirectory]
-                                   ): Seq[InputPartition] = Seq.empty[InputPartition]
+  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
+  override def genInputPartitionSeq(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] =
+    Seq.empty[InputPartition]
 }

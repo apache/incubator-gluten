@@ -14,28 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.util.memory
-
-import java.util.concurrent.atomic.AtomicLong
-import java.util.UUID
-
-import scala.collection.JavaConverters._
 
 import io.glutenproject.memory.TaskMemoryMetrics
 
 import org.apache.spark.{SparkEnv, TaskContext}
-import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskCompletionListener
 import org.apache.spark.util.memory.TaskMemoryResources._
 
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
+
+import scala.collection.JavaConverters._
+
 object TaskMemoryResources {
   val DEBUG: Boolean = {
     SQLConf.get
-      .getConfString("spark.gluten.sql.memory.debug", "false").toBoolean
+      .getConfString("spark.gluten.sql.memory.debug", "false")
+      .toBoolean
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
@@ -65,16 +65,15 @@ object TaskMemoryResources {
 
       if (!RESOURCE_REGISTRIES.containsKey(tc)) {
         RESOURCE_REGISTRIES.put(tc, new TaskMemoryResourceRegistry)
-        tc.addTaskCompletionListener(
-          new TaskCompletionListener {
-            override def onTaskCompletion(context: TaskContext): Unit = {
-              RESOURCE_REGISTRIES.synchronized {
-                val registry = RESOURCE_REGISTRIES.remove(context)
-                registry.releaseAll()
-                context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
-              }
+        tc.addTaskCompletionListener(new TaskCompletionListener {
+          override def onTaskCompletion(context: TaskContext): Unit = {
+            RESOURCE_REGISTRIES.synchronized {
+              val registry = RESOURCE_REGISTRIES.remove(context)
+              registry.releaseAll()
+              context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
             }
-          })
+          }
+        })
       }
 
       return RESOURCE_REGISTRIES.get(tc)
@@ -121,12 +120,19 @@ class TaskMemoryResourceRegistry extends Logging {
   private val managers = new java.util.LinkedHashMap[String, TaskMemoryResourceManager]()
 
   private[memory] def releaseAll(): Unit = {
-    managers.values().asScala.toArray.reverse.foreach(m => try {
-      m.release()
-    } catch {
-      case e: Throwable =>
-        logWarning("Failed to call release() on resource manager instance", e)
-    })
+    managers
+      .values()
+      .asScala
+      .toArray
+      .reverse
+      .foreach(
+        m =>
+          try {
+            m.release()
+          } catch {
+            case e: Throwable =>
+              logWarning("Failed to call release() on resource manager instance", e)
+          })
   }
 
   private[memory] def addManager(id: String, resource: TaskMemoryResourceManager): Unit = {

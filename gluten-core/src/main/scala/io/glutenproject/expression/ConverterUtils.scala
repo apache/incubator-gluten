@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.substrait.proto.Type;
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -28,6 +27,9 @@ import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import io.substrait.proto.Type
+
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
@@ -86,9 +88,10 @@ object ConverterUtils extends Logging {
     ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id
   }
 
-  def getResultAttrFromExpr(fieldExpr: Expression,
-                            name: String = "None",
-                            dataType: Option[DataType] = None): AttributeReference = {
+  def getResultAttrFromExpr(
+      fieldExpr: Expression,
+      name: String = "None",
+      dataType: Option[DataType] = None): AttributeReference = {
     fieldExpr match {
       case a: Cast =>
         val c = getResultAttrFromExpr(a.child, name, Some(a.dataType))
@@ -164,18 +167,17 @@ object ConverterUtils extends Logging {
           val (field, nullable) = parseFromSubstraitType(typ)
           fields.add(StructField("", field, nullable))
         }
-        (StructType(fields),
-          isNullable(substraitType.getStruct.getNullability))
+        (StructType(fields), isNullable(substraitType.getStruct.getNullability))
       case Type.KindCase.LIST =>
         val list = substraitType.getList
         val (elementType, containsNull) = parseFromSubstraitType(list.getType)
-        (ArrayType(elementType, containsNull),
-          isNullable(substraitType.getList.getNullability))
+        (ArrayType(elementType, containsNull), isNullable(substraitType.getList.getNullability))
       case Type.KindCase.MAP =>
         val map = substraitType.getMap
         val (keyType, _) = parseFromSubstraitType(map.getKey)
         val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue())
-        (MapType(keyType, valueType, valueContainsNull),
+        (
+          MapType(keyType, valueType, valueContainsNull),
           isNullable(substraitType.getMap.getNullability))
       case unsupported =>
         throw new UnsupportedOperationException(s"Type $unsupported not supported.")
@@ -212,7 +214,9 @@ object ConverterUtils extends Logging {
       case TimestampType =>
         TypeBuilder.makeTimestamp(nullable)
       case m: MapType =>
-        TypeBuilder.makeMap(nullable, getTypeNode(m.keyType, false),
+        TypeBuilder.makeMap(
+          nullable,
+          getTypeNode(m.keyType, false),
           getTypeNode(m.valueType, m.valueContainsNull))
       case a: ArrayType =>
         TypeBuilder.makeList(nullable, getTypeNode(a.elementType, a.containsNull))
@@ -297,7 +301,8 @@ object ConverterUtils extends Logging {
       ("1000000000000000000000000000000000", 34, 0),
       ("10000000000000000000000000000000000", 35, 0),
       ("100000000000000000000000000000000000", 36, 0),
-      ("1000000000000000000000000000000000000", 37, 0))
+      ("1000000000000000000000000000000000000", 37, 0)
+    )
     POWERS_OF_10(pow)
   }
 
@@ -311,8 +316,10 @@ object ConverterUtils extends Logging {
   // The format would be aligned with that specified in Substrait.
   // The function name Format:
   // <function name>:<short_arg_type0>_<short_arg_type1>_..._<short_arg_typeN>
-  def makeFuncName(funcName: String, datatypes: Seq[DataType],
-                   config: FunctionConfig.Config = FunctionConfig.NON): String = {
+  def makeFuncName(
+      funcName: String,
+      datatypes: Seq[DataType],
+      config: FunctionConfig.Config = FunctionConfig.NON): String = {
     var typedFuncName = config match {
       case FunctionConfig.REQ =>
         funcName.concat(":req_")

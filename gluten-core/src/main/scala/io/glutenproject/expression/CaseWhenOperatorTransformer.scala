@@ -14,41 +14,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
-
-import java.util.ArrayList
 
 import io.glutenproject.substrait.expression.{ExpressionNode, IfThenNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
-/**
- * A version of substring that supports columnar processing for utf8.
- */
+import java.util.ArrayList
+
+/** A version of substring that supports columnar processing for utf8. */
 class CaseWhenTransformer(
-                           branches: Seq[(Expression, Expression)],
-                           elseValue: Option[Expression],
-                           original: Expression)
+    branches: Seq[(Expression, Expression)],
+    elseValue: Option[Expression],
+    original: Expression)
   extends CaseWhen(branches: Seq[(Expression, Expression)], elseValue: Option[Expression])
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // generate branches nodes
     val ifNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
     val thenNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
-    branches.foreach(branch => {
-      val branchCondNode = branch._1.asInstanceOf[ExpressionTransformer].doTransform(args)
-      val branchThenNode = branch._2.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!branchCondNode.isInstanceOf[ExpressionNode] ||
-        !branchThenNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"not supported yet.")
-      }
-      ifNodes.add(branchCondNode)
-      thenNodes.add(branchThenNode)
-    })
+    branches.foreach(
+      branch => {
+        val branchCondNode = branch._1.asInstanceOf[ExpressionTransformer].doTransform(args)
+        val branchThenNode = branch._2.asInstanceOf[ExpressionTransformer].doTransform(args)
+        if (
+          !branchCondNode.isInstanceOf[ExpressionNode] ||
+          !branchThenNode.isInstanceOf[ExpressionNode]
+        ) {
+          throw new UnsupportedOperationException(s"not supported yet.")
+        }
+        ifNodes.add(branchCondNode)
+        thenNodes.add(branchThenNode)
+      })
     // generate else value node, maybe null
     val elseValueNode = elseValue.map(_.asInstanceOf[ExpressionTransformer].doTransform(args))
     new IfThenNode(ifNodes, thenNodes, elseValueNode.getOrElse(null))
@@ -57,8 +57,10 @@ class CaseWhenTransformer(
 
 object CaseWhenOperatorTransformer {
 
-  def create(branches: Seq[(Expression, Expression)], elseValue: Option[Expression],
-             original: Expression): Expression = original match {
+  def create(
+      branches: Seq[(Expression, Expression)],
+      elseValue: Option[Expression],
+      original: Expression): Expression = original match {
     case i: CaseWhen =>
       new CaseWhenTransformer(branches, elseValue, i)
     case other =>

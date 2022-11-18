@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -25,12 +24,12 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation,
 trait ITransformerApi {
 
   /**
-   * Validate expression for specific backend, including input type.
-   * If the expression isn't implemented by the backend or
-   * it returns mismatched results with Vanilla Spark,
-   * it will fall back to Vanilla Spark.
+   * Validate expression for specific backend, including input type. If the expression isn't
+   * implemented by the backend or it returns mismatched results with Vanilla Spark, it will fall
+   * back to Vanilla Spark.
    *
-   * @return true by default
+   * @return
+   *   true by default
    */
   def doValidate(expr: Expression): Boolean = true
 
@@ -39,20 +38,21 @@ trait ITransformerApi {
    *
    * @return
    */
-  def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
-                                          outputAttributes: Seq[Attribute]): Boolean
+  def validateColumnarShuffleExchangeExec(
+      outputPartitioning: Partitioning,
+      outputAttributes: Seq[Attribute]): Boolean
 
   /**
    * Used for table scan validation.
    *
-   * @return true if backend supports reading the file format.
+   * @return
+   *   true if backend supports reading the file format.
    */
   def supportsReadFileFormat(fileFormat: FileFormat): Boolean
 
-  /**
-   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-   */
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
+  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
+  def genInputPartitionSeq(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
 
 }

@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.DataType
@@ -33,27 +33,28 @@ import scala.collection.mutable.ArrayBuffer
  *   coalesce(null, null, 2) => 2
  *   coalesce(null, null, null) => null
  * }}}
- * */
+ */
 
 class CoalesceTransformer(exps: Seq[Expression], original: Expression)
   extends Coalesce(exps: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val nodes = new java.util.ArrayList[ExpressionNode]()
     val arrayBuffer = new ArrayBuffer[DataType]()
-    exps.foreach(expression => {
-      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!expressionNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"Not supported yet.")
-      }
-      arrayBuffer.append(expression.dataType)
-      nodes.add(expressionNode)
-    })
+    exps.foreach(
+      expression => {
+        val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
+        if (!expressionNode.isInstanceOf[ExpressionNode]) {
+          throw new UnsupportedOperationException(s"Not supported yet.")
+        }
+        arrayBuffer.append(expression.dataType)
+        nodes.add(expressionNode)
+      })
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.COALESCE,
-      arrayBuffer, FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(ConverterUtils.COALESCE, arrayBuffer, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(exps.head.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)

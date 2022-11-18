@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
@@ -22,7 +21,8 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 
 class LiteralTransformer(lit: Literal)
-  extends Literal(lit.value, lit.dataType) with ExpressionTransformer {
+  extends Literal(lit.value, lit.dataType)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     ExpressionBuilder.makeLiteral(lit.value, dataType, nullable)

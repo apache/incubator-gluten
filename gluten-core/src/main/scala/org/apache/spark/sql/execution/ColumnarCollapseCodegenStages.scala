@@ -14,21 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import io.glutenproject.execution._
 import io.glutenproject.GlutenConfig
+import io.glutenproject.execution._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-/**
- * InputAdapter is used to hide a SparkPlan from a subtree that supports codegen.
- */
+import java.util.concurrent.atomic.AtomicInteger
+
+/** InputAdapter is used to hide a SparkPlan from a subtree that supports codegen. */
 class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
 
   // This is not strictly needed because the codegen transformation happens after the columnar
@@ -69,47 +66,40 @@ class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
 /**
  * Find the chained plans that support codegen, collapse them together as WholeStageCodegen.
  *
- * The `codegenStageCounter` generates ID for codegen stages within a query plan.
- * It does not affect equality, nor does it participate in destructuring pattern matching
- * of WholeStageCodegenExec.
+ * The `codegenStageCounter` generates ID for codegen stages within a query plan. It does not affect
+ * equality, nor does it participate in destructuring pattern matching of WholeStageCodegenExec.
  *
- * This ID is used to help differentiate between codegen stages. It is included as a part
- * of the explain output for physical plans, e.g.
+ * This ID is used to help differentiate between codegen stages. It is included as a part of the
+ * explain output for physical plans, e.g.
  *
- * == Physical Plan ==
- * *(5) SortMergeJoin [x#3L], [y#9L], Inner
- * :- *(2) Sort [x#3L ASC NULLS FIRST], false, 0
- * :  +- Exchange hashpartitioning(x#3L, 200)
- * :     +- *(1) Project [(id#0L % 2) AS x#3L]
- * :        +- *(1) Filter isnotnull((id#0L % 2))
- * :           +- *(1) Range (0, 5, step=1, splits=8)
- * +- *(4) Sort [y#9L ASC NULLS FIRST], false, 0
- * +- Exchange hashpartitioning(y#9L, 200)
- * +- *(3) Project [(id#6L % 2) AS y#9L]
- * +- *(3) Filter isnotnull((id#6L % 2))
- * +- *(3) Range (0, 5, step=1, splits=8)
+ * ==Physical Plan==
+ * *(5) SortMergeJoin [x#3L], [y#9L], Inner :- *(2) Sort [x#3L ASC NULLS FIRST], false, 0 : +-
+ * Exchange hashpartitioning(x#3L, 200) : +- *(1) Project [(id#0L % 2) AS x#3L] : +- *(1) Filter
+ * isnotnull((id#0L % 2)) : +- *(1) Range (0, 5, step=1, splits=8) +- *(4) Sort [y#9L ASC NULLS
+ * FIRST], false, 0 +- Exchange hashpartitioning(y#9L, 200) +- *(3) Project [(id#6L % 2) AS y#9L] +-
+ * *(3) Filter isnotnull((id#6L % 2)) +- *(3) Range (0, 5, step=1, splits=8)
  *
- * where the ID makes it obvious that not all adjacent codegen'd plan operators are of the
- * same codegen stage.
+ * where the ID makes it obvious that not all adjacent codegen'd plan operators are of the same
+ * codegen stage.
  *
- * The codegen stage ID is also optionally included in the name of the generated classes as
- * a suffix, so that it's easier to associate a generated class back to the physical operator.
- * This is controlled by SQLConf: spark.sql.codegen.useIdInClassName
+ * The codegen stage ID is also optionally included in the name of the generated classes as a
+ * suffix, so that it's easier to associate a generated class back to the physical operator. This is
+ * controlled by SQLConf: spark.sql.codegen.useIdInClassName
  *
  * The ID is also included in various log messages.
  *
  * Within a query, a codegen stage in a plan starts counting from 1, in "insertion order".
- * WholeStageCodegenExec operators are inserted into a plan in depth-first post-order.
- * See CollapseCodegenStages.insertWholeStageCodegen for the definition of insertion order.
+ * WholeStageCodegenExec operators are inserted into a plan in depth-first post-order. See
+ * CollapseCodegenStages.insertWholeStageCodegen for the definition of insertion order.
  *
- * 0 is reserved as a special ID value to indicate a temporary WholeStageCodegenExec object
- * is created, e.g. for special fallback handling when an existing WholeStageCodegenExec
- * failed to generate/compile code.
+ * 0 is reserved as a special ID value to indicate a temporary WholeStageCodegenExec object is
+ * created, e.g. for special fallback handling when an existing WholeStageCodegenExec failed to
+ * generate/compile code.
  */
 case class ColumnarCollapseCodegenStages(
     glutenConfig: GlutenConfig,
     codegenStageCounter: AtomicInteger = ColumnarCollapseCodegenStages.codegenStageCounter)
-    extends Rule[SparkPlan] {
+  extends Rule[SparkPlan] {
 
   def columnarWholeStageEnabled: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
@@ -128,8 +118,8 @@ case class ColumnarCollapseCodegenStages(
   }
 
   /**
-   * When it's the ClickHouse backend,
-   * BasicScanExecTransformer will not be included in WholeStageTransformerExec.
+   * When it's the ClickHouse backend, BasicScanExecTransformer will not be included in
+   * WholeStageTransformerExec.
    */
   private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
     case _: BasicScanExecTransformer if separateScanRDD => true
@@ -141,9 +131,7 @@ case class ColumnarCollapseCodegenStages(
     case _ => false
   }
 
-  /**
-   * Inserts an InputAdapter on top of those that do not support codegen.
-   */
+  /** Inserts an InputAdapter on top of those that do not support codegen. */
   private def insertInputAdapter(plan: SparkPlan): SparkPlan = {
     plan match {
       case p if !supportTransform(p) =>

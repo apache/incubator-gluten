@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -28,21 +27,16 @@ object AggregateFunctionsBuilder {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = aggregateFunc match {
       case sum: Sum =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.SUM, Seq(sum.child.dataType), FunctionConfig.OPT)
+        ConverterUtils.makeFuncName(ConverterUtils.SUM, Seq(sum.child.dataType), FunctionConfig.OPT)
       case avg: Average =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.AVG, Seq(avg.child.dataType), FunctionConfig.OPT)
+        ConverterUtils.makeFuncName(ConverterUtils.AVG, Seq(avg.child.dataType), FunctionConfig.OPT)
       case count: Count =>
         val childrenTypes = count.children.map(child => child.dataType)
-        ConverterUtils.makeFuncName(
-          ConverterUtils.COUNT, childrenTypes, FunctionConfig.OPT)
+        ConverterUtils.makeFuncName(ConverterUtils.COUNT, childrenTypes, FunctionConfig.OPT)
       case min: Min =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.MIN, Seq(min.child.dataType), FunctionConfig.OPT)
+        ConverterUtils.makeFuncName(ConverterUtils.MIN, Seq(min.child.dataType), FunctionConfig.OPT)
       case max: Max =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.MAX, Seq(max.child.dataType), FunctionConfig.OPT)
+        ConverterUtils.makeFuncName(ConverterUtils.MAX, Seq(max.child.dataType), FunctionConfig.OPT)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }

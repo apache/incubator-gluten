@@ -14,32 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 /**
  * Why we need a GlutenQueryTest when we already have QueryTest?
- * 1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
+ *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.storage.StorageLevel
+
 import org.junit.Assert
 import org.scalatest.Assertions
 
 import java.util.TimeZone
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 
 abstract class GlutenQueryTest extends PlanTest {
 
   protected def spark: SparkSession
 
-  /**
-   * Runs the plan and makes sure the answer contains all of the keywords.
-   */
+  /** Runs the plan and makes sure the answer contains all of the keywords. */
   def checkKeywordsExist(df: DataFrame, keywords: String*): Unit = {
     val outputs = df.collect().map(_.mkString).mkString
     for (key <- keywords) {
@@ -47,9 +45,7 @@ abstract class GlutenQueryTest extends PlanTest {
     }
   }
 
-  /**
-   * Runs the plan and makes sure the answer does NOT contain any of the keywords.
-   */
+  /** Runs the plan and makes sure the answer does NOT contain any of the keywords. */
   def checkKeywordsNotExist(df: DataFrame, keywords: String*): Unit = {
     val outputs = df.collect().map(_.mkString).mkString
     for (key <- keywords) {
@@ -58,63 +54,59 @@ abstract class GlutenQueryTest extends PlanTest {
   }
 
   /**
-   * Evaluates a dataset to make sure that the result of calling collect matches the given
-   * expected answer.
+   * Evaluates a dataset to make sure that the result of calling collect matches the given expected
+   * answer.
    */
-  protected def checkDataset[T](
-                                 ds: => Dataset[T],
-                                 expectedAnswer: T*): Unit = {
+  protected def checkDataset[T](ds: => Dataset[T], expectedAnswer: T*): Unit = {
     val result = getResult(ds)
 
     if (!GlutenQueryTest.compare(result.toSeq, expectedAnswer)) {
-      fail(
-        s"""
-           |Decoded objects do not match expected objects:
-           |expected: $expectedAnswer
-           |actual:   ${result.toSeq}
-           |${ds.exprEnc.deserializer.treeString}
+      fail(s"""
+              |Decoded objects do not match expected objects:
+              |expected: $expectedAnswer
+              |actual:   ${result.toSeq}
+              |${ds.exprEnc.deserializer.treeString}
          """.stripMargin)
     }
   }
 
   /**
-   * Evaluates a dataset to make sure that the result of calling collect matches the given
-   * expected answer, after sort.
+   * Evaluates a dataset to make sure that the result of calling collect matches the given expected
+   * answer, after sort.
    */
-  protected def checkDatasetUnorderly[T : Ordering](
-                                                     ds: => Dataset[T],
-                                                     expectedAnswer: T*): Unit = {
+  protected def checkDatasetUnorderly[T: Ordering](ds: => Dataset[T], expectedAnswer: T*): Unit = {
     val result = getResult(ds)
 
     if (!GlutenQueryTest.compare(result.toSeq.sorted, expectedAnswer.sorted)) {
-      fail(
-        s"""
-           |Decoded objects do not match expected objects:
-           |expected: $expectedAnswer
-           |actual:   ${result.toSeq}
-           |${ds.exprEnc.deserializer.treeString}
+      fail(s"""
+              |Decoded objects do not match expected objects:
+              |expected: $expectedAnswer
+              |actual:   ${result.toSeq}
+              |${ds.exprEnc.deserializer.treeString}
          """.stripMargin)
     }
   }
 
   private def getResult[T](ds: => Dataset[T]): Array[T] = {
-    val analyzedDS = try ds catch {
-      case ae: AnalysisException =>
-        if (ae.plan.isDefined) {
-          fail(
-            s"""
-               |Failed to analyze query: $ae
-               |${ae.plan.get}
-               |
-               |${stackTraceToString(ae)}
+    val analyzedDS =
+      try ds
+      catch {
+        case ae: AnalysisException =>
+          if (ae.plan.isDefined) {
+            fail(s"""
+                    |Failed to analyze query: $ae
+                    |${ae.plan.get}
+                    |
+                    |${stackTraceToString(ae)}
              """.stripMargin)
-        } else {
-          throw ae
-        }
-    }
+          } else {
+            throw ae
+          }
+      }
     assertEmptyMissingInput(analyzedDS)
 
-    try ds.collect() catch {
+    try ds.collect()
+    catch {
       case e: Exception =>
         fail(
           s"""
@@ -122,31 +114,36 @@ abstract class GlutenQueryTest extends PlanTest {
              |${ds.exprEnc}
              |${ds.exprEnc.deserializer.treeString}
              |${ds.queryExecution}
-           """.stripMargin, e)
+           """.stripMargin,
+          e
+        )
     }
   }
 
   /**
    * Runs the plan and makes sure the answer matches the expected result.
    *
-   * @param df the [[DataFrame]] to be executed
-   * @param expectedAnswer the expected result in a [[Seq]] of [[Row]]s.
+   * @param df
+   *   the [[DataFrame]] to be executed
+   * @param expectedAnswer
+   *   the expected result in a [[Seq]] of [[Row]]s.
    */
   protected def checkAnswer(df: => DataFrame, expectedAnswer: Seq[Row]): Unit = {
-    val analyzedDF = try df catch {
-      case ae: AnalysisException =>
-        if (ae.plan.isDefined) {
-          fail(
-            s"""
-               |Failed to analyze query: $ae
-               |${ae.plan.get}
-               |
-               |${stackTraceToString(ae)}
-               |""".stripMargin)
-        } else {
-          throw ae
-        }
-    }
+    val analyzedDF =
+      try df
+      catch {
+        case ae: AnalysisException =>
+          if (ae.plan.isDefined) {
+            fail(s"""
+                    |Failed to analyze query: $ae
+                    |${ae.plan.get}
+                    |
+                    |${stackTraceToString(ae)}
+                    |""".stripMargin)
+          } else {
+            throw ae
+          }
+      }
 
     assertEmptyMissingInput(analyzedDF)
 
@@ -164,16 +161,21 @@ abstract class GlutenQueryTest extends PlanTest {
   /**
    * Runs the plan and makes sure the answer is within absTol of the expected result.
    *
-   * @param dataFrame the [[DataFrame]] to be executed
-   * @param expectedAnswer the expected result in a [[Seq]] of [[Row]]s.
-   * @param absTol the absolute tolerance between actual and expected answers.
+   * @param dataFrame
+   *   the [[DataFrame]] to be executed
+   * @param expectedAnswer
+   *   the expected result in a [[Seq]] of [[Row]]s.
+   * @param absTol
+   *   the absolute tolerance between actual and expected answers.
    */
-  protected def checkAggregatesWithTol(dataFrame: DataFrame,
-                                       expectedAnswer: Seq[Row],
-                                       absTol: Double): Unit = {
+  protected def checkAggregatesWithTol(
+      dataFrame: DataFrame,
+      expectedAnswer: Seq[Row],
+      absTol: Double): Unit = {
     // TODO: catch exceptions in data frame execution
     val actualAnswer = dataFrame.collect()
-    require(actualAnswer.length == expectedAnswer.length,
+    require(
+      actualAnswer.length == expectedAnswer.length,
       s"actual num rows ${actualAnswer.length} != expected num of rows ${expectedAnswer.length}")
 
     actualAnswer.zip(expectedAnswer).foreach {
@@ -182,20 +184,17 @@ abstract class GlutenQueryTest extends PlanTest {
     }
   }
 
-  protected def checkAggregatesWithTol(dataFrame: DataFrame,
-                                       expectedAnswer: Row,
-                                       absTol: Double): Unit = {
+  protected def checkAggregatesWithTol(
+      dataFrame: DataFrame,
+      expectedAnswer: Row,
+      absTol: Double): Unit = {
     checkAggregatesWithTol(dataFrame, Seq(expectedAnswer), absTol)
   }
 
-  /**
-   * Asserts that a given [[Dataset]] will be executed using the given number of cached results.
-   */
+  /** Asserts that a given [[Dataset]] will be executed using the given number of cached results. */
   def assertCached(query: Dataset[_], numCachedTables: Int = 1): Unit = {
     val planWithCaching = query.queryExecution.withCachedData
-    val cachedData = planWithCaching collect {
-      case cached: InMemoryRelation => cached
-    }
+    val cachedData = planWithCaching.collect { case cached: InMemoryRelation => cached }
 
     assert(
       cachedData.size == numCachedTables,
@@ -209,36 +208,46 @@ abstract class GlutenQueryTest extends PlanTest {
    */
   def assertCached(query: Dataset[_], cachedName: String, storageLevel: StorageLevel): Unit = {
     val planWithCaching = query.queryExecution.withCachedData
-    val matched = planWithCaching.collectFirst { case cached: InMemoryRelation =>
-      val cacheBuilder = cached.asInstanceOf[InMemoryRelation].cacheBuilder
-      cachedName == cacheBuilder.tableName.get &&
-        (storageLevel == cacheBuilder.storageLevel)
-    }.getOrElse(false)
+    val matched = planWithCaching
+      .collectFirst {
+        case cached: InMemoryRelation =>
+          val cacheBuilder = cached.asInstanceOf[InMemoryRelation].cacheBuilder
+          cachedName == cacheBuilder.tableName.get &&
+          (storageLevel == cacheBuilder.storageLevel)
+      }
+      .getOrElse(false)
 
-    assert(matched, s"Expected query plan to hit cache $cachedName with storage " +
-      s"level $storageLevel, but it doesn't.")
+    assert(
+      matched,
+      s"Expected query plan to hit cache $cachedName with storage " +
+        s"level $storageLevel, but it doesn't.")
   }
 
-  /**
-   * Asserts that a given [[Dataset]] does not have missing inputs in all the analyzed plans.
-   */
+  /** Asserts that a given [[Dataset]] does not have missing inputs in all the analyzed plans. */
   def assertEmptyMissingInput(query: Dataset[_]): Unit = {
-    assert(query.queryExecution.analyzed.missingInput.isEmpty,
+    assert(
+      query.queryExecution.analyzed.missingInput.isEmpty,
       s"The analyzed logical plan has missing inputs:\n${query.queryExecution.analyzed}")
-    assert(query.queryExecution.optimizedPlan.missingInput.isEmpty,
+    assert(
+      query.queryExecution.optimizedPlan.missingInput.isEmpty,
       s"The optimized logical plan has missing inputs:\n${query.queryExecution.optimizedPlan}")
-    assert(query.queryExecution.executedPlan.missingInput.isEmpty,
+    assert(
+      query.queryExecution.executedPlan.missingInput.isEmpty,
       s"The physical plan has missing inputs:\n${query.queryExecution.executedPlan}")
   }
 }
 
 object GlutenQueryTest extends Assertions {
+
   /**
    * Runs the plan and makes sure the answer matches the expected result.
    *
-   * @param df the DataFrame to be executed
-   * @param expectedAnswer the expected result in a Seq of Rows.
-   * @param checkToRDD whether to verify deserialization to an RDD. This runs the query twice.
+   * @param df
+   *   the DataFrame to be executed
+   * @param expectedAnswer
+   *   the expected result in a Seq of Rows.
+   * @param checkToRDD
+   *   whether to verify deserialization to an RDD. This runs the query twice.
    */
   def checkAnswer(df: DataFrame, expectedAnswer: Seq[Row], checkToRDD: Boolean = true): Unit = {
     getErrorMessageInCheckAnswer(df, expectedAnswer, checkToRDD) match {
@@ -248,19 +257,21 @@ object GlutenQueryTest extends Assertions {
   }
 
   /**
-   * Runs the plan and makes sure the answer matches the expected result.
-   * If there was exception during the execution or the contents of the DataFrame does not
-   * match the expected result, an error message will be returned. Otherwise, a None will
-   * be returned.
+   * Runs the plan and makes sure the answer matches the expected result. If there was exception
+   * during the execution or the contents of the DataFrame does not match the expected result, an
+   * error message will be returned. Otherwise, a None will be returned.
    *
-   * @param df the DataFrame to be executed
-   * @param expectedAnswer the expected result in a Seq of Rows.
-   * @param checkToRDD whether to verify deserialization to an RDD. This runs the query twice.
+   * @param df
+   *   the DataFrame to be executed
+   * @param expectedAnswer
+   *   the expected result in a Seq of Rows.
+   * @param checkToRDD
+   *   whether to verify deserialization to an RDD. This runs the query twice.
    */
   def getErrorMessageInCheckAnswer(
-                                    df: DataFrame,
-                                    expectedAnswer: Seq[Row],
-                                    checkToRDD: Boolean = true): Option[String] = {
+      df: DataFrame,
+      expectedAnswer: Seq[Row],
+      checkToRDD: Boolean = true): Option[String] = {
     val isSorted = df.logicalPlan.collect { case s: logical.Sort => s }.nonEmpty
     if (checkToRDD) {
       SQLExecution.withSQLConfPropagated(df.sparkSession) {
@@ -268,32 +279,34 @@ object GlutenQueryTest extends Assertions {
       }
     }
 
-    val sparkAnswer = try df.collect().toSeq catch {
-      case e: Exception =>
-        val errorMessage =
-          s"""
-             |Exception thrown while executing query:
-             |${df.queryExecution}
-             |== Exception ==
-             |$e
-             |${org.apache.spark.sql.catalyst.util.stackTraceToString(e)}
+    val sparkAnswer =
+      try df.collect().toSeq
+      catch {
+        case e: Exception =>
+          val errorMessage =
+            s"""
+               |Exception thrown while executing query:
+               |${df.queryExecution}
+               |== Exception ==
+               |$e
+               |${org.apache.spark.sql.catalyst.util.stackTraceToString(e)}
           """.stripMargin
-        return Some(errorMessage)
-    }
+          return Some(errorMessage)
+      }
 
-    sameRows(expectedAnswer, sparkAnswer, isSorted).map { results =>
-      s"""
-         |Results do not match for query:
-         |Timezone: ${TimeZone.getDefault}
-         |Timezone Env: ${sys.env.getOrElse("TZ", "")}
-         |
-         |${df.queryExecution}
-         |== Results ==
-         |$results
+    sameRows(expectedAnswer, sparkAnswer, isSorted).map {
+      results =>
+        s"""
+           |Results do not match for query:
+           |Timezone: ${TimeZone.getDefault}
+           |Timezone Env: ${sys.env.getOrElse("TZ", "")}
+           |
+           |${df.queryExecution}
+           |== Results ==
+           |$results
        """.stripMargin
     }
   }
-
 
   def prepareAnswer(answer: Seq[Row], isSorted: Boolean): Seq[Row] = {
     // Converts data to types that we can do equality comparison using Scala collections.
@@ -311,15 +324,16 @@ object GlutenQueryTest extends Assertions {
       case null => null
       case bd: java.math.BigDecimal => BigDecimal(bd)
       // Equality of WrappedArray differs for AnyVal and AnyRef in Scala 2.12.2+
-      case seq: Seq[_] => seq.map {
-        case b: java.lang.Byte => b.byteValue
-        case s: java.lang.Short => s.shortValue
-        case i: java.lang.Integer => i.intValue
-        case l: java.lang.Long => l.longValue
-        case f: java.lang.Float => f.floatValue
-        case d: java.lang.Double => d.doubleValue
-        case x => x
-      }
+      case seq: Seq[_] =>
+        seq.map {
+          case b: java.lang.Byte => b.byteValue
+          case s: java.lang.Short => s.shortValue
+          case i: java.lang.Integer => i.intValue
+          case l: java.lang.Long => l.longValue
+          case f: java.lang.Float => f.floatValue
+          case d: java.lang.Double => d.doubleValue
+          case x => x
+        }
       // Convert array to Seq for easy equality check.
       case b: Array[_] => b.toSeq
       case r: Row => prepareRow(r)
@@ -328,34 +342,34 @@ object GlutenQueryTest extends Assertions {
   }
 
   private def genError(
-                        expectedAnswer: Seq[Row],
-                        sparkAnswer: Seq[Row],
-                        isSorted: Boolean = false): String = {
+      expectedAnswer: Seq[Row],
+      sparkAnswer: Seq[Row],
+      isSorted: Boolean = false): String = {
     val getRowType: Option[Row] => String = row =>
-      row.map(row =>
-        if (row.schema == null) {
-          "struct<>"
-        } else {
-          s"${row.schema.catalogString}"
-        }).getOrElse("struct<>")
+      row
+        .map(
+          row =>
+            if (row.schema == null) {
+              "struct<>"
+            } else {
+              s"${row.schema.catalogString}"
+            })
+        .getOrElse("struct<>")
 
     s"""
        |== Results ==
-       |${
-      sideBySide(
+       |${sideBySide(
         s"== Correct Answer - ${expectedAnswer.size} ==" +:
           getRowType(expectedAnswer.headOption) +:
           prepareAnswer(expectedAnswer, isSorted).map(_.toString()),
         s"== Spark Answer - ${sparkAnswer.size} ==" +:
           getRowType(sparkAnswer.headOption) +:
-          prepareAnswer(sparkAnswer, isSorted).map(_.toString())).mkString("\n")
-    }
+          prepareAnswer(sparkAnswer, isSorted).map(_.toString())
+      ).mkString("\n")}
     """.stripMargin
   }
 
-  def includesRows(
-                    expectedRows: Seq[Row],
-                    sparkAnswer: Seq[Row]): Option[String] = {
+  def includesRows(expectedRows: Seq[Row], sparkAnswer: Seq[Row]): Option[String] = {
     if (!prepareAnswer(expectedRows, true).toSet.subsetOf(prepareAnswer(sparkAnswer, true).toSet)) {
       return Some(genError(expectedRows, sparkAnswer, true))
     }
@@ -367,13 +381,13 @@ object GlutenQueryTest extends Assertions {
     case (null, _) => false
     case (_, null) => false
     case (a: Array[_], b: Array[_]) =>
-      a.length == b.length && a.zip(b).forall { case (l, r) => compare(l, r)}
+      a.length == b.length && a.zip(b).forall { case (l, r) => compare(l, r) }
     case (a: Map[_, _], b: Map[_, _]) =>
-      a.size == b.size && a.keys.forall { aKey =>
-        b.keys.find(bKey => compare(aKey, bKey)).exists(bKey => compare(a(aKey), b(bKey)))
+      a.size == b.size && a.keys.forall {
+        aKey => b.keys.find(bKey => compare(aKey, bKey)).exists(bKey => compare(a(aKey), b(bKey)))
       }
     case (a: Iterable[_], b: Iterable[_]) =>
-      a.size == b.size && a.zip(b).forall { case (l, r) => compare(l, r)}
+      a.size == b.size && a.zip(b).forall { case (l, r) => compare(l, r) }
     case (a: Product, b: Product) =>
       compare(a.productIterator.toSeq, b.productIterator.toSeq)
     case (a: Row, b: Row) =>
@@ -388,9 +402,9 @@ object GlutenQueryTest extends Assertions {
   }
 
   def sameRows(
-                expectedAnswer: Seq[Row],
-                sparkAnswer: Seq[Row],
-                isSorted: Boolean = false): Option[String] = {
+      expectedAnswer: Seq[Row],
+      sparkAnswer: Seq[Row],
+      isSorted: Boolean = false): Option[String] = {
     if (!compare(prepareAnswer(expectedAnswer, isSorted), prepareAnswer(sparkAnswer, isSorted))) {
       return Some(genError(expectedAnswer, sparkAnswer, isSorted))
     }
@@ -400,12 +414,16 @@ object GlutenQueryTest extends Assertions {
   /**
    * Runs the plan and makes sure the answer is within absTol of the expected result.
    *
-   * @param actualAnswer the actual result in a [[Row]].
-   * @param expectedAnswer the expected result in a[[Row]].
-   * @param absTol the absolute tolerance between actual and expected answers.
+   * @param actualAnswer
+   *   the actual result in a [[Row]].
+   * @param expectedAnswer
+   *   the expected result in a[[Row]].
+   * @param absTol
+   *   the absolute tolerance between actual and expected answers.
    */
   protected def checkAggregatesWithTol(actualAnswer: Row, expectedAnswer: Row, absTol: Double) = {
-    require(actualAnswer.length == expectedAnswer.length,
+    require(
+      actualAnswer.length == expectedAnswer.length,
       s"actual answer length ${actualAnswer.length} != " +
         s"expected answer length ${expectedAnswer.length}")
 
@@ -413,7 +431,8 @@ object GlutenQueryTest extends Assertions {
     // TODO: support struct types?
     actualAnswer.toSeq.zip(expectedAnswer.toSeq).foreach {
       case (actual: Double, expected: Double) =>
-        assert(math.abs(actual - expected) < absTol,
+        assert(
+          math.abs(actual - expected) < absTol,
           s"actual answer $actual not within $absTol of correct answer $expected")
       case (actual, expected) =>
         assert(actual == expected, s"$actual did not equal $expected")

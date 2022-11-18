@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import scala.reflect.ClassTag
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 
-private[glutenproject] class ZippedPartitionsPartition(idx: Int,
-                                                       @transient private val rdds: Seq[RDD[_]])
+import scala.reflect.ClassTag
+
+private[glutenproject] class ZippedPartitionsPartition(
+    idx: Int,
+    @transient private val rdds: Seq[RDD[_]])
   extends Partition {
 
   override val index: Int = idx
@@ -32,16 +32,16 @@ private[glutenproject] class ZippedPartitionsPartition(idx: Int,
   def partitions: Seq[Partition] = partitionValues
 }
 
-class WholeStageZippedPartitionsRDD[V: ClassTag](@transient private val sc: SparkContext,
-                                                 var rdds: Seq[RDD[V]],
-                                                 val func: Seq[Iterator[V]] => Iterator[V])
+class WholeStageZippedPartitionsRDD[V: ClassTag](
+    @transient private val sc: SparkContext,
+    var rdds: Seq[RDD[V]],
+    val func: Seq[Iterator[V]] => Iterator[V])
   extends RDD[V](sc, rdds.map(x => new OneToOneDependency(x))) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[V] = {
     val partitions = split.asInstanceOf[ZippedPartitionsPartition].partitions
-    val inputIterators = (rdds zip partitions).map {
-      case (rdd, partition) => rdd.iterator(partition, context)
-    }
+    val inputIterators =
+      (rdds.zip(partitions)).map { case (rdd, partition) => rdd.iterator(partition, context) }
     func(inputIterators)
   }
 
@@ -51,7 +51,7 @@ class WholeStageZippedPartitionsRDD[V: ClassTag](@transient private val sc: Spar
       throw new IllegalArgumentException(
         s"Can't zip RDDs with unequal numbers of partitions: ${rdds.map(_.partitions.length)}")
     }
-    Array.tabulate[Partition](numParts) { i => new ZippedPartitionsPartition(i, rdds) }
+    Array.tabulate[Partition](numParts)(i => new ZippedPartitionsPartition(i, rdds))
   }
 
   override def clearDependencies(): Unit = {

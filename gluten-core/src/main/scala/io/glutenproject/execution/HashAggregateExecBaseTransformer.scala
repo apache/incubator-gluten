@@ -14,20 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.util
-import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks.{break, breakable}
-
-import com.google.common.collect.Lists
-import com.google.protobuf.Any
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression._
-import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -44,19 +36,25 @@ import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-/**
- * Columnar Based HashAggregateExec.
- */
+import com.google.common.collect.Lists
+import com.google.protobuf.Any
+
+import java.util
+
+import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks.{break, breakable}
+
+/** Columnar Based HashAggregateExec. */
 abstract class HashAggregateExecBaseTransformer(
-                                     requiredChildDistributionExpressions: Option[Seq[Expression]],
-                                     groupingExpressions: Seq[NamedExpression],
-                                     aggregateExpressions: Seq[AggregateExpression],
-                                     aggregateAttributes: Seq[Attribute],
-                                     initialInputBufferOffset: Int,
-                                     resultExpressions: Seq[NamedExpression],
-                                     child: SparkPlan)
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan)
   extends BaseAggregateExec
-    with TransformSupport {
+  with TransformSupport {
 
   override lazy val allAttributes: AttributeSeq =
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
@@ -74,112 +72,144 @@ abstract class HashAggregateExecBaseTransformer(
     "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_input"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"),
-
+    "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "number of memory allocations"),
     "preProjectionInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection input rows"),
+      sparkContext,
+      "number of preProjection input rows"),
     "preProjectionInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection input vectors"),
+      sparkContext,
+      "number of preProjection input vectors"),
     "preProjectionInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of preProjection input bytes"),
+      sparkContext,
+      "number of preProjection input bytes"),
     "preProjectionRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection raw input rows"),
+      sparkContext,
+      "number of preProjection raw input rows"),
     "preProjectionRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of preProjection raw input bytes"),
+      sparkContext,
+      "number of preProjection raw input bytes"),
     "preProjectionOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection output rows"),
+      sparkContext,
+      "number of preProjection output rows"),
     "preProjectionOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection output vectors"),
+      sparkContext,
+      "number of preProjection output vectors"),
     "preProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of preProjection output bytes"),
+      sparkContext,
+      "number of preProjection output bytes"),
     "preProjectionCount" -> SQLMetrics.createMetric(
-      sparkContext, "preProjection cpu wall time count"),
+      sparkContext,
+      "preProjection cpu wall time count"),
     "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_preProjection"),
+      sparkContext,
+      "totaltime_preProjection"),
     "preProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "preProjection peak memory bytes"),
+      sparkContext,
+      "preProjection peak memory bytes"),
     "preProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of preProjection memory allocations"),
-
-    "aggInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation input rows"),
+      sparkContext,
+      "number of preProjection memory allocations"),
+    "aggInputRows" -> SQLMetrics.createMetric(sparkContext, "number of aggregation input rows"),
     "aggInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation input vectors"),
+      sparkContext,
+      "number of aggregation input vectors"),
     "aggInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of aggregation input bytes"),
+      sparkContext,
+      "number of aggregation input bytes"),
     "aggRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation raw input rows"),
+      sparkContext,
+      "number of aggregation raw input rows"),
     "aggRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of aggregation raw input bytes"),
-    "aggOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation output rows"),
+      sparkContext,
+      "number of aggregation raw input bytes"),
+    "aggOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of aggregation output rows"),
     "aggOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation output vectors"),
+      sparkContext,
+      "number of aggregation output vectors"),
     "aggOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of aggregation output bytes"),
-    "aggCount" -> SQLMetrics.createMetric(
-      sparkContext, "aggregation cpu wall time count"),
-    "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_aggregation"),
+      sparkContext,
+      "number of aggregation output bytes"),
+    "aggCount" -> SQLMetrics.createMetric(sparkContext, "aggregation cpu wall time count"),
+    "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_aggregation"),
     "aggPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "aggregation peak memory bytes"),
+      sparkContext,
+      "aggregation peak memory bytes"),
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of aggregation memory allocations"),
-
+      sparkContext,
+      "number of aggregation memory allocations"),
     "extractionInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction input rows"),
+      sparkContext,
+      "number of extraction input rows"),
     "extractionInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction input vectors"),
+      sparkContext,
+      "number of extraction input vectors"),
     "extractionInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of extraction input bytes"),
+      sparkContext,
+      "number of extraction input bytes"),
     "extractionRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction raw input rows"),
+      sparkContext,
+      "number of extraction raw input rows"),
     "extractionRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of extraction raw input bytes"),
+      sparkContext,
+      "number of extraction raw input bytes"),
     "extractionOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction output rows"),
+      sparkContext,
+      "number of extraction output rows"),
     "extractionOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction output vectors"),
+      sparkContext,
+      "number of extraction output vectors"),
     "extractionOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of extraction output bytes"),
-    "extractionCount" -> SQLMetrics.createMetric(
-      sparkContext, "extraction cpu wall time count"),
+      sparkContext,
+      "number of extraction output bytes"),
+    "extractionCount" -> SQLMetrics.createMetric(sparkContext, "extraction cpu wall time count"),
     "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_extraction"),
+      sparkContext,
+      "totaltime_extraction"),
     "extractionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "extraction peak memory bytes"),
+      sparkContext,
+      "extraction peak memory bytes"),
     "extractionNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of extraction memory allocations"),
-
+      sparkContext,
+      "number of extraction memory allocations"),
     "postProjectionInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection input rows"),
+      sparkContext,
+      "number of postProjection input rows"),
     "postProjectionInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection input vectors"),
+      sparkContext,
+      "number of postProjection input vectors"),
     "postProjectionInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of postProjection input bytes"),
+      sparkContext,
+      "number of postProjection input bytes"),
     "postProjectionRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection raw input rows"),
+      sparkContext,
+      "number of postProjection raw input rows"),
     "postProjectionRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of postProjection raw input bytes"),
+      sparkContext,
+      "number of postProjection raw input bytes"),
     "postProjectionOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection output rows"),
+      sparkContext,
+      "number of postProjection output rows"),
     "postProjectionOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection output vectors"),
+      sparkContext,
+      "number of postProjection output vectors"),
     "postProjectionOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of postProjection output bytes"),
+      sparkContext,
+      "number of postProjection output bytes"),
     "postProjectionCount" -> SQLMetrics.createMetric(
-      sparkContext, "postProjection cpu wall time count"),
+      sparkContext,
+      "postProjection cpu wall time count"),
     "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_postProjection"),
+      sparkContext,
+      "totaltime_postProjection"),
     "postProjectionPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "postProjection peak memory bytes"),
+      sparkContext,
+      "postProjection peak memory bytes"),
     "postProjectionNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of postProjection memory allocations"),
-    "finalOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of final output rows"),
-    "finalOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of final output vectors"))
+      sparkContext,
+      "number of postProjection memory allocations"),
+    "finalOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of final output rows"),
+    "finalOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of final output vectors")
+  )
 
   val inputRows: SQLMetric = longMetric("inputRows")
   val inputVectors: SQLMetric = longMetric("inputVectors")
@@ -257,12 +287,11 @@ abstract class HashAggregateExecBaseTransformer(
 
   // The direct outputs of Aggregation.
   protected val allAggregateResultAttributes: List[Attribute] = {
-    val groupingAttributes = groupingExpressions.map(expr => {
-      ConverterUtils.getAttrFromExpr(expr).toAttribute
-    })
-    groupingAttributes.toList ::: getAttrForAggregateExpr(
-      aggregateExpressions,
-      aggregateAttributes)
+    val groupingAttributes = groupingExpressions.map(
+      expr => {
+        ConverterUtils.getAttrFromExpr(expr).toAttribute
+      })
+    groupingAttributes.toList ::: getAttrForAggregateExpr(aggregateExpressions, aggregateAttributes)
   }
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
@@ -297,8 +326,9 @@ abstract class HashAggregateExecBaseTransformer(
     finalOutputRows += outNumRows
   }
 
-  def updateAggregationMetrics(aggregationMetrics: java.util.ArrayList[OperatorMetrics],
-                               aggParams: AggregationParams): Unit = {
+  def updateAggregationMetrics(
+      aggregationMetrics: java.util.ArrayList[OperatorMetrics],
+      aggParams: AggregationParams): Unit = {
     var idx = 0
     if (aggParams.postProjectionNeeded) {
       val metrics = aggregationMetrics.get(idx)
@@ -460,8 +490,8 @@ abstract class HashAggregateExecBaseTransformer(
   protected def doProduce(ctx: CodegenContext): String = throw new UnsupportedOperationException()
 
   // Members declared in org.apache.spark.sql.execution.SparkPlan
-  protected override def doExecute()
-  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] =
+  override protected def doExecute()
+      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] =
     throw new UnsupportedOperationException()
 
   protected def needsPreProjection: Boolean = {
@@ -508,8 +538,10 @@ abstract class HashAggregateExecBaseTransformer(
               val resAttr = aggOutAttributes(exprIdx)
               // If the result attribute and result expression has different name or type,
               // post-projection is needed.
-              if (exprAttr.name != resAttr.name ||
-                  exprAttr.dataType != resAttr.dataType) {
+              if (
+                exprAttr.name != resAttr.name ||
+                exprAttr.dataType != resAttr.dataType
+              ) {
                 needsProjection = true
                 break
               }
@@ -525,11 +557,12 @@ abstract class HashAggregateExecBaseTransformer(
     needsProjection
   }
 
-  protected def getAggRelWithPreProjection(context: SubstraitContext,
-                                           originalInputAttributes: Seq[Attribute],
-                                           operatorId: Long,
-                                           input: RelNode = null,
-                                           validation: Boolean): RelNode = {
+  protected def getAggRelWithPreProjection(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode = null,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // Will add a Projection before Aggregate.
     // Logic was added to prevent selecting the same column for more than once,
@@ -538,38 +571,41 @@ abstract class HashAggregateExecBaseTransformer(
     var selections: Seq[Int] = Seq()
 
     // Get the needed expressions from grouping expressions.
-    groupingExpressions.foreach(expr => {
-      val foundExpr = preExpressions.find(e => e.semanticEquals(expr)).orNull
-      if (foundExpr != null) {
-        // If found, no need to add it to preExpressions again.
-        // The selecting index will be found.
-        selections = selections :+ preExpressions.indexOf(foundExpr)
-      } else {
-        // If not found, add this expression into preExpressions.
-        // A new selecting index will be created.
-        preExpressions = preExpressions :+ expr.clone()
-        selections = selections :+ (preExpressions.size - 1)
-      }
-    })
+    groupingExpressions.foreach(
+      expr => {
+        val foundExpr = preExpressions.find(e => e.semanticEquals(expr)).orNull
+        if (foundExpr != null) {
+          // If found, no need to add it to preExpressions again.
+          // The selecting index will be found.
+          selections = selections :+ preExpressions.indexOf(foundExpr)
+        } else {
+          // If not found, add this expression into preExpressions.
+          // A new selecting index will be created.
+          preExpressions = preExpressions :+ expr.clone()
+          selections = selections :+ (preExpressions.size - 1)
+        }
+      })
 
     // Get the needed expressions from aggregation expressions.
-    aggregateExpressions.foreach(aggExpr => {
-      val aggregateFunc = aggExpr.aggregateFunction
-      aggExpr.mode match {
-        case Partial =>
-          aggregateFunc.children.toList.map(childExpr => {
-            val foundExpr = preExpressions.find(e => e.semanticEquals(childExpr)).orNull
-            if (foundExpr != null) {
-              selections = selections :+ preExpressions.indexOf(foundExpr)
-            } else {
-              preExpressions = preExpressions :+ childExpr.clone()
-              selections = selections :+ (preExpressions.size - 1)
-            }
-          })
-        case other =>
-          throw new UnsupportedOperationException(s"$other not supported.")
-      }
-    })
+    aggregateExpressions.foreach(
+      aggExpr => {
+        val aggregateFunc = aggExpr.aggregateFunction
+        aggExpr.mode match {
+          case Partial =>
+            aggregateFunc.children.toList.map(
+              childExpr => {
+                val foundExpr = preExpressions.find(e => e.semanticEquals(childExpr)).orNull
+                if (foundExpr != null) {
+                  selections = selections :+ preExpressions.indexOf(foundExpr)
+                } else {
+                  preExpressions = preExpressions :+ childExpr.clone()
+                  selections = selections :+ (preExpressions.size - 1)
+                }
+              })
+          case other =>
+            throw new UnsupportedOperationException(s"$other not supported.")
+        }
+      })
 
     // Create the expression nodes needed by Project node.
     val preExprNodes = new util.ArrayList[ExpressionNode]()
@@ -596,8 +632,11 @@ abstract class HashAggregateExecBaseTransformer(
     getAggRelAfterProject(context, selections, inputRel, operatorId)
   }
 
-  protected def getAggRelAfterProject(context: SubstraitContext, selections: Seq[Int],
-                                      inputRel: RelNode, operatorId: Long): RelNode = {
+  protected def getAggRelAfterProject(
+      context: SubstraitContext,
+      selections: Seq[Int],
+      inputRel: RelNode,
+      operatorId: Long): RelNode = {
     val groupingList = new util.ArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
@@ -608,51 +647,60 @@ abstract class HashAggregateExecBaseTransformer(
 
     // Create Aggregation functions.
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
-    aggregateExpressions.foreach(aggExpr => {
-      val aggregateFunc = aggExpr.aggregateFunction
-      val childrenNodeList = new util.ArrayList[ExpressionNode]()
-      val childrenNodes = aggregateFunc.children.toList.map(_ => {
-        val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
-        colIdx += 1
-        aggExpr
+    aggregateExpressions.foreach(
+      aggExpr => {
+        val aggregateFunc = aggExpr.aggregateFunction
+        val childrenNodeList = new util.ArrayList[ExpressionNode]()
+        val childrenNodes = aggregateFunc.children.toList.map(
+          _ => {
+            val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
+            colIdx += 1
+            aggExpr
+          })
+        for (node <- childrenNodes) {
+          childrenNodeList.add(node)
+        }
+        addFunctionNode(
+          context.registeredFunction,
+          aggregateFunc,
+          childrenNodeList,
+          aggExpr.mode,
+          aggregateFunctionList)
       })
-      for (node <- childrenNodes) {
-        childrenNodeList.add(node)
-      }
-      addFunctionNode(context.registeredFunction, aggregateFunc, childrenNodeList,
-        aggExpr.mode, aggregateFunctionList)
-    })
 
-    RelBuilder.makeAggregateRel(
-      inputRel, groupingList, aggregateFunctionList, context, operatorId)
+    RelBuilder.makeAggregateRel(inputRel, groupingList, aggregateFunctionList, context, operatorId)
   }
 
-  protected def addFunctionNode(args: java.lang.Object,
-                                aggregateFunction: AggregateFunction,
-                                childrenNodeList: util.ArrayList[ExpressionNode],
-                                aggregateMode: AggregateMode,
-                                aggregateNodeList: util.ArrayList[AggregateFunctionNode]): Unit = {
+  protected def addFunctionNode(
+      args: java.lang.Object,
+      aggregateFunction: AggregateFunction,
+      childrenNodeList: util.ArrayList[ExpressionNode],
+      aggregateMode: AggregateMode,
+      aggregateNodeList: util.ArrayList[AggregateFunctionNode]): Unit = {
     aggregateNodeList.add(
       ExpressionBuilder.makeAggregateFunction(
         AggregateFunctionsBuilder.create(args, aggregateFunction),
         childrenNodeList,
         modeToKeyWord(aggregateMode),
-        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)))
+        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
+      ))
   }
 
-  protected def applyPostProjection(context: SubstraitContext,
-                                    aggRel: RelNode,
-                                    operatorId: Long,
-                                    validation: Boolean): RelNode = {
+  protected def applyPostProjection(
+      context: SubstraitContext,
+      aggRel: RelNode,
+      operatorId: Long,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
 
     // Will add an projection after Agg.
     val resExprNodes = new util.ArrayList[ExpressionNode]()
-    resultExpressions.foreach(expr => {
-      val aggExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
-      resExprNodes.add(aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
-    })
+    resultExpressions.foreach(
+      expr => {
+        val aggExpr: Expression = ExpressionConverter
+          .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
+        resExprNodes.add(aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      })
     if (!validation) {
       RelBuilder.makeProjectRel(aggRel, resExprNodes, context, operatorId)
     } else {
@@ -667,11 +715,10 @@ abstract class HashAggregateExecBaseTransformer(
     }
   }
 
-  /**
-   * This method calculates the output attributes of Aggregation.
-   */
-  protected def getAttrForAggregateExpr(aggregateExpressions: Seq[AggregateExpression],
-                                        aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
+  /** This method calculates the output attributes of Aggregation. */
+  protected def getAttrForAggregateExpr(
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
     var aggregateAttr = new ListBuffer[Attribute]()
     val size = aggregateExpressions.size
     var res_index = 0
@@ -804,51 +851,55 @@ abstract class HashAggregateExecBaseTransformer(
     }
   }
 
-  protected def getAggRelWithoutPreProjection(context: SubstraitContext,
-                                              originalInputAttributes: Seq[Attribute],
-                                              operatorId: Long,
-                                              input: RelNode = null,
-                                              validation: Boolean): RelNode = {
+  protected def getAggRelWithoutPreProjection(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode = null,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
-    groupingExpressions.foreach(expr => {
-      // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
-      // may be different for each backend.
-      val groupingExpr: Expression = ExpressionConverter
-        .replaceWithExpressionTransformer(expr, child.output)
-      val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      groupingList.add(exprNode)
-    })
+    groupingExpressions.foreach(
+      expr => {
+        // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
+        // may be different for each backend.
+        val groupingExpr: Expression = ExpressionConverter
+          .replaceWithExpressionTransformer(expr, child.output)
+        val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+        groupingList.add(exprNode)
+      })
     // Get the aggregate function nodes.
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
-    aggregateExpressions.foreach(aggExpr => {
-      val aggregateFunc = aggExpr.aggregateFunction
-      val childrenNodeList = new util.ArrayList[ExpressionNode]()
-      val childrenNodes = aggExpr.mode match {
-        case Partial =>
-          aggregateFunc.children.toList.map(expr => {
-            val aggExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(expr, originalInputAttributes)
-            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-          })
-        case Final =>
-          aggregateFunc.inputAggBufferAttributes.toList.map(attr => {
-            val aggExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(attr, originalInputAttributes)
-            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-          })
-        case other =>
-          throw new UnsupportedOperationException(s"$other not supported.")
-      }
-      for (node <- childrenNodes) {
-        childrenNodeList.add(node)
-      }
-      addFunctionNode(args, aggregateFunc, childrenNodeList, aggExpr.mode, aggregateFunctionList)
-    })
+    aggregateExpressions.foreach(
+      aggExpr => {
+        val aggregateFunc = aggExpr.aggregateFunction
+        val childrenNodeList = new util.ArrayList[ExpressionNode]()
+        val childrenNodes = aggExpr.mode match {
+          case Partial =>
+            aggregateFunc.children.toList.map(
+              expr => {
+                val aggExpr: Expression = ExpressionConverter
+                  .replaceWithExpressionTransformer(expr, originalInputAttributes)
+                aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+              })
+          case Final =>
+            aggregateFunc.inputAggBufferAttributes.toList.map(
+              attr => {
+                val aggExpr: Expression = ExpressionConverter
+                  .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+              })
+          case other =>
+            throw new UnsupportedOperationException(s"$other not supported.")
+        }
+        for (node <- childrenNodes) {
+          childrenNodeList.add(node)
+        }
+        addFunctionNode(args, aggregateFunc, childrenNodeList, aggExpr.mode, aggregateFunctionList)
+      })
     if (!validation) {
-      RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, context, operatorId)
+      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -858,29 +909,33 @@ abstract class HashAggregateExecBaseTransformer(
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, extensionNode, context, operatorId)
+        input,
+        groupingList,
+        aggregateFunctionList,
+        extensionNode,
+        context,
+        operatorId)
     }
   }
 
-  protected def getAggRel(context: SubstraitContext,
-                          operatorId: Long,
-                          aggParams: AggregationParams,
-                          input: RelNode = null,
-                          validation: Boolean = false): RelNode = {
+  protected def getAggRel(
+      context: SubstraitContext,
+      operatorId: Long,
+      aggParams: AggregationParams,
+      input: RelNode = null,
+      validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
     val aggRel = if (needsPreProjection) {
-      getAggRelWithPreProjection(
-        context, originalInputAttributes, operatorId, input, validation)
+      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
     } else {
-      getAggRelWithoutPreProjection(
-        context, originalInputAttributes, operatorId, input, validation)
+      getAggRelWithoutPreProjection(context, originalInputAttributes, operatorId, input, validation)
     }
     // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
     // AggregateRel.
     if (!needsPostProjection(allAggregateResultAttributes)) {
       aggRel
     } else {
-    applyPostProjection(context, aggRel, operatorId, validation)
+      applyPostProjection(context, aggRel, operatorId, validation)
     }
   }
 }

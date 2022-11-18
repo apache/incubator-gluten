@@ -14,22 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
-
-import java.util
-
-import scala.collection.JavaConverters._
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
+import java.util
+
+import scala.collection.JavaConverters._
+
 class InSetTransformer(value: Expression, hset: Set[Any], original: Expression)
   extends InSet(value: Expression, hset: Set[Any])
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = value.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -50,14 +49,15 @@ object InSetOperatorTransformer {
       throw new UnsupportedOperationException(s"not currently supported: $other.")
   }
 
-  def toTransformer(value: Expression,
-                    leftNode: ExpressionNode,
-                    values: Set[Any]): ExpressionNode = {
+  def toTransformer(
+      value: Expression,
+      leftNode: ExpressionNode,
+      values: Set[Any]): ExpressionNode = {
     val literalType = value.dataType
-    val expressionNodes = new util.ArrayList[ExpressionNode](values.map({
-      value =>
-        ExpressionBuilder.makeLiteral(value, literalType, value == null)
-    }).asJava)
+    val expressionNodes = new util.ArrayList[ExpressionNode](
+      values
+        .map({ value => ExpressionBuilder.makeLiteral(value, literalType, value == null) })
+        .asJava)
 
     ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
   }

@@ -14,21 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
+import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
+import io.glutenproject.extension.columnar.TransformHint.TransformHint
 import io.glutenproject.extension.columnar.TransformHints
+
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
-
-import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
-import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
-import io.glutenproject.extension.columnar.TransformHint.TransformHint
 
 // e.g. BroadcastHashJoinExec and it's child BroadcastExec will be cut into different QueryStages,
 // so the columnar rules will be applied to the two QueryStages separately, and they cannot
@@ -41,8 +40,10 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
     plan.transformDown {
       case bhj: BroadcastHashJoinExec =>
-        if (columnarConf.enableColumnarBroadcastExchange &&
-          columnarConf.enableColumnarBroadcastJoin) {
+        if (
+          columnarConf.enableColumnarBroadcastExchange &&
+          columnarConf.enableColumnarBroadcastJoin
+        ) {
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
             .genBroadcastHashJoinExecTransformer(
               bhj.leftKeys,
@@ -85,4 +86,3 @@ object ColumnarQueryStagePrepOverrides extends GlutenSparkExtensionsInjector {
     extensions.injectQueryStagePrepRule(ColumnarQueryStagePrepRule)
   }
 }
-

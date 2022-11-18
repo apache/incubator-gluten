@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.softaffinity.strategy
-
-import scala.collection.mutable.ListBuffer
 
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkEnv
+
+import scala.collection.mutable.ListBuffer
 
 trait SoftAffinityAllocationTrait {
 
@@ -30,9 +29,8 @@ trait SoftAffinityAllocationTrait {
     GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE
   )
 
-  /**
-   * allocate target executors for file
-   */
-  def allocateExecs(file: String,
-                    candidates: ListBuffer[Option[(String, String)]]): Array[(String, String)]
+  /** allocate target executors for file */
+  def allocateExecs(
+      file: String,
+      candidates: ListBuffer[Option[(String, String)]]): Array[(String, String)]
 }

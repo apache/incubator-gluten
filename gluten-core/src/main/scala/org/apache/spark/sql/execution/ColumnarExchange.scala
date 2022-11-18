@@ -14,30 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
-
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.types.StructType
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * Base class for operators that exchange data among multiple threads or processes.
  *
- * ColumnarExchanges are the key class of operators that enable parallelism.
- * Although the implementation
- * differs significantly, the concept is similar to the exchange operator described in
- * "Volcano -- An Extensible and Parallel Query Evaluation System" by Goetz Graefe.
+ * ColumnarExchanges are the key class of operators that enable parallelism. Although the
+ * implementation differs significantly, the concept is similar to the exchange operator described
+ * in "Volcano -- An Extensible and Parallel Query Evaluation System" by Goetz Graefe.
  *
- * abstract class ColumnarExchange extends UnaryExecNode {
- * override def output: Seq[Attribute] = child.output
+ * abstract class ColumnarExchange extends UnaryExecNode { override def output: Seq[Attribute] =
+ * child.output
  *
- * override def stringArgs: Iterator[Any] = super.stringArgs ++ Iterator(s"[id=#$id]")
- * }
+ * override def stringArgs: Iterator[Any] = super.stringArgs ++ Iterator(s"[id=#$id]") }
  */
 
 /**
@@ -60,7 +57,7 @@ case class ReuseColumnarExchange() extends Rule[SparkPlan] with Logging {
       case exchange: Exchange =>
         val sameSchema =
           exchanges.getOrElseUpdate(exchange.schema, ArrayBuffer[Exchange]())
-        val samePlan = sameSchema.find { e => exchange.sameResult(e) }
+        val samePlan = sameSchema.find(e => exchange.sameResult(e))
         if (samePlan.isDefined) {
           // Keep the output of this exchange, the following plans require that to resolve
           // attributes.
@@ -78,14 +75,10 @@ case class ReuseColumnarExchange() extends Rule[SparkPlan] with Logging {
         }
     }
 
-    plan transformUp {
-      case exchange: Exchange => reuse(exchange)
-    } transformAllExpressions {
+    plan.transformUp { case exchange: Exchange => reuse(exchange) }.transformAllExpressions {
       // Lookup inside subqueries for duplicate exchanges
       case in: InSubqueryExec =>
-        val newIn = in.plan.transformUp {
-          case exchange: Exchange => reuse(exchange)
-        }
+        val newIn = in.plan.transformUp { case exchange: Exchange => reuse(exchange) }
         in.copy(plan = newIn.asInstanceOf[BaseSubqueryExec])
     }
   }
@@ -101,7 +94,7 @@ case class ReuseColumnarSubquery() extends Rule[SparkPlan] {
     }
     // Build a hash map using schema of subqueries to avoid O(N*N) sameResult calls.
     val subqueries = mutable.HashMap[StructType, ArrayBuffer[BaseSubqueryExec]]()
-    plan transformAllExpressions {
+    plan.transformAllExpressions {
       case sub: ExecSubqueryExpression =>
         val sameSchema =
           subqueries.getOrElseUpdate(sub.plan.schema, ArrayBuffer[BaseSubqueryExec]())

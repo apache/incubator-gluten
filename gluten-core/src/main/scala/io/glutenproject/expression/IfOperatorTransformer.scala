@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
@@ -22,11 +21,14 @@ import io.glutenproject.substrait.expression.ExpressionNode
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
-class IfTransformer(predicate: Expression, trueValue: Expression,
-                    falseValue: Expression, original: Expression)
+class IfTransformer(
+    predicate: Expression,
+    trueValue: Expression,
+    falseValue: Expression,
+    original: Expression)
   extends If(predicate: Expression, trueValue: Expression, falseValue: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: If.")
@@ -35,8 +37,11 @@ class IfTransformer(predicate: Expression, trueValue: Expression,
 
 object IfOperatorTransformer {
 
-  def create(predicate: Expression, trueValue: Expression,
-             falseValue: Expression, original: Expression): Expression = original match {
+  def create(
+      predicate: Expression,
+      trueValue: Expression,
+      falseValue: Expression,
+      original: Expression): Expression = original match {
     case i: If =>
       new IfTransformer(predicate, trueValue, falseValue, original)
     case other =>

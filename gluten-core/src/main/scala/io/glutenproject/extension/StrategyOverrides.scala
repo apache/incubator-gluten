@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
 import io.glutenproject.{BackendLib, GlutenConfig, GlutenSparkExtensionsInjector}
@@ -29,8 +28,7 @@ import org.apache.spark.sql.execution.SparkPlan
 object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-    SparkShimLoader.getSparkShims.applyPlan(plan,
-      GlutenConfig.getSessionConf.forceShuffledHashJoin)
+    SparkShimLoader.getSparkShims.applyPlan(plan, GlutenConfig.getSessionConf.forceShuffledHashJoin)
   }
 }
 

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
@@ -25,11 +24,14 @@ import org.apache.spark.sql.SparkSessionExtensions
 
 object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedAnalyzers()
-        .foreach (extensions.injectResolutionRule)
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedDataSourceV2Strategies()
-        .foreach(extensions.injectPlannerStrategy)
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedStrategies()
-        .foreach(extensions.injectPlannerStrategy)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genExtendedAnalyzers()
+      .foreach(extensions.injectResolutionRule)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genExtendedDataSourceV2Strategies()
+      .foreach(extensions.injectPlannerStrategy)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genExtendedStrategies()
+      .foreach(extensions.injectPlannerStrategy)
   }
 }

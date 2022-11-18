@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.broadcast
@@ -32,17 +31,17 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * [[ColumnarBatch]]. This is inserted whenever such a transition is determined to be needed.
  *
  * This is similar to some of the code in ArrowConverters.scala and
- * [[org.apache.spark.sql.execution.arrow.ArrowWriter]]. That code is more specialized
- * to convert [[InternalRow]] to Arrow formatted data, but in the future if we make
- * [[OffHeapColumnVector]] internally Arrow formatted we may be able to replace much of that code.
+ * [[org.apache.spark.sql.execution.arrow.ArrowWriter]]. That code is more specialized to convert
+ * [[InternalRow]] to Arrow formatted data, but in the future if we make [[OffHeapColumnVector]]
+ * internally Arrow formatted we may be able to replace much of that code.
  *
  * This is also similar to
  * [[org.apache.spark.sql.execution.vectorized.ColumnVectorUtils.populate()]] and
  * [[org.apache.spark.sql.execution.vectorized.ColumnVectorUtils.toBatch()]] toBatch is only ever
- * called from tests and can probably be removed, but populate is used by both Orc and Parquet
- * to initialize partition and missing columns. There is some chance that we could replace
- * populate with [[RowToColumnConverter]], but the performance requirements are different and it
- * would only be to reduce code.
+ * called from tests and can probably be removed, but populate is used by both Orc and Parquet to
+ * initialize partition and missing columns. There is some chance that we could replace populate
+ * with [[RowToColumnConverter]], but the performance requirements are different and it would only
+ * be to reduce code.
  */
 abstract class GlutenRowToColumnarExec(child: SparkPlan) extends UnaryExecNode {
   override lazy val metrics: Map[String, SQLMetric] = Map(

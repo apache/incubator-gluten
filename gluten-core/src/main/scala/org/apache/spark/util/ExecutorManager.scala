@@ -16,11 +16,11 @@
  */
 package org.apache.spark.util
 
-import java.lang.management.ManagementFactory
+import org.apache.spark.{SparkContext, SparkEnv}
 
 import _root_.io.glutenproject._
 
-import org.apache.spark.{SparkContext, SparkEnv}
+import java.lang.management.ManagementFactory
 
 object ExecutorManager {
   var isTaskSet: Boolean = false
@@ -45,7 +45,7 @@ object ExecutorManager {
       // val coreEndIdx = coreRange(shouldBindNumaIdx)._2
       // scalastyle:off println
       System.out.println(
-        s"executorId is ${executorId}, executorIdOnLocalNode is ${executorIdOnLocalNode}")
+        s"executorId is $executorId, executorIdOnLocalNode is $executorIdOnLocalNode")
       val taskSetCmd = s"taskset -cpa ${coreRange(shouldBindNumaIdx)} ${getProcessId()}"
       System.out.println(taskSetCmd)
       // scalastyle:on println

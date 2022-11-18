@@ -14,32 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
+import com.google.common.collect.Lists
+
 class AndTransformer(left: Expression, right: Expression, original: Expression)
   extends And(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
+    if (
+      !leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.AND, Seq(left.dataType, right.dataType)))
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
@@ -53,20 +56,23 @@ class AndTransformer(left: Expression, right: Expression, original: Expression)
 
 class OrTransformer(left: Expression, right: Expression, original: Expression)
   extends Or(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
+    if (
+      !leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.OR, Seq(left.dataType, right.dataType)))
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
@@ -80,20 +86,23 @@ class OrTransformer(left: Expression, right: Expression, original: Expression)
 
 class EqualToTransformer(left: Expression, right: Expression, original: Expression)
   extends EqualTo(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
+    if (
+      !leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.EQUAL, Seq(left.dataType, right.dataType)))
 
     val expressionNodes = Lists.newArrayList(
@@ -107,8 +116,8 @@ class EqualToTransformer(left: Expression, right: Expression, original: Expressi
 
 class EqualNullTransformer(left: Expression, right: Expression, original: Expression)
   extends EqualNullSafe(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: EqualNull.")
@@ -117,20 +126,23 @@ class EqualNullTransformer(left: Expression, right: Expression, original: Expres
 
 class LessThanTransformer(left: Expression, right: Expression, original: Expression)
   extends LessThan(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
+    if (
+      !leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.LESS_THAN, Seq(left.dataType, right.dataType)))
 
     val expressionNodes = Lists.newArrayList(
@@ -144,21 +156,26 @@ class LessThanTransformer(left: Expression, right: Expression, original: Express
 
 class LessThanOrEqualTransformer(left: Expression, right: Expression, original: Expression)
   extends LessThanOrEqual(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
+    if (
+      !leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
-      ConverterUtils.LESS_THAN_OR_EQUAL, Seq(left.dataType, right.dataType)))
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        ConverterUtils.LESS_THAN_OR_EQUAL,
+        Seq(left.dataType, right.dataType)))
 
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
@@ -171,20 +188,23 @@ class LessThanOrEqualTransformer(left: Expression, right: Expression, original: 
 
 class GreaterThanTransformer(left: Expression, right: Expression, original: Expression)
   extends GreaterThan(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
+    if (
+      !leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(ConverterUtils.GREATER_THAN, Seq(left.dataType, right.dataType)))
 
     val expressionNodes = Lists.newArrayList(
@@ -198,21 +218,26 @@ class GreaterThanTransformer(left: Expression, right: Expression, original: Expr
 
 class GreaterThanOrEqualTransformer(left: Expression, right: Expression, original: Expression)
   extends GreaterThanOrEqual(left: Expression, right: Expression)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode =
       left.asInstanceOf[ExpressionTransformer].doTransform(args)
     val rightNode =
       right.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
+    if (
+      !leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]
+    ) {
       throw new UnsupportedOperationException(s"not supported yet.")
     }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
-      ConverterUtils.GREATER_THAN_OR_EQUAL, Seq(left.dataType, right.dataType)))
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        ConverterUtils.GREATER_THAN_OR_EQUAL,
+        Seq(left.dataType, right.dataType)))
 
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],

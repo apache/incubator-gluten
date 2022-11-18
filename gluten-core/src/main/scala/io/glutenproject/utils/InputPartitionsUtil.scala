@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import org.apache.spark.internal.Logging
@@ -24,8 +23,9 @@ import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelati
 
 object InputPartitionsUtil extends Logging {
 
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
+  def genInputPartitionSeq(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     // TODO: Support bucketed reads
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
     val maxSplitBytes =
@@ -35,20 +35,22 @@ object InputPartitionsUtil extends Logging {
         s"open cost is considered as scanning $openCostInBytes bytes.")
 
     val splitFiles = selectedPartitions
-      .flatMap { partition =>
-        partition.files.flatMap { file =>
-          // getPath() is very expensive so we only want to call it once in this block:
-          val filePath = file.getPath
-          val isSplitable =
-            relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
-          PartitionedFileUtil.splitFiles(
-            sparkSession = relation.sparkSession,
-            file = file,
-            filePath = filePath,
-            isSplitable = isSplitable,
-            maxSplitBytes = maxSplitBytes,
-            partitionValues = partition.values)
-        }
+      .flatMap {
+        partition =>
+          partition.files.flatMap {
+            file =>
+              // getPath() is very expensive so we only want to call it once in this block:
+              val filePath = file.getPath
+              val isSplitable =
+                relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+              PartitionedFileUtil.splitFiles(
+                sparkSession = relation.sparkSession,
+                file = file,
+                filePath = filePath,
+                isSplitable = isSplitable,
+                maxSplitBytes = maxSplitBytes,
+                partitionValues = partition.values)
+          }
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 

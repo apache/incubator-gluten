@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
@@ -25,8 +24,8 @@ import org.apache.spark.sql.types._
 
 class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
   extends BoundReference(ordinal, dataType, nullable)
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     ExpressionBuilder.makeSelection(ordinal.asInstanceOf[java.lang.Integer])

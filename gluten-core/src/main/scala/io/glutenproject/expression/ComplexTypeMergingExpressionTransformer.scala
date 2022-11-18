@@ -14,38 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.DataType
+
+import com.google.common.collect.Lists
 
 import scala.collection.mutable.ArrayBuffer
 
 class GreatestTransformer(exps: Seq[Expression], original: Expression)
   extends Greatest(exps: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val nodes = new java.util.ArrayList[ExpressionNode]()
     val arrayBuffer = new ArrayBuffer[DataType]()
-    exps.foreach(expression => {
-      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!expressionNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"Not supported yet.")
-      }
-      arrayBuffer.append(expression.dataType)
-      nodes.add(expressionNode)
-    })
+    exps.foreach(
+      expression => {
+        val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
+        if (!expressionNode.isInstanceOf[ExpressionNode]) {
+          throw new UnsupportedOperationException(s"Not supported yet.")
+        }
+        arrayBuffer.append(expression.dataType)
+        nodes.add(expressionNode)
+      })
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.GREATEST,
-      arrayBuffer, FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(ConverterUtils.GREATEST, arrayBuffer, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
@@ -54,23 +56,24 @@ class GreatestTransformer(exps: Seq[Expression], original: Expression)
 
 class LeastTransformer(exps: Seq[Expression], original: Expression)
   extends Least(exps: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val nodes = new java.util.ArrayList[ExpressionNode]()
     val arrayBuffer = new ArrayBuffer[DataType]()
-    exps.foreach(expression => {
-      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!expressionNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"Not supported yet.")
-      }
-      arrayBuffer.append(expression.dataType)
-      nodes.add(expressionNode)
-    })
+    exps.foreach(
+      expression => {
+        val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
+        if (!expressionNode.isInstanceOf[ExpressionNode]) {
+          throw new UnsupportedOperationException(s"Not supported yet.")
+        }
+        arrayBuffer.append(expression.dataType)
+        nodes.add(expressionNode)
+      })
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.LEAST,
-      arrayBuffer, FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(ConverterUtils.LEAST, arrayBuffer, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)

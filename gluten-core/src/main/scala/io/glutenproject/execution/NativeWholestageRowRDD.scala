@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
@@ -29,9 +28,9 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.util._
 
 class NativeWholestageRowRDD(
-                              sc: SparkContext,
-                              @transient private val inputPartitions: Seq[InputPartition],
-                              columnarReads: Boolean)
+    sc: SparkContext,
+    @transient private val inputPartitions: Seq[InputPartition],
+    columnarReads: Boolean)
   extends RDD[InternalRow](sc, Nil) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val loadNative = GlutenConfig.getConf.loadNative
@@ -67,11 +66,11 @@ class NativeWholestageRowRDD(
       private def nextIterator(): Boolean = {
         var startTime = System.nanoTime()
         if (resIter.hasNext) {
-          logWarning(s"===========hasNext ${totalBatch} ${System.nanoTime() - startTime}")
+          logWarning(s"===========hasNext $totalBatch ${System.nanoTime() - startTime}")
           startTime = System.nanoTime()
           val sparkRowInfo = resIter.next()
           totalBatch += 1
-          logWarning(s"===========next ${totalBatch} ${System.nanoTime() - startTime}")
+          logWarning(s"===========next $totalBatch ${System.nanoTime() - startTime}")
           val result = if (sparkRowInfo.offsets != null && sparkRowInfo.offsets.length > 0) {
             val numRows = sparkRowInfo.offsets.length
             val numFields = sparkRowInfo.fieldsNum
@@ -120,9 +119,7 @@ class NativeWholestageRowRDD(
         logWarning(s"===========close ${System.nanoTime() - startTime}")
       }
     }
-    context.addTaskCompletionListener[Unit] { _ =>
-      iter.close()
-    }
+    context.addTaskCompletionListener[Unit](_ => iter.close())
     iter
   }
 

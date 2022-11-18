@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait
-
-import java.security.InvalidParameterException
-import java.util
 
 import io.glutenproject.substrait.ddlplan.InsertOutputNode
 import io.glutenproject.substrait.rel.LocalFilesNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+
+import java.security.InvalidParameterException
+import java.util
 
 case class JoinParams() {
   // Whether the input of streamed side is a ReadRel represented iterator.
@@ -63,8 +62,8 @@ class SubstraitContext extends Serializable {
   private val iteratorNodes = new java.util.HashMap[java.lang.Long, LocalFilesNode]()
 
   // A map stores the relationship between Spark operator id and its respective Substrait Rel ids.
-  private val operatorToRelsMap = new java.util.HashMap[
-    java.lang.Long, java.util.ArrayList[java.lang.Long]]()
+  private val operatorToRelsMap =
+    new java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]]()
 
   // A map stores the relationship between join operator id and its param.
   private val joinParamsMap = new java.util.HashMap[java.lang.Long, JoinParams]()
@@ -89,7 +88,7 @@ class SubstraitContext extends Serializable {
 
   def setIteratorNode(index: java.lang.Long, localFilesNode: LocalFilesNode): Unit = {
     if (iteratorNodes.containsKey(index)) {
-      throw new IllegalStateException(s"Iterator index ${index} has been used.")
+      throw new IllegalStateException(s"Iterator index $index has been used.")
     }
     iteratorNodes.put(index, localFilesNode)
   }
@@ -107,7 +106,7 @@ class SubstraitContext extends Serializable {
       res
     } else {
       throw new IllegalStateException(
-        s"LocalFilesNodes index ${localFilesNodesIndex} exceeds the size of the LocalFilesNodes.")
+        s"LocalFilesNodes index $localFilesNodesIndex exceeds the size of the LocalFilesNodes.")
     }
   }
 
@@ -130,8 +129,7 @@ class SubstraitContext extends Serializable {
       val newFunctionId: java.lang.Long = functionMap.size.toLong
       functionMap.put(funcName, newFunctionId)
       newFunctionId
-    }
-    else {
+    } else {
       functionMap.get(funcName)
     }
   }
@@ -146,7 +144,8 @@ class SubstraitContext extends Serializable {
 
   /**
    * Register a rel to certain operator id.
-   * @param operatorId operator id
+   * @param operatorId
+   *   operator id
    */
   def registerRelToOperator(operatorId: java.lang.Long): Unit = {
     if (operatorToRelsMap.containsKey(operatorId)) {
@@ -163,7 +162,8 @@ class SubstraitContext extends Serializable {
   /**
    * Register empty rel list to certain operator id. Used when the computing of a Spark transformer
    * is omitted.
-   * @param operatorId operator id
+   * @param operatorId
+   *   operator id
    */
   def registerEmptyRelToOperator(operatorId: java.lang.Long): Unit = {
     if (!operatorToRelsMap.containsKey(operatorId)) {
@@ -181,8 +181,10 @@ class SubstraitContext extends Serializable {
 
   /**
    * Register the join params to certain operator id.
-   * @param operatorId operator id
-   * @param param join params
+   * @param operatorId
+   *   operator id
+   * @param param
+   *   join params
    */
   def registerJoinParam(operatorId: java.lang.Long, param: JoinParams): Unit = {
     if (joinParamsMap.containsKey(operatorId)) {
@@ -200,8 +202,10 @@ class SubstraitContext extends Serializable {
 
   /**
    * Register the aggregation params to certain operator id.
-   * @param operatorId operator id
-   * @param param aggregation params
+   * @param operatorId
+   *   operator id
+   * @param param
+   *   aggregation params
    */
   def registerAggregationParam(operatorId: java.lang.Long, param: AggregationParams): Unit = {
     if (aggregationParamsMap.containsKey(operatorId)) {

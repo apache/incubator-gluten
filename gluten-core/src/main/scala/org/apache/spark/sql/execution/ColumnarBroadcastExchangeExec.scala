@@ -16,13 +16,6 @@
  */
 package org.apache.spark.sql.execution
 
-import java.util.UUID
-import java.util.concurrent.{TimeoutException, TimeUnit}
-
-import scala.concurrent.Promise
-import scala.concurrent.duration.NANOSECONDS
-import scala.util.control.NonFatal
-
 import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.{broadcast, SparkException}
@@ -32,11 +25,18 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, BroadcastExchangeExec, Exchange}
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike, Exchange}
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
+
+import java.util.UUID
+import java.util.concurrent.{TimeoutException, TimeUnit}
+
+import scala.concurrent.Promise
+import scala.concurrent.duration.NANOSECONDS
+import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) extends Exchange {
   override lazy val metrics = Map(
@@ -44,7 +44,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of Rows"),
     "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_broadcastExchange"),
     "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
-    "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast"))
+    "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast")
+  )
 
   @transient
   lazy val promise = Promise[broadcast.Broadcast[Any]]()
@@ -165,7 +166,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan) 
              |${SQLConf.BROADCAST_TIMEOUT.key} or disable broadcast join
              |by setting ${SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key} to -1
             """.stripMargin,
-          ex)
+          ex
+        )
     }
   }
 
@@ -180,7 +182,7 @@ case class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPla
   override lazy val metrics: Map[String, SQLMetric] = plan.metrics
 
   @transient
-  lazy override val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
+  override lazy val completionFuture: scala.concurrent.Future[broadcast.Broadcast[Any]] =
     plan.completionFuture
 
   @transient
@@ -218,7 +220,7 @@ case class ColumnarBroadcastExchangeAdaptor(mode: BroadcastMode, child: SparkPla
 
   override def equals(other: Any): Boolean = other match {
     case that: ColumnarShuffleExchangeAdaptor =>
-      (that canEqual this) && super.equals(that)
+      (that.canEqual(this)) && super.equals(that)
     case _ => false
   }
 

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BindReferences, BoundReference, Expression, NamedExpression}
@@ -22,22 +21,23 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 object BindReferencesUtil {
 
   // get the nullable attr from the attributes of child
-  def bindReferencesWithNullable(expr: NamedExpression,
-                                 attributeSeq: Seq[Attribute]): Attribute = expr match {
-    case a: AttributeReference =>
-      val boundRef = BindReferences.bindReference[Expression](expr, attributeSeq, true)
-      if (boundRef.isInstanceOf[BoundReference]) {
-        val b = boundRef.asInstanceOf[BoundReference]
-        expr.toAttribute.withNullability(b.nullable)
-      } else {
+  def bindReferencesWithNullable(expr: NamedExpression, attributeSeq: Seq[Attribute]): Attribute =
+    expr match {
+      case a: AttributeReference =>
+        val boundRef = BindReferences.bindReference[Expression](expr, attributeSeq, true)
+        if (boundRef.isInstanceOf[BoundReference]) {
+          val b = boundRef.asInstanceOf[BoundReference]
+          expr.toAttribute.withNullability(b.nullable)
+        } else {
+          expr.toAttribute
+        }
+      case _ =>
         expr.toAttribute
-      }
-    case _ =>
-      expr.toAttribute
-  }
+    }
 
-  def bindReferencesWithNullable(exprs: Seq[NamedExpression],
-                                 attributeSeq: Seq[Attribute]): Seq[Attribute] = {
+  def bindReferencesWithNullable(
+      exprs: Seq[NamedExpression],
+      attributeSeq: Seq[Attribute]): Seq[Attribute] = {
     exprs.map(BindReferencesUtil.bindReferencesWithNullable(_, attributeSeq))
   }
 }

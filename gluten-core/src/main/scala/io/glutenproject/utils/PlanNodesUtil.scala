@@ -14,26 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
-
-import java.util
-
-import com.google.common.collect.Lists
 
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.`type`.TypeNode
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
-import io.glutenproject.substrait.SubstraitContext
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 
+import com.google.common.collect.Lists
+
+import java.util
+
 object PlanNodesUtil {
 
-  def genProjectionsPlanNode(keys: Seq[Expression],
-                             output: Seq[Attribute]): PlanNode = {
+  def genProjectionsPlanNode(keys: Seq[Expression], output: Seq[Attribute]): PlanNode = {
     val context = new SubstraitContext
 
     // input
@@ -49,16 +47,17 @@ object PlanNodesUtil {
       typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
     }
-    val readRel = RelBuilder.makeReadRel(
-      typeList, nameList, null, iteratorIndex, context, operatorId)
+    val readRel =
+      RelBuilder.makeReadRel(typeList, nameList, null, iteratorIndex, context, operatorId)
 
     // project
     operatorId = context.nextOperatorId
     val args = context.registeredFunction
-    val columnarProjExprs: Seq[Expression] = keys.map(expr => {
-      ExpressionConverter
-        .replaceWithExpressionTransformer(expr, attributeSeq = output)
-    })
+    val columnarProjExprs: Seq[Expression] = keys.map(
+      expr => {
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, attributeSeq = output)
+      })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
       projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))

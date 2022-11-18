@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -24,13 +23,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-private final case class BroadcastBuildSideRDDPartition(index: Int) extends Partition
+final private case class BroadcastBuildSideRDDPartition(index: Int) extends Partition
 
 case class BroadcastBuildSideRDD(
-                                  @transient private val sc: SparkContext,
-                                  broadcasted: broadcast.Broadcast[BuildSideRelation],
-                                  broadCastContext: BroadCastHashJoinContext,
-                                  numPartitions: Int = -1)
+    @transient private val sc: SparkContext,
+    broadcasted: broadcast.Broadcast[BuildSideRelation],
+    broadCastContext: BroadCastHashJoinContext,
+    numPartitions: Int = -1)
   extends RDD[ColumnarBatch](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
@@ -42,7 +41,6 @@ case class BroadcastBuildSideRDD(
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
-    BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(
-      relation.deserialized)
+    BackendsApiManager.getIteratorApiInstance.genCloseableColumnBatchIterator(relation.deserialized)
   }
 }

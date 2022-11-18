@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import scala.collection.mutable.HashMap
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -34,15 +31,18 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
-class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
-                                    output: Seq[Attribute],
-                                    requiredSchema: StructType,
-                                    partitionFilters: Seq[Expression],
-                                    optionalBucketSet: Option[BitSet],
-                                    optionalNumCoalescedBuckets: Option[Int],
-                                    dataFilters: Seq[Expression],
-                                    tableIdentifier: Option[TableIdentifier],
-                                    disableBucketedScan: Boolean = false)
+import scala.collection.mutable.HashMap
+
+class FileSourceScanExecTransformer(
+    @transient relation: HadoopFsRelation,
+    output: Seq[Attribute],
+    requiredSchema: StructType,
+    partitionFilters: Seq[Expression],
+    optionalBucketSet: Option[BitSet],
+    optionalNumCoalescedBuckets: Option[Int],
+    dataFilters: Seq[Expression],
+    tableIdentifier: Option[TableIdentifier],
+    disableBucketedScan: Boolean = false)
   extends FileSourceScanExec(
     relation,
     output,
@@ -53,7 +53,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     dataFilters,
     tableIdentifier,
     disableBucketedScan)
-    with BasicScanExecTransformer {
+  with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
     "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -74,11 +74,12 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
     "pruningTime" ->
       SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "number of memory allocations"),
     "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
-      sparkContext, "number of dynamic filters accepted"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
+      sparkContext,
+      "number of dynamic filters accepted"),
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")
+  )
 
   val inputRows: SQLMetric = longMetric("inputRows")
   val inputVectors: SQLMetric = longMetric("inputVectors")
@@ -100,7 +101,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     /*
     relation.fileFormat
       .supportBatch(relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
-    */
+     */
     GlutenConfig.getConf.enableColumnarIterator
   }
 
@@ -109,18 +110,20 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[Seq[InputPartition]] =
-    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
-      relation, dynamicallySelectedPartitions).map(Seq(_))
+    BackendsApiManager.getTransformerApiInstance
+      .genInputPartitionSeq(relation, dynamicallySelectedPartitions)
+      .map(Seq(_))
 
   override def getFlattenPartitions: Seq[InputPartition] =
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
-      relation, dynamicallySelectedPartitions)
+      relation,
+      dynamicallySelectedPartitions)
 
   override def getPartitionSchemas: StructType = relation.partitionSchema
 
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecTransformer =>
-      (that canEqual this) && super.equals(that)
+      (that.canEqual(this)) && super.equals(that)
     case _ => false
   }
 
@@ -152,7 +155,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     }
   }
 
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     doExecuteColumnarInternal()
   }
 
@@ -184,13 +187,15 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   private lazy val driverMetrics: HashMap[String, Long] = HashMap.empty
 
   /**
-   * Send the driver-side metrics. Before calling this function, selectedPartitions has
-   * been initialized. See SPARK-26327 for more details.
+   * Send the driver-side metrics. Before calling this function, selectedPartitions has been
+   * initialized. See SPARK-26327 for more details.
    */
   private def sendDriverMetrics(): Unit = {
     driverMetrics.foreach(e => metrics(e._1).add(e._2))
     val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    SQLMetrics.postDriverMetricUpdates(sparkContext, executionId,
+    SQLMetrics.postDriverMetricUpdates(
+      sparkContext,
+      executionId,
       metrics.filter(e => driverMetrics.contains(e._1)).values.toSeq)
   }
 
@@ -208,29 +213,33 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   // present. This is because such a filter relies on information that is only available at run
   // time (for instance the keys used in the other side of a join).
   @transient lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
-    val dynamicPartitionFilters = partitionFilters.filter(
-      FileSourceScanExecTransformer.isDynamicPruningFilter)
+    val dynamicPartitionFilters =
+      partitionFilters.filter(FileSourceScanExecTransformer.isDynamicPruningFilter)
 
     if (dynamicPartitionFilters.nonEmpty) {
       // When it includes some DynamicPruningExpression,
       // it needs to execute InSubqueryExec first,
       // because doTransform path can't execute 'doExecuteColumnar' which will
       // execute prepare subquery first.
-      dynamicPartitionFilters.map(dynamicPartitionFilter => {
-        dynamicPartitionFilter match {
-          case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
-            executeInSubqueryForDynamicPruningExpression(inSubquery)
-        }
-      })
+      dynamicPartitionFilters.map(
+        dynamicPartitionFilter => {
+          dynamicPartitionFilter match {
+            case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
+              executeInSubqueryForDynamicPruningExpression(inSubquery)
+          }
+        })
       val startTime = System.nanoTime()
       // call the file index for the files matching all filters except dynamic partition filters
       val predicate = dynamicPartitionFilters.reduce(And)
       val partitionColumns = relation.partitionSchema
-      val boundPredicate = Predicate.create(predicate.transform {
-        case a: AttributeReference =>
-          val index = partitionColumns.indexWhere(a.name == _.name)
-          BoundReference(index, partitionColumns(index).dataType, nullable = true)
-      }, Nil)
+      val boundPredicate = Predicate.create(
+        predicate.transform {
+          case a: AttributeReference =>
+            val index = partitionColumns.indexWhere(a.name == _.name)
+            BoundReference(index, partitionColumns(index).dataType, nullable = true)
+        },
+        Nil
+      )
       val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
       setFilesNumAndSizeMetric(ret)
       val timeTakenMs = (System.nanoTime() - startTime) / 1000 / 1000

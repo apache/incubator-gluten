@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
 import org.apache.spark.sql.types._
 
-class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
-                                query: ScalarSubquery)
-  extends ScalarSubquery(plan, exprId) with ExpressionTransformer {
+class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId, query: ScalarSubquery)
+  extends ScalarSubquery(plan, exprId)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // the first column in first row from `query`.
@@ -35,7 +35,8 @@ class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
       sys.error(s"more than one row returned by a subquery used as an expression:\n${query.plan}")
     }
     val result: AnyRef = if (rows.length == 1) {
-      assert(rows(0).numFields == 1,
+      assert(
+        rows(0).numFields == 1,
         s"Expects 1 field, but got ${rows(0).numFields}; something went wrong in analysis")
       rows(0).get(0, dataType)
     } else {

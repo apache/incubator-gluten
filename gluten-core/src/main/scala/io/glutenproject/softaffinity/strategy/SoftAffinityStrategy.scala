@@ -14,22 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.softaffinity.strategy
+
+import org.apache.spark.internal.Logging
 
 import scala.collection.mutable.LinkedHashSet
 import scala.collection.mutable.ListBuffer
 
-import org.apache.spark.internal.Logging
-
 class SoftAffinityStrategy extends SoftAffinityAllocationTrait with Logging {
 
-  /**
-   * allocate target executors for file
-   */
-  override def allocateExecs(file: String,
-                             candidates: ListBuffer[Option[(String, String)]]
-                            ): Array[(String, String)] = {
+  /** allocate target executors for file */
+  override def allocateExecs(
+      file: String,
+      candidates: ListBuffer[Option[(String, String)]]): Array[(String, String)] = {
     if (candidates.size < 1) {
       Array.empty
     } else {

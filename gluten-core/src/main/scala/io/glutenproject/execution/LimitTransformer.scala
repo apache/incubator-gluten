@@ -14,34 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
-import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
 import io.glutenproject.vectorized.ExpressionEvaluator
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.common.collect.Lists
+import com.google.protobuf.Any
+
 import java.util
 
-case class LimitTransformer(
-                             child: SparkPlan,
-                             offset: Long,
-                             count: Long)
+case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
   extends UnaryExecNode
-    with TransformSupport {
+  with TransformSupport {
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = child.output
@@ -84,13 +82,14 @@ case class LimitTransformer(
   override def doValidate(): Boolean = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId
-    val relNode = try {
-      getRelNode(context, operatorId, offset, count, child.output, null, true)
-    } catch {
-      case e: Throwable =>
-        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-        return false
-    }
+    val relNode =
+      try {
+        getRelNode(context, operatorId, offset, count, child.output, null, true)
+      } catch {
+        case e: Throwable =>
+          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+          return false
+      }
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
@@ -121,13 +120,14 @@ case class LimitTransformer(
     TransformContext(child.output, child.output, relNode)
   }
 
-  def getRelNode(context: SubstraitContext,
-                 operatorId: Long,
-                 offset: Long,
-                 count: Long,
-                 inputAttributes: Seq[Attribute],
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      operatorId: Long,
+      offset: Long,
+      count: Long,
+      inputAttributes: Seq[Attribute],
+      input: RelNode,
+      validation: Boolean): RelNode = {
     if (!validation) {
       RelBuilder.makeFetchRel(input, offset, count, context, operatorId)
     } else {
@@ -141,5 +141,3 @@ case class LimitTransformer(
     }
   }
 }
-
-

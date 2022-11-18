@@ -14,15 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import java.io.Serializable
-
-import scala.collection.mutable
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.vectorized.GeneralOutIterator
+
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -32,47 +29,57 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util._
 
+import java.io.Serializable
+
+import scala.collection.mutable
+
 trait BaseNativeFilePartition extends Partition with InputPartition {
   def substraitPlan: Array[Byte]
 }
 
-case class NativePartition(index: Int,
-                           substraitPlan: Array[Byte],
-                           locations: Array[String] = Array.empty[String])
+case class NativePartition(
+    index: Int,
+    substraitPlan: Array[Byte],
+    locations: Array[String] = Array.empty[String])
   extends BaseNativeFilePartition {
 
   override def preferredLocations(): Array[String] = locations
 }
 
-case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
-                               substraitPlan: Array[Byte])
+case class NativeFilePartition(
+    index: Int,
+    files: Array[PartitionedFile],
+    substraitPlan: Array[Byte])
   extends BaseNativeFilePartition {
   override def preferredLocations(): Array[String] = {
     // Computes total number of bytes can be retrieved from each host.
     val hostToNumBytes = mutable.HashMap.empty[String, Long]
-    files.foreach { file =>
-      file.locations.filter(_ != "localhost").foreach { host =>
-        hostToNumBytes(host) = hostToNumBytes.getOrElse(host, 0L) + file.length
-      }
+    files.foreach {
+      file =>
+        file.locations.filter(_ != "localhost").foreach {
+          host => hostToNumBytes(host) = hostToNumBytes.getOrElse(host, 0L) + file.length
+        }
     }
 
     // Takes the first 3 hosts with the most data to be retrieved
-    hostToNumBytes.toSeq.sortBy {
-      case (host, numBytes) => numBytes
-    }.reverse.take(3).map {
-      case (host, numBytes) => host
-    }.toArray
+    hostToNumBytes.toSeq
+      .sortBy { case (host, numBytes) => numBytes }
+      .reverse
+      .take(3)
+      .map { case (host, numBytes) => host }
+      .toArray
   }
 }
 
-case class NativeMergeTreePartition(index: Int,
-                                    engine: String,
-                                    database: String,
-                                    table: String,
-                                    tablePath: String,
-                                    minParts: Long,
-                                    maxParts: Long,
-                                    substraitPlan: Array[Byte] = Array.empty[Byte])
+case class NativeMergeTreePartition(
+    index: Int,
+    engine: String,
+    database: String,
+    table: String,
+    tablePath: String,
+    minParts: Long,
+    maxParts: Long,
+    substraitPlan: Array[Byte] = Array.empty[Byte])
   extends BaseNativeFilePartition {
   override def preferredLocations(): Array[String] = {
     Array.empty[String]
@@ -83,9 +90,12 @@ case class NativeMergeTreePartition(index: Int,
   }
 }
 
-case class FirstZippedPartitionsPartition(idx: Int, inputPartition: InputPartition,
-                                          @transient private val rdds: Seq[RDD[_]] = Seq())
-  extends Partition with Serializable {
+case class FirstZippedPartitionsPartition(
+    idx: Int,
+    inputPartition: InputPartition,
+    @transient private val rdds: Seq[RDD[_]] = Seq())
+  extends Partition
+  with Serializable {
 
   override val index: Int = idx
   var partitionValues = rdds.map(rdd => rdd.partitions(idx))
@@ -93,13 +103,14 @@ case class FirstZippedPartitionsPartition(idx: Int, inputPartition: InputPartiti
   def partitions: Seq[Partition] = partitionValues
 }
 
-class NativeWholeStageColumnarRDD(sc: SparkContext,
-                                  @transient private val inputPartitions: Seq[InputPartition],
-                                  outputAttributes: Seq[Attribute],
-                                  var rdds: Seq[RDD[ColumnarBatch]],
-                                  pipelineTime: SQLMetric,
-                                  updateMetrics: (Long, Long) => Unit,
-                                  updateNativeMetrics: GeneralOutIterator => Unit)
+class NativeWholeStageColumnarRDD(
+    sc: SparkContext,
+    @transient private val inputPartitions: Seq[InputPartition],
+    outputAttributes: Seq[Attribute],
+    var rdds: Seq[RDD[ColumnarBatch]],
+    pipelineTime: SQLMetric,
+    updateMetrics: (Long, Long) => Unit,
+    updateNativeMetrics: GeneralOutIterator => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val loadNative: Boolean = GlutenConfig.getConf.loadNative
@@ -119,9 +130,8 @@ class NativeWholeStageColumnarRDD(sc: SparkContext,
         updateNativeMetrics)
     } else {
       val partitions = split.asInstanceOf[FirstZippedPartitionsPartition].partitions
-      val inputIterators = (rdds zip partitions).map {
-        case (rdd, partition) => rdd.iterator(partition, context)
-      }
+      val inputIterators =
+        (rdds.zip(partitions)).map { case (rdd, partition) => rdd.iterator(partition, context) }
       BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
         inputPartition,
         loadNative,
@@ -159,8 +169,8 @@ class NativeWholeStageColumnarRDD(sc: SparkContext,
         throw new IllegalArgumentException(
           s"Can't zip RDDs with unequal numbers of partitions: ${rdds.map(_.partitions.length)}")
       }
-      Array.tabulate[Partition](numParts) { i =>
-        FirstZippedPartitionsPartition(i, inputPartitions(i), rdds)
+      Array.tabulate[Partition](numParts) {
+        i => FirstZippedPartitionsPartition(i, inputPartitions(i), rdds)
       }
     }
   }

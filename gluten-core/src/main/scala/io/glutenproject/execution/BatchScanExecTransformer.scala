@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
@@ -29,10 +28,13 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan: Scan,
-                               runtimeFilters: Seq[Expression],
-                               pushdownFilters: Seq[Expression] = Seq())
-  extends BatchScanExecShim(output, scan, runtimeFilters) with BasicScanExecTransformer {
+class BatchScanExecTransformer(
+    output: Seq[AttributeReference],
+    @transient scan: Scan,
+    runtimeFilters: Seq[Expression],
+    pushdownFilters: Seq[Expression] = Seq())
+  extends BatchScanExecShim(output, scan, runtimeFilters)
+  with BasicScanExecTransformer {
 
   override lazy val metrics = Map(
     "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -47,10 +49,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_batchscan"),
     "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "total scan time"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-    "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "number of memory allocations"),
     "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
-      sparkContext, "number of dynamic filters accepted"))
+      sparkContext,
+      "number of dynamic filters accepted")
+  )
 
   val inputRows: SQLMetric = longMetric("inputRows")
   val inputVectors: SQLMetric = longMetric("inputVectors")
@@ -93,7 +96,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
-      (that canEqual this) && super.equals(that)
+      (that.canEqual(this)) && super.equals(that)
     case _ => false
   }
 

@@ -14,15 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject
 
-import java.util
-import java.util.{Collections, Objects}
-
-import scala.language.implicitConversions
-
-import com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
@@ -36,6 +29,13 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.internal.StaticSQLConf
+
+import com.google.protobuf.Any
+
+import java.util
+import java.util.{Collections, Objects}
+
+import scala.language.implicitConversions
 
 class GlutenPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
@@ -61,26 +61,28 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
 
   def setPredefinedConfigs(conf: SparkConf): Unit = {
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
-      s"${conf.get(SPARK_SESSION_EXTS_KEY)},${GLUTEN_SESSION_EXTENSION_NAME}"
+      s"${conf.get(SPARK_SESSION_EXTS_KEY)},$GLUTEN_SESSION_EXTENSION_NAME"
     } else {
-      s"${GLUTEN_SESSION_EXTENSION_NAME}"
+      s"$GLUTEN_SESSION_EXTENSION_NAME"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
   }
 }
 
 private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
-  /**
-   * Initialize the executor plugin.
-   */
+
+  /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val conf = ctx.conf()
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
-    if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||
+    if (
+      !conf.getBoolean("spark.memory.offHeap.enabled", false) ||
       (JavaUtils.byteStringAsBytes(
-        conf.get("spark.memory.offHeap.size").toString) / 1024 / 1024).toInt <= 0) {
-      throw new IllegalArgumentException(s"Must set the 'spark.memory.offHeap.enabled' to true" +
-        s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
+        conf.get("spark.memory.offHeap.size").toString) / 1024 / 1024).toInt <= 0
+    ) {
+      throw new IllegalArgumentException(
+        s"Must set the 'spark.memory.offHeap.enabled' to true" +
+          s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
     val name = BackendsApiManager.initialize()
@@ -89,10 +91,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     GlutenPlugin.initNative(ctx.conf())
   }
 
-  /**
-   * Clean up and terminate this plugin.
-   * For example: close the native engine.
-   */
+  /** Clean up and terminate this plugin. For example: close the native engine. */
   override def shutdown(): Unit = {
     super.shutdown()
   }
@@ -107,8 +106,9 @@ private[glutenproject] class GlutenSessionExtensions extends (SparkSessionExtens
 private[glutenproject] class SparkConfImplicits(conf: SparkConf) {
   def enableGlutenPlugin(): SparkConf = {
     if (conf.contains(GlutenPlugin.SPARK_SQL_PLUGINS_KEY)) {
-      throw new IllegalArgumentException("A Spark plugin is already specified before enabling " +
-        "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
+      throw new IllegalArgumentException(
+        "A Spark plugin is already specified before enabling " +
+          "Gluten plugin: " + conf.get(GlutenPlugin.SPARK_SQL_PLUGINS_KEY))
     }
     conf.set(GlutenPlugin.SPARK_SQL_PLUGINS_KEY, GlutenPlugin.GLUTEN_PLUGIN_NAME)
   }
@@ -121,15 +121,12 @@ private[glutenproject] trait GlutenSparkExtensionsInjector {
 private[glutenproject] object GlutenPlugin {
   // To enable GlutenPlugin in production, set "spark.plugins=io.glutenproject.GlutenPlugin"
   val SPARK_SQL_PLUGINS_KEY: String = "spark.plugins"
-  val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin]
-    .getCanonicalName)
+  val GLUTEN_PLUGIN_NAME: String = Objects.requireNonNull(classOf[GlutenPlugin].getCanonicalName)
   val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
-  val GLUTEN_SESSION_EXTENSION_NAME: String = Objects.requireNonNull(
-    classOf[GlutenSessionExtensions].getCanonicalName)
+  val GLUTEN_SESSION_EXTENSION_NAME: String =
+    Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
 
-  /**
-   * Specify all injectors that Gluten is using in following list.
-   */
+  /** Specify all injectors that Gluten is using in following list. */
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
     ColumnarQueryStagePrepOverrides,
     ColumnarOverrides,
@@ -156,26 +153,34 @@ private[glutenproject] object GlutenPlugin {
     }
     if (conf.contains(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS)) {
       nativeConfMap.put(
-        GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
+        GlutenConfig.HIVE_EXEC_ORC_COMPRESS,
+        conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
     }
 
     // S3 config
     nativeConfMap.put(
-      GlutenConfig.SPARK_S3_ACCESS_KEY, conf.get(GlutenConfig.SPARK_S3_ACCESS_KEY, "minio"))
+      GlutenConfig.SPARK_S3_ACCESS_KEY,
+      conf.get(GlutenConfig.SPARK_S3_ACCESS_KEY, "minio"))
     nativeConfMap.put(
-      GlutenConfig.SPARK_S3_SECRET_KEY, conf.get(GlutenConfig.SPARK_S3_SECRET_KEY, "miniopass"))
+      GlutenConfig.SPARK_S3_SECRET_KEY,
+      conf.get(GlutenConfig.SPARK_S3_SECRET_KEY, "miniopass"))
     nativeConfMap.put(
-      GlutenConfig.SPARK_S3_ENDPOINT, conf.get(GlutenConfig.SPARK_S3_ENDPOINT, "localhost:9000"))
-    nativeConfMap.put(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED,
+      GlutenConfig.SPARK_S3_ENDPOINT,
+      conf.get(GlutenConfig.SPARK_S3_ENDPOINT, "localhost:9000"))
+    nativeConfMap.put(
+      GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED,
       conf.get(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED, "false"))
-    nativeConfMap.put(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS,
+    nativeConfMap.put(
+      GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS,
       conf.get(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS, "true"))
 
-    conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
-      .foreach{ case (k, v) => nativeConfMap.put(k, v) }
+    conf.getAll
+      .filter { case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
+      .foreach { case (k, v) => nativeConfMap.put(k, v) }
 
     nativeConfMap.put(
-      GlutenConfig.SPARK_BATCH_SIZE, conf.get(GlutenConfig.SPARK_BATCH_SIZE, "32768"))
+      GlutenConfig.SPARK_BATCH_SIZE,
+      conf.get(GlutenConfig.SPARK_BATCH_SIZE, "32768"))
 
     val stringMapNode = ExpressionBuilder.makeStringMap(nativeConfMap)
     val extensionNode = ExtensionBuilder

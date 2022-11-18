@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions.{CurrentDate, CurrentTimestamp, DateDiff, DayOfMonth, DayOfWeek, DayOfYear, Expression, Hour, MakeDate, MakeTimestamp, MicrosToTimestamp, MillisToTimestamp, Minute, Month, Now, Second, SecondsToTimestamp, UnixDate, UnixMicros, UnixMillis, UnixSeconds, UnixTimestamp, Year}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+import com.google.common.collect.Lists
 
 class CurrentTimestampTransformer() extends CurrentTimestamp with ExpressionTransformer {
 
@@ -32,7 +32,8 @@ class CurrentTimestampTransformer() extends CurrentTimestamp with ExpressionTran
   }
 }
 
-class CurrentDateTransformer(timeZoneId: Option[String] = None) extends CurrentDate(timeZoneId)
+class CurrentDateTransformer(timeZoneId: Option[String] = None)
+  extends CurrentDate(timeZoneId)
   with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
@@ -40,8 +41,7 @@ class CurrentDateTransformer(timeZoneId: Option[String] = None) extends CurrentD
   }
 }
 
-class NowTransformer() extends Now()
-  with ExpressionTransformer {
+class NowTransformer() extends Now() with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: Now.")
@@ -49,7 +49,8 @@ class NowTransformer() extends Now()
 }
 
 class HourTransformer(child: Expression, timeZoneId: Option[String] = None)
-  extends Hour(child, timeZoneId) with ExpressionTransformer {
+  extends Hour(child, timeZoneId)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: Hour.")
@@ -57,7 +58,8 @@ class HourTransformer(child: Expression, timeZoneId: Option[String] = None)
 }
 
 class MinuteTransformer(child: Expression, timeZoneId: Option[String] = None)
-  extends Minute(child, timeZoneId) with ExpressionTransformer {
+  extends Minute(child, timeZoneId)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: Minute.")
@@ -65,15 +67,14 @@ class MinuteTransformer(child: Expression, timeZoneId: Option[String] = None)
 }
 
 class SecondTransformer(child: Expression, timeZoneId: Option[String] = None)
-  extends Second(child, timeZoneId) with ExpressionTransformer {
+  extends Second(child, timeZoneId)
+  with ExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: Second.")
   }
 }
 
-/**
- * The extract trait for 'GetDateField' from Date
- */
+/** The extract trait for 'GetDateField' from Date */
 trait ExtractDateTransformer extends ExpressionTransformer {
 
   def getField: String
@@ -90,7 +91,9 @@ trait ExtractDateTransformer extends ExpressionTransformer {
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
-      ConverterUtils.EXTRACT, Seq(getChild.dataType), FunctionConfig.OPT)
+      ConverterUtils.EXTRACT,
+      Seq(getChild.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val fieldNode = ExpressionBuilder.makeStringLiteral(getField)
     val expressNodes = Lists.newArrayList(fieldNode, childNode.asInstanceOf[ExpressionNode])
@@ -100,8 +103,9 @@ trait ExtractDateTransformer extends ExpressionTransformer {
   }
 }
 
-class DayOfMonthTransformer(child: Expression) extends DayOfMonth(child) with
-  ExtractDateTransformer {
+class DayOfMonthTransformer(child: Expression)
+  extends DayOfMonth(child)
+  with ExtractDateTransformer {
   override def getField: String = "DAY"
 
   override def getDataType: DataType = dataType
@@ -109,8 +113,7 @@ class DayOfMonthTransformer(child: Expression) extends DayOfMonth(child) with
   override def getChild: Expression = child
 }
 
-class DayOfYearTransformer(child: Expression) extends DayOfYear(child) with
-  ExtractDateTransformer {
+class DayOfYearTransformer(child: Expression) extends DayOfYear(child) with ExtractDateTransformer {
   override def getField: String = "DAYOFYEAR"
 
   override def getDataType: DataType = dataType
@@ -118,8 +121,7 @@ class DayOfYearTransformer(child: Expression) extends DayOfYear(child) with
   override def getChild: Expression = child
 }
 
-class DayOfWeekTransformer(child: Expression) extends DayOfWeek(child) with
-  ExtractDateTransformer {
+class DayOfWeekTransformer(child: Expression) extends DayOfWeek(child) with ExtractDateTransformer {
   override def getField: String = "DAYOFWEEK"
 
   override def getDataType: DataType = dataType
@@ -127,8 +129,7 @@ class DayOfWeekTransformer(child: Expression) extends DayOfWeek(child) with
   override def getChild: Expression = child
 }
 
-class MonthTransformer(child: Expression) extends Month(child) with
-  ExtractDateTransformer {
+class MonthTransformer(child: Expression) extends Month(child) with ExtractDateTransformer {
   override def getField: String = "MONTH"
 
   override def getDataType: DataType = dataType
@@ -136,8 +137,7 @@ class MonthTransformer(child: Expression) extends Month(child) with
   override def getChild: Expression = child
 }
 
-class YearTransformer(child: Expression) extends Year(child) with
-  ExtractDateTransformer {
+class YearTransformer(child: Expression) extends Year(child) with ExtractDateTransformer {
   override def getField: String = "YEAR"
 
   override def getDataType: DataType = dataType
@@ -145,55 +145,60 @@ class YearTransformer(child: Expression) extends Year(child) with
   override def getChild: Expression = child
 }
 
-class UnixDateTransformer(child: Expression) extends UnixDate(child) with
-  ExpressionTransformer {
+class UnixDateTransformer(child: Expression) extends UnixDate(child) with ExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: UnixDate.")
   }
 }
 
-class UnixSecondsTransformer(child: Expression) extends UnixSeconds(child) with
-  ExpressionTransformer {
+class UnixSecondsTransformer(child: Expression)
+  extends UnixSeconds(child)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: UnixSeconds.")
   }
 }
 
-class UnixMillisTransformer(child: Expression) extends UnixMillis(child) with
-  ExpressionTransformer {
+class UnixMillisTransformer(child: Expression)
+  extends UnixMillis(child)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: UnixMillis.")
   }
 }
 
-class UnixMicrosTransformer(child: Expression) extends UnixMicros(child) with
-  ExpressionTransformer {
+class UnixMicrosTransformer(child: Expression)
+  extends UnixMicros(child)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: UnixMicros.")
   }
 }
 
-class SecondsToTimestampTransformer(child: Expression) extends SecondsToTimestamp(child) with
-  ExpressionTransformer {
+class SecondsToTimestampTransformer(child: Expression)
+  extends SecondsToTimestamp(child)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: SecondsToTimestamp.")
   }
 }
 
-class MillisToTimestampTransformer(child: Expression) extends MillisToTimestamp(child) with
-  ExpressionTransformer {
+class MillisToTimestampTransformer(child: Expression)
+  extends MillisToTimestamp(child)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: MillisToTimestamp.")
   }
 }
 
-class MicrosToTimestampTransformer(child: Expression) extends MicrosToTimestamp(child) with
-  ExpressionTransformer {
+class MicrosToTimestampTransformer(child: Expression)
+  extends MicrosToTimestamp(child)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: MicrosToTimestamp.")
@@ -204,15 +209,16 @@ class MicrosToTimestampTransformer(child: Expression) extends MicrosToTimestamp(
  * Converts time string with given pattern to Unix time stamp (in seconds), returns null if fail.
  */
 class UnixTimestampTransformer(left: Expression, right: Expression)
-  extends UnixTimestamp(left, right) with
-    ExpressionTransformer {
+  extends UnixTimestamp(left, right)
+  with ExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: UnixTimestamp.")
   }
 }
 
 class DateDiffTransformer(left: Expression, right: Expression)
-  extends DateDiff(left, right) with ExpressionTransformer {
+  extends DateDiff(left, right)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: DateDiff.")
@@ -220,11 +226,12 @@ class DateDiffTransformer(left: Expression, right: Expression)
 }
 
 class MakeDateTransformer(
-                           year: Expression,
-                           month: Expression,
-                           day: Expression,
-                           failOnError: Boolean = SQLConf.get.ansiEnabled)
-  extends MakeDate(year, month, day, failOnError) with ExpressionTransformer {
+    year: Expression,
+    month: Expression,
+    day: Expression,
+    failOnError: Boolean = SQLConf.get.ansiEnabled)
+  extends MakeDate(year, month, day, failOnError)
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: MakeDate.")
@@ -232,17 +239,17 @@ class MakeDateTransformer(
 }
 
 class MakeTimestampTransformer(
-                                year: Expression,
-                                month: Expression,
-                                day: Expression,
-                                hour: Expression,
-                                min: Expression,
-                                sec: Expression,
-                                timezone: Option[Expression] = None,
-                                timeZoneId: Option[String] = None,
-                                failOnError: Boolean = SQLConf.get.ansiEnabled)
+    year: Expression,
+    month: Expression,
+    day: Expression,
+    hour: Expression,
+    min: Expression,
+    sec: Expression,
+    timezone: Option[Expression] = None,
+    timeZoneId: Option[String] = None,
+    failOnError: Boolean = SQLConf.get.ansiEnabled)
   extends MakeTimestamp(year, month, day, hour, min, sec, timezone, timeZoneId, failOnError)
-    with ExpressionTransformer {
+  with ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     throw new UnsupportedOperationException("Not supported: MakeTimestamp.")
@@ -250,13 +257,15 @@ class MakeTimestampTransformer(
 }
 
 object DateTimeExpressionsTransformer {
-  def castTimestampFromDate(child: Expression,
-                            timeZoneId: Option[String] = None): ExpressionTransformer = {
+  def castTimestampFromDate(
+      child: Expression,
+      timeZoneId: Option[String] = None): ExpressionTransformer = {
     new CastTransformer(child, DateType, timeZoneId, null)
   }
 
-  def castDateFromTimestamp(child: Expression,
-                            timeZoneId: Option[String] = None): ExpressionTransformer = {
+  def castDateFromTimestamp(
+      child: Expression,
+      timeZoneId: Option[String] = None): ExpressionTransformer = {
     new CastTransformer(child, TimestampType, timeZoneId, null)
   }
 }

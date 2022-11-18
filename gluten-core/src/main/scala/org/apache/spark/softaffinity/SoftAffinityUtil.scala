@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.softaffinity
 
 import io.glutenproject.execution.NativeMergeTreePartition
@@ -26,15 +25,15 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 
 object SoftAffinityUtil extends Logging {
 
-  /**
-   * Get the locations by SoftAffinityManager
-   */
+  /** Get the locations by SoftAffinityManager */
   def getFilePartitionLocations(filePartition: FilePartition): Array[String] = {
     // Get the original preferred locations
     val expectedTargets = filePartition.preferredLocations()
 
-    if (!filePartition.files.isEmpty && SoftAffinityManager.usingSoftAffinity
-      && !SoftAffinityManager.checkTargetHosts(expectedTargets)) {
+    if (
+      !filePartition.files.isEmpty && SoftAffinityManager.usingSoftAffinity
+      && !SoftAffinityManager.checkTargetHosts(expectedTargets)
+    ) {
       // if there is no host in the node list which are executors running on,
       // using SoftAffinityManager to generate target executors.
       // Only using the first file to calculate the target executors
@@ -42,11 +41,13 @@ object SoftAffinityUtil extends Logging {
       val file = filePartition.files.sortBy(_.filePath).head
       val locations = SoftAffinityManager.askExecutors(file.filePath)
       if (!locations.isEmpty) {
-        logInfo(s"SAMetrics=File ${file.filePath} - " +
-          s"the expected executors are ${locations.mkString("_")} ")
-        locations.map { p =>
-          if (p._1.equals("")) p._2
-          else ExecutorCacheTaskLocation(p._2, p._1).toString
+        logInfo(
+          s"SAMetrics=File ${file.filePath} - " +
+            s"the expected executors are ${locations.mkString("_")} ")
+        locations.map {
+          p =>
+            if (p._1.equals("")) p._2
+            else ExecutorCacheTaskLocation(p._2, p._1).toString
         }.toArray
       } else {
         Array.empty[String]
@@ -56,20 +57,20 @@ object SoftAffinityUtil extends Logging {
     }
   }
 
-  /**
-   * Get the locations by SoftAffinityManager
-   */
-  def getNativeMergeTreePartitionLocations(filePartition: NativeMergeTreePartition
-                                          ): Array[String] = {
+  /** Get the locations by SoftAffinityManager */
+  def getNativeMergeTreePartitionLocations(
+      filePartition: NativeMergeTreePartition): Array[String] = {
     if (SoftAffinityManager.usingSoftAffinity) {
       val file = filePartition.tablePath + "_" + filePartition.maxParts
       val locations = SoftAffinityManager.askExecutors(file)
       if (!locations.isEmpty) {
-        logInfo(s"SAMetrics=File ${file} - " +
-          s"the expected executors are ${locations.mkString("_")} ")
-        locations.map { p =>
-          if (p._1.equals("")) p._2
-          else ExecutorCacheTaskLocation(p._2, p._1).toString
+        logInfo(
+          s"SAMetrics=File $file - " +
+            s"the expected executors are ${locations.mkString("_")} ")
+        locations.map {
+          p =>
+            if (p._1.equals("")) p._2
+            else ExecutorCacheTaskLocation(p._2, p._1).toString
         }.toArray
       } else {
         Array.empty[String]

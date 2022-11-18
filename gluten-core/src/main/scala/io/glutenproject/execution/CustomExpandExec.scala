@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSeq, AttributeSet, BindReferences, Expression, NamedExpression, UnsafeProjection}
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSeq, AttributeSet, BindReferences, Expression, NamedExpression, UnsafeProjection}
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, JavaCode, VariableValue}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution.{CodegenSupport, SparkPlan, UnaryExecNode}
@@ -32,11 +31,12 @@ import org.apache.spark.sql.internal.SQLConf
 // sets based on the grouping sets.
 // This class refer the ExpandExec operator in Spark.
 case class CustomExpandExec(
-                       projections: Seq[Seq[Expression]],
-                       groupExpression: Seq[NamedExpression],
-                       output: Seq[Attribute],
-                       child: SparkPlan)
-  extends UnaryExecNode with CodegenSupport {
+    projections: Seq[Seq[Expression]],
+    groupExpression: Seq[NamedExpression],
+    output: Seq[Attribute],
+    child: SparkPlan)
+  extends UnaryExecNode
+  with CodegenSupport {
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
@@ -52,36 +52,37 @@ case class CustomExpandExec(
   private[this] val projection =
     (exprs: Seq[Expression]) => UnsafeProjection.create(exprs, child.output)
 
-  protected override def doExecute(): RDD[InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     val numOutputRows = longMetric("numOutputRows")
 
-    child.execute().mapPartitions { iter =>
-      val groups = projections.map(projection).toArray
-      new Iterator[InternalRow] {
-        private[this] var result: InternalRow = _
-        private[this] var idx = -1  // -1 means the initial state
-        private[this] var input: InternalRow = _
+    child.execute().mapPartitions {
+      iter =>
+        val groups = projections.map(projection).toArray
+        new Iterator[InternalRow] {
+          private[this] var result: InternalRow = _
+          private[this] var idx = -1 // -1 means the initial state
+          private[this] var input: InternalRow = _
 
-        override final def hasNext: Boolean = (-1 < idx && idx < groups.length) || iter.hasNext
+          final override def hasNext: Boolean = (-1 < idx && idx < groups.length) || iter.hasNext
 
-        override final def next(): InternalRow = {
-          if (idx <= 0) {
-            // in the initial (-1) or beginning(0) of a new input row, fetch the next input tuple
-            input = iter.next()
-            idx = 0
+          final override def next(): InternalRow = {
+            if (idx <= 0) {
+              // in the initial (-1) or beginning(0) of a new input row, fetch the next input tuple
+              input = iter.next()
+              idx = 0
+            }
+
+            result = groups(idx)(input)
+            idx += 1
+
+            if (idx == groups.length && iter.hasNext) {
+              idx = 0
+            }
+
+            numOutputRows += 1
+            result
           }
-
-          result = groups(idx)(input)
-          idx += 1
-
-          if (idx == groups.length && iter.hasNext) {
-            idx = 0
-          }
-
-          numOutputRows += 1
-          result
         }
-      }
     }
   }
 
@@ -89,7 +90,7 @@ case class CustomExpandExec(
     child.asInstanceOf[CodegenSupport].inputRDDs()
   }
 
-  protected override def doProduce(ctx: CodegenContext): String = {
+  override protected def doProduce(ctx: CodegenContext): String = {
     child.asInstanceOf[CodegenSupport].produce(ctx, this)
   }
 
@@ -137,94 +138,100 @@ case class CustomExpandExec(
     // Size of sameOutput array should equal N.
     // If sameOutput(i) is true, then the i-th column has the same value for all output rows given
     // an input row.
-    val sameOutput: Array[Boolean] = output.indices.map { colIndex =>
-      projections.map(p => p(colIndex)).toSet.size == 1
+    val sameOutput: Array[Boolean] = output.indices.map {
+      colIndex => projections.map(p => p(colIndex)).toSet.size == 1
     }.toArray
 
     // Part 1: declare variables for each column
     // If a column has the same value for all output rows, then we also generate its computation
     // right after declaration. Otherwise its value is computed in the part 2.
     lazy val attributeSeq: AttributeSeq = child.output
-    val outputColumns = output.indices.map { col =>
-      val firstExpr = projections.head(col)
-      if (sameOutput(col)) {
-        // This column is the same across all output rows. Just generate code for it here.
-        BindReferences.bindReference(firstExpr, attributeSeq).genCode(ctx)
-      } else {
-        val isNull = ctx.addMutableState(
-          CodeGenerator.JAVA_BOOLEAN,
-          "resultIsNull",
-          v => s"$v = true;")
-        val value = ctx.addMutableState(
-          CodeGenerator.javaType(firstExpr.dataType),
-          "resultValue",
-          v => s"$v = ${CodeGenerator.defaultValue(firstExpr.dataType)};")
+    val outputColumns = output.indices.map {
+      col =>
+        val firstExpr = projections.head(col)
+        if (sameOutput(col)) {
+          // This column is the same across all output rows. Just generate code for it here.
+          BindReferences.bindReference(firstExpr, attributeSeq).genCode(ctx)
+        } else {
+          val isNull =
+            ctx.addMutableState(CodeGenerator.JAVA_BOOLEAN, "resultIsNull", v => s"$v = true;")
+          val value = ctx.addMutableState(
+            CodeGenerator.javaType(firstExpr.dataType),
+            "resultValue",
+            v => s"$v = ${CodeGenerator.defaultValue(firstExpr.dataType)};")
 
-        ExprCode(
-          JavaCode.isNullVariable(isNull),
-          JavaCode.variable(value, firstExpr.dataType))
-      }
+          ExprCode(JavaCode.isNullVariable(isNull), JavaCode.variable(value, firstExpr.dataType))
+        }
     }
 
     // Part 2: switch/case statements
-    val switchCaseExprs = projections.zipWithIndex.map { case (exprs, row) =>
-      val (exprCodesWithIndices, inputVarSets) = exprs.indices.flatMap { col =>
-        if (!sameOutput(col)) {
-          val boundExpr = BindReferences.bindReference(exprs(col), attributeSeq)
-          val exprCode = boundExpr.genCode(ctx)
-          val inputVars = CodeGenerator.getLocalInputVariableValues(ctx, boundExpr)._1
-          Some(((col, exprCode), inputVars))
-        } else {
-          None
-        }
-      }.unzip
+    val switchCaseExprs = projections.zipWithIndex.map {
+      case (exprs, row) =>
+        val (exprCodesWithIndices, inputVarSets) = exprs.indices.flatMap {
+          col =>
+            if (!sameOutput(col)) {
+              val boundExpr = BindReferences.bindReference(exprs(col), attributeSeq)
+              val exprCode = boundExpr.genCode(ctx)
+              val inputVars = CodeGenerator.getLocalInputVariableValues(ctx, boundExpr)._1
+              Some(((col, exprCode), inputVars))
+            } else {
+              None
+            }
+        }.unzip
 
-      val inputVars = inputVarSets.foldLeft(Set.empty[VariableValue])(_ ++ _)
-      (row, exprCodesWithIndices, inputVars.toSeq)
+        val inputVars = inputVarSets.foldLeft(Set.empty[VariableValue])(_ ++ _)
+        (row, exprCodesWithIndices, inputVars.toSeq)
     }
 
-    val updateCodes = switchCaseExprs.map { case (_, exprCodes, _) =>
-      exprCodes.map { case (col, ev) =>
-        s"""
-           |${ev.code}
-           |${outputColumns(col).isNull} = ${ev.isNull};
-           |${outputColumns(col).value} = ${ev.value};
+    val updateCodes = switchCaseExprs.map {
+      case (_, exprCodes, _) =>
+        exprCodes
+          .map {
+            case (col, ev) =>
+              s"""
+                 |${ev.code}
+                 |${outputColumns(col).isNull} = ${ev.isNull};
+                 |${outputColumns(col).value} = ${ev.value};
          """.stripMargin
-      }.mkString("\n")
+          }
+          .mkString("\n")
     }
 
     val splitThreshold = SQLConf.get.methodSplitThreshold
     val cases = if (switchCaseExprs.flatMap(_._2.map(_._2.code.length)).sum > splitThreshold) {
-      switchCaseExprs.zip(updateCodes).map { case ((row, _, inputVars), updateCode) =>
-        val paramLength = CodeGenerator.calculateParamLengthFromExprValues(inputVars)
-        val maybeSplitUpdateCode = if (CodeGenerator.isValidParamLength(paramLength)) {
-          val switchCaseFunc = ctx.freshName("switchCaseCode")
-          val argList = inputVars.map { v =>
-            s"${CodeGenerator.typeName(v.javaType)} ${v.variableName}"
-          }
-          ctx.addNewFunction(switchCaseFunc,
-            s"""
-               |private void $switchCaseFunc(${argList.mkString(", ")}) {
-               |  $updateCode
-               |}
-             """.stripMargin)
+      switchCaseExprs.zip(updateCodes).map {
+        case ((row, _, inputVars), updateCode) =>
+          val paramLength = CodeGenerator.calculateParamLengthFromExprValues(inputVars)
+          val maybeSplitUpdateCode = if (CodeGenerator.isValidParamLength(paramLength)) {
+            val switchCaseFunc = ctx.freshName("switchCaseCode")
+            val argList =
+              inputVars.map(v => s"${CodeGenerator.typeName(v.javaType)} ${v.variableName}")
+            ctx.addNewFunction(
+              switchCaseFunc,
+              s"""
+                 |private void $switchCaseFunc(${argList.mkString(", ")}) {
+                 |  $updateCode
+                 |}
+             """.stripMargin
+            )
 
-          s"$switchCaseFunc(${inputVars.map(_.variableName).mkString(", ")});"
-        } else {
-          updateCode
-        }
-        s"""
-           |case $row:
-           |  $maybeSplitUpdateCode
-           |  break;
+            s"$switchCaseFunc(${inputVars.map(_.variableName).mkString(", ")});"
+          } else {
+            updateCode
+          }
+          s"""
+             |case $row:
+             |  $maybeSplitUpdateCode
+             |  break;
          """.stripMargin
       }
     } else {
-      switchCaseExprs.map(_._1).zip(updateCodes).map { case (row, updateCode) =>
-        s"""
-           |case $row:
-           |  $updateCode
-           |  break;
+      switchCaseExprs.map(_._1).zip(updateCodes).map {
+        case (row, updateCode) =>
+          s"""
+             |case $row:
+             |  $updateCode
+             |  break;
          """.stripMargin
       }
     }

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -36,7 +35,8 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
     "collectTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_collectbatch"),
     "concatTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_coalescebatch"),
     "avgCoalescedNumRows" -> SQLMetrics
-      .createAverageMetric(sparkContext, "avg coalesced batch num rows"))
+      .createAverageMetric(sparkContext, "avg coalesced batch num rows")
+  )
 
   override def output: Seq[Attribute] = child.output
 
@@ -55,10 +55,18 @@ case class CoalesceBatchesExec(child: SparkPlan) extends UnaryExecNode {
     val concatTime = longMetric("concatTime")
     val avgCoalescedNumRows = longMetric("avgCoalescedNumRows")
 
-    child.executeColumnar().mapPartitions { iter =>
-      BackendsApiManager.getIteratorApiInstance
-        .genCoalesceIterator(iter, recordsPerBatch, numOutputRows,
-          numInputBatches, numOutputBatches, collectTime, concatTime, avgCoalescedNumRows)
+    child.executeColumnar().mapPartitions {
+      iter =>
+        BackendsApiManager.getIteratorApiInstance
+          .genCoalesceIterator(
+            iter,
+            recordsPerBatch,
+            numOutputRows,
+            numInputBatches,
+            numOutputBatches,
+            collectTime,
+            concatTime,
+            avgCoalescedNumRows)
     }
   }
 

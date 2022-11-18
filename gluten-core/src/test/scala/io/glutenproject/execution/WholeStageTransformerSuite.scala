@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import java.io.File
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
+
+import java.io.File
 
 import scala.io.Source
 import scala.reflect.ClassTag
@@ -48,12 +47,13 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       "part",
       "partsupp",
       "region",
-      "supplier").map { table =>
-      val tableDir = getClass.getResource(resourcePath).getFile
-      val tablePath = new File(tableDir, table).getAbsolutePath
-      val tableDF = spark.read.format(fileFormat).load(tablePath)
-      tableDF.createOrReplaceTempView(table)
-      (table, tableDF)
+      "supplier").map {
+      table =>
+        val tableDir = getClass.getResource(resourcePath).getFile
+        val tablePath = new File(tableDir, table).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+        tableDF.createOrReplaceTempView(table)
+        (table, tableDF)
     }.toMap
   }
 
@@ -90,19 +90,20 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       assert(queryResults.hasNext)
       val result = queryResults.next().split("\\|-\\|")
       var i = 0
-      row.schema.foreach(s => {
-        s match {
-          case d if d.dataType == DoubleType =>
-            val v1 = row.getDouble(i)
-            val v2 = result(i).toDouble
-            assert(Math.abs(v1 - v2) < 0.00001)
-          case _ =>
-            val v1 = row.get(i).toString
-            val v2 = result(i)
-            assert(v1.equals(v2))
-        }
-        i += 1
-      })
+      row.schema.foreach(
+        s => {
+          s match {
+            case d if d.dataType == DoubleType =>
+              val v1 = row.getDouble(i)
+              val v2 = result(i).toDouble
+              assert(Math.abs(v1 - v2) < 0.00001)
+            case _ =>
+              val v1 = row.get(i).toString
+              val v2 = result(i)
+              assert(v1.equals(v2))
+          }
+          i += 1
+        })
     }
   }
 
@@ -127,9 +128,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     customCheck(df)
   }
 
-
-  protected def runSql(sql: String)
-                            (customCheck: DataFrame => Unit): Seq[Row] = {
+  protected def runSql(sql: String)(customCheck: DataFrame => Unit): Seq[Row] = {
     val df = spark.sql(sql)
     val result = df.collect()
     customCheck(df)
@@ -138,8 +137,10 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
 
   def checkLengthAndPlan(df: DataFrame, len: Int = 100) {
     assert(df.collect().length == len)
-    assert(df.queryExecution.executedPlan
-      .find(_.isInstanceOf[TransformSupport]).isDefined)
+    assert(
+      df.queryExecution.executedPlan
+        .find(_.isInstanceOf[TransformSupport])
+        .isDefined)
   }
 
   def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]) {
@@ -147,8 +148,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   }
 
   /**
-   * run a query with native engine as well as vanilla spark
-   * then compare the result set for correctness check
+   * run a query with native engine as well as vanilla spark then compare the result set for
+   * correctness check
    */
   protected def compareResultsAgainstVanillaSpark(
       sqlStr: String,
@@ -170,15 +171,14 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     df
   }
 
-  protected def runQueryAndCompare(
-      sqlStr: String,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): DataFrame = {
+  protected def runQueryAndCompare(sqlStr: String, compareResult: Boolean = true)(
+      customCheck: DataFrame => Unit): DataFrame = {
     compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck)
   }
 
   /**
-   * run a query with native engine as well as vanilla spark
-   * then compare the result set for correctness check
+   * run a query with native engine as well as vanilla spark then compare the result set for
+   * correctness check
    *
    * @param queryNum
    * @param tpchQueries
@@ -198,4 +198,3 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     List(("spark.gluten.sql.enable.native.engine", "false"))
   }
 }
-

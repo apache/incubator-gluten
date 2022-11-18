@@ -14,43 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.internal.Logging
-import io.glutenproject.substrait.expression._
-import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.expression._
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions._
+
+import com.google.common.collect.Lists
 
 class StringTrimLeftTransformer(srcStr: Expression, original: Expression)
-    extends StringTrimLeft(srcStr: Expression, None: Option[Expression])
-    with ExpressionTransformer
-    with Logging {
+  extends StringTrimLeft(srcStr: Expression, None: Option[Expression])
+  with ExpressionTransformer
+  with Logging {
 
-    override def doTransform(args: java.lang.Object): ExpressionNode = {
-      val srcStrNode = srcStr.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!srcStrNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"not supported yet.")
-      }
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val srcStrNode = srcStr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!srcStrNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
 
-      val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-      val functionName =
-        ConverterUtils.makeFuncName(ConverterUtils.LTRIM, Seq(srcStr.dataType), FunctionConfig.OPT)
-      val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-      val expressNodes = Lists.newArrayList(srcStrNode.asInstanceOf[ExpressionNode])
-      val typeNode = TypeBuilder.makeString(original.nullable)
-      ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName =
+      ConverterUtils.makeFuncName(ConverterUtils.LTRIM, Seq(srcStr.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressNodes = Lists.newArrayList(srcStrNode.asInstanceOf[ExpressionNode])
+    val typeNode = TypeBuilder.makeString(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
 
-
 class StringTrimRightTransformer(srcStr: Expression, original: Expression)
-    extends StringTrimRight(srcStr: Expression, None: Option[Expression])
-    with ExpressionTransformer
-    with Logging {
+  extends StringTrimRight(srcStr: Expression, None: Option[Expression])
+  with ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val srcStrNode = srcStr.asInstanceOf[ExpressionTransformer].doTransform(args)
@@ -79,4 +78,3 @@ object TrimOperatorTransformer {
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
 }
-

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import org.apache.spark.rdd.RDD
@@ -22,7 +21,8 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{CodegenSupport, ColumnarToRowTransition, SparkPlan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
-abstract class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowTransition
+abstract class NativeColumnarToRowExec(child: SparkPlan)
+  extends ColumnarToRowTransition
   with CodegenSupport {
 
   override lazy val metrics: Map[String, SQLMetric] = Map(
@@ -50,4 +50,3 @@ abstract class NativeColumnarToRowExec(child: SparkPlan) extends ColumnarToRowTr
     doExecuteInternal()
   }
 }
-

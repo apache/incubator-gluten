@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.util
 
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -26,8 +25,8 @@ object DataSourceStrategyUtil {
   /**
    * Translates a runtime filter into a data source filter.
    *
-   * Runtime filters usually contain a subquery that must be evaluated before the translation.
-   * If the underlying subquery hasn't completed yet, this method will throw an exception.
+   * Runtime filters usually contain a subquery that must be evaluated before the translation. If
+   * the underlying subquery hasn't completed yet, this method will throw an exception.
    */
   def translateRuntimeFilter(expr: Expression): Option[Filter] =
     DataSourceStrategy.translateRuntimeFilter(expr)

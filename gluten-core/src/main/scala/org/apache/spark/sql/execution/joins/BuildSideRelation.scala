@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.execution.BroadCastHashJoinContext
@@ -25,9 +24,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BuildSideRelation extends Serializable {
 
-  /**
-   * Deserialized relation from broadcasted value
-   */
+  /** Deserialized relation from broadcasted value */
   def deserialized: Iterator[ColumnarBatch]
 
   /**
@@ -36,8 +33,6 @@ trait BuildSideRelation extends Serializable {
    */
   def transform(key: Expression): Array[InternalRow]
 
-  /**
-   * Returns a read-only copy of this, to be safely used in current thread.
-   */
+  /** Returns a read-only copy of this, to be safely used in current thread. */
   def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext): BuildSideRelation
 }

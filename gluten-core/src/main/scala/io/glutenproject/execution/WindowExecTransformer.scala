@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.substrait.SubstraitContext
@@ -28,17 +27,21 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
-                                 partitionSpec: Seq[Expression],
-                                 orderSpec: Seq[SortOrder],
-                                 child: SparkPlan) extends WindowExecBase with TransformSupport {
+case class WindowExecTransformer(
+    windowExpression: Seq[NamedExpression],
+    partitionSpec: Seq[Expression],
+    orderSpec: Seq[SortOrder],
+    child: SparkPlan)
+  extends WindowExecBase
+  with TransformSupport {
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
     "totalTime" -> SQLMetrics
-      .createTimingMetric(sparkContext, "totaltime_window"))
+      .createTimingMetric(sparkContext, "totaltime_window")
+  )
   val numOutputRows = longMetric("numOutputRows")
   val numOutputBatches = longMetric("numOutputBatches")
   val numInputBatches = longMetric("numInputBatches")
@@ -52,8 +55,9 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
   override def requiredChildDistribution: Seq[Distribution] = {
     if (partitionSpec.isEmpty) {
       // Only show warning when the number of bytes is larger than 100 MiB?
-      logWarning("No Partition Defined for Window operation! Moving all data to a single "
-        + "partition, this can cause serious performance degradation.")
+      logWarning(
+        "No Partition Defined for Window operation! Moving all data to a single "
+          + "partition, this can cause serious performance degradation.")
       AllTuples :: Nil
     } else ClusteredDistribution(partitionSpec) :: Nil
   }
@@ -67,7 +71,7 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def equals(other: Any): Boolean = other match {
     case that: WindowExecTransformer =>
-      (that canEqual this) && (that eq this)
+      (that.canEqual(this)) && (that eq this)
     case _ => false
   }
 
