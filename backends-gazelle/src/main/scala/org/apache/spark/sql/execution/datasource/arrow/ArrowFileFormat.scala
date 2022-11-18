@@ -14,48 +14,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasource.arrow
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
-import org.apache.arrow.c.{ArrowArray, ArrowSchema}
-import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-import org.apache.parquet.hadoop.codec.CodecConfig
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.VeloxColumnarRules.FakeRow
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.VeloxColumnarRules.FakeRow
 import org.apache.spark.sql.utils.GazelleArrowUtils
+
+import org.apache.arrow.c.{ArrowArray, ArrowSchema}
+import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
+import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+import org.apache.parquet.hadoop.codec.CodecConfig
 
 class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
-  override def inferSchema(sparkSession: SparkSession,
-                           options: Map[String, String],
-                           files: Seq[FileStatus]): Option[StructType] = {
+  override def inferSchema(
+      sparkSession: SparkSession,
+      options: Map[String, String],
+      files: Seq[FileStatus]): Option[StructType] = {
     GazelleArrowUtils.readSchema(files)
   }
 
-  override def prepareWrite(sparkSession: SparkSession,
-                            job: Job,
-                            options: Map[String, String],
-                            dataSchema: StructType): OutputWriterFactory = {
+  override def prepareWrite(
+      sparkSession: SparkSession,
+      job: Job,
+      options: Map[String, String],
+      dataSchema: StructType): OutputWriterFactory = {
 
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
         CodecConfig.from(context).getCodec.getExtension + ".parquet"
       }
 
-      override def newInstance(path: String, dataSchema: StructType,
-                               context: TaskAttemptContext): OutputWriter = {
+      override def newInstance(
+          path: String,
+          dataSchema: StructType,
+          context: TaskAttemptContext): OutputWriter = {
         val originPath = path
         val arrowSchema = ArrowUtils.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
         val writeQueue = new ArrowWriteQueue(arrowSchema, ParquetFileFormat.PARQUET, originPath)
@@ -67,8 +71,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
             ArrowColumnarBatches.ensureLoaded(allocator, batch)
-            ArrowAbiUtil.exportFromSparkColumnarBatch(
-              allocator, batch, cSchema, cArray)
+            ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, batch, cSchema, cArray)
             writeQueue.enqueue(cArray)
           }
 

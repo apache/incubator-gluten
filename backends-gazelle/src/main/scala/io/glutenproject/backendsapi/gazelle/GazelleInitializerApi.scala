@@ -14,21 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.gazelle
 
-import org.apache.spark.SparkConf
-import io.glutenproject.vectorized.JniLibLoader
-import io.glutenproject.vectorized.JniWorkspace
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.IInitializerApi
+import io.glutenproject.vectorized.JniLibLoader
+import io.glutenproject.vectorized.JniWorkspace
+
+import org.apache.spark.SparkConf
+
 import org.apache.commons.lang3.StringUtils
 
 class GazelleInitializerApi extends IInitializerApi {
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
-    loader.newTransaction()
+    loader
+      .newTransaction()
       .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800", false)
       .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800", false)
       .loadAndCreateLink("libarrow_dataset.so.800.0.0", "libarrow_dataset.so.800", false)

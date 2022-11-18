@@ -14,24 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
 
+import org.apache.spark.sql.VeloxColumnarRules.ColumnarToFakeRowAdaptor
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.VeloxColumnarRules.ColumnarToFakeRowAdaptor
-import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.execution.datasource.arrow.ArrowFileFormat
+import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
 object ArrowColumnarRules {
   case class ArrowWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan match {
-      case rc@DataWritingCommandExec(cmd, ColumnarToRowExec(child)) =>
+      case rc @ DataWritingCommandExec(cmd, ColumnarToRowExec(child)) =>
         cmd match {
           case command: InsertIntoHadoopFsRelationCommand =>
             if (command.fileFormat.isInstanceOf[ParquetFileFormat]) {
@@ -43,7 +42,7 @@ object ArrowColumnarRules {
             }
           case _ => plan.withNewChildren(plan.children.map(apply))
         }
-      case rc@DataWritingCommandExec(cmd, child) =>
+      case rc @ DataWritingCommandExec(cmd, child) =>
         cmd match {
           case command: InsertIntoHadoopFsRelationCommand =>
             if (command.fileFormat.isInstanceOf[ParquetFileFormat]) {

@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
+
+import org.apache.commons.io.FileUtils
 
 import java.io.File
 
@@ -40,7 +40,7 @@ class ArrowParquetWriteSuite extends WholeStageTransformerSuite {
     super.beforeAll()
   }
 
-  protected override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     super.afterAll()
     FileUtils.forceDelete(new File(writePath))
   }

@@ -14,8 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasource.arrow
+
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.utils.ArrowAbiUtil
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.execution.datasource.arrow.ArrowWriteQueue.{EOS_ARROW_ARRAY, ScannerImpl}
+
+import org.apache.arrow.c.ArrowArray
+import org.apache.arrow.dataset.file.DatasetFileWriter
+import org.apache.arrow.dataset.file.FileFormat
+import org.apache.arrow.dataset.scanner.{Scanner, ScanTask}
+import org.apache.arrow.vector.ipc.ArrowReader
+import org.apache.arrow.vector.types.pojo.Schema
 
 import java.lang
 import java.net.URI
@@ -24,40 +36,38 @@ import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.ArrowAbiUtil
-import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.dataset.file.DatasetFileWriter
-import org.apache.arrow.dataset.file.FileFormat
-import org.apache.arrow.dataset.scanner.{Scanner, ScanTask}
-import org.apache.arrow.vector.ipc.ArrowReader
-import org.apache.arrow.vector.types.pojo.Schema
-
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.datasource.arrow.ArrowWriteQueue.{EOS_ARROW_ARRAY, ScannerImpl}
-
 class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: String)
-  extends AutoCloseable with Logging {
+  extends AutoCloseable
+  with Logging {
   private val scanner = new ScannerImpl(schema)
   private val writeException = new AtomicReference[Throwable]
 
-  private val writeThread = new Thread(() => {
-    URI.create(outputFileURI) // validate uri
-    val matcher = ArrowWriteQueue.TAILING_FILENAME_REGEX.matcher(outputFileURI)
-    if (!matcher.matches()) {
-      throw new IllegalArgumentException("illegal out put file uri: " + outputFileURI)
-    }
-    val dirURI = matcher.group(1)
-    val fileName = matcher.group(2)
+  private val writeThread = new Thread(
+    () => {
+      URI.create(outputFileURI) // validate uri
+      val matcher = ArrowWriteQueue.TAILING_FILENAME_REGEX.matcher(outputFileURI)
+      if (!matcher.matches()) {
+        throw new IllegalArgumentException("illegal out put file uri: " + outputFileURI)
+      }
+      val dirURI = matcher.group(1)
+      val fileName = matcher.group(2)
 
-    try {
-      DatasetFileWriter.write(ArrowBufferAllocators.contextInstance(),
-        scanner, fileFormat, dirURI, Array(), 1, "{i}_" + fileName)
-    } catch {
-      case e: Throwable =>
-        writeException.set(e)
-    }
-  }, "ArrowWriteQueue - " + UUID.randomUUID().toString)
+      try {
+        DatasetFileWriter.write(
+          ArrowBufferAllocators.contextInstance(),
+          scanner,
+          fileFormat,
+          dirURI,
+          Array(),
+          1,
+          "{i}_" + fileName)
+      } catch {
+        case e: Throwable =>
+          writeException.set(e)
+      }
+    },
+    "ArrowWriteQueue - " + UUID.randomUUID().toString
+  )
 
   writeThread.start()
 
@@ -84,8 +94,7 @@ class ArrowWriteQueue(schema: Schema, fileFormat: FileFormat, outputFileURI: Str
 
 object ArrowWriteQueue {
   private val TAILING_FILENAME_REGEX = Pattern.compile("^(.*)/([^/]+)$")
-  private val EOS_ARROW_ARRAY = ArrowArray.allocateNew(
-    ArrowBufferAllocators.contextInstance())
+  private val EOS_ARROW_ARRAY = ArrowArray.allocateNew(ArrowBufferAllocators.contextInstance())
 
   class ScannerImpl(schema: Schema) extends Scanner {
     private val writeQueue = new ArrayBlockingQueue[ArrowArray](1024)
@@ -100,13 +109,14 @@ object ArrowWriteQueue {
           val allocator = ArrowBufferAllocators.contextInstance()
           new ArrowReader(allocator) {
             override def loadNextBatch(): Boolean = {
-              val currentArray = try {
-                writeQueue.poll(30L, TimeUnit.MINUTES)
-              } catch {
-                case _: InterruptedException =>
-                  Thread.currentThread().interrupt()
-                  EOS_ARROW_ARRAY
-              }
+              val currentArray =
+                try {
+                  writeQueue.poll(30L, TimeUnit.MINUTES)
+                } catch {
+                  case _: InterruptedException =>
+                    Thread.currentThread().interrupt()
+                    EOS_ARROW_ARRAY
+                }
               if (currentArray == null) {
                 throw new RuntimeException("ArrowWriter: Timeout waiting for data")
               }
@@ -115,7 +125,10 @@ object ArrowWriteQueue {
                 return false
               }
               ArrowAbiUtil.importIntoVectorSchemaRoot(
-                allocator, currentArray, getVectorSchemaRoot(), this)
+                allocator,
+                currentArray,
+                getVectorSchemaRoot(),
+                this)
               true
             }
 
@@ -127,9 +140,7 @@ object ArrowWriteQueue {
           }
         }
 
-        override def close(): Unit = {
-
-        }
+        override def close(): Unit = {}
       })
     }
 
@@ -137,8 +148,6 @@ object ArrowWriteQueue {
       schema
     }
 
-    override def close(): Unit = {
-
-    }
+    override def close(): Unit = {}
   }
 }

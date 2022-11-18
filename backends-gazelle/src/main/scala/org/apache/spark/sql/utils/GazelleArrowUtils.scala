@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.utils
 
-import java.net.URI
-
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import org.apache.arrow.dataset.file.{FileFormat, FileSystemDatasetFactory}
-import org.apache.hadoop.fs.FileStatus
 
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 import org.apache.spark.sql.types.StructType
+
+import org.apache.arrow.dataset.file.{FileFormat, FileSystemDatasetFactory}
+import org.apache.hadoop.fs.FileStatus
+
+import java.net.URI
 
 object GazelleArrowUtils {
 
@@ -32,8 +32,8 @@ object GazelleArrowUtils {
     val decodedUri = encodeUri
     val uri = URI.create(decodedUri)
     if (uri.getScheme == "s3" || uri.getScheme == "s3a") {
-      val s3Rewritten = new URI("s3", uri.getAuthority,
-        uri.getPath, uri.getQuery, uri.getFragment).toString
+      val s3Rewritten =
+        new URI("s3", uri.getAuthority, uri.getPath, uri.getQuery, uri.getFragment).toString
       return s3Rewritten
     }
     val sch = uri.getScheme match {
@@ -48,12 +48,15 @@ object GazelleArrowUtils {
     rewritten.toString
   }
 
-  private def makeArrowDiscovery(encodedUri: String,
-                         startOffset: Long, length: Long): FileSystemDatasetFactory = {
+  private def makeArrowDiscovery(
+      encodedUri: String,
+      startOffset: Long,
+      length: Long): FileSystemDatasetFactory = {
 
     val format = FileFormat.PARQUET
     val allocator = ArrowBufferAllocators.contextInstance()
-    val factory = new FileSystemDatasetFactory(allocator,
+    val factory = new FileSystemDatasetFactory(
+      allocator,
       null, // SparkMemoryUtils.contextMemoryPool()
       format,
       rewriteUri(encodedUri),

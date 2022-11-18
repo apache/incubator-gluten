@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi.gazelle
 
 import io.glutenproject.backendsapi.velox.VeloxSparkPlanExecApi
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.ArrowColumnarRules.ArrowWritePostRule
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
 // FIXME Methods in this class never get called since no service file is registered for it,
 // marked deprecated
@@ -30,8 +29,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 class GazelleSparkPlanExecApi extends VeloxSparkPlanExecApi {
 
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    val arrowRule = (spark: SparkSession)
-    => ArrowWritePostRule(spark)
-    super.genExtendedColumnarPostRules():+ arrowRule
+    val arrowRule = (spark: SparkSession) => ArrowWritePostRule(spark)
+    super.genExtendedColumnarPostRules() :+ arrowRule
   }
 }
