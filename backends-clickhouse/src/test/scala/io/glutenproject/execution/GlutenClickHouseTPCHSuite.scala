@@ -252,7 +252,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val df = spark.sql(
       """
         |select n_nationkey, n_name, n_regionkey from nation
-        |order by n_name, n_regionkey
+        |order by n_name, n_regionkey + 1
         |""".stripMargin
     )
     val result = df.take(3)

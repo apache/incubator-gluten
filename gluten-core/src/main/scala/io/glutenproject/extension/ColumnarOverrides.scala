@@ -228,8 +228,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
               ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
             } else {
-              CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning,
-                child))
+              CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
             }
           }
         } else {

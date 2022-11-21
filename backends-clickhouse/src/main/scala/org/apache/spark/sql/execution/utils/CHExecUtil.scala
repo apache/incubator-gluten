@@ -147,9 +147,7 @@ object CHExecUtil {
           numPartitions,
           rddForSampling,
           sortingExpressions,
-          outputAttributes,
-          true,
-          samplePointsPerPartitionHint = 20)
+          outputAttributes)
         val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
         new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes())
       case p =>

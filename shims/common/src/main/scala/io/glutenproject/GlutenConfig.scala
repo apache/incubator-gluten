@@ -196,9 +196,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarLimit: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.limit", "true").toBoolean
 
-  val enableColumarRangePartitioning: Boolean =
-    conf.getConfString("spark.gluten.sql.columnar.rangepartitioning", "true").toBoolean
-
   val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.gluten.sql.columnar.numaBinding", "false").toBoolean

@@ -34,11 +34,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, BoundReference, NamedExpression, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import io.substrait.proto.ProjectRel
-import io.substrait.proto.Rel
-import io.substrait.proto.RelCommon
 import play.api.libs.json._
 
 import java.util
@@ -49,6 +45,7 @@ import scala.collection.Seq
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
+import scala.util.control.Breaks.{break, breakable}
 import scala.util.hashing.byteswap32
 
 /**
@@ -305,5 +302,19 @@ object RangePartitionerBoundsGenerator {
       case _: DateType => true
       case _ => false
     }
+  }
+
+  def supportedOrderings(orderings: Seq[SortOrder]): Boolean = {
+    var enableRangePartitioning = true
+    // TODO. support complex data type in orderings
+    breakable {
+      for (ordering <- orderings) {
+        if (!RangePartitionerBoundsGenerator.supportedFieldType(ordering.dataType)) {
+          enableRangePartitioning = false
+          break
+        }
+      }
+    }
+    enableRangePartitioning
   }
 }

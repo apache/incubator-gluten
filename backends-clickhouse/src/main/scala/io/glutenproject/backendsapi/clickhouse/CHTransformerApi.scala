@@ -65,21 +65,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
             })
           .exists(_ == false))
       case RangePartitioning(orderings, _) =>
-        if (GlutenConfig.getSessionConf.enableColumarRangePartitioning) {
-          var enableRangePartitioning = true
-          // TODO. support complex data type in orderings
-          breakable {
-            for (ordering <- orderings) {
-              if (!RangePartitionerBoundsGenerator.supportedFieldType(ordering.dataType)) {
-                enableRangePartitioning = false
-                break
-              }
-            }
-          }
-          enableRangePartitioning
-        } else {
-          false
-        }
+        RangePartitionerBoundsGenerator.supportedOrderings(orderings)
       case _ => true
     }
   }
