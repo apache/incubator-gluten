@@ -16,6 +16,14 @@
  */
 package io.glutenproject.sql.shims.spark33
 
+import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
+
+import org.apache.spark.sql.catalyst.expressions.{DynamicPruningSubquery, Expression}
+import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.internal.SQLConf
+
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
