@@ -258,6 +258,8 @@ object GlutenConfig {
   val SPARK_S3_CONNECTION_SSL_ENABLED: String = "spark." + S3_CONNECTION_SSL_ENABLED
   val S3_PATH_STYLE_ACCESS = "hadoop.fs.s3a.path.style.access"
   val SPARK_S3_PATH_STYLE_ACCESS: String = "spark." + S3_PATH_STYLE_ACCESS
+  val S3_USE_INSTANCE_CREDENTIALS = "hadoop.fs.s3a.use.instance.credentials"
+  val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = "spark." + S3_USE_INSTANCE_CREDENTIALS
 
   val SPARK_BATCH_SIZE = "spark.sql.execution.arrow.maxRecordsPerBatch"
 

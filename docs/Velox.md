@@ -135,6 +135,13 @@ spark.hadoop.fs.s3a.endpoint https://s3.us-west-1.amazonaws.com
 spark.hadoop.fs.s3a.connection.ssl.enabled true
 spark.hadoop.fs.s3a.path.style.access false
 ```
+
+You can also use instance credentials by setting the following config
+```
+spark.hadoop.fs.s3a.use.instance.credentials true
+```
+If you are using instance credentials you do not have to set the access key or secret key.
+
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different configurations for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
 # 3 Coverage
