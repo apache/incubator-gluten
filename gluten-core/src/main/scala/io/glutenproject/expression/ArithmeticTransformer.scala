@@ -151,7 +151,19 @@ class BitwiseAndTransformer(left: Expression, right: Expression, original: Expre
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: BitwiseAnd.")
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.BITWISE_AND, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    // Use left data type as result type.
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -161,7 +173,19 @@ class BitwiseOrTransformer(left: Expression, right: Expression, original: Expres
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: BitwiseOr.")
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      ConverterUtils.BITWISE_OR, Seq(left.dataType, right.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    // Use left data type as result type.
+    val typeNode = ConverterUtils.getTypeNode(left.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
