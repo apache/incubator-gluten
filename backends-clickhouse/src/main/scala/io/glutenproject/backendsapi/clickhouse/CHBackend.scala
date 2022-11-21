@@ -17,7 +17,10 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{Backend, IInitializerApi, IIteratorApi, ISparkPlanExecApi, ITransformerApi}
+import io.glutenproject.backendsapi._
+
+import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
@@ -25,4 +28,12 @@ class CHBackend extends Backend {
   override def iteratorApi(): IIteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): ISparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): ITransformerApi = new CHTransformerApi
+  override def settings(): BackendSettings = CHBackendSettings
+}
+
+object CHBackendSettings extends BackendSettings {
+  override def supportedFileFormats(): Set[Class[_ <: FileFormat]] =
+    Set(classOf[ParquetFileFormat])
+  override def utilizeShuffledHashJoinHint(): Boolean = true
+  override def excludeScanExecFromCollapsedStage(): Boolean = true
 }

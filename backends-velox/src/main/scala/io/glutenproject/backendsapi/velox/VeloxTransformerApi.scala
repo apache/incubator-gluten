@@ -17,19 +17,16 @@
 
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.ITransformerApi
+import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
 import io.glutenproject.expression.ArrowConverterUtils
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import io.glutenproject.utils.{InputPartitionsUtil, VeloxExpressionUtil}
 import io.glutenproject.utils.VeloxExpressionUtil.VELOX_EXPR_BLACKLIST
+
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
 
 class VeloxTransformerApi extends ITransformerApi with Logging {
 
@@ -87,10 +84,7 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * @return true if backend supports reading the file format.
    */
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
-    GlutenConfig.getConf.isGazelleBackend && fileFormat.isInstanceOf[ParquetFileFormat] ||
-      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[OrcFileFormat] ||
-      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[DwrfFileFormat] ||
-      GlutenConfig.getConf.isVeloxBackend && fileFormat.isInstanceOf[ParquetFileFormat]
+    BackendsApiManager.getSettings.supportedFileFormats().contains(fileFormat.getClass)
   }
 
   /**

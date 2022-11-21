@@ -28,7 +28,8 @@ object BackendsApiManager {
       initializerApiInstance: IInitializerApi,
       iteratorApiInstance: IIteratorApi,
       sparkPlanExecApiInstance: ISparkPlanExecApi,
-      transformerApiInstance: ITransformerApi)
+      transformerApiInstance: ITransformerApi,
+      settings: BackendSettings)
 
   private lazy val manager: Wrapper = initializeInternal()
 
@@ -50,7 +51,8 @@ object BackendsApiManager {
       backend.initializerApi(),
       backend.iteratorApi(),
       backend.sparkPlanExecApi(),
-      backend.transformerApi())
+      backend.transformerApi(),
+      backend.settings())
   }
 
   /**
@@ -79,5 +81,9 @@ object BackendsApiManager {
 
   def getTransformerApiInstance: ITransformerApi = {
     manager.transformerApiInstance
+  }
+
+  def getSettings: BackendSettings = {
+    manager.settings
   }
 }

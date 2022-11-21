@@ -16,8 +16,7 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.ITransformerApi
+import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
 import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
@@ -28,7 +27,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
 class CHTransformerApi extends ITransformerApi with Logging {
@@ -75,7 +73,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
    *   true if backend supports reading the file format.
    */
   def supportsReadFileFormat(fileFormat: FileFormat): Boolean =
-    GlutenConfig.getConf.isClickHouseBackend && fileFormat.isInstanceOf[ParquetFileFormat]
+    BackendsApiManager.getSettings.supportedFileFormats().contains(fileFormat.getClass)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(

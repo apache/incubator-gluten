@@ -18,7 +18,13 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{Backend, IInitializerApi, IIteratorApi, ISparkPlanExecApi, ITransformerApi}
+import io.glutenproject.backendsapi._
+
+import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
 
 class VeloxBackend extends Backend {
   override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
@@ -26,4 +32,39 @@ class VeloxBackend extends Backend {
   override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): ITransformerApi = new VeloxTransformerApi
+  override def settings(): BackendSettings = VeloxBackendSettings
+}
+
+object VeloxBackendSettings extends BackendSettings {
+  override def supportedFileFormats(): Set[Class[_ <: FileFormat]] =
+    Set(classOf[ParquetFileFormat], classOf[OrcFileFormat], classOf[DwrfFileFormat])
+  override def supportExpandExec(): Boolean = true
+  override def supportSortExec(): Boolean = true
+  override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
+    t =>
+      if (super.supportHashBuildJoinTypeOnLeft(t)) {
+        true
+      } else {
+        t match {
+          // For Velox backend, build right and left are both supported for
+          // LeftOuter and LeftSemi.
+          case LeftOuter | LeftSemi => true
+          case _ => false
+        }
+      }
+  }
+  override def supportHashBuildJoinTypeOnRight: JoinType => Boolean = {
+    t =>
+      if (super.supportHashBuildJoinTypeOnRight(t)) {
+        true
+      } else {
+        t match {
+          // For Velox backend, build right and left are both supported for RightOuter.
+          case RightOuter => true
+          case _ => false
+        }
+      }
+  }
+  override def recreateJoinExecOnFallback(): Boolean = true
+  override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
 }

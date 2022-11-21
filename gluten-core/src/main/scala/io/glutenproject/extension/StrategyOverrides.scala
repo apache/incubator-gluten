@@ -18,6 +18,7 @@
 package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
@@ -82,7 +83,8 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
       if (forceShuffledHashJoin) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
-        val (leftBuildable, rightBuildable) = if (GlutenConfig.getConf.isClickHouseBackend) {
+        val (leftBuildable, rightBuildable) = if (
+          BackendsApiManager.getSettings.utilizeShuffledHashJoinHint()) {
           // Currently, ClickHouse backend can not support AQE, so it needs to use join hint
           // to decide the build side, after supporting AQE, will remove this.
           val leftHintEnabled = hintToShuffleHashJoinLeft(hint)
@@ -133,23 +135,11 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
   }
 
   override def canBuildShuffledHashJoinLeft(joinType: JoinType): Boolean = {
-    joinType match {
-      case _: InnerLike | RightOuter | FullOuter => true
-      // For Velox backend, build right and left are both supported for LeftOuter and LeftSemi.
-      case LeftOuter | LeftSemi =>
-        GlutenConfig.getConf.isVeloxBackend
-      case _ => false
-    }
+    BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(joinType)
   }
 
   override def canBuildShuffledHashJoinRight(joinType: JoinType): Boolean = {
-    joinType match {
-      case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
-      // For Velox backend, build right and left are both supported for RightOuter.
-      case RightOuter =>
-        GlutenConfig.getConf.isVeloxBackend
-      case _ => false
-    }
+    BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(joinType)
   }
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {

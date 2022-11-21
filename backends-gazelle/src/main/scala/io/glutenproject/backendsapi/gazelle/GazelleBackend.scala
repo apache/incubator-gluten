@@ -20,6 +20,9 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 import io.glutenproject.backendsapi.velox.{VeloxIteratorApi, VeloxSparkPlanExecApi, VeloxTransformerApi}
 
+import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+
 // FIXME The backend reuses some of Velox BE's code. Cleanup is needed
 //  to avoid this.
 class GazelleBackend extends Backend {
@@ -28,4 +31,12 @@ class GazelleBackend extends Backend {
   override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): ITransformerApi = new VeloxTransformerApi
+  override def settings(): BackendSettings = GazelleBackendSettings
+}
+
+object GazelleBackendSettings extends BackendSettings {
+  override def supportedFileFormats(): Set[Class[_ <: FileFormat]] =
+    Set(classOf[ParquetFileFormat])
+  override def avoidOverwritingFilterTransformer(): Boolean = true
+  override def fallbackFilterWithoutConjunctiveScan(): Boolean = true
 }
