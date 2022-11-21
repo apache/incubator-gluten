@@ -267,10 +267,6 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
     assert(sortExec.size == 1)
 
-    val rangePartitioning = df.queryExecution.executedPlan.collect {
-      case ColumnarShuffleExchangeExec(RangePartitioning(_, _), _, _, _) => 1
-    }
-    assert(rangePartitioning.size == 1)
     val result = df.take(3)
     val expected =
       Seq(Row(0, "ALGERIA", 0), Row(1, "ARGENTINA", 1), Row(2, "BRAZIL", 1))
