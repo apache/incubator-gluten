@@ -200,20 +200,4 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select type1.timestamp from type1," +
       " type2 where type1.timestamp = type2.timestamp") { _ => }
   }
-
-  test("Decimal type") {
-    // Validation: BatchScan Project Aggregate Expand Sort Limit
-    runQueryAndCompare("select decimal from type1" +
-      " group by grouping sets(decimal) sort by decimal limit 1") { _ => }
-
-    // Validation: BroadHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
-    runQueryAndCompare("select type1.decimal from type1," +
-      " type2 where type1.decimal = type2.decimal") { _ => }
-
-    // Validation: ShuffledHashJoin, Filter, Project
-    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
-    runQueryAndCompare("select type1.decimal from type1," +
-      " type2 where type1.decimal = type2.decimal") { _ => }
-  }
 }
