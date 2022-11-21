@@ -19,6 +19,8 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.plans.physical.RangePartitioning
+import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -43,6 +45,11 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
           case scanExec: BasicScanExecTransformer => scanExec
         }
         assert(scanExec.size == 1)
+
+        val sortExec = df.queryExecution.executedPlan.collect {
+          case sortExec: SortExecTransformer => sortExec
+        }
+        assert(sortExec.size == 1)
     }
   }
 
@@ -255,6 +262,15 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         |order by n_name, n_regionkey + 1
         |""".stripMargin
     )
+    val sortExec = df.queryExecution.executedPlan.collect {
+      case sortExec: SortExecTransformer => sortExec
+    }
+    assert(sortExec.size == 1)
+
+    val rangePartitioning = df.queryExecution.executedPlan.collect {
+      case ColumnarShuffleExchangeExec(RangePartitioning(_, _), _, _, _) => 1
+    }
+    assert(rangePartitioning.size == 1)
     val result = df.take(3)
     val expected =
       Seq(Row(0, "ALGERIA", 0), Row(1, "ARGENTINA", 1), Row(2, "BRAZIL", 1))

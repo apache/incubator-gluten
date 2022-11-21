@@ -51,17 +51,9 @@ import io.glutenproject.extension.columnar.TransformHint
 import io.glutenproject.extension.columnar.StoreExpandGroupExpression
 import io.glutenproject.sql.shims.SparkShimLoader
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
-import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.rel.RelBuilder
-
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Expression, Murmur3Hash, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.physical.RangePartitioning
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
-
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 // The plan with a row guard on the top of it will not be converted.
