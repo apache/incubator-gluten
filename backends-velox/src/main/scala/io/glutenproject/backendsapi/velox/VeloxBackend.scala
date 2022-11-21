@@ -40,6 +40,9 @@ object VeloxBackendSettings extends BackendSettings {
     Set(classOf[ParquetFileFormat], classOf[OrcFileFormat], classOf[DwrfFileFormat])
   override def supportExpandExec(): Boolean = true
   override def supportSortExec(): Boolean = true
+  override def supportColumnarShuffleExec(): Boolean = {
+    GlutenConfig.getSessionConf.isUseColumnarShuffleManager
+  }
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>
       if (super.supportHashBuildJoinTypeOnLeft(t)) {

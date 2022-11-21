@@ -37,6 +37,9 @@ class GazelleBackend extends Backend {
 object GazelleBackendSettings extends BackendSettings {
   override def supportedFileFormats(): Set[Class[_ <: FileFormat]] =
     Set(classOf[ParquetFileFormat])
+  override def supportColumnarShuffleExec(): Boolean = {
+    GlutenConfig.getSessionConf.isUseColumnarShuffleManager
+  }
   override def avoidOverwritingFilterTransformer(): Boolean = true
   override def fallbackFilterWithoutConjunctiveScan(): Boolean = true
 }

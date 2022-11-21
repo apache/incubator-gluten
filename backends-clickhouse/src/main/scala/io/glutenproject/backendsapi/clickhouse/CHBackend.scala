@@ -37,7 +37,4 @@ object CHBackendSettings extends BackendSettings {
     Set(classOf[ParquetFileFormat])
   override def utilizeShuffledHashJoinHint(): Boolean = true
   override def excludeScanExecFromCollapsedStage(): Boolean = true
-  override def supportColumnarShuffleExec(): Boolean = {
-    SQLConf.get.getConfString("spark.gluten.sql.columnar.shuffle", "true").toBoolean
-  }
 }
