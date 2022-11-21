@@ -186,9 +186,9 @@ object VeloxColumnarRules {
 
   case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-      case c2r @ ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
+      case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeAdaptor) =>
         c2r // AdaptiveSparkPlanExec.scala:536
-      case c2r @ ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>
+      case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
       case ColumnarToRowExec(child) => ColumnarToRowExec(VeloxLoadArrowData(child))
     }

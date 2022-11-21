@@ -32,6 +32,7 @@
   <modules>
     <module>shims</module>
     <module>gluten-core</module>
+    <module>substrait/substrait-spark</module>
   </modules>
 
   <properties>
@@ -62,17 +63,17 @@
     <enable_ep_cache>OFF</enable_ep_cache>
     <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
+    <build_folly>ON</build_folly>
     <build_jemalloc>OFF</build_jemalloc>
     <build_velox_from_source>OFF</build_velox_from_source>
     <compile_velox>OFF</compile_velox>
     <velox_home>${session.executionRootDirectory}/ep/build-velox/build/velox_ep</velox_home>
-    <velox_build_type>release</velox_build_type>
-    <debug_build>OFF</debug_build>
+    <build_type>release</build_type>
     <project.prefix>spark-sql-columnar</project.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
     <!-- To build built-in backend c++ codes -->
-    <build_gazelle_cpp>OFF</build_gazelle_cpp>
-    <build_velox>OFF</build_velox>
+    <build_gazelle_cpp_backend>OFF</build_gazelle_cpp_backend>
+    <build_velox_backend>OFF</build_velox_backend>
     <velox_enable_s3>OFF</velox_enable_s3>
     <velox_enable_hdfs>OFF</velox_enable_hdfs>
     <scala.recompile.mode>all</scala.recompile.mode>
@@ -111,6 +112,7 @@
     </spotless.license.header>
 
     <!-- plugin version-->
+    <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.3.0</scala.compiler.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
@@ -217,7 +219,7 @@
         <backend_type>velox</backend_type>
         <arrow.version>10.0.0-SNAPSHOT</arrow.version>
         <build_cpp>ON</build_cpp>
-        <build_velox>ON</build_velox>
+        <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
     <profile>
@@ -237,7 +239,7 @@
         <backend_type>gazelle_cpp</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
         <build_cpp>ON</build_cpp>
-        <build_gazelle_cpp>ON</build_gazelle_cpp>
+        <build_gazelle_cpp_backend>ON</build_gazelle_cpp_backend>
       </properties>
     </profile>
     <profile>
@@ -293,6 +295,10 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+          </exclusion>
         </exclusions>
         <scope>provided</scope>
       </dependency>
@@ -309,6 +315,27 @@
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.substrait</groupId>
+        <artifactId>core</artifactId>
+        <version>${substrait.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -617,6 +644,11 @@
             </execution>
           </executions>
         </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -682,4 +714,18 @@
       </plugin>
     </plugins>
   </reporting>
+  <repositories>
+    <repository>
+      <id>Kyligence</id>
+      <name>Kyligence Repository</name>
+      <url>https://repository.kyligence.io/repository/maven-public/
+      </url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>

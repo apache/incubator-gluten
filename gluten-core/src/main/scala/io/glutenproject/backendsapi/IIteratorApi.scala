@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.memory.TaskMemoryResourceManager
 
-trait IIteratorApi extends IBackendsApi {
+trait IIteratorApi {
 
   /**
    * Generate native row partition.

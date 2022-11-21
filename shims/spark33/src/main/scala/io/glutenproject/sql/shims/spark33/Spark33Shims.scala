@@ -20,11 +20,13 @@ import io.glutenproject.BackendLib
 import io.glutenproject.extension.JoinSelectionOverrideShim
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{DynamicPruningSubquery, Expression}
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.internal.SQLConf
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -35,14 +37,11 @@ class Spark33Shims extends SparkShims {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def applyPlan(
-      plan: LogicalPlan,
-      forceShuffledHashJoin: Boolean,
-      backendLib: BackendLib): Seq[SparkPlan] = {
+  override def applyPlan(plan: LogicalPlan, forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
     plan match {
       // If the build side of BHJ is already decided by AQE, we need to keep the build side.
       case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, _, left, right, hint) =>
-        new JoinSelectionOverrideShim(backendLib).extractEqualJoinKeyCondition(
+        new JoinSelectionOverrideShim().extractEqualJoinKeyCondition(
           joinType,
           leftKeys,
           rightKeys,
@@ -53,5 +52,19 @@ class Spark33Shims extends SparkShims {
           forceShuffledHashJoin)
       case _ => Nil
     }
+  }
+
+  override def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {
+    // TODO migrate dynamic-partition-pruning onto adaptive execution.
+    // Only QueryStage will have Exchange as Leaf Plan
+    val isLeafPlanExchange = plan match {
+      case _: Exchange => true
+      case _ => false
+    }
+    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled &&
+      (sanityCheck(plan) &&
+        !plan.logicalLink.exists(_.isStreaming) &&
+        !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
+        plan.children.forall(supportAdaptiveWithExchangeConsidered)))
   }
 }

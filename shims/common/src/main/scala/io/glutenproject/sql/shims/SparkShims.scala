@@ -42,9 +42,9 @@ trait SparkShims {
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
 
   // https://issues.apache.org/jira/browse/SPARK-36745
-  def applyPlan(
-      plan: LogicalPlan,
-      forceShuffledHashJoin: Boolean,
-      backendLib: BackendLib): Seq[SparkPlan]
+  def applyPlan(plan: LogicalPlan, forceShuffledHashJoin: Boolean): Seq[SparkPlan]
 
+  protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
+
+  def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
 }
