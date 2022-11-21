@@ -103,7 +103,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     return std::make_shared<::velox::compute::VeloxPlanConverter>(sparkConfs_);
   });
   static auto veloxInitializer =
-      std::make_shared<::velox::compute::VeloxInitializer>();
+      std::make_shared<::velox::compute::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()
 }
 
@@ -120,7 +120,8 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
   ParseProtobuf(planData, planSize, &subPlan);
 
   // A query context used for function validation.
-  std::shared_ptr<core::QueryCtx> queryCtx_{core::QueryCtx::createForTest()};
+  std::shared_ptr<core::QueryCtx> queryCtx_ =
+      std::make_shared<core::QueryCtx>();
   // A memory pool used for function validation.
   std::shared_ptr<memory::MemoryPool> pool =
       gluten::memory::GetDefaultWrappedVeloxMemoryPool();

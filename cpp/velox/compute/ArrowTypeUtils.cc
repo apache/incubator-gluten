@@ -24,11 +24,20 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
   if (type_name == "BOOLEAN") {
     return arrow::boolean();
   }
+  if (type_name == "TINYINT") {
+    return arrow::int8();
+  }
+  if (type_name == "SMALLINT") {
+    return arrow::int16();
+  }
   if (type_name == "INTEGER") {
     return arrow::int32();
   }
   if (type_name == "BIGINT") {
     return arrow::int64();
+  }
+  if (type_name == "REAL") {
+    return arrow::float32();
   }
   if (type_name == "DOUBLE") {
     return arrow::float64();
@@ -36,7 +45,22 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
   if (type_name == "VARCHAR") {
     return arrow::utf8();
   }
-  throw std::runtime_error("Type name is not supported");
+  if (type_name == "VARBINARY") {
+    return arrow::utf8();
+  }
+  // The type name of Array type is like ARRAY<type>.
+  std::string arrayType = "ARRAY";
+  if (type_name.substr(0, arrayType.length()) == arrayType) {
+    std::size_t start = type_name.find_first_of("<");
+    std::size_t end = type_name.find_last_of(">");
+    if (start == std::string::npos || end == std::string::npos) {
+      throw std::runtime_error("Invalid array type.");
+    }
+    // Extract the inner type of array type.
+    std::string innerType = type_name.substr(start + 1, end - start - 1);
+    return arrow::list(toArrowTypeFromName(innerType));
+  }
+  throw std::runtime_error("Type name is not supported: " + type_name + ".");
 }
 
 std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
@@ -45,9 +69,13 @@ std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
       return arrow::int32();
     case TypeKind::BIGINT:
       return arrow::int64();
+    case TypeKind::REAL:
+      return arrow::float32();
     case TypeKind::DOUBLE:
       return arrow::float64();
     case TypeKind::VARCHAR:
+      return arrow::utf8();
+    case TypeKind::VARBINARY:
       return arrow::utf8();
     case TypeKind::TIMESTAMP:
       return arrow::timestamp(arrow::TimeUnit::MICRO);

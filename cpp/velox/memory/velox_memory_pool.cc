@@ -101,16 +101,16 @@ class VeloxMemoryAllocatorVariant {
 template <
     typename Allocator = VeloxMemoryAllocatorVariant,
     uint16_t ALIGNMENT = kNoAlignment>
-class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPoolBase {
+class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPool {
  public:
   // Should perhaps make this method private so that we only create node through
   // parent.
   explicit WrappedVeloxMemoryPool(
       const std::string& name,
-      std::weak_ptr<MemoryPool> parent,
+      std::shared_ptr<MemoryPool> parent,
       std::shared_ptr<Allocator> allocator,
       int64_t cap = kMaxMemory)
-      : MemoryPoolBase{name, parent},
+      : MemoryPool{name, parent},
         localMemoryUsage_{},
         cap_{cap},
         allocator_{allocator} {
@@ -227,7 +227,7 @@ class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPoolBase {
     return aggregateBytes;
   }
   // Get the cap for the memory node and its subtree.
-  int64_t getCap() const {
+  int64_t cap() const {
     return cap_;
   }
   uint16_t getAlignment() const {
@@ -245,13 +245,11 @@ class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPoolBase {
     // in MemoryManager, only parent has the right to lift the cap.
     // This suffices because parent will then recursively lift the cap on the
     // entire tree.
-    if (getAggregateBytes() > getCap()) {
+    if (getAggregateBytes() > cap()) {
       return;
     }
-    if (auto parentPtr = parent_.lock()) {
-      if (parentPtr->isMemoryCapped()) {
-        return;
-      }
+    if (parent_ != nullptr && parent_->isMemoryCapped()) {
+      return;
     }
     capped_.store(false);
     visitChildren([](MemoryPool* child) { child->uncapMemoryAllocation(); });
@@ -261,7 +259,7 @@ class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPoolBase {
   }
 
   std::shared_ptr<MemoryPool> genChild(
-      std::weak_ptr<MemoryPool> parent,
+      std::shared_ptr<MemoryPool> parent,
       const std::string& name,
       int64_t cap) {
     return std::make_shared<WrappedVeloxMemoryPool<Allocator, ALIGNMENT>>(
@@ -396,7 +394,7 @@ std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
     MemoryAllocator* allocator) {
   return std::make_shared<WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>>(
       "wrapped",
-      std::weak_ptr<facebook::velox::memory::MemoryPool>(),
+      nullptr,
       std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
 }
 
@@ -405,7 +403,7 @@ GetDefaultWrappedVeloxMemoryPool() {
   static auto default_pool =
       std::make_shared<WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>>(
           "root",
-          std::weak_ptr<facebook::velox::memory::MemoryPool>(),
+          nullptr,
           VeloxMemoryAllocatorVariant::createDefaultAllocator());
   return default_pool;
 }

@@ -14,32 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized
+
+import io.glutenproject.GlutenConfig
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.io._
 import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
 
-import io.glutenproject.GlutenConfig
-
-import org.apache.spark.internal.Logging
-import org.apache.spark.serializer.{
-  DeserializationStream,
-  SerializationStream,
-  Serializer,
-  SerializerInstance
-}
-import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
 class CHColumnarBatchSerializer(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     dataSize: SQLMetric)
-    extends Serializer
-    with Serializable {
+  extends Serializer
+  with Serializable {
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -53,12 +47,12 @@ private class CHColumnarBatchSerializerInstance(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     dataSize: SQLMetric)
-    extends SerializerInstance
-    with Logging {
+  extends SerializerInstance
+  with Logging {
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-      private val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShufflemanager
+      private val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShuffleManager
 
       private var reader: CHStreamReader = _
       private var cb: ColumnarBatch = _
@@ -96,7 +90,7 @@ private class CHColumnarBatchSerializerInstance(
             nativeBlock = reader.next()
           }
           val numRows = nativeBlock.numRows()
-          logDebug(s"Read ColumnarBatch of ${numRows} rows")
+          logDebug(s"Read ColumnarBatch of $numRows rows")
 
           numBatchesTotal += 1
           numRowsTotal += numRows

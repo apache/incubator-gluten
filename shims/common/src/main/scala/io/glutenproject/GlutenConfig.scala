@@ -14,17 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-case class GlutenNumaBindingInfo(enableNumaBinding: Boolean,
-                                 totalCoreRange: Array[String] = null,
-                                 numCoresPerExecutor: Int = -1) {}
+case class GlutenNumaBindingInfo(
+    enableNumaBinding: Boolean,
+    totalCoreRange: Array[String] = null,
+    numCoresPerExecutor: Int = -1) {}
 
 class GlutenConfig(conf: SQLConf) extends Logging {
+  val glutenBackendLib: String = BackendLib.getLoadedBackendName.toString
+
+  val isVeloxBackend: Boolean =
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
+
+  val isClickHouseBackend: Boolean =
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+
+  val isGazelleBackend: Boolean =
+    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND)
 
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean
@@ -33,7 +43,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // Substrait plan. After the validations in all backends are correctly implemented,
   // this config should be removed.
   val enableNativeValidation: Boolean =
-  conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
 
   // enable or disable columnar batchscan
   val enableColumnarBatchScan: Boolean =
@@ -60,8 +70,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.sort", "true").toBoolean
 
   // enable or disable codegen columnar sort
-  val enableColumnarCodegenSort: Boolean = conf.getConfString(
-    "spark.gluten.sql.columnar.codegen.sort", "true").toBoolean && enableColumnarSort
+  val enableColumnarCodegenSort: Boolean = conf
+    .getConfString("spark.gluten.sql.columnar.codegen.sort", "true")
+    .toBoolean && enableColumnarSort
 
   // enable or disable columnar window
   val enableColumnarWindow: Boolean =
@@ -80,7 +91,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // enable or disable columnar sortmergejoin
   // this should be set with preferSortMergeJoin=false
   val enableColumnarSortMergeJoin: Boolean =
-  conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.sortmergejoin", "true").toBoolean
 
   val enableColumnarSortMergeJoinLazyRead: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.sortmergejoin.lazyread", "false").toBoolean
@@ -110,26 +121,27 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.columnar.broadcastJoin", "true").toBoolean
 
   // enable or disable columnar columnar arrow udf
-  val enableColumnarArrowUDF: Boolean = conf.getConfString(
-    "spark.gluten.sql.columnar.arrowudf", "true").toBoolean
+  val enableColumnarArrowUDF: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.arrowudf", "true").toBoolean
 
   // enable or disable columnar wholestage transform
-  val enableColumnarWholeStageTransform: Boolean = conf.getConfString(
-    "spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
+  val enableColumnarWholeStageTransform: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
 
   // whether to use ColumnarShuffleManager
-  val isUseColumnarShufflemanager: Boolean =
-    conf.getConfString("spark.shuffle.manager", "sort")
+  val isUseColumnarShuffleManager: Boolean =
+    conf
+      .getConfString("spark.shuffle.manager", "sort")
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
   // enable or disable columnar exchange
   val enableColumnarShuffle: Boolean =
-    if (conf.getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-      .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (isClickHouseBackend) {
       conf
-        .getConfString("spark.gluten.sql.columnar.shuffle", "true").toBoolean
+        .getConfString("spark.gluten.sql.columnar.shuffle", "true")
+        .toBoolean
     } else {
-      isUseColumnarShufflemanager
+      isUseColumnarShuffleManager
     }
 
   // prefer to use columnar operators if set to true
@@ -143,13 +155,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // This config is used for deciding whether to load the native library.
   // When false, only Java code will be executed for a quick test.
   val loadNative: Boolean =
-  conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
-
-  // This config is used for deciding whether to load Arrow and Gandiva libraries from
-  // the native library. If the native library does not depend on Arrow and Gandiva,
-  // this config should will set as false.
-  val loadArrow: Boolean =
-  conf.getConfString(GlutenConfig.GLUTEN_LOAD_ARROW, "true").toBoolean
+    conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
 
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
@@ -158,19 +164,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // This config is used for specifying the absolute path of the native library.
   val nativeLibPath: String =
     conf.getConfString(GlutenConfig.GLUTEN_LIB_PATH, "")
-
-  // customized backend library name
-  val glutenBackendLib: String =
-    conf.getConfString(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-
-  val isVeloxBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
-
-  val isClickHouseBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-
-  val isGazelleBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND)
 
   // fallback to row operators if there are several continous joins
   val joinOptimizationThrottle: Integer =
@@ -181,9 +174,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // enable or disable metrics in columnar wholestagecodegen operator
   val enableMetricsTime: Boolean =
-    conf.getConfString(
-      "spark.gluten.sql.columnar.wholestagecodegen.breakdownTime",
-      "false").toBoolean
+    conf
+      .getConfString("spark.gluten.sql.columnar.wholestagecodegen.breakdownTime", "false")
+      .toBoolean
 
   // a folder to store the codegen files
   val tmpFile: String =
@@ -196,7 +189,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // If false, the partition buffers will be cached in memory first,
   // and the cached buffers will be spilled when reach maximum memory.
   val columnarShufflePreferSpill: Boolean =
-  conf.getConfString("spark.gluten.sql.columnar.shuffle.preferSpill", "true").toBoolean
+    conf.getConfString("spark.gluten.sql.columnar.shuffle.preferSpill", "true").toBoolean
 
   val columnarShuffleWriteSchema: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.writeSchema", "false").toBoolean
@@ -213,6 +206,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   val enableCoalesceBatches: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.coalesce.batches", "true").toBoolean
+
+  val enableColumnarLimit: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.limit", "true").toBoolean
 
   val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
@@ -232,6 +228,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  val transformPlanLogLevel: String =
+    conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
+
 }
 
 object GlutenConfig {
@@ -239,8 +238,6 @@ object GlutenConfig {
   val GLUTEN_LOAD_NATIVE = "spark.gluten.sql.columnar.loadnative"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
-  val GLUTEN_LOAD_ARROW = "spark.gluten.sql.columnar.loadarrow"
-  val GLUTEN_BACKEND_LIB = "spark.gluten.sql.columnar.backend.lib"
 
   // Hive configurations.
   val HIVE_EXEC_ORC_STRIPE_SIZE = "hive.exec.orc.stripe.size"
@@ -249,6 +246,18 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE: String = "spark." + HIVE_EXEC_ORC_ROW_INDEX_STRIDE
   val HIVE_EXEC_ORC_COMPRESS = "hive.exec.orc.compress"
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = "spark." + HIVE_EXEC_ORC_COMPRESS
+
+  // S3 config
+  val S3_ACCESS_KEY = "hadoop.fs.s3a.access.key"
+  val SPARK_S3_ACCESS_KEY: String = "spark." + S3_ACCESS_KEY
+  val S3_SECRET_KEY = "hadoop.fs.s3a.secret.key"
+  val SPARK_S3_SECRET_KEY: String = "spark." + S3_SECRET_KEY
+  val S3_ENDPOINT = "hadoop.fs.s3a.endpoint"
+  val SPARK_S3_ENDPOINT: String = "spark." + S3_ENDPOINT
+  val S3_CONNECTION_SSL_ENABLED = "hadoop.fs.s3a.connection.ssl.enabled"
+  val SPARK_S3_CONNECTION_SSL_ENABLED: String = "spark." + S3_CONNECTION_SSL_ENABLED
+  val S3_PATH_STYLE_ACCESS = "hadoop.fs.s3a.path.style.access"
+  val SPARK_S3_PATH_STYLE_ACCESS: String = "spark." + S3_PATH_STYLE_ACCESS
 
   val SPARK_BATCH_SIZE = "spark.sql.execution.arrow.maxRecordsPerBatch"
 
@@ -262,12 +271,22 @@ object GlutenConfig {
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = true
   val GLUTEN_CLICKHOUSE_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend.ch"
 
+  // For Soft Affinity Scheduling
+  // Enable Soft Affinity Scheduling, defalut value is false
+  val GLUTEN_SOFT_AFFINITY_ENABLED = "spark.gluten.soft-affinity.enabled"
+  val GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE = false
+  // Calculate the number of the replcations for scheduling to the target executors per file
+  val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM = "spark.gluten.soft-affinity.replications.num"
+  val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE = 2
+  // For on HDFS, if there are already target hosts,
+  // and then prefer to use the orginal target hosts to schedule
+  val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
+  val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
+
   var ins: GlutenConfig = _
   var random_temp_dir_path: String = _
 
-  /**
-   * @deprecated We should avoid caching this value in entire JVM. us
-   */
+  /** @deprecated We should avoid caching this value in entire JVM. use #getSessionConf instead. */
   @deprecated
   def getConf: GlutenConfig = synchronized {
     if (ins == null) {
@@ -311,4 +330,5 @@ object GlutenConfig {
   def setRandomTempDir(path: String): Unit = synchronized {
     random_temp_dir_path = path
   }
+
 }

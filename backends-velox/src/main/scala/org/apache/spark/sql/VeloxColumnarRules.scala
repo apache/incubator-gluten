@@ -20,7 +20,6 @@ package org.apache.spark.sql
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution.VeloxRowToArrowColumnarExec
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -187,9 +186,9 @@ object VeloxColumnarRules {
 
   case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-      case c2r @ ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
+      case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeAdaptor) =>
         c2r // AdaptiveSparkPlanExec.scala:536
-      case c2r @ ColumnarToRowExec(child: ColumnarBroadcastExchangeAdaptor) =>
+      case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
       case ColumnarToRowExec(child) => ColumnarToRowExec(VeloxLoadArrowData(child))
     }

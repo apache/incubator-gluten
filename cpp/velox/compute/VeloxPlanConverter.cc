@@ -37,7 +37,7 @@ using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
-using namespace facebook::velox::aggregate::prestosql;
+
 namespace velox {
 namespace compute {
 
@@ -55,8 +55,8 @@ std::atomic<int32_t> taskSerial;
 
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
     memory::MemoryPool* memoryPool) {
-  std::unique_ptr<memory::MemoryPool> ctxRoot =
-      memoryPool->addScopedChild("ctx_root");
+  std::shared_ptr<memory::MemoryPool> ctxRoot =
+      memoryPool->addChild("ctx_root");
   static const auto kUnlimited = std::numeric_limits<int64_t>::max();
   ctxRoot->setMemoryUsageTracker(
       memory::MemoryUsageTracker::create(kUnlimited, kUnlimited, kUnlimited));
@@ -72,13 +72,17 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 }
 
 // The Init will be called per executor.
-void VeloxInitializer::Init() {
+void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   // Setup and register.
   filesystems::registerLocalFileSystem();
-  filesystems::registerHdfsFileSystem();
+
   std::unique_ptr<folly::IOThreadPoolExecutor> executor =
       std::make_unique<folly::IOThreadPoolExecutor>(1);
 
+  std::unordered_map<std::string, std::string> configurationValues;
+
+#ifdef VELOX_ENABLE_HDFS
+  filesystems::registerHdfsFileSystem();
   // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
   // LIBHDFS3_CONF
   std::string hdfsUri = "localhost:9000";
@@ -88,8 +92,43 @@ void VeloxInitializer::Init() {
   }
   auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
   auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
-  static const std::unordered_map<std::string, std::string> configurationValues(
+  std::unordered_map<std::string, std::string> hdfsConfig(
       {{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
+  configurationValues.merge(hdfsConfig);
+#endif
+
+#ifdef VELOX_ENABLE_S3
+  filesystems::registerS3FileSystem();
+
+  std::string awsAccessKey = conf["spark.hadoop.fs.s3a.access.key"];
+  std::string awsSecretKey = conf["spark.hadoop.fs.s3a.secret.key"];
+  std::string awsEndpoint = conf["spark.hadoop.fs.s3a.endpoint"];
+  std::string sslEnabled = conf["spark.hadoop.fs.s3a.connection.ssl.enabled"];
+  std::string pathStyleAccess = conf["spark.hadoop.fs.s3a.path.style.access"];
+
+  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
+  if (envAwsAccessKey != nullptr) {
+    awsAccessKey = std::string(envAwsAccessKey);
+  }
+  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
+  if (envAwsSecretKey != nullptr) {
+    awsSecretKey = std::string(envAwsSecretKey);
+  }
+  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
+  if (envAwsEndpoint != nullptr) {
+    awsEndpoint = std::string(envAwsEndpoint);
+  }
+
+  std::unordered_map<std::string, std::string> S3Config({
+      {"hive.s3.aws-access-key", awsAccessKey},
+      {"hive.s3.aws-secret-key", awsSecretKey},
+      {"hive.s3.endpoint", awsEndpoint},
+      {"hive.s3.ssl.enabled", sslEnabled},
+      {"hive.s3.path-style-access", pathStyleAccess},
+  });
+  configurationValues.merge(S3Config);
+#endif
+
   auto properties =
       std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector =
@@ -101,7 +140,24 @@ void VeloxInitializer::Init() {
   dwrf::registerDwrfReaderFactory();
   // Register Velox functions
   registerAllFunctions();
-  registerAllAggregateFunctions();
+}
+
+void VeloxPlanConverter::setInputPlanNode(
+    const ::substrait::FetchRel& fetchRel) {
+  if (fetchRel.has_input()) {
+    setInputPlanNode(fetchRel.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
+void VeloxPlanConverter::setInputPlanNode(
+    const ::substrait::ExpandRel& sexpand) {
+  if (sexpand.has_input()) {
+    setInputPlanNode(sexpand.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
@@ -225,6 +281,10 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.join());
   } else if (srel.has_sort()) {
     setInputPlanNode(srel.sort());
+  } else if (srel.has_expand()) {
+    setInputPlanNode(srel.expand());
+  } else if (srel.has_fetch()) {
+    setInputPlanNode(srel.fetch());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }

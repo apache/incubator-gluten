@@ -44,7 +44,12 @@
 #include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
+#ifdef VELOX_ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#endif
+#ifdef VELOX_ENABLE_S3
+#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
+#endif
 #include "velox/core/Expressions.h"
 #include "velox/core/ITypedExpr.h"
 #include "velox/core/PlanNode.h"
@@ -75,10 +80,10 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
 
 class VeloxInitializer {
  public:
-  VeloxInitializer() {
-    Init();
+  VeloxInitializer(std::unordered_map<std::string, std::string> conf) {
+    Init(conf);
   }
-  void Init();
+  void Init(std::unordered_map<std::string, std::string> conf);
 };
 
 class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
@@ -232,6 +237,10 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
 
  private:
+  void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
+
+  void setInputPlanNode(const ::substrait::ExpandRel& sExpand);
+
   void setInputPlanNode(const ::substrait::SortRel& sSort);
 
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);

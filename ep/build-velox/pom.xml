@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>gluten-parent</artifactId>
+        <groupId>io.glutenproject</groupId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>build-velox</artifactId>
+    <packaging>pom</packaging>
+    <name>Build Velox</name>
+
+    <properties>
+        <velox.build_velox_from_source>${build_velox_from_source}</velox.build_velox_from_source>
+        <velox.compile_velox>${compile_velox}</velox.compile_velox>
+        <velox.enable_ep_cache>${enable_ep_cache}</velox.enable_ep_cache>
+        <velox.velox_enable_s3>${velox_enable_s3}</velox.velox_enable_s3>
+        <velox.velox_enable_hdfs>${velox_enable_hdfs}</velox.velox_enable_hdfs>
+        <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
+        <velox.build_folly>${build_folly}</velox.build_folly>
+        <velox.build_type>${build_type}</velox.build_type>
+        <velox.velox_home>${velox_home}</velox.velox_home>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>exec-maven-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <version>1.6.0</version>
+                <executions>
+                    <execution>
+                        <id>Build velox</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>${project.basedir}/src/build_velox.sh</argument>
+                                <argument>
+                                    --build_velox_from_source=${velox.build_velox_from_source}
+                                </argument>
+                                <argument>
+                                    --compile_velox=${velox.compile_velox}
+                                </argument>
+                                <argument>
+                                    --enable_ep_cache=${velox.enable_ep_cache}
+                                </argument>
+                                <argument>
+                                    --velox_enable_s3=${velox.velox_enable_s3}
+                                </argument>
+                                <argument>
+                                    --velox_enable_hdfs=${velox.velox_enable_hdfs}
+                                </argument>
+                                <argument>
+                                    --build_protobuf=${velox.build_protobuf}
+                                </argument>
+                                <argument>
+                                    --velox_build_folly=${velox.build_folly}
+                                </argument>
+                                <argument>
+                                    --velox_build_type=${velox.build_type}
+                                </argument>
+                                <argument>
+                                    --velox_home=${velox.velox_home}
+                                </argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

@@ -108,6 +108,7 @@ class MyMemoryPool : public arrow::MemoryPool {
 class SplitterTest : public ::testing::Test {
  protected:
   void SetUp() {
+    auto hash_partition_key = field("hash_partition_key", arrow::int32());
     auto f_na = field("f_na", arrow::null());
     auto f_int8_a = field("f_int8_a", arrow::int8());
     auto f_int8_b = field("f_int8_b", arrow::int8());
@@ -145,6 +146,32 @@ class SplitterTest : public ::testing::Test {
     MakeInputBatch(input_data_1, schema_, &input_batch_1_);
     MakeInputBatch(input_data_2, schema_, &input_batch_2_);
 
+    std::merge(
+        hash_key_1.begin(),
+        hash_key_1.end(),
+        input_data_1.begin(),
+        input_data_1.end(),
+        back_inserter(hash_input_data_1));
+    std::merge(
+        hash_key_2.begin(),
+        hash_key_2.end(),
+        input_data_2.begin(),
+        input_data_2.end(),
+        back_inserter(hash_input_data_2));
+    hash_schema_ = arrow::schema(
+        {hash_partition_key,
+         f_na,
+         f_int8_a,
+         f_int8_b,
+         f_int32,
+         f_uint64,
+         f_double,
+         f_bool,
+         f_string,
+         f_nullable_string,
+         f_decimal});
+    MakeInputBatch(hash_input_data_1, hash_schema_, &hash_input_batch_1_);
+    MakeInputBatch(hash_input_data_2, hash_schema_, &hash_input_batch_2_);
     split_options_ = SplitOptions::Defaults();
   }
 
@@ -206,6 +233,16 @@ class SplitterTest : public ::testing::Test {
   std::shared_ptr<arrow::RecordBatch> input_batch_1_;
   std::shared_ptr<arrow::RecordBatch> input_batch_2_;
 
+  // hash batch first column is partition key hash value named
+  // hash_partition_key
+  static const std::vector<std::string> hash_key_1;
+  static const std::vector<std::string> hash_key_2;
+  std::vector<std::string> hash_input_data_1;
+  std::vector<std::string> hash_input_data_2;
+  std::shared_ptr<arrow::Schema> hash_schema_;
+  std::shared_ptr<arrow::RecordBatch> hash_input_batch_1_;
+  std::shared_ptr<arrow::RecordBatch> hash_input_batch_2_;
+
   std::shared_ptr<arrow::io::ReadableFile> file_;
 };
 
@@ -233,6 +270,10 @@ const std::vector<std::string> SplitterTest::input_data_2 = {
     R"(["bob", "alicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealice"])",
     R"([null, null])",
     R"([null, null])"};
+
+const std::vector<std::string> SplitterTest::hash_key_1 = {
+    "[1, 2, 2, 2, 2, 1, 1, 1, 2, 1]"};
+const std::vector<std::string> SplitterTest::hash_key_2 = {"[2, 2]"};
 
 TEST_F(SplitterTest, TestSingleSplitter) {
   split_options_.buffer_size = 10;
@@ -379,30 +420,13 @@ TEST_F(SplitterTest, TestHashSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
-  auto f_0 = TreeExprBuilder::MakeField(schema_->field(1));
-  auto f_1 = TreeExprBuilder::MakeField(schema_->field(2));
-  auto f_2 = TreeExprBuilder::MakeField(schema_->field(3));
-
-  auto node_0 = TreeExprBuilder::MakeFunction("add", {f_0, f_1}, int8());
-  auto expr_0 = TreeExprBuilder::MakeExpression(node_0, field("res0", int8()));
-  auto expr_1 =
-      TreeExprBuilder::MakeExpression(f_2, field("f_uint64", uint64()));
-
-  gandiva::ExpressionVector expr_array = {expr_0, expr_1};
-
   ARROW_ASSIGN_OR_THROW(
       splitter_,
-      Splitter::Make(
-          "hash",
-          schema_,
-          num_partitions,
-          (const uint8_t*)expr_array.data(),
-          expr_array.size(),
-          split_options_))
+      Splitter::Make("hash", hash_schema_, num_partitions, split_options_))
 
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
-  ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+  ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
+  ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_2_));
+  ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
 
   ASSERT_NOT_OK(splitter_->Stop());
 
@@ -1094,29 +1118,20 @@ TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
   int32_t num_partitions = 5;
   split_options_.buffer_size = 4;
 
+  auto hash_partition_key = field("hash_partition_key", arrow::int32());
   auto f_uint64 = field("f_uint64", arrow::uint64());
   auto f_arr_str = field("f_arr", arrow::list(arrow::utf8()));
 
-  auto rb_schema = arrow::schema({f_uint64, f_arr_str});
-
+  auto rb_schema = arrow::schema({hash_partition_key, f_uint64, f_arr_str});
+  auto data_schema = arrow::schema({f_uint64, f_arr_str});
   const std::vector<std::string> input_batch_1_data = {
-      R"([1, 2])", R"([["alice0", "bob1"], ["alice2"]])"};
+      R"([1, 2])", R"([1, 2])", R"([["alice0", "bob1"], ["alice2"]])"};
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_batch_1_data, rb_schema, &input_batch_arr);
 
-  auto f_2 = TreeExprBuilder::MakeField(f_uint64);
-  auto expr_1 =
-      TreeExprBuilder::MakeExpression(f_2, field("f_uint64", uint64()));
-  gandiva::ExpressionVector expr_array = {expr_1};
   ARROW_ASSIGN_OR_THROW(
       splitter_,
-      Splitter::Make(
-          "hash",
-          rb_schema,
-          num_partitions,
-          (const uint8_t*)expr_array.data(),
-          expr_array.size(),
-          split_options_));
+      Splitter::Make("hash", rb_schema, num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
 
@@ -1131,13 +1146,13 @@ TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
   ARROW_ASSIGN_OR_THROW(
       file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
 
-  ASSERT_EQ(*file_reader->schema(), *rb_schema);
+  ASSERT_EQ(*file_reader->schema(), *data_schema);
 
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
 
   for (const auto& rb : batches) {
-    ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
+    ASSERT_EQ(rb->num_columns(), data_schema->num_fields());
     for (auto i = 0; i < rb->num_columns(); ++i) {
       ASSERT_EQ(rb->column(i)->length(), rb->num_rows());
     }

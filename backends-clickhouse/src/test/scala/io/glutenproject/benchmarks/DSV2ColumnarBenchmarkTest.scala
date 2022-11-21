@@ -14,17 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.benchmarks
+
+import io.glutenproject.GlutenConfig
+
+import org.apache.spark.sql.SparkSession
 
 import java.io.File
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
-
-import io.glutenproject.GlutenConfig
-
-import org.apache.spark.sql.SparkSession
 
 object DSV2ColumnarBenchmarkTest {
 
@@ -115,7 +114,6 @@ object DSV2ColumnarBenchmarkTest {
         // .config("spark.sql.execution.arrow.maxRecordsPerBatch", "20000")
         .config("spark.gluten.sql.columnar.columnartorow", "false")
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
-        .config(GlutenConfig.GLUTEN_LOAD_ARROW, "false")
         .config(GlutenConfig.GLUTEN_LIB_PATH, "/usr/local/clickhouse/lib/libch.so")
         .config("spark.gluten.sql.columnar.iterator", "true")
         // .config("spark.sql.planChangeLog.level", "info")
@@ -171,17 +169,23 @@ object DSV2ColumnarBenchmarkTest {
       spark: SparkSession,
       parquetFilesPath: String,
       fileFormat: String): Unit = {
-    spark.sql("""
-        | show databases
-        |""".stripMargin).show(100, false)
+    spark
+      .sql("""
+             | show databases
+             |""".stripMargin)
+      .show(100, false)
 
-    spark.sql("""
-        | show tables
-        |""".stripMargin).show(100, false)
+    spark
+      .sql("""
+             | show tables
+             |""".stripMargin)
+      .show(100, false)
 
-    spark.sql(s"""
-         | USE default
-         |""".stripMargin).show(100, false)
+    spark
+      .sql(s"""
+              | USE default
+              |""".stripMargin)
+      .show(100, false)
 
     // Clear up old session
     spark.sql(s"DROP TABLE IF EXISTS $tableName")
@@ -191,46 +195,54 @@ object DSV2ColumnarBenchmarkTest {
     // PARTITIONED BY (age)
     // engine='MergeTree' or engine='Parquet'
     spark.sql(s"""
-         | CREATE TABLE IF NOT EXISTS $tableName (
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string)
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         |""".stripMargin)
+                 | CREATE TABLE IF NOT EXISTS $tableName (
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string)
+                 | USING clickhouse
+                 | TBLPROPERTIES (engine='MergeTree'
+                 |                )
+                 |""".stripMargin)
 
-    spark.sql("""
-        | show tables
-        |""".stripMargin).show(100, false)
+    spark
+      .sql("""
+             | show tables
+             |""".stripMargin)
+      .show(100, false)
 
-    spark.sql(s"""
-         | desc formatted ${tableName}
-         |""".stripMargin).show(100, false)
+    spark
+      .sql(s"""
+              | desc formatted $tableName
+              |""".stripMargin)
+      .show(100, false)
 
   }
 
   def createLocationClickHouseTable(spark: SparkSession): Unit = {
-    spark.sql(s"""
-         | USE default
-         |""".stripMargin).show(100, false)
+    spark
+      .sql(s"""
+              | USE default
+              |""".stripMargin)
+      .show(100, false)
 
-    spark.sql("""
-        | show tables
-        |""".stripMargin).show(100, false)
+    spark
+      .sql("""
+             | show tables
+             |""".stripMargin)
+      .show(100, false)
 
     // Clear up old session
     spark.sql(s"DROP TABLE IF EXISTS ch_clickhouse")
@@ -239,66 +251,78 @@ object DSV2ColumnarBenchmarkTest {
     // PARTITIONED BY (age)
     // engine='MergeTree' or engine='Parquet'
     spark.sql(s"""
-         | CREATE TABLE IF NOT EXISTS ch_clickhouse (
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string)
-         | USING clickhouse
-         | TBLPROPERTIES (engine='MergeTree'
-         |                )
-         | LOCATION '/home/saber/Documents/data/mergetree'
-         |""".stripMargin)
+                 | CREATE TABLE IF NOT EXISTS ch_clickhouse (
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string)
+                 | USING clickhouse
+                 | TBLPROPERTIES (engine='MergeTree'
+                 |                )
+                 | LOCATION '/home/saber/Documents/data/mergetree'
+                 |""".stripMargin)
 
-    spark.sql("""
-        | show tables
-        |""".stripMargin).show(100, false)
+    spark
+      .sql("""
+             | show tables
+             |""".stripMargin)
+      .show(100, false)
   }
 
   def refreshClickHouseTable(spark: SparkSession): Unit = {
-    spark.sql(s"""
-         | refresh table ${tableName}
-         |""".stripMargin).show(100, false)
-    spark.sql(s"""
-         | desc formatted ${tableName}
-         |""".stripMargin).show(100, false)
-    spark.sql(s"""
-         | refresh table ch_clickhouse
-         |""".stripMargin).show(100, false)
-    spark.sql(s"""
-         | desc formatted ch_clickhouse
-         |""".stripMargin).show(100, false)
+    spark
+      .sql(s"""
+              | refresh table $tableName
+              |""".stripMargin)
+      .show(100, false)
+    spark
+      .sql(s"""
+              | desc formatted $tableName
+              |""".stripMargin)
+      .show(100, false)
+    spark
+      .sql(s"""
+              | refresh table ch_clickhouse
+              |""".stripMargin)
+      .show(100, false)
+    spark
+      .sql(s"""
+              | desc formatted ch_clickhouse
+              |""".stripMargin)
+      .show(100, false)
   }
 
   def selectLocationClickHouseTable(spark: SparkSession, executedCnt: Int, sql: String): Unit = {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      spark.sql(s"""
-           |SELECT
-           |    sum(l_extendedprice * l_discount) AS revenue
-           |FROM
-           |    ch_clickhouse
-           |WHERE
-           |    l_shipdate >= date'1994-01-01'
-           |    AND l_shipdate < date'1994-01-01' + interval 1 year
-           |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-           |    AND l_quantity < 24;
-           |""".stripMargin).show(200, false)
+      spark
+        .sql(s"""
+                |SELECT
+                |    sum(l_extendedprice * l_discount) AS revenue
+                |FROM
+                |    ch_clickhouse
+                |WHERE
+                |    l_shipdate >= date'1994-01-01'
+                |    AND l_shipdate < date'1994-01-01' + interval 1 year
+                |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+                |    AND l_quantity < 24;
+                |""".stripMargin)
+        .show(200, false)
       val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
+      println(s"Execute $i time, time: $tookTime")
       tookTimeArr += tookTime
     }
 
@@ -314,19 +338,21 @@ object DSV2ColumnarBenchmarkTest {
     val tookTimeArr = ArrayBuffer[Long]()
     for (i <- 1 to executedCnt) {
       val startTime = System.nanoTime()
-      spark.sql(s"""
-           |SELECT
-           |    sum(l_extendedprice * l_discount) AS revenue
-           |FROM
-           |    ${tableName}
-           |WHERE
-           |    l_shipdate >= date'1994-01-01'
-           |    AND l_shipdate < date'1994-01-01' + interval 1 year
-           |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-           |    AND l_quantity < 24;
-           |""".stripMargin).show(200, false)
+      spark
+        .sql(s"""
+                |SELECT
+                |    sum(l_extendedprice * l_discount) AS revenue
+                |FROM
+                |    $tableName
+                |WHERE
+                |    l_shipdate >= date'1994-01-01'
+                |    AND l_shipdate < date'1994-01-01' + interval 1 year
+                |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+                |    AND l_quantity < 24;
+                |""".stripMargin)
+        .show(200, false)
       val tookTime = (System.nanoTime() - startTime) / 1000000
-      println(s"Execute ${i} time, time: ${tookTime}")
+      println(s"Execute $i time, time: $tookTime")
       tookTimeArr += tookTime
     }
 

@@ -40,7 +40,7 @@ The build and install of our custom Arrow is embedded into the build of Gluten.
 ```bash
 $ git clone https://github.com/oap-project/gluten.git
 $ pushd gluten
-$ mvn clean package -Pfull-scala-compiler -Pbackends-gazelle -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_arrow=ON -Dbuild_protobuf=ON -Dbuild_gazelle_cpp=ON
+$ mvn clean package -Pbackends-gazelle -DskipTests -Dbuild_arrow=ON
 $ popd
 ```
 

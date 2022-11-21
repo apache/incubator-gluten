@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.v2
-
-import com.google.common.base.Objects
 
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
@@ -29,18 +26,20 @@ import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 
+import com.google.common.base.Objects
+
 // This file is copied from Spark with a little change to solve below issue:
 // The BatchScanExec can support columnar output, which is incompatible with
 // Arrow's columnar format. But there is no config to disable the columnar output.
 // In this file, the supportsColumnar was set as false to prevent Spark's columnar
 // output.
 
-/**
- * Physical plan node for scanning a batch of data from a data source v2.
- */
-case class BatchScanExec(output: Seq[AttributeReference],
-                         @transient scan: Scan,
-                         runtimeFilters: Seq[Expression]) extends DataSourceV2ScanExecBase {
+/** Physical plan node for scanning a batch of data from a data source v2. */
+case class BatchScanExec(
+    output: Seq[AttributeReference],
+    @transient scan: Scan,
+    runtimeFilters: Seq[Expression])
+  extends DataSourceV2ScanExecBase {
 
   @transient lazy val batch = scan.toBatch
 
@@ -96,7 +95,11 @@ case class BatchScanExec(output: Seq[AttributeReference],
       sparkContext.parallelize(Array.empty[InternalRow], 1)
     } else {
       new DataSourceRDD(
-        sparkContext, filteredPartitions, readerFactory, supportsColumnar, customMetrics)
+        sparkContext,
+        filteredPartitions,
+        readerFactory,
+        supportsColumnar,
+        customMetrics)
     }
   }
 
@@ -105,7 +108,8 @@ case class BatchScanExec(output: Seq[AttributeReference],
       output = output.map(QueryPlan.normalizeExpressions(_, output)),
       runtimeFilters = QueryPlan.normalizePredicates(
         runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output))
+        output)
+    )
   }
 
   override def simpleString(maxFields: Int): String = {

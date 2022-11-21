@@ -29,7 +29,6 @@ import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
 import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark._
@@ -162,7 +161,8 @@ class VeloxColumnarShuffleWriter[K, V](
           .split(nativeSplitter, cb.numRows, cArray.memoryAddress())
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
-        writeMetrics.incRecordsWritten(1)
+        // This metric is important, AQE use it to decide if EliminateLimit
+        writeMetrics.incRecordsWritten(cb.numRows())
         cArray.close()
       }
     }
@@ -171,11 +171,10 @@ class VeloxColumnarShuffleWriter[K, V](
     splitResult = splitterJniWrapper.stop(nativeSplitter)
 
     dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
-      splitResult.getTotalWriteTime - splitResult.getTotalComputePidTime -
+      splitResult.getTotalWriteTime -
       splitResult.getTotalCompressTime)
     dep.spillTime.add(splitResult.getTotalSpillTime)
     dep.compressTime.add(splitResult.getTotalCompressTime)
-    dep.computePidTime.add(splitResult.getTotalComputePidTime)
     dep.bytesSpilled.add(splitResult.getTotalBytesSpilled)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)

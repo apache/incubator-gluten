@@ -25,12 +25,14 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <thread>
 
 #include "compute/VeloxPlanConverter.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
+DEFINE_int32(iterations, 0, "The number of iterations to run this benchmark");
 
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
@@ -46,12 +48,37 @@ std::string getExampleFilePath(const std::string& fileName) {
       "cpp/velox/benchmarks", "data/" + fileName);
 }
 
+arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
+  std::string currentPath = fs::current_path().c_str();
+  auto generatedFilePath =
+      currentPath + "/../../../backends-velox/generated-native-benchmark/";
+  fs::directory_entry filePath{generatedFilePath + fileName};
+  if (filePath.exists()) {
+    if (filePath.is_regular_file() &&
+        filePath.path().extension().native() == ".json") {
+      // If fileName points to a regular file, it should be substrait json plan.
+      return filePath.path().c_str();
+    } else if (filePath.is_directory()) {
+      // If fileName points to a directory, get the generated parquet data.
+      auto dirItr = fs::directory_iterator(fs::path(filePath));
+      for (auto& itr : dirItr) {
+        if (itr.is_regular_file() &&
+            itr.path().extension().native() == ".parquet") {
+          return itr.path().c_str();
+        }
+      }
+    }
+  }
+  return arrow::Status::Invalid(
+      "Could not get generated file from given path: " + fileName);
+}
+
 void InitVeloxBackend() {
   gluten::SetBackendFactory([] {
     return std::make_shared<::velox::compute::VeloxPlanConverter>(confMap);
   });
   auto veloxInitializer =
-      std::make_shared<::velox::compute::VeloxInitializer>();
+      std::make_shared<::velox::compute::VeloxInitializer>(confMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
@@ -133,6 +160,8 @@ std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(
 }
 
 void setCpu(uint32_t cpuindex) {
+  static const auto total_cores = std::thread::hardware_concurrency();
+  cpuindex = cpuindex % total_cores;
   cpu_set_t cs;
   CPU_ZERO(&cs);
   CPU_SET(cpuindex, &cs);

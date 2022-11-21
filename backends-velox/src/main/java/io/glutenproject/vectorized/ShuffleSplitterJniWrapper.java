@@ -27,7 +27,6 @@ import java.io.IOException;
 public class ShuffleSplitterJniWrapper {
 
   public ShuffleSplitterJniWrapper() throws IOException {
-    JniWorkspace.getDefault().libLoader().loadEssentials();
   }
 
   /**
@@ -50,7 +49,7 @@ public class ShuffleSplitterJniWrapper {
       ArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(),
           ArrowConverterUtils.getSchemaFromBytesBuf(part.getSchema()), schema);
       return nativeMake(part.getShortName(), part.getNumPartitions(), schema.memoryAddress(),
-          part.getExprList(), offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
+          offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
           subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -58,7 +57,7 @@ public class ShuffleSplitterJniWrapper {
   }
 
   public native long nativeMake(String shortName, int numPartitions, long cSchema,
-                                byte[] exprList, long offheapPerTask, int bufferSize,
+                                long offheapPerTask, int bufferSize,
                                 String codec, int batchCompressThreshold, String dataFile,
                                 int subDirsPerLocalDir, String localDirs, boolean preferSpill,
                                 long memoryPoolId, boolean writeSchema);
@@ -89,11 +88,6 @@ public class ShuffleSplitterJniWrapper {
    */
   public native long split(
       long splitterId, int numRows, long cArray) throws IOException;
-
-  /**
-   * Update the compress type.
-   */
-  public native void setCompressType(long splitterId, String compressType);
 
   /**
    * Write the data remained in the buffers hold by native splitter to each partition's temporary

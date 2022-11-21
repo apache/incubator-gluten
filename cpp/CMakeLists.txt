@@ -37,11 +37,13 @@ project(spark_columnar_plugin)
 option(DEBUG "Enable Debug Info" OFF)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
-option(BUILD_GAZELLE_CPP "Build the gazelle-cpp libraries" OFF)
+option(BUILD_GAZELLE_CPP_BACKEND "Build the gazelle-cpp libraries" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
+option(VELOX_ENABLE_S3 "Enable S3" OFF)
+option(VELOX_ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 
@@ -126,10 +128,10 @@ endif()
 
 add_subdirectory(src)
 
-if(BUILD_GAZELLE_CPP)
+if(BUILD_GAZELLE_CPP_BACKEND)
   add_subdirectory(gazelle-cpp)
 endif()
 
-if(BUILD_VELOX)
+if(BUILD_VELOX_BACKEND)
   add_subdirectory(velox)
 endif()

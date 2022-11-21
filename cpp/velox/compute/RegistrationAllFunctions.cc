@@ -16,10 +16,12 @@
  */
 #include "RegistrationAllFunctions.h"
 #include "RowConstructor.cc"
+#include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/sparksql/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
+using namespace facebook::velox::aggregate::prestosql;
 
 namespace velox::compute {
 
@@ -31,9 +33,13 @@ void registerCustomFunctions() {
 }
 
 void registerAllFunctions() {
+  // The registration order matters. Spark sql functions are registered after
+  // presto sql functions to overwrite the registration for same named
+  // functions.
   functions::prestosql::registerAllScalarFunctions();
   functions::sparksql::registerFunctions("");
   registerCustomFunctions();
+  registerAllAggregateFunctions();
 }
 
 } // namespace velox::compute
