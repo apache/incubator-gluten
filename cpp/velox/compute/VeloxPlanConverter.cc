@@ -55,8 +55,8 @@ std::atomic<int32_t> taskSerial;
 
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
     memory::MemoryPool* memoryPool) {
-  std::unique_ptr<memory::MemoryPool> ctxRoot =
-      memoryPool->addScopedChild("ctx_root");
+  std::shared_ptr<memory::MemoryPool> ctxRoot =
+      memoryPool->addChild("ctx_root");
   static const auto kUnlimited = std::numeric_limits<int64_t>::max();
   ctxRoot->setMemoryUsageTracker(
       memory::MemoryUsageTracker::create(kUnlimited, kUnlimited, kUnlimited));

@@ -40,17 +40,15 @@ if(NOT DEFINED VELOX_HOME)
 else()
   message(STATUS "VELOX_HOME: ${VELOX_HOME}")
 endif()
-
-if(NOT DEFINED VELOX_BUILD_TYPE)
-  set(VELOX_BUILD_TYPE release
-      CACHE STRING "The build type specified when the Velox binary was built.")
-endif()
-string(TOLOWER "${VELOX_BUILD_TYPE}" LOWERCASE_VELOX_BUILD_TYPE)
+string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
 
 # User can specify VELOX_BUILD_PATH, if Velox are built elsewhere.
 if(NOT DEFINED VELOX_BUILD_PATH)
-  set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/${LOWERCASE_VELOX_BUILD_TYPE}"
-      CACHE PATH "Velox build directory.")
+  if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
+    set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/debug" CACHE PATH "Velox build directory.")
+  else()
+    set(VELOX_BUILD_PATH "${VELOX_HOME}/_build/release" CACHE PATH "Velox build directory.")
+  endif()
 endif()
 
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
@@ -101,7 +99,7 @@ endif()
   add_velox_dependency(parquet::reader::native "${VELOX_COMPONENTS_PATH}/dwio/parquet/reader/libvelox_dwio_native_parquet_reader.a")
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
 
-  if (${LOWERCASE_VELOX_BUILD_TYPE} STREQUAL "debug")
+  if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
     add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthriftd.a")
   else()
     add_velox_dependency(thrift "${VELOX_BUILD_PATH}/third_party/arrow_ep/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")

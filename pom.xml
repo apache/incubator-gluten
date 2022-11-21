@@ -63,17 +63,17 @@
     <enable_ep_cache>OFF</enable_ep_cache>
     <static_arrow>OFF</static_arrow>
     <build_protobuf>ON</build_protobuf>
+    <build_folly>ON</build_folly>
     <build_jemalloc>OFF</build_jemalloc>
     <build_velox_from_source>OFF</build_velox_from_source>
     <compile_velox>OFF</compile_velox>
     <velox_home>${session.executionRootDirectory}/ep/build-velox/build/velox_ep</velox_home>
-    <velox_build_type>release</velox_build_type>
-    <debug_build>OFF</debug_build>
+    <build_type>release</build_type>
     <project.prefix>spark-sql-columnar</project.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
     <!-- To build built-in backend c++ codes -->
-    <build_gazelle_cpp>OFF</build_gazelle_cpp>
-    <build_velox>OFF</build_velox>
+    <build_gazelle_cpp_backend>OFF</build_gazelle_cpp_backend>
+    <build_velox_backend>OFF</build_velox_backend>
     <velox_enable_s3>OFF</velox_enable_s3>
     <velox_enable_hdfs>OFF</velox_enable_hdfs>
     <scala.recompile.mode>all</scala.recompile.mode>
@@ -219,7 +219,7 @@
         <backend_type>velox</backend_type>
         <arrow.version>10.0.0-SNAPSHOT</arrow.version>
         <build_cpp>ON</build_cpp>
-        <build_velox>ON</build_velox>
+        <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
     <profile>
@@ -239,7 +239,7 @@
         <backend_type>gazelle_cpp</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
         <build_cpp>ON</build_cpp>
-        <build_gazelle_cpp>ON</build_gazelle_cpp>
+        <build_gazelle_cpp_backend>ON</build_gazelle_cpp_backend>
       </properties>
     </profile>
     <profile>

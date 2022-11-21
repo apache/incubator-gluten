@@ -49,7 +49,7 @@ jobs:
       - name: Install Gluten Arrow-backend
         run: |
           rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp=ON -Dbuild_arrow=ON
+          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp_backend=ON -Dbuild_arrow=ON
           rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
           cp package/gazelle/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
       # - name: Run unit tests
@@ -74,11 +74,16 @@ jobs:
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
-            -Dbuild_protobuf=OFF -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
+            -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
       - name: Run Cpp Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
           ctest -V'
+      # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
+      - name: Run micro benchmarks
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/velox/benchmarks && \
+          ./generic_benchmark --threads 1 --iterations 1'
       - name: Install Gluten Velox-backend spark3.3 and Run Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
@@ -107,12 +112,6 @@ jobs:
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=10g -s=1.0 --cpus=4 --iterations=1 --use-existing-data \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=2g -s=0.1 --cpus=4 --iterations=1 --use-existing-data'
-
-      # - name: Run micro benchmarks
-      #   run: |
-      #     cd cpp/velox/benchmarks/
-      #     ./generic_benchmark
-
       - name: Exit docker container
         if: ${{ always() }}
         run: |
