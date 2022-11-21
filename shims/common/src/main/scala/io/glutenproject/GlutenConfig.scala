@@ -124,12 +124,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
       .getConfString("spark.shuffle.manager", "sort")
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
-  // enable or disable columnar exchange
-  val enableColumnarShuffle: Boolean =
-    conf
-      .getConfString("spark.gluten.sql.columnar.shuffle", "true")
-      .toBoolean || isUseColumnarShuffleManager
-
   // prefer to use columnar operators if set to true
   val enablePreferColumnar: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.preferColumnar", "true").toBoolean

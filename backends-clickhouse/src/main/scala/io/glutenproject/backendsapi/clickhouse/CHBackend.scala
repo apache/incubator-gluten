@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi._
 
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.internal.SQLConf
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
@@ -36,4 +37,7 @@ object CHBackendSettings extends BackendSettings {
     Set(classOf[ParquetFileFormat])
   override def utilizeShuffledHashJoinHint(): Boolean = true
   override def excludeScanExecFromCollapsedStage(): Boolean = true
+  override def supportColumnarShuffleExec(): Boolean = {
+    SQLConf.get.getConfString("spark.gluten.sql.columnar.shuffle", "true").toBoolean
+  }
 }

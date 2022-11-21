@@ -178,7 +178,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
         if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
-          columnarConf.enableColumnarShuffle) {
+          BackendsApiManager.getSettings.supportColumnarShuffleExec()) {
           if (BackendsApiManager.getSettings.removeHashColumnFromColumnarShuffleExchangeExec()) {
             plan.outputPartitioning match {
               case HashPartitioning(exprs, _) =>
@@ -253,7 +253,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             left,
             right,
             isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-      case plan: AQEShuffleReadExec if columnarConf.enableColumnarShuffle =>
+      case plan: AQEShuffleReadExec if
+          BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
         plan.child match {
           case shuffle: ColumnarShuffleExchangeAdaptor =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -296,6 +297,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
   /**
    * Get the build side supported by the execution of vanilla Spark.
+   *
    * @param plan: shuffled hash join plan
    * @return the supported build side
    */

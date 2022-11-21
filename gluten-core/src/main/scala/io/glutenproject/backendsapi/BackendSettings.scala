@@ -16,6 +16,8 @@
  */
 package io.glutenproject.backendsapi
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.datasources.FileFormat
 
@@ -23,6 +25,9 @@ trait BackendSettings {
   def supportedFileFormats(): Set[Class[_ <: FileFormat]] = Set()
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
+  def supportColumnarShuffleExec(): Boolean = {
+    GlutenConfig.getSessionConf.isUseColumnarShuffleManager
+  }
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     case _: InnerLike | RightOuter | FullOuter => true
     case _ => false
