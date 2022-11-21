@@ -51,8 +51,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     // Initialize Backends API
-    val name = BackendsApiManager.initialize()
-    BackendLib.setLoadedBackendName(BackendLib.Name.valueOf(name.toUpperCase()))
+    BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
@@ -83,8 +82,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
         s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
-    val name = BackendsApiManager.initialize()
-    BackendLib.setLoadedBackendName(BackendLib.Name.valueOf(name.toUpperCase()))
+    BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(ctx.conf())
   }
