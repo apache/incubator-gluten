@@ -32,8 +32,11 @@ class CHBackend extends Backend {
 }
 
 object CHBackendSettings extends BackendSettings {
-  override def supportedFileFormats(): Set[Class[_ <: FileFormat]] =
-    Set(classOf[ParquetFileFormat])
+  override def supportFileFormatRead(): FileFormat => Boolean = {
+    case _: ParquetFileFormat => true
+    case _ => false
+  }
+
   override def utilizeShuffledHashJoinHint(): Boolean = true
   override def excludeScanExecFromCollapsedStage(): Boolean = true
 }

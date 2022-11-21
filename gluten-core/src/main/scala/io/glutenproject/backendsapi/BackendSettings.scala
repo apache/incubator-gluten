@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.datasources.FileFormat
 
 trait BackendSettings {
-  def supportedFileFormats(): Set[Class[_ <: FileFormat]] = Set()
+  def supportFileFormatRead: FileFormat => Boolean = _ => false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportColumnarShuffleExec(): Boolean = {

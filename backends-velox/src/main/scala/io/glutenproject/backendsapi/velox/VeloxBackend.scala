@@ -36,8 +36,10 @@ class VeloxBackend extends Backend {
 }
 
 object VeloxBackendSettings extends BackendSettings {
-  override def supportedFileFormats(): Set[Class[_ <: FileFormat]] =
-    Set(classOf[ParquetFileFormat], classOf[OrcFileFormat], classOf[DwrfFileFormat])
+  override def supportFileFormatRead(): FileFormat => Boolean = {
+    case _ : ParquetFileFormat | _ : OrcFileFormat | _ : DwrfFileFormat => true
+    case _ => false
+  }
   override def supportExpandExec(): Boolean = true
   override def supportSortExec(): Boolean = true
   override def supportColumnarShuffleExec(): Boolean = {

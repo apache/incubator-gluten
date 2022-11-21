@@ -84,7 +84,7 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * @return true if backend supports reading the file format.
    */
   override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
-    BackendsApiManager.getSettings.supportedFileFormats().contains(fileFormat.getClass)
+    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat)
   }
 
   /**
