@@ -48,6 +48,9 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
   if (type_name == "VARBINARY") {
     return arrow::utf8();
   }
+  if (type_name == "DATE") {
+    return arrow::date32();
+  }
   // The type name of Array type is like ARRAY<type>.
   std::string arrayType = "ARRAY";
   if (type_name.substr(0, arrayType.length()) == arrayType) {

@@ -184,4 +184,20 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select type1.short from type1," +
       " type2 where type1.short = type2.short") { _ => }
   }
+
+  test("Date type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, date from type1 " +
+      " group by grouping sets(int, date) sort by date, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.date from type1," +
+      " type2 where type1.date = type2.date") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.date from type1," +
+      " type2 where type1.date = type2.date") { _ => }
+  }
 }
