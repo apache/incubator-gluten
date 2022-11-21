@@ -18,6 +18,7 @@ package io.glutenproject.sql.shims
 
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
+import org.apache.spark.sql.execution.SparkPlan
 
 sealed abstract class ShimDescriptor
 
