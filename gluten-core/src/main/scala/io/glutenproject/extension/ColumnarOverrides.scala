@@ -84,7 +84,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {
           case shj: ShuffledHashJoinExec =>
-            if (BackendsApiManager.getSettings.recreateJoinExecOnFallback) {
+            if (BackendsApiManager.getSettings.recreateJoinExecOnFallback()) {
               // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
               // RightOuter, need to change the build side back if this join fallback into vanilla
               // Spark for execution.
@@ -179,7 +179,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         val child = replaceWithTransformerPlan(plan.child)
         if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
           columnarConf.enableColumnarShuffle) {
-          if (BackendsApiManager.getSettings.removeHashColumnFromColumnarShuffleExchangeExec) {
+          if (BackendsApiManager.getSettings.removeHashColumnFromColumnarShuffleExchangeExec()) {
             plan.outputPartitioning match {
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
