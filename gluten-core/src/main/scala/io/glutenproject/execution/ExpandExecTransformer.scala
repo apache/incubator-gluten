@@ -28,7 +28,7 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.BindReferencesUtil
@@ -38,21 +38,61 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ExpandExecTransformer(
-                                  projections: Seq[Seq[Expression]],
-                                  groupExpression: Seq[NamedExpression],
-                                  output: Seq[Attribute],
-                                  child: SparkPlan)
+case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
+                                 groupExpression: Seq[NamedExpression],
+                                 output: Seq[Attribute],
+                                 child: SparkPlan)
   extends UnaryExecNode with TransformSupport {
+
   override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_condproject"))
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_filter"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val cpuCount: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
   val originalInputAttributes: Seq[Attribute] = child.output
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      cpuCount += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
+  }
 
   // The GroupExpressions can output data with arbitrary partitioning, so set it
   // as UNKNOWN partitioning
