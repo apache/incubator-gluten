@@ -19,8 +19,7 @@ package io.glutenproject.backendsapi.velox
 
 import scala.collection.mutable.ArrayBuffer
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.ISparkPlanExecApi
+import io.glutenproject.backendsapi.{BackendsApiManager, ISparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, ArrowConverterUtils, VeloxAliasTransformer}
@@ -88,7 +87,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
    */
   override def genFilterExecTransformer(condition: Expression, child: SparkPlan)
   : FilterExecBaseTransformer =
-    if (GlutenConfig.getSessionConf.isGazelleBackend) {
+    if (BackendsApiManager.getSettings.avoidOverwritingFilterTransformer()) {
       // Use the original Filter for Arrow backend.
       FilterExecTransformer(condition, child)
     } else {

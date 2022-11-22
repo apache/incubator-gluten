@@ -18,22 +18,25 @@
 package io.glutenproject.execution
 
 import java.util
+
+import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.vectorized.ExpressionEvaluator
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,8 +44,6 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import scala.collection.JavaConverters._
 
 case class SortExecTransformer(
                                 sortOrder: Seq[SortOrder],
@@ -289,7 +290,9 @@ case class SortExecTransformer(
   }
 
   override def doValidate(): Boolean = {
-    if (!GlutenConfig.getConf.isVeloxBackend) return false
+    if (!BackendsApiManager.getSettings.supportSortExec()) {
+      return false
+    }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
 

@@ -94,7 +94,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
   val optimizeLevel: Integer = columnarConf.joinOptimizationThrottle
-  val enableColumnarShuffle: Boolean = columnarConf.enableColumnarShuffle
+  val enableColumnarShuffle: Boolean = BackendsApiManager.getSettings.supportColumnarShuffleExec()
   val enableColumnarSort: Boolean = columnarConf.enableColumnarSort
   val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow
   val enableColumnarSortMergeJoin: Boolean = columnarConf.enableColumnarSortMergeJoin

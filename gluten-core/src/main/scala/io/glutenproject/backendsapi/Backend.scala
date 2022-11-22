@@ -23,4 +23,5 @@ trait Backend {
   def iteratorApi(): IIteratorApi
   def sparkPlanExecApi(): ISparkPlanExecApi
   def transformerApi(): ITransformerApi
+  def settings(): BackendSettings
 }
