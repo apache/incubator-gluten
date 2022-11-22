@@ -25,10 +25,8 @@ import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /** Contains helper functions for constructing substrait relations. */
 public class ExpressionBuilder {
