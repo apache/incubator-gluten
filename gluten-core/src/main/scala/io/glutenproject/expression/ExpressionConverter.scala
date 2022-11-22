@@ -240,6 +240,7 @@ object ExpressionConverter extends Logging {
         new Murmur3HashTransformer(exprs, expr)
       case l: StringTrim =>
         if (l.trimStr != None) {
+          // todo to be remove when Velox support this argument
           throw new UnsupportedOperationException(s"not supported yet.")
         }
         logInfo(s"${expr.getClass} ${expr} is supported")
