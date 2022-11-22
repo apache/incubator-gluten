@@ -273,7 +273,6 @@ class GetJsonObjectTransformer(json: Expression, path: Expression, original: Exp
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
       ConverterUtils.GET_JSON_OBJECT, Seq(left.dataType, right.dataType)))
-
     val expressionNodes = Lists.newArrayList(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
