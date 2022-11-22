@@ -34,7 +34,6 @@ public class ExpressionEvaluatorJniWrapper {
       throws IllegalStateException {
     final JniWorkspace workspace = JniWorkspace.getDefault();
     final JniResourceHelper resourceHelper = workspace.resourceHelper();
-    resourceHelper.extractHeaders();
     resourceHelper.extractJars(listJars);
     tmpDirPath = workspace.getWorkDir();
   }
