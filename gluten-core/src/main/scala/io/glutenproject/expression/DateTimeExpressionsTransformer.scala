@@ -116,7 +116,7 @@ class DayOfMonthTransformer(child: Expression) extends DayOfMonth(child) with
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.DAYOFMONTH,
+      ConverterUtils.makeFuncName(ConverterUtils.DAY_OF_MONTH,
         Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode)
     val typeNode = ConverterUtils.getTypeNode(getDataType, true)

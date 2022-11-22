@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, REGEXP_EXTRACT_ALL, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART, TRANSLATE, TRIM}
+import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, JSON_ARRAY_LENGTH, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART, TRANSLATE, DAY_OF_MONTH}
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
@@ -37,5 +37,7 @@ object VeloxExpressionUtil {
     SPLIT -> EMPTY_TYPE,
     SPLIT_PART -> EMPTY_TYPE,
     LENGTH -> DataTypes.BinaryType.typeName,
-    TRANSLATE -> EMPTY_TYPE)
+    // to be removed when Velox support compatible type
+    DAY_OF_MONTH -> EMPTY_TYPE,
+    JSON_ARRAY_LENGTH -> EMPTY_TYPE)
 }

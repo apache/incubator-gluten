@@ -486,7 +486,7 @@ object ConverterUtils extends Logging {
   final val LOG10 = "log10"
 
   // SparkSQL DateTime functions of Velox
-  final val DAYOFMONTH = "day_of_month"
+  final val DAY_OF_MONTH = "day_of_month"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"

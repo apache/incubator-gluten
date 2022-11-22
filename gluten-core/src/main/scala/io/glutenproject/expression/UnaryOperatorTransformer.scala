@@ -343,7 +343,6 @@ class LengthOfJsonArrayTransformer(child: Expression, original: Expression)
       ConverterUtils.makeFuncName(ConverterUtils.JSON_ARRAY_LENGTH,
         Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode)
-    // todo Velox update the type
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
