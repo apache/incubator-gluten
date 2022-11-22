@@ -21,7 +21,6 @@ import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.extension.columnar._
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.internal.Logging
@@ -39,6 +38,11 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
+import io.glutenproject.extension.columnar.AddTransformHintRule
+import io.glutenproject.extension.columnar.TransformHints
+import io.glutenproject.extension.columnar.RemoveTransformHintRule
+import io.glutenproject.extension.columnar.TransformHint
+import io.glutenproject.extension.columnar.StoreExpandGroupExpression
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 // The plan with a row guard on the top of it will not be converted.

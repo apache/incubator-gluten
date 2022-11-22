@@ -39,4 +39,7 @@ object CHBackendSettings extends BackendSettings {
 
   override def utilizeShuffledHashJoinHint(): Boolean = true
   override def excludeScanExecFromCollapsedStage(): Boolean = true
+  override def supportSortExec(): Boolean = {
+    GlutenConfig.getSessionConf.enableColumnarSort
+  }
 }
