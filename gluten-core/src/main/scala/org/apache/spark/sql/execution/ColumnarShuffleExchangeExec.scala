@@ -59,7 +59,9 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numOutputRows" -> SQLMetrics
-      .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
+      .createMetric(sparkContext, "number of output rows"),
+    "inputBatches" -> SQLMetrics
+    .createMetric(sparkContext, "number of input batches")) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -187,7 +189,9 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numOutputRows" -> SQLMetrics
-      .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
+      .createMetric(sparkContext, "number of output rows"),
+    "inputBatches" -> SQLMetrics
+      .createMetric(sparkContext, "number of input batches")) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
