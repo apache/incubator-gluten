@@ -174,7 +174,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
     splitTime: SQLMetric,
     spillTime: SQLMetric,
     compressTime: SQLMetric,
-    prepareTime: SQLMetric)
+    prepareTime: SQLMetric,
+    inputBatches: SQLMetric)
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     VeloxExecUtil.genShuffleDependency(
@@ -190,7 +191,8 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
       splitTime,
       spillTime,
       compressTime,
-      prepareTime)
+      prepareTime,
+      inputBatches)
   }
   // scalastyle:on argcount
 
