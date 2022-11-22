@@ -14,8 +14,8 @@ BUILD_FOLLY=ON
 VELOX_BUILD_TYPE=release
 VELOX_HOME=/root/velox
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/JkSelf/velox.git
+VELOX_BRANCH=add-byte-array-bool-validation
 
 for arg in "$@"
 do
