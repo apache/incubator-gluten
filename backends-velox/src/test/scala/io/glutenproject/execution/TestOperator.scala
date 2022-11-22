@@ -95,8 +95,7 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 6)
   }
 
-  // test result failed, wait to fix, filter on 2 column will cause problem
-  ignore("test_and pushdown") {
+  test("test_and pushdown") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_orderkey > 2 " +
         "and l_orderkey = 1") { _ => }
@@ -112,7 +111,7 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 122)
   }
 
-  // wait to fix, may same as before todo
+  // TODO wait to fix
   ignore("test_in_and") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem " +
