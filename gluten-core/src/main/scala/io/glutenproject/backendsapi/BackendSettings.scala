@@ -42,4 +42,9 @@ trait BackendSettings {
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def avoidOverwritingFilterTransformer(): Boolean = false
   def fallbackFilterWithoutConjunctiveScan(): Boolean = false
+
+  /**
+   * Get the config prefix for each backend
+   */
+  def getBackendConfigPrefix(): String
 }
