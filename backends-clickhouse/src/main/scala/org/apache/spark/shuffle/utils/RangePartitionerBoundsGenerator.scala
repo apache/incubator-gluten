@@ -35,6 +35,9 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, BoundReferen
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.types._
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import play.api.libs.json._
 
 import java.util
@@ -101,6 +104,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   /*
    return json structure
    {
+    "projection_plan":"xxx",
     "ordering":[
       {
        "column_ref":0,
@@ -185,106 +189,89 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   private def buildOrderingJson(
       context: SubstraitContext,
       orderings: Seq[SortOrder],
-      attributes: Seq[Attribute]): JsValue = {
+      attributes: Seq[Attribute],
+      jsonMapper: ObjectMapper,
+      arrayNode: ArrayNode): Unit = {
+    orderings.foreach {
+      ordering =>
+        val node = jsonMapper.createObjectNode()
+        node.put("column_ref", getExpressionFieldReference(context, ordering, attributes))
+        node.put("data_type", ordering.dataType.toString)
+        node.put("is_nullable", ordering.nullable)
+        node.put(
+          "direction",
+          SortExecTransformer.transformSortDirection(
+            ordering.direction.sql,
+            ordering.nullOrdering.sql))
+        arrayNode.add(node)
+    }
+  }
 
-    val data = orderings.map {
-      order =>
-        {
-          val orderJson = Json.toJson(
-            Map(
-              "column_ref" -> Json.toJson(getExpressionFieldReference(context, order, attributes)),
-              "data_type" -> Json.toJson(order.dataType.toString),
-              "is_nullable" -> Json.toJson(order.nullable),
-              "direction" -> Json.toJson(SortExecTransformer
-                .transformSortDirection(order.direction.sql, order.nullOrdering.sql))
-            ))
-          orderJson
+  private def buildRangeBoundJson(
+      row: UnsafeRow,
+      orderings: Seq[SortOrder],
+      jsonMapper: ObjectMapper): ArrayNode = {
+    val arrayNode = jsonMapper.createArrayNode()
+    (0 until row.numFields).foreach {
+      i =>
+        if (row.isNullAt(i)) {
+          val node = jsonMapper.createObjectNode()
+          node.put("is_null", true)
+          arrayNode.add(node)
+        } else {
+          val ordering = orderings(i)
+          val node = jsonMapper.createObjectNode()
+          node.put("is_null", false)
+          ordering.dataType match {
+            case _: BooleanType => node.put("value", row.getBoolean(i))
+            case _: ByteType => node.put("value", row.getByte(i))
+            case _: ShortType => node.put("value", row.getShort(i))
+            case _: IntegerType => node.put("value", row.getInt(i))
+            case _: LongType => node.put("value", row.getLong(i))
+            case _: FloatType => node.put("value", row.getFloat(i))
+            case _: DoubleType => node.put("value", row.getDouble(i))
+            case _: StringType => node.put("value", row.getString(i))
+            case _: DateType => node.put("value", row.getShort(i))
+            case d =>
+              throw new IllegalArgumentException(
+                s"Unsupported data type ${ordering.dataType.toString}")
+          }
+          arrayNode.add(node)
         }
     }
-    Json.toJson(data)
+    arrayNode
   }
 
-  private def getFieldValue(row: UnsafeRow, dataType: DataType, field: Int): JsValue = {
-    dataType match {
-      case _: BooleanType => Json.toJson(row.getBoolean(field))
-      case _: ByteType => Json.toJson(row.getByte(field))
-      case _: ShortType => Json.toJson(row.getShort(field))
-      case _: IntegerType => Json.toJson(row.getInt(field))
-      case _: LongType => Json.toJson(row.getLong(field))
-      case _: FloatType => Json.toJson(row.getFloat(field))
-      case _: DoubleType => Json.toJson(row.getDouble(field))
-      case _: StringType => Json.toJson(row.getString(field))
-      case _: DateType => Json.toJson(row.getShort(field))
-      case d =>
-        throw new IllegalArgumentException(s"Unsupported data type ${d.toString}")
-    }
-  }
-  private def buildRangeBoundJson(row: UnsafeRow, ordering: Seq[SortOrder]): JsValue = {
-    val data = Json.toJson(
-      (0 until row.numFields).map {
-        i =>
-          {
-            if (row.isNullAt(i)) {
-              Json.toJson(
-                Map(
-                  "is_null" -> Json.toJson(true)
-                ))
-            } else {
-              val order = ordering(i)
-              Json.toJson(
-                Map(
-                  "is_null" -> Json.toJson(false),
-                  "value" -> getFieldValue(row, order.dataType, i)
-                ))
-            }
-          }
-      }
-    )
-    data
-  }
-
-  private def buildRangeBoundsJson(): JsValue = {
+  private def buildRangeBoundsJson(jsonMapper: ObjectMapper, arrayNode: ArrayNode): Unit = {
     val bounds = getRangeBounds()
-    val data = Json.toJson(
-      bounds.map(
-        bound => {
-          // Be careful, it should be an unsafe row here
-          val row = bound.asInstanceOf[UnsafeRow]
-          buildRangeBoundJson(row, ordering)
-        })
-    )
-    data
+    bounds.foreach {
+      bound =>
+        val row = bound.asInstanceOf[UnsafeRow]
+        arrayNode.add(buildRangeBoundJson(row, ordering, jsonMapper))
+    }
   }
 
   // Make a json structure that can be passed to native engine
   def getRangeBoundsJsonString(): String = {
     val context = new SubstraitContext()
-    val (sortExpressions, newOrderings) = buildProjectionAttributesByOrderings(
-      ordering
-    )
+    val (sortExpressions, newOrderings) = buildProjectionAttributesByOrderings(ordering)
     val totalAttributes = new util.ArrayList[Attribute]()
     inputAttributes.foreach(attr => totalAttributes.add(attr))
     sortExpressions.foreach(expr => totalAttributes.add(expr.toAttribute))
-    val data = if (sortExpressions.size == 0) {
-      Json.toJson(
-        Map(
-          "ordering" -> buildOrderingJson(context, newOrderings, totalAttributes.asScala),
-          "range_bounds" -> buildRangeBoundsJson()
-        ))
-    } else {
+    val mapper = new ObjectMapper
+    val rootNode = mapper.createObjectNode
+    val orderingArray = rootNode.putArray("ordering")
+    buildOrderingJson(context, newOrderings, totalAttributes.asScala, mapper, orderingArray)
+    val boundArray = rootNode.putArray("range_bounds")
+    buildRangeBoundsJson(mapper, boundArray);
+    if (sortExpressions.size != 0) {
       // If there is any expressions in orderings, we build a projection plan and pass
       // it to backend
       val projectPlan = buildProjectionPlan(context, sortExpressions).toProtobuf
       val serializeProjectPlan = Base64.getEncoder().encodeToString(projectPlan.toByteArray)
-      Json.toJson(
-        Map(
-          "projection_plan" -> Json.toJson(serializeProjectPlan),
-          "ordering" -> buildOrderingJson(context, newOrderings, totalAttributes.asScala),
-          "range_bounds" -> buildRangeBoundsJson()
-        ))
-
+      rootNode.put("projection_plan", serializeProjectPlan)
     }
-    Json.stringify(data)
+    mapper.writeValueAsString(rootNode)
   }
 }
 
