@@ -36,6 +36,6 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[RegexpExpressionsSuite],
     simpleClassName[PredicateSuite],
     simpleClassName[MathExpressionsSuite],
-    simpleClassName[GlutenBitwiseExpressionsSuite]
+    simpleClassName[BitwiseExpressionsSuite]
   )
 }
