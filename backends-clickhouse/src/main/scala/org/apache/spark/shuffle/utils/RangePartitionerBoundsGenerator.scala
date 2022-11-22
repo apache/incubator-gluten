@@ -38,7 +38,6 @@ import org.apache.spark.sql.types._
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
-import play.api.libs.json._
 
 import java.util
 import java.util.Base64

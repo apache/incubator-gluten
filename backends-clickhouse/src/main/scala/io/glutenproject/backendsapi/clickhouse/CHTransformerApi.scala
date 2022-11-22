@@ -30,8 +30,6 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
-import scala.util.control.Breaks.{break, breakable}
-
 class CHTransformerApi extends ITransformerApi with Logging {
 
   /**
