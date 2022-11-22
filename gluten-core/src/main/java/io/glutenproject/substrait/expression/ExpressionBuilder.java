@@ -114,10 +114,6 @@ public class ExpressionBuilder {
     return new DecimalLiteralNode(decimalConstant);
   }
 
-  public static StringListNode makeListLiteral(ArrayList<String> values) {
-    return new StringListNode(values);
-  }
-
   public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
     if (dataType instanceof BooleanType) {
       if (obj == null) {
@@ -209,7 +205,7 @@ public class ExpressionBuilder {
                     String.format("Type not supported: %s.", dataType.toString()));
           }
         }
-        return makeListLiteral(list);
+        return makeStringList(list);
       }
     } else {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
