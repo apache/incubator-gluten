@@ -25,16 +25,6 @@ case class GlutenNumaBindingInfo(
     numCoresPerExecutor: Int = -1) {}
 
 class GlutenConfig(conf: SQLConf) extends Logging {
-  val glutenBackendLib: String = BackendLib.getLoadedBackendName.toString
-
-  val isVeloxBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)
-
-  val isClickHouseBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-
-  val isGazelleBackend: Boolean =
-    glutenBackendLib.equalsIgnoreCase(GlutenConfig.GLUTEN_GAZELLE_BACKEND)
 
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean
@@ -136,13 +126,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // enable or disable columnar exchange
   val enableColumnarShuffle: Boolean =
-    if (isClickHouseBackend) {
-      conf
-        .getConfString("spark.gluten.sql.columnar.shuffle", "true")
-        .toBoolean
-    } else {
-      isUseColumnarShuffleManager
-    }
+    conf
+      .getConfString("spark.gluten.sql.columnar.shuffle", "true")
+      .toBoolean
 
   // prefer to use columnar operators if set to true
   val enablePreferColumnar: Boolean =
@@ -258,6 +244,8 @@ object GlutenConfig {
   val SPARK_S3_CONNECTION_SSL_ENABLED: String = "spark." + S3_CONNECTION_SSL_ENABLED
   val S3_PATH_STYLE_ACCESS = "hadoop.fs.s3a.path.style.access"
   val SPARK_S3_PATH_STYLE_ACCESS: String = "spark." + S3_PATH_STYLE_ACCESS
+  val S3_USE_INSTANCE_CREDENTIALS = "hadoop.fs.s3a.use.instance.credentials"
+  val SPARK_S3_USE_INSTANCE_CREDENTIALS: String = "spark." + S3_USE_INSTANCE_CREDENTIALS
 
   val SPARK_BATCH_SIZE = "spark.sql.execution.arrow.maxRecordsPerBatch"
 
@@ -267,6 +255,8 @@ object GlutenConfig {
   val GLUTEN_GAZELLE_BACKEND = "gazelle_cpp"
 
   // For ClickHouse Backends.
+  // FIXME 11/21/22 Hongze:
+  //   Options with prefix "GLUTEN_CLICKHOUSE" should be finally removed from this file
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = true
   val GLUTEN_CLICKHOUSE_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend.ch"

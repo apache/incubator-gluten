@@ -59,8 +59,7 @@ case class VeloxHashAggregateExecTransformer(
     for (expr <- aggregateExpressions) {
       val aggregateFunction = expr.aggregateFunction
       aggregateFunction match {
-        // TODO: also handle stddev.
-        case _: Average =>
+        case Average(_, _) | StddevSamp(_, _) =>
           expr.mode match {
             case Partial =>
               return true
@@ -104,6 +103,16 @@ case class VeloxHashAggregateExecTransformer(
           // Select count from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
           colIdx += 1
+        case _: StddevSamp =>
+          // Select count from Velox struct with count casted from LongType into DoubleType.
+          expressionNodes.add(ExpressionBuilder
+            .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
+              ExpressionBuilder.makeSelection(colIdx, 0)))
+          // Select avg from Velox Struct.
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
+          // Select m2 from Velox Struct.
+          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
+          colIdx += 1
         case _ =>
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
@@ -118,32 +127,47 @@ case class VeloxHashAggregateExecTransformer(
     }
   }
 
+  /**
+   * Return the intermediate type node of a partial aggregation in Velox.
+   * @param aggregateFunction The aggregation function.
+   * @return The type of partial outputs.
+   */
+  private def getIntermediateTypeNode(aggregateFunction: AggregateFunction): TypeNode = {
+    val structTypeNodes = new util.ArrayList[TypeNode]()
+    aggregateFunction match {
+      case _: Average =>
+        // Use struct type to represent Velox Row(DOUBLE, BIGINT).
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+      case _: StddevSamp =>
+        // Use struct type to represent Velox Row(BIGINT, DOUBLE, DOUBLE).
+        structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+        structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
+      case other =>
+        throw new UnsupportedOperationException(s"$other is not supported.")
+    }
+    TypeBuilder.makeStruct(false, structTypeNodes)
+  }
+
   // Create aggregate function node and add to list.
   override protected def addFunctionNode(
     args: java.lang.Object,
     aggregateFunction: AggregateFunction,
-    childrenNodeList: ArrayList[ExpressionNode],
+    childrenNodeList: java.util.ArrayList[ExpressionNode],
     aggregateMode: AggregateMode,
     aggregateNodeList: java.util.ArrayList[AggregateFunctionNode]): Unit = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     aggregateFunction match {
-      case _: Average =>
+      case Average(_, _) | StddevSamp(_, _) =>
         aggregateMode match {
           case Partial =>
-            // Will use sum and count to replace partial avg.
-            assert(childrenNodeList.size() == 1, "Partial Average expects one child node.")
-
-            // Use struct type to represent Velox Row(DOUBLE, BIGINT).
-            val structTypeNodes = new util.ArrayList[TypeNode]()
-            structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-            structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-
-            val avgNode = ExpressionBuilder.makeAggregateFunction(
+            assert(childrenNodeList.size() == 1, "Partial stage expects one child node.")
+            val partialNode = ExpressionBuilder.makeAggregateFunction(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
               childrenNodeList,
               modeToKeyWord(aggregateMode),
-              TypeBuilder.makeStruct(false, structTypeNodes))
-            aggregateNodeList.add(avgNode)
+              getIntermediateTypeNode(aggregateFunction))
+            aggregateNodeList.add(partialNode)
           case Final =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
               AggregateFunctionsBuilder.create(args, aggregateFunction),
@@ -165,7 +189,7 @@ case class VeloxHashAggregateExecTransformer(
   }
 
   /**
-   * Return the output types after partial avg through Velox.
+   * Return the output types after partial aggregation through Velox.
    * @return
    */
   def getPartialAggOutTypes: java.util.ArrayList[TypeNode] = {
@@ -173,17 +197,13 @@ case class VeloxHashAggregateExecTransformer(
     groupingExpressions.foreach(expression => {
       typeNodeList.add(ConverterUtils.getTypeNode(expression.dataType, expression.nullable))
     })
-    // TODO: consider stddev here.
     aggregateExpressions.foreach(expression => {
       val aggregateFunction = expression.aggregateFunction
       aggregateFunction match {
-        case _: Average =>
+        case Average(_, _) | StddevSamp(_, _) =>
           expression.mode match {
             case Partial =>
-              val structTypeNodes = new util.ArrayList[TypeNode]()
-              structTypeNodes.add(ConverterUtils.getTypeNode(DoubleType, nullable = true))
-              structTypeNodes.add(ConverterUtils.getTypeNode(LongType, nullable = true))
-              typeNodeList.add(TypeBuilder.makeStruct(false, structTypeNodes))
+              typeNodeList.add(getIntermediateTypeNode(aggregateFunction))
             case Final =>
               typeNodeList.add(
                 ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
@@ -234,7 +254,7 @@ case class VeloxHashAggregateExecTransformer(
   }
 
   // Add a projection node before aggregation for row constructing.
-  // Currently mainly used for final average.
+  // Mainly used for aggregation whose intermediate type is a compound type in Velox.
   // Pre-projection is always not required for final stage.
   private def getAggRelWithRowConstruct(context: SubstraitContext,
                                         originalInputAttributes: Seq[Attribute],
@@ -256,9 +276,9 @@ case class VeloxHashAggregateExecTransformer(
         case Average(_, _) =>
           aggregateExpression.mode match {
             case Final =>
-              assert(
-                functionInputAttributes.size == 2, "Final Average expects two input attributes.")
-              // Use a Velox function to combine sum and count.
+              assert(functionInputAttributes.size == 2,
+                "Final stage of Average expects two input attributes.")
+              // Use a Velox function to combine the intermediate columns into struct.
               val childNodes = new util.ArrayList[ExpressionNode](
                 functionInputAttributes.toList.map(attr => {
                 val aggExpr: Expression = ExpressionConverter
@@ -266,6 +286,37 @@ case class VeloxHashAggregateExecTransformer(
                 aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
                 }).asJava)
               exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
+            case other =>
+              throw new UnsupportedOperationException(s"$other is not supported.")
+          }
+        case StddevSamp(_, _) =>
+          aggregateExpression.mode match {
+            case Final =>
+              assert(functionInputAttributes.size == 3,
+                "Final stage of StddevSamp expects three input attributes.")
+              // Use a Velox function to combine the intermediate columns into struct.
+              var index = 0
+              var newInputAttributes: Seq[Attribute] = Seq()
+              val childNodes = new util.ArrayList[ExpressionNode](
+                functionInputAttributes.toList.map(attr => {
+                  val aggExpr: Expression = ExpressionConverter
+                    .replaceWithExpressionTransformer(attr, originalInputAttributes)
+                  val aggNode = aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+                  val expressionNode = if (index == 0) {
+                    // Cast count from DoubleType into LongType to align with Velox semantics.
+                    newInputAttributes = newInputAttributes :+
+                      attr.copy(attr.name, LongType, attr.nullable, attr.metadata)(
+                        attr.exprId, attr.qualifier)
+                    ExpressionBuilder.makeCast(
+                      ConverterUtils.getTypeNode(LongType, attr.nullable), aggNode)
+                  } else {
+                    newInputAttributes = newInputAttributes :+ attr
+                    aggNode
+                  }
+                  index += 1
+                  expressionNode
+                }).asJava)
+              exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes))
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
@@ -308,8 +359,9 @@ case class VeloxHashAggregateExecTransformer(
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
-        case Average(_, _) =>
-          // Only occupies one column due to sum and count are combined by previous projection.
+        case Average(_, _) | StddevSamp(_, _) =>
+          // Only occupies one column due to intermediate results are combined
+          // by previous projection.
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
         case _ =>

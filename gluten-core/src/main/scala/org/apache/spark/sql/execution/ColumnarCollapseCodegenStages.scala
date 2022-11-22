@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import io.glutenproject.execution._
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -115,7 +116,7 @@ case class ColumnarCollapseCodegenStages(
     conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
 
   def separateScanRDD: Boolean =
-    glutenConfig.isClickHouseBackend && conf
+    BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage() && conf
       .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false")
       .toBoolean
 

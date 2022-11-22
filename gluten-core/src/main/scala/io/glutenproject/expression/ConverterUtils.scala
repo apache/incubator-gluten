@@ -407,12 +407,15 @@ object ConverterUtils extends Logging {
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
 
-  // Function names used by Substrait plan.
+  // Aggregation functions used by Substrait plan.
   final val SUM = "sum"
   final val AVG = "avg"
   final val COUNT = "count"
   final val MIN = "min"
   final val MAX = "max"
+  final val STDDEV_SAMP = "stddev_samp"
+
+  // Function names used by Substrait plan.
   final val ADD = "add"
   final val SUBTRACT = "subtract"
   final val MULTIPLY = "multiply"
@@ -420,8 +423,6 @@ object ConverterUtils extends Logging {
   final val AND = "and"
   final val OR = "or"
   final val CAST = "cast"
-  final val BITWISE_AND = "bitwise_and"
-  final val BITWISE_OR = "bitwise_or"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
   final val RLIKE = "rlike"
@@ -472,10 +473,32 @@ object ConverterUtils extends Logging {
   final val POWER = "power"
   final val PMOD = "pmod"
   final val ROUND = "round"
+  final val BROUND = "bround"
+  final val SIN = "sin"
+  final val SINH = "sinh"
+  final val TAN = "tan"
+  final val TANH = "tanh"
+  final val BITWISE_NOT = "BitwiseNot"
+  final val BITWISE_AND = "BitwiseAnd"
+  final val BITWISE_OR = "BitwiseOr"
+  final val BITWISE_XOR = "BitwiseXor"
+  final val SQRT = "sqrt"
+  final val CBRT = "cbrt"
+  final val E = "e"
+  final val PI = "pi"
+  final val HEX = "hex"
+  final val UNHEX = "unhex"
+  final val HYPOT = "hypot"
+  final val SIGN = "sign"
+  final val LOG1P = "log1p"
+  final val LOG2 = "log2"
+  final val LOG = "log"
+  final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"
+  final val QUARTER = "quarter"
 
-  // PrestoSQL Math fucctions of Velox
+  // PrestoSQL Math functions of Velox and ClickHouse
   final val ACOS = "acos"
   final val ASIN = "asin"
   final val ATAN = "atan"

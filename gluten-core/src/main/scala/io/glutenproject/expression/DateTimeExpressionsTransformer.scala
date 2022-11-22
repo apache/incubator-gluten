@@ -48,6 +48,7 @@ class NowTransformer() extends Now()
   }
 }
 
+
 class HourTransformer(child: Expression, timeZoneId: Option[String] = None)
   extends Hour(child, timeZoneId) with ExpressionTransformer {
 

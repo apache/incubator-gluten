@@ -14,29 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject;
+package org.apache.spark.sql.execution
 
-// FIXME The usage of this class should be reconsidered. Backend-specific codes should be avoid
-// in common module.
-// same as GlutenConfig GLUTEN_VELOX_BACKEND...
-public class BackendLib {
-  private static Name LOADED_BACKEND_NAME = Name.UNKNOWN;
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
+import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan}
 
-  private BackendLib() {
-  }
-
-  public static synchronized void setLoadedBackendName(Name name) {
-    LOADED_BACKEND_NAME = name;
-  }
-
-  public static synchronized Name getLoadedBackendName() {
-    return LOADED_BACKEND_NAME;
-  }
-
-  public enum Name {
-    VELOX,
-    CH,
-    GAZELLE_CPP,
-    UNKNOWN
+// https://issues.apache.org/jira/browse/SPARK-36745
+object JoinSelectionShim {
+  object ExtractEquiJoinKeysShim {
+    type ReturnType =
+      (
+          JoinType,
+          Seq[Expression],
+          Seq[Expression],
+          Option[Expression],
+          LogicalPlan,
+          LogicalPlan,
+          JoinHint)
+    def unapply(join: Join): Option[ReturnType] = {
+      ExtractEquiJoinKeys.unapply(join)
+    }
   }
 }

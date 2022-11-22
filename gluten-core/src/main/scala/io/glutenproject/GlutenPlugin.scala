@@ -51,8 +51,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     // Initialize Backends API
-    val name = BackendsApiManager.initialize()
-    BackendLib.setLoadedBackendName(BackendLib.Name.valueOf(name.toUpperCase()))
+    BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
@@ -83,8 +82,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
         s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
-    val name = BackendsApiManager.initialize()
-    BackendLib.setLoadedBackendName(BackendLib.Name.valueOf(name.toUpperCase()))
+    BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(ctx.conf())
   }
@@ -170,6 +168,8 @@ private[glutenproject] object GlutenPlugin {
       conf.get(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED, "false"))
     nativeConfMap.put(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS,
       conf.get(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS, "true"))
+    nativeConfMap.put(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS,
+      conf.get(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"))
 
     conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
       .foreach{ case (k, v) => nativeConfMap.put(k, v) }

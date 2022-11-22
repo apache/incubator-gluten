@@ -76,7 +76,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       case c: TransformSupport =>
         c.doTransform(context)
       case _ =>
-        throw new IllegalStateException(s"child doesn't support transform.");
+        throw new IllegalStateException(s"child ${child.nodeName} doesn't support transform.");
     }
 
     val operatorId = context.nextOperatorId

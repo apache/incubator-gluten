@@ -23,8 +23,8 @@ import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -44,7 +44,6 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.util.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 
 abstract class FilterExecBaseTransformer(condition: Expression,
                                          child: SparkPlan) extends UnaryExecNode
@@ -220,7 +219,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     }
 
     // For now arrow backend only support scan + filter pattern
-    if (GlutenConfig.getConf.isGazelleBackend) {
+    if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
       if (!(child.isInstanceOf[DataSourceScanExec] ||
         child.isInstanceOf[DataSourceV2ScanExecBase])) {
         return false

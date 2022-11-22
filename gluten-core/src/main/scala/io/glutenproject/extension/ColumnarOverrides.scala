@@ -17,9 +17,19 @@
 
 package io.glutenproject.extension
 
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution._
+import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.extension.columnar._
+import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -28,23 +38,7 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
-import io.glutenproject.execution.CustomExpandExec
 import org.apache.spark.sql.execution.window.WindowExec
-import io.glutenproject.GlutenConfig
-import io.glutenproject.GlutenSparkExtensionsInjector
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution._
-import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.extension.columnar.AddTransformHintRule
-import io.glutenproject.extension.columnar.TransformHints
-import io.glutenproject.extension.columnar.RemoveTransformHintRule
-import io.glutenproject.extension.columnar.TransformHint
-import io.glutenproject.extension.columnar.StoreExpandGroupExpression
-import io.glutenproject.sql.shims.SparkShimLoader
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 // The plan with a row guard on the top of it will not be converted.
@@ -90,7 +84,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {
           case shj: ShuffledHashJoinExec =>
-            if (columnarConf.isVeloxBackend) {
+            if (BackendsApiManager.getSettings.recreateJoinExecOnFallback()) {
               // Because we manually removed the build side limitation for LeftOuter, LeftSemi and
               // RightOuter, need to change the build side back if this join fallback into vanilla
               // Spark for execution.
@@ -184,8 +178,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
         if ((child.supportsColumnar || columnarConf.enablePreferColumnar) &&
-          columnarConf.enableColumnarShuffle) {
-          if (columnarConf.isVeloxBackend) {
+          BackendsApiManager.getSettings.supportColumnarShuffleExec()) {
+          if (BackendsApiManager.getSettings.removeHashColumnFromColumnarShuffleExchangeExec()) {
             plan.outputPartitioning match {
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
@@ -259,7 +253,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             left,
             right,
             isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-      case plan: AQEShuffleReadExec if columnarConf.enableColumnarShuffle =>
+      case plan: AQEShuffleReadExec if
+          BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
         plan.child match {
           case shuffle: ColumnarShuffleExchangeAdaptor =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -302,6 +297,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
   /**
    * Get the build side supported by the execution of vanilla Spark.
+   *
    * @param plan: shuffled hash join plan
    * @return the supported build side
    */
@@ -314,11 +310,20 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   }
 
   def apply(plan: SparkPlan): SparkPlan = {
-    logOnLevel(s"${ruleName} before plan ${plan.toString()}")
-    val newPlan = replaceWithTransformerPlan(plan)
-    planChangeLogger.logRule(ruleName, plan, newPlan)
-    logOnLevel(s"${ruleName} after plan ${plan.toString()}")
-    newPlan
+    var checkOneRowRelation = false
+    if (plan.find(_.isInstanceOf[RDDScanExec]).isDefined) {
+      val rddScan = plan.find(_.isInstanceOf[RDDScanExec]).get
+      checkOneRowRelation = rddScan.asInstanceOf[RDDScanExec].name.equals("OneRowRelation")
+    }
+    if (checkOneRowRelation) {
+      plan
+    } else {
+      logOnLevel(s"${ruleName} before plan ${plan.toString()}")
+      val newPlan = replaceWithTransformerPlan(plan)
+      planChangeLogger.logRule(ruleName, plan, newPlan)
+      logOnLevel(s"${ruleName} after plan ${plan.toString()}")
+      newPlan
+    }
   }
 }
 
