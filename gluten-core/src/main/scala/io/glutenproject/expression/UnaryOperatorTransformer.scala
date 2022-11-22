@@ -550,16 +550,6 @@ class ReverseTransformer(child: Expression, original: Expression)
   }
 }
 
-class BitwiseNotTransformer(child: Expression, original: Expression)
-  extends BitwiseNot(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: BitwiseNot.")
-  }
-}
-
 class KnownFloatingPointNormalizedTransformer(
                                                child: Expression,
                                                original: KnownFloatingPointNormalized)
