@@ -21,10 +21,10 @@ import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 class IsNotNullTransformer(child: Expression, original: Expression)
@@ -590,7 +590,8 @@ class CastTransformer(child: Expression,
     }
 
     val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
+    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode],
+      SQLConf.get.ansiEnabled)
   }
 }
 
