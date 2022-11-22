@@ -57,6 +57,8 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Bool type") {
+    runQueryAndCompare("select bool from type1 limit 1") { _ => }
+
     // Validation: BatchScan Filter Project Aggregate Expand Sort Limit
     runQueryAndCompare("select int, bool from type1 where bool == true  " +
       " group by grouping sets(int, bool) sort by int, bool limit 1") { _ => }
@@ -232,4 +234,5 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select type1.array from type1," +
       " type2 where type1.array = type2.array") { _ => }
   }
+  
 }

@@ -30,7 +30,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InSubqueryExec
-import org.apache.spark.sql.types.{ArrayType, ByteType, StructType}
+import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BasicScanExecTransformer extends TransformSupport {
@@ -77,6 +77,7 @@ trait BasicScanExecTransformer extends TransformSupport {
     schema.fields.map(_.dataType).collect{
       case byte: ByteType =>
       case array: ArrayType =>
+      case bool: BooleanType =>
     }.nonEmpty
   }
 
