@@ -234,5 +234,4 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select type1.array from type1," +
       " type2 where type1.array = type2.array") { _ => }
   }
-  
 }

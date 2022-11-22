@@ -19,6 +19,7 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
@@ -84,7 +85,16 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   override def doValidate(): Boolean = {
-    if (GlutenConfig.getConf.isVeloxBackend && unsupportedDataType()) return false
+    // TODO need also check orc file format
+    ConverterUtils.getFileFormat(this) match {
+      case ParquetReadFormat =>
+        if (BackendsApiManager.getBackendName.equals("velox") &&
+          unsupportedDataType()) {
+          return false
+        }
+      case _ =>
+    }
+
     val substraitContext = new SubstraitContext
     val relNode =
       try {
