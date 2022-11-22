@@ -17,6 +17,7 @@
 
 package io.glutenproject.substrait.expression;
 
+import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
@@ -196,14 +197,15 @@ public class ExpressionBuilder {
       }
     }  else if (dataType instanceof ArrayType) {
       if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeDecimal(nullable, 0, 0));
+        ArrayType arrayType = (ArrayType)dataType;
+        return makeNullLiteral(TypeBuilder.makeList(nullable,
+                ConverterUtils.getTypeNode(arrayType.elementType(), nullable)));
       } else {
-        Object[] arrays = ((GenericArrayData) obj).array();
-        Arrays.stream(arrays).collect(Collectors.toList());
+        Object[] elements = ((GenericArrayData) obj).array();
         ArrayList<String> list = new ArrayList<>();
-        for (Object array : arrays) {
-          if (array instanceof UTF8String) {
-            list.add(array.toString());
+        for (Object element : elements) {
+          if (element instanceof UTF8String) {
+            list.add(element.toString());
           } else {
             throw new UnsupportedOperationException(
                     String.format("Type not supported: %s.", dataType.toString()));
