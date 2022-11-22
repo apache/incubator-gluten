@@ -103,7 +103,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   /*
    return json structure
    {
-    "projection_plan":"xxx",
+    "projection_plan":"xxxx",
     "ordering":[
       {
        "column_ref":0,
