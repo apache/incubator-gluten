@@ -711,10 +711,9 @@ abstract class HashAggregateExecBaseTransformer(
               val aggBufferAttr = sum.inputAggBufferAttributes
               if (aggBufferAttr.size == 2) {
                 // decimal sum check sum.resultType
-                val sum_attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-                aggregateAttr += sum_attr
-                val isempty_attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(1))
-                aggregateAttr += isempty_attr
+                aggregateAttr += ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
+                val isEmptyAttr = ConverterUtils.getAttrFromExpr(aggBufferAttr(1))
+                aggregateAttr += isEmptyAttr
                 res_index += 2
               } else {
                 val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)

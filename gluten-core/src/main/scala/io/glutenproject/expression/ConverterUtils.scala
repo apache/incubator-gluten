@@ -407,12 +407,15 @@ object ConverterUtils extends Logging {
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
 
-  // Function names used by Substrait plan.
+  // Aggregation functions used by Substrait plan.
   final val SUM = "sum"
   final val AVG = "avg"
   final val COUNT = "count"
   final val MIN = "min"
   final val MAX = "max"
+  final val STDDEV_SAMP = "stddev_samp"
+
+  // Function names used by Substrait plan.
   final val ADD = "add"
   final val SUBTRACT = "subtract"
   final val MULTIPLY = "multiply"
