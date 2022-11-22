@@ -34,4 +34,4 @@ The gluten jar name pattern is gluten-spark<sparkbundle.version>_<scala.binary.v
 | 3.2.2 | 3.2 | 2.12 |
 | 3.3.1 | 3.3 | 2.12 |
 
-Backend velox support both spar3.2.2 and spark3.3.1 while backend clickhouse support spark3.2.2
+Backend velox support both spark3.2.2 and spark3.3.1 while backend clickhouse support spark3.2.2

@@ -39,9 +39,7 @@ object GazelleBackendSettings extends BackendSettings {
     case _: ParquetFileFormat => true
     case _ => false
   }
-  override def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getSessionConf.isUseColumnarShuffleManager
-  }
+  override def supportColumnarShuffleExec(): Boolean = false
   override def avoidOverwritingFilterTransformer(): Boolean = true
   override def fallbackFilterWithoutConjunctiveScan(): Boolean = true
 }
