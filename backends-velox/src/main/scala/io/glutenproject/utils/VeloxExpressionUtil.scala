@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, REGEXP_EXTRACT_ALL, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART, TRANSLATE, TRIM}
+import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, REGEXP_EXTRACT_ALL, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART, TRANSLATE, TRIM, LOG2, LOG, REGEXP_EXTRACT}
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
@@ -34,10 +34,13 @@ object VeloxExpressionUtil {
     CAST -> ARRAY_TYPE,
     ROUND -> EMPTY_TYPE,
     REGEXP_REPLACE -> EMPTY_TYPE,
+    REGEXP_EXTRACT -> EMPTY_TYPE,
     REGEXP_EXTRACT_ALL -> EMPTY_TYPE,
     SPLIT -> EMPTY_TYPE,
     SPLIT_PART -> EMPTY_TYPE,
     LENGTH -> DataTypes.BinaryType.typeName,
     TRIM -> EMPTY_TYPE,
-    TRANSLATE -> EMPTY_TYPE)
+    TRANSLATE -> EMPTY_TYPE,
+    LOG2 -> EMPTY_TYPE,
+    LOG -> EMPTY_TYPE)
 }

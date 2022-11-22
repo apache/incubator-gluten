@@ -228,12 +228,14 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
+  /*
   test("regexp_extract") {
     runQueryAndCompare(s"select l_orderkey, regexp_extract(l_comment, '([a-z])', 1) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, regexp_extract(null, '([a-z])', 1) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
+  */
 
   test("replace") {
     runQueryAndCompare(s"select l_orderkey, replace(l_comment, ' ', 'hello') " +
