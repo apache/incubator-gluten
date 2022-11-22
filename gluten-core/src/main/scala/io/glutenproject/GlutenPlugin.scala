@@ -171,8 +171,11 @@ private[glutenproject] object GlutenPlugin {
     nativeConfMap.put(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS,
       conf.get(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"))
 
-    conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
-      .foreach{ case (k, v) => nativeConfMap.put(k, v) }
+    conf.getAll.filter {
+      case (k, v) => k.startsWith(BackendsApiManager.getSettings.getBackendConfigPrefix())
+    }.foreach {
+      case (k, v) => nativeConfMap.put(k, v)
+    }
 
     nativeConfMap.put(
       GlutenConfig.SPARK_BATCH_SIZE, conf.get(GlutenConfig.SPARK_BATCH_SIZE, "32768"))

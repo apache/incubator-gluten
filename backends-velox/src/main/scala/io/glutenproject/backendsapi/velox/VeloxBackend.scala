@@ -72,4 +72,10 @@ object VeloxBackendSettings extends BackendSettings {
   }
   override def recreateJoinExecOnFallback(): Boolean = true
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
+
+  /**
+   * Get the config prefix for each backend
+   */
+  override def getBackendConfigPrefix(): String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
 }
