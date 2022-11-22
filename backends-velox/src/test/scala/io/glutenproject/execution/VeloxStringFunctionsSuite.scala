@@ -60,7 +60,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  test("dayofmonth") {
+  ignore("day_of_month") {
     runQueryAndCompare(s"select l_orderkey, l_shipdate, dayofmonth(l_shipdate) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, dayofmonth(null) " +
