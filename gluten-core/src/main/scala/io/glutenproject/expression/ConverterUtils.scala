@@ -490,9 +490,11 @@ object ConverterUtils extends Logging {
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
+  final val JSON_ARRAY_LENGTH = "json_array_length"
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
+  final val MD5 = "md5"
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
