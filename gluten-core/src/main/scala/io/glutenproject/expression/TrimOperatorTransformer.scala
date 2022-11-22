@@ -24,6 +24,26 @@ import io.glutenproject.substrait.expression._
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 
+class StringTrimTransformer(srcStr: Expression, original: Expression)
+  extends StringTrim(srcStr: Expression, None: Option[Expression])
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val srcStrNode = srcStr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!srcStrNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName =
+      ConverterUtils.makeFuncName(ConverterUtils.TRIM, Seq(srcStr.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressNodes = Lists.newArrayList(srcStrNode)
+    val typeNode = TypeBuilder.makeString(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+  }
+}
 
 class StringTrimLeftTransformer(srcStr: Expression, original: Expression)
     extends StringTrimLeft(srcStr: Expression, None: Option[Expression])
@@ -71,6 +91,8 @@ class StringTrimRightTransformer(srcStr: Expression, original: Expression)
 object TrimOperatorTransformer {
   def create(srcStr: Expression, original: Expression): Expression =
     original match {
+      case t: StringTrim =>
+        new StringTrimTransformer(srcStr, t)
       case l: StringTrimLeft =>
         new StringTrimLeftTransformer(srcStr, l)
       case r: StringTrimRight =>

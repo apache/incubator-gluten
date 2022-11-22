@@ -305,6 +305,49 @@ class ChrTransformer(child: Expression, original: Expression)
   }
 }
 
+class MD5Transformer(child: Expression, original: Expression)
+  extends Md5(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.MD5,
+        Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(childNode)
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class LengthOfJsonArrayTransformer(child: Expression, original: Expression)
+  extends LengthOfJsonArray(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.JSON_ARRAY_LENGTH,
+        Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(childNode)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 class AsciiTransformer(child: Expression, original: Expression)
   extends Ascii(child: Expression)
     with ExpressionTransformer
@@ -483,6 +526,26 @@ class UpperTransformer(child: Expression, original: Expression)
       ConverterUtils.makeFuncName(ConverterUtils.UPPER, Seq(child.dataType), FunctionConfig.OPT))
     val expressionNodes = Lists.newArrayList(childNode)
     val typeNode = TypeBuilder.makeString(original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class ReverseTransformer(child: Expression, original: Expression)
+  extends Reverse(child: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"Not supported yet.")
+    }
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(ConverterUtils.REVERSE, Seq(child.dataType), FunctionConfig.OPT))
+    val expressionNodes = Lists.newArrayList(childNode)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -836,6 +899,10 @@ object UnaryOperatorTransformer {
       new DayOfWeekTransformer(child)
     case n: Not =>
       new NotTransformer(child, n)
+    case md5: Md5 =>
+      new MD5Transformer(child, md5)
+    case json: LengthOfJsonArray =>
+      new LengthOfJsonArrayTransformer(child, json)
     case a: Abs =>
       new AbsTransformer(child, a)
     case c: Ceil =>
@@ -902,6 +969,8 @@ object UnaryOperatorTransformer {
       new LowerTransformer(child, lower)
     case upper: Upper =>
       new UpperTransformer(child, upper)
+    case reverse: Reverse =>
+      new ReverseTransformer(child, reverse)
     case c: Cast =>
       new CastTransformer(child, c.dataType, c.timeZoneId, c)
     case u: UnscaledValue =>

@@ -458,6 +458,7 @@ object ConverterUtils extends Logging {
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
+  final val REVERSE = "reverse"
   final val SPLIT = "split"
   final val SPLIT_PART = "split_part"
   final val STARTS_WITH = "starts_with"
@@ -507,11 +508,16 @@ object ConverterUtils extends Logging {
   final val DEGREES = "degrees"
   final val LOG10 = "log10"
 
+  // SparkSQL DateTime functions of Velox
+  final val DAY_OF_MONTH = "day_of_month"
+
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
+  final val JSON_ARRAY_LENGTH = "json_array_length"
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
+  final val MD5 = "md5"
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
