@@ -419,10 +419,15 @@ object ConverterUtils extends Logging {
   final val DIVIDE = "divide"
   final val AND = "and"
   final val OR = "or"
+  final val CAST = "cast"
+  final val BITWISE_AND = "bitwise_and"
+  final val BITWISE_OR = "bitwise_or"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
   final val RLIKE = "rlike"
+  final val REGEXP_REPLACE = "regexp_replace"
   final val REGEXP_EXTRACT = "regexp_extract"
+  final val REGEXP_EXTRACT_ALL = "regexp_extract_all"
   final val EQUAL = "equal"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"
@@ -433,7 +438,7 @@ object ConverterUtils extends Logging {
   final val IS_NULL = "is_null"
   final val NOT = "not"
 
-  // SparkSQL String fucctions of Velox
+  // SparkSQL String functions of Velox
   final val ASCII = "ascii"
   final val CHR = "chr"
   final val EXTRACT = "extract"
@@ -441,20 +446,24 @@ object ConverterUtils extends Logging {
   final val CONCAT = "concat"
   final val CONTAINS = "contains"
   final val INSTR = "strpos" // instr
-  final val LENGTH = "char_length" // length
+  final val CHAR_LENGTH = "char_length" // length
+  final val LENGTH = "length"
   final val LOWER = "lower"
   final val UPPER = "upper"
   final val LOCATE = "locate"
   final val LTRIM = "ltrim"
   final val RTRIM = "rtrim"
+  final val TRIM = "trim"
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
   final val SPLIT = "split"
+  final val SPLIT_PART = "split_part"
   final val STARTS_WITH = "starts_with"
   final val SUBSTRING = "substring"
+  final val TRANSLATE = "translate"
 
-  // SparkSQL Math fucctions of Velox
+  // SparkSQL Math functions of Velox
   final val ABS = "abs"
   final val CEIL = "ceil"
   final val FLOOR = "floor"
@@ -464,6 +473,16 @@ object ConverterUtils extends Logging {
   final val ROUND = "round"
   final val GREATEST = "greatest"
   final val LEAST = "least"
+
+  // PrestoSQL Math fucctions of Velox
+  final val ACOS = "acos"
+  final val ASIN = "asin"
+  final val ATAN = "atan"
+  final val ATAN2 = "atan2"
+  final val COS = "cos"
+  final val COSH = "cosh"
+  final val DEGREES = "degrees"
+  final val LOG10 = "log10"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"

@@ -19,7 +19,6 @@ package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{NativeColumnarToRowExec, WholeStageTransformerExec}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
@@ -27,9 +26,12 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.types.DecimalType
 
 object ExpressionConverter extends Logging {
-  def replaceWithExpressionTransformer(
-                                        expr: Expression,
-                                        attributeSeq: Seq[Attribute]): Expression =
+
+  def replaceWithExpressionTransformer(expr: Expression,
+      attributeSeq: Seq[Attribute]): Expression = {
+    if (!BackendsApiManager.getTransformerApiInstance.doValidate(expr)) {
+      throw new UnsupportedOperationException(s"Not supported: $expr.")
+    }
     expr match {
       case a: Alias =>
         logInfo(s"${expr.getClass} ${expr} is supported")
@@ -236,12 +238,12 @@ object ExpressionConverter extends Logging {
         TrimOperatorTransformer.create(
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
           expr)
-
       case expr =>
         logDebug(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
           s"${expr.getClass} or ${expr} is not currently supported.")
     }
+  }
 
   def containsSubquery(expr: Expression): Boolean =
     expr match {

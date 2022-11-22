@@ -127,11 +127,19 @@ int main(int argc, char** argv) {
   std::vector<std::string> inputFiles;
   if (argc < 2) {
     std::cout << "No input args. Running example..." << std::endl;
-    substraitJsonFile = "plan/example.json";
-    inputFiles.emplace_back(
-        "parquet/example/t1/part-00000-d14c419b-9051-40ec-bc2d-7edb9f4ddcbc-c000.snappy.parquet");
-    inputFiles.emplace_back(
-        "parquet/example/t0/part-00000-6083f01b-cd22-46dd-aa05-2ddb4e153c47-c000.snappy.parquet");
+    inputFiles.resize(2);
+    try {
+      GLUTEN_ASSIGN_OR_THROW(
+          substraitJsonFile, getGeneratedFilePath("example.json"));
+      GLUTEN_ASSIGN_OR_THROW(
+          inputFiles[0], getGeneratedFilePath("example_lineitem"));
+      GLUTEN_ASSIGN_OR_THROW(
+          inputFiles[1], getGeneratedFilePath("example_orders"));
+    } catch (const std::exception& e) {
+      std::cout << "Failed to run example: " << e.what() << std::endl;
+      ::benchmark::Shutdown();
+      std::exit(EXIT_FAILURE);
+    }
   } else {
     substraitJsonFile = argv[1];
     for (auto i = 2; i < argc; ++i) {

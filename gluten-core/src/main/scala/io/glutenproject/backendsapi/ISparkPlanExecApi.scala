@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait ISparkPlanExecApi extends IBackendsApi {
+trait ISparkPlanExecApi {
 
   /**
    * Whether support gluten for current SparkPlan

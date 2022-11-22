@@ -146,6 +146,18 @@ class SplitterTest : public ::testing::Test {
     MakeInputBatch(input_data_1, schema_, &input_batch_1_);
     MakeInputBatch(input_data_2, schema_, &input_batch_2_);
 
+    std::merge(
+        hash_key_1.begin(),
+        hash_key_1.end(),
+        input_data_1.begin(),
+        input_data_1.end(),
+        back_inserter(hash_input_data_1));
+    std::merge(
+        hash_key_2.begin(),
+        hash_key_2.end(),
+        input_data_2.begin(),
+        input_data_2.end(),
+        back_inserter(hash_input_data_2));
     hash_schema_ = arrow::schema(
         {hash_partition_key,
          f_na,
@@ -408,18 +420,6 @@ TEST_F(SplitterTest, TestHashSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
-  std::merge(
-      hash_key_1.begin(),
-      hash_key_1.end(),
-      input_data_1.begin(),
-      input_data_1.end(),
-      back_inserter(hash_input_data_1));
-  std::merge(
-      hash_key_2.begin(),
-      hash_key_2.end(),
-      input_data_2.begin(),
-      input_data_2.end(),
-      back_inserter(hash_input_data_2));
   ARROW_ASSIGN_OR_THROW(
       splitter_,
       Splitter::Make("hash", hash_schema_, num_partitions, split_options_))

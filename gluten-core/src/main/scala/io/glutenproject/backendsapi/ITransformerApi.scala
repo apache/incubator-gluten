@@ -17,12 +17,22 @@
 
 package io.glutenproject.backendsapi
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 
-trait ITransformerApi extends IBackendsApi {
+trait ITransformerApi {
+
+  /**
+   * Validate expression for specific backend, including input type.
+   * If the expression isn't implemented by the backend or
+   * it returns mismatched results with Vanilla Spark,
+   * it will fall back to Vanilla Spark.
+   *
+   * @return true by default
+   */
+  def doValidate(expr: Expression): Boolean = true
 
   /**
    * Do validate for ColumnarShuffleExchangeExec.

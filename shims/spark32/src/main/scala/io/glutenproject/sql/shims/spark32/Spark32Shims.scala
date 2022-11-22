@@ -20,17 +20,13 @@ import io.glutenproject.BackendLib
 import io.glutenproject.extension.JoinSelectionOverrideShim
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{SparkContext, SparkException}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution, Partitioning}
-import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
+import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.{DataSourcePartitioning, DataSourceRDD}
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.internal.SQLConf
 
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -41,14 +37,11 @@ class Spark32Shims extends SparkShims {
     HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def applyPlan(
-      plan: LogicalPlan,
-      forceShuffledHashJoin: Boolean,
-      backendLib: BackendLib): Seq[SparkPlan] = {
+  override def applyPlan(plan: LogicalPlan, forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
     plan match {
       // If the build side of BHJ is already decided by AQE, we need to keep the build side.
       case ExtractEquiJoinKeys(joinType, leftKeys, rightKeys, condition, left, right, hint) =>
-        new JoinSelectionOverrideShim(backendLib).extractEqualJoinKeyCondition(
+        new JoinSelectionOverrideShim().extractEqualJoinKeyCondition(
           joinType,
           leftKeys,
           rightKeys,
@@ -59,5 +52,17 @@ class Spark32Shims extends SparkShims {
           forceShuffledHashJoin)
       case _ => Nil
     }
+  }
+
+  override def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean = {
+    // Only QueryStage will have Exchange as Leaf Plan
+    val isLeafPlanExchange = plan match {
+      case _: Exchange => true
+      case _ => false
+    }
+    isLeafPlanExchange || (SQLConf.get.adaptiveExecutionEnabled &&
+      (sanityCheck(plan) &&
+        !plan.logicalLink.exists(_.isStreaming) &&
+        plan.children.forall(supportAdaptiveWithExchangeConsidered)))
   }
 }

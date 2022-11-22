@@ -23,14 +23,13 @@ import java.util.{Collections, Objects}
 import scala.language.implicitConversions
 
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.vectorized.{ExpressionEvaluator, JniLibLoader}
+import io.glutenproject.vectorized.ExpressionEvaluator
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
@@ -52,12 +51,8 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
     // Initialize Backends API
-    val glutenBackenLibName = BackendsApiManager.initialize()
-    // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
-    // FIXME identify backend lib in IInitializerApi.initialize().
-    if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
-      conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
-    }
+    val name = BackendsApiManager.initialize()
+    BackendLib.setLoadedBackendName(BackendLib.Name.valueOf(name.toUpperCase()))
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
@@ -88,12 +83,8 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
         s" and set the off heap memory size of the 'spark.memory.offHeap.size'")
     }
     // Initialize Backends API
-    val glutenBackenLibName = BackendsApiManager.initialize()
-    // Automatically set the 'spark.gluten.sql.columnar.backend.lib'
-    // FIXME identify backend lib in IInitializerApi.initialize().
-    if (conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "").isEmpty) {
-      conf.set(GlutenConfig.GLUTEN_BACKEND_LIB, glutenBackenLibName)
-    }
+    val name = BackendsApiManager.initialize()
+    BackendLib.setLoadedBackendName(BackendLib.Name.valueOf(name.toUpperCase()))
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
     GlutenPlugin.initNative(ctx.conf())
   }
@@ -179,6 +170,8 @@ private[glutenproject] object GlutenPlugin {
       conf.get(GlutenConfig.SPARK_S3_CONNECTION_SSL_ENABLED, "false"))
     nativeConfMap.put(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS,
       conf.get(GlutenConfig.SPARK_S3_PATH_STYLE_ACCESS, "true"))
+    nativeConfMap.put(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS,
+      conf.get(GlutenConfig.SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"))
 
     conf.getAll.filter{ case (k, v) => k.startsWith(GlutenConfig.GLUTEN_CLICKHOUSE_CONFIG_PREFIX) }
       .foreach{ case (k, v) => nativeConfMap.put(k, v) }
@@ -195,13 +188,8 @@ private[glutenproject] object GlutenPlugin {
   def initNative(conf: SparkConf): Unit = {
     // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
     if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val customGlutenLib = conf.get(GlutenConfig.GLUTEN_LIB_PATH, "")
-      val customBackendLib = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
       val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String])
-      if (customGlutenLib.nonEmpty || customBackendLib.nonEmpty) {
-        // Initialize the native backend with spark confs.
-        initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
-      }
+      initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
     }
   }
 }
