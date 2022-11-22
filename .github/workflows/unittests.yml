@@ -86,7 +86,7 @@ jobs:
       - name: Checkout gluten-it code in docker
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          git clone -b main https://github.com/jinchengchenghh/gluten-it.git gluten-it'
+          git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/gluten-it && \
