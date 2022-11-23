@@ -117,6 +117,7 @@ class CHColumnarShuffleWriter[K, V](
           .split(nativeSplitter, cb.numRows, block)
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
+        dep.inputBatches.add(1)
         writeMetrics.incRecordsWritten(cb.numRows)
       }
     }

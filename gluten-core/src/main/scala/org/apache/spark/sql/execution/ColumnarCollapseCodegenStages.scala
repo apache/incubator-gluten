@@ -116,9 +116,7 @@ case class ColumnarCollapseCodegenStages(
     conf.getConfString("spark.gluten.sql.columnar.wholestagetransform", "true").toBoolean
 
   def separateScanRDD: Boolean =
-    BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage() && conf
-      .getConfString(GlutenConfig.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false")
-      .toBoolean
+    BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage()
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (columnarWholeStageEnabled) {

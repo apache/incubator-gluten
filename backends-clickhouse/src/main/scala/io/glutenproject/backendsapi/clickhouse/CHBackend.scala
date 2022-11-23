@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi._
 
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.internal.SQLConf
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
@@ -32,11 +33,27 @@ class CHBackend extends Backend {
 }
 
 object CHBackendSettings extends BackendSettings {
+
+  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
+
   override def supportFileFormatRead(): FileFormat => Boolean = {
     case _: ParquetFileFormat => true
     case _ => false
   }
 
   override def utilizeShuffledHashJoinHint(): Boolean = true
-  override def excludeScanExecFromCollapsedStage(): Boolean = true
+
+  override def supportSortExec(): Boolean = {
+    GlutenConfig.getSessionConf.enableColumnarSort
+  }
+
+  override def excludeScanExecFromCollapsedStage(): Boolean =
+    SQLConf.get
+      .getConfString(GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT)
+      .toBoolean
+
+  /** Get the config prefix for each backend */
+  override def getBackendConfigPrefix(): String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

@@ -256,6 +256,7 @@ class RoundTransformer(child: Expression, scale: Expression, original: Expressio
   }
 }
 
+
 class GetJsonObjectTransformer(json: Expression, path: Expression, original: Expression)
   extends GetJsonObject(json: Expression, path: Expression)
     with ExpressionTransformer
@@ -287,7 +288,48 @@ class Atan2Transformer(left: Expression, right: Expression, original: Expression
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException(s"not supported yet.")
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.ATAN2, Seq(left.dataType, right.dataType)))
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class HypotTransformer(left: Expression, right: Expression, original: Expression)
+  extends Hypot(left: Expression, right: Expression)
+    with ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode =
+      left.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val rightNode =
+      right.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!leftNode.isInstanceOf[ExpressionNode] ||
+      !rightNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, ConverterUtils.makeFuncName(
+      ConverterUtils.HYPOT, Seq(left.dataType, right.dataType)))
+
+    val expressionNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 
@@ -321,10 +363,12 @@ object BinaryExpressionTransformer {
         new PowTransformer(left, right, p)
       case r: Round =>
         new RoundTransformer(left, right, r)
-      case g: Atan2 =>
-        new Atan2Transformer(left, right, g)
       case r: GetJsonObject =>
         new GetJsonObjectTransformer(left, right, r)
+      case t: Atan2 =>
+        new Atan2Transformer(left, right, t)
+      case h: Hypot =>
+        new HypotTransformer(left, right, h)
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }

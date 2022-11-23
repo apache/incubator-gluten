@@ -16,7 +16,7 @@
  */
 package io.glutenproject.sql.shims
 
-import org.apache.spark.SPARK_VERSION
+import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.internal.Logging
 
 import java.util.ServiceLoader
@@ -36,7 +36,7 @@ object SparkShimLoader extends Logging {
   }
 
   def getSparkVersion: String = {
-    SPARK_VERSION
+    SPARK_VERSION_SHORT
   }
 
   def setSparkShimProviderClass(providerClass: String): Unit = {

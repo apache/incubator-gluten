@@ -60,7 +60,8 @@ object VeloxExecUtil {
                            splitTime: SQLMetric,
                            spillTime: SQLMetric,
                            compressTime: SQLMetric,
-                           prepareTime: SQLMetric
+                           prepareTime: SQLMetric,
+                           inputBatches: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     // only used for fallback range partitioning
@@ -211,7 +212,8 @@ object VeloxExecUtil {
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,
-        prepareTime = prepareTime)
+        prepareTime = prepareTime,
+        inputBatches = inputBatches)
 
     dependency
   }

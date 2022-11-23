@@ -17,22 +17,12 @@
 
 package io.glutenproject.substrait.expression;
 
+import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
-import org.apache.spark.sql.types.BooleanType;
-import org.apache.spark.sql.types.BinaryType;
-import org.apache.spark.sql.types.ByteType;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DateType;
-import org.apache.spark.sql.types.TimestampType;
-import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.FloatType;
-import org.apache.spark.sql.types.DoubleType;
-import org.apache.spark.sql.types.IntegerType;
-import org.apache.spark.sql.types.LongType;
-import org.apache.spark.sql.types.ShortType;
-import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
+import org.apache.spark.sql.types.*;
+import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -198,6 +188,24 @@ public class ExpressionBuilder {
           decimal.scale()));
       } else {
         return makeDecimalLiteral((Decimal) obj);
+      }
+    }  else if (dataType instanceof ArrayType) {
+      if (obj == null) {
+        ArrayType arrayType = (ArrayType)dataType;
+        return makeNullLiteral(TypeBuilder.makeList(nullable,
+                ConverterUtils.getTypeNode(arrayType.elementType(), nullable)));
+      } else {
+        Object[] elements = ((GenericArrayData) obj).array();
+        ArrayList<String> list = new ArrayList<>();
+        for (Object element : elements) {
+          if (element instanceof UTF8String) {
+            list.add(element.toString());
+          } else {
+            throw new UnsupportedOperationException(
+                    String.format("Type not supported: %s.", dataType.toString()));
+          }
+        }
+        return makeStringList(list);
       }
     } else {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array

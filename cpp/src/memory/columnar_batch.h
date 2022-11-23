@@ -29,7 +29,7 @@ namespace memory {
 class GlutenColumnarBatch {
  public:
   GlutenColumnarBatch(int32_t numColumns, int32_t numRows)
-      : numColumns(numColumns), numRows(numRows) {}
+      : numColumns(numColumns), numRows(numRows), exportNanos_(0) {}
 
   virtual ~GlutenColumnarBatch() = default;
 

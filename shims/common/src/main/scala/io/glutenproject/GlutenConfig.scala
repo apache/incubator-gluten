@@ -254,12 +254,7 @@ object GlutenConfig {
   val GLUTEN_CLICKHOUSE_BACKEND = "ch"
   val GLUTEN_GAZELLE_BACKEND = "gazelle_cpp"
 
-  // For ClickHouse Backends.
-  // FIXME 11/21/22 Hongze:
-  //   Options with prefix "GLUTEN_CLICKHOUSE" should be finally removed from this file
-  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
-  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = true
-  val GLUTEN_CLICKHOUSE_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend.ch"
+  val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, defalut value is false

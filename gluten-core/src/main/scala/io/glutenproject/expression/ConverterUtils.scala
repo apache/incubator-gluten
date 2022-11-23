@@ -423,8 +423,6 @@ object ConverterUtils extends Logging {
   final val AND = "and"
   final val OR = "or"
   final val CAST = "cast"
-  final val BITWISE_AND = "bitwise_and"
-  final val BITWISE_OR = "bitwise_or"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
   final val RLIKE = "rlike"
@@ -460,6 +458,7 @@ object ConverterUtils extends Logging {
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
+  final val REVERSE = "reverse"
   final val SPLIT = "split"
   final val SPLIT_PART = "split_part"
   final val STARTS_WITH = "starts_with"
@@ -474,10 +473,32 @@ object ConverterUtils extends Logging {
   final val POWER = "power"
   final val PMOD = "pmod"
   final val ROUND = "round"
+  final val BROUND = "bround"
+  final val SIN = "sin"
+  final val SINH = "sinh"
+  final val TAN = "tan"
+  final val TANH = "tanh"
+  final val BITWISE_NOT = "BitwiseNot"
+  final val BITWISE_AND = "BitwiseAnd"
+  final val BITWISE_OR = "BitwiseOr"
+  final val BITWISE_XOR = "BitwiseXor"
+  final val SQRT = "sqrt"
+  final val CBRT = "cbrt"
+  final val E = "e"
+  final val PI = "pi"
+  final val HEX = "hex"
+  final val UNHEX = "unhex"
+  final val HYPOT = "hypot"
+  final val SIGN = "sign"
+  final val LOG1P = "log1p"
+  final val LOG2 = "log2"
+  final val LOG = "log"
+  final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"
+  final val QUARTER = "quarter"
 
-  // PrestoSQL Math fucctions of Velox
+  // PrestoSQL Math functions of Velox and ClickHouse
   final val ACOS = "acos"
   final val ASIN = "asin"
   final val ATAN = "atan"
@@ -487,11 +508,16 @@ object ConverterUtils extends Logging {
   final val DEGREES = "degrees"
   final val LOG10 = "log10"
 
+  // SparkSQL DateTime functions of Velox
+  final val DAY_OF_MONTH = "day_of_month"
+
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
+  final val JSON_ARRAY_LENGTH = "json_array_length"
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
+  final val MD5 = "md5"
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
