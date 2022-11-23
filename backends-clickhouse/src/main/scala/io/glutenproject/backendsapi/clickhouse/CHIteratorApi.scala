@@ -16,10 +16,6 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
-
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
@@ -40,6 +36,10 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util.concurrent.TimeUnit
+
+import scala.collection.JavaConverters._
 
 class CHIteratorApi extends IIteratorApi with Logging {
 
