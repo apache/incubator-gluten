@@ -85,7 +85,7 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   override def doValidate(): Boolean = {
-    // TODO need also check orc file format
+    // TODO need also check orc file format and also move this check in native.
     ConverterUtils.getFileFormat(this) match {
       case ParquetReadFormat =>
         if (BackendsApiManager.getBackendName.equals("velox") &&
