@@ -59,7 +59,9 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numOutputRows" -> SQLMetrics
-      .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
+      .createMetric(sparkContext, "number of output rows"),
+    "inputBatches" -> SQLMetrics
+    .createMetric(sparkContext, "number of input batches")) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -92,7 +94,8 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
       longMetric("splitTime"),
       longMetric("spillTime"),
       longMetric("compressTime"),
-      longMetric("prepareTime"))
+      longMetric("prepareTime"),
+      longMetric("inputBatches"))
   }
 
   // 'shuffleDependency' is only needed when enable AQE. Columnar shuffle will
@@ -186,7 +189,9 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
       .createAverageMetric(sparkContext, "avg read batch num rows"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numOutputRows" -> SQLMetrics
-      .createMetric(sparkContext, "number of output rows")) ++ readMetrics ++ writeMetrics
+      .createMetric(sparkContext, "number of output rows"),
+    "inputBatches" -> SQLMetrics
+      .createMetric(sparkContext, "number of input batches")) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -219,7 +224,8 @@ case class ColumnarShuffleExchangeAdaptor(override val outputPartitioning: Parti
       longMetric("splitTime"),
       longMetric("spillTime"),
       longMetric("compressTime"),
-      longMetric("prepareTime"))
+      longMetric("prepareTime"),
+      longMetric("inputBatches"))
   }
 
   // 'shuffleDependency' is only needed when enable AQE.
@@ -320,7 +326,8 @@ object ColumnarShuffleExchangeExec extends Logging {
                                splitTime: SQLMetric,
                                spillTime: SQLMetric,
                                compressTime: SQLMetric,
-                               prepareTime: SQLMetric)
+                               prepareTime: SQLMetric,
+                               inputBatches: SQLMetric)
   // scalastyle:on argcount
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(rdd,
@@ -335,7 +342,8 @@ object ColumnarShuffleExchangeExec extends Logging {
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric)
+      prepareTime: SQLMetric,
+      inputBatches: SQLMetric)
   }
 
   class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
