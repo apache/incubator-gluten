@@ -16,7 +16,6 @@
  */
 
 package io.glutenproject.execution
-import java.util.ArrayList
 
 import scala.collection.JavaConverters._
 import com.google.protobuf.Any
@@ -32,6 +31,7 @@ import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DoubleType, LongType}
 
 case class VeloxHashAggregateExecTransformer(
@@ -107,7 +107,7 @@ case class VeloxHashAggregateExecTransformer(
           // Select count from Velox struct with count casted from LongType into DoubleType.
           expressionNodes.add(ExpressionBuilder
             .makeCast(ConverterUtils.getTypeNode(DoubleType, nullable = true),
-              ExpressionBuilder.makeSelection(colIdx, 0)))
+              ExpressionBuilder.makeSelection(colIdx, 0), SQLConf.get.ansiEnabled))
           // Select avg from Velox Struct.
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
           // Select m2 from Velox Struct.
@@ -308,7 +308,8 @@ case class VeloxHashAggregateExecTransformer(
                       attr.copy(attr.name, LongType, attr.nullable, attr.metadata)(
                         attr.exprId, attr.qualifier)
                     ExpressionBuilder.makeCast(
-                      ConverterUtils.getTypeNode(LongType, attr.nullable), aggNode)
+                      ConverterUtils.getTypeNode(LongType, attr.nullable), aggNode,
+                      SQLConf.get.ansiEnabled)
                   } else {
                     newInputAttributes = newInputAttributes :+ attr
                     aggNode
