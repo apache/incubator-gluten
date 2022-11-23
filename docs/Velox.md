@@ -27,7 +27,6 @@ mvn clean package -Pbackends-velox -Pspark-3.2 -Dbuild_velox_from_source=ON -Dbu
 # For spark3.3.x
 mvn clean package -Pbackends-velox -Pspark-3.3 -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
 ```
-You may compile spark3.2 and spark3.3 at the same time by -Pspark-3.2 -Pspark-3.3
 
 The command generates the Jar file in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark. So as spark3.3.
 
