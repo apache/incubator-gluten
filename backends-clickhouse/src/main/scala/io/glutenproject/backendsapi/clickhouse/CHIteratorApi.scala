@@ -16,11 +16,15 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
+import java.util.concurrent.TimeUnit
+
+import scala.collection.JavaConverters._
+
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
-import io.glutenproject.memory.alloc.{CHManagedReservationListener, CHMemoryAllocatorManager, NativeMemoryAllocator, NativeMemoryAllocatorManager, Spiller}
+import io.glutenproject.memory.alloc._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -36,10 +40,6 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskMemoryResourceManager
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
 
 class CHIteratorApi extends IIteratorApi with Logging {
 
