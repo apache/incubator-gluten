@@ -18,7 +18,6 @@
 package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.alloc.NativeMemoryAllocator;
 import io.glutenproject.memory.alloc.Spiller;
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
@@ -89,14 +88,6 @@ public class ArrowBufferAllocators {
       } else {
         close();
       }
-    }
-
-    /**
-     * Not support for ArrowBufferAllocatorManager
-     * @return
-     */
-    public NativeMemoryAllocator getManaged() {
-      throw new UnsupportedOperationException("Not support for ArrowBufferAllocatorManager");
     }
   }
 }
