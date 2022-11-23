@@ -19,6 +19,7 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
@@ -32,7 +33,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InSubqueryExec
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{ArrayType, BooleanType, ByteType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait BasicScanExecTransformer extends TransformSupport {
@@ -75,7 +76,25 @@ trait BasicScanExecTransformer extends TransformSupport {
     )
   }
 
+  def unsupportedDataType () : Boolean = {
+    schema.fields.map(_.dataType).collect{
+      case byte: ByteType =>
+      case array: ArrayType =>
+      case bool: BooleanType =>
+    }.nonEmpty
+  }
+
   override def doValidate(): Boolean = {
+    // TODO need also check orc file format and also move this check in native.
+    ConverterUtils.getFileFormat(this) match {
+      case ParquetReadFormat =>
+        if (BackendsApiManager.getBackendName.equals("velox") &&
+          unsupportedDataType()) {
+          return false
+        }
+      case _ =>
+    }
+
     val substraitContext = new SubstraitContext
     val relNode =
       try {

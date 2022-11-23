@@ -57,6 +57,8 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Bool type") {
+    runQueryAndCompare("select bool from type1 limit 1") { _ => }
+
     // Validation: BatchScan Filter Project Aggregate Expand Sort Limit
     runQueryAndCompare("select int, bool from type1 where bool == true  " +
       " group by grouping sets(int, bool) sort by int, bool limit 1") { _ => }
@@ -199,5 +201,37 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
     runQueryAndCompare("select type1.date from type1," +
       " type2 where type1.date = type2.date") { _ => }
+  }
+
+  test("Byte type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, byte from type1 " +
+      " group by grouping sets(int, byte) sort by byte, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.byte from type1," +
+      " type2 where type1.byte = type2.byte") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.byte from type1," +
+      " type2 where type1.byte = type2.byte") { _ => }
+  }
+
+  test("Array type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, array from type1 " +
+      " group by grouping sets(int, array) sort by array, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.array from type1," +
+      " type2 where type1.array = type2.array") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.array from type1," +
+      " type2 where type1.array = type2.array") { _ => }
   }
 }
