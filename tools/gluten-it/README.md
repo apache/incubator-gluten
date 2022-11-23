@@ -14,11 +14,10 @@ https://github.com/oap-project/gluten
 
 See offical Gluten build guidence https://github.com/oap-project/gluten#how-to-use-gluten
 
-### 2. Install and run Gluten-IT
+### 2. Install and run gluten-it
 
 ```sh
-git clone -b main https://github.com/zhztheplayer/gluten-it.git gluten-it
-cd gluten-it
+cd gluten/gluten-it
 mvn clean package
 java -Xmx5G -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc
 ```
