@@ -21,5 +21,5 @@ import org.apache.spark.sql.GlutenTestsTrait
 
 class GlutenArithmeticExpressionSuite extends ArithmeticExpressionSuite with GlutenTestsTrait {
 
-  override def whiteTestNameList: Seq[String] = Seq.empty
+//  override def whiteTestNameList: Seq[String] = Seq.empty
 }
