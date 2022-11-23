@@ -17,17 +17,14 @@
 
 package io.glutenproject.memory.alloc;
 
-import java.util.List;
-import java.util.Vector;
-
+import org.apache.spark.util.memory.TaskMemoryResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.spark.util.memory.TaskMemoryResourceManager;
-import org.apache.spark.util.memory.TaskMemoryResources;
+import java.util.List;
+import java.util.Vector;
 
-public class VeloxMemoryAllocatorManager implements TaskMemoryResourceManager,
-    NativeMemoryAllocatorManager {
+public class VeloxMemoryAllocatorManager implements NativeMemoryAllocatorManager {
 
   private static Logger LOGGER = LoggerFactory.getLogger(VeloxMemoryAllocatorManager.class);
   private static final List<NativeMemoryAllocator> LEAKED = new Vector<>();

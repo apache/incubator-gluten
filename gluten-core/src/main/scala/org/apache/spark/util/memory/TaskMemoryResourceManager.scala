@@ -17,11 +17,11 @@
 
 package org.apache.spark.util.memory
 
-import io.glutenproject.memory.alloc.NativeMemoryAllocator
-
+/**
+ * Manages the lifecycle for a specific type of memory resource managed by Spark. See also
+ * `org.apache.spark.util.memory.TaskMemoryResources`.
+ */
 trait TaskMemoryResourceManager {
   @throws(classOf[Exception])
   def release(): Unit
-
-  def getManaged(): NativeMemoryAllocator
 }

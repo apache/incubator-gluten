@@ -28,9 +28,9 @@ import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.memory.alloc.{NativeMemoryAllocator, Spiller, VeloxManagedReservationListener, VeloxMemoryAllocatorManager}
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
+import io.glutenproject.memory.alloc._
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -49,7 +49,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
-import org.apache.spark.util.memory.{TaskMemoryResourceManager, TaskMemoryResources}
+import org.apache.spark.util.memory.TaskMemoryResources
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
@@ -376,7 +376,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
   override def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
                                                spiller: Spiller,
                                                taskMemoryMetrics: TaskMemoryMetrics
-                                              ): TaskMemoryResourceManager = {
+                                              ): NativeMemoryAllocatorManager = {
     val rl = new VeloxManagedReservationListener(
       new GlutenMemoryConsumer(taskMemoryManager, spiller),
       taskMemoryMetrics

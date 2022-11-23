@@ -18,8 +18,6 @@
 package io.glutenproject.memory.alloc;
 
 import io.glutenproject.backendsapi.BackendsApiManager;
-
-import org.apache.spark.util.memory.TaskMemoryResourceManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
 
 public class NativeMemoryAllocators {
@@ -35,14 +33,14 @@ public class NativeMemoryAllocators {
 
     final String id = NativeMemoryAllocatorManager.class.toString();
     if (!TaskMemoryResources.isResourceManagerRegistered(id)) {
-      final TaskMemoryResourceManager manager = BackendsApiManager.getIteratorApiInstance()
+      final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
           .genNativeMemoryAllocatorManager(
               TaskMemoryResources.getSparkMemoryManager(),
               Spiller.NO_OP,
               TaskMemoryResources.getSharedMetrics());
       TaskMemoryResources.addResourceManager(id, manager);
     }
-    return TaskMemoryResources.getResourceManager(id).getManaged();
+    return ((NativeMemoryAllocatorManager) TaskMemoryResources.getResourceManager(id)).getManaged();
   }
 
   public static NativeMemoryAllocator createSpillable(Spiller spiller) {
@@ -50,7 +48,7 @@ public class NativeMemoryAllocators {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
 
-    final TaskMemoryResourceManager manager = BackendsApiManager.getIteratorApiInstance()
+    final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
         .genNativeMemoryAllocatorManager(
             TaskMemoryResources.getSparkMemoryManager(),
             spiller,
