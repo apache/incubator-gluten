@@ -5,10 +5,6 @@ SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ssh net-tools vim unzip libjemalloc-dev
 
-RUN cd /opt/gluten/tools/gluten-it \
-    && git fetch origin $GLUTEN_IT_COMMIT:build_$GLUTEN_IT_COMMIT \
-    && git checkout build_$GLUTEN_IT_COMMIT
-
 ARG BUILD_BACKEND_TYPE
 
 RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false)
