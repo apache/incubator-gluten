@@ -103,7 +103,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
     val (parquetDir, scanSchema, executedCnt, executedVanilla) =
       if (mainArgs.isEmpty) {
         (
-          "/data1/test_output/tpch-data-sf10/lineitem",
+          "/data/tpch-data-sf10/lineitem",
           "l_orderkey,l_receiptdate",
           5,
           true)
