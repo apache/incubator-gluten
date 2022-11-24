@@ -19,24 +19,6 @@
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
         <cpp.dir>../cpp/</cpp.dir>
         <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
-        <velox.build_cpp>${build_cpp}</velox.build_cpp>
-        <velox.cpp_tests>${cpp_tests}</velox.cpp_tests>
-        <velox.cpp_benchmarks>${cpp_benchmarks}</velox.cpp_benchmarks>
-        <velox.enable_hbm>${enable_hbm}</velox.enable_hbm>
-        <velox.build_arrow>OFF</velox.build_arrow>
-        <velox.static_arrow>${static_arrow}</velox.static_arrow>
-        <velox.build_protobuf>${build_protobuf}</velox.build_protobuf>
-        <velox.build_folly>${build_folly}</velox.build_folly>
-        <velox.arrow_root>${arrow_root}</velox.arrow_root>
-        <velox.arrow.bfs.dir>${arrow.bfs.dir}</velox.arrow.bfs.dir>
-        <velox.build_jemalloc>${build_jemalloc}</velox.build_jemalloc>
-        <velox.build_gazelle_cpp_backend>${build_gazelle_cpp_backend}</velox.build_gazelle_cpp_backend>
-        <velox.build_velox_backend>${build_velox_backend}</velox.build_velox_backend>
-        <velox.build_type>${build_type}</velox.build_type>
-        <velox.backend_type>${backend_type}</velox.backend_type>
-        <velox.velox_home>${velox_home}</velox.velox_home>
-        <velox.velox_enable_s3>${velox_enable_s3}</velox.velox_enable_s3>
-        <velox.velox_enable_hdfs>${velox_enable_hdfs}</velox.velox_enable_hdfs>
     </properties>
 
     <profiles>
@@ -78,13 +60,6 @@
     </profiles>
 
     <dependencies>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>build-velox</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-            <type>pom</type>
-        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -214,44 +189,6 @@
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
         <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
         <plugins>
-            <plugin>
-                <artifactId>exec-maven-plugin</artifactId>
-                <groupId>org.codehaus.mojo</groupId>
-                <version>1.6.0</version>
-                <executions>
-                    <execution>
-                        <id>Build cpp</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>bash</executable>
-                            <arguments>
-                                <argument>${cpp.dir}/compile.sh</argument>
-                                <argument>${velox.build_cpp}</argument>
-                                <argument>${velox.cpp_tests}</argument>
-                                <argument>${velox.build_arrow}</argument>
-                                <argument>${velox.static_arrow}</argument>
-                                <argument>${velox.build_protobuf}</argument>
-                                <argument>${velox.build_folly}</argument>
-                                <argument>${velox.arrow_root}</argument>
-                                <argument>${velox.arrow.bfs.dir}</argument>
-                                <argument>${velox.build_jemalloc}</argument>
-                                <argument>${velox.build_gazelle_cpp_backend}</argument>
-                                <argument>${velox.build_velox_backend}</argument>
-                                <argument>${velox.velox_home}</argument>
-                                <argument>${velox.build_type}</argument>
-                                <argument>${velox.cpp_benchmarks}</argument>
-                                <argument>${velox.backend_type}</argument>
-                                <argument>${velox.enable_hbm}</argument>
-                                <argument>${velox.velox_enable_s3}</argument>
-                                <argument>${velox.velox_enable_hdfs}</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>

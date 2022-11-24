@@ -25,7 +25,7 @@
 #include "RegistrationAllFunctions.cc"
 #include "bridge.h"
 #include "compute/exec_backend.h"
-#include "releases/include/arrow/c/bridge.h"
+#include "include/arrow/c/bridge.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"

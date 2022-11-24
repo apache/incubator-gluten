@@ -1,29 +1,44 @@
 ### Build parameters
 
 Based on the different environment, there are some parameters can be set via -D with mvn.
-
 | Parameters                                            | Description                                                                                                                                                                         | Default Value                                       |
 |-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
-| build_cpp                                             | Enable or Disable building CPP library.                                                                                                                                             | OFF                                                |
-| cpp_tests                                             | Enable or Disable CPP Tests.                                                                                                                                                        | OFF                                                |
-| build_arrow                                           | Build Arrow from Source.                                                                                                                                                            | OFF                                                |
-| arrow_root                                            | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library.                                                                      | /PATH_TO_GLUTEN/ep/build-arrow/build/arrow_install |
-| build_protobuf                                        | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library.                                                                            | ON                                                 |
-| build_folly                                           | Build folly from Source.                                                                                                                                                            | ON                                                 |
-| enable_ep_cache                                       | Whether to cache the source folder for some critical external projects (e.g. Arrow, Velox) to spped-up build process. Note, this will not be invalidated even you use 'mvn clean'.  | OFF                                                |
 | backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                                                                                                     | false                                              |
+| backends-gazelle                                        | Add -Pbackends-gazelle in maven command to compile the JVM part of Gazelle backend.                                                                                                     | false                                              |
 | backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.                                                                                           | false                                              |
-| build_velox_backend                                   | Enable or Disable building the CPP part of Velox backend.                                                                                                                           | OFF                                                |
-| build_velox_from_source                               | Enable or Disable building Velox from a specific velox github repository. A default installed path will be in velox_home.                                                           | OFF                                                |
-| velox_home (only valid when _backend is ON)           | The path to the compiled Velox project. When building Gluten with Velox, if you have an existing Velox, please set it.                                                              | /PATH_TO_GLUTEN/ep/build-velox/build/velox_ep      |
-| compile_velox(only valid when velox_home is assigned) | recompile exising Velox use custom compile parameters.                                                                                                                              | OFF                                                |
-| build_type                                            | Gluten uses this value as CMAKE_BUILD_TYPE to compile velox, arrow.                                                                                                                 | release (option: release/debug/relWithDebInfo)     |
-| enable_hbm                                            | Whether to enable hbm allocation.                                                                                                                                                   | OFF                                                |
-| velox_enable_hdfs                                     | Whether to enable HDFS.                                                                                                                                                             | OFF                                                |
-| velox_enable_s3                                       | Whether to enable S3.                                                                                                                                                               | OFF                                                |
 
-When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten)
-If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../ep/build-arrow/src/build_arrow.sh) script.
+There are some parameters can be set via -- with build_arrow_for_gazelle.sh.
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| gluten_dir | Root path of gluten project | /path_to_gluten |
+| build_dir  | Arrow build path            | GLUTEN_DIR/ep/build-arrow/build|
+| build_type | ARROW build type            | release|
+
+There are some parameters can be set via -- with build_arrow_for_velox.sh.
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| gluten_dir | Root path of gluten project               | /path_to_gluten |
+| build_dir  | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
+| build_type | ARROW build type                          | release|
+| build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
+| build_benchmarks | Build arrow with -DWITH_PARQUET=ON  | OFF           |
+
+There are some parameters can be set via -- with compile.sh.
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| gluten_dir | Root path of gluten project | /path_to_gluten |
+| arrow_root | path of arrow lib           | /path_to_gluten/ep/build-arrow/build/arrow_install |
+| velox_home | path of velox lib           | /path_to_gluten/ep/build-velox/build/velox_ep |
+| build_type | Gluten cpp part build type  | release |
+| build_gazelle_cpp_backend | build gazelle-cpp in cpp folder | OFF |
+| build_velox_backend | build velox in cpp folder | OFF |
+| build_test | build test code in cpp folder      | OFF |
+| build_benchmarks | build benchmark code in cpp folder | OFF |
+| build_jemalloc   | build with jemalloc | ON |
+| enable_hbm | enable HBM allocator      | OFF|
+| build_protobuf | build protobuf lib    | OFF|
+| enable_s3   | build with s3 lib        | OFF|
+| enable_hdfs | build with hdfs lib      | OFF|
 
 ### Build jar
 

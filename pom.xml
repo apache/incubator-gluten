@@ -53,29 +53,9 @@
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <build_cpp>OFF</build_cpp>
-    <cpp_tests>OFF</cpp_tests>
-    <cpp_benchmarks>OFF</cpp_benchmarks>
-    <enable_hbm>OFF</enable_hbm>
-    <build_arrow>OFF</build_arrow>
-    <arrow_root>${session.executionRootDirectory}/ep/build-arrow/build/arrow_install</arrow_root>
-    <arrow.bfs.dir>${session.executionRootDirectory}/ep/build-arrow/build/arrow_install</arrow.bfs.dir>
-    <enable_ep_cache>OFF</enable_ep_cache>
-    <static_arrow>OFF</static_arrow>
-    <build_protobuf>ON</build_protobuf>
-    <build_folly>ON</build_folly>
-    <build_jemalloc>OFF</build_jemalloc>
-    <build_velox_from_source>OFF</build_velox_from_source>
-    <compile_velox>OFF</compile_velox>
-    <velox_home>${session.executionRootDirectory}/ep/build-velox/build/velox_ep</velox_home>
-    <build_type>release</build_type>
     <project.prefix>spark-sql-columnar</project.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
     <!-- To build built-in backend c++ codes -->
-    <build_gazelle_cpp_backend>OFF</build_gazelle_cpp_backend>
-    <build_velox_backend>OFF</build_velox_backend>
-    <velox_enable_s3>OFF</velox_enable_s3>
-    <velox_enable_hdfs>OFF</velox_enable_hdfs>
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
@@ -209,8 +189,6 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
-        <module>ep/build-arrow</module>
-        <module>ep/build-velox</module>
         <module>gluten-data</module>
         <module>backends-velox</module>
         <module>package/velox</module>
@@ -218,7 +196,6 @@
       <properties>
         <backend_type>velox</backend_type>
         <arrow.version>10.0.0-SNAPSHOT</arrow.version>
-        <build_cpp>ON</build_cpp>
         <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
@@ -228,8 +205,6 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
-        <module>ep/build-arrow</module>
-        <module>ep/build-velox</module>
         <module>gluten-data</module>
         <module>backends-velox</module>
         <module>backends-gazelle</module>
@@ -238,8 +213,6 @@
       <properties>
         <backend_type>gazelle_cpp</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
-        <build_cpp>ON</build_cpp>
-        <build_gazelle_cpp_backend>ON</build_gazelle_cpp_backend>
       </properties>
     </profile>
     <profile>
