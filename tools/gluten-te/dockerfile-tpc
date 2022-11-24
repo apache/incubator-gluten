@@ -5,19 +5,6 @@ SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ssh net-tools vim unzip libjemalloc-dev
 
-ARG GLUTEN_IT_REPO
-ARG GLUTEN_IT_COMMIT
-
-RUN test -n "$GLUTEN_IT_REPO" || (echo "GLUTEN_IT_REPO not set" && false)
-RUN test -n "$GLUTEN_IT_COMMIT" || (echo "GLUTEN_IT_COMMIT not set" && false)
-
-RUN cd /opt/ \
-    && git clone $GLUTEN_IT_REPO gluten-it
-
-RUN cd /opt/gluten-it \
-    && git fetch origin $GLUTEN_IT_COMMIT:build_$GLUTEN_IT_COMMIT \
-    && git checkout build_$GLUTEN_IT_COMMIT
-
 ARG BUILD_BACKEND_TYPE
 
 RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false)
@@ -34,7 +21,7 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     fi && echo $GLUTEN_IT_MAVEN_OPTIONS > ~/.gluten-it-mvn-options;
 
 RUN GLUTEN_IT_MAVEN_OPTIONS=$(cat ~/.gluten-it-mvn-options) \
-    && cd /opt/gluten-it \
+    && cd /opt/gluten/tools/gluten-it \
     && bash -c "mvn clean package $GLUTEN_IT_MAVEN_OPTIONS"
 
 FROM gluten-tpc AS gluten-tpc-gdb
