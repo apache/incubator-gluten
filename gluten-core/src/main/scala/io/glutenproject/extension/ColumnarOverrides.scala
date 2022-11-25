@@ -330,7 +330,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       logOnLevel(s"${ruleName} before plan ${plan.toString()}")
       val newPlan = replaceWithTransformerPlan(plan)
       planChangeLogger.logRule(ruleName, plan, newPlan)
-      logOnLevel(s"${ruleName} after plan ${plan.toString()}")
+      logOnLevel(s"${ruleName} after plan ${newPlan.toString()}")
       newPlan
     }
   }
@@ -414,7 +414,7 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
     logOnLevel(s"${ruleName} before plan ${plan.toString()}")
     val newPlan = replaceWithTransformerPlan(plan)
     planChangeLogger.logRule(ruleName, plan, newPlan)
-    logOnLevel(s"${ruleName} after plan ${plan.toString()}")
+    logOnLevel(s"${ruleName} after plan ${newPlan.toString()}")
     newPlan
   }
 }
@@ -459,7 +459,7 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
         overridden = r(session)(overridden)
         planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
-      logOnLevel(s"preColumnarTransitions afterOverriden plan ${plan.toString}")
+      logOnLevel(s"preColumnarTransitions afterOverriden plan ${overridden.toString}")
       logInfo(
         s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden

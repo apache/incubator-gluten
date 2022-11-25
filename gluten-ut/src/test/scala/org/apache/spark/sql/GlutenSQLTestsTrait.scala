@@ -122,8 +122,8 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
 
     assertEmptyMissingInput(analyzedDF)
 
-    GlutenQueryTest.checkAnswer(analyzedDF, expectedAnswer)
     analyzedDF.explain(false)
+    GlutenQueryTest.checkAnswer(analyzedDF, expectedAnswer)
   }
 }
 
