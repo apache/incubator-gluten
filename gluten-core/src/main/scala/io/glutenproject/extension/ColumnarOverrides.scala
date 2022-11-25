@@ -45,7 +45,6 @@ import io.glutenproject.extension.columnar.TransformHint
 import io.glutenproject.extension.columnar.StoreExpandGroupExpression
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
-// The plan with a row guard on the top of it will not be converted.
 case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   @transient private val logOnLevel: ( => String) => Unit =
@@ -66,18 +65,38 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     val project = child match {
       case exec: ProjectExec =>
         // merge the project node
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()
-        ) ++ child.output, exec.child)
+        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
+          child.output, exec.child)
       case transformer: ProjectExecTransformer =>
         // merge the project node
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()
-        ) ++ child.output, transformer.child)
+        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
+          child.output, transformer.child)
       case _ =>
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()
-        ) ++ child.output, child)
+        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
+          child.output, child)
     }
     AddTransformHintRule().apply(project)
     replaceWithTransformerPlan(project)
+  }
+
+  /**
+   * Generate a columnar plan for shuffle exchange.
+   *
+   * @param plan the spark plan of shuffle exchange.
+   * @param child the child of shuffle exchange.
+   * @param removeHashColumn whether the hash column should be removed.
+   * @return a columnar shuffle exchange.
+   */
+  private def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
+                                         child: SparkPlan,
+                                         removeHashColumn: Boolean = false): SparkPlan = {
+    if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
+      ColumnarShuffleExchangeAdaptor(
+        plan.outputPartitioning, child, removeHashColumn = removeHashColumn)
+    } else {
+      CoalesceBatchesExec(ColumnarShuffleExchangeExec(
+        plan.outputPartitioning, child, removeHashColumn = removeHashColumn))
+    }
   }
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
@@ -188,29 +207,15 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
-                  if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
-                    ColumnarShuffleExchangeAdaptor(
-                      plan.outputPartitioning, projectChild, removeHashColumn = true)
-                  } else {
-                    CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning,
-                      projectChild, removeHashColumn = true))
-                  }
+                  genColumnarShuffleExchange(plan, projectChild, removeHashColumn = true)
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
-                if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
-                  ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
-                } else {
-                  CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
-                }
+                genColumnarShuffleExchange(plan, child)
             }
           } else {
-            if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
-              ColumnarShuffleExchangeAdaptor(plan.outputPartitioning, child)
-            } else {
-              CoalesceBatchesExec(ColumnarShuffleExchangeExec(plan.outputPartitioning, child))
-            }
+            genColumnarShuffleExchange(plan, child)
           }
         } else {
           plan.withNewChildren(Seq(child))
@@ -260,7 +265,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case plan: AQEShuffleReadExec if
           BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
         plan.child match {
-          case shuffle: ColumnarShuffleExchangeAdaptor =>
+          case _: ColumnarShuffleExchangeAdaptor =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
             CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
           case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeAdaptor, _) =>

@@ -117,7 +117,7 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
     null
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     outputVectors += outNumBatches
     outputRows += outNumRows
   }

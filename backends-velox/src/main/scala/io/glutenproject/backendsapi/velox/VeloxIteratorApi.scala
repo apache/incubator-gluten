@@ -221,7 +221,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
+                                     updateOutputMetrics: (Long, Long) => Unit,
                                      updateNativeMetrics: GeneralOutIterator => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
@@ -275,7 +275,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           case _ => 0L
         }
         inputMetrics.bridgeIncBytesRead(bytes)
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
@@ -302,7 +302,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                      outputAttributes: Seq[Attribute],
                                      rootNode: PlanNode,
                                      pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
+                                     updateOutputMetrics: (Long, Long) => Unit,
                                      updateNativeMetrics: GeneralOutIterator => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
@@ -346,7 +346,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
 
       override def next(): ColumnarBatch = {
         val cb = nativeResultIterator.next
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }

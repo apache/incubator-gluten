@@ -74,7 +74,7 @@ trait IIteratorApi {
   def genFirstStageIterator(inputPartition: BaseNativeFilePartition, loadNative: Boolean,
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
-                            updateMetrics: (Long, Long) => Unit,
+                            updateOutputMetrics: (Long, Long) => Unit,
                             updateNativeMetrics: GeneralOutIterator => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch]
@@ -94,7 +94,7 @@ trait IIteratorApi {
                             outputAttributes: Seq[Attribute],
                             rootNode: PlanNode,
                             pipelineTime: SQLMetric,
-                            updateMetrics: (Long, Long) => Unit,
+                            updateOutputMetrics: (Long, Long) => Unit,
                             updateNativeMetrics: GeneralOutIterator => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
                             dependentKernels: Seq[ExpressionEvaluator],
