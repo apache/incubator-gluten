@@ -17,9 +17,9 @@
 
 #include <memory>
 
-#include "releases/include/arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
+#include "releases/include/arrow/c/bridge.h"
 #include "utils/exception.h"
 
 #pragma once

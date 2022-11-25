@@ -22,11 +22,11 @@
 #include <arrow/type_traits.h>
 
 #include "ArrowTypeUtils.h"
-#include "velox/vector/arrow/c/Bridge.h"
-#include "releases/include/arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
+#include "releases/include/arrow/c/bridge.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
+#include "velox/vector/arrow/c/Bridge.h"
 
 namespace velox {
 namespace compute {
