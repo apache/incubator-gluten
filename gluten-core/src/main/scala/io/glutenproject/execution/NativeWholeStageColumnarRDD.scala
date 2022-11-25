@@ -20,9 +20,13 @@ package io.glutenproject.execution
 import java.io.Serializable
 
 import scala.collection.mutable
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.vectorized.GeneralOutIterator
+import io.substrait.proto.Plan
+
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -32,21 +36,21 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util._
 
-trait BaseNativeFilePartition extends Partition with InputPartition {
-  def substraitPlan: Array[Byte]
+trait BaseGlutenPartition extends Partition with InputPartition {
+  def plan: Plan
 }
 
-case class NativePartition(index: Int,
-                           substraitPlan: Array[Byte],
+case class GlutenPartition(index: Int,
+                           plan: Plan,
                            locations: Array[String] = Array.empty[String])
-  extends BaseNativeFilePartition {
+  extends BaseGlutenPartition {
 
   override def preferredLocations(): Array[String] = locations
 }
 
-case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
-                               substraitPlan: Array[Byte])
-  extends BaseNativeFilePartition {
+case class GlutenFilePartition(index: Int, files: Array[PartitionedFile],
+                               plan: Plan)
+  extends BaseGlutenPartition {
   override def preferredLocations(): Array[String] = {
     // Computes total number of bytes can be retrieved from each host.
     val hostToNumBytes = mutable.HashMap.empty[String, Long]
@@ -65,21 +69,21 @@ case class NativeFilePartition(index: Int, files: Array[PartitionedFile],
   }
 }
 
-case class NativeMergeTreePartition(index: Int,
+case class GlutenMergeTreePartition(index: Int,
                                     engine: String,
                                     database: String,
                                     table: String,
                                     tablePath: String,
                                     minParts: Long,
                                     maxParts: Long,
-                                    substraitPlan: Array[Byte] = Array.empty[Byte])
-  extends BaseNativeFilePartition {
+                                    plan: Plan = PlanBuilder.empty().toProtobuf)
+  extends BaseGlutenPartition {
   override def preferredLocations(): Array[String] = {
     Array.empty[String]
   }
 
-  def copySubstraitPlan(newSubstraitPlan: Array[Byte]): NativeMergeTreePartition = {
-    this.copy(substraitPlan = newSubstraitPlan)
+  def copySubstraitPlan(newSubstraitPlan: Plan): GlutenMergeTreePartition = {
+    this.copy(plan = newSubstraitPlan)
   }
 }
 
@@ -134,8 +138,8 @@ class NativeWholeStageColumnarRDD(sc: SparkContext,
     }
   }
 
-  private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
-    case FirstZippedPartitionsPartition(_, p: BaseNativeFilePartition, _) => p
+  private def castNativePartition(split: Partition): BaseGlutenPartition = split match {
+    case FirstZippedPartitionsPartition(_, p: BaseGlutenPartition, _) => p
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 

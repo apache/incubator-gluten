@@ -32,6 +32,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // This is tmp config to specify whether to enable the native validation based on
   // Substrait plan. After the validations in all backends are correctly implemented,
   // this config should be removed.
+  //
+  // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val enableNativeValidation: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.validation", "true").toBoolean
 
@@ -140,6 +142,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // This config is used for deciding whether to load the native library.
   // When false, only Java code will be executed for a quick test.
+  //
+  // FIXME remove / rename this option to emphasize on "debug" rather than "native"
   val loadNative: Boolean =
     conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
 

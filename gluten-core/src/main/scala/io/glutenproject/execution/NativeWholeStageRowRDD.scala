@@ -18,8 +18,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.row.RowIterator
-import io.glutenproject.vectorized.{ExpressionEvaluator, GeneralInIterator}
+import io.glutenproject.row.BaseRowIterator
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -27,8 +26,9 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.util._
+import _root_.io.glutenproject.backendsapi.BackendsApiManager
 
-class NativeWholestageRowRDD(
+class NativeWholeStageRowRDD(
                               sc: SparkContext,
                               @transient private val inputPartitions: Seq[InputPartition],
                               columnarReads: Boolean)
@@ -41,12 +41,10 @@ class NativeWholestageRowRDD(
 
     val inputPartition = castNativePartition(split)
 
-    var resIter: RowIterator = null
+    var resIter: BaseRowIterator = null
     if (loadNative) {
-      val transKernel = new ExpressionEvaluator()
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
-      var startTime = System.nanoTime()
-      resIter = transKernel.createKernelWithRowIterator(inputPartition.substraitPlan, inBatchIters)
+      val startTime = System.nanoTime()
+      resIter = BackendsApiManager.getIteratorApiInstance.genRowIterator(inputPartition)
       logWarning(s"===========create ${System.nanoTime() - startTime}")
     }
 
@@ -126,8 +124,8 @@ class NativeWholestageRowRDD(
     iter
   }
 
-  private def castNativePartition(split: Partition): BaseNativeFilePartition = split match {
-    case FirstZippedPartitionsPartition(_, p: BaseNativeFilePartition, _) => p
+  private def castNativePartition(split: Partition): BaseGlutenPartition = split match {
+    case FirstZippedPartitionsPartition(_, p: BaseGlutenPartition, _) => p
     case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
   }
 

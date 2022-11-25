@@ -21,11 +21,18 @@ import io.glutenproject.vectorized.Metrics;
 
 import java.io.IOException;
 
-public class RowIterator {
-  private long nativeHandler = 0L;
+/**
+ * This is a built-in native implementation of {@link BaseRowIterator}. This is a part of the
+ * provided {@link io.glutenproject.vectorized.NativeExpressionEvaluator} implementation as
+ * JNI facility for wiring with native codes.
+ */
+// FIXME can we rename this by adding a "native" prefix to make it clear the iterator is
+//   implemented in native?
+public class RowIterator implements BaseRowIterator {
+  private final long nativeHandler;
   private boolean closed = false;
 
-  public RowIterator(long nativeHandler) throws IOException {
+  public RowIterator(long nativeHandler) {
     this.nativeHandler = nativeHandler;
   }
 
@@ -37,10 +44,12 @@ public class RowIterator {
 
   private native Metrics nativeFetchMetrics(long nativeHandler);
 
+  @Override
   public boolean hasNext() throws IOException {
     return nativeHasNext(nativeHandler);
   }
 
+  @Override
   public SparkRowInfo next() throws IOException {
     if (nativeHandler == 0) {
       return null;
@@ -48,13 +57,14 @@ public class RowIterator {
     return nativeNext(nativeHandler);
   }
 
-  public Metrics getMetrics() throws IOException, ClassNotFoundException {
+  public Metrics getMetrics() {
     if (nativeHandler == 0) {
       return null;
     }
     return nativeFetchMetrics(nativeHandler);
   }
 
+  @Override
   public void close() {
     if (!closed) {
       if (nativeHandler != 0L) {

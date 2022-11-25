@@ -17,25 +17,17 @@
 
 package io.glutenproject.vectorized;
 
-import java.util.List;
-
 /**
  * This class is implemented in JNI. This provides the Java interface to invoke
  * functions in JNI. This file is used to generated the .h files required for
  * jni. Avoid all external dependencies in this file.
  */
 public class ExpressionEvaluatorJniWrapper {
-  public String tmpDirPath;
 
   /**
    * Wrapper for native API.
    */
-  public ExpressionEvaluatorJniWrapper(List<String> listJars)
-      throws IllegalStateException {
-    final JniWorkspace workspace = JniWorkspace.getDefault();
-    final JniResourceHelper resourceHelper = workspace.resourceHelper();
-    resourceHelper.extractJars(listJars);
-    tmpDirPath = workspace.getWorkDir();
+  public ExpressionEvaluatorJniWrapper() {
   }
 
   /**

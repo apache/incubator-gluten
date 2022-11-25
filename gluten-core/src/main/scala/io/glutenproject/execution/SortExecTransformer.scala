@@ -28,7 +28,7 @@ import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, Express
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
+import io.glutenproject.vectorized.OperatorMetrics
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -306,8 +306,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }

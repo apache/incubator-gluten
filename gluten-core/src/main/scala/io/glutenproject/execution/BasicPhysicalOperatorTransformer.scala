@@ -33,7 +33,7 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
-import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
+import io.glutenproject.vectorized.{NativeExpressionEvaluator, OperatorMetrics}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -229,8 +229,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }
@@ -332,8 +331,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     // Then, validate the generated plan in native engine.
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }

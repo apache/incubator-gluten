@@ -26,8 +26,11 @@ import java.io.IOException;
 import java.util.List;
 
 public class BatchIterator extends GeneralOutIterator {
-  public BatchIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
-    super(instance_id, outAttrs);
+  private final long handle;
+
+  public BatchIterator(long handle, List<Attribute> outAttrs) throws IOException {
+    super(outAttrs);
+    this.handle = handle;
   }
 
   private native boolean nativeHasNext(long nativeHandle);
@@ -53,7 +56,7 @@ public class BatchIterator extends GeneralOutIterator {
     ColumnVector[] columnVectors = new ColumnVector[cols];
     for (int i = 0; i < cols; i++) {
       columnVectors[i] = new CHColumnVector(CHExecUtil.inferSparkDataType(
-        nativeBlock.getTypeByPosition(i)), block, i);
+          nativeBlock.getTypeByPosition(i)), block, i);
     }
     return new ColumnarBatch(columnVectors, nativeBlock.numRows());
   }

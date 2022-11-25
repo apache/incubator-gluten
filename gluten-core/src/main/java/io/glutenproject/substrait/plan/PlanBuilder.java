@@ -58,4 +58,8 @@ public class PlanBuilder {
   public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes) {
     return makePlan(subCtx, relNodes, new ArrayList<>());
   }
+
+  public static PlanNode empty() {
+    return makePlan(new SubstraitContext(), new ArrayList<>(), new ArrayList<>());
+  }
 }

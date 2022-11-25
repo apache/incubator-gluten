@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import io.glutenproject.execution.NativeMergeTreePartition
+import io.glutenproject.execution.GlutenMergeTreePartition
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.read.InputPartition
@@ -48,7 +48,7 @@ object MergeTreePartsPartitionsUtil {
     /** Close the current partition and move to the next. */
     def closePartition(): Unit = {
       if (currentMinPartsNum > 0L && currentMaxPartsNum >= currentMinPartsNum) {
-        val newPartition = NativeMergeTreePartition(
+        val newPartition = GlutenMergeTreePartition(
           partitions.size,
           engine,
           database,

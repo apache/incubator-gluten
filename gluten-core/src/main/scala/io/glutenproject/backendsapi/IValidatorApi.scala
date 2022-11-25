@@ -17,12 +17,8 @@
 
 package io.glutenproject.backendsapi
 
-trait Backend {
-  def name(): String
-  def initializerApi(): IInitializerApi
-  def iteratorApi(): IIteratorApi
-  def sparkPlanExecApi(): ISparkPlanExecApi
-  def transformerApi(): ITransformerApi
-  def validatorApi(): IValidatorApi
-  def settings(): BackendSettings
+import io.glutenproject.substrait.plan.PlanNode
+
+trait IValidatorApi {
+  def doValidate(plan: PlanNode): Boolean
 }
