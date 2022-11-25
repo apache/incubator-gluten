@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include "VeloxPlanConverter.h"
 
-#include <arrow/c/bridge.h>
 #include <arrow/type_fwd.h>
 #include <arrow/util/iterator.h>
 
@@ -25,8 +23,8 @@
 
 #include "ArrowTypeUtils.h"
 #include "RegistrationAllFunctions.cc"
-#include "arrow/c/Bridge.h"
-#include "arrow/c/bridge.h"
+#include "velox/vector/arrow/c/Bridge.h"
+#include "releases/include/arrow/c/bridge.h"
 #include "bridge.h"
 #include "compute/exec_backend.h"
 #include "velox/buffer/Buffer.h"

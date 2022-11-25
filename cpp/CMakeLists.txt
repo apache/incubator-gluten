@@ -64,6 +64,8 @@ option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
 
 include(ConfigArrow)
 
+include_directories(build)
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
