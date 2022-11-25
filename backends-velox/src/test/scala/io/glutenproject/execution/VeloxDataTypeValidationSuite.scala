@@ -235,6 +235,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
       " type2 where type1.array = type2.array") { _ => }
   }
 
+<<<<<<< HEAD
   test("Map type") {
     // Validation: BatchScan Project Limit
     runQueryAndCompare("select map from type1 limit 1") { _ => }
@@ -252,5 +253,37 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
     runQueryAndCompare("select type1.map['key'] from type1," +
       " type2 where type1.map['key'] = type2.map['key']") { _ => }
+=======
+  test("Decimal type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, decimal from type1 " +
+      " group by grouping sets(int, decimal) sort by decimal, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.decimal from type1," +
+      " type2 where type1.decimal = type2.decimal") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.decimal from type1," +
+      " type2 where type1.decimal = type2.decimal") { _ => }
+  }
+
+  test("Timestamp type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, timestamp from type1 " +
+      " group by grouping sets(int, timestamp) sort by timestamp, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.timestamp from type1," +
+      " type2 where type1.timestamp = type2.timestamp") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.timestamp from type1," +
+      " type2 where type1.timestamp = type2.timestamp") { _ => }
+>>>>>>> Add timestamp and decimal validation
   }
 }
