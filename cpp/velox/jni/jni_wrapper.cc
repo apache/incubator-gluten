@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include <arrow/c/bridge.h>
+#include "releases/include/arrow/c/bridge.h"
 #include <folly/system/ThreadName.h>
 #include <jni.h>
 
