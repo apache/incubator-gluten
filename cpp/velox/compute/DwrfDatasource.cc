@@ -27,11 +27,11 @@
 #include <string>
 
 #include "ArrowTypeUtils.h"
-#include "arrow/c/Bridge.h"
-#include "arrow/c/bridge.h"
+#include "releases/include/arrow/c/bridge.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
+#include "velox/vector/arrow/c/Bridge.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::dwio::common;
