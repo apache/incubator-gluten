@@ -24,8 +24,7 @@ namespace gluten {
 
 static std::function<std::shared_ptr<ExecBackendBase>()> backend_factory;
 
-void SetBackendFactory(
-    std::function<std::shared_ptr<ExecBackendBase>()> factory) {
+void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory) {
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Set backend factory." << std::endl;
 #endif

@@ -40,8 +40,7 @@ class TestHbwAllocator : public ::testing::Test {
 };
 
 TEST_F(TestHbwAllocator, TestHbwEnabled) {
-  auto ptr =
-      std::dynamic_pointer_cast<gluten::memory::HbwMemoryAllocator>(allocator);
+  auto ptr = std::dynamic_pointer_cast<gluten::memory::HbwMemoryAllocator>(allocator);
   ASSERT_NE(ptr, nullptr);
 }
 

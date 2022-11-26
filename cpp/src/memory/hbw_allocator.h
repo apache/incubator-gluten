@@ -32,12 +32,8 @@ class HbwMemoryAllocator : public MemoryAllocator {
 
   bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
 
-  bool ReallocateAligned(
-      void* p,
-      uint16_t alignment,
-      int64_t size,
-      int64_t new_size,
-      void** out) override;
+  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out)
+      override;
 
   bool Free(void* p, int64_t size) override;
 

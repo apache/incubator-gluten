@@ -19,9 +19,7 @@
 #include <iostream>
 #include "hbw_allocator.h"
 
-bool gluten::memory::ListenableMemoryAllocator::Allocate(
-    int64_t size,
-    void** out) {
+bool gluten::memory::ListenableMemoryAllocator::Allocate(int64_t size, void** out) {
   listener_->AllocationChanged(size);
   bool succeed = delegated_->Allocate(size, out);
   if (!succeed) {
@@ -88,8 +86,7 @@ bool gluten::memory::ListenableMemoryAllocator::ReallocateAligned(
     void** out) {
   int64_t diff = new_size - size;
   listener_->AllocationChanged(diff);
-  bool succeed =
-      delegated_->ReallocateAligned(p, alignment, size, new_size, out);
+  bool succeed = delegated_->ReallocateAligned(p, alignment, size, new_size, out);
   if (!succeed) {
     listener_->AllocationChanged(-diff);
   }
@@ -177,13 +174,10 @@ int64_t gluten::memory::StdMemoryAllocator::GetBytes() {
   return bytes_;
 }
 
-arrow::Status gluten::memory::WrappedArrowMemoryPool::Allocate(
-    int64_t size,
-    uint8_t** out) {
+arrow::Status gluten::memory::WrappedArrowMemoryPool::Allocate(int64_t size, uint8_t** out) {
   if (!allocator_->Allocate(size, reinterpret_cast<void**>(out))) {
     return arrow::Status::Invalid(
-        "WrappedMemoryPool: Error allocating " + std::to_string(size) +
-        " bytes");
+        "WrappedMemoryPool: Error allocating " + std::to_string(size) + " bytes");
   }
   return arrow::Status::OK();
 }
@@ -192,18 +186,14 @@ arrow::Status gluten::memory::WrappedArrowMemoryPool::Reallocate(
     int64_t old_size,
     int64_t new_size,
     uint8_t** ptr) {
-  if (!allocator_->Reallocate(
-          *ptr, old_size, new_size, reinterpret_cast<void**>(ptr))) {
+  if (!allocator_->Reallocate(*ptr, old_size, new_size, reinterpret_cast<void**>(ptr))) {
     return arrow::Status::Invalid(
-        "WrappedMemoryPool: Error reallocating " + std::to_string(new_size) +
-        " bytes");
+        "WrappedMemoryPool: Error reallocating " + std::to_string(new_size) + " bytes");
   }
   return arrow::Status::OK();
 }
 
-void gluten::memory::WrappedArrowMemoryPool::Free(
-    uint8_t* buffer,
-    int64_t size) {
+void gluten::memory::WrappedArrowMemoryPool::Free(uint8_t* buffer, int64_t size) {
   allocator_->Free(buffer, size);
 }
 
@@ -216,14 +206,11 @@ std::string gluten::memory::WrappedArrowMemoryPool::backend_name() const {
   return "gluten allocator";
 }
 
-std::shared_ptr<gluten::memory::MemoryAllocator>
-gluten::memory::DefaultMemoryAllocator() {
+std::shared_ptr<gluten::memory::MemoryAllocator> gluten::memory::DefaultMemoryAllocator() {
 #if defined(GLUTEN_ENABLE_HBM)
-  static std::shared_ptr<MemoryAllocator> alloc =
-      std::make_shared<HbwMemoryAllocator>();
+  static std::shared_ptr<MemoryAllocator> alloc = std::make_shared<HbwMemoryAllocator>();
 #else
-  static std::shared_ptr<MemoryAllocator> alloc =
-      std::make_shared<StdMemoryAllocator>();
+  static std::shared_ptr<MemoryAllocator> alloc = std::make_shared<StdMemoryAllocator>();
 #endif
   return alloc;
 }

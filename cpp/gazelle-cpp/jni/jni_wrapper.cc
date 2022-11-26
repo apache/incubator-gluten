@@ -58,26 +58,23 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     jobject obj,
     jbyteArray planArray) {
   JNI_METHOD_START
-  auto data =
-      reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto data = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto size = env->GetArrayLength(planArray);
   ::substrait::Plan plan;
 #ifdef GLUTEN_PRINT_DEBUG
   auto buf = std::make_shared<arrow::Buffer>(data, size);
   auto maybe_plan_json = SubstraitToJSON("Plan", *buf);
   if (maybe_plan_json.status().ok()) {
-    std::cout << std::string(50, '#')
-              << " received substrait::Plan:" << std::endl;
+    std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
     std::cout << maybe_plan_json.ValueOrDie() << std::endl;
   } else {
-    std::cout << "Error parsing substrait plan to json: "
-              << maybe_plan_json.status().ToString() << std::endl;
+    std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString()
+              << std::endl;
   }
 #endif
   ParseProtobuf(data, size, &plan);
   const auto& relation = plan.relations()[0];
-  const auto& rel =
-      relation.has_root() ? relation.root().input() : relation.rel();
+  const auto& rel = relation.has_root() ? relation.root().input() : relation.rel();
   switch (rel.rel_type_case()) {
     case substrait::Rel::RelTypeCase::kRead:
     case substrait::Rel::RelTypeCase::kFilter:

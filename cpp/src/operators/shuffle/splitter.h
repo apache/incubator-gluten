@@ -41,11 +41,7 @@ class Splitter {
         : valueptr(v), offsetptr(o), value_capacity(c), value_offset(f) {}
     BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c)
         : valueptr(v), offsetptr(o), value_capacity(c), value_offset(0) {}
-    BinaryBuff()
-        : valueptr(nullptr),
-          offsetptr(nullptr),
-          value_capacity(0),
-          value_offset(0) {}
+    BinaryBuff() : valueptr(nullptr), offsetptr(nullptr), value_capacity(0), value_offset(0) {}
 
     uint8_t* valueptr;
     uint8_t* offsetptr;
@@ -132,8 +128,7 @@ class Splitter {
   }
 
   int64_t RawPartitionBytes() const {
-    return std::accumulate(
-        raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
+    return std::accumulate(raw_partition_lengths_.begin(), raw_partition_lengths_.end(), 0LL);
   }
 
   // for testing
@@ -142,36 +137,26 @@ class Splitter {
   }
 
  protected:
-  Splitter(
-      int32_t num_partitions,
-      std::shared_ptr<arrow::Schema> schema,
-      SplitOptions options)
-      : num_partitions_(num_partitions),
-        schema_(std::move(schema)),
-        options_(std::move(options)) {}
+  Splitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
+      : num_partitions_(num_partitions), schema_(std::move(schema)), options_(std::move(options)) {}
 
   virtual arrow::Status Init();
 
-  virtual arrow::Status ComputeAndCountPartitionId(
-      const arrow::RecordBatch& rb) = 0;
+  virtual arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) = 0;
 
   arrow::Status DoSplit(const arrow::RecordBatch& rb);
 
   row_offset_type CalculateSplitBatchSize(const arrow::RecordBatch& rb);
 
   template <typename T>
-  arrow::Status SplitFixedType(
-      const uint8_t* src_addr,
-      const std::vector<uint8_t*>& dst_addrs);
+  arrow::Status SplitFixedType(const uint8_t* src_addr, const std::vector<uint8_t*>& dst_addrs);
 
   arrow::Status SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb);
 
 #if defined(COLUMNAR_PLUGIN_USE_AVX512)
   arrow::Status SplitFixedWidthValueBufferAVX(const arrow::RecordBatch& rb);
 #endif
-  arrow::Status SplitBoolType(
-      const uint8_t* src_addr,
-      const std::vector<uint8_t*>& dst_addrs);
+  arrow::Status SplitBoolType(const uint8_t* src_addr, const std::vector<uint8_t*>& dst_addrs);
 
   arrow::Status SplitValidityBuffer(const arrow::RecordBatch& rb);
 
@@ -186,9 +171,7 @@ class Splitter {
 
   arrow::Status SplitListArray(const arrow::RecordBatch& rb);
 
-  arrow::Status AllocateBufferFromPool(
-      std::shared_ptr<arrow::Buffer>& buffer,
-      uint32_t size);
+  arrow::Status AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
 
   template <
       typename T,
@@ -219,9 +202,7 @@ class Splitter {
   arrow::Status AllocateNew(int32_t partition_id, int32_t new_size);
 
   // Allocate new partition buffer/builder. May return OOM status.
-  arrow::Status AllocatePartitionBuffers(
-      int32_t partition_id,
-      int32_t new_size);
+  arrow::Status AllocatePartitionBuffers(int32_t partition_id, int32_t new_size);
 
   std::string NextSpilledFileDir();
 
@@ -251,10 +232,8 @@ class Splitter {
   std::vector<std::vector<BinaryBuff>> partition_binary_addrs_;
 
   // col partid
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>>
-      partition_buffers_;
-  std::vector<std::vector<std::shared_ptr<arrow::ArrayBuilder>>>
-      partition_list_builders_;
+  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partition_buffers_;
+  std::vector<std::vector<std::shared_ptr<arrow::ArrayBuilder>>> partition_list_builders_;
   // col partid
 
   // slice the buffer for each reducer's column, in this way we can combine into
@@ -262,8 +241,7 @@ class Splitter {
   std::shared_ptr<arrow::ResizableBuffer> combine_buffer_;
 
   // partid
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>>
-      partition_cached_recordbatch_;
+  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partition_cached_recordbatch_;
   // partid
   std::vector<int64_t> partition_cached_recordbatch_size_; // in bytes
 
@@ -325,10 +303,8 @@ class Splitter {
 
 class RoundRobinSplitter : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<RoundRobinSplitter>> Create(
-      int32_t num_partitions,
-      std::shared_ptr<arrow::Schema> schema,
-      SplitOptions options);
+  static arrow::Result<std::shared_ptr<RoundRobinSplitter>>
+  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
 
  private:
   RoundRobinSplitter(
@@ -337,31 +313,24 @@ class RoundRobinSplitter : public Splitter {
       SplitOptions options)
       : Splitter(num_partitions, std::move(schema), std::move(options)) {}
 
-  arrow::Status ComputeAndCountPartitionId(
-      const arrow::RecordBatch& rb) override;
+  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   int32_t pid_selection_ = 0;
 };
 
 class HashSplitter : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<HashSplitter>> Create(
-      int32_t num_partitions,
-      std::shared_ptr<arrow::Schema> schema,
-      SplitOptions options);
+  static arrow::Result<std::shared_ptr<HashSplitter>>
+  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
   const std::shared_ptr<arrow::Schema>& input_schema() const override {
     return input_schema_;
   }
 
  private:
-  HashSplitter(
-      int32_t num_partitions,
-      std::shared_ptr<arrow::Schema> schema,
-      SplitOptions options)
+  HashSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
       : Splitter(num_partitions, std::move(schema), std::move(options)) {}
 
-  arrow::Status ComputeAndCountPartitionId(
-      const arrow::RecordBatch& rb) override;
+  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   arrow::Status Split(const arrow::RecordBatch& rb) override;
 
@@ -372,10 +341,8 @@ class HashSplitter : public Splitter {
 
 class FallbackRangeSplitter : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>> Create(
-      int32_t num_partitions,
-      std::shared_ptr<arrow::Schema> schema,
-      SplitOptions options);
+  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>>
+  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
 
   arrow::Status Split(const arrow::RecordBatch& rb) override;
 
@@ -392,8 +359,7 @@ class FallbackRangeSplitter : public Splitter {
 
   arrow::Status Init() override;
 
-  arrow::Status ComputeAndCountPartitionId(
-      const arrow::RecordBatch& rb) override;
+  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   std::shared_ptr<arrow::Schema> input_schema_;
 };

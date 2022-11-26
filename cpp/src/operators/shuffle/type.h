@@ -39,8 +39,7 @@ static constexpr int32_t kIpcContinuationToken = -1;
 const unsigned ONES[] = {1, 1, 1, 1, 1, 1, 1, 1};
 
 struct ReaderOptions {
-  arrow::ipc::IpcReadOptions ipc_read_options =
-      arrow::ipc::IpcReadOptions::Defaults();
+  arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
 
   static ReaderOptions Defaults();
 };
@@ -63,8 +62,7 @@ struct SplitOptions {
   std::shared_ptr<arrow::MemoryPool> memory_pool =
       gluten::memory::GetDefaultWrappedArrowMemoryPool();
 
-  arrow::ipc::IpcWriteOptions ipc_write_options =
-      arrow::ipc::IpcWriteOptions::Defaults();
+  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
   static SplitOptions Defaults();
 };

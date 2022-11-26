@@ -42,12 +42,11 @@ auto BM = [](::benchmark::State& state,
   for (auto _ : state) {
     state.PauseTiming();
     auto backend =
-        std::dynamic_pointer_cast<velox::compute::VeloxPlanConverter>(
-            gluten::CreateBackend());
+        std::dynamic_pointer_cast<velox::compute::VeloxPlanConverter>(gluten::CreateBackend());
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(
-        gluten::memory::DefaultMemoryAllocator().get(), scanInfos);
+    auto resultIter =
+        backend->GetResultIterator(gluten::memory::DefaultMemoryAllocator().get(), scanInfos);
     auto outputSchema = backend->GetOutputSchema();
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();

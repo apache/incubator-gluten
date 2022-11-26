@@ -32,8 +32,7 @@ class RowConstructor : public exec::VectorFunction {
       VectorPtr& result) const override {
     auto argsCopy = args;
 
-    BufferPtr nulls = AlignedBuffer::allocate<char>(
-        bits::nbytes(rows.size()), context.pool(), 1);
+    BufferPtr nulls = AlignedBuffer::allocate<char>(bits::nbytes(rows.size()), context.pool(), 1);
     auto* nullsPtr = nulls->asMutable<uint64_t>();
     auto cntNull = 0;
     rows.applyToSelected([&](vector_size_t i) {
@@ -51,12 +50,7 @@ class RowConstructor : public exec::VectorFunction {
     });
 
     RowVectorPtr localResult = std::make_shared<RowVector>(
-        context.pool(),
-        outputType,
-        nulls,
-        rows.size(),
-        std::move(argsCopy),
-        cntNull /*nullCount*/);
+        context.pool(), outputType, nulls, rows.size(), std::move(argsCopy), cntNull /*nullCount*/);
     context.moveOrCopyResult(localResult, rows, result);
   }
 

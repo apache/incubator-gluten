@@ -39,23 +39,20 @@ using namespace facebook::velox::dwio::common;
 namespace velox {
 namespace compute {
 
-void DwrfDatasource::Init(
-    const std::unordered_map<std::string, std::string>& sparkConfs) {
+void DwrfDatasource::Init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   // Construct the file path and writer
   std::string local_path = "";
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
     local_path = file_path_.substr(5);
   } else {
-    throw std::runtime_error(
-        "The path is not local file path when Write data with DWRF format!");
+    throw std::runtime_error("The path is not local file path when Write data with DWRF format!");
   }
 
   auto pos = local_path.find("_temporary", 0);
   std::string dir_path = local_path.substr(0, pos - 1);
 
   auto last_pos = file_path_.find_last_of("/");
-  std::string file_name =
-      file_path_.substr(last_pos + 1, (file_path_.length() - last_pos - 6));
+  std::string file_name = file_path_.substr(last_pos + 1, (file_path_.length() - last_pos - 6));
   final_path_ = dir_path + "/" + file_name;
   std::string command = "touch " + final_path_;
   system(command.c_str());
@@ -67,16 +64,14 @@ void DwrfDatasource::Init(
   }
 
   type_ = importFromArrow(c_schema);
-  auto sink =
-      std::make_unique<facebook::velox::dwio::common::FileSink>(final_path_);
+  auto sink = std::make_unique<facebook::velox::dwio::common::FileSink>(final_path_);
   auto config = std::make_shared<facebook::velox::dwrf::Config>();
 
   for (auto iter = sparkConfs.begin(); iter != sparkConfs.end(); iter++) {
     auto key = iter->first;
     if (strcmp(key.c_str(), "hive.exec.orc.stripe.size") == 0) {
       config->set(
-          facebook::velox::dwrf::Config::STRIPE_SIZE,
-          static_cast<uint64_t>(stoi(iter->second)));
+          facebook::velox::dwrf::Config::STRIPE_SIZE, static_cast<uint64_t>(stoi(iter->second)));
     } else if (strcmp(key.c_str(), "hive.exec.orc.row.index.stride") == 0) {
       config->set(
           facebook::velox::dwrf::Config::ROW_INDEX_STRIDE,
@@ -86,13 +81,11 @@ void DwrfDatasource::Init(
       if (strcasecmp(iter->second.c_str(), "ZLIB") == 0) {
         config->set(
             facebook::velox::dwrf::Config::COMPRESSION,
-            facebook::velox::dwio::common::CompressionKind::
-                CompressionKind_ZLIB);
+            facebook::velox::dwio::common::CompressionKind::CompressionKind_ZLIB);
       } else {
         config->set(
             facebook::velox::dwrf::Config::COMPRESSION,
-            facebook::velox::dwio::common::CompressionKind::
-                CompressionKind_ZSTD);
+            facebook::velox::dwio::common::CompressionKind::CompressionKind_ZSTD);
       }
     }
   }
@@ -105,8 +98,7 @@ void DwrfDatasource::Init(
   options.flushPolicyFactory = nullptr;
   options.layoutPlannerFactory = nullptr;
 
-  writer_ = std::make_unique<facebook::velox::dwrf::Writer>(
-      options, std::move(sink), *pool_);
+  writer_ = std::make_unique<facebook::velox::dwrf::Writer>(options, std::move(sink), *pool_);
 }
 
 std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
@@ -118,8 +110,7 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
     std::unique_ptr<dwio::common::Reader> reader =
         dwio::common::getReaderFactory(reader_options.getFileFormat())
             ->createReader(
-                std::make_unique<dwio::common::FileInputStream>(
-                    file_path_.substr(5)),
+                std::make_unique<dwio::common::FileInputStream>(file_path_.substr(5)),
                 reader_options);
     return toArrowSchema(reader->rowType());
   }
@@ -131,14 +122,12 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
     hdfsFS hdfs = hdfsBuilderConnect(builder);
     hdfsFreeBuilder(builder);
     std::regex hdfsPrefixExp("hdfs://(\\w+)/");
-    std::string hdfsFilePath =
-        regex_replace(file_path_.c_str(), hdfsPrefixExp, "/");
+    std::string hdfsFilePath = regex_replace(file_path_.c_str(), hdfsPrefixExp, "/");
     HdfsReadFile readFile(hdfs, hdfsFilePath);
     std::unique_ptr<dwio::common::Reader> reader =
         dwio::common::getReaderFactory(reader_options.getFileFormat())
             ->createReader(
-                std::make_unique<dwio::common::ReadFileInputStream>(&readFile),
-                reader_options);
+                std::make_unique<dwio::common::ReadFileInputStream>(&readFile), reader_options);
     return toArrowSchema(reader->rowType());
   }
 #endif
@@ -173,8 +162,7 @@ void DwrfDatasource::Write(const std::shared_ptr<arrow::RecordBatch>& rb) {
     vecs.push_back(vec);
   }
 
-  auto row_vec = std::make_shared<RowVector>(
-      pool_, type_, nullptr, rb->num_rows(), vecs, 0);
+  auto row_vec = std::make_shared<RowVector>(pool_, type_, nullptr, rb->num_rows(), vecs, 0);
   writer_->write(row_vec);
 }
 

@@ -72,8 +72,7 @@ class MyMemoryPool : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr)
-      override {
+  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
     auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
@@ -133,8 +132,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 #endif
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr)
-      override {
+  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
     return pool_->Reallocate(old_size, new_size, ptr);
 #ifdef ENABLELARGEPAGE
     if (new_size < 2 * 1024 * 1024) {
@@ -189,8 +187,7 @@ class BenchmarkShuffleSplit {
 
     std::shared_ptr<arrow::fs::FileSystem> fs;
     std::string file_name;
-    GLUTEN_ASSIGN_OR_THROW(
-        fs, arrow::fs::FileSystemFromUriOrPath(input_file, &file_name))
+    GLUTEN_ASSIGN_OR_THROW(fs, arrow::fs::FileSystemFromUriOrPath(input_file, &file_name))
 
     GLUTEN_ASSIGN_OR_THROW(file, fs->OpenInputFile(file_name));
 
@@ -220,11 +217,9 @@ class BenchmarkShuffleSplit {
 
   void operator()(benchmark::State& state) {
     // SetCPU(state.thread_index());
-    arrow::Compression::type compression_type =
-        (arrow::Compression::type)state.range(1);
+    arrow::Compression::type compression_type = (arrow::Compression::type)state.range(1);
 
-    std::shared_ptr<arrow::MemoryPool> pool =
-        std::make_shared<LargePageMemoryPool>();
+    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
 
     const int num_partitions = state.range(0);
 
@@ -245,14 +240,7 @@ class BenchmarkShuffleSplit {
     auto start_time = std::chrono::steady_clock::now();
 
     Do_Split(
-        splitter,
-        elapse_read,
-        num_batches,
-        num_rows,
-        split_time,
-        num_partitions,
-        options,
-        state);
+        splitter, elapse_read, num_batches, num_rows, split_time, num_partitions, options, state);
     auto end_time = std::chrono::steady_clock::now();
     auto total_time = (end_time - start_time).count();
 
@@ -266,29 +254,17 @@ class BenchmarkShuffleSplit {
         benchmark::Counter::kAvgThreads,
         benchmark::Counter::OneK::kIs1000);
     state.counters["columns"] = benchmark::Counter(
-        column_indices.size(),
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        column_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["batches"] = benchmark::Counter(
-        num_batches,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        num_batches, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["num_rows"] = benchmark::Counter(
-        num_rows,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        num_rows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["num_partitions"] = benchmark::Counter(
-        num_partitions,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        num_partitions, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["batch_buffer_size"] = benchmark::Counter(
-        batch_buffer_size,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1024);
+        batch_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["split_buffer_size"] = benchmark::Counter(
-        split_buffer_size,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1024);
+        split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["bytes_spilled"] = benchmark::Counter(
         splitter->TotalBytesSpilled(),
@@ -308,9 +284,7 @@ class BenchmarkShuffleSplit {
         benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] = benchmark::Counter(
-        elapse_read,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        elapse_read, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] = benchmark::Counter(
         splitter->TotalWriteTime(),
         benchmark::Counter::kAvgThreads,
@@ -324,18 +298,14 @@ class BenchmarkShuffleSplit {
         benchmark::Counter::kAvgThreads,
         benchmark::Counter::OneK::kIs1000);
 
-    split_time = split_time - splitter->TotalSpillTime() -
-        splitter->TotalCompressTime() - splitter->TotalWriteTime();
+    split_time = split_time - splitter->TotalSpillTime() - splitter->TotalCompressTime() -
+        splitter->TotalWriteTime();
 
     state.counters["split_time"] = benchmark::Counter(
-        split_time,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        split_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["total_time"] = benchmark::Counter(
-        total_time,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        total_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     splitter.reset();
   }
 
@@ -408,8 +378,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << local_schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(
-        splitter, Splitter::Make("rr", local_schema, num_partitions, options));
+    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", local_schema, num_partitions, options));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -425,8 +394,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
     GLUTEN_THROW_NOT_OK(parquet_reader->GetRecordBatchReader(
         row_group_indices, local_column_indices, &record_batch_reader));
     do {
-      TIME_NANO_OR_THROW(
-          elapse_read, record_batch_reader->ReadNext(&record_batch));
+      TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
 
       if (record_batch) {
         batches.push_back(record_batch);
@@ -434,17 +402,14 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
         num_rows += record_batch->num_rows();
       }
     } while (record_batch);
-    std::cout << "parquet parse done elapsed time " << elapse_read / 1000000
-              << " ms " << std::endl;
-    std::cout << "batches = " << num_batches << " rows = " << num_rows
-              << std::endl;
+    std::cout << "parquet parse done elapsed time " << elapse_read / 1000000 << " ms " << std::endl;
+    std::cout << "batches = " << num_batches << " rows = " << num_rows << std::endl;
 
     for (auto _ : state) {
       for_each(
           batches.begin(),
           batches.end(),
-          [&splitter, &split_time, &options](
-              std::shared_ptr<arrow::RecordBatch>& record_batch) {
+          [&splitter, &split_time, &options](std::shared_ptr<arrow::RecordBatch>& record_batch) {
             TIME_NANO_OR_THROW(split_time, splitter->Split(*record_batch));
           });
       // std::cout << " split done memory allocated = " <<
@@ -455,8 +420,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
   }
 };
 
-class BenchmarkShuffleSplit_IterateScan_Benchmark
-    : public BenchmarkShuffleSplit {
+class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit {
  public:
   BenchmarkShuffleSplit_IterateScan_Benchmark(std::string filename)
       : BenchmarkShuffleSplit(filename) {}
@@ -475,8 +439,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark
       std::cout << schema->ToString() << std::endl;
 
     GLUTEN_ASSIGN_OR_THROW(
-        splitter,
-        Splitter::Make("rr", schema, num_partitions, std::move(options)));
+        splitter, Splitter::Make("rr", schema, num_partitions, std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -492,14 +455,12 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark
       std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
       GLUTEN_THROW_NOT_OK(parquet_reader->GetRecordBatchReader(
           row_group_indices, column_indices, &record_batch_reader));
-      TIME_NANO_OR_THROW(
-          elapse_read, record_batch_reader->ReadNext(&record_batch));
+      TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       while (record_batch) {
         num_batches += 1;
         num_rows += record_batch->num_rows();
         TIME_NANO_OR_THROW(split_time, splitter->Split(*record_batch));
-        TIME_NANO_OR_THROW(
-            elapse_read, record_batch_reader->ReadNext(&record_batch));
+        TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       }
     }
     TIME_NANO_OR_THROW(split_time, splitter->Stop());
@@ -548,8 +509,7 @@ int main(int argc, char** argv) {
 
   */
 
-  sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_IterateScan_Benchmark bck(
-      datafile);
+  sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_IterateScan_Benchmark bck(datafile);
 
   benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", bck)
       ->Iterations(iterations)

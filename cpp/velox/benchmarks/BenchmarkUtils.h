@@ -36,8 +36,7 @@ DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
 
-using GetInputFunc =
-    std::shared_ptr<gluten::GlutenResultIterator>(const std::string&);
+using GetInputFunc = std::shared_ptr<gluten::GlutenResultIterator>(const std::string&);
 
 /// Initilize the Velox backend.
 void InitVeloxBackend();
@@ -49,8 +48,7 @@ std::string getExampleFilePath(const std::string& fileName);
 arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName);
 
 /// Read binary data from a json file.
-arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
-    const std::string& filePath);
+arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath);
 
 /// Get the file paths, starts, lengths from a directory.
 /// Use fileFormat to specify the format to read, eg., orc, parquet.
@@ -64,25 +62,21 @@ bool EndsWith(const std::string& data, const std::string& suffix);
 
 class BatchIteratorWrapper {
  public:
-  explicit BatchIteratorWrapper(const std::string& path)
-      : path_(getExampleFilePath(path)) {}
+  explicit BatchIteratorWrapper(const std::string& path) : path_(getExampleFilePath(path)) {}
 
   virtual ~BatchIteratorWrapper() = default;
 
-  virtual arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>>
-  Next() = 0;
+  virtual arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() = 0;
 
   void CreateReader() {
-    ::parquet::ArrowReaderProperties properties =
-        ::parquet::default_arrow_reader_properties();
+    ::parquet::ArrowReaderProperties properties = ::parquet::default_arrow_reader_properties();
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
         arrow::default_memory_pool(),
         ::parquet::ParquetFileReader::OpenFile(path_),
         properties,
         &fileReader_));
     GLUTEN_THROW_NOT_OK(fileReader_->GetRecordBatchReader(
-        arrow::internal::Iota(fileReader_->num_row_groups()),
-        &recordBatchReader_));
+        arrow::internal::Iota(fileReader_->num_row_groups()), &recordBatchReader_));
   }
 
   int64_t GetCollectBatchTime() {
@@ -99,20 +93,17 @@ class BatchIteratorWrapper {
 
 class BatchVectorIterator : public BatchIteratorWrapper {
  public:
-  explicit BatchVectorIterator(const std::string& path)
-      : BatchIteratorWrapper(path) {
+  explicit BatchVectorIterator(const std::string& path) : BatchIteratorWrapper(path) {
     CreateReader();
     CollectBatches();
 
     iter_ = batches_.begin();
 #ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "Number of input batches: " << std::to_string(batches_.size())
-              << std::endl;
+    std::cout << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
 #endif
   }
 
-  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next()
-      override {
+  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() override {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }
@@ -124,9 +115,8 @@ class BatchVectorIterator : public BatchIteratorWrapper {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
     auto endTime = std::chrono::steady_clock::now();
-    collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                             endTime - startTime)
-                             .count();
+    collectBatchTime_ +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
   }
 
   arrow::RecordBatchVector batches_;
@@ -135,13 +125,11 @@ class BatchVectorIterator : public BatchIteratorWrapper {
 
 class BatchStreamIterator : public BatchIteratorWrapper {
  public:
-  explicit BatchStreamIterator(const std::string& path)
-      : BatchIteratorWrapper(path) {
+  explicit BatchStreamIterator(const std::string& path) : BatchIteratorWrapper(path) {
     CreateReader();
   }
 
-  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next()
-      override {
+  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
     if (batch == nullptr) {
@@ -154,10 +142,8 @@ class BatchStreamIterator : public BatchIteratorWrapper {
   }
 };
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(
-    const std::string& path);
+std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(const std::string& path);
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(
-    const std::string& path);
+std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(const std::string& path);
 
 void setCpu(uint32_t cpuindex);

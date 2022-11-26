@@ -46,21 +46,17 @@ class DummyBackend : public ExecBackendBase {
       std::unique_ptr<arrow::ArrayBuilder> tmp;
       std::unique_ptr<arrow::DoubleBuilder> builder;
       std::shared_ptr<arrow::Array> array;
-      RETURN_NOT_OK(arrow::MakeBuilder(
-          arrow::default_memory_pool(), arrow::float64(), &tmp));
-      builder.reset(
-          arrow::internal::checked_cast<arrow::DoubleBuilder*>(tmp.release()));
+      RETURN_NOT_OK(arrow::MakeBuilder(arrow::default_memory_pool(), arrow::float64(), &tmp));
+      builder.reset(arrow::internal::checked_cast<arrow::DoubleBuilder*>(tmp.release()));
 
       RETURN_NOT_OK(builder->Append(1000));
       RETURN_NOT_OK(builder->Finish(&array));
       std::vector<std::shared_ptr<arrow::Field>> ret_types = {
           arrow::field("res", arrow::float64())};
-      auto batch =
-          arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
+      auto batch = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
       std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
       std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
-      GLUTEN_THROW_NOT_OK(
-          arrow::ExportRecordBatch(*batch, cArray.get(), cSchema.get()));
+      GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get(), cSchema.get()));
       return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
           std::move(cSchema), std::move(cArray));
     }
@@ -78,8 +74,7 @@ TEST(TestExecBackend, CreateBackend) {
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->GetResultIterator(
-      gluten::memory::DefaultMemoryAllocator().get());
+  auto iter = backend->GetResultIterator(gluten::memory::DefaultMemoryAllocator().get());
   ASSERT_TRUE(iter->HasNext());
   auto next = iter->Next();
   ASSERT_NE(next, nullptr);

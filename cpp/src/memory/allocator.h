@@ -34,16 +34,10 @@ class MemoryAllocator {
   virtual ~MemoryAllocator() = default;
   virtual bool Allocate(int64_t size, void** out) = 0;
   virtual bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
+  virtual bool AllocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
+  virtual bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) = 0;
   virtual bool
-  AllocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
-  virtual bool
-  Reallocate(void* p, int64_t size, int64_t new_size, void** out) = 0;
-  virtual bool ReallocateAligned(
-      void* p,
-      uint16_t alignment,
-      int64_t size,
-      int64_t new_size,
-      void** out) = 0;
+  ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) = 0;
   virtual bool Free(void* p, int64_t size) = 0;
   virtual int64_t GetBytes() = 0;
 };
@@ -75,12 +69,8 @@ class ListenableMemoryAllocator : public MemoryAllocator {
 
   bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
 
-  bool ReallocateAligned(
-      void* p,
-      uint16_t alignment,
-      int64_t size,
-      int64_t new_size,
-      void** out) override;
+  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out)
+      override;
 
   bool Free(void* p, int64_t size) override;
 
@@ -102,12 +92,8 @@ class StdMemoryAllocator : public MemoryAllocator {
 
   bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
 
-  bool ReallocateAligned(
-      void* p,
-      uint16_t alignment,
-      int64_t size,
-      int64_t new_size,
-      void** out) override;
+  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out)
+      override;
 
   bool Free(void* p, int64_t size) override;
 
@@ -120,13 +106,11 @@ class StdMemoryAllocator : public MemoryAllocator {
 // TODO aligned allocation
 class WrappedArrowMemoryPool : public arrow::MemoryPool {
  public:
-  explicit WrappedArrowMemoryPool(MemoryAllocator* allocator)
-      : allocator_(allocator) {}
+  explicit WrappedArrowMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
 
   arrow::Status Allocate(int64_t size, uint8_t** out) override;
 
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr)
-      override;
+  arrow::Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override;
 
   void Free(uint8_t* buffer, int64_t size) override;
 

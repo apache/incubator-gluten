@@ -54,8 +54,7 @@ using namespace arrow;
 #define ARROW_ASSIGN_OR_THROW_NAME(x, y) ARROW_CONCAT(x, y)
 
 #define ARROW_ASSIGN_OR_THROW(lhs, rexpr) \
-  ARROW_ASSIGN_OR_THROW_IMPL(             \
-      ARROW_ASSIGN_OR_THROW_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
+  ARROW_ASSIGN_OR_THROW_IMPL(ARROW_ASSIGN_OR_THROW_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
 
 template <typename T>
 Status Equals(const T& expected, const T& actual) {
@@ -93,9 +92,7 @@ void MakeInputBatch(
   for (auto data : input_data) {
     std::shared_ptr<Array> a0;
     ARROW_ASSIGN_OR_THROW(
-        a0,
-        arrow::ipc::internal::json::ArrayFromJSON(
-            sch->field(i++)->type(), data.c_str()));
+        a0, arrow::ipc::internal::json::ArrayFromJSON(sch->field(i++)->type(), data.c_str()));
     if (length == -1) {
       length = a0->length();
     }

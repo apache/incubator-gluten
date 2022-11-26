@@ -62,8 +62,7 @@ class GlutenColumnarBatch {
 class GlutenArrowColumnarBatch : public GlutenColumnarBatch {
  public:
   explicit GlutenArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
-      : GlutenColumnarBatch(batch->num_columns(), batch->num_rows()),
-        batch_(std::move(batch)) {}
+      : GlutenColumnarBatch(batch->num_columns(), batch->num_rows()), batch_(std::move(batch)) {}
 
   ~GlutenArrowColumnarBatch() override = default;
 

@@ -47,8 +47,7 @@ class ExportedArrayStreamByArray {
     ARROW_DISALLOW_COPY_AND_ASSIGN(PrivateData);
   };
 
-  explicit ExportedArrayStreamByArray(struct ArrowArrayStream* stream)
-      : stream_(stream) {}
+  explicit ExportedArrayStreamByArray(struct ArrowArrayStream* stream) : stream_(stream) {}
 
   Status GetSchema(struct ArrowSchema* out_schema) {
     return ExportSchema(*schema(), out_schema);
@@ -83,16 +82,12 @@ class ExportedArrayStreamByArray {
 
   // C-compatible callbacks
 
-  static int StaticGetSchema(
-      struct ArrowArrayStream* stream,
-      struct ArrowSchema* out_schema) {
+  static int StaticGetSchema(struct ArrowArrayStream* stream, struct ArrowSchema* out_schema) {
     ExportedArrayStreamByArray self{stream};
     return self.ToCError(self.GetSchema(out_schema));
   }
 
-  static int StaticGetNext(
-      struct ArrowArrayStream* stream,
-      struct ArrowArray* out_array) {
+  static int StaticGetNext(struct ArrowArrayStream* stream, struct ArrowArray* out_array) {
     ExportedArrayStreamByArray self{stream};
     return self.ToCError(self.GetNext(out_array));
   }
@@ -149,8 +144,8 @@ Status ExportArrowArray(
   out->get_next = ExportedArrayStreamByArray::StaticGetNext;
   out->get_last_error = ExportedArrayStreamByArray::StaticGetLastError;
   out->release = ExportedArrayStreamByArray::StaticRelease;
-  out->private_data = new ExportedArrayStreamByArray::PrivateData{
-      std::move(reader), std::move(schema)};
+  out->private_data =
+      new ExportedArrayStreamByArray::PrivateData{std::move(reader), std::move(schema)};
   return Status::OK();
 }
 

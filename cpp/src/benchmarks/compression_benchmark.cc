@@ -69,8 +69,7 @@ class MyMemoryPool : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr)
-      override {
+  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
     auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
@@ -130,8 +129,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 #endif
   }
 
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr)
-      override {
+  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
     return pool_->Reallocate(old_size, new_size, ptr);
 #ifdef ENABLELARGEPAGE
     if (new_size < 2 * 1024 * 1024) {
@@ -176,22 +174,17 @@ class LargePageMemoryPool : public arrow::MemoryPool {
 
 class BenchmarkCompression {
  public:
-  explicit BenchmarkCompression(
-      const std::string& file_name,
-      uint32_t split_buffer_size) {
+  explicit BenchmarkCompression(const std::string& file_name, uint32_t split_buffer_size) {
     GetRecordBatchReader(file_name, split_buffer_size);
   }
 
-  void GetRecordBatchReader(
-      const std::string& input_file,
-      uint32_t split_buffer_size) {
+  void GetRecordBatchReader(const std::string& input_file, uint32_t split_buffer_size) {
     std::unique_ptr<::parquet::arrow::FileReader> parquet_reader;
     std::shared_ptr<RecordBatchReader> record_batch_reader;
 
     std::shared_ptr<arrow::fs::FileSystem> fs;
     std::string file_name;
-    GLUTEN_ASSIGN_OR_THROW(
-        fs, arrow::fs::FileSystemFromUriOrPath(input_file, &file_name))
+    GLUTEN_ASSIGN_OR_THROW(fs, arrow::fs::FileSystemFromUriOrPath(input_file, &file_name))
 
     GLUTEN_ASSIGN_OR_THROW(file, fs->OpenInputFile(file_name));
 
@@ -225,10 +218,8 @@ class BenchmarkCompression {
     ipc_write_options.use_threads = false;
     auto compression_type = (arrow::Compression::type)state.range(0);
     auto split_buffer_size = (uint32_t)state.range(1);
-    GLUTEN_ASSIGN_OR_THROW(
-        ipc_write_options.codec, arrow::util::Codec::Create(compression_type));
-    std::shared_ptr<arrow::MemoryPool> pool =
-        std::make_shared<LargePageMemoryPool>();
+    GLUTEN_ASSIGN_OR_THROW(ipc_write_options.codec, arrow::util::Codec::Create(compression_type));
+    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
     ipc_write_options.memory_pool = pool.get();
 
     int64_t elapse_read = 0;
@@ -247,36 +238,22 @@ class BenchmarkCompression {
         benchmark::Counter::kAvgThreads,
         benchmark::Counter::OneK::kIs1000);
     state.counters["columns"] = benchmark::Counter(
-        column_indices.size(),
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        column_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["batches"] = benchmark::Counter(
-        num_batches,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        num_batches, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["num_rows"] = benchmark::Counter(
-        num_rows,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        num_rows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["batch_buffer_size"] = benchmark::Counter(
-        split_buffer_size,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1024);
+        split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] = benchmark::Counter(
-        elapse_read,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        elapse_read, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["compress_time"] = benchmark::Counter(
-        compress_time,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        compress_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["total_time"] = benchmark::Counter(
-        total_time,
-        benchmark::Counter::kAvgThreads,
-        benchmark::Counter::OneK::kIs1000);
+        total_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
   }
 
  protected:
@@ -330,8 +307,7 @@ class BenchmarkCompression_IterateScan_Benchmark : public BenchmarkCompression {
     for (auto _ : state) {
       GLUTEN_THROW_NOT_OK(parquet_reader->GetRecordBatchReader(
           row_group_indices, column_indices, &record_batch_reader));
-      TIME_NANO_OR_THROW(
-          elapse_read, record_batch_reader->ReadNext(&record_batch));
+      TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       while (record_batch) {
         num_batches += 1;
         num_rows += record_batch->num_rows();
@@ -342,11 +318,9 @@ class BenchmarkCompression_IterateScan_Benchmark : public BenchmarkCompression {
 
         TIME_NANO_OR_THROW(
             compress_time,
-            arrow::ipc::GetRecordBatchPayload(
-                *record_batch, ipc_write_options, payload.get()));
+            arrow::ipc::GetRecordBatchPayload(*record_batch, ipc_write_options, payload.get()));
         std::cout << "Compressed " << num_batches << " batches" << std::endl;
-        TIME_NANO_OR_THROW(
-            elapse_read, record_batch_reader->ReadNext(&record_batch));
+        TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       }
     }
   }

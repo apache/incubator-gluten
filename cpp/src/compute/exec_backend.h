@@ -36,8 +36,7 @@
 
 namespace gluten {
 using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
-using GlutenIterator =
-    arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
+using GlutenIterator = arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
 class GlutenResultIterator;
 
 template <typename T>
@@ -67,12 +66,11 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     auto buf = std::make_shared<arrow::Buffer>(data, size);
     auto maybe_plan_json = SubstraitToJSON("Plan", *buf);
     if (maybe_plan_json.status().ok()) {
-      std::cout << std::string(50, '#')
-                << " received substrait::Plan:" << std::endl;
+      std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
       std::cout << maybe_plan_json.ValueOrDie() << std::endl;
     } else {
-      std::cout << "Error parsing substrait plan to json: "
-                << maybe_plan_json.status().ToString() << std::endl;
+      std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString()
+                << std::endl;
     }
 #endif
     return ParseProtobuf(data, size, &plan_);
@@ -85,8 +83,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
-  virtual arrow::Result<
-      std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
+  virtual arrow::Result<std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
   getColumnarConverter(
       gluten::memory::MemoryAllocator* allocator,
       std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb) {
@@ -98,13 +95,10 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
         arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
-    return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
-        rb, memory_pool);
+    return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(rb, memory_pool);
   }
 
-  virtual std::shared_ptr<Metrics> GetMetrics(
-      void* raw_iter,
-      int64_t exportNanos) {
+  virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) {
     return nullptr;
   };
 
@@ -116,8 +110,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   ::substrait::Plan plan_;
 };
 
-class GlutenResultIterator
-    : public ResultIteratorBase<memory::GlutenColumnarBatch> {
+class GlutenResultIterator : public ResultIteratorBase<memory::GlutenColumnarBatch> {
  public:
   /// \brief Iterator may be constructed from any type which has a member
   /// function with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
@@ -153,8 +146,9 @@ class GlutenResultIterator
   /// iterator.
   std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
     ArrowArrayIterator itr = arrow::MakeMapIterator(
-        [](std::shared_ptr<memory::GlutenColumnarBatch> b)
-            -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
+        [](std::shared_ptr<memory::GlutenColumnarBatch> b) -> std::shared_ptr<ArrowArray> {
+          return b->exportArrowArray();
+        },
         std::move(*iter_));
     ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
     *itr_ptr = std::move(itr);
@@ -203,8 +197,7 @@ class GlutenResultIterator
 
   inline void CheckValid() {
     if (iter_ == nullptr) {
-      throw GlutenException(
-          "ArrowExecResultIterator: the underlying iterator has expired.");
+      throw GlutenException("ArrowExecResultIterator: the underlying iterator has expired.");
     }
   }
 
@@ -215,8 +208,7 @@ class GlutenResultIterator
   }
 };
 
-void SetBackendFactory(
-    std::function<std::shared_ptr<ExecBackendBase>()> factory);
+void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory);
 
 std::shared_ptr<ExecBackendBase> CreateBackend();
 

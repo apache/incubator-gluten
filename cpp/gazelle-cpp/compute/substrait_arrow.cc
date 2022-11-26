@@ -50,20 +50,17 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::GlutenResultIterator>
-ArrowExecBackend::GetResultIterator(
+std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator) {
   return GetResultIterator(allocator, {});
 }
 
-std::shared_ptr<gluten::GlutenResultIterator>
-ArrowExecBackend::GetResultIterator(
+std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
     gluten::memory::MemoryAllocator* allocator,
     std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
-    throw gluten::GlutenException(
-        "Expected 1 decl, but got " + std::to_string(decls.size()));
+    throw gluten::GlutenException("Expected 1 decl, but got " + std::to_string(decls.size()));
   }
   decl_ = std::make_shared<arrow::compute::Declaration>(std::move(decls[0]));
 
@@ -80,16 +77,13 @@ ArrowExecBackend::GetResultIterator(
       auto schema = it->second;
       auto batch_it = MakeMapIterator(
           [schema](const std::shared_ptr<ArrowArray>& array) {
-            GLUTEN_ASSIGN_OR_THROW(
-                auto batch, arrow::ImportRecordBatch(array.get(), schema));
-            return arrow::util::make_optional(
-                arrow::compute::ExecBatch(*batch));
+            GLUTEN_ASSIGN_OR_THROW(auto batch, arrow::ImportRecordBatch(array.get(), schema));
+            return arrow::util::make_optional(arrow::compute::ExecBatch(*batch));
           },
           std::move(*inputs[i]->ToArrowArrayIterator()));
       GLUTEN_ASSIGN_OR_THROW(
           auto gen,
-          arrow::MakeBackgroundGenerator(
-              std::move(batch_it), arrow::internal::GetCpuThreadPool()));
+          arrow::MakeBackgroundGenerator(std::move(batch_it), arrow::internal::GetCpuThreadPool()));
       source_decls.emplace_back(
           "source", arrow::compute::SourceNodeOptions{schema, std::move(gen)});
     }
@@ -102,12 +96,10 @@ ArrowExecBackend::GetResultIterator(
   GLUTEN_ASSIGN_OR_THROW(exec_plan_, arrow::compute::ExecPlan::Make());
   GLUTEN_ASSIGN_OR_THROW(auto node, decl_->AddToPlan(exec_plan_.get()));
 
-  auto include_aug_fields =
-      arrow::FieldRef("__fragment_index").FindOne(*node->output_schema());
+  auto include_aug_fields = arrow::FieldRef("__fragment_index").FindOne(*node->output_schema());
   if (include_aug_fields.ok()) {
     std::vector<arrow::compute::Expression> fields;
-    auto num_fields =
-        node->output_schema()->num_fields() - kAugmentedFields.size();
+    auto num_fields = node->output_schema()->num_fields() - kAugmentedFields.size();
     fields.reserve(num_fields);
     for (int i = 0; i < num_fields; ++i) {
       fields.push_back(arrow::compute::field_ref(i));
@@ -125,31 +117,24 @@ ArrowExecBackend::GetResultIterator(
 
   // Add sink node. It's added after constructing plan from decls because sink
   // node doesn't have output schema.
-  arrow::AsyncGenerator<arrow::util::optional<arrow::compute::ExecBatch>>
-      sink_gen;
+  arrow::AsyncGenerator<arrow::util::optional<arrow::compute::ExecBatch>> sink_gen;
   GLUTEN_THROW_NOT_OK(arrow::compute::MakeExecNode(
-      "sink",
-      exec_plan_.get(),
-      {node},
-      arrow::compute::SinkNodeOptions{&sink_gen}));
+      "sink", exec_plan_.get(), {node}, arrow::compute::SinkNodeOptions{&sink_gen}));
 
   GLUTEN_THROW_NOT_OK(exec_plan_->Validate());
   GLUTEN_THROW_NOT_OK(exec_plan_->StartProducing());
 
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << std::string(50, '#')
-            << " produced arrow::ExecPlan:" << std::endl;
+  std::cout << std::string(50, '#') << " produced arrow::ExecPlan:" << std::endl;
   std::cout << exec_plan_->ToString() << std::endl;
-  std::cout << "Execplan output schema:" << std::endl
-            << output_schema_->ToString() << std::endl;
+  std::cout << "Execplan output schema:" << std::endl << output_schema_->ToString() << std::endl;
 #endif
 
   auto iter = arrow::MakeGeneratorIterator(std::move(sink_gen));
-  auto sink_iter = std::make_shared<ArrowExecResultIterator>(
-      allocator, output_schema_, std::move(iter));
+  auto sink_iter =
+      std::make_shared<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
 
-  return std::make_shared<gluten::GlutenResultIterator>(
-      std::move(sink_iter), shared_from_this());
+  return std::make_shared<gluten::GlutenResultIterator>(std::move(sink_iter), shared_from_this());
 }
 
 std::shared_ptr<arrow::Schema> ArrowExecBackend::GetOutputSchema() {
@@ -166,17 +151,16 @@ void ArrowExecBackend::PushDownFilter() {
     visited.pop_back();
     for (auto& input : top->inputs) {
       auto& input_decl = arrow::util::get<arrow::compute::Declaration>(input);
-      if (input_decl.factory_name == "filter" &&
-          input_decl.inputs.size() == 1) {
-        auto scan_decl =
-            arrow::util::get<arrow::compute::Declaration>(input_decl.inputs[0]);
+      if (input_decl.factory_name == "filter" && input_decl.inputs.size() == 1) {
+        auto scan_decl = arrow::util::get<arrow::compute::Declaration>(input_decl.inputs[0]);
         if (scan_decl.factory_name == "scan") {
           auto expression =
-              arrow::internal::checked_pointer_cast<
-                  arrow::compute::FilterNodeOptions>(input_decl.options)
+              arrow::internal::checked_pointer_cast<arrow::compute::FilterNodeOptions>(
+                  input_decl.options)
                   ->filter_expression;
-          auto scan_options = arrow::internal::checked_pointer_cast<
-              arrow::dataset::ScanNodeOptions>(scan_decl.options);
+          auto scan_options =
+              arrow::internal::checked_pointer_cast<arrow::dataset::ScanNodeOptions>(
+                  scan_decl.options);
           const auto& schema = scan_options->dataset->schema();
           FieldPathToName(&expression, schema);
           scan_options->scan_options->filter = std::move(expression);
@@ -189,8 +173,7 @@ void ArrowExecBackend::PushDownFilter() {
 }
 
 // This method is used to get the input schema in InputRel.
-arrow::Status ArrowExecBackend::GetIterInputSchemaFromRel(
-    const ::substrait::Rel& srel) {
+arrow::Status ArrowExecBackend::GetIterInputSchemaFromRel(const ::substrait::Rel& srel) {
   // TODO: need to support more Substrait Rels here.
   if (srel.has_aggregate() && srel.aggregate().has_input()) {
     return GetIterInputSchemaFromRel(srel.aggregate().input());
@@ -262,8 +245,7 @@ arrow::Status ArrowExecBackend::GetIterInputSchemaFromRel(
   // Create input fields.
   std::vector<std::shared_ptr<arrow::Field>> inputFields;
   for (int colIdx = 0; colIdx < colNameList.size(); colIdx++) {
-    inputFields.push_back(
-        arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
+    inputFields.push_back(arrow::field(colNameList[colIdx], arrowTypes[colIdx]));
   }
 
   // Set up the schema map.
@@ -292,18 +274,15 @@ void ArrowExecBackend::FieldPathToName(
     } else if (expr->field_ref()) {
       auto field_ref = const_cast<arrow::FieldRef*>(expr->field_ref());
       if (auto field_path = field_ref->field_path()) {
-        *expr = arrow::compute::field_ref(
-            schema->field((field_path->indices())[0])->name());
+        *expr = arrow::compute::field_ref(schema->field((field_path->indices())[0])->name());
       } else {
-        throw gluten::GlutenException(
-            "Field Ref is not field path: " + field_ref->ToString());
+        throw gluten::GlutenException("Field Ref is not field path: " + field_ref->ToString());
       }
     }
   }
 }
 
-void ArrowExecBackend::ReplaceSourceDecls(
-    std::vector<arrow::compute::Declaration> source_decls) {
+void ArrowExecBackend::ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls) {
   std::vector<arrow::compute::Declaration*> visited;
   std::vector<arrow::compute::Declaration*> source_indexes;
 
@@ -324,22 +303,20 @@ void ArrowExecBackend::ReplaceSourceDecls(
 
   if (source_indexes.size() != source_decls.size()) {
     throw gluten::GlutenException(
-        "Wrong number of source declarations. " +
-        std::to_string(source_indexes.size()) +
-        " source(s) needed by source declarations, but got " +
-        std::to_string(source_decls.size()) + " from input batches.");
+        "Wrong number of source declarations. " + std::to_string(source_indexes.size()) +
+        " source(s) needed by source declarations, but got " + std::to_string(source_decls.size()) +
+        " from input batches.");
   }
 
   for (auto& source_index : source_indexes) {
-    auto index = arrow::internal::checked_pointer_cast<
-                     arrow::compute::SourceIndexOptions>(source_index->options)
+    auto index = arrow::internal::checked_pointer_cast<arrow::compute::SourceIndexOptions>(
+                     source_index->options)
                      ->index;
     *source_index = std::move(source_decls[index]);
   }
 }
 
-std::shared_ptr<gluten::memory::GlutenColumnarBatch>
-ArrowExecResultIterator::Next() {
+std::shared_ptr<gluten::memory::GlutenColumnarBatch> ArrowExecResultIterator::Next() {
   GLUTEN_ASSIGN_OR_THROW(auto exec_batch, iter_.Next());
   if (exec_batch.has_value()) {
     cur_ = std::move(exec_batch.value());
@@ -358,8 +335,7 @@ ArrowExecResultIterator::Next() {
 
           const auto& in_data = array->data();
           DCHECK_EQ(in_data->buffers.size(), layout.buffers.size());
-          std::vector<std::shared_ptr<arrow::Buffer>> out_buffers(
-              in_data->buffers.size());
+          std::vector<std::shared_ptr<arrow::Buffer>> out_buffers(in_data->buffers.size());
 
           // Process null bitmap
           DCHECK_GT(layout.buffers.size(), 0);
@@ -374,37 +350,28 @@ ArrowExecResultIterator::Next() {
 
           // Process data/offset buffer
           if (layout.buffers.size() > 1) {
-            DCHECK_EQ(
-                layout.buffers[1].kind, arrow::DataTypeLayout::FIXED_WIDTH);
+            DCHECK_EQ(layout.buffers[1].kind, arrow::DataTypeLayout::FIXED_WIDTH);
             auto byte_width = layout.buffers[1].byte_width;
             if (in_data->buffers[1] == nullptr) {
               out_buffers[1] = nullptr;
             } else {
               out_buffers[1] = std::make_shared<arrow::Buffer>(
-                  in_data->buffers[1]->data() + offset * byte_width,
-                  in_data->length * byte_width);
+                  in_data->buffers[1]->data() + offset * byte_width, in_data->length * byte_width);
             }
           }
 
           // Process data buffer for variable length types
           if (layout.buffers.size() > 2) {
-            DCHECK_EQ(
-                layout.buffers[2].kind, arrow::DataTypeLayout::VARIABLE_WIDTH);
+            DCHECK_EQ(layout.buffers[2].kind, arrow::DataTypeLayout::VARIABLE_WIDTH);
             out_buffers[2] = in_data->buffers[2];
           }
 
           columns[i] = arrow::ArrayData::Make(
-              type,
-              array->length(),
-              std::move(out_buffers),
-              array->null_count(),
-              0);
+              type, array->length(), std::move(out_buffers), array->null_count(), 0);
         }
       } else {
         GLUTEN_ASSIGN_OR_THROW(
-            auto scalar,
-            MakeArrayFromScalar(
-                *value.scalar(), cur_.length, memory_pool_.get()));
+            auto scalar, MakeArrayFromScalar(*value.scalar(), cur_.length, memory_pool_.get()));
         columns[i] = scalar->data();
       }
     }
@@ -412,8 +379,7 @@ ArrowExecResultIterator::Next() {
 
     std::unique_ptr<ArrowSchema> c_schema = std::make_unique<ArrowSchema>();
     std::unique_ptr<ArrowArray> c_array = std::make_unique<ArrowArray>();
-    GLUTEN_THROW_NOT_OK(
-        arrow::ExportRecordBatch(*batch, c_array.get(), c_schema.get()));
+    GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, c_array.get(), c_schema.get()));
     return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
         std::move(c_schema), std::move(c_array));
   }
@@ -422,8 +388,7 @@ ArrowExecResultIterator::Next() {
 
 void Initialize() {
   static auto function_registry = arrow::compute::GetFunctionRegistry();
-  static auto extension_registry =
-      arrow::engine::default_extension_id_registry();
+  static auto extension_registry = arrow::engine::default_extension_id_registry();
   if (function_registry && extension_registry) {
     // TODO: Register customized functions to function_registry, and register
     // the mapping from substrait function names to customized function names to
