@@ -23,7 +23,8 @@
 
 #include "utils/exception.h"
 
-#define TIME_NANO_DIFF(finish, start) (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec)
+#define TIME_NANO_DIFF(finish, start) \
+  (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec)
 
 #define TIME_MICRO_OR_RAISE(time, expr)                                                 \
   do {                                                                                  \
@@ -97,5 +98,6 @@
 
 #define TIME_TO_STRING(time) (time > 10000 ? time / 1000 : time) << (time > 10000 ? " ms" : " us")
 
-#define TIME_NANO_TO_STRING(time) \
-  (time > 1e7 ? time / 1e6 : ((time > 1e4) ? time / 1e3 : time)) << (time > 1e7 ? "ms" : (time > 1e4 ? "us" : "ns"))
+#define TIME_NANO_TO_STRING(time)                                \
+  (time > 1e7 ? time / 1e6 : ((time > 1e4) ? time / 1e3 : time)) \
+      << (time > 1e7 ? "ms" : (time > 1e4 ? "us" : "ns"))

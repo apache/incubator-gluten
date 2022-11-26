@@ -88,7 +88,8 @@ class VeloxInitializer {
 class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
  public:
   GlutenVeloxColumnarBatch(RowVectorPtr rowVector)
-      : gluten::memory::GlutenColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
+      : gluten::memory::GlutenColumnarBatch(rowVector->childrenSize(), rowVector->size()),
+        rowVector_(rowVector) {}
 
   ~GlutenVeloxColumnarBatch() override;
 
@@ -140,7 +141,9 @@ class WholeStageResIter {
 
  private:
   /// Get all the children plan node ids with postorder traversal.
-  void getOrderedNodeIds(const std::shared_ptr<const core::PlanNode>& planNode, std::vector<core::PlanNodeId>& nodeIds);
+  void getOrderedNodeIds(
+      const std::shared_ptr<const core::PlanNode>& planNode,
+      std::vector<core::PlanNodeId>& nodeIds);
 
   /// Collect Velox metrics.
   void collectMetrics();
@@ -168,9 +171,11 @@ class WholeStageResIter {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter : public gluten::ExecBackendBase {
  public:
-  VeloxPlanConverter(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
+  VeloxPlanConverter(const std::unordered_map<std::string, std::string>& confMap)
+      : confMap_(confMap) {}
 
-  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override;
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator) override;
 
   std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
@@ -181,20 +186,24 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
       gluten::memory::MemoryAllocator* allocator,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
 
-  arrow::Result<std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>> getColumnarConverter(
+  arrow::Result<std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
+  getColumnarConverter(
       gluten::memory::MemoryAllocator* allocator,
       std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb) override {
     auto arrowPool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
     auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
-    std::shared_ptr<GlutenVeloxColumnarBatch> veloxBatch = std::dynamic_pointer_cast<GlutenVeloxColumnarBatch>(cb);
+    std::shared_ptr<GlutenVeloxColumnarBatch> veloxBatch =
+        std::dynamic_pointer_cast<GlutenVeloxColumnarBatch>(cb);
     if (veloxBatch != nullptr) {
-      return std::make_shared<VeloxToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
+      return std::make_shared<VeloxToRowConverter>(
+          veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
     }
     // If the child is not Velox output, use Arrow-to-Row conversion instead.
     std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
     std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
     ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+        std::shared_ptr<arrow::RecordBatch> rb,
+        arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
     return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(rb, arrowPool);
@@ -202,7 +211,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   /// Separate the scan ids and stream ids, and get the scan infos.
   void getInfoAndIds(
-      std::unordered_map<core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>> splitInfoMap,
+      std::unordered_map<core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>>
+          splitInfoMap,
       std::unordered_set<core::PlanNodeId> leafPlanNodeIds,
       std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
       std::vector<core::PlanNodeId>& scanIds,

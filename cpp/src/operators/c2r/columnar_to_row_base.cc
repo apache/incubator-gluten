@@ -36,7 +36,9 @@ int32_t ColumnarToRowConverterBase::RoundNumberOfBytesToNearestWord(int32_t numB
   }*/
 }
 
-int64_t ColumnarToRowConverterBase::CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols) {
+int64_t ColumnarToRowConverterBase::CalculatedFixeSizePerRow(
+    std::shared_ptr<arrow::Schema> schema,
+    int64_t num_cols) {
   std::vector<std::shared_ptr<arrow::Field>> fields = schema->fields();
   // Calculate the decimal col num when the precision >18
   int32_t count = 0;
@@ -89,7 +91,11 @@ int32_t ColumnarToRowConverterBase::FirstNonzeroLongNum(std::vector<int32_t> mag
   return fn;
 }
 
-int32_t ColumnarToRowConverterBase::GetInt(int32_t n, int32_t sig, std::vector<int32_t> mag, int32_t length) {
+int32_t ColumnarToRowConverterBase::GetInt(
+    int32_t n,
+    int32_t sig,
+    std::vector<int32_t> mag,
+    int32_t length) {
   if (n < 0)
     return 0;
   if (n >= length)
@@ -138,7 +144,8 @@ int32_t ColumnarToRowConverterBase::GetBitCount(uint32_t i) {
   return i & 0x3f;
 }
 
-int32_t ColumnarToRowConverterBase::GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len) {
+int32_t
+ColumnarToRowConverterBase::GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len) {
   int32_t n = -1;
   if (len == 0) {
     n = 0;
@@ -159,7 +166,8 @@ int32_t ColumnarToRowConverterBase::GetBitLength(int32_t sig, std::vector<int32_
   return n;
 }
 
-std::vector<uint32_t> ColumnarToRowConverterBase::ConvertMagArray(int64_t new_high, uint64_t new_low, int32_t* size) {
+std::vector<uint32_t>
+ColumnarToRowConverterBase::ConvertMagArray(int64_t new_high, uint64_t new_low, int32_t* size) {
   std::vector<uint32_t> mag;
   int64_t orignal_low = new_low;
   int64_t orignal_high = new_high;
@@ -191,7 +199,9 @@ std::vector<uint32_t> ColumnarToRowConverterBase::ConvertMagArray(int64_t new_hi
 /*
  *  This method refer to the BigInterger#toByteArray() method in Java side.
  */
-std::array<uint8_t, 16> ColumnarToRowConverterBase::ToByteArray(arrow::Decimal128 value, int32_t* length) {
+std::array<uint8_t, 16> ColumnarToRowConverterBase::ToByteArray(
+    arrow::Decimal128 value,
+    int32_t* length) {
   int64_t high = value.high_bits();
   uint64_t low = value.low_bits();
   arrow::Decimal128 new_value;

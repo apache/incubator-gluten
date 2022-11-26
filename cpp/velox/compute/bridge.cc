@@ -34,7 +34,9 @@ namespace {
 class ExportedArrayStreamByArray {
  public:
   struct PrivateData {
-    explicit PrivateData(std::shared_ptr<gluten::ArrowArrayIterator> reader, std::shared_ptr<arrow::Schema> schema)
+    explicit PrivateData(
+        std::shared_ptr<gluten::ArrowArrayIterator> reader,
+        std::shared_ptr<arrow::Schema> schema)
         : reader_(std::move(reader)), schema_(schema) {}
 
     std::shared_ptr<gluten::ArrowArrayIterator> reader_;
@@ -142,7 +144,8 @@ Status ExportArrowArray(
   out->get_next = ExportedArrayStreamByArray::StaticGetNext;
   out->get_last_error = ExportedArrayStreamByArray::StaticGetLastError;
   out->release = ExportedArrayStreamByArray::StaticRelease;
-  out->private_data = new ExportedArrayStreamByArray::PrivateData{std::move(reader), std::move(schema)};
+  out->private_data =
+      new ExportedArrayStreamByArray::PrivateData{std::move(reader), std::move(schema)};
   return Status::OK();
 }
 

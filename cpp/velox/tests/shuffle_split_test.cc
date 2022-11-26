@@ -119,14 +119,25 @@ class SplitterTest : public ::testing::Test {
     auto f_nullable_string = field("f_nullable_string", arrow::utf8());
     auto f_decimal = field("f_decimal128", arrow::decimal(10, 2));
 
-    ARROW_ASSIGN_OR_THROW(tmp_dir_1_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
-    ARROW_ASSIGN_OR_THROW(tmp_dir_2_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
+    ARROW_ASSIGN_OR_THROW(
+        tmp_dir_1_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
+    ARROW_ASSIGN_OR_THROW(
+        tmp_dir_2_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
     auto config_dirs = tmp_dir_1_->path().ToString() + "," + tmp_dir_2_->path().ToString();
 
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", config_dirs.c_str(), 1);
 
     schema_ = arrow::schema(
-        {f_na, f_int8_a, f_int8_b, f_int32, f_uint64, f_double, f_bool, f_string, f_nullable_string, f_decimal});
+        {f_na,
+         f_int8_a,
+         f_int8_b,
+         f_int32,
+         f_uint64,
+         f_double,
+         f_bool,
+         f_string,
+         f_nullable_string,
+         f_decimal});
 
     MakeInputBatch(input_data_1, schema_, &input_batch_1_);
     MakeInputBatch(input_data_2, schema_, &input_batch_2_);
@@ -167,20 +178,27 @@ class SplitterTest : public ::testing::Test {
   }
 
   static void CheckFileExsists(const std::string& file_name) {
-    ASSERT_EQ(*arrow::internal::FileExists(*arrow::internal::PlatformFilename::FromString(file_name)), true);
+    ASSERT_EQ(
+        *arrow::internal::FileExists(*arrow::internal::PlatformFilename::FromString(file_name)),
+        true);
   }
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> TakeRows(
       const std::shared_ptr<arrow::RecordBatch>& input_batch,
       const std::string& json_idx) {
     std::shared_ptr<arrow::Array> take_idx;
-    ARROW_ASSIGN_OR_THROW(take_idx, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), json_idx));
+    ARROW_ASSIGN_OR_THROW(
+        take_idx, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), json_idx));
 
     auto cntx = arrow::compute::ExecContext();
     std::shared_ptr<arrow::RecordBatch> res;
     ARROW_ASSIGN_OR_RAISE(
         arrow::Datum result,
-        arrow::compute::Take(arrow::Datum(input_batch), arrow::Datum(take_idx), arrow::compute::TakeOptions{}, &cntx));
+        arrow::compute::Take(
+            arrow::Datum(input_batch),
+            arrow::Datum(take_idx),
+            arrow::compute::TakeOptions{},
+            &cntx));
     return result.record_batch();
   }
 
@@ -277,7 +295,8 @@ TEST_F(SplitterTest, TestSingleSplitter) {
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
 
-  std::vector<arrow::RecordBatch*> expected = {input_batch_1_.get(), input_batch_2_.get(), input_batch_1_.get()};
+  std::vector<arrow::RecordBatch*> expected = {
+      input_batch_1_.get(), input_batch_2_.get(), input_batch_1_.get()};
   for (auto i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
@@ -286,7 +305,8 @@ TEST_F(SplitterTest, TestSingleSplitter) {
       //      std::cout << " result " << rb->column(j)->ToString() << std::endl;
       //      std::cout << " expected " << expected[i]->column(j)->ToString() <<
       //      std::endl;
-      ASSERT_TRUE(rb->column(j)->Equals(*expected[i]->column(j), EqualOptions::Defaults().diff_sink(&std::cout)));
+      ASSERT_TRUE(rb->column(j)->Equals(
+          *expected[i]->column(j), EqualOptions::Defaults().diff_sink(&std::cout)));
     }
     ASSERT_TRUE(rb->Equals(*expected[i]));
   }
@@ -320,7 +340,8 @@ TEST_F(SplitterTest, TestRoundRobinSplitter) {
   std::shared_ptr<arrow::RecordBatch> res_batch_1;
   ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_1_, "[0, 2, 4, 6, 8]"))
   ARROW_ASSIGN_OR_THROW(res_batch_1, TakeRows(input_batch_2_, "[0]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
+  std::vector<arrow::RecordBatch*> expected = {
+      res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
 
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -381,7 +402,8 @@ TEST_F(SplitterTest, TestHashSplitter) {
   int32_t num_partitions = 2;
   split_options_.buffer_size = 4;
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", hash_schema_, num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(
+      splitter_, Splitter::Make("hash", hash_schema_, num_partitions, split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
   ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_2_));
@@ -418,9 +440,11 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
 
   std::shared_ptr<arrow::Array> pid_arr_0;
   ARROW_ASSIGN_OR_THROW(
-      pid_arr_0, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]"));
+      pid_arr_0,
+      arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]"));
   std::shared_ptr<arrow::Array> pid_arr_1;
-  ARROW_ASSIGN_OR_THROW(pid_arr_1, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1]"));
+  ARROW_ASSIGN_OR_THROW(
+      pid_arr_1, arrow::ipc::internal::json::ArrayFromJSON(arrow::int32(), "[0, 1]"));
 
   std::shared_ptr<arrow::Schema> schema_w_pid;
   std::shared_ptr<arrow::RecordBatch> input_batch_1_w_pid;
@@ -429,7 +453,8 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
   ARROW_ASSIGN_OR_THROW(input_batch_1_w_pid, input_batch_1_->AddColumn(0, "pid", pid_arr_0));
   ARROW_ASSIGN_OR_THROW(input_batch_2_w_pid, input_batch_2_->AddColumn(0, "pid", pid_arr_1));
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("range", std::move(schema_w_pid), num_partitions, split_options_))
+  ARROW_ASSIGN_OR_THROW(
+      splitter_, Splitter::Make("range", std::move(schema_w_pid), num_partitions, split_options_))
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_1_w_pid));
   ASSERT_NOT_OK(splitter_->Split(*input_batch_2_w_pid));
@@ -454,7 +479,8 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
   std::shared_ptr<arrow::RecordBatch> res_batch_1;
   ARROW_ASSIGN_OR_THROW(res_batch_0, TakeRows(input_batch_1_, "[0, 2, 4, 6, 8]"))
   ARROW_ASSIGN_OR_THROW(res_batch_1, TakeRows(input_batch_2_, "[0]"))
-  std::vector<arrow::RecordBatch*> expected = {res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
+  std::vector<arrow::RecordBatch*> expected = {
+      res_batch_0.get(), res_batch_1.get(), res_batch_0.get()};
 
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
@@ -741,7 +767,8 @@ TEST_F(SplitterTest, TestRoundRobinNestLargeListArraySplitter) {
 
 TEST_F(SplitterTest, TestRoundRobinListStructArraySplitter) {
   auto f_arr_int32 = field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_list_struct = field("f_list_struct", list(struct_({field("a", int32()), field("b", utf8())})));
+  auto f_arr_list_struct =
+      field("f_list_struct", list(struct_({field("a", int32()), field("b", utf8())})));
 
   auto rb_schema = arrow::schema({f_arr_int32, f_arr_list_struct});
 
@@ -881,7 +908,8 @@ TEST_F(SplitterTest, TestRoundRobinListMapArraySplitter) {
 
 TEST_F(SplitterTest, TestRoundRobinStructArraySplitter) {
   auto f_arr_int32 = field("f_int32", arrow::list(arrow::list(arrow::int32())));
-  auto f_arr_struct_list = field("f_struct_list", struct_({field("a", list(int32())), field("b", utf8())}));
+  auto f_arr_struct_list =
+      field("f_struct_list", struct_({field("a", list(int32())), field("b", utf8())}));
 
   auto rb_schema = arrow::schema({f_arr_int32, f_arr_struct_list});
 
@@ -1029,11 +1057,13 @@ TEST_F(SplitterTest, TestHashListArraySplitterWithMorePartitions) {
 
   auto rb_schema = arrow::schema({hash_partition_key, f_uint64, f_arr_str});
   auto data_schema = arrow::schema({f_uint64, f_arr_str});
-  const std::vector<std::string> input_batch_1_data = {R"([1, 2])", R"([1, 2])", R"([["alice0", "bob1"], ["alice2"]])"};
+  const std::vector<std::string> input_batch_1_data = {
+      R"([1, 2])", R"([1, 2])", R"([["alice0", "bob1"], ["alice2"]])"};
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_batch_1_data, rb_schema, &input_batch_arr);
 
-  ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("hash", rb_schema, num_partitions, split_options_));
+  ARROW_ASSIGN_OR_THROW(
+      splitter_, Splitter::Make("hash", rb_schema, num_partitions, split_options_));
 
   ASSERT_NOT_OK(splitter_->Split(*input_batch_arr));
 

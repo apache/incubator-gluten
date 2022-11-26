@@ -53,7 +53,8 @@ class ResultIteratorBase {
 class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
  public:
   virtual ~ExecBackendBase() = default;
-  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) = 0;
+  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator) = 0;
   virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
       std::vector<std::shared_ptr<GlutenResultIterator>> inputs) = 0;
@@ -68,7 +69,8 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
       std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
       std::cout << maybe_plan_json.ValueOrDie() << std::endl;
     } else {
-      std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
+      std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString()
+                << std::endl;
     }
 #endif
     return ParseProtobuf(data, size, &plan_);
@@ -81,14 +83,16 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
-  virtual arrow::Result<std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>> getColumnarConverter(
+  virtual arrow::Result<std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
+  getColumnarConverter(
       gluten::memory::MemoryAllocator* allocator,
       std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb) {
     auto memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
     std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
     std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
     ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+        std::shared_ptr<arrow::RecordBatch> rb,
+        arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
     return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(rb, memory_pool);
@@ -116,7 +120,9 @@ class GlutenResultIterator : public ResultIteratorBase<memory::GlutenColumnarBat
   /// output, it can hold the backend to tie their lifetimes, which can be used
   /// when the production of the iterator relies on the backend.
   template <typename T>
-  explicit GlutenResultIterator(std::shared_ptr<T> iter, std::shared_ptr<ExecBackendBase> backend = nullptr)
+  explicit GlutenResultIterator(
+      std::shared_ptr<T> iter,
+      std::shared_ptr<ExecBackendBase> backend = nullptr)
       : raw_iter_(iter.get()),
         iter_(std::make_unique<GlutenIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),

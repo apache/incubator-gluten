@@ -96,7 +96,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<TinyintType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<TinyintType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -110,7 +111,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<SmallintType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<SmallintType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -124,7 +126,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<IntegerType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<IntegerType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -138,7 +141,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<BigintType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<BigintType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -152,7 +156,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<DateType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<DateType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -166,7 +171,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<RealType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<RealType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -180,7 +186,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<DoubleType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<DoubleType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -194,7 +201,8 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<BooleanType>(vec, write_address, row_idx);
+            auto serialized =
+                row::UnsafeRowSerializer::serialize<BooleanType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -214,7 +222,10 @@ arrow::Status VeloxToRowConverter::Write() {
             memcpy(buffer_address_ + offsets_[row_idx] + buffer_cursor_[row_idx], value, length);
             int64_t offset_and_size = ((int64_t)buffer_cursor_[row_idx] << 32) | length;
             // Write the offset and size.
-            memcpy(buffer_address_ + offsets_[row_idx] + field_offset, &offset_and_size, sizeof(int64_t));
+            memcpy(
+                buffer_address_ + offsets_[row_idx] + field_offset,
+                &offset_and_size,
+                sizeof(int64_t));
             buffer_cursor_[row_idx] += length;
           }
         }
@@ -222,7 +233,8 @@ arrow::Status VeloxToRowConverter::Write() {
       }
       default:
         return arrow::Status::Invalid(
-            "Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");
+            "Type " + schema_->field(col_idx)->type()->name() +
+            " is not supported in VeloxToRow conversion.");
     }
   }
   return arrow::Status::OK();

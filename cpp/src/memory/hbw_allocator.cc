@@ -49,7 +49,12 @@ bool HbwMemoryAllocator::Reallocate(void* p, int64_t size, int64_t new_size, voi
   return true;
 }
 
-bool HbwMemoryAllocator::ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) {
+bool HbwMemoryAllocator::ReallocateAligned(
+    void* p,
+    uint16_t alignment,
+    int64_t size,
+    int64_t new_size,
+    void** out) {
   if (new_size <= 0) {
     return false;
   }

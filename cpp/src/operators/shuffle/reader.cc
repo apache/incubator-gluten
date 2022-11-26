@@ -53,7 +53,8 @@ arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Reader::Next
     return nullptr;
   }
   GLUTEN_ASSIGN_OR_THROW(
-      arrow_batch, arrow::ipc::ReadRecordBatch(*message_to_read, schema_, nullptr, options_.ipc_read_options))
+      arrow_batch,
+      arrow::ipc::ReadRecordBatch(*message_to_read, schema_, nullptr, options_.ipc_read_options))
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> gluten_batch =
       std::make_shared<gluten::memory::GlutenArrowColumnarBatch>(arrow_batch);
   return gluten_batch;

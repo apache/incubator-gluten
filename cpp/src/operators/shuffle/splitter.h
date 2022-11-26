@@ -39,7 +39,8 @@ class Splitter {
   struct BinaryBuff {
     BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c, uint64_t f)
         : valueptr(v), offsetptr(o), value_capacity(c), value_offset(f) {}
-    BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c) : valueptr(v), offsetptr(o), value_capacity(c), value_offset(0) {}
+    BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c)
+        : valueptr(v), offsetptr(o), value_capacity(c), value_offset(0) {}
     BinaryBuff() : valueptr(nullptr), offsetptr(nullptr), value_capacity(0), value_offset(0) {}
 
     uint8_t* valueptr;
@@ -306,7 +307,10 @@ class RoundRobinSplitter : public Splitter {
   Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
 
  private:
-  RoundRobinSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
+  RoundRobinSplitter(
+      int32_t num_partitions,
+      std::shared_ptr<arrow::Schema> schema,
+      SplitOptions options)
       : Splitter(num_partitions, std::move(schema), std::move(options)) {}
 
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
@@ -347,7 +351,10 @@ class FallbackRangeSplitter : public Splitter {
   }
 
  private:
-  FallbackRangeSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
+  FallbackRangeSplitter(
+      int32_t num_partitions,
+      std::shared_ptr<arrow::Schema> schema,
+      SplitOptions options)
       : Splitter(num_partitions, std::move(schema), std::move(options)) {}
 
   arrow::Status Init() override;

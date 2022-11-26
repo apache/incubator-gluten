@@ -27,7 +27,9 @@ namespace velox::compute {
 
 void registerCustomFunctions() {
   exec::registerVectorFunction(
-      "row_constructor", std::vector<std::shared_ptr<exec::FunctionSignature>>{}, std::make_unique<RowConstructor>());
+      "row_constructor",
+      std::vector<std::shared_ptr<exec::FunctionSignature>>{},
+      std::make_unique<RowConstructor>());
 }
 
 void registerAllFunctions() {

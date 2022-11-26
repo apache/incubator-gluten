@@ -196,7 +196,10 @@ class BenchmarkShuffleSplit {
     properties.set_use_threads(false);
 
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file), properties, &parquet_reader));
+        arrow::default_memory_pool(),
+        ::parquet::ParquetFileReader::Open(file),
+        properties,
+        &parquet_reader));
 
     GLUTEN_THROW_NOT_OK(parquet_reader->GetSchema(&schema));
 
@@ -236,7 +239,8 @@ class BenchmarkShuffleSplit {
     int64_t split_time = 0;
     auto start_time = std::chrono::steady_clock::now();
 
-    Do_Split(splitter, elapse_read, num_batches, num_rows, split_time, num_partitions, options, state);
+    Do_Split(
+        splitter, elapse_read, num_batches, num_rows, split_time, num_partitions, options, state);
     auto end_time = std::chrono::steady_clock::now();
     auto total_time = (end_time - start_time).count();
 
@@ -246,45 +250,62 @@ class BenchmarkShuffleSplit {
     state.SetBytesProcessed(int64_t(splitter->RawPartitionBytes()));
 
     state.counters["rowgroups"] = benchmark::Counter(
-        row_group_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["columns"] =
-        benchmark::Counter(column_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["batches"] =
-        benchmark::Counter(num_batches, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["num_rows"] =
-        benchmark::Counter(num_rows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["num_partitions"] =
-        benchmark::Counter(num_partitions, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["batch_buffer_size"] =
-        benchmark::Counter(batch_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
-    state.counters["split_buffer_size"] =
-        benchmark::Counter(split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        row_group_indices.size(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
+    state.counters["columns"] = benchmark::Counter(
+        column_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    state.counters["batches"] = benchmark::Counter(
+        num_batches, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    state.counters["num_rows"] = benchmark::Counter(
+        num_rows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    state.counters["num_partitions"] = benchmark::Counter(
+        num_partitions, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    state.counters["batch_buffer_size"] = benchmark::Counter(
+        batch_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+    state.counters["split_buffer_size"] = benchmark::Counter(
+        split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["bytes_spilled"] = benchmark::Counter(
-        splitter->TotalBytesSpilled(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        splitter->TotalBytesSpilled(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_written"] = benchmark::Counter(
-        splitter->TotalBytesWritten(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        splitter->TotalBytesWritten(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_raw"] = benchmark::Counter(
-        splitter->RawPartitionBytes(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        splitter->RawPartitionBytes(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_spilled"] = benchmark::Counter(
-        splitter->TotalBytesSpilled(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        splitter->TotalBytesSpilled(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1024);
 
-    state.counters["parquet_parse"] =
-        benchmark::Counter(elapse_read, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    state.counters["parquet_parse"] = benchmark::Counter(
+        elapse_read, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] = benchmark::Counter(
-        splitter->TotalWriteTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        splitter->TotalWriteTime(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
     state.counters["spill_time"] = benchmark::Counter(
-        splitter->TotalSpillTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        splitter->TotalSpillTime(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
     state.counters["compress_time"] = benchmark::Counter(
-        splitter->TotalCompressTime(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+        splitter->TotalCompressTime(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
 
-    split_time = split_time - splitter->TotalSpillTime() - splitter->TotalCompressTime() - splitter->TotalWriteTime();
+    split_time = split_time - splitter->TotalSpillTime() - splitter->TotalCompressTime() -
+        splitter->TotalWriteTime();
 
-    state.counters["split_time"] =
-        benchmark::Counter(split_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    state.counters["split_time"] = benchmark::Counter(
+        split_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
-    state.counters["total_time"] =
-        benchmark::Counter(total_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    state.counters["total_time"] = benchmark::Counter(
+        total_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     splitter.reset();
   }
 
@@ -316,7 +337,8 @@ class BenchmarkShuffleSplit {
 
 class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
  public:
-  BenchmarkShuffleSplit_CacheScan_Benchmark(std::string filename) : BenchmarkShuffleSplit(filename) {}
+  BenchmarkShuffleSplit_CacheScan_Benchmark(std::string filename)
+      : BenchmarkShuffleSplit(filename) {}
 
  protected:
   void Do_Split(
@@ -363,11 +385,14 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
     std::unique_ptr<::parquet::arrow::FileReader> parquet_reader;
     std::shared_ptr<RecordBatchReader> record_batch_reader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file), properties, &parquet_reader));
+        arrow::default_memory_pool(),
+        ::parquet::ParquetFileReader::Open(file),
+        properties,
+        &parquet_reader));
 
     std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-    GLUTEN_THROW_NOT_OK(
-        parquet_reader->GetRecordBatchReader(row_group_indices, local_column_indices, &record_batch_reader));
+    GLUTEN_THROW_NOT_OK(parquet_reader->GetRecordBatchReader(
+        row_group_indices, local_column_indices, &record_batch_reader));
     do {
       TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
 
@@ -397,7 +422,8 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
 
 class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit {
  public:
-  BenchmarkShuffleSplit_IterateScan_Benchmark(std::string filename) : BenchmarkShuffleSplit(filename) {}
+  BenchmarkShuffleSplit_IterateScan_Benchmark(std::string filename)
+      : BenchmarkShuffleSplit(filename) {}
 
  protected:
   void Do_Split(
@@ -412,19 +438,23 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     if (state.thread_index() == 0)
       std::cout << schema->ToString() << std::endl;
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", schema, num_partitions, std::move(options)));
+    GLUTEN_ASSIGN_OR_THROW(
+        splitter, Splitter::Make("rr", schema, num_partitions, std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
     std::unique_ptr<::parquet::arrow::FileReader> parquet_reader;
     std::shared_ptr<RecordBatchReader> record_batch_reader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file), properties, &parquet_reader));
+        arrow::default_memory_pool(),
+        ::parquet::ParquetFileReader::Open(file),
+        properties,
+        &parquet_reader));
 
     for (auto _ : state) {
       std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-      GLUTEN_THROW_NOT_OK(
-          parquet_reader->GetRecordBatchReader(row_group_indices, column_indices, &record_batch_reader));
+      GLUTEN_THROW_NOT_OK(parquet_reader->GetRecordBatchReader(
+          row_group_indices, column_indices, &record_batch_reader));
       TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       while (record_batch) {
         num_batches += 1;

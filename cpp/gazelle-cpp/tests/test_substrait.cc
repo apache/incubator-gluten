@@ -31,7 +31,8 @@ class TestSubstrait : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
     gazellecpp::compute::Initialize();
-    gluten::SetBackendFactory([] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
+    gluten::SetBackendFactory(
+        [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
     // setenv("MEMKIND_HBW_NODES", "0", 1);
   }
 
@@ -52,7 +53,8 @@ TEST_F(TestSubstrait, TestParsePlan) {
   const auto filePath = current_path + "/../../gazelle-cpp/tests/data/query.json";
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
-    throw gluten::GlutenException("Can not get plan from file " + filePath + " Error: " + maybePlan.status().message());
+    throw gluten::GlutenException(
+        "Can not get plan from file " + filePath + " Error: " + maybePlan.status().message());
   };
 
   auto plan = std::move(maybePlan).ValueOrDie();

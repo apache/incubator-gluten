@@ -70,9 +70,12 @@ void DwrfDatasource::Init(const std::unordered_map<std::string, std::string>& sp
   for (auto iter = sparkConfs.begin(); iter != sparkConfs.end(); iter++) {
     auto key = iter->first;
     if (strcmp(key.c_str(), "hive.exec.orc.stripe.size") == 0) {
-      config->set(facebook::velox::dwrf::Config::STRIPE_SIZE, static_cast<uint64_t>(stoi(iter->second)));
+      config->set(
+          facebook::velox::dwrf::Config::STRIPE_SIZE, static_cast<uint64_t>(stoi(iter->second)));
     } else if (strcmp(key.c_str(), "hive.exec.orc.row.index.stride") == 0) {
-      config->set(facebook::velox::dwrf::Config::ROW_INDEX_STRIDE, static_cast<uint32_t>(stoi(iter->second)));
+      config->set(
+          facebook::velox::dwrf::Config::ROW_INDEX_STRIDE,
+          static_cast<uint32_t>(stoi(iter->second)));
     } else if (strcmp(key.c_str(), "hive.exec.orc.compress") == 0) {
       // Currently velox only support ZLIB and ZSTD and the default is ZSTD.
       if (strcasecmp(iter->second.c_str(), "ZLIB") == 0) {
@@ -106,7 +109,9 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
     std::unique_ptr<dwio::common::Reader> reader =
         dwio::common::getReaderFactory(reader_options.getFileFormat())
-            ->createReader(std::make_unique<dwio::common::FileInputStream>(file_path_.substr(5)), reader_options);
+            ->createReader(
+                std::make_unique<dwio::common::FileInputStream>(file_path_.substr(5)),
+                reader_options);
     return toArrowSchema(reader->rowType());
   }
 #ifdef VELOX_ENABLE_HDFS
@@ -121,12 +126,14 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
     HdfsReadFile readFile(hdfs, hdfsFilePath);
     std::unique_ptr<dwio::common::Reader> reader =
         dwio::common::getReaderFactory(reader_options.getFileFormat())
-            ->createReader(std::make_unique<dwio::common::ReadFileInputStream>(&readFile), reader_options);
+            ->createReader(
+                std::make_unique<dwio::common::ReadFileInputStream>(&readFile), reader_options);
     return toArrowSchema(reader->rowType());
   }
 #endif
   else {
-    throw std::runtime_error("The path is not local file path when inspect shcema with DWRF format!");
+    throw std::runtime_error(
+        "The path is not local file path when inspect shcema with DWRF format!");
   }
 }
 

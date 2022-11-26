@@ -32,7 +32,8 @@ namespace columnartorow {
 
 class ColumnarToRowConverterBase {
  public:
-  ColumnarToRowConverterBase(std::shared_ptr<arrow::MemoryPool> arrow_pool) : arrow_pool_(arrow_pool) {}
+  ColumnarToRowConverterBase(std::shared_ptr<arrow::MemoryPool> arrow_pool)
+      : arrow_pool_(arrow_pool) {}
 
   virtual ~ColumnarToRowConverterBase() = default;
 
@@ -71,7 +72,8 @@ class ColumnarToRowConverterBase {
 
   void BitSet(uint8_t* buffer_address, int32_t index);
 
-  void SetNullAt(uint8_t* buffer_address, int64_t row_offset, int64_t field_offset, int32_t col_index);
+  void
+  SetNullAt(uint8_t* buffer_address, int64_t row_offset, int64_t field_offset, int32_t col_index);
 
   int32_t FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length);
 

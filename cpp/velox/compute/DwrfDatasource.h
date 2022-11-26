@@ -41,7 +41,10 @@ namespace compute {
 
 class DwrfDatasource {
  public:
-  DwrfDatasource(const std::string& file_path, std::shared_ptr<arrow::Schema> schema, memory::MemoryPool* pool)
+  DwrfDatasource(
+      const std::string& file_path,
+      std::shared_ptr<arrow::Schema> schema,
+      memory::MemoryPool* pool)
       : file_path_(file_path), schema_(schema), pool_(pool) {}
 
   void Init(const std::unordered_map<std::string, std::string>& sparkConfs);

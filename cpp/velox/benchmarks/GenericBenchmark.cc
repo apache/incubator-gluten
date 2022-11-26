@@ -53,7 +53,8 @@ auto BM_Generic = [](::benchmark::State& state,
   for (auto _ : state) {
     auto backend = gluten::CreateBackend();
     std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputIters;
-    std::transform(input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
+    std::transform(
+        input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
     std::vector<BatchIteratorWrapper*> inputItersRaw;
     std::transform(
         inputIters.begin(),
@@ -64,7 +65,8 @@ auto BM_Generic = [](::benchmark::State& state,
         });
 
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
+    auto resultIter = backend->GetResultIterator(
+        gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
     auto outputSchema = backend->GetOutputSchema();
 
     while (resultIter->HasNext()) {
@@ -81,8 +83,8 @@ auto BM_Generic = [](::benchmark::State& state,
       }
     }
 
-    collectBatchTime +=
-        std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIteratorWrapper* iter) {
+    collectBatchTime += std::accumulate(
+        inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIteratorWrapper* iter) {
           return sum + iter->GetCollectBatchTime();
         });
 
@@ -96,10 +98,10 @@ auto BM_Generic = [](::benchmark::State& state,
   auto endTime = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
 
-  state.counters["collect_batch_time"] =
-      benchmark::Counter(collectBatchTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
-  state.counters["elapsed_time"] =
-      benchmark::Counter(duration, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  state.counters["collect_batch_time"] = benchmark::Counter(
+      collectBatchTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  state.counters["elapsed_time"] = benchmark::Counter(
+      duration, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 };
 
 int main(int argc, char** argv) {
@@ -128,19 +130,20 @@ int main(int argc, char** argv) {
     }
   }
 
-#define GENERIC_BENCHMARK(NAME, FUNC)                                                                \
-  do {                                                                                               \
-    auto* bm = ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
-                   ->MeasureProcessCPUTime()                                                         \
-                   ->UseRealTime();                                                                  \
-    if (FLAGS_threads > 0) {                                                                         \
-      bm->Threads(FLAGS_threads);                                                                    \
-    } else {                                                                                         \
-      bm->ThreadRange(1, std::thread::hardware_concurrency());                                       \
-    }                                                                                                \
-    if (FLAGS_iterations > 0) {                                                                      \
-      bm->Iterations(FLAGS_iterations);                                                              \
-    }                                                                                                \
+#define GENERIC_BENCHMARK(NAME, FUNC)                                                         \
+  do {                                                                                        \
+    auto* bm =                                                                                \
+        ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
+            ->MeasureProcessCPUTime()                                                         \
+            ->UseRealTime();                                                                  \
+    if (FLAGS_threads > 0) {                                                                  \
+      bm->Threads(FLAGS_threads);                                                             \
+    } else {                                                                                  \
+      bm->ThreadRange(1, std::thread::hardware_concurrency());                                \
+    }                                                                                         \
+    if (FLAGS_iterations > 0) {                                                               \
+      bm->Iterations(FLAGS_iterations);                                                       \
+    }                                                                                         \
   } while (0)
 
   GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);

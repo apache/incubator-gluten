@@ -35,7 +35,8 @@ class TestHbwAllocator : public ::testing::Test {
     buf = nullptr;
   }
 
-  std::shared_ptr<gluten::memory::MemoryAllocator> allocator = gluten::memory::DefaultMemoryAllocator();
+  std::shared_ptr<gluten::memory::MemoryAllocator> allocator =
+      gluten::memory::DefaultMemoryAllocator();
 };
 
 TEST_F(TestHbwAllocator, TestHbwEnabled) {

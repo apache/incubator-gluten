@@ -86,8 +86,10 @@ static struct JniErrorsGlobalState {
     runtime_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/RuntimeException;");
     unsupportedoperation_exception_class_ =
         CreateGlobalClassReference(env, "Ljava/lang/UnsupportedOperationException;");
-    illegal_access_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalAccessException;");
-    illegal_argument_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
+    illegal_access_exception_class_ =
+        CreateGlobalClassReference(env, "Ljava/lang/IllegalAccessException;");
+    illegal_argument_exception_class_ =
+        CreateGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
   }
 
   jclass RuntimeExceptionClass() {

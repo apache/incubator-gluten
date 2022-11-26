@@ -108,7 +108,8 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
     ARROW_ASSIGN_OR_RAISE(buffer_, AllocateBuffer(total_memory_size + 64, arrow_pool_.get()));
 #ifdef __AVX512BW__
     if (ARROW_PREDICT_TRUE(support_avx512_)) {
-      memset(buffer_->mutable_data() + total_memory_size, 0, buffer_->capacity() - total_memory_size);
+      memset(
+          buffer_->mutable_data() + total_memory_size, 0, buffer_->capacity() - total_memory_size);
     } else
 #endif
     {
@@ -187,7 +188,8 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
               offset_type k;
               for (k = 0; k + 32 < length; k += 32) {
                 __m256i v = _mm256_loadu_si256((const __m256i*)(value + k));
-                _mm256_storeu_si256((__m256i*)(buffer_address + offsets[j] + buffer_cursor[j] + k), v);
+                _mm256_storeu_si256(
+                    (__m256i*)(buffer_address + offsets[j] + buffer_cursor[j] + k), v);
               }
               // create some bits of "1", num equals length
               auto mask = (1L << (length - k)) - 1;
@@ -320,8 +322,11 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
       } else {
         dataptrs[col_index].push_back(nullptr);
       }
-      dataptrs[col_index].push_back(bufs[1]->data() + arraydata->offset * (arrow::bit_width(array->type_id()) >> 3));
-    } else if (array->type_id() == arrow::StringType::type_id || array->type_id() == arrow::BinaryType::type_id) {
+      dataptrs[col_index].push_back(
+          bufs[1]->data() + arraydata->offset * (arrow::bit_width(array->type_id()) >> 3));
+    } else if (
+        array->type_id() == arrow::StringType::type_id ||
+        array->type_id() == arrow::BinaryType::type_id) {
       if (bufs[0]) {
         dataptrs[col_index].push_back(bufs[0]->data());
       } else {
