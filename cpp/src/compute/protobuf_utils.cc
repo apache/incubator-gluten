@@ -55,8 +55,8 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
   std::string out;
   google::protobuf::io::StringOutputStream out_stream{&out};
 
-  auto status = google::protobuf::util::JsonToBinaryStream(
-      GetGeneratedTypeResolver(), type_url, &json_stream, &out_stream);
+  auto status =
+      google::protobuf::util::JsonToBinaryStream(GetGeneratedTypeResolver(), type_url, &json_stream, &out_stream);
 
   if (!status.ok()) {
     return arrow::Status::Invalid("JsonToBinaryStream returned ", status);
@@ -64,9 +64,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
   return arrow::Buffer::FromString(std::move(out));
 }
 
-arrow::Result<std::string> SubstraitToJSON(
-    arrow::util::string_view type_name,
-    const arrow::Buffer& buf) {
+arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name, const arrow::Buffer& buf) {
   std::string type_url = "/substrait." + type_name.to_string();
 
   google::protobuf::io::ArrayInputStream buf_stream{buf.data(), static_cast<int>(buf.size())};
@@ -74,8 +72,8 @@ arrow::Result<std::string> SubstraitToJSON(
   std::string out;
   google::protobuf::io::StringOutputStream out_stream{&out};
 
-  auto status = google::protobuf::util::BinaryToJsonStream(
-      GetGeneratedTypeResolver(), type_url, &buf_stream, &out_stream);
+  auto status =
+      google::protobuf::util::BinaryToJsonStream(GetGeneratedTypeResolver(), type_url, &buf_stream, &out_stream);
   if (!status.ok()) {
     return arrow::Status::Invalid("BinaryToJsonStream returned ", status);
   }

@@ -71,8 +71,7 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
     for (auto i = 0; i < inputs.size(); ++i) {
       auto it = schema_map_.find(i);
       if (it == schema_map_.end()) {
-        throw gluten::GlutenException(
-            "Schema not found for input batch iterator " + std::to_string(i));
+        throw gluten::GlutenException("Schema not found for input batch iterator " + std::to_string(i));
       }
       auto schema = it->second;
       auto batch_it = MakeMapIterator(
@@ -82,10 +81,8 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
           },
           std::move(*inputs[i]->ToArrowArrayIterator()));
       GLUTEN_ASSIGN_OR_THROW(
-          auto gen,
-          arrow::MakeBackgroundGenerator(std::move(batch_it), arrow::internal::GetCpuThreadPool()));
-      source_decls.emplace_back(
-          "source", arrow::compute::SourceNodeOptions{schema, std::move(gen)});
+          auto gen, arrow::MakeBackgroundGenerator(std::move(batch_it), arrow::internal::GetCpuThreadPool()));
+      source_decls.emplace_back("source", arrow::compute::SourceNodeOptions{schema, std::move(gen)});
     }
     ReplaceSourceDecls(std::move(source_decls));
   }
@@ -107,10 +104,7 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
     GLUTEN_ASSIGN_OR_THROW(
         node,
         arrow::compute::MakeExecNode(
-            "project",
-            exec_plan_.get(),
-            {node},
-            arrow::compute::ProjectNodeOptions(std::move(fields))));
+            "project", exec_plan_.get(), {node}, arrow::compute::ProjectNodeOptions(std::move(fields))));
   }
 
   output_schema_ = node->output_schema();
@@ -118,8 +112,8 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
   // Add sink node. It's added after constructing plan from decls because sink
   // node doesn't have output schema.
   arrow::AsyncGenerator<arrow::util::optional<arrow::compute::ExecBatch>> sink_gen;
-  GLUTEN_THROW_NOT_OK(arrow::compute::MakeExecNode(
-      "sink", exec_plan_.get(), {node}, arrow::compute::SinkNodeOptions{&sink_gen}));
+  GLUTEN_THROW_NOT_OK(
+      arrow::compute::MakeExecNode("sink", exec_plan_.get(), {node}, arrow::compute::SinkNodeOptions{&sink_gen}));
 
   GLUTEN_THROW_NOT_OK(exec_plan_->Validate());
   GLUTEN_THROW_NOT_OK(exec_plan_->StartProducing());
@@ -131,8 +125,7 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
 #endif
 
   auto iter = arrow::MakeGeneratorIterator(std::move(sink_gen));
-  auto sink_iter =
-      std::make_shared<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
+  auto sink_iter = std::make_shared<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
 
   return std::make_shared<gluten::GlutenResultIterator>(std::move(sink_iter), shared_from_this());
 }
@@ -154,13 +147,9 @@ void ArrowExecBackend::PushDownFilter() {
       if (input_decl.factory_name == "filter" && input_decl.inputs.size() == 1) {
         auto scan_decl = arrow::util::get<arrow::compute::Declaration>(input_decl.inputs[0]);
         if (scan_decl.factory_name == "scan") {
-          auto expression =
-              arrow::internal::checked_pointer_cast<arrow::compute::FilterNodeOptions>(
-                  input_decl.options)
-                  ->filter_expression;
-          auto scan_options =
-              arrow::internal::checked_pointer_cast<arrow::dataset::ScanNodeOptions>(
-                  scan_decl.options);
+          auto expression = arrow::internal::checked_pointer_cast<arrow::compute::FilterNodeOptions>(input_decl.options)
+                                ->filter_expression;
+          auto scan_options = arrow::internal::checked_pointer_cast<arrow::dataset::ScanNodeOptions>(scan_decl.options);
           const auto& schema = scan_options->dataset->schema();
           FieldPathToName(&expression, schema);
           scan_options->scan_options->filter = std::move(expression);
@@ -309,9 +298,8 @@ void ArrowExecBackend::ReplaceSourceDecls(std::vector<arrow::compute::Declaratio
   }
 
   for (auto& source_index : source_indexes) {
-    auto index = arrow::internal::checked_pointer_cast<arrow::compute::SourceIndexOptions>(
-                     source_index->options)
-                     ->index;
+    auto index =
+        arrow::internal::checked_pointer_cast<arrow::compute::SourceIndexOptions>(source_index->options)->index;
     *source_index = std::move(source_decls[index]);
   }
 }
@@ -344,8 +332,7 @@ std::shared_ptr<gluten::memory::GlutenColumnarBatch> ArrowExecResultIterator::Ne
             out_buffers[0] = nullptr;
           } else {
             out_buffers[0] = std::make_shared<arrow::Buffer>(
-                in_data->buffers[0]->data() + (offset >> 3),
-                arrow::bit_util::BytesForBits(in_data->length));
+                in_data->buffers[0]->data() + (offset >> 3), arrow::bit_util::BytesForBits(in_data->length));
           }
 
           // Process data/offset buffer
@@ -366,12 +353,10 @@ std::shared_ptr<gluten::memory::GlutenColumnarBatch> ArrowExecResultIterator::Ne
             out_buffers[2] = in_data->buffers[2];
           }
 
-          columns[i] = arrow::ArrayData::Make(
-              type, array->length(), std::move(out_buffers), array->null_count(), 0);
+          columns[i] = arrow::ArrayData::Make(type, array->length(), std::move(out_buffers), array->null_count(), 0);
         }
       } else {
-        GLUTEN_ASSIGN_OR_THROW(
-            auto scalar, MakeArrayFromScalar(*value.scalar(), cur_.length, memory_pool_.get()));
+        GLUTEN_ASSIGN_OR_THROW(auto scalar, MakeArrayFromScalar(*value.scalar(), cur_.length, memory_pool_.get()));
         columns[i] = scalar->data();
       }
     }
@@ -380,8 +365,7 @@ std::shared_ptr<gluten::memory::GlutenColumnarBatch> ArrowExecResultIterator::Ne
     std::unique_ptr<ArrowSchema> c_schema = std::make_unique<ArrowSchema>();
     std::unique_ptr<ArrowArray> c_array = std::make_unique<ArrowArray>();
     GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, c_array.get(), c_schema.get()));
-    return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
-        std::move(c_schema), std::move(c_array));
+    return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(std::move(c_schema), std::move(c_array));
   }
   return nullptr;
 }

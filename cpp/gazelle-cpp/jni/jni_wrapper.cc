@@ -42,18 +42,14 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
-    JNIEnv* env,
-    jobject obj) {
+Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv* env, jobject obj) {
   JNI_METHOD_START
   gazellecpp::compute::Initialize();
-  gluten::SetBackendFactory(
-      [] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
+  gluten::SetBackendFactory([] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
   JNI_METHOD_END()
 }
 
-JNIEXPORT jboolean JNICALL
-Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env,
     jobject obj,
     jbyteArray planArray) {
@@ -68,8 +64,7 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
     std::cout << maybe_plan_json.ValueOrDie() << std::endl;
   } else {
-    std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString()
-              << std::endl;
+    std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
   }
 #endif
   ParseProtobuf(data, size, &plan);
