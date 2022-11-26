@@ -23,8 +23,7 @@ namespace gluten {
 
 class DummyBackend : public ExecBackendBase {
  public:
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator) override {
+  std::shared_ptr<GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override {
     auto res_iter = std::make_shared<ResultIterator>();
     return std::make_shared<GlutenResultIterator>(std::move(res_iter));
   }
@@ -51,14 +50,12 @@ class DummyBackend : public ExecBackendBase {
 
       RETURN_NOT_OK(builder->Append(1000));
       RETURN_NOT_OK(builder->Finish(&array));
-      std::vector<std::shared_ptr<arrow::Field>> ret_types = {
-          arrow::field("res", arrow::float64())};
+      std::vector<std::shared_ptr<arrow::Field>> ret_types = {arrow::field("res", arrow::float64())};
       auto batch = arrow::RecordBatch::Make(arrow::schema(ret_types), 1, {array});
       std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
       std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
       GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get(), cSchema.get()));
-      return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(
-          std::move(cSchema), std::move(cArray));
+      return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(std::move(cSchema), std::move(cArray));
     }
 
    private:

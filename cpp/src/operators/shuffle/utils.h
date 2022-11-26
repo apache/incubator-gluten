@@ -80,8 +80,7 @@ static arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
     }
     return res;
   } else {
-    ARROW_ASSIGN_OR_RAISE(
-        auto arrow_tmp_dir, arrow::internal::TemporaryDir::Make("columnar-shuffle-"));
+    ARROW_ASSIGN_OR_RAISE(auto arrow_tmp_dir, arrow::internal::TemporaryDir::Make("columnar-shuffle-"));
     return std::vector<std::string>{arrow_tmp_dir->path().ToString()};
   }
 }
@@ -157,10 +156,7 @@ static arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTy
 static int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
   const auto& buffers = array->data()->buffers;
   return std::accumulate(
-      std::cbegin(buffers),
-      std::cend(buffers),
-      0LL,
-      [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
+      std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
         return buf == nullptr ? sum : sum + buf->size();
       });
 }

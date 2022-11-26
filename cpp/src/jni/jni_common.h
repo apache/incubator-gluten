@@ -80,9 +80,7 @@ bool is_fixed_width_type(T _) {
   return std::is_base_of<arrow::FixedWidthType, T>::value;
 }
 
-arrow::Status AppendNodes(
-    std::shared_ptr<arrow::Array> column,
-    std::vector<std::pair<int64_t, int64_t>>* nodes) {
+arrow::Status AppendNodes(std::shared_ptr<arrow::Array> column, std::vector<std::pair<int64_t, int64_t>>* nodes) {
   auto type = column->type();
   (*nodes).push_back(std::make_pair(column->length(), column->null_count()));
   switch (type->id()) {
@@ -123,8 +121,7 @@ arrow::Status FIXOffsetBuffer(std::shared_ptr<arrow::Buffer>* in_buf, int fix_ro
     return arrow::Status::OK();
   if ((*in_buf)->size() * 8 <= fix_row) {
     ARROW_ASSIGN_OR_RAISE(auto valid_copy, arrow::AllocateBuffer((*in_buf)->size() + 1));
-    std::memcpy(
-        valid_copy->mutable_data(), (*in_buf)->data(), static_cast<size_t>((*in_buf)->size()));
+    std::memcpy(valid_copy->mutable_data(), (*in_buf)->data(), static_cast<size_t>((*in_buf)->size()));
     (*in_buf) = std::move(valid_copy);
   }
   arrow::bit_util::SetBitsTo(const_cast<uint8_t*>((*in_buf)->data()), fix_row, 1, true);
@@ -152,20 +149,18 @@ arrow::Status MakeArrayData(
         // row from offset array, refer to array_nested.cc CleanListOffsets
         // function
         FIXOffsetBuffer(&in_bufs[*buf_idx_ptr], num_rows);
-        RETURN_NOT_OK(MakeArrayData(
-            offset_data_type, num_rows + 1, in_bufs, in_bufs_len, &offset_array_data, buf_idx_ptr));
+        RETURN_NOT_OK(
+            MakeArrayData(offset_data_type, num_rows + 1, in_bufs, in_bufs_len, &offset_array_data, buf_idx_ptr));
         auto offset_array = arrow::MakeArray(offset_array_data);
         // create child data array
-        RETURN_NOT_OK(
-            MakeArrayData(child_type, -1, in_bufs, in_bufs_len, &child_array_data, buf_idx_ptr));
+        RETURN_NOT_OK(MakeArrayData(child_type, -1, in_bufs, in_bufs_len, &child_array_data, buf_idx_ptr));
         auto child_array = arrow::MakeArray(child_array_data);
         auto list_array = arrow::ListArray::FromArrays(*offset_array, *child_array).ValueOrDie();
         *arr_data = list_array->data();
 
       } break;
       default:
-        return arrow::Status::NotImplemented(
-            "MakeArrayData for type ", type->ToString(), " is not supported yet.");
+        return arrow::Status::NotImplemented("MakeArrayData for type ", type->ToString(), " is not supported yet.");
     }
 
   } else {
@@ -220,8 +215,7 @@ arrow::Status MakeRecordBatch(
   for (int i = 0; i < num_fields; i++) {
     auto field = schema->field(i);
     std::shared_ptr<arrow::ArrayData> array_data;
-    RETURN_NOT_OK(
-        MakeArrayData(field->type(), num_rows, in_bufs, in_bufs_len, &array_data, &buf_idx));
+    RETURN_NOT_OK(MakeArrayData(field->type(), num_rows, in_bufs, in_bufs_len, &array_data, &buf_idx));
     arrays.push_back(array_data);
   }
 
@@ -292,11 +286,9 @@ jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema)
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
   arrow::Result<std::shared_ptr<arrow::Buffer>> maybe_buffer;
-  maybe_buffer = arrow::ipc::SerializeSchema(
-      *schema.get(), gluten::memory::GetDefaultWrappedArrowMemoryPool().get());
+  maybe_buffer = arrow::ipc::SerializeSchema(*schema.get(), gluten::memory::GetDefaultWrappedArrowMemoryPool().get());
   if (!status.ok()) {
-    std::string error_message =
-        "Unable to convert schema to byte array, err is " + status.message();
+    std::string error_message = "Unable to convert schema to byte array, err is " + status.message();
     throw gluten::GlutenException(error_message);
   }
   auto buffer = *std::move(maybe_buffer);
@@ -328,18 +320,13 @@ arrow::Status DecompressBuffer(
     arrow::MemoryPool* pool) {
   const uint8_t* data = buffer.data();
   int64_t compressed_size = buffer.size() - sizeof(int64_t);
-  int64_t uncompressed_size =
-      arrow::bit_util::FromLittleEndian(arrow::util::SafeLoadAs<int64_t>(data));
+  int64_t uncompressed_size = arrow::bit_util::FromLittleEndian(arrow::util::SafeLoadAs<int64_t>(data));
   ARROW_ASSIGN_OR_RAISE(auto uncompressed, AllocateBuffer(uncompressed_size, pool));
 
   int64_t actual_decompressed;
   ARROW_ASSIGN_OR_RAISE(
       actual_decompressed,
-      codec->Decompress(
-          compressed_size,
-          data + sizeof(int64_t),
-          uncompressed_size,
-          uncompressed->mutable_data()));
+      codec->Decompress(compressed_size, data + sizeof(int64_t), uncompressed_size, uncompressed->mutable_data()));
   if (actual_decompressed != uncompressed_size) {
     return arrow::Status::Invalid(
         "Failed to fully decompress buffer, expected ",
@@ -380,8 +367,7 @@ arrow::Status DecompressBuffers(
     return arrow::Status::OK();
   };
 
-  return ::arrow::internal::OptionalParallelFor(
-      options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
+  return ::arrow::internal::OptionalParallelFor(options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
 }
 
 void AttachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
@@ -410,12 +396,11 @@ void CheckException(JNIEnv* env) {
     jthrowable t = env->ExceptionOccurred();
     env->ExceptionClear();
     jclass describer_class = env->FindClass("io/glutenproject/exception/JniExceptionDescriber");
-    jmethodID describe_method = env->GetStaticMethodID(
-        describer_class, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
-    std::string description = JStringToCString(
-        env, (jstring)env->CallStaticObjectMethod(describer_class, describe_method, t));
-    throw gluten::GlutenException(
-        "Error during calling Java code from native code: " + description);
+    jmethodID describe_method =
+        env->GetStaticMethodID(describer_class, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
+    std::string description =
+        JStringToCString(env, (jstring)env->CallStaticObjectMethod(describer_class, describe_method, t));
+    throw gluten::GlutenException("Error during calling Java code from native code: " + description);
   }
 }
 

@@ -71,12 +71,9 @@ class BatchIteratorWrapper {
   void CreateReader() {
     ::parquet::ArrowReaderProperties properties = ::parquet::default_arrow_reader_properties();
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        arrow::default_memory_pool(),
-        ::parquet::ParquetFileReader::OpenFile(path_),
-        properties,
-        &fileReader_));
-    GLUTEN_THROW_NOT_OK(fileReader_->GetRecordBatchReader(
-        arrow::internal::Iota(fileReader_->num_row_groups()), &recordBatchReader_));
+        arrow::default_memory_pool(), ::parquet::ParquetFileReader::OpenFile(path_), properties, &fileReader_));
+    GLUTEN_THROW_NOT_OK(
+        fileReader_->GetRecordBatchReader(arrow::internal::Iota(fileReader_->num_row_groups()), &recordBatchReader_));
   }
 
   int64_t GetCollectBatchTime() {
@@ -115,8 +112,7 @@ class BatchVectorIterator : public BatchIteratorWrapper {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
     auto endTime = std::chrono::steady_clock::now();
-    collectBatchTime_ +=
-        std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
+    collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
   }
 
   arrow::RecordBatchVector batches_;
@@ -135,9 +131,8 @@ class BatchStreamIterator : public BatchIteratorWrapper {
     if (batch == nullptr) {
       return nullptr;
     }
-    collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                             std::chrono::steady_clock::now() - startTime)
-                             .count();
+    collectBatchTime_ +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
     return std::make_shared<gluten::memory::GlutenArrowColumnarBatch>(batch);
   }
 };

@@ -36,8 +36,7 @@ class MemoryAllocator {
   virtual bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
   virtual bool AllocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
   virtual bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) = 0;
-  virtual bool
-  ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) = 0;
+  virtual bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) = 0;
   virtual bool Free(void* p, int64_t size) = 0;
   virtual int64_t GetBytes() = 0;
 };
@@ -55,9 +54,7 @@ class AllocationListener {
 
 class ListenableMemoryAllocator : public MemoryAllocator {
  public:
-  explicit ListenableMemoryAllocator(
-      MemoryAllocator* delegated,
-      std::shared_ptr<AllocationListener> listener)
+  explicit ListenableMemoryAllocator(MemoryAllocator* delegated, std::shared_ptr<AllocationListener> listener)
       : delegated_(delegated), listener_(std::move(listener)) {}
 
  public:
@@ -69,8 +66,7 @@ class ListenableMemoryAllocator : public MemoryAllocator {
 
   bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
 
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out)
-      override;
+  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
 
   bool Free(void* p, int64_t size) override;
 
@@ -92,8 +88,7 @@ class StdMemoryAllocator : public MemoryAllocator {
 
   bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
 
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out)
-      override;
+  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
 
   bool Free(void* p, int64_t size) override;
 

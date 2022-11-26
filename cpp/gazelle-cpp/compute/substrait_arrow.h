@@ -32,8 +32,7 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
 
   ~ArrowExecBackend() override;
 
-  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator) override;
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override;
 
   std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
@@ -67,8 +66,7 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
     return schema_map_;
   }
 
-  arrow::Result<std::shared_ptr<arrow::DataType>> subTypeToArrowType(
-      const ::substrait::Type& stype) {
+  arrow::Result<std::shared_ptr<arrow::DataType>> subTypeToArrowType(const ::substrait::Type& stype) {
     // TODO: need to add more types here.
     switch (stype.kind_case()) {
       case ::substrait::Type::KindCase::kBool:
@@ -92,9 +90,7 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
   arrow::Status GetIterInputSchemaFromRel(const ::substrait::Rel& srel);
   void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
   void PushDownFilter();
-  static void FieldPathToName(
-      arrow::compute::Expression* expression,
-      const std::shared_ptr<arrow::Schema>& schema);
+  static void FieldPathToName(arrow::compute::Expression* expression, const std::shared_ptr<arrow::Schema>& schema);
 };
 
 class ArrowExecResultIterator {
