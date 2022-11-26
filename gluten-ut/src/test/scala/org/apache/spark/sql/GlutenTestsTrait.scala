@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql
 
-
 import java.io.File
 
 import scala.collection.mutable.ArrayBuffer
@@ -35,7 +34,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.optimizer.{ConvertToLocalRelation, NullPropagation}
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -112,7 +111,8 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid static evaluation for literal input by spark catalyst.
-        .config("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)
+        .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + ","  +
+            NullPropagation.ruleName)
 
       _spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
         GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
@@ -160,7 +160,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   def glutenCheckExpression(expression: Expression,
                             expected: Any,
                             inputRow: InternalRow, justEvalExpr: Boolean = false): Unit = {
-    val df = if (inputRow != EmptyRow) {
+    val df = if (inputRow != EmptyRow && inputRow != InternalRow.empty) {
       convertInternalRowToDataFrame(inputRow)
     } else {
       val schema = StructType(
