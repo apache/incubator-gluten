@@ -60,10 +60,72 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  ignore("day_of_month") {
+  test("extract") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, " +
+      s"extract(doy FROM DATE'2019-08-12') " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  ignore("second") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, second(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, second(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("day") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, day(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, day(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("dayofmonth") {
     runQueryAndCompare(s"select l_orderkey, l_shipdate, dayofmonth(l_shipdate) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, dayofmonth(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("day_of_year") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, dayofyear(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, dayofyear(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  ignore("DAYOFWEEK") {// todo result mismatched
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, DAYOFWEEK(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, DAYOFWEEK(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  ignore("weekday") {// todo result mismatched
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, weekday(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, weekday(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("month") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, month(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, month(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("quarter") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, quarter(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, quarter(null) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+  }
+
+  test("year") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, year(l_shipdate) " +
+      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(s"select l_orderkey, year(null) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
