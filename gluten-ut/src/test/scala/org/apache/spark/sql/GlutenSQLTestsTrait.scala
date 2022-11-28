@@ -28,7 +28,7 @@ import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
 import org.junit.Assert
 import org.scalactic.source.Position
-import org.scalatest.{Assertions, Tag}
+import org.scalatest.{Assertions, Canceled, Tag}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.plans.logical
@@ -69,6 +69,10 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     } else {
       logWarning(s"Ignore test case: ${testName}")
     }
+  }
+
+  override def logForFailedTest(): Unit = {
+    Canceled("Test failed so abort")
   }
 
   override def sparkConf: SparkConf = {
