@@ -38,6 +38,7 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
@@ -52,7 +53,9 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.ArrowUtils;
+import org.apache.spark.sql.vectorized.ArrowColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarArray;
+import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
@@ -237,6 +240,17 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     } else if (vector instanceof TimeStampMicroVector
         || vector instanceof TimeStampMicroTZVector) {
       accessor = new TimestampMicroAccessor((TimeStampVector) vector);
+    } else if (vector instanceof MapVector) {
+      MapVector mapVector = (MapVector) vector;
+      accessor = new MapAccessor(mapVector);
+      childColumns = new ArrowWritableColumnVector[2];
+      final StructVector structVector = (StructVector) mapVector.getDataVector();
+      final FieldVector keyChild = structVector.getChild(MapVector.KEY_NAME);
+      final FieldVector valueChild = structVector.getChild(MapVector.VALUE_NAME);
+      childColumns[0] = new ArrowWritableColumnVector(
+          keyChild, 0,  structVector.size(), false);
+      childColumns[1] = new ArrowWritableColumnVector(
+          valueChild, 1,  structVector.size(), false);
     } else if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
       accessor = new ArrayAccessor(listVector);
@@ -826,6 +840,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     int getArrayOffset(int rowId) {
       throw new UnsupportedOperationException();
     }
+
+    ColumnarMap getMap(int rowId) {
+      throw new UnsupportedOperationException();
+    }
   }
 
   private static class BooleanAccessor extends ArrowVectorAccessor {
@@ -1157,6 +1175,40 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
           "Array[" + getArrayOffset(rowId) + "-" + getArrayLength(rowId) + "]");
     }
   }
+
+  private static class MapAccessor extends ArrowVectorAccessor {
+    private final MapVector accessor;
+    private final ArrowColumnVector keys;
+    private final ArrowColumnVector values;
+
+    MapAccessor(MapVector vector) {
+      super(vector);
+      this.accessor = vector;
+      StructVector entries = (StructVector) vector.getDataVector();
+      this.keys = new ArrowColumnVector(entries.getChild(MapVector.KEY_NAME));
+      this.values = new ArrowColumnVector(entries.getChild(MapVector.VALUE_NAME));
+    }
+
+    @Override
+    final ColumnarMap getMap(int rowId) {
+      int index = rowId * MapVector.OFFSET_WIDTH;
+      int offset = accessor.getOffsetBuffer().getInt(index);
+      int length = accessor.getInnerValueCountAt(rowId);
+      return new ColumnarMap(keys, values, offset, length);
+    }
+
+    @Override
+    int getArrayOffset(int rowId) {
+      int index = rowId * MapVector.OFFSET_WIDTH;
+      return accessor.getOffsetBuffer().getInt(index);
+    }
+
+    @Override
+    int getArrayLength(int rowId) {
+      return accessor.getInnerValueCountAt(rowId);
+    }
+  }
+
 
   /**
    * Any call to "get" method will throw UnsupportedOperationException.

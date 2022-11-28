@@ -30,8 +30,10 @@ object VeloxExpressionUtil {
   // The expression with empty type will fall back directly.
   final val EMPTY_TYPE = ""
   final val ARRAY_TYPE = "array"
+  final val MAP_TYPE = "map"
   final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
     CAST -> ARRAY_TYPE,
+    CAST -> MAP_TYPE,
     ROUND -> EMPTY_TYPE,
     REGEXP_REPLACE -> EMPTY_TYPE,
     SPLIT -> EMPTY_TYPE,

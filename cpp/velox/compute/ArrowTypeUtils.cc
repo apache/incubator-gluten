@@ -63,6 +63,30 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
     std::string innerType = type_name.substr(start + 1, end - start - 1);
     return arrow::list(toArrowTypeFromName(innerType));
   }
+
+  // The type name of MAP type is like MAP<type, type>.
+  std::string mapType = "MAP";
+  if (type_name.substr(0, mapType.length()) == mapType) {
+    std::size_t start = type_name.find_first_of("<");
+    std::size_t end = type_name.find_last_of(">");
+    if (start == std::string::npos || end == std::string::npos) {
+      throw std::runtime_error("Invalid map type.");
+    }
+
+    // Extract the types of map type.
+    std::string innerType = type_name.substr(start + 1, end - start - 1);
+    std::vector<std::shared_ptr<arrow::DataType>> innerTypes;
+    std::shared_ptr<arrow::DataType> keyType;
+    std::shared_ptr<arrow::DataType> valueType;
+    std::size_t token_pos = innerType.find_first_of(",");
+
+    keyType = toArrowTypeFromName(innerType.substr(0, token_pos));
+    valueType = toArrowTypeFromName(
+        innerType.substr(token_pos + 1, innerType.length() - 1));
+
+    return arrow::map(keyType, valueType);
+  }
+
   throw std::runtime_error("Type name is not supported: " + type_name + ".");
 }
 

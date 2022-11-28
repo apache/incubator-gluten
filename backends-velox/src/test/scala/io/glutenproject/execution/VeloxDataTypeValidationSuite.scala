@@ -234,4 +234,23 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select type1.array from type1," +
       " type2 where type1.array = type2.array") { _ => }
   }
+
+  test("Map type") {
+    // Validation: BatchScan Project Limit
+    runQueryAndCompare("select map from type1 limit 1") { _ => }
+    // Validation: BatchScan Project Aggregate Sort Limit
+    // TODO validate Expand operator support map type ?
+    runQueryAndCompare("select map['key'] from type1 group by map['key']" +
+      " sort by map['key'] limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.map['key'] from type1," +
+      " type2 where type1.map['key'] = type2.map['key']") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.map['key'] from type1," +
+      " type2 where type1.map['key'] = type2.map['key']") { _ => }
+  }
 }
