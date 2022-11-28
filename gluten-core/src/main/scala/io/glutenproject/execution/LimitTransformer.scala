@@ -27,21 +27,47 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
 
-case class LimitTransformer(
-                             child: SparkPlan,
-                             offset: Long,
-                             count: Long)
-  extends UnaryExecNode
-    with TransformSupport {
+case class LimitTransformer(child: SparkPlan,
+                            offset: Long,
+                            count: Long) extends UnaryExecNode with TransformSupport {
+
+  override lazy val metrics = Map(
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_filter"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val cpuCount: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = child.output
@@ -79,6 +105,23 @@ case class LimitTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+  }
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      cpuCount += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
   }
 
   override def doValidate(): Boolean = {
