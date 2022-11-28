@@ -21,7 +21,7 @@
 #include <gtest/gtest.h>
 namespace gluten {
 
-class DummyBackend : public ExecBackendBase {
+class DummyBackend : public ExecBackend {
  public:
   std::shared_ptr<GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override {
     auto res_iter = std::make_shared<ResultIterator>();

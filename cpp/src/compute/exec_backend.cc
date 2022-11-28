@@ -22,16 +22,17 @@
 
 namespace gluten {
 
-static std::function<std::shared_ptr<ExecBackendBase>()> backend_factory;
+static std::function<std::shared_ptr<ExecBackend>()> backend_factory;
 
-void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory) {
+void SetBackendFactory(
+    std::function<std::shared_ptr<ExecBackend>()> factory) {
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "Set backend factory." << std::endl;
 #endif
   backend_factory = std::move(factory);
 }
 
-std::shared_ptr<ExecBackendBase> CreateBackend() {
+std::shared_ptr<ExecBackend> CreateBackend() {
   if (backend_factory == nullptr) {
     throw std::runtime_error(
         "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");

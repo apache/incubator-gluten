@@ -26,7 +26,7 @@
 namespace gazellecpp {
 namespace compute {
 
-class ArrowExecBackend : public gluten::ExecBackendBase {
+class ArrowExecBackend : public gluten::ExecBackend {
  public:
   ArrowExecBackend();
 

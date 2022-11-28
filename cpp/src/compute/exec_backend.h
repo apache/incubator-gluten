@@ -40,12 +40,10 @@ using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
 using GlutenIterator =
     arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
 
-class GlutenResultIterator;
-
 template <typename T>
-class ResultIteratorBase {
+class ResultIterator {
  public:
-  virtual ~ResultIteratorBase() = default;
+  virtual ~ResultIterator() = default;
 
   virtual void Init() {} // unused
   virtual void Close() {} // unused
@@ -53,10 +51,15 @@ class ResultIteratorBase {
   virtual std::shared_ptr<T> Next() = 0;
 };
 
-class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
+class GlutenResultIterator;
+
+class ExecBackend : public std::enable_shared_from_this<ExecBackend> {
  public:
-  virtual ~ExecBackendBase() = default;
-  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) = 0;
+  virtual ~ExecBackend() = default;
+
+  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
+      gluten::memory::MemoryAllocator* allocator) = 0;
+
   virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
       std::vector<std::shared_ptr<GlutenResultIterator>> inputs) = 0;
@@ -77,7 +80,7 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
     return ParseProtobuf(data, size, &plan_);
   }
 
-  const ::substrait::Plan& GetPlan() {
+  const ::substrait::Plan& GetPlan() const {
     return plan_;
   }
 
@@ -109,17 +112,20 @@ class ExecBackendBase : public std::enable_shared_from_this<ExecBackendBase> {
   ::substrait::Plan plan_;
 };
 
-class GlutenResultIterator : public ResultIteratorBase<memory::GlutenColumnarBatch> {
+class GlutenResultIterator
+    : public ResultIterator<memory::GlutenColumnarBatch> {
  public:
   /// \brief Iterator may be constructed from any type which has a member
   /// function with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
   /// and will be wrapped in ArrowArrayIterator.
   /// For details, please see <arrow/util/iterator.h>
-  /// This class is used as input/output iterator for ExecBackendBase. As
+  /// This class is used as input/output iterator for ExecBackend. As
   /// output, it can hold the backend to tie their lifetimes, which can be used
   /// when the production of the iterator relies on the backend.
   template <typename T>
-  explicit GlutenResultIterator(std::shared_ptr<T> iter, std::shared_ptr<ExecBackendBase> backend = nullptr)
+  explicit GlutenResultIterator(
+      std::shared_ptr<T> iter,
+      std::shared_ptr<ExecBackend> backend = nullptr)
       : raw_iter_(iter.get()),
         iter_(std::make_unique<GlutenIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),
@@ -168,7 +174,7 @@ class GlutenResultIterator : public ResultIteratorBase<memory::GlutenColumnarBat
     exportNanos_ = exportNanos;
   }
 
-  int64_t getExportNanos() {
+  int64_t getExportNanos() const {
     return exportNanos_;
   }
 
@@ -189,10 +195,10 @@ class GlutenResultIterator : public ResultIteratorBase<memory::GlutenColumnarBat
   void* raw_iter_;
   std::unique_ptr<GlutenIterator> iter_;
   std::shared_ptr<memory::GlutenColumnarBatch> next_;
-  std::shared_ptr<ExecBackendBase> backend_;
+  std::shared_ptr<ExecBackend> backend_;
   int64_t exportNanos_;
 
-  inline void CheckValid() {
+  inline void CheckValid() const {
     if (iter_ == nullptr) {
       throw GlutenException("ArrowExecResultIterator: the underlying iterator has expired.");
     }
@@ -205,8 +211,8 @@ class GlutenResultIterator : public ResultIteratorBase<memory::GlutenColumnarBat
   }
 };
 
-void SetBackendFactory(std::function<std::shared_ptr<ExecBackendBase>()> factory);
+void SetBackendFactory(std::function<std::shared_ptr<ExecBackend>()> factory);
 
-std::shared_ptr<ExecBackendBase> CreateBackend();
+std::shared_ptr<ExecBackend> CreateBackend();
 
 } // namespace gluten

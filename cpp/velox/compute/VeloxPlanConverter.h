@@ -166,7 +166,7 @@ class WholeStageResIter {
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
-class VeloxPlanConverter : public gluten::ExecBackendBase {
+class VeloxPlanConverter : public gluten::ExecBackend {
  public:
   VeloxPlanConverter(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
 

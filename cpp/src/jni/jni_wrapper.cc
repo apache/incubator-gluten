@@ -114,7 +114,14 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
   }
 
   ~JavaInputStreamAdaptor() override {
-    GLUTEN_THROW_NOT_OK(JavaInputStreamAdaptor::Close());
+    auto status = JavaInputStreamAdaptor::Close();
+    if (!status.ok()) {
+#ifdef GLUTEN_PRINT_DEBUG
+    std::cout << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" 
+              << status.ToString()
+              << std::endl;
+#endif
+    }
   };
 
   // not thread safe

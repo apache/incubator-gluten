@@ -55,7 +55,8 @@ void DwrfDatasource::Init(const std::unordered_map<std::string, std::string>& sp
   std::string file_name = file_path_.substr(last_pos + 1, (file_path_.length() - last_pos - 6));
   final_path_ = dir_path + "/" + file_name;
   std::string command = "touch " + final_path_;
-  system(command.c_str());
+  auto ret = system(command.c_str());
+  (void)(ret); // suppress warning
 
   ArrowSchema c_schema{};
   arrow::Status status = arrow::ExportSchema(*(schema_.get()), &c_schema);
