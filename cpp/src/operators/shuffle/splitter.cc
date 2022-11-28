@@ -1341,8 +1341,8 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
         "lea (%[num_partitions],%[pid],1),%[tmp]\n"
         "test %[pid],%[pid]\n"
         "cmovs %[tmp],%[pid]\n"
-        : [pid] "+r"(pid)
-        : [num_partitions] "r"(num_partitions_), [tmp] "r"(0));
+        : [ pid ] "+r"(pid)
+        : [ num_partitions ] "r"(num_partitions_), [ tmp ] "r"(0));
     partition_id_[i] = pid;
     partition_id_cnt_[pid]++;
   }
