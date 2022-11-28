@@ -23,7 +23,7 @@ import io.glutenproject.utils.{InputPartitionsUtil, VeloxExpressionUtil}
 import io.glutenproject.utils.VeloxExpressionUtil.VELOX_EXPR_BLACKLIST
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
@@ -35,7 +35,10 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * such as Cast(ArrayType).
    */
   def doValidate(blacklist: Map[String, String], expr: Expression): Boolean = {
-    val value = blacklist.get(expr.prettyName.toLowerCase())
+    val key = if (expr.prettyName.toLowerCase().equals("alias")) {
+      expr.asInstanceOf[Cast].child.prettyName.toLowerCase()
+    } else expr.prettyName.toLowerCase()
+    val value = blacklist.get(key)
     if (value.isEmpty) {
       return true
     }

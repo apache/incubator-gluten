@@ -31,9 +31,11 @@ object VeloxExpressionUtil {
   final val EMPTY_TYPE = ""
   final val ARRAY_TYPE = "array"
   final val MAP_TYPE = "map"
+  final val STRUCT_TYPE = "struct"
   final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
     CAST -> ARRAY_TYPE,
     CAST -> MAP_TYPE,
+    CAST -> STRUCT_TYPE,
     ROUND -> EMPTY_TYPE,
     REGEXP_REPLACE -> EMPTY_TYPE,
     SPLIT -> EMPTY_TYPE,

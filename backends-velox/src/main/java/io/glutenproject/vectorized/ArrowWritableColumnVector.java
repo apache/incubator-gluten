@@ -258,14 +258,13 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       childColumns[0] = new ArrowWritableColumnVector(
           listVector.getDataVector(), 0, listVector.size(), false);
     } else if (vector instanceof StructVector) {
-      throw new UnsupportedOperationException();
-      /*StructVector structVector = (StructVector) vector;
+      StructVector structVector = (StructVector) vector;
       accessor = new StructAccessor(structVector);
 
       childColumns = new ArrowWritableColumnVector[structVector.size()];
       for (int i = 0; i < childColumns.length; ++i) {
-        childColumns[i] = new ArrowWritableColumnVector(structVector.getVectorById(i));
-      }*/
+        childColumns[i] = new ArrowWritableColumnVector(structVector.getVectorById(i), i, structVector.size(), false);
+      }
     } else {
       throw new UnsupportedOperationException();
     }
@@ -1880,8 +1879,21 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   private static class StructWriter extends ArrowVectorWriter {
+    private final StructVector writer;
+
     StructWriter(StructVector vector, ArrowVectorWriter[] children) {
       super(vector);
+      this.writer = vector;
+    }
+
+    @Override
+    void setNull(int rowId) {
+      writer.setNull(rowId);
+    }
+
+    @Override
+    void setNotNull(int rowId) {
+      writer.setIndexDefined(rowId);
     }
   }
 }
