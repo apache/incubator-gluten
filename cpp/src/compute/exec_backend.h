@@ -35,8 +35,11 @@
 #endif
 
 namespace gluten {
+
 using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
-using GlutenIterator = arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
+using GlutenIterator =
+    arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
+
 class GlutenResultIterator;
 
 template <typename T>
