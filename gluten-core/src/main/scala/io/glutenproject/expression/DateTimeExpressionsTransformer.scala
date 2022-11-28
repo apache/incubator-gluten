@@ -20,8 +20,13 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.sql.catalyst.expressions.{DayOfMonth, DayOfWeek, DayOfYear, Expression, Month, Quarter, Second, WeekDay, WeekOfYear, Year}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
+import org.apache.spark.internal.Logging
+import io.glutenproject.substrait.expression.StringLiteralNode
+import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.GlutenConfig
 
 /**
  * The extract trait for 'GetDateField' from Date
@@ -50,6 +55,120 @@ class ExtractDateTransformer(
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
 
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+  }
+}
+
+class DateDiffTransformer(substraitExprName: String, endDate: ExpressionTransformer,
+  startDate: ExpressionTransformer, original: DateDiff)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // In Spark: datediff(endDate, startDate)
+    // In CH: date_diff('day', startDate, endDate)
+    val endDateNode = endDate.doTransform(args)
+    val startDateNode = startDate.doTransform(args)
+    val unitNode = ExpressionBuilder.makeStringLiteral("day")
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName, Seq(StringType, original.startDate.dataType,
+      original.endDate.dataType), FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val expressionNodes = Lists.newArrayList(
+      unitNode, startDateNode, endDateNode)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class FromUnixTimeTransformer(substraitExprName: String, sec: ExpressionTransformer,
+  format: ExpressionTransformer, timeZoneId: Option[String] = None, original: FromUnixTime)
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val secNode = sec.doTransform(args)
+    var formatNode = format.doTransform(args)
+
+    // Only when format = 'yyyy-MM-dd HH:mm:ss' can we transfrom the expr to substrait.
+    if (!formatNode.isInstanceOf[StringLiteralNode] ||
+      formatNode.asInstanceOf[StringLiteralNode].getValue != "yyyy-MM-dd HH:mm:ss") {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+    formatNode = ExpressionBuilder.makeStringLiteral("%Y-%m-%d %R:%S")
+
+    val dataTypes = if (timeZoneId != None) {
+      Seq(original.sec.dataType, original.format.dataType, StringType)
+    } else {
+      Seq(original.sec.dataType, original.format.dataType)
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    expressionNodes.add(secNode)
+    expressionNodes.add(formatNode)
+    if (timeZoneId != None) {
+      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
+    }
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+case class ToUnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTransformer,
+  format: ExpressionTransformer, timeZoneId: Option[String], failOnError: Boolean,
+  original: ToUnixTimestamp)
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // Only when timeExp is not string type or format = 'yyyy-MM-dd HH:mm:ss'
+    // can we transfrom the expr to substrait.
+    val formatNode = format.doTransform(args)
+    if (original.timeExp.dataType.isInstanceOf[StringType] &&
+      (!formatNode.isInstanceOf[StringLiteralNode] ||
+      formatNode.asInstanceOf[StringLiteralNode].getValue != "yyyy-MM-dd HH:mm:ss")) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
+
+    val dataTypes = if (timeZoneId != None) {
+      Seq(original.timeExp.dataType, StringType)
+    } else {
+      Seq(original.timeExp.dataType)
+    }
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    val timeExpNode = timeExp.doTransform(args)
+    expressionNodes.add(timeExpNode)
+    if (timeZoneId != None) {
+      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
+    }
+
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+class UnixTimestampTransformer(substraitExprName: String, timeExp: ExpressionTransformer,
+  format: ExpressionTransformer, timeZoneId: Option[String], failOnError: Boolean,
+  original: UnixTimestamp)
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val toUnixTimestamp = ToUnixTimestamp(original.timeExp, original.format,
+      original.timeZoneId, original.failOnError)
+    val transformer = ToUnixTimestampTransformer(substraitExprName, timeExp, format,
+      timeZoneId, failOnError, toUnixTimestamp)
+    transformer.doTransform(args)
   }
 }
 

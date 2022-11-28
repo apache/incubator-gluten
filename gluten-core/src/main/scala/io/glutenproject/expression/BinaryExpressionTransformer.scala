@@ -18,12 +18,14 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
-
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.types.StringType
 
 /**
  * Transformer for the normal binary expression

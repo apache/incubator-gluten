@@ -32,7 +32,6 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "multiple column distinct count", // [not urgent, function with multiple params]
       "agg without groups and functions", // [not urgent]
       "zero moments", // [not urgent]
-      "collect functions", // [not urgent]
       "collect functions structs", // [not urgent]
       "SPARK-31500: collect_set() of BinaryType returns duplicate elements", // [not urgent]
       "SPARK-17641: collect functions should not collect null values", // [not urgent]
@@ -76,6 +75,15 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "quarter"
     )
 
+  enableSuite[GlutenDateExpressionsSuite]
+    .include(
+      "Quarter",
+      "date_add",
+      "date_sub",
+      "datediff"
+    )
+
+
   enableSuite[GlutenMathFunctionsSuite]
     .include(
       // "round/bround", // Scale argument of round/bround function currently don't support
@@ -111,7 +119,7 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "- (UnaryMinus)",
       "/ (Divide) basic",
       "/ (Divide) for Long and Decimal type",
-      "% (Remainder)",
+      "% (Remainder)", // CH will throw exception when right is zero
       "SPARK-17617: % (Remainder) double % double on super big double",
       "pmod",
       "SPARK-28322: IntegralDivide supports decimal type",
@@ -121,7 +129,8 @@ object ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenRegexpExpressionsSuite]
     .include(
-      "SPLIT"
+      "SPLIT",
+      "RLIKE Regular Expression"
     )
 
   enableSuite[GlutenStringExpressionsSuite]
