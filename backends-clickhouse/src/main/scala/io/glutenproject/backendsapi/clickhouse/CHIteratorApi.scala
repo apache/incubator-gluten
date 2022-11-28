@@ -153,7 +153,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
       outputAttributes: Seq[Attribute],
       context: TaskContext,
       pipelineTime: SQLMetric,
-      updateMetrics: (Long, Long) => Unit,
+      updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     var resIter: GeneralOutIterator = null
@@ -182,7 +182,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
 
       override def next(): Any = {
         val cb = resIter.next()
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
@@ -206,7 +206,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
       outputAttributes: Seq[Attribute],
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
-      updateMetrics: (Long, Long) => Unit,
+      updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch],
       dependentKernels: Seq[ExpressionEvaluator],
@@ -232,7 +232,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
 
       override def next(): ColumnarBatch = {
         val cb = nativeIterator.next()
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
