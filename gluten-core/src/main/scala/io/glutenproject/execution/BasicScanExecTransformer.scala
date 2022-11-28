@@ -79,7 +79,7 @@ trait BasicScanExecTransformer extends TransformSupport {
       case byte: ByteType =>
       case array: ArrayType =>
       case bool: BooleanType =>
-      case bool: MapType =>
+      case map: MapType =>
     }.nonEmpty
   }
 
