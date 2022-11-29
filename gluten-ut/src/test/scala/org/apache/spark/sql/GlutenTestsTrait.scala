@@ -171,7 +171,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
     val resultDF = df.select(Column(expression))
-    resultDF.explain(true)
     val result = if (justEvalExpr) {
       try {
         expression.eval(inputRow)
