@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <arrow/type_fwd.h>
 #include <arrow/type.h>
+#include <arrow/type_fwd.h>
 
 #include "velox/type/Type.h"
 
