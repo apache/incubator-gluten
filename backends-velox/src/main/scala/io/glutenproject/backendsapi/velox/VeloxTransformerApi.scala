@@ -33,7 +33,8 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * Add the validation for Velox unsupported or mismatched expressions with specific input type,
    * such as Cast(ArrayType).
    */
-  def doValidate(blacklist: Map[String, String], expr: Expression): Boolean = {
+  def doValidate(blacklist: Map[String, Set[String]], expr: Expression): Boolean = {
+    // To handle cast(struct as string) AS col_name expression
     val key = if (expr.prettyName.toLowerCase().equals("alias")) {
       expr.asInstanceOf[Alias].child.prettyName.toLowerCase()
     } else expr.prettyName.toLowerCase()
@@ -41,13 +42,15 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
     if (value.isEmpty) {
       return true
     }
-    val inputTypeName = value.get
-    if (inputTypeName.equals(VeloxExpressionUtil.EMPTY_TYPE)) {
-      return false
-    } else {
-      for (input <- expr.children) {
-        if (inputTypeName.equals(input.dataType.typeName)) {
-          return false
+    val inputTypeNames = value.get
+    inputTypeNames.foreach { inputTypeName =>
+      if (inputTypeName.equals(VeloxExpressionUtil.EMPTY_TYPE)) {
+        return false
+      } else {
+        for (input <- expr.children) {
+          if (inputTypeName.equals(input.dataType.typeName)) {
+            return false
+          }
         }
       }
     }

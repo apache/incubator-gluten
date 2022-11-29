@@ -32,17 +32,15 @@ object VeloxExpressionUtil {
   final val ARRAY_TYPE = "array"
   final val MAP_TYPE = "map"
   final val STRUCT_TYPE = "struct"
-  final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
-    CAST -> ARRAY_TYPE,
-    CAST -> MAP_TYPE,
-    CAST -> STRUCT_TYPE,
-    ROUND -> EMPTY_TYPE,
-    REGEXP_REPLACE -> EMPTY_TYPE,
-    SPLIT -> EMPTY_TYPE,
-    SPLIT_PART -> EMPTY_TYPE,
-    LENGTH -> DataTypes.BinaryType.typeName,
+  final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
+    CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
+    ROUND -> Set(EMPTY_TYPE),
+    REGEXP_REPLACE -> Set(EMPTY_TYPE),
+    SPLIT -> Set(EMPTY_TYPE),
+    SPLIT_PART -> Set(EMPTY_TYPE),
+    LENGTH -> Set(DataTypes.BinaryType.typeName),
     // to be removed when Velox support compatible type
-    DAY_OF_MONTH -> EMPTY_TYPE,
-    JSON_ARRAY_LENGTH -> EMPTY_TYPE
+    DAY_OF_MONTH -> Set(EMPTY_TYPE),
+    JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE)
     )
 }
