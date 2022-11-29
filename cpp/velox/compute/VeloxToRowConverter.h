@@ -25,18 +25,14 @@
 #include "operators/c2r/columnar_to_row_base.h"
 #include "velox/vector/ComplexVector.h"
 
-using namespace facebook::velox;
+namespace gluten {
 
-namespace velox {
-namespace compute {
-
-class VeloxToRowConverter : public gluten::columnartorow::ColumnarToRowConverterBase {
+class VeloxToRowConverter : public ColumnarToRowConverter {
  public:
-  VeloxToRowConverter(
-      RowVectorPtr rv,
+  VeloxToRowConverter(facebook::velox::RowVectorPtr rv,
       std::shared_ptr<arrow::MemoryPool> arrow_pool,
-      std::shared_ptr<memory::MemoryPool> velox_pool)
-      : ColumnarToRowConverterBase(arrow_pool), rv_(rv), velox_pool_(velox_pool) {}
+      std::shared_ptr<facebook::velox::memory::MemoryPool> velox_pool)
+      : ColumnarToRowConverter(arrow_pool), rv_(rv), velox_pool_(velox_pool) {}
 
   arrow::Status Init() override;
 
@@ -45,11 +41,10 @@ class VeloxToRowConverter : public gluten::columnartorow::ColumnarToRowConverter
  private:
   void ResumeVeloxVector();
 
-  RowVectorPtr rv_;
-  std::shared_ptr<memory::MemoryPool> velox_pool_;
-  std::vector<VectorPtr> vecs_;
+  facebook::velox::RowVectorPtr rv_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> velox_pool_;
+  std::vector<facebook::velox::VectorPtr> vecs_;
   std::shared_ptr<arrow::Schema> schema_;
 };
 
-} // namespace compute
-} // namespace velox
+} // namespace gluten

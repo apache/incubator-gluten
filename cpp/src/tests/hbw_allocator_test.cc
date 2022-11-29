@@ -35,11 +35,11 @@ class TestHbwAllocator : public ::testing::Test {
     buf = nullptr;
   }
 
-  std::shared_ptr<gluten::memory::MemoryAllocator> allocator = gluten::memory::DefaultMemoryAllocator();
+  std::shared_ptr<gluten::MemoryAllocator> allocator = gluten::DefaultMemoryAllocator();
 };
 
 TEST_F(TestHbwAllocator, TestHbwEnabled) {
-  auto ptr = std::dynamic_pointer_cast<gluten::memory::HbwMemoryAllocator>(allocator);
+  auto ptr = std::dynamic_pointer_cast<gluten::HbwMemoryAllocator>(allocator);
   ASSERT_NE(ptr, nullptr);
 }
 
@@ -64,3 +64,4 @@ TEST_F(TestHbwAllocator, Test) {
   allocator->ReallocateAligned(buf, 64, size, size << 1, &buf);
   CheckBytesAndFree(buf, size << 1);
 }
+

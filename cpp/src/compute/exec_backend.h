@@ -37,8 +37,7 @@
 namespace gluten {
 
 using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
-using GlutenIterator =
-    arrow::Iterator<std::shared_ptr<memory::GlutenColumnarBatch>>;
+using ArrowIterator = arrow::Iterator<std::shared_ptr<ColumnarBatch>>;
 
 template <typename T>
 class ResultIterator {
@@ -53,15 +52,13 @@ class ResultIterator {
 
 class GlutenResultIterator;
 
-class ExecBackend : public std::enable_shared_from_this<ExecBackend> {
+class Backend : public std::enable_shared_from_this<Backend> {
  public:
-  virtual ~ExecBackend() = default;
+  virtual ~Backend() = default;
 
-  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator) = 0;
+  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator) = 0;
 
-  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator,
+  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator,
       std::vector<std::shared_ptr<GlutenResultIterator>> inputs) = 0;
 
   /// Parse and cache the plan.
@@ -87,22 +84,20 @@ class ExecBackend : public std::enable_shared_from_this<ExecBackend> {
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
-  virtual arrow::Result<std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>> getColumnarConverter(
-      gluten::memory::MemoryAllocator* allocator,
-      std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb) {
-    auto memory_pool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
+  virtual arrow::Result<std::shared_ptr<ColumnarToRowConverter>>
+  getColumnarConverter(MemoryAllocator* allocator, std::shared_ptr<ColumnarBatch> cb) {
+    auto memory_pool = AsWrappedArrowMemoryPool(allocator);
     std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
     std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
-    ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+    ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
-    return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(rb, memory_pool);
+    return std::make_shared<ArrowColumnarToRowConverter>(rb, memory_pool);
   }
 
   virtual std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) {
     return nullptr;
-  };
+  }
 
   virtual std::shared_ptr<arrow::Schema> GetOutputSchema() {
     return nullptr;
@@ -112,24 +107,19 @@ class ExecBackend : public std::enable_shared_from_this<ExecBackend> {
   ::substrait::Plan plan_;
 };
 
-class GlutenResultIterator
-    : public ResultIterator<memory::GlutenColumnarBatch> {
+class GlutenResultIterator : public ResultIterator<ColumnarBatch> {
  public:
   /// \brief Iterator may be constructed from any type which has a member
   /// function with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
   /// and will be wrapped in ArrowArrayIterator.
   /// For details, please see <arrow/util/iterator.h>
-  /// This class is used as input/output iterator for ExecBackend. As
+  /// This class is used as input/output iterator for Backend. As
   /// output, it can hold the backend to tie their lifetimes, which can be used
   /// when the production of the iterator relies on the backend.
   template <typename T>
-  explicit GlutenResultIterator(
-      std::shared_ptr<T> iter,
-      std::shared_ptr<ExecBackend> backend = nullptr)
-      : raw_iter_(iter.get()),
-        iter_(std::make_unique<GlutenIterator>(Wrapper<T>(std::move(iter)))),
-        next_(nullptr),
-        backend_(std::move(backend)) {}
+  explicit GlutenResultIterator(std::shared_ptr<T> iter, std::shared_ptr<Backend> backend = nullptr)
+      : raw_iter_(iter.get()), iter_(std::make_unique<ArrowIterator>(Wrapper<T>(std::move(iter)))),
+        next_(nullptr), backend_(std::move(backend)) {}
 
   bool HasNext() override {
     CheckValid();
@@ -137,7 +127,7 @@ class GlutenResultIterator
     return next_ != nullptr;
   }
 
-  std::shared_ptr<memory::GlutenColumnarBatch> Next() override {
+  std::shared_ptr<ColumnarBatch> Next() override {
     CheckValid();
     GetNext();
     return std::move(next_);
@@ -149,9 +139,7 @@ class GlutenResultIterator
   /// iterator.
   std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
     ArrowArrayIterator itr = arrow::MakeMapIterator(
-        [](std::shared_ptr<memory::GlutenColumnarBatch> b) -> std::shared_ptr<ArrowArray> {
-          return b->exportArrowArray();
-        },
+        [](std::shared_ptr<ColumnarBatch> b) -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
         std::move(*iter_));
     ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
     *itr_ptr = std::move(itr);
@@ -184,7 +172,7 @@ class GlutenResultIterator
    public:
     explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
 
-    arrow::Result<std::shared_ptr<memory::GlutenColumnarBatch>> Next() {
+    arrow::Result<std::shared_ptr<ColumnarBatch>> Next() {
       return ptr_->Next();
     }
 
@@ -193,26 +181,26 @@ class GlutenResultIterator
   };
 
   void* raw_iter_;
-  std::unique_ptr<GlutenIterator> iter_;
-  std::shared_ptr<memory::GlutenColumnarBatch> next_;
-  std::shared_ptr<ExecBackend> backend_;
+  std::unique_ptr<ArrowIterator> iter_;
+  std::shared_ptr<ColumnarBatch> next_;
+  std::shared_ptr<Backend> backend_;
   int64_t exportNanos_;
 
-  inline void CheckValid() const {
+  void CheckValid() const {
     if (iter_ == nullptr) {
       throw GlutenException("ArrowExecResultIterator: the underlying iterator has expired.");
     }
   }
 
-  inline void GetNext() {
+  void GetNext() {
     if (next_ == nullptr) {
       GLUTEN_ASSIGN_OR_THROW(next_, iter_->Next());
     }
   }
 };
 
-void SetBackendFactory(std::function<std::shared_ptr<ExecBackend>()> factory);
+void SetBackendFactory(std::function<std::shared_ptr<Backend>()> factory);
 
-std::shared_ptr<ExecBackend> CreateBackend();
+std::shared_ptr<Backend> CreateBackend();
 
 } // namespace gluten

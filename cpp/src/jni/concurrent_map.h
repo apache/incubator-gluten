@@ -15,8 +15,7 @@
  * See the License for the specific language governing permissions and
  */
 
-#ifndef JNI_ID_TO_MODULE_MAP_H
-#define JNI_ID_TO_MODULE_MAP_H
+#pragma once
 
 #include <memory>
 #include <mutex>
@@ -25,8 +24,7 @@
 
 #include "arrow/util/macros.h"
 
-namespace arrow {
-namespace jni {
+namespace gluten {
 
 /**
  * An utility class that map module id to module pointers.
@@ -75,11 +73,10 @@ class ConcurrentMap {
 
   int64_t module_id_;
   std::mutex mtx_;
+
   // map from module ids returned to Java and module pointers
   std::unordered_map<jlong, Holder> map_;
 };
 
-} // namespace jni
-} // namespace arrow
+} // namespace gluten
 
-#endif // JNI_ID_TO_MODULE_MAP_H

@@ -23,7 +23,7 @@ using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::aggregate::prestosql;
 
-namespace velox::compute {
+namespace gluten {
 
 void registerCustomFunctions() {
   exec::registerVectorFunction(
@@ -40,4 +40,4 @@ void registerAllFunctions() {
   registerAllAggregateFunctions();
 }
 
-} // namespace velox::compute
+} // namespace gluten

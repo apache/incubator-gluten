@@ -18,16 +18,14 @@
 #include "arrow_memory_pool.h"
 
 namespace gluten {
-namespace memory {
 
-std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(gluten::memory::MemoryAllocator* allocator) {
+std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator) {
   return std::make_shared<WrappedArrowMemoryPool>(allocator);
 }
 
 std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool() {
-  static auto static_pool = AsWrappedArrowMemoryPool(gluten::memory::DefaultMemoryAllocator().get());
+  static auto static_pool = AsWrappedArrowMemoryPool(DefaultMemoryAllocator().get());
   return static_pool;
 }
 
-} // namespace memory
 } // namespace gluten

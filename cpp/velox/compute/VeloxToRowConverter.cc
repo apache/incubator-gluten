@@ -28,8 +28,9 @@
 #include "velox/row/UnsafeRowSerializer.h"
 #include "velox/vector/arrow/c/Bridge.h"
 
-namespace velox {
-namespace compute {
+using namespace facebook::velox;
+
+namespace gluten {
 
 arrow::Status VeloxToRowConverter::Init() {
   num_rows_ = rv_->size();
@@ -180,7 +181,7 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<DoubleType>(vec, write_address, row_idx);
+            auto serialized = row::UnsafeRowSerializer::serialize<DoubleType>( vec, write_address, row_idx);
           }
         }
         break;
@@ -194,7 +195,7 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<BooleanType>(vec, write_address, row_idx);
+            auto serialized = row::UnsafeRowSerializer::serialize<BooleanType>( vec, write_address, row_idx);
           }
         }
         break;
@@ -221,12 +222,10 @@ arrow::Status VeloxToRowConverter::Write() {
         break;
       }
       default:
-        return arrow::Status::Invalid(
-            "Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");
+        return arrow::Status::Invalid("Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");
     }
   }
   return arrow::Status::OK();
 }
 
-} // namespace compute
-} // namespace velox
+} // namespace gluten

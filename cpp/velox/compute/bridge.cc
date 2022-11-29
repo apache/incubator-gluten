@@ -27,7 +27,7 @@
 #include "arrow/util/value_parsing.h"
 #include "arrow/visit_type_inline.h"
 
-namespace arrow {
+namespace gluten {
 
 namespace {
 
@@ -47,11 +47,11 @@ class ExportedArrayStreamByArray {
 
   explicit ExportedArrayStreamByArray(struct ArrowArrayStream* stream) : stream_(stream) {}
 
-  Status GetSchema(struct ArrowSchema* out_schema) {
+  arrow::Status GetSchema(struct ArrowSchema* out_schema) {
     return ExportSchema(*schema(), out_schema);
   }
 
-  Status GetNext(struct ArrowArray* out_array) {
+  arrow::Status GetNext(struct ArrowArray* out_array) {
     std::shared_ptr<ArrowArray> array;
     RETURN_NOT_OK(reader()->Next().Value(&array));
     if (array == nullptr) {
@@ -60,7 +60,7 @@ class ExportedArrayStreamByArray {
     } else {
       ArrowArrayMove(array.get(), out_array);
     }
-    return Status::OK();
+    return arrow::Status::OK();
   }
 
   const char* GetLastError() {
@@ -99,18 +99,18 @@ class ExportedArrayStreamByArray {
   }
 
  private:
-  int ToCError(const Status& status) {
+  int ToCError(const arrow::Status& status) {
     if (ARROW_PREDICT_TRUE(status.ok())) {
       private_data()->last_error_.clear();
       return 0;
     }
     private_data()->last_error_ = status.ToString();
     switch (status.code()) {
-      case StatusCode::IOError:
+      case arrow::StatusCode::IOError:
         return EIO;
-      case StatusCode::NotImplemented:
+      case arrow::StatusCode::NotImplemented:
         return ENOSYS;
-      case StatusCode::OutOfMemory:
+      case arrow::StatusCode::OutOfMemory:
         return ENOMEM;
       default:
         return EINVAL; // Fallback for Invalid, TypeError, etc.
@@ -125,7 +125,7 @@ class ExportedArrayStreamByArray {
     return private_data()->reader_;
   }
 
-  const std::shared_ptr<Schema> schema() {
+  const std::shared_ptr<arrow::Schema> schema() {
     return private_data()->schema_;
   }
 
@@ -134,8 +134,7 @@ class ExportedArrayStreamByArray {
 
 } // namespace
 
-Status ExportArrowArray(
-    std::shared_ptr<arrow::Schema> schema,
+arrow::Status ExportArrowArray(std::shared_ptr<arrow::Schema> schema,
     std::shared_ptr<gluten::ArrowArrayIterator> reader,
     struct ArrowArrayStream* out) {
   out->get_schema = ExportedArrayStreamByArray::StaticGetSchema;
@@ -143,7 +142,7 @@ Status ExportArrowArray(
   out->get_last_error = ExportedArrayStreamByArray::StaticGetLastError;
   out->release = ExportedArrayStreamByArray::StaticRelease;
   out->private_data = new ExportedArrayStreamByArray::PrivateData{std::move(reader), std::move(schema)};
-  return Status::OK();
+  return arrow::Status::OK();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -226,4 +225,4 @@ Status ExportArrowArray(
 //   return std::make_shared<ArrayStreamArrayReader>(stream);
 // }
 
-} // namespace arrow
+} // namespace gluten

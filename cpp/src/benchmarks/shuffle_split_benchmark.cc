@@ -295,6 +295,7 @@ class BenchmarkShuffleSplit {
     CPU_SET(cpuindex, &cs);
     return sched_setaffinity(0, sizeof(cs), &cs);
   }
+
   virtual void Do_Split(
       std::shared_ptr<Splitter>& splitter,
       int64_t& elapse_read,

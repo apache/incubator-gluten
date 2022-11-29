@@ -21,7 +21,6 @@
 #include "allocator.h"
 
 namespace gluten {
-namespace memory {
 
 bool HbwMemoryAllocator::Allocate(int64_t size, void** out) {
   *out = hbw_malloc(size);
@@ -35,7 +34,7 @@ bool HbwMemoryAllocator::AllocateZeroFilled(int64_t nmemb, int64_t size, void** 
   return true;
 }
 
-bool HbwMemoryAllocator::AllocateAligned(uint16_t alignment, int64_t size, void** out) {
+bool HbwMemoryAllocator::AllocateAligned(uint16_t alignment, int64_t size, void** out) { 
   if (hbw_posix_memalign(out, alignment, size) != 0) {
     return false;
   }
@@ -70,9 +69,8 @@ bool HbwMemoryAllocator::Free(void* p, int64_t size) {
   return true;
 }
 
-int64_t HbwMemoryAllocator::GetBytes() {
+int64_t HbwMemoryAllocator::GetBytes() const {
   return bytes_;
 }
 
-} // namespace memory
 } // namespace gluten

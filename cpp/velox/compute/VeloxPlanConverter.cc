@@ -30,23 +30,23 @@
 #include "velox/exec/PlanNodeStats.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/vector/arrow/c/Bridge.h"
+
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::connector;
 using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
 
-namespace velox {
-namespace compute {
+namespace gluten {
 
 namespace {
-const std::string kHiveConnectorId = "test-hive";
-const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
-const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
-const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
-const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
-const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
-std::atomic<int32_t> taskSerial;
+  const std::string kHiveConnectorId = "test-hive";
+  const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
+  const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
+  const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
+  const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
+  const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
+  std::atomic<int32_t> taskSerial;
 } // namespace
 
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* memoryPool) {
@@ -130,7 +130,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 
   auto properties = std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector = getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
-                           ->newConnector(kHiveConnectorId, properties, nullptr);
+          ->newConnector(kHiveConnectorId, properties, nullptr);
   registerConnector(hiveConnector);
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   dwrf::registerDwrfReaderFactory();
@@ -138,7 +138,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   registerAllFunctions();
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
+void VeloxBackend::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
     setInputPlanNode(fetchRel.input());
   } else {
@@ -146,7 +146,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel)
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::ExpandRel& sexpand) {
+void VeloxBackend::setInputPlanNode(const ::substrait::ExpandRel& sexpand) {
   if (sexpand.has_input()) {
     setInputPlanNode(sexpand.input());
   } else {
@@ -154,7 +154,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ExpandRel& sexpand)
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
+void VeloxBackend::setInputPlanNode(const ::substrait::SortRel& ssort) {
   if (ssort.has_input()) {
     setInputPlanNode(ssort.input());
   } else {
@@ -162,7 +162,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::AggregateRel& sagg) {
+void VeloxBackend::setInputPlanNode(const ::substrait::AggregateRel& sagg) {
   if (sagg.has_input()) {
     setInputPlanNode(sagg.input());
   } else {
@@ -170,7 +170,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::AggregateRel& sagg)
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::ProjectRel& sproject) {
+void VeloxBackend::setInputPlanNode(const ::substrait::ProjectRel& sproject) {
   if (sproject.has_input()) {
     setInputPlanNode(sproject.input());
   } else {
@@ -178,7 +178,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ProjectRel& sprojec
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::FilterRel& sfilter) {
+void VeloxBackend::setInputPlanNode(const ::substrait::FilterRel& sfilter) {
   if (sfilter.has_input()) {
     setInputPlanNode(sfilter.input());
   } else {
@@ -186,7 +186,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::FilterRel& sfilter)
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
+void VeloxBackend::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
   if (sjoin.has_left()) {
     setInputPlanNode(sjoin.left());
   } else {
@@ -200,7 +200,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
+void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
   if (iterIdx == -1) {
     return;
@@ -246,11 +246,14 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto arrowStreamNode = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(), outputType, arrowStream, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
+      nextPlanNodeId(),
+      outputType,
+      arrowStream,
+      GetDefaultWrappedVeloxMemoryPool().get());
   subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
+void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
   if (srel.has_aggregate()) {
     setInputPlanNode(srel.aggregate());
   } else if (srel.has_project()) {
@@ -272,7 +275,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
   }
 }
 
-void VeloxPlanConverter::setInputPlanNode(const ::substrait::RelRoot& sroot) {
+void VeloxBackend::setInputPlanNode(const ::substrait::RelRoot& sroot) {
   // Output names can be got from RelRoot, but are not used currently.
   if (sroot.has_input()) {
     setInputPlanNode(sroot.input());
@@ -281,7 +284,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::RelRoot& sroot) {
   }
 }
 
-std::shared_ptr<const core::PlanNode> VeloxPlanConverter::getVeloxPlanNode(const ::substrait::Plan& splan) {
+std::shared_ptr<const core::PlanNode> VeloxBackend::getVeloxPlanNode(
+    const ::substrait::Plan& splan) {
   // In fact, only one RelRoot is expected here.
   for (auto& srel : splan.relations()) {
     if (srel.has_root()) {
@@ -298,13 +302,13 @@ std::shared_ptr<const core::PlanNode> VeloxPlanConverter::getVeloxPlanNode(const
   return planNode;
 }
 
-std::string VeloxPlanConverter::nextPlanNodeId() {
+std::string VeloxBackend::nextPlanNodeId() {
   auto id = fmt::format("{}", planNodeId_);
   planNodeId_++;
   return id;
 }
 
-void VeloxPlanConverter::getInfoAndIds(
+void VeloxBackend::getInfoAndIds(
     std::unordered_map<core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>> splitInfoMap,
     std::unordered_set<core::PlanNodeId> leafPlanNodeIds,
     std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
@@ -327,15 +331,16 @@ void VeloxPlanConverter::getInfoAndIds(
   }
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> VeloxPlanConverter::GetResultIterator(
-    gluten::memory::MemoryAllocator* allocator) {
-  std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs = {};
+std::shared_ptr<GlutenResultIterator>
+VeloxBackend::GetResultIterator(MemoryAllocator* allocator) {
+  std::vector<std::shared_ptr<GlutenResultIterator>> inputs = {};
   return GetResultIterator(allocator, inputs);
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> VeloxPlanConverter::GetResultIterator(
-    gluten::memory::MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
+std::shared_ptr<GlutenResultIterator>
+VeloxBackend::GetResultIterator(
+    MemoryAllocator* allocator,
+    std::vector<std::shared_ptr<GlutenResultIterator>> inputs) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
@@ -345,22 +350,22 @@ std::shared_ptr<gluten::GlutenResultIterator> VeloxPlanConverter::GetResultItera
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
   std::vector<core::PlanNodeId> scanIds;
   std::vector<core::PlanNodeId> streamIds;
+
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
+  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
-    return std::make_shared<gluten::GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+    return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
   }
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
-  return std::make_shared<gluten::GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
+  return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> VeloxPlanConverter::GetResultIterator(
-    gluten::memory::MemoryAllocator* allocator,
+std::shared_ptr<GlutenResultIterator>
+VeloxBackend::GetResultIterator(MemoryAllocator* allocator,
     const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& setScanInfos) {
   planNode_ = getVeloxPlanNode(plan_);
 
@@ -368,31 +373,46 @@ std::shared_ptr<gluten::GlutenResultIterator> VeloxPlanConverter::GetResultItera
   std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos;
   std::vector<core::PlanNodeId> scanIds;
   std::vector<core::PlanNodeId> streamIds;
+
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
-  return std::make_shared<gluten::GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
+  return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
-std::shared_ptr<arrow::Schema> VeloxPlanConverter::GetOutputSchema() {
+arrow::Result<std::shared_ptr<ColumnarToRowConverter>>
+VeloxBackend::getColumnarConverter(MemoryAllocator* allocator, std::shared_ptr<ColumnarBatch> cb) {
+  auto arrowPool = AsWrappedArrowMemoryPool(allocator);
+  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+  if (veloxBatch != nullptr) {
+    return std::make_shared<VeloxToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
+  }
+  // If the child is not Velox output, use Arrow-to-Row conversion instead.
+  std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
+  std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
+  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+  ArrowSchemaRelease(c_schema.get());
+  ArrowArrayRelease(c_array.get());
+  return std::make_shared<ArrowColumnarToRowConverter>(rb, arrowPool);
+}
+
+std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
   if (output_schema_ == nullptr) {
     cacheOutputSchema(planNode_);
   }
   return output_schema_;
 }
 
-void VeloxPlanConverter::cacheOutputSchema(const std::shared_ptr<const core::PlanNode>& planNode) {
+void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
-  exportToArrow(
-      BaseVector::create(planNode->outputType(), 0, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get()),
-      arrowSchema);
+  exportToArrow(BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool().get()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
 
-arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>> WholeStageResIter::Next() {
+arrow::Result<std::shared_ptr<VeloxColumnarBatch>> WholeStageResIter::Next() {
   addSplits_(task_.get());
   if (task_->isFinished()) {
     return nullptr;
@@ -405,16 +425,14 @@ arrow::Result<std::shared_ptr<GlutenVeloxColumnarBatch>> WholeStageResIter::Next
   if (numRows == 0) {
     return nullptr;
   }
-  return std::make_shared<GlutenVeloxColumnarBatch>(vector);
+  return std::make_shared<VeloxColumnarBatch>(vector);
 }
 
 memory::MemoryPool* WholeStageResIter::getPool() const {
   return pool_.get();
 }
 
-void WholeStageResIter::getOrderedNodeIds(
-    const std::shared_ptr<const core::PlanNode>& planNode,
-    std::vector<core::PlanNodeId>& nodeIds) {
+void WholeStageResIter::getOrderedNodeIds(const std::shared_ptr<const core::PlanNode>& planNode, std::vector<core::PlanNodeId>& nodeIds) {
   bool isProjectNode = false;
   if (std::dynamic_pointer_cast<const core::ProjectNode>(planNode)) {
     isProjectNode = true;
@@ -485,21 +503,18 @@ void WholeStageResIter::collectMetrics() {
       metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
       metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
-      metrics_->numDynamicFiltersProduced[metricsIdx] =
-          sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersProduced);
-      metrics_->numDynamicFiltersAccepted[metricsIdx] =
-          sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersAccepted);
-      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
-          sumOfRuntimeMetric(entry.second->customStats, kReplacedWithDynamicFilterRows);
+      metrics_->numDynamicFiltersProduced[metricsIdx] = sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersProduced);
+      metrics_->numDynamicFiltersAccepted[metricsIdx] = sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersAccepted);
+      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] = sumOfRuntimeMetric(entry.second->customStats, kReplacedWithDynamicFilterRows);
       metricsIdx += 1;
     }
   }
 }
 
 int64_t WholeStageResIter::sumOfRuntimeMetric(
-    const std::unordered_map<std::string, RuntimeMetric>& runtimeStats,
-    const std::string& metricId) const {
-  if (runtimeStats.size() == 0 || runtimeStats.find(metricId) == runtimeStats.end()) {
+    const std::unordered_map<std::string, RuntimeMetric>& runtimeStats, const std::string& metricId) const {
+  if (runtimeStats.size() == 0 ||
+      runtimeStats.find(metricId) == runtimeStats.end()) {
     return 0;
   }
   return runtimeStats.at(metricId).sum;
@@ -517,7 +532,7 @@ void WholeStageResIter::setConfToQueryContext(const std::shared_ptr<core::QueryC
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
-class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter {
+class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
  public:
   WholeStageResIterFirstStage(
       std::shared_ptr<memory::MemoryPool> pool,
@@ -530,11 +545,13 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
         scanNodeIds_(scanNodeIds),
         scanInfos_(scanInfos),
         streamIds_(streamIds) {
+
     // Generate splits for all scan nodes.
     splits_.reserve(scanInfos.size());
     if (scanNodeIds.size() != scanInfos.size()) {
       throw std::runtime_error("Invalid scan information.");
     }
+
     for (const auto& scanInfo : scanInfos) {
       // Get the information for TableScan.
       // Partition index in scan info is not used.
@@ -565,10 +582,15 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
     // Set task parameters.
     core::PlanFragment planFragment{planNode, core::ExecutionStrategy::kUngrouped, 1};
     std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getPool());
+
     // Set customized confs to query context.
     setConfToQueryContext(queryCtx);
     task_ = std::make_shared<exec::Task>(
-        fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
+        fmt::format("gluten task {}", ++taskSerial),
+        std::move(planFragment),
+        0,
+        std::move(queryCtx));
+
     if (!task_->supportsSingleThreadedExecution()) {
       throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
     }
@@ -606,6 +628,7 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
     std::string delimiter = "=";
     std::string str = filePath;
     std::size_t pos = str.find(delimiter);
+
     while (pos != std::string::npos) {
       // Split the string with delimiter.
       std::string prePart = str.substr(0, pos);
@@ -630,10 +653,9 @@ class VeloxPlanConverter::WholeStageResIterFirstStage : public WholeStageResIter
   }
 };
 
-class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIter {
+class VeloxBackend::WholeStageResIterMiddleStage : public WholeStageResIter {
  public:
-  WholeStageResIterMiddleStage(
-      std::shared_ptr<memory::MemoryPool> pool,
+  WholeStageResIterMiddleStage(std::shared_ptr<memory::MemoryPool> pool,
       const std::shared_ptr<const core::PlanNode>& planNode,
       const std::vector<core::PlanNodeId>& streamIds,
       const std::unordered_map<std::string, std::string>& confMap)
@@ -642,8 +664,13 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
     std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getPool());
     // Set customized confs to query context.
     setConfToQueryContext(queryCtx);
+
     task_ = std::make_shared<exec::Task>(
-        fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
+        fmt::format("gluten task {}", ++taskSerial),
+        std::move(planFragment),
+        0,
+        std::move(queryCtx));
+
     if (!task_->supportsSingleThreadedExecution()) {
       throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
     }
@@ -663,54 +690,4 @@ class VeloxPlanConverter::WholeStageResIterMiddleStage : public WholeStageResIte
   std::vector<core::PlanNodeId> streamIds_;
 };
 
-GlutenVeloxColumnarBatch::~GlutenVeloxColumnarBatch() = default;
-
-std::string GlutenVeloxColumnarBatch::GetType() {
-  return "velox";
-}
-
-void GlutenVeloxColumnarBatch::EnsureFlattened() {
-  if (flattened_ != nullptr) {
-    return;
-  }
-  auto startTime = std::chrono::steady_clock::now();
-  // Make sure to load lazy vector if not loaded already.
-  for (auto& child : rowVector_->children()) {
-    child->loadedVector();
-  }
-
-  // Perform copy to flatten dictionary vectors.
-  RowVectorPtr copy = std::dynamic_pointer_cast<RowVector>(
-      BaseVector::create(rowVector_->type(), rowVector_->size(), rowVector_->pool()));
-  copy->copy(rowVector_.get(), 0, 0, rowVector_->size());
-  flattened_ = copy;
-  auto endTime = std::chrono::steady_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
-  exportNanos_ += duration;
-}
-
-std::shared_ptr<ArrowSchema> GlutenVeloxColumnarBatch::exportArrowSchema() {
-  std::shared_ptr<ArrowSchema> out = std::make_shared<ArrowSchema>();
-  EnsureFlattened();
-  facebook::velox::exportToArrow(flattened_, *out);
-  return out;
-}
-
-std::shared_ptr<ArrowArray> GlutenVeloxColumnarBatch::exportArrowArray() {
-  std::shared_ptr<ArrowArray> out = std::make_shared<ArrowArray>();
-  EnsureFlattened();
-  facebook::velox::exportToArrow(flattened_, *out, gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
-  return out;
-}
-
-RowVectorPtr GlutenVeloxColumnarBatch::getRowVector() const {
-  return rowVector_;
-}
-
-RowVectorPtr GlutenVeloxColumnarBatch::getFlattenedRowVector() {
-  EnsureFlattened();
-  return flattened_;
-}
-
-} // namespace compute
-} // namespace velox
+} // namespace gluten

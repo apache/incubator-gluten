@@ -28,13 +28,12 @@
 #include <boost/align.hpp>
 
 namespace gluten {
-namespace columnartorow {
 
-class ColumnarToRowConverterBase {
+class ColumnarToRowConverter {
  public:
-  ColumnarToRowConverterBase(std::shared_ptr<arrow::MemoryPool> arrow_pool) : arrow_pool_(arrow_pool) {}
+  ColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> arrow_pool) : arrow_pool_(arrow_pool) {}
 
-  virtual ~ColumnarToRowConverterBase() = default;
+  virtual ~ColumnarToRowConverter() = default;
 
   virtual arrow::Status Init() = 0;
   virtual arrow::Status Write() = 0;
@@ -42,10 +41,12 @@ class ColumnarToRowConverterBase {
   uint8_t* GetBufferAddress() {
     return buffer_address_;
   }
+
   const std::vector<int32_t>& GetOffsets() {
     return offsets_;
   }
-  const std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>& GetLengths() {
+
+  const std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>& GetLengths() const{
     return lengths_;
   }
 
@@ -91,5 +92,4 @@ class ColumnarToRowConverterBase {
   std::array<uint8_t, 16> ToByteArray(arrow::Decimal128 value, int32_t* length);
 };
 
-} // namespace columnartorow
 } // namespace gluten

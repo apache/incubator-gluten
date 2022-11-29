@@ -231,15 +231,29 @@ class BenchmarkCompression {
     auto total_time = (end_time - start_time).count();
 
     state.counters["rowgroups"] = benchmark::Counter(
-        row_group_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["columns"] =
-        benchmark::Counter(column_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["batches"] =
-        benchmark::Counter(num_batches, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["num_rows"] =
-        benchmark::Counter(num_rows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    state.counters["batch_buffer_size"] =
-        benchmark::Counter(split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        row_group_indices.size(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
+
+    state.counters["columns"] = benchmark::Counter(
+        column_indices.size(),
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
+
+    state.counters["batches"] = benchmark::Counter(
+        num_batches,
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
+
+    state.counters["num_rows"] = benchmark::Counter(
+        num_rows,
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1000);
+
+    state.counters["batch_buffer_size"] = benchmark::Counter(
+        split_buffer_size,
+        benchmark::Counter::kAvgThreads,
+        benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] =
         benchmark::Counter(elapse_read, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
@@ -306,8 +320,8 @@ class BenchmarkCompression_IterateScan_Benchmark : public BenchmarkCompression {
         }
         auto payload = std::make_shared<arrow::ipc::IpcPayload>();
 
-        TIME_NANO_OR_THROW(
-            compress_time, arrow::ipc::GetRecordBatchPayload(*record_batch, ipc_write_options, payload.get()));
+        TIME_NANO_OR_THROW(compress_time,
+            arrow::ipc::GetRecordBatchPayload(*record_batch, ipc_write_options, payload.get()));
         std::cout << "Compressed " << num_batches << " batches" << std::endl;
         TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       }

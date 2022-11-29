@@ -32,13 +32,11 @@
 #include "substrait/algebra.pb.h"
 
 namespace gluten {
-namespace shuffle {
 
 class Splitter {
  protected:
   struct BinaryBuff {
-    BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c, uint64_t f)
-        : valueptr(v), offsetptr(o), value_capacity(c), value_offset(f) {}
+    BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c, uint64_t f) : valueptr(v), offsetptr(o), value_capacity(c), value_offset(f) {}
     BinaryBuff(uint8_t* v, uint8_t* o, uint64_t c) : valueptr(v), offsetptr(o), value_capacity(c), value_offset(0) {}
     BinaryBuff() : valueptr(nullptr), offsetptr(nullptr), value_capacity(0), value_offset(0) {}
 
@@ -162,29 +160,21 @@ class Splitter {
   arrow::Status SplitBinaryArray(const arrow::RecordBatch& rb);
 
   template <typename T>
-  arrow::Status SplitBinaryType(
-      const uint8_t* src_addr,
-      const T* src_offset_addr,
-      std::vector<BinaryBuff>& dst_addrs,
-      const int binary_idx);
+  arrow::Status SplitBinaryType(const uint8_t* src_addr, const T* src_offset_addr,
+      std::vector<BinaryBuff>& dst_addrs, const int binary_idx);
 
   arrow::Status SplitListArray(const arrow::RecordBatch& rb);
 
   arrow::Status AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
 
-  template <
-      typename T,
+  template <typename T,
       typename ArrayType = typename arrow::TypeTraits<T>::ArrayType,
       typename BuilderType = typename arrow::TypeTraits<T>::BuilderType>
-  arrow::Status AppendBinary(
-      const std::shared_ptr<ArrayType>& src_arr,
-      const std::vector<std::shared_ptr<BuilderType>>& dst_builders,
-      int64_t num_rows);
+  arrow::Status AppendBinary(const std::shared_ptr<ArrayType>& src_arr,
+      const std::vector<std::shared_ptr<BuilderType>>& dst_builders, int64_t num_rows);
 
-  arrow::Status AppendList(
-      const std::shared_ptr<arrow::Array>& src_arr,
-      const std::vector<std::shared_ptr<arrow::ArrayBuilder>>& dst_builders,
-      int64_t num_rows);
+  arrow::Status AppendList(const std::shared_ptr<arrow::Array>& src_arr,
+      const std::vector<std::shared_ptr<arrow::ArrayBuilder>>& dst_builders, int64_t num_rows);
 
   // Cache the partition buffer/builder as compressed record batch. If reset
   // buffers, the partition buffer/builder will be set to nullptr. Two cases for
@@ -302,8 +292,8 @@ class Splitter {
 
 class RoundRobinSplitter : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<RoundRobinSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<RoundRobinSplitter>> Create(
+      int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
 
  private:
   RoundRobinSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
@@ -316,8 +306,9 @@ class RoundRobinSplitter : public Splitter {
 
 class HashSplitter : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<HashSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<HashSplitter>> Create(
+      int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+
   const std::shared_ptr<arrow::Schema>& input_schema() const override {
     return input_schema_;
   }
@@ -337,8 +328,8 @@ class HashSplitter : public Splitter {
 
 class FallbackRangeSplitter : public Splitter {
  public:
-  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>>
-  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+  static arrow::Result<std::shared_ptr<FallbackRangeSplitter>> Create(
+      int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
 
   arrow::Status Split(const arrow::RecordBatch& rb) override;
 
@@ -357,5 +348,4 @@ class FallbackRangeSplitter : public Splitter {
   std::shared_ptr<arrow::Schema> input_schema_;
 };
 
-} // namespace shuffle
 } // namespace gluten

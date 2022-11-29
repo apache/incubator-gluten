@@ -21,25 +21,22 @@
 #include "type.h"
 
 namespace gluten {
-namespace shuffle {
 
 class Reader {
  public:
-  Reader(
-      std::shared_ptr<arrow::io::InputStream> in,
+  Reader(std::shared_ptr<arrow::io::InputStream> in,
       std::shared_ptr<arrow::Schema> schema,
-      gluten::shuffle::ReaderOptions options);
+      ReaderOptions options);
 
-  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next();
+  arrow::Result<std::shared_ptr<ColumnarBatch>> Next();
   arrow::Status Close();
 
  private:
   std::shared_ptr<arrow::io::InputStream> in_;
-  gluten::shuffle::ReaderOptions options_;
+  ReaderOptions options_;
   std::shared_ptr<arrow::Schema> schema_;
   std::unique_ptr<arrow::ipc::Message> first_message_;
   bool first_message_consumed_ = false;
 };
 
-} // namespace shuffle
 } // namespace gluten
