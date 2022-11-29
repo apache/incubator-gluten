@@ -286,7 +286,6 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       // df.explain(false)
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
-      df.explain(false)
       val plan = df.queryExecution.executedPlan
       DSV2BenchmarkTest.collectAllJoinSide(plan)
       println(result.length)
@@ -381,7 +380,6 @@ object DSV2TPCDSBenchmarkTest extends AdaptiveSparkPlanHelper {
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
-      df.explain(false)
       println(result.length)
       result.foreach(r => println(r.mkString(",")))
       val tookTime = (System.nanoTime() - startTime) / 1000000

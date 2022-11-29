@@ -162,8 +162,6 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)
-    df.show(false)
-    df.explain()
     if (compareResult) {
       checkAnswer(df, expected)
     }
