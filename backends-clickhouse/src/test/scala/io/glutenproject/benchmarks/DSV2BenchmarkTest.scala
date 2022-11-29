@@ -320,7 +320,9 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
                               |
                               |""".stripMargin) // .show(30, false)
         // df.queryExecution.debug.codegen
+        // df.explain(false)
         val result = df.collect() // .show(100, false)  //.collect()
+        df.explain(false)
         val plan = df.queryExecution.executedPlan
         collectAllJoinSide(plan)
         println(result.length)
@@ -373,12 +375,14 @@ object DSV2BenchmarkTest extends AdaptiveSparkPlanHelper {
                             |    AND l_shipdate < date'1995-09-01' + interval 1 month;
                             |
                             |""".stripMargin) // .show(30, false)
+      df.explain(false)
       val plan = df.queryExecution.executedPlan
       // df.queryExecution.debug.codegen
       val result = df.collect() // .show(100, false)  //.collect()
       println(result.length)
       result.foreach(r => println(r.mkString(",")))
       // .show(30, false)
+      // .explain(false)
       // .collect()
       val tookTime = (System.nanoTime() - startTime) / 1000000
       println(s"Execute $i time, time: $tookTime")
