@@ -1123,8 +1123,6 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitterwithCompression) {
 
   // verify second block
   batches.clear();
-  // just test ci
-  batches.clear();
   ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
   ASSERT_EQ(*file_reader->schema(), *rb_schema);
   ASSERT_NOT_OK(file_->Advance(lengths[0]));

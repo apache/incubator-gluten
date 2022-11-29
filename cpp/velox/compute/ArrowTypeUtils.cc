@@ -80,8 +80,7 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
     std::size_t token_pos = innerType.find_first_of(",");
 
     keyType = toArrowTypeFromName(innerType.substr(0, token_pos));
-    valueType = toArrowTypeFromName(
-        innerType.substr(token_pos + 1, innerType.length() - 1));
+    valueType = toArrowTypeFromName(innerType.substr(token_pos + 1, innerType.length() - 1));
 
     return arrow::map(keyType, valueType);
   }
