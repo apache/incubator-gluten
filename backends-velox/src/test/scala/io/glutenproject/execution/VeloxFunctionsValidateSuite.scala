@@ -222,4 +222,25 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test case/when clause") {
+    val df = runQueryAndCompare("select " +
+      "case when l_discount > 0.05 then 'big discount' else 'small discount' end as a " +
+      "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
+
+  test("Test if function") {
+    val df = runQueryAndCompare("select if(l_discount > 0.05, 'big discount', 'small discount') " +
+      "from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+    df.show()
+    df.explain(false)
+    df.printSchema()
+  }
 }
