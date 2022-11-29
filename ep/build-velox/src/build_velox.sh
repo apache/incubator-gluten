@@ -14,8 +14,8 @@ BUILD_FOLLY=ON
 VELOX_BUILD_TYPE=release
 VELOX_HOME=/root/velox
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/PHILO-HE/velox.git
+VELOX_BRANCH=date-type-oap
 
 for arg in "$@"
 do
