@@ -18,9 +18,7 @@
 package org.apache.spark.sql
 
 import java.io.File
-
 import scala.collection.mutable.ArrayBuffer
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ProjectExecTransformer
@@ -29,7 +27,6 @@ import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
 import org.scalactic.source.Position
 import org.scalatest.{Args, Status, Tag}
-
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
@@ -38,6 +35,8 @@ import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalR
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
+
+import java.sql.Date
 
 trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
 
@@ -168,6 +167,9 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
       val schema = StructType(
         StructField("a", IntegerType, nullable = true) :: Nil)
       val empData = Seq(Row(1))
+//      val schema = StructType(
+//        StructField("a", DateType, true) :: Nil)
+//      val empData = Seq(Row(Date.valueOf("2015-01-01")))
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
     val resultDF = df.select(Column(expression))
