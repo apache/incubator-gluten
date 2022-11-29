@@ -33,8 +33,12 @@ object MergeTreePartsPartitionsUtil {
     val partsFiles = table.listFiles()
 
     val partitions = new ArrayBuffer[InputPartition]
-    val database = table.catalogTable.get.identifier.database.get
-    val tableName = table.catalogTable.get.identifier.table
+    val (database, tableName) = if (table.catalogTable.isDefined) {
+      (table.catalogTable.get.identifier.database.get, table.catalogTable.get.identifier.table)
+    } else {
+      // for file_format.`file_path`
+      ("default", "file_format")
+    }
     val engine = table.snapshot.metadata.configuration.get("engine").get
     val tablePath = table.deltaLog.dataPath.toString.substring(6)
     var currentMinPartsNum = -1L
