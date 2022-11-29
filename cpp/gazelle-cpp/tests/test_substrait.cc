@@ -31,14 +31,11 @@ class TestSubstrait : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
     gazellecpp::compute::Initialize();
-    gluten::SetBackendFactory([] {
-      return std::make_shared<gazellecpp::compute::ArrowExecBackend>();
-    });
+    gluten::SetBackendFactory([] { return std::make_shared<gazellecpp::compute::ArrowExecBackend>(); });
     // setenv("MEMKIND_HBW_NODES", "0", 1);
   }
 
-  arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
-      const std::string& filePath) {
+  arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
     // Read json file and resume the binary data.
     std::ifstream msgJson(filePath);
     std::stringstream buffer;
@@ -52,13 +49,10 @@ class TestSubstrait : public ::testing::Test {
 
 TEST_F(TestSubstrait, TestParsePlan) {
   std::string current_path = get_current_dir_name();
-  const auto filePath =
-      current_path + "/../../gazelle-cpp/tests/data/query.json";
+  const auto filePath = current_path + "/../../gazelle-cpp/tests/data/query.json";
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
-    throw gluten::GlutenException(
-        "Can not get plan from file " + filePath +
-        " Error: " + maybePlan.status().message());
+    throw gluten::GlutenException("Can not get plan from file " + filePath + " Error: " + maybePlan.status().message());
   };
 
   auto plan = std::move(maybePlan).ValueOrDie();

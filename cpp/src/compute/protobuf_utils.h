@@ -29,18 +29,11 @@
 #include <vector>
 
 // Common for both projector and filters.
-bool ParseProtobuf(
-    const uint8_t* buf,
-    int bufLen,
-    google::protobuf::Message* msg);
+bool ParseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* msg);
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
     arrow::util::string_view type_name,
     arrow::util::string_view json);
-arrow::Result<std::string> SubstraitToJSON(
-    arrow::util::string_view type_name,
-    const arrow::Buffer& buf);
+arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name, const arrow::Buffer& buf);
 // Write a Protobuf message into a specified file with JSON format.
-void MessageToJSONFile(
-    const google::protobuf::Message& message,
-    const std::string& file_path);
+void MessageToJSONFile(const google::protobuf::Message& message, const std::string& file_path);

@@ -35,8 +35,7 @@
   lhs = std::move(status_name).ValueOrDie();
 
 #define GLUTEN_ASSIGN_OR_THROW(lhs, rexpr) \
-  GLUTEN_ASSIGN_OR_THROW_IMPL(             \
-      ARROW_ASSIGN_OR_RAISE_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
+  GLUTEN_ASSIGN_OR_THROW_IMPL(ARROW_ASSIGN_OR_RAISE_NAME(_error_or_value, __COUNTER__), lhs, rexpr);
 
 namespace gluten {
 

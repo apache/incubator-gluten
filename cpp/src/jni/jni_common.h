@@ -50,35 +50,26 @@ jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
   return global_class;
 }
 
-jmethodID
-GetMethodID(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
+jmethodID GetMethodID(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
   jmethodID ret = env->GetMethodID(this_class, name, sig);
   return ret;
 }
 
-jmethodID GetStaticMethodID(
-    JNIEnv* env,
-    jclass this_class,
-    const char* name,
-    const char* sig) {
+jmethodID GetStaticMethodID(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
   jmethodID ret = env->GetStaticMethodID(this_class, name, sig);
   return ret;
 }
 
-std::shared_ptr<arrow::DataType> GetOffsetDataType(
-    std::shared_ptr<arrow::DataType> parent_type) {
+std::shared_ptr<arrow::DataType> GetOffsetDataType(std::shared_ptr<arrow::DataType> parent_type) {
   switch (parent_type->id()) {
     case arrow::BinaryType::type_id:
-      return std::make_shared<
-          arrow::TypeTraits<arrow::BinaryType>::OffsetType>();
+      return std::make_shared<arrow::TypeTraits<arrow::BinaryType>::OffsetType>();
     case arrow::LargeBinaryType::type_id:
-      return std::make_shared<
-          arrow::TypeTraits<arrow::LargeBinaryType>::OffsetType>();
+      return std::make_shared<arrow::TypeTraits<arrow::LargeBinaryType>::OffsetType>();
     case arrow::ListType::type_id:
       return std::make_shared<arrow::TypeTraits<arrow::ListType>::OffsetType>();
     case arrow::LargeListType::type_id:
-      return std::make_shared<
-          arrow::TypeTraits<arrow::LargeListType>::OffsetType>();
+      return std::make_shared<arrow::TypeTraits<arrow::LargeListType>::OffsetType>();
     default:
       return nullptr;
   }
@@ -89,9 +80,7 @@ bool is_fixed_width_type(T _) {
   return std::is_base_of<arrow::FixedWidthType, T>::value;
 }
 
-arrow::Status AppendNodes(
-    std::shared_ptr<arrow::Array> column,
-    std::vector<std::pair<int64_t, int64_t>>* nodes) {
+arrow::Status AppendNodes(std::shared_ptr<arrow::Array> column, std::vector<std::pair<int64_t, int64_t>>* nodes) {
   auto type = column->type();
   (*nodes).push_back(std::make_pair(column->length(), column->null_count()));
   switch (type->id()) {
@@ -127,22 +116,15 @@ arrow::Status AppendBuffers(
   return arrow::Status::OK();
 }
 
-arrow::Status FIXOffsetBuffer(
-    std::shared_ptr<arrow::Buffer>* in_buf,
-    int fix_row) {
+arrow::Status FIXOffsetBuffer(std::shared_ptr<arrow::Buffer>* in_buf, int fix_row) {
   if ((*in_buf) == nullptr || (*in_buf)->size() == 0)
     return arrow::Status::OK();
   if ((*in_buf)->size() * 8 <= fix_row) {
-    ARROW_ASSIGN_OR_RAISE(
-        auto valid_copy, arrow::AllocateBuffer((*in_buf)->size() + 1));
-    std::memcpy(
-        valid_copy->mutable_data(),
-        (*in_buf)->data(),
-        static_cast<size_t>((*in_buf)->size()));
+    ARROW_ASSIGN_OR_RAISE(auto valid_copy, arrow::AllocateBuffer((*in_buf)->size() + 1));
+    std::memcpy(valid_copy->mutable_data(), (*in_buf)->data(), static_cast<size_t>((*in_buf)->size()));
     (*in_buf) = std::move(valid_copy);
   }
-  arrow::bit_util::SetBitsTo(
-      const_cast<uint8_t*>((*in_buf)->data()), fix_row, 1, true);
+  arrow::bit_util::SetBitsTo(const_cast<uint8_t*>((*in_buf)->data()), fix_row, 1, true);
   return arrow::Status::OK();
 }
 
@@ -167,34 +149,18 @@ arrow::Status MakeArrayData(
         // row from offset array, refer to array_nested.cc CleanListOffsets
         // function
         FIXOffsetBuffer(&in_bufs[*buf_idx_ptr], num_rows);
-        RETURN_NOT_OK(MakeArrayData(
-            offset_data_type,
-            num_rows + 1,
-            in_bufs,
-            in_bufs_len,
-            &offset_array_data,
-            buf_idx_ptr));
+        RETURN_NOT_OK(
+            MakeArrayData(offset_data_type, num_rows + 1, in_bufs, in_bufs_len, &offset_array_data, buf_idx_ptr));
         auto offset_array = arrow::MakeArray(offset_array_data);
         // create child data array
-        RETURN_NOT_OK(MakeArrayData(
-            child_type,
-            -1,
-            in_bufs,
-            in_bufs_len,
-            &child_array_data,
-            buf_idx_ptr));
+        RETURN_NOT_OK(MakeArrayData(child_type, -1, in_bufs, in_bufs_len, &child_array_data, buf_idx_ptr));
         auto child_array = arrow::MakeArray(child_array_data);
-        auto list_array =
-            arrow::ListArray::FromArrays(*offset_array, *child_array)
-                .ValueOrDie();
+        auto list_array = arrow::ListArray::FromArrays(*offset_array, *child_array).ValueOrDie();
         *arr_data = list_array->data();
 
       } break;
       default:
-        return arrow::Status::NotImplemented(
-            "MakeArrayData for type ",
-            type->ToString(),
-            " is not supported yet.");
+        return arrow::Status::NotImplemented("MakeArrayData for type ", type->ToString(), " is not supported yet.");
     }
 
   } else {
@@ -231,8 +197,7 @@ arrow::Status MakeArrayData(
       num_rows = value_size * 8 / arrow::bit_width(type->id());
     }
 
-    *arr_data =
-        arrow::ArrayData::Make(type, num_rows, std::move(buffers), null_count);
+    *arr_data = arrow::ArrayData::Make(type, num_rows, std::move(buffers), null_count);
   }
   return arrow::Status::OK();
 }
@@ -250,8 +215,7 @@ arrow::Status MakeRecordBatch(
   for (int i = 0; i < num_fields; i++) {
     auto field = schema->field(i);
     std::shared_ptr<arrow::ArrayData> array_data;
-    RETURN_NOT_OK(MakeArrayData(
-        field->type(), num_rows, in_bufs, in_bufs_len, &array_data, &buf_idx));
+    RETURN_NOT_OK(MakeArrayData(field->type(), num_rows, in_bufs, in_bufs_len, &array_data, &buf_idx));
     arrays.push_back(array_data);
   }
 
@@ -270,8 +234,8 @@ arrow::Status MakeRecordBatch(
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
   for (int i = 0; i < in_bufs_len; i++) {
     if (in_buf_addrs[i] != 0) {
-      auto data = std::shared_ptr<arrow::Buffer>(new arrow::Buffer(
-          reinterpret_cast<uint8_t*>(in_buf_addrs[i]), in_buf_sizes[i]));
+      auto data = std::shared_ptr<arrow::Buffer>(
+          new arrow::Buffer(reinterpret_cast<uint8_t*>(in_buf_addrs[i]), in_buf_sizes[i]));
       buffers.push_back(data);
     } else {
       buffers.push_back(std::make_shared<arrow::Buffer>(nullptr, 0));
@@ -305,8 +269,7 @@ jlong CreateNativeRef(std::shared_ptr<T> t) {
 /// \return the shared_ptr object
 template <typename T>
 std::shared_ptr<T> RetrieveNativeInstance(jlong ref) {
-  std::shared_ptr<T>* retrieved_ptr =
-      reinterpret_cast<std::shared_ptr<T>*>(ref);
+  std::shared_ptr<T>* retrieved_ptr = reinterpret_cast<std::shared_ptr<T>*>(ref);
   return *retrieved_ptr;
 }
 
@@ -315,22 +278,17 @@ std::shared_ptr<T> RetrieveNativeInstance(jlong ref) {
 /// \param[in] ref address of the shared_ptr
 template <typename T>
 void ReleaseNativeRef(jlong ref) {
-  std::shared_ptr<T>* retrieved_ptr =
-      reinterpret_cast<std::shared_ptr<T>*>(ref);
+  std::shared_ptr<T>* retrieved_ptr = reinterpret_cast<std::shared_ptr<T>*>(ref);
   delete retrieved_ptr;
 }
 
-jbyteArray ToSchemaByteArray(
-    JNIEnv* env,
-    std::shared_ptr<arrow::Schema> schema) {
+jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
   arrow::Result<std::shared_ptr<arrow::Buffer>> maybe_buffer;
-  maybe_buffer = arrow::ipc::SerializeSchema(
-      *schema.get(), gluten::memory::GetDefaultWrappedArrowMemoryPool().get());
+  maybe_buffer = arrow::ipc::SerializeSchema(*schema.get(), gluten::memory::GetDefaultWrappedArrowMemoryPool().get());
   if (!status.ok()) {
-    std::string error_message =
-        "Unable to convert schema to byte array, err is " + status.message();
+    std::string error_message = "Unable to convert schema to byte array, err is " + status.message();
     throw gluten::GlutenException(error_message);
   }
   auto buffer = *std::move(maybe_buffer);
@@ -340,20 +298,13 @@ jbyteArray ToSchemaByteArray(
   return out;
 }
 
-arrow::Result<arrow::Compression::type> GetCompressionType(
-    JNIEnv* env,
-    jstring codec_jstr) {
+arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv* env, jstring codec_jstr) {
   auto codec_l = env->GetStringUTFChars(codec_jstr, JNI_FALSE);
 
   std::string codec_u;
-  std::transform(
-      codec_l,
-      codec_l + std::strlen(codec_l),
-      std::back_inserter(codec_u),
-      ::tolower);
+  std::transform(codec_l, codec_l + std::strlen(codec_l), std::back_inserter(codec_u), ::tolower);
 
-  ARROW_ASSIGN_OR_RAISE(
-      auto compression_type, arrow::util::Codec::GetCompressionType(codec_u));
+  ARROW_ASSIGN_OR_RAISE(auto compression_type, arrow::util::Codec::GetCompressionType(codec_u));
 
   if (compression_type == arrow::Compression::LZ4) {
     compression_type = arrow::Compression::LZ4_FRAME;
@@ -369,19 +320,13 @@ arrow::Status DecompressBuffer(
     arrow::MemoryPool* pool) {
   const uint8_t* data = buffer.data();
   int64_t compressed_size = buffer.size() - sizeof(int64_t);
-  int64_t uncompressed_size =
-      arrow::bit_util::FromLittleEndian(arrow::util::SafeLoadAs<int64_t>(data));
-  ARROW_ASSIGN_OR_RAISE(
-      auto uncompressed, AllocateBuffer(uncompressed_size, pool));
+  int64_t uncompressed_size = arrow::bit_util::FromLittleEndian(arrow::util::SafeLoadAs<int64_t>(data));
+  ARROW_ASSIGN_OR_RAISE(auto uncompressed, AllocateBuffer(uncompressed_size, pool));
 
   int64_t actual_decompressed;
   ARROW_ASSIGN_OR_RAISE(
       actual_decompressed,
-      codec->Decompress(
-          compressed_size,
-          data + sizeof(int64_t),
-          uncompressed_size,
-          uncompressed->mutable_data()));
+      codec->Decompress(compressed_size, data + sizeof(int64_t), uncompressed_size, uncompressed->mutable_data()));
   if (actual_decompressed != uncompressed_size) {
     return arrow::Status::Invalid(
         "Failed to fully decompress buffer, expected ",
@@ -408,8 +353,7 @@ arrow::Status DecompressBuffers(
     }
     // if the buffer has been rebuilt to uncompressed on java side, return
     if (arrow::bit_util::GetBit(buf_mask, i)) {
-      ARROW_ASSIGN_OR_RAISE(
-          auto valid_copy, buffers[i]->CopySlice(0, buffers[i]->size()));
+      ARROW_ASSIGN_OR_RAISE(auto valid_copy, buffers[i]->CopySlice(0, buffers[i]->size()));
       buffers[i] = valid_copy;
       return arrow::Status::OK();
     }
@@ -419,13 +363,11 @@ arrow::Status DecompressBuffers(
           "Likely corrupted message, compressed buffers "
           "are larger than 8 bytes by construction");
     }
-    RETURN_NOT_OK(DecompressBuffer(
-        *buffers[i], codec.get(), &buffers[i], options.memory_pool));
+    RETURN_NOT_OK(DecompressBuffer(*buffers[i], codec.get(), &buffers[i], options.memory_pool));
     return arrow::Status::OK();
   };
 
-  return ::arrow::internal::OptionalParallelFor(
-      options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
+  return ::arrow::internal::OptionalParallelFor(options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
 }
 
 void AttachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
@@ -435,11 +377,9 @@ void AttachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
     std::cout << "JNIEnv was not attached to current thread." << std::endl;
 #endif
     // Reattach current thread to JVM
-    getEnvStat =
-        vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
+    getEnvStat = vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
     if (getEnvStat != JNI_OK) {
-      throw gluten::GlutenException(
-          "Failed to reattach current thread to JVM.");
+      throw gluten::GlutenException("Failed to reattach current thread to JVM.");
     }
 #ifdef GLUTEN_PRINT_DEBUG
     std::cout << "Succeeded attaching current thread." << std::endl;
@@ -455,18 +395,12 @@ void CheckException(JNIEnv* env) {
   if (env->ExceptionCheck()) {
     jthrowable t = env->ExceptionOccurred();
     env->ExceptionClear();
-    jclass describer_class =
-        env->FindClass("io/glutenproject/exception/JniExceptionDescriber");
-    jmethodID describe_method = env->GetStaticMethodID(
-        describer_class,
-        "describe",
-        "(Ljava/lang/Throwable;)Ljava/lang/String;");
-    std::string description = JStringToCString(
-        env,
-        (jstring)env->CallStaticObjectMethod(
-            describer_class, describe_method, t));
-    throw gluten::GlutenException(
-        "Error during calling Java code from native code: " + description);
+    jclass describer_class = env->FindClass("io/glutenproject/exception/JniExceptionDescriber");
+    jmethodID describe_method =
+        env->GetStaticMethodID(describer_class, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
+    std::string description =
+        JStringToCString(env, (jstring)env->CallStaticObjectMethod(describer_class, describe_method, t));
+    throw gluten::GlutenException("Error during calling Java code from native code: " + description);
   }
 }
 
@@ -484,8 +418,7 @@ class SparkAllocationListener : public gluten::memory::AllocationListener {
         block_size_(block_size) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
-      throw gluten::GlutenException(
-          "JNIEnv was not attached to current thread");
+      throw gluten::GlutenException("JNIEnv was not attached to current thread");
     }
     java_listener_ = env->NewGlobalRef(java_listener);
   }
@@ -526,8 +459,7 @@ class SparkAllocationListener : public gluten::memory::AllocationListener {
   void UpdateReservation(int64_t diff) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
-      throw gluten::GlutenException(
-          "JNIEnv was not attached to current thread");
+      throw gluten::GlutenException("JNIEnv was not attached to current thread");
     }
     int64_t granted = Reserve(diff);
     if (granted == 0) {

@@ -62,8 +62,7 @@ class GlutenColumnarBatch {
 class GlutenArrowColumnarBatch : public GlutenColumnarBatch {
  public:
   explicit GlutenArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
-      : GlutenColumnarBatch(batch->num_columns(), batch->num_rows()),
-        batch_(std::move(batch)) {}
+      : GlutenColumnarBatch(batch->num_columns(), batch->num_rows()), batch_(std::move(batch)) {}
 
   ~GlutenArrowColumnarBatch() override = default;
 
@@ -89,9 +88,7 @@ class GlutenArrowColumnarBatch : public GlutenColumnarBatch {
 
 class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
  public:
-  GlutenArrowCStructColumnarBatch(
-      std::unique_ptr<ArrowSchema> cSchema,
-      std::unique_ptr<ArrowArray> cArray)
+  GlutenArrowCStructColumnarBatch(std::unique_ptr<ArrowSchema> cSchema, std::unique_ptr<ArrowArray> cArray)
       : GlutenColumnarBatch(cArray->n_children, cArray->length) {
     ArrowSchemaMove(cSchema.get(), cSchema_.get());
     ArrowArrayMove(cArray.get(), cArray_.get());
