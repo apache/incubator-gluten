@@ -88,7 +88,6 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
   // The type name of ROW type is like ROW<type, type>.
   std::string structType = "ROW";
   if (type_name.substr(0, structType.length()) == structType) {
-    
     std::size_t start = type_name.find_first_of("<");
     std::size_t end = type_name.find_last_of(">");
     if (start == std::string::npos || end == std::string::npos) {
@@ -105,16 +104,16 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
       if (token_pos != std::string::npos) {
         auto typeName = innerType.substr(from, token_pos - from);
         fields.push_back(arrow::field(
-          "col_" + std::to_string(count), toArrowTypeFromName(typeName)));
+            "col_" + std::to_string(count), toArrowTypeFromName(typeName)));
         from = token_pos + 1;
-        token_pos = innerType.find(",", from); 
+        token_pos = innerType.find(",", from);
       }
     } while (token_pos != std::string::npos);
-    
+
     auto finalName = innerType.substr(from);
     fields.push_back(arrow::field(
-      "col_" + std::to_string(count + 1), toArrowTypeFromName(finalName)));
-    return  arrow::struct_(fields);
+        "col_" + std::to_string(count + 1), toArrowTypeFromName(finalName)));
+    return arrow::struct_(fields);
   }
 
   throw std::runtime_error("Type name is not supported: " + type_name + ".");

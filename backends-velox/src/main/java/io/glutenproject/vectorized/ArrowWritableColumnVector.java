@@ -263,7 +263,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
       childColumns = new ArrowWritableColumnVector[structVector.size()];
       for (int i = 0; i < childColumns.length; ++i) {
-        childColumns[i] = new ArrowWritableColumnVector(structVector.getVectorById(i), i, structVector.size(), false);
+        childColumns[i] = new ArrowWritableColumnVector(structVector.getVectorById(i),
+            i, structVector.size(), false);
       }
     } else {
       throw new UnsupportedOperationException();
