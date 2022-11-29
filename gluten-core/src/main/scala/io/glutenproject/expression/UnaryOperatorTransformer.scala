@@ -920,7 +920,7 @@ object UnaryOperatorTransformer {
     case t: Cosh =>
       new CoshTransformer(child, t)
     case t: ToDegrees =>
-      new DegreesTransformer(child, t)
+      new ToDegreesTransformer(child, t)
     case t: Log10 =>
       new Log10Transformer(child, t)
     case e: Exp =>
@@ -929,8 +929,6 @@ object UnaryOperatorTransformer {
       new SinTransformer(child, s)
     case s: Sinh =>
       new SinhTransformer(child, s)
-    case c: Cos =>
-      new CosTransformer(child, c)
     case t: Tan =>
       new TanTransformer(child, t)
     case t: Tanh =>
@@ -939,8 +937,6 @@ object UnaryOperatorTransformer {
       new SqrtTransformer(child, s)
     case c: Cbrt =>
       new CbrtTransformer(child, c)
-    case d: ToDegrees =>
-      new ToDegreesTransformer(child, d)
     case h: Hex =>
       new HexTransformer(child, h)
     case u: Unhex =>

@@ -18,9 +18,11 @@
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.expression.IfThenNode
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import java.util.ArrayList
 
 class IfTransformer(predicate: Expression, trueValue: Expression,
                     falseValue: Expression, original: Expression)
@@ -29,7 +31,20 @@ class IfTransformer(predicate: Expression, trueValue: Expression,
     with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: If.")
+    if (!predicate.isInstanceOf[ExpressionTransformer] ||
+      !trueValue.isInstanceOf[ExpressionTransformer] ||
+      !falseValue.isInstanceOf[ExpressionTransformer]) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val ifNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
+    ifNodes.add(predicate.asInstanceOf[ExpressionTransformer].doTransform(args))
+
+    val thenNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
+    thenNodes.add(trueValue.asInstanceOf[ExpressionTransformer].doTransform(args))
+
+    val elseValueNode = falseValue.asInstanceOf[ExpressionTransformer].doTransform(args)
+    new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
 }
 
