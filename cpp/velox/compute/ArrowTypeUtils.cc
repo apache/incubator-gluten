@@ -103,16 +103,14 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
     do {
       if (token_pos != std::string::npos) {
         auto typeName = innerType.substr(from, token_pos - from);
-        fields.push_back(arrow::field(
-            "col_" + std::to_string(count), toArrowTypeFromName(typeName)));
+        fields.push_back(arrow::field("col_" + std::to_string(count), toArrowTypeFromName(typeName)));
         from = token_pos + 1;
         token_pos = innerType.find(",", from);
       }
     } while (token_pos != std::string::npos);
 
     auto finalName = innerType.substr(from);
-    fields.push_back(arrow::field(
-        "col_" + std::to_string(count + 1), toArrowTypeFromName(finalName)));
+    fields.push_back(arrow::field("col_" + std::to_string(count + 1), toArrowTypeFromName(finalName)));
     return arrow::struct_(fields);
   }
 
