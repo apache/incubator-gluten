@@ -193,7 +193,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     } else {
       print("Has unsupported data type, fall back to vanilla spark.\n")
     }
-    resultDF.explain(false)
     checkResult(result, expected, expression)
   }
 

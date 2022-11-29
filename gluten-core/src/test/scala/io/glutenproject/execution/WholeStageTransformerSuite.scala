@@ -23,9 +23,10 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
-
 import scala.io.Source
 import scala.reflect.ClassTag
+
+import org.scalatest.Canceled
 
 abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSparkSession {
 
@@ -161,8 +162,6 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)
-    df.show(false)
-    df.explain()
     if (compareResult) {
       checkAnswer(df, expected)
     }
@@ -196,6 +195,11 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {
     List(("spark.gluten.sql.enable.native.engine", "false"))
+  }
+
+  override def logForFailedTest(): Unit = {
+    logError("Test failed so abort")
+    System.exit(1)
   }
 }
 
