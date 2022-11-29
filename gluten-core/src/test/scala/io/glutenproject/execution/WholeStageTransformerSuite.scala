@@ -200,7 +200,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   }
 
   override def logForFailedTest(): Unit = {
-    Canceled("Test failed so abort")
+    logError("Test failed so abort")
+    System.exit(1)
   }
 }
 

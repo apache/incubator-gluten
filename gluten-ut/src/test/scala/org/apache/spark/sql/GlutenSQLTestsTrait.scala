@@ -72,7 +72,8 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
   }
 
   override def logForFailedTest(): Unit = {
-    Canceled("Test failed so abort")
+    logError("Test failed so abort")
+    System.exit(1)
   }
 
   override def sparkConf: SparkConf = {
