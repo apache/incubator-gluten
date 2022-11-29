@@ -33,7 +33,7 @@ class NoopModifier(t: DataType) extends TypeModifier(_ => true, t) {
 
 object DataGen {
   def getRowModifier(schema: StructType, typeModifiers: List[TypeModifier]): Int => TypeModifier = {
-    schema.fields.map { f =>
+    val modifiers = schema.fields.map { f =>
       val matchedModifiers = typeModifiers.flatMap { m =>
         if (m.predicate.apply(f.dataType)) {
           Some(m)
@@ -50,7 +50,8 @@ object DataGen {
         }
         matchedModifiers.head // use the first one that matches
       }
-    }.toArray
+    }
+    i => modifiers(i)
   }
 
   def modifySchema(schema: StructType, rowModifier: Int => TypeModifier): StructType = {
