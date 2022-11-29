@@ -17,40 +17,40 @@
 
 package io.glutenproject.integration.tpc
 
-import org.apache.spark.sql.types.{DataType, DecimalType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 
 trait DataGen {
   def gen(): Unit
 }
 
-abstract class TypeModifier(val from: DataType, val to: DataType) extends Serializable {
+abstract class TypeModifier(val predicate: DataType => Boolean, val to: DataType) extends Serializable {
   def modValue(value: Any): Any
 }
 
-class NoopModifier(t: DataType) extends TypeModifier(t, t) {
+class NoopModifier(t: DataType) extends TypeModifier(_ => true, t) {
   override def modValue(value: Any): Any = value
 }
 
 object DataGen {
   def getRowModifier(schema: StructType, typeModifiers: List[TypeModifier]): Int => TypeModifier = {
-    val typeMapping: java.util.Map[DataType, TypeModifier] = new java.util.HashMap()
-    typeModifiers.foreach { m =>
-      if (typeMapping.containsKey(m.from)) {
-        throw new IllegalStateException()
+    schema.fields.map { f =>
+      val matchedModifiers = typeModifiers.flatMap { m =>
+        if (m.predicate.apply(f.dataType)) {
+          Some(m)
+        } else {
+          None
+        }
       }
-      typeMapping.put(m.from, m)
-    }
-    val modifiers = new java.util.ArrayList[TypeModifier]()
-    schema.fields.foreach { f =>
-      if (typeMapping.containsKey(f.dataType)) {
-        modifiers.add(typeMapping.get(f.dataType))
-      } else if (f.dataType.isInstanceOf[DecimalType]) {
-        modifiers.add(typeMapping.get(DecimalType.SYSTEM_DEFAULT))
+      if (matchedModifiers.isEmpty) {
+        new NoopModifier(f.dataType)
       } else {
-        modifiers.add(new NoopModifier(f.dataType))
+        if (matchedModifiers.size > 1) {
+          println(s"More than one type modifiers specified for type ${f.dataType}, " +
+            s"use first one in the list")
+        }
+        matchedModifiers.head // use the first one that matches
       }
-    }
-    i => modifiers.get(i)
+    }.toArray
   }
 
   def modifySchema(schema: StructType, rowModifier: Int => TypeModifier): StructType = {
