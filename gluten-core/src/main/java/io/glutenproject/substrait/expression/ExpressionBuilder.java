@@ -235,7 +235,8 @@ public class ExpressionBuilder {
     return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
   }
 
-  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode, boolean ansiEnabled) {
+  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode,
+                                  boolean ansiEnabled) {
     return new CastNode(typeNode, expressionNode, ansiEnabled);
   }
 
