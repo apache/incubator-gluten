@@ -23,8 +23,7 @@
 
 #include <utility>
 
-namespace gazellecpp {
-namespace compute {
+namespace gluten {
 
 class ArrowExecBackend : public Backend {
  public:
@@ -88,20 +87,20 @@ class ArrowExecBackend : public Backend {
 
   // This method is used to get the input schema in InputRel.
   arrow::Status GetIterInputSchemaFromRel(const ::substrait::Rel& srel);
+
   void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
+
   void PushDownFilter();
+
   static void FieldPathToName(arrow::compute::Expression* expression, const std::shared_ptr<arrow::Schema>& schema);
 };
 
 class ArrowExecResultIterator {
  public:
-  ArrowExecResultIterator(
-      gluten::memory::MemoryAllocator* allocator,
-      std::shared_ptr<arrow::Schema> schema,
+  ArrowExecResultIterator(gluten::memory::MemoryAllocator* allocator, std::shared_ptr<arrow::Schema> schema,
       arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter)
-      : memory_pool_(gluten::memory::AsWrappedArrowMemoryPool(allocator)),
-        schema_(std::move(schema)),
-        iter_(std::move(iter)) {}
+      : memory_pool_(gluten::memory::AsWrappedArrowMemoryPool(allocator)), 
+      schema_(std::move(schema)), iter_(std::move(iter)) {}
 
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> Next();
 
@@ -112,7 +111,6 @@ class ArrowExecResultIterator {
   arrow::compute::ExecBatch cur_;
 };
 
-void Initialize();
+void GazelleInitialize();
 
-} // namespace compute
-} // namespace gazellecpp
+} // namespace gluten
