@@ -28,7 +28,7 @@ import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, Express
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -42,30 +42,61 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class SortExecTransformer(
-                                sortOrder: Seq[SortOrder],
-                                global: Boolean,
-                                child: SparkPlan,
-                                testSpillFrequency: Int = 0)
-  extends UnaryExecNode
-    with TransformSupport {
+case class SortExecTransformer(sortOrder: Seq[SortOrder],
+                               global: Boolean,
+                               child: SparkPlan,
+                               testSpillFrequency: Int = 0)
+  extends UnaryExecNode with TransformSupport {
 
   override lazy val metrics = Map(
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_sort"),
-    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in cache all data"),
-    "sortTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in sort process"),
-    "shuffleTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in shuffle process"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"))
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_sort"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  val inputRows: SQLMetric = longMetric("inputRows")
+  val inputVectors: SQLMetric = longMetric("inputVectors")
+  val inputBytes: SQLMetric = longMetric("inputBytes")
+  val rawInputRows: SQLMetric = longMetric("rawInputRows")
+  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+  val outputRows: SQLMetric = longMetric("outputRows")
+  val outputVectors: SQLMetric = longMetric("outputVectors")
+  val outputBytes: SQLMetric = longMetric("outputBytes")
+  val cpuCount: SQLMetric = longMetric("count")
+  val wallNanos: SQLMetric = longMetric("wallNanos")
+  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
+  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+    if (operatorMetrics != null) {
+      inputRows += operatorMetrics.inputRows
+      inputVectors += operatorMetrics.inputVectors
+      inputBytes += operatorMetrics.inputBytes
+      rawInputRows += operatorMetrics.rawInputRows
+      rawInputBytes += operatorMetrics.rawInputBytes
+      outputRows += operatorMetrics.outputRows
+      outputVectors += operatorMetrics.outputVectors
+      outputBytes += operatorMetrics.outputBytes
+      cpuCount += operatorMetrics.count
+      wallNanos += operatorMetrics.wallNanos
+      peakMemoryBytes += operatorMetrics.peakMemoryBytes
+      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    }
+  }
+
   val sparkConf = sparkContext.getConf
-  val elapse = longMetric("processTime")
-  val sortTime = longMetric("sortTime")
-  val shuffleTime = longMetric("shuffleTime")
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
 
   override def supportsColumnar: Boolean = true
 
@@ -103,8 +134,9 @@ case class SortExecTransformer(
   }
 
   override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    numOutputBatches += outNumBatches
-    numOutputRows += outNumRows
+    // When Sort is the last child of a wholestage transformer, no need to update the output
+    // metrics manually here because updateNativeMetrics can already set the right metrics with
+    // Velox returning correct value in this case.
   }
 
   def getRelWithProject(context: SubstraitContext,
