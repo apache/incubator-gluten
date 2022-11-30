@@ -48,12 +48,12 @@ void print_trace(void) {
 
 using arrow::RecordBatchReader;
 using arrow::Status;
-using gluten::GlutenException;
-using gluten::shuffle::SplitOptions;
-using gluten::shuffle::Splitter;
 
-namespace sparkcolumnarplugin {
-namespace shuffle {
+using gluten::GlutenException;
+using gluten::SplitOptions;
+using gluten::Splitter;
+
+namespace gluten {
 
 #define ALIGNMENT 2 * 1024 * 1024
 
@@ -438,8 +438,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
   }
 };
 
-} // namespace shuffle
-} // namespace sparkcolumnarplugin
+} // namespace gluten
 
 int main(int argc, char** argv) {
   uint32_t iterations = 1;
