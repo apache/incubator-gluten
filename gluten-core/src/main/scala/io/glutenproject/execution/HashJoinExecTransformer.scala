@@ -499,7 +499,7 @@ trait HashJoinLikeExecTransformer
       JoinRel.JoinType.UNRECOGNIZED
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     finalOutputVectors += outNumBatches
     finalOutputRows += outNumRows
   }

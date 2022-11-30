@@ -156,7 +156,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     doExecuteColumnarInternal()
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     outputVectors += outNumBatches
     outputRows += outNumRows
   }

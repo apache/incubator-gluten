@@ -25,12 +25,11 @@
 #define JNI_METHOD_START try {
 // macro ended
 
-#define JNI_METHOD_END(fallback_expr)                                    \
-  }                                                                      \
-  catch (std::exception & e) {                                           \
-    env->ThrowNew(                                                       \
-        gluten::GetJniErrorsState()->RuntimeExceptionClass(), e.what()); \
-    return fallback_expr;                                                \
+#define JNI_METHOD_END(fallback_expr)                                              \
+  }                                                                                \
+  catch (std::exception & e) {                                                     \
+    env->ThrowNew(gluten::GetJniErrorsState()->RuntimeExceptionClass(), e.what()); \
+    return fallback_expr;                                                          \
   }
 // macro ended
 
@@ -83,16 +82,12 @@ static struct JniErrorsGlobalState {
 
   void Initialize(JNIEnv* env) {
     std::lock_guard<std::mutex> lock_guard(mtx_);
-    io_exception_class_ =
-        CreateGlobalClassReference(env, "Ljava/io/IOException;");
-    runtime_exception_class_ =
-        CreateGlobalClassReference(env, "Ljava/lang/RuntimeException;");
-    unsupportedoperation_exception_class_ = CreateGlobalClassReference(
-        env, "Ljava/lang/UnsupportedOperationException;");
-    illegal_access_exception_class_ =
-        CreateGlobalClassReference(env, "Ljava/lang/IllegalAccessException;");
-    illegal_argument_exception_class_ =
-        CreateGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
+    io_exception_class_ = CreateGlobalClassReference(env, "Ljava/io/IOException;");
+    runtime_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/RuntimeException;");
+    unsupportedoperation_exception_class_ =
+        CreateGlobalClassReference(env, "Ljava/lang/UnsupportedOperationException;");
+    illegal_access_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalAccessException;");
+    illegal_argument_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
   }
 
   jclass RuntimeExceptionClass() {

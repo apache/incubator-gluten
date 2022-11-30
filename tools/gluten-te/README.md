@@ -1,6 +1,6 @@
 # Portable Test Envrionment of Gluten (gluten-te)
 
-Build and run [gluten](https://github.com/oap-project/gluten) and [gluten-it](https://github.com/zhztheplayer/gluten-it) in a portable docker container, from scratch.
+Build and run [gluten](https://github.com/oap-project/gluten) and [gluten-it](https://github.com/oap-project/gluten/tree/main/tools/gluten-it) in a portable docker container, from scratch.
 
 # Prerequisites
 
@@ -9,31 +9,30 @@ Only Linux and MacOS are currently supported. Before running the scripts, make s
 # Getting Started (Build Gluten code, Velox backend)
 
 ```sh
-git clone -b main https://github.com/zhztheplayer/gluten.git gluten # Gluten main code
-git clone -b main https://github.com/zhztheplayer/gluten-te.git gluten-te # gluten-te code
+git clone -b main https://github.com/oap-project/gluten.git gluten # Gluten main code
 
 export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
 export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
 
 cd gluten/
-../gluten-te/examples/buildhere-veloxbe.sh
+tools/gluten-te/examples/buildhere-veloxbe.sh
 ```
 
 # Getting Started (TPC, Velox backend)
 
 ```sh
-git clone -b main https://github.com/zhztheplayer/gluten-te.git gluten-te
+git clone -b main https://github.com/oap-project/gluten.git gluten # Gluten main code
 
 export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
 export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
 
-cd gluten-te
+cd gluten/gluten-te
 ./tpc.sh
 ```
 
 # Configurations
 
-See the [config file](https://github.com/zhztheplayer/gluten-te/blob/main/defaults.conf). You can modify the file to configure gluten-te, or pass env variables during running the scripts.
+See the [config file](https://github.com/oap-project/gluten/blob/main/tools/gluten-te/defaults.conf). You can modify the file to configure gluten-te, or pass env variables during running the scripts.
 
 # Example Usages
 

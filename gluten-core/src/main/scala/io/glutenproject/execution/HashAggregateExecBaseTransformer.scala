@@ -292,7 +292,7 @@ abstract class HashAggregateExecBaseTransformer(
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     finalOutputVectors += outNumBatches
     finalOutputRows += outNumRows
   }

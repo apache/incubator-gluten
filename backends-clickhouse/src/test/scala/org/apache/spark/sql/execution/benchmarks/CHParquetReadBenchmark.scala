@@ -100,7 +100,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     val (parquetDir, readFileCnt, scanSchema, executedCnt, executedVanilla) =
       if (mainArgs.isEmpty) {
-        ("/data1/test_output/tpch-data-sf10/lineitem", 3, "l_orderkey,l_receiptdate", 5, true)
+        ("/data/tpch-data/parquet/lineitem", 3, "l_orderkey,l_receiptdate", 5, true)
       } else {
         (mainArgs(0), mainArgs(1).toInt, mainArgs(2), mainArgs(3).toInt, mainArgs(4).toBoolean)
       }

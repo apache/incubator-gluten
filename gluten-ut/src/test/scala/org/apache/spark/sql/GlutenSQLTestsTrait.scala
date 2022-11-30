@@ -28,7 +28,7 @@ import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
 import org.junit.Assert
 import org.scalactic.source.Position
-import org.scalatest.{Assertions, Tag}
+import org.scalatest.{Assertions, Canceled, Tag}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.plans.logical
@@ -69,6 +69,11 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     } else {
       logWarning(s"Ignore test case: ${testName}")
     }
+  }
+
+  override def logForFailedTest(): Unit = {
+    logError("Test failed so abort")
+    System.exit(1)
   }
 
   override def sparkConf: SparkConf = {
@@ -123,7 +128,6 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     assertEmptyMissingInput(analyzedDF)
 
     GlutenQueryTest.checkAnswer(analyzedDF, expectedAnswer)
-    analyzedDF.explain(false)
   }
 }
 

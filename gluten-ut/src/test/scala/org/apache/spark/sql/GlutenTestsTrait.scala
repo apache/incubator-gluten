@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql
 
-
 import java.io.File
 
 import scala.collection.mutable.ArrayBuffer
@@ -35,7 +34,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.optimizer.{ConvertToLocalRelation, NullPropagation}
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -112,7 +111,10 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid static evaluation for literal input by spark catalyst.
-        .config("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)
+        .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + ","  +
+            NullPropagation.ruleName)
+        // Avoid the code size overflow error in Spark code generation.
+        .config("spark.sql.codegen.wholeStage", "false")
 
       _spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
         GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
@@ -160,11 +162,11 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   def glutenCheckExpression(expression: Expression,
                             expected: Any,
                             inputRow: InternalRow, justEvalExpr: Boolean = false): Unit = {
-    val df = if (inputRow != EmptyRow) {
+    val df = if (inputRow != EmptyRow && inputRow != InternalRow.empty) {
       convertInternalRowToDataFrame(inputRow)
     } else {
       val schema = StructType(
-        StructField("a", IntegerType, true) :: Nil)
+        StructField("a", IntegerType, nullable = true) :: Nil)
       val empData = Seq(Row(1))
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
@@ -179,7 +181,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
       resultDF.collect()
     }
     if (checkDataTypeSupported(expression) &&
-        !expression.children.map(checkDataTypeSupported).exists(_ == false)) {
+        expression.children.forall(checkDataTypeSupported)) {
       val projectTransformer = resultDF.queryExecution.executedPlan.collect {
         case p: ProjectExecTransformer => p
       }
@@ -191,7 +193,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     } else {
       print("Has unsupported data type, fall back to vanilla spark.\n")
     }
-    resultDF.explain(false)
     checkResult(result, expected, expression)
   }
 
@@ -203,32 +204,30 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
       case _ => throw new UnsupportedOperationException("Unsupported InternalRow.")
     }
     val inputValues = values.map {
-      _ match {
-        case boolean: java.lang.Boolean =>
-          structFileSeq.append(StructField("bool", BooleanType, boolean == null))
-        case short: java.lang.Short =>
-          structFileSeq.append(StructField("i16", ShortType, short == null))
-        case byte: java.lang.Byte =>
-          structFileSeq.append(StructField("i8", ByteType, byte == null))
-        case integer: java.lang.Integer =>
-          structFileSeq.append(StructField("i32", IntegerType, integer == null))
-        case long: java.lang.Long =>
-          structFileSeq.append(StructField("i64", LongType, long == null))
-        case float: java.lang.Float =>
-          structFileSeq.append(StructField("fp32", FloatType, float == null))
-        case double: java.lang.Double =>
-          structFileSeq.append(StructField("fp64", DoubleType, double == null))
-        case utf8String: UTF8String =>
-          structFileSeq.append(StructField("str", StringType, utf8String == null))
-        case byteArr: Array[Byte] =>
-          structFileSeq.append(StructField("vbin", BinaryType, byteArr == null))
-        case decimal: Decimal =>
-          structFileSeq.append(StructField("dec",
-            DecimalType(decimal.precision, decimal.scale), decimal == null))
-        case _ =>
-          // for null
-          structFileSeq.append(StructField("n", IntegerType, true))
-      }
+      case boolean: java.lang.Boolean =>
+        structFileSeq.append(StructField("bool", BooleanType, boolean == null))
+      case short: java.lang.Short =>
+        structFileSeq.append(StructField("i16", ShortType, short == null))
+      case byte: java.lang.Byte =>
+        structFileSeq.append(StructField("i8", ByteType, byte == null))
+      case integer: java.lang.Integer =>
+        structFileSeq.append(StructField("i32", IntegerType, integer == null))
+      case long: java.lang.Long =>
+        structFileSeq.append(StructField("i64", LongType, long == null))
+      case float: java.lang.Float =>
+        structFileSeq.append(StructField("fp32", FloatType, float == null))
+      case double: java.lang.Double =>
+        structFileSeq.append(StructField("fp64", DoubleType, double == null))
+      case utf8String: UTF8String =>
+        structFileSeq.append(StructField("str", StringType, utf8String == null))
+      case byteArr: Array[Byte] =>
+        structFileSeq.append(StructField("vbin", BinaryType, byteArr == null))
+      case decimal: Decimal =>
+        structFileSeq.append(StructField("dec",
+          DecimalType(decimal.precision, decimal.scale), decimal == null))
+      case _ =>
+        // for null
+        structFileSeq.append(StructField("n", IntegerType, true))
     }
     _spark.internalCreateDataFrame(_spark.sparkContext.parallelize(Seq(inputRow)),
       StructType(structFileSeq))

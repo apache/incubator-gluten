@@ -9,10 +9,6 @@ source "$BASEDIR/build.sh"
 # Non-interactive during docker run
 NON_INTERACTIVE=${NON_INTERACTIVE:-$DEFAULT_NON_INTERACTIVE}
 
-# Repo
-GLUTEN_IT_REPO=${GLUTEN_IT_REPO:-$DEFAULT_GLUTEN_IT_REPO}
-GLUTEN_IT_BRANCH=${GLUTEN_IT_BRANCH:-$DEFAULT_GLUTEN_IT_BRANCH}
-
 # Java options
 EXTRA_JAVA_OPTIONS=${EXTRA_JAVA_OPTIONS:-$DEFAULT_EXTRA_JAVA_OPTIONS}
 
@@ -54,22 +50,8 @@ GDB_SERVER_PORT=${GDB_SERVER_PORT:-$DEFAULT_GDB_SERVER_PORT}
 # JVM jdwp bind port
 JDWP_SERVER_PORT=${JDWP_SERVER_PORT:-$DEFAULT_JDWP_SERVER_PORT}
 
-# Gluten-it commit hash
-GLUTEN_IT_COMMIT="$(git ls-remote $GLUTEN_IT_REPO $GLUTEN_IT_BRANCH | awk '{print $1;}')"
-
-if [ -z "$GLUTEN_IT_COMMIT" ]
-then
-  echo "Unable to parse GLUTEN_IT_COMMIT."
-  exit 1
-fi
-
-echo "Building on commits:
-    Gluten-it commit: $GLUTEN_IT_COMMIT"
-
 TPC_DOCKER_BUILD_ARGS=
 TPC_DOCKER_BUILD_ARGS="$TPC_DOCKER_BUILD_ARGS --ulimit nofile=8192:8192"
-TPC_DOCKER_BUILD_ARGS="$TPC_DOCKER_BUILD_ARGS --build-arg GLUTEN_IT_REPO=$GLUTEN_IT_REPO"
-TPC_DOCKER_BUILD_ARGS="$TPC_DOCKER_BUILD_ARGS --build-arg GLUTEN_IT_COMMIT=$GLUTEN_IT_COMMIT"
 TPC_DOCKER_BUILD_ARGS="$TPC_DOCKER_BUILD_ARGS --build-arg BUILD_BACKEND_TYPE=$BUILD_BACKEND_TYPE"
 TPC_DOCKER_BUILD_ARGS="$TPC_DOCKER_BUILD_ARGS -f $BASEDIR/dockerfile-tpc"
 TPC_DOCKER_BUILD_ARGS="$TPC_DOCKER_BUILD_ARGS --target $DOCKER_BUILD_TARGET_NAME"
@@ -103,7 +85,7 @@ then
   JAVA_ARGS="$JAVA_ARGS -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=$JDWP_SERVER_PORT"
 fi
 JAVA_ARGS="$JAVA_ARGS $EXTRA_JAVA_OPTIONS"
-JAVA_ARGS="$JAVA_ARGS -cp /opt/gluten-it/target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar"
+JAVA_ARGS="$JAVA_ARGS -cp /opt/gluten/tools/gluten-it/target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar"
 JAVA_ARGS="$JAVA_ARGS io.glutenproject.integration.tpc.Tpc $TPC_CMD_ARGS"
 
 BASH_ARGS=

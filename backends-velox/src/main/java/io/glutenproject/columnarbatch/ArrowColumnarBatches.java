@@ -17,12 +17,15 @@
 
 package io.glutenproject.columnarbatch;
 
+import io.glutenproject.expression.ArrowConverterUtils;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.utils.ArrowAbiUtil;
 import io.glutenproject.utils.VeloxImplicitClass;
 import io.glutenproject.vectorized.ArrowWritableColumnVector;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
+import org.apache.arrow.c.CDataDictionaryProvider;
+import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -76,10 +79,17 @@ public class ArrowColumnarBatches {
     GlutenIndicatorVector iv = (GlutenIndicatorVector) input.column(0);
     final long handle = iv.getNativeHandle();
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
-         ArrowArray cArray = ArrowArray.allocateNew(allocator)) {
+         ArrowArray cArray = ArrowArray.allocateNew(allocator);
+         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
+         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
       ColumnarBatchJniWrapper.INSTANCE.exportToArrow(handle, cSchema.memoryAddress(),
           cArray.memoryAddress());
-      ColumnarBatch output = ArrowAbiUtil.importToSparkColumnarBatch(allocator, cSchema, cArray);
+
+      Data.exportSchema(allocator,
+          ArrowConverterUtils.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+
+      ColumnarBatch output = ArrowAbiUtil.importToSparkColumnarBatch(
+          allocator, arrowSchema, cArray);
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched

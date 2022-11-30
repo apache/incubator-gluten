@@ -19,8 +19,7 @@
 
 using namespace facebook::velox;
 
-std::shared_ptr<arrow::DataType> toArrowTypeFromName(
-    const std::string& type_name) {
+std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_name) {
   if (type_name == "BOOLEAN") {
     return arrow::boolean();
   }
@@ -63,6 +62,58 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(
     std::string innerType = type_name.substr(start + 1, end - start - 1);
     return arrow::list(toArrowTypeFromName(innerType));
   }
+
+  // The type name of MAP type is like MAP<type, type>.
+  std::string mapType = "MAP";
+  if (type_name.substr(0, mapType.length()) == mapType) {
+    std::size_t start = type_name.find_first_of("<");
+    std::size_t end = type_name.find_last_of(">");
+    if (start == std::string::npos || end == std::string::npos) {
+      throw std::runtime_error("Invalid map type.");
+    }
+
+    // Extract the types of map type.
+    std::string innerType = type_name.substr(start + 1, end - start - 1);
+    std::vector<std::shared_ptr<arrow::DataType>> innerTypes;
+    std::shared_ptr<arrow::DataType> keyType;
+    std::shared_ptr<arrow::DataType> valueType;
+    std::size_t token_pos = innerType.find_first_of(",");
+
+    keyType = toArrowTypeFromName(innerType.substr(0, token_pos));
+    valueType = toArrowTypeFromName(innerType.substr(token_pos + 1, innerType.length() - 1));
+
+    return arrow::map(keyType, valueType);
+  }
+
+  // The type name of ROW type is like ROW<type, type>.
+  std::string structType = "ROW";
+  if (type_name.substr(0, structType.length()) == structType) {
+    std::size_t start = type_name.find_first_of("<");
+    std::size_t end = type_name.find_last_of(">");
+    if (start == std::string::npos || end == std::string::npos) {
+      throw std::runtime_error("Invalid struct type.");
+    }
+
+    // // Extract the types of struct type.
+    std::string innerType = type_name.substr(start + 1, end - start - 1);
+    std::vector<std::shared_ptr<arrow::Field>> fields;
+    std::size_t token_pos = innerType.find_first_of(",");
+    auto from = 0;
+    auto count = 0;
+    do {
+      if (token_pos != std::string::npos) {
+        auto typeName = innerType.substr(from, token_pos - from);
+        fields.push_back(arrow::field("col_" + std::to_string(count), toArrowTypeFromName(typeName)));
+        from = token_pos + 1;
+        token_pos = innerType.find(",", from);
+      }
+    } while (token_pos != std::string::npos);
+
+    auto finalName = innerType.substr(from);
+    fields.push_back(arrow::field("col_" + std::to_string(count + 1), toArrowTypeFromName(finalName)));
+    return arrow::struct_(fields);
+  }
+
   throw std::runtime_error("Type name is not supported: " + type_name + ".");
 }
 
@@ -105,14 +156,12 @@ const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
   }
 }
 
-std::shared_ptr<arrow::Schema> toArrowSchema(
-    const std::shared_ptr<const RowType>& row_type) {
+std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const RowType>& row_type) {
   std::vector<std::shared_ptr<arrow::Field>> fields;
   auto size = row_type->size();
   fields.reserve(size);
   for (auto i = 0; i < size; ++i) {
-    fields.push_back(
-        arrow::field(row_type->nameOf(i), toArrowType(row_type->childAt(i))));
+    fields.push_back(arrow::field(row_type->nameOf(i), toArrowType(row_type->childAt(i))));
   }
   return arrow::schema(fields);
 }

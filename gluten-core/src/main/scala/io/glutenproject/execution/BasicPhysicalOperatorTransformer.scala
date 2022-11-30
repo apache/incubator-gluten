@@ -119,7 +119,7 @@ abstract class FilterExecBaseTransformer(condition: Expression,
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     outputVectors += outNumBatches
     outputRows += outNumRows
   }
@@ -365,9 +365,10 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    outputVectors += outNumBatches
-    outputRows += outNumRows
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+    // When Project is the last child of a wholestage transformer, no need to update the output
+    // metrics manually here because updateNativeMetrics can already set the right metrics with
+    // Velox returning correct value in this case.
   }
 
   override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {

@@ -78,9 +78,7 @@ trait TransformSupport extends SparkPlan {
       s"This operator doesn't support doTransform with SubstraitContext.")
   }
 
-  def dependentPlanCtx: TransformContext = null
-
-  def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {}
+  def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {}
 
   def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {}
 
@@ -338,7 +336,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
-        updateMetrics,
+        updateOutputMetrics,
         metricsUpdatingFunction
       )
     } else {
@@ -373,7 +371,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             resCtx.outputAttributes,
             resCtx.root,
             pipelineTime,
-            updateMetrics,
+            updateOutputMetrics,
             metricsUpdatingFunction,
             buildRelationBatchHolder,
             dependentKernels,
@@ -406,18 +404,17 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
   }
 
   /**
-   * Update metrics for the child plan.
+   * Update output batches and rows to the last child of a wholestage transformer.
    *
    * @param outNumBatches
    *   the number of batches to add
    * @param outNumRows
    *   the number of rows to add
    */
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    // Update output batches and rows to the last child.
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     child match {
       case transformer: TransformSupport =>
-        transformer.updateMetrics(outNumBatches, outNumRows)
+        transformer.updateOutputMetrics(outNumBatches, outNumRows)
       case _ =>
     }
   }
@@ -592,7 +589,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         (newOperatorIdx, newMetricsIdx)
       case _ =>
         val opMetrics: OperatorMetrics = mergeMetrics(operatorMetrics)
-        curChild.asInstanceOf[TransformSupport].updateNativeMetrics(opMetrics)
+        curChild.updateNativeMetrics(opMetrics)
 
         var newOperatorIdx: java.lang.Long = operatorIdx - 1
         var newMetricsIdx: Int = curMetricsIdx

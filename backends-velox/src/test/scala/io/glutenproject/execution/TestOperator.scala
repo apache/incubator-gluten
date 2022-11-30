@@ -111,8 +111,7 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 122)
   }
 
-  // TODO wait to fix
-  ignore("test_in_and") {
+  test("test_in_and") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674, 1062) and l_partkey in (1552, 674)") { _ => }
@@ -210,98 +209,66 @@ class TestOperator extends WholeStageTransformerSuite {
     val df = runQueryAndCompare("SELECT chr(l_orderkey + 64) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
-    df.show()
-    df.explain(false)
   }
 
   test("Test abs function") {
     val df = runQueryAndCompare("SELECT abs(l_orderkey) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
-    df.show()
-    df.explain(false)
   }
 
   test("Test ceil function") {
     val df = runQueryAndCompare("SELECT ceil(cast(l_orderkey as long)) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   test("Test floor function") {
     val df = runQueryAndCompare("SELECT floor(cast(l_orderkey as long)) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   test("Test Exp function") {
     val df = spark.sql("SELECT exp(l_orderkey) from lineitem limit 1")
     checkLengthAndPlan(df, 1)
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   test("Test Power function") {
     val df = runQueryAndCompare("SELECT power(l_orderkey, 2.0) " +
       "from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   test("Test Pmod function") {
     val df = runQueryAndCompare("SELECT pmod(cast(l_orderkey as int), 3) " +
       "from lineitem limit 1") { _ => }
-    df.show()
-    df.explain(false)
-    df.printSchema()
     checkLengthAndPlan(df, 1)
   }
 
   ignore("Test round function") {
     val df = runQueryAndCompare("SELECT round(cast(l_orderkey as int), 2)" +
       "from lineitem limit 1") { checkOperatorMatch[ProjectExecTransformer] }
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   test("Test greatest function") {
     val df = runQueryAndCompare("SELECT greatest(l_orderkey, l_orderkey)" +
       "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   test("Test least function") {
     val df = runQueryAndCompare("SELECT least(l_orderkey, l_orderkey)" +
       "from lineitem limit 1" ) { checkOperatorMatch[ProjectExecTransformer] }
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   // Test "SELECT ..." without a from clause.
   test("Test isnull function") {
     val df = runQueryAndCompare("SELECT isnull(1)") { _ => }
-    df.show()
-    df.explain(false)
   }
 
   // VeloxRuntimeError, wait to fix
   ignore("Test df.count()") {
     val df = runQueryAndCompare("select * from lineitem limit 1") { _ => }
-    df.count()
-    df.explain(false)
     checkLengthAndPlan(df, 1)
   }
 

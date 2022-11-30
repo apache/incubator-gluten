@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-#include <arrow/c/bridge.h>
 #include <folly/system/ThreadName.h>
 #include <jni.h>
+#include "releases/include/arrow/c/bridge.h"
 
 #include <jni/jni_common.h>
 #include "compute/DwrfDatasource.h"
@@ -37,8 +37,7 @@ void setUpConfMap(JNIEnv* env, jobject obj, jbyteArray planArray) {
     return;
   }
 
-  auto planData =
-      reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
   ::substrait::Plan subPlan;
   ParseProtobuf(planData, planSize, &subPlan);
@@ -60,10 +59,8 @@ void setUpConfMap(JNIEnv* env, jobject obj, jbyteArray planArray) {
           auto literal_map = literal.map();
           auto size = literal_map.key_values_size();
           for (auto i = 0; i < size; i++) {
-            ::substrait::Expression_Literal_Map_KeyValue keyValue =
-                literal_map.key_values(i);
-            sparkConfs_.emplace(
-                keyValue.key().string(), keyValue.value().string());
+            ::substrait::Expression_Literal_Map_KeyValue keyValue = literal_map.key_values(i);
+            sparkConfs_.emplace(keyValue.key().string(), keyValue.value().string());
           }
         }
       }
@@ -92,46 +89,36 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
 }
 
-JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
     JNIEnv* env,
     jobject obj,
     jbyteArray planArray) {
   JNI_METHOD_START
   setUpConfMap(env, obj, planArray);
-  gluten::SetBackendFactory([] {
-    return std::make_shared<::velox::compute::VeloxPlanConverter>(sparkConfs_);
-  });
-  static auto veloxInitializer =
-      std::make_shared<::velox::compute::VeloxInitializer>(sparkConfs_);
+  gluten::SetBackendFactory([] { return std::make_shared<::velox::compute::VeloxPlanConverter>(sparkConfs_); });
+  static auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()
 }
 
-JNIEXPORT jboolean JNICALL
-Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
     JNIEnv* env,
     jobject obj,
     jbyteArray planArray) {
   JNI_METHOD_START
-  auto planData =
-      reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
   ::substrait::Plan subPlan;
   ParseProtobuf(planData, planSize, &subPlan);
 
   // A query context used for function validation.
-  std::shared_ptr<core::QueryCtx> queryCtx_ =
-      std::make_shared<core::QueryCtx>();
+  std::shared_ptr<core::QueryCtx> queryCtx_ = std::make_shared<core::QueryCtx>();
   // A memory pool used for function validation.
-  std::shared_ptr<memory::MemoryPool> pool =
-      gluten::memory::GetDefaultWrappedVeloxMemoryPool();
+  std::shared_ptr<memory::MemoryPool> pool = gluten::memory::GetDefaultWrappedVeloxMemoryPool();
   // An execution context used for function validation.
-  std::unique_ptr<core::ExecCtx> execCtx_ =
-      std::make_unique<core::ExecCtx>(pool.get(), queryCtx_.get());
+  std::unique_ptr<core::ExecCtx> execCtx_ = std::make_unique<core::ExecCtx>(pool.get(), queryCtx_.get());
 
-  auto planValidator = std::make_shared<
-      facebook::velox::substrait::SubstraitToVeloxPlanValidator>(
-      pool.get(), execCtx_.get());
+  auto planValidator =
+      std::make_shared<facebook::velox::substrait::SubstraitToVeloxPlanValidator>(pool.get(), execCtx_.get());
   return planValidator->validate(subPlan);
   JNI_METHOD_END(false)
 }
@@ -142,20 +129,19 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jstring file_path,
     jlong c_schema) {
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool =
-      gluten::memory::GetDefaultWrappedVeloxMemoryPool();
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool = gluten::memory::GetDefaultWrappedVeloxMemoryPool();
   if (c_schema == -1) {
     // Only inspect the schema and not write
-    auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
-        JStringToCString(env, file_path), nullptr, pool.get());
+    auto dwrfDatasource =
+        std::make_shared<::velox::compute::DwrfDatasource>(JStringToCString(env, file_path), nullptr, pool.get());
     // dwrfDatasource->Init( );
     return CreateNativeRef(dwrfDatasource);
   } else {
-    std::shared_ptr<arrow::Schema> schema = gluten::JniGetOrThrow(
-        arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
+    std::shared_ptr<arrow::Schema> schema =
+        gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
-    auto dwrfDatasource = std::make_shared<::velox::compute::DwrfDatasource>(
-        JStringToCString(env, file_path), schema, pool.get());
+    auto dwrfDatasource =
+        std::make_shared<::velox::compute::DwrfDatasource>(JStringToCString(env, file_path), schema, pool.get());
     dwrfDatasource->Init(sparkConfs_);
     return CreateNativeRef(dwrfDatasource);
   }
@@ -167,41 +153,34 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jlong instanceId) {
   JNI_METHOD_START
-  auto dwrfDatasource =
-      RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource = RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
   auto schema = dwrfDatasource->InspectSchema();
   return ToSchemaByteArray(env, schema);
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL
-Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_close(
+JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_close(
     JNIEnv* env,
     jobject obj,
     jlong instanceId) {
   JNI_METHOD_START
-  auto dwrfDatasource =
-      RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource = RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
   dwrfDatasource->Close();
   ReleaseNativeRef<::velox::compute::DwrfDatasource>(instanceId);
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL
-Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_write(
+JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWrapper_write(
     JNIEnv* env,
     jobject obj,
     jlong instanceId,
     jlong c_schema,
     jlong c_array) {
   JNI_METHOD_START
-  std::shared_ptr<arrow::RecordBatch> rb =
-      gluten::JniGetOrThrow(arrow::ImportRecordBatch(
-          reinterpret_cast<struct ArrowArray*>(c_array),
-          reinterpret_cast<struct ArrowSchema*>(c_schema)));
+  std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(arrow::ImportRecordBatch(
+      reinterpret_cast<struct ArrowArray*>(c_array), reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
-  auto dwrfDatasource =
-      RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource = RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
   dwrfDatasource->Write(rb);
   JNI_METHOD_END()
 }
