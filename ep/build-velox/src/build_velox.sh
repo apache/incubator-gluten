@@ -14,8 +14,8 @@ BUILD_FOLLY=ON
 VELOX_BUILD_TYPE=release
 VELOX_HOME=/root/velox
 
-VELOX_REPO=https://github.com/zhixingheyi-tian/velox.git
-VELOX_BRANCH=shiftfunction
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=main
 
 for arg in "$@"
 do
