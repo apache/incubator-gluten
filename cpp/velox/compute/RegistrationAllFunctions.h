@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-namespace velox::compute {
+namespace gluten {
 
 void registerAllFunctions();
 
-} // namespace velox::compute
+} // namespace gluten

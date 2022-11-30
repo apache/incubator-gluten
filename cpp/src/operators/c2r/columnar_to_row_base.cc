@@ -18,14 +18,14 @@
 #include "columnar_to_row_base.h"
 
 #include <arrow/util/decimal.h>
-namespace gluten {
-namespace columnartorow {
 
-int64_t ColumnarToRowConverterBase::CalculateBitSetWidthInBytes(int32_t numFields) {
+namespace gluten {
+
+int64_t ColumnarToRowConverter::CalculateBitSetWidthInBytes(int32_t numFields) {
   return ((numFields + 63) >> 6) << 3;
 }
 
-int32_t ColumnarToRowConverterBase::RoundNumberOfBytesToNearestWord(int32_t numBytes) {
+int32_t ColumnarToRowConverter::RoundNumberOfBytesToNearestWord(int32_t numBytes) {
   int32_t remainder = numBytes & 0x07; // This is equivalent to `numBytes % 8`
 
   return numBytes + ((8 - remainder) & 0x7);
@@ -36,7 +36,7 @@ int32_t ColumnarToRowConverterBase::RoundNumberOfBytesToNearestWord(int32_t numB
   }*/
 }
 
-int64_t ColumnarToRowConverterBase::CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols) {
+int64_t ColumnarToRowConverter::CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols) {
   std::vector<std::shared_ptr<arrow::Field>> fields = schema->fields();
   // Calculate the decimal col num when the precision >18
   int32_t count = 0;
@@ -55,11 +55,11 @@ int64_t ColumnarToRowConverterBase::CalculatedFixeSizePerRow(std::shared_ptr<arr
   return fixed_size + decimal_cols_size;
 }
 
-int64_t ColumnarToRowConverterBase::GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index) {
+int64_t ColumnarToRowConverter::GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index) {
   return nullBitsetWidthInBytes + 8L * index;
 }
 
-void ColumnarToRowConverterBase::BitSet(uint8_t* buffer_address, int32_t index) {
+void ColumnarToRowConverter::BitSet(uint8_t* buffer_address, int32_t index) {
   int64_t mask = 1L << (index & 0x3f); // mod 64 and shift
   int64_t wordOffset = (index >> 6) * 8;
   int64_t word;
@@ -68,7 +68,7 @@ void ColumnarToRowConverterBase::BitSet(uint8_t* buffer_address, int32_t index) 
   *(int64_t*)(buffer_address + wordOffset) = value;
 }
 
-void ColumnarToRowConverterBase::SetNullAt(
+void ColumnarToRowConverter::SetNullAt(
     uint8_t* buffer_address,
     int64_t row_offset,
     int64_t field_offset,
@@ -76,11 +76,9 @@ void ColumnarToRowConverterBase::SetNullAt(
   BitSet(buffer_address + row_offset, col_index);
   // set the value to 0
   *(int64_t*)(buffer_address + row_offset + field_offset) = 0;
-
-  return;
 }
 
-int32_t ColumnarToRowConverterBase::FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length) {
+int32_t ColumnarToRowConverter::FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length) {
   int32_t fn = 0;
   int32_t i;
   for (i = length - 1; i >= 0 && mag[i] == 0; i--)
@@ -89,7 +87,7 @@ int32_t ColumnarToRowConverterBase::FirstNonzeroLongNum(std::vector<int32_t> mag
   return fn;
 }
 
-int32_t ColumnarToRowConverterBase::GetInt(int32_t n, int32_t sig, std::vector<int32_t> mag, int32_t length) {
+int32_t ColumnarToRowConverter::GetInt(int32_t n, int32_t sig, std::vector<int32_t> mag, int32_t length) {
   if (n < 0)
     return 0;
   if (n >= length)
@@ -99,7 +97,7 @@ int32_t ColumnarToRowConverterBase::GetInt(int32_t n, int32_t sig, std::vector<i
   return (sig >= 0 ? magInt : (n <= FirstNonzeroLongNum(mag, length) ? -magInt : ~magInt));
 }
 
-int32_t ColumnarToRowConverterBase::GetNumberOfLeadingZeros(uint32_t i) {
+int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) {
   // HD, Figure 5-6
   if (i == 0)
     return 32;
@@ -124,11 +122,11 @@ int32_t ColumnarToRowConverterBase::GetNumberOfLeadingZeros(uint32_t i) {
   return n;
 }
 
-int32_t ColumnarToRowConverterBase::GetBitLengthForInt(uint32_t n) {
+int32_t ColumnarToRowConverter::GetBitLengthForInt(uint32_t n) {
   return 32 - GetNumberOfLeadingZeros(n);
 }
 
-int32_t ColumnarToRowConverterBase::GetBitCount(uint32_t i) {
+int32_t ColumnarToRowConverter::GetBitCount(uint32_t i) {
   // HD, Figure 5-2
   i = i - ((i >> 1) & 0x55555555);
   i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
@@ -138,7 +136,7 @@ int32_t ColumnarToRowConverterBase::GetBitCount(uint32_t i) {
   return i & 0x3f;
 }
 
-int32_t ColumnarToRowConverterBase::GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len) {
+int32_t ColumnarToRowConverter::GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len) {
   int32_t n = -1;
   if (len == 0) {
     n = 0;
@@ -159,7 +157,7 @@ int32_t ColumnarToRowConverterBase::GetBitLength(int32_t sig, std::vector<int32_
   return n;
 }
 
-std::vector<uint32_t> ColumnarToRowConverterBase::ConvertMagArray(int64_t new_high, uint64_t new_low, int32_t* size) {
+std::vector<uint32_t> ColumnarToRowConverter::ConvertMagArray(int64_t new_high, uint64_t new_low, int32_t* size) {
   std::vector<uint32_t> mag;
   int64_t orignal_low = new_low;
   int64_t orignal_high = new_high;
@@ -191,7 +189,7 @@ std::vector<uint32_t> ColumnarToRowConverterBase::ConvertMagArray(int64_t new_hi
 /*
  *  This method refer to the BigInterger#toByteArray() method in Java side.
  */
-std::array<uint8_t, 16> ColumnarToRowConverterBase::ToByteArray(arrow::Decimal128 value, int32_t* length) {
+std::array<uint8_t, 16> ColumnarToRowConverter::ToByteArray(arrow::Decimal128 value, int32_t* length) {
   int64_t high = value.high_bits();
   uint64_t low = value.low_bits();
   arrow::Decimal128 new_value;
@@ -237,5 +235,5 @@ std::array<uint8_t, 16> ColumnarToRowConverterBase::ToByteArray(arrow::Decimal12
   *length = byte_length;
   return out;
 }
-} // namespace columnartorow
+
 } // namespace gluten

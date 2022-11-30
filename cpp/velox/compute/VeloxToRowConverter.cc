@@ -28,8 +28,9 @@
 #include "velox/row/UnsafeRowSerializer.h"
 #include "velox/vector/arrow/c/Bridge.h"
 
-namespace velox {
-namespace compute {
+using namespace facebook::velox;
+
+namespace gluten {
 
 arrow::Status VeloxToRowConverter::Init() {
   num_rows_ = rv_->size();
@@ -228,5 +229,4 @@ arrow::Status VeloxToRowConverter::Write() {
   return arrow::Status::OK();
 }
 
-} // namespace compute
-} // namespace velox
+} // namespace gluten

@@ -66,7 +66,7 @@ class BatchIteratorWrapper {
 
   virtual ~BatchIteratorWrapper() = default;
 
-  virtual arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() = 0;
+  virtual arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() = 0;
 
   void CreateReader() {
     ::parquet::ArrowReaderProperties properties = ::parquet::default_arrow_reader_properties();
@@ -100,11 +100,11 @@ class BatchVectorIterator : public BatchIteratorWrapper {
 #endif
   }
 
-  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() override {
+  arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() override {
     if (iter_ == batches_.cend()) {
       return nullptr;
     }
-    return std::make_shared<gluten::memory::GlutenArrowColumnarBatch>(*iter_++);
+    return std::make_shared<gluten::ArrowColumnarBatch>(*iter_++);
   }
 
  private:
@@ -125,7 +125,7 @@ class BatchStreamIterator : public BatchIteratorWrapper {
     CreateReader();
   }
 
-  arrow::Result<std::shared_ptr<gluten::memory::GlutenColumnarBatch>> Next() override {
+  arrow::Result<std::shared_ptr<gluten::ColumnarBatch>> Next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
     if (batch == nullptr) {
@@ -133,7 +133,7 @@ class BatchStreamIterator : public BatchIteratorWrapper {
     }
     collectBatchTime_ +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
-    return std::make_shared<gluten::memory::GlutenArrowColumnarBatch>(batch);
+    return std::make_shared<gluten::ArrowColumnarBatch>(batch);
   }
 };
 

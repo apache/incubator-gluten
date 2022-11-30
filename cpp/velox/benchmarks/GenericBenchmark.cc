@@ -64,7 +64,7 @@ auto BM_Generic = [](::benchmark::State& state,
         });
 
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
+    auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
     auto outputSchema = backend->GetOutputSchema();
 
     while (resultIter->HasNext()) {
@@ -86,7 +86,7 @@ auto BM_Generic = [](::benchmark::State& state,
           return sum + iter->GetCollectBatchTime();
         });
 
-    auto* rawIter = static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
+    auto* rawIter = static_cast<gluten::WholeStageResIter*>(resultIter->GetRaw());
     const auto& task = rawIter->task_;
     const auto& planNode = rawIter->planNode_;
     auto statsStr = ::facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);

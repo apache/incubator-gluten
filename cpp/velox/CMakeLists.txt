@@ -166,6 +166,7 @@ set(VELOX_SRCS
     compute/DwrfDatasource.cc
     compute/bridge.cc
     memory/velox_memory_pool.cc
+    memory/velox_columnar_batch.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 

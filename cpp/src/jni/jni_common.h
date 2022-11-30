@@ -286,7 +286,7 @@ jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema)
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
   arrow::Result<std::shared_ptr<arrow::Buffer>> maybe_buffer;
-  maybe_buffer = arrow::ipc::SerializeSchema(*schema.get(), gluten::memory::GetDefaultWrappedArrowMemoryPool().get());
+  maybe_buffer = arrow::ipc::SerializeSchema(*schema.get(), gluten::GetDefaultWrappedArrowMemoryPool().get());
   if (!status.ok()) {
     std::string error_message = "Unable to convert schema to byte array, err is " + status.message();
     throw gluten::GlutenException(error_message);
@@ -404,7 +404,7 @@ void CheckException(JNIEnv* env) {
   }
 }
 
-class SparkAllocationListener : public gluten::memory::AllocationListener {
+class SparkAllocationListener : public gluten::AllocationListener {
  public:
   SparkAllocationListener(
       JavaVM* vm,

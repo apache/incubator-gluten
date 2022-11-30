@@ -69,8 +69,8 @@ arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
 }
 
 void InitVeloxBackend() {
-  gluten::SetBackendFactory([] { return std::make_shared<::velox::compute::VeloxPlanConverter>(confMap); });
-  auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>(confMap);
+  gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(confMap); });
+  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(confMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {

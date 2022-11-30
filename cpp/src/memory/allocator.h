@@ -27,18 +27,21 @@
 #include "arrow/util/memory.h"
 
 namespace gluten {
-namespace memory {
 
 class MemoryAllocator {
  public:
   virtual ~MemoryAllocator() = default;
+
   virtual bool Allocate(int64_t size, void** out) = 0;
   virtual bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
   virtual bool AllocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
+
   virtual bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) = 0;
   virtual bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) = 0;
+
   virtual bool Free(void* p, int64_t size) = 0;
-  virtual int64_t GetBytes() = 0;
+
+  virtual int64_t GetBytes() const = 0;
 };
 
 class AllocationListener {
@@ -70,7 +73,7 @@ class ListenableMemoryAllocator : public MemoryAllocator {
 
   bool Free(void* p, int64_t size) override;
 
-  int64_t GetBytes() override;
+  int64_t GetBytes() const override;
 
  private:
   MemoryAllocator* delegated_;
@@ -92,7 +95,7 @@ class StdMemoryAllocator : public MemoryAllocator {
 
   bool Free(void* p, int64_t size) override;
 
-  int64_t GetBytes() override;
+  int64_t GetBytes() const override;
 
  private:
   std::atomic_int64_t bytes_{0};
@@ -119,5 +122,4 @@ class WrappedArrowMemoryPool : public arrow::MemoryPool {
 
 std::shared_ptr<MemoryAllocator> DefaultMemoryAllocator();
 
-} // namespace memory
 } // namespace gluten

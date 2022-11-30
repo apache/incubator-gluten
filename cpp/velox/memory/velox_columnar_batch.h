@@ -15,25 +15,35 @@
  * limitations under the License.
  */
 
-#include "exec_backend.h"
+#pragma once
+
+#include "memory/columnar_batch.h"
+#include "memory/velox_memory_pool.h"
+#include "velox/vector/ComplexVector.h"
+#include "velox/vector/arrow/c/Bridge.h"
 
 namespace gluten {
 
-static std::function<std::shared_ptr<Backend>()> backend_factory;
+class VeloxColumnarBatch : public ColumnarBatch {
+ public:
+  VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
+      : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
 
-void SetBackendFactory(std::function<std::shared_ptr<Backend>()> factory) {
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory." << std::endl;
-#endif
-  backend_factory = std::move(factory);
-}
-
-std::shared_ptr<Backend> CreateBackend() {
-  if (backend_factory == nullptr) {
-    throw std::runtime_error(
-        "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");
+  std::string GetType() const override {
+    return "velox";
   }
-  return backend_factory();
-}
+
+  std::shared_ptr<ArrowSchema> exportArrowSchema() override;
+  std::shared_ptr<ArrowArray> exportArrowArray() override;
+
+  facebook::velox::RowVectorPtr getRowVector() const;
+  facebook::velox::RowVectorPtr getFlattenedRowVector();
+
+ private:
+  void EnsureFlattened();
+
+  facebook::velox::RowVectorPtr rowVector_ = nullptr;
+  facebook::velox::RowVectorPtr flattened_ = nullptr;
+};
 
 } // namespace gluten
