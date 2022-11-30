@@ -285,4 +285,23 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select type1.timestamp from type1," +
       " type2 where type1.timestamp = type2.timestamp") { _ => }
   }
+
+  test("Struct type") {
+    // Validation: BatchScan Project Limit
+    runQueryAndCompare("select struct from type1") { _ => }
+    // Validation: BatchScan Project Aggregate Sort Limit
+    // TODO validate Expand operator support Struct type ?
+    runQueryAndCompare("select int, struct.struct_1 from type1 " +
+      "sort by struct.struct_1 limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.struct.struct_1 from type1," +
+      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.struct.struct_1 from type1," +
+      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
+  }
 }

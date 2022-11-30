@@ -21,9 +21,8 @@ import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
 import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.utils.{InputPartitionsUtil, VeloxExpressionUtil}
 import io.glutenproject.utils.VeloxExpressionUtil.VELOX_EXPR_BLACKLIST
-
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
@@ -34,18 +33,24 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    * Add the validation for Velox unsupported or mismatched expressions with specific input type,
    * such as Cast(ArrayType).
    */
-  def doValidate(blacklist: Map[String, String], expr: Expression): Boolean = {
-    val value = blacklist.get(expr.prettyName.toLowerCase())
+  def doValidate(blacklist: Map[String, Set[String]], expr: Expression): Boolean = {
+    // To handle cast(struct as string) AS col_name expression
+    val key = if (expr.prettyName.toLowerCase().equals("alias")) {
+      expr.asInstanceOf[Alias].child.prettyName.toLowerCase()
+    } else expr.prettyName.toLowerCase()
+    val value = blacklist.get(key)
     if (value.isEmpty) {
       return true
     }
-    val inputTypeName = value.get
-    if (inputTypeName.equals(VeloxExpressionUtil.EMPTY_TYPE)) {
-      return false
-    } else {
-      for (input <- expr.children) {
-        if (inputTypeName.equals(input.dataType.typeName)) {
-          return false
+    val inputTypeNames = value.get
+    inputTypeNames.foreach { inputTypeName =>
+      if (inputTypeName.equals(VeloxExpressionUtil.EMPTY_TYPE)) {
+        return false
+      } else {
+        for (input <- expr.children) {
+          if (inputTypeName.equals(input.dataType.typeName)) {
+            return false
+          }
         }
       }
     }

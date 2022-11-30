@@ -80,6 +80,7 @@ trait BasicScanExecTransformer extends TransformSupport {
       case array: ArrayType =>
       case bool: BooleanType =>
       case map: MapType =>
+      case struct: StructType =>
     }.nonEmpty
   }
 
