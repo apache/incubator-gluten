@@ -50,23 +50,26 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   // Setup and register.
   filesystems::registerLocalFileSystem();
 
-  // TODO(yuan): move to seperate func
-  // TODO(yuan): make these configurable
-  constexpr int32_t kNumSsdShards = 4;
-  uint64_t cacheSize = 1 << 30;
-  cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(kNumSsdShards);
-  auto ssd = std::make_unique<cache::SsdCache>("/tmp/cache.", cacheSize, kNumSsdShards, cacheExecutor_.get());
+  // TODO(yuan): move to seperate func initcache()
+  auto key = conf.find(kVeloxCacheEnabled);
+  if (key != conf.end() && conf[kVeloxCacheEnabled] == "true") {
+    uint64_t cacheSize = 1 << 30;
+    constexpr int32_t cacheShards = 4;
+    cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
+    auto ssd = std::make_unique<cache::SsdCache>("/tmp/cache.", cacheSize, cacheShards, cacheExecutor_.get());
 
-  memory::MmapAllocatorOptions options;
-  uint64_t memoryBytes = 20L << 30;
-  options.capacity = memoryBytes;
-  options.useMmapArena = true;
+    memory::MmapAllocatorOptions options;
+    uint64_t memoryBytes = 20L << 30;
+    options.capacity = memoryBytes;
 
-  auto allocator = std::make_shared<memory::MmapAllocator>(options);
-  mappedMemory_ = std::make_shared<cache::AsyncDataCache>(allocator, memoryBytes, std::move(ssd));
+    auto allocator = std::make_shared<memory::MmapAllocator>(options);
+    mappedMemory_ = std::make_shared<cache::AsyncDataCache>(allocator, memoryBytes, std::move(ssd));
 
-  // register as default instance, used in parquet reader
-  memory::MappedMemory::setDefaultInstance(mappedMemory_.get());
+    // register as default instance, will be used in parquet reader
+    memory::MappedMemory::setDefaultInstance(mappedMemory_.get());
+    VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
+    LOG(INFO) << "STARTUP: Using AsyncDataCache";
+  }
 
   std::unordered_map<std::string, std::string> configurationValues;
 
@@ -127,8 +130,6 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 #endif
 
   auto properties = std::make_shared<const core::MemConfig>(configurationValues);
-  VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
-  LOG(INFO) << "STARTUP: Using AsyncDataCache";
   auto hiveConnector = getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
                            ->newConnector(kHiveConnectorId, properties);
 

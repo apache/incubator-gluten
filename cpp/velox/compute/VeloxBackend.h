@@ -25,14 +25,14 @@ namespace gluten {
 
 class VeloxInitializer {
  public:
-  VeloxInitializer(std::unordered_map<std::string, std::string> conf) {
+  VeloxInitializer(const std::unordered_map<std::string, std::string>& conf) {
     Init(conf);
   }
   void Init(std::unordered_map<std::string, std::string> conf);
 
   void InitCache();
   // Instance of AsyncDataCache used for all large allocations.
-  std::shared_ptr<memory::MappedMemory> mappedMemory_;
+  std::shared_ptr<facebook::velox::memory::MappedMemory> mappedMemory_;
   std::unique_ptr<folly::IOThreadPoolExecutor> cacheExecutor_;
 };
 
