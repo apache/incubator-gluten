@@ -19,7 +19,7 @@ package io.glutenproject.sql.shims.spark32
 import io.glutenproject.sql.shims.{SparkShimDescriptor, SparkShims}
 
 object SparkShimProvider {
-  val DESCRIPTOR = SparkShimDescriptor(3, 2, 2)
+  val DESCRIPTOR = SparkShimDescriptor(3, 2, 1)
   val DESCRIPTOR_STRINGS = Seq(s"$DESCRIPTOR")
 }
 
