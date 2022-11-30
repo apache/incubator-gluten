@@ -46,7 +46,7 @@ class ColumnarToRowConverter {
     return offsets_;
   }
 
-  const std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>& GetLengths() const{
+  const std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>& GetLengths() const {
     return lengths_;
   }
 

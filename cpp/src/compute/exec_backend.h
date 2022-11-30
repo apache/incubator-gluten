@@ -58,7 +58,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator) = 0;
 
-  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator,
+  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
+      MemoryAllocator* allocator,
       std::vector<std::shared_ptr<GlutenResultIterator>> inputs) = 0;
 
   /// Parse and cache the plan.
@@ -84,12 +85,14 @@ class Backend : public std::enable_shared_from_this<Backend> {
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
-  virtual arrow::Result<std::shared_ptr<ColumnarToRowConverter>>
-  getColumnarConverter(MemoryAllocator* allocator, std::shared_ptr<ColumnarBatch> cb) {
+  virtual arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnarConverter(
+      MemoryAllocator* allocator,
+      std::shared_ptr<ColumnarBatch> cb) {
     auto memory_pool = AsWrappedArrowMemoryPool(allocator);
     std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
     std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
-    ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+    ARROW_ASSIGN_OR_RAISE(
+        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
     return std::make_shared<ArrowColumnarToRowConverter>(rb, memory_pool);
@@ -118,8 +121,10 @@ class GlutenResultIterator : public ResultIterator<ColumnarBatch> {
   /// when the production of the iterator relies on the backend.
   template <typename T>
   explicit GlutenResultIterator(std::shared_ptr<T> iter, std::shared_ptr<Backend> backend = nullptr)
-      : raw_iter_(iter.get()), iter_(std::make_unique<ArrowIterator>(Wrapper<T>(std::move(iter)))),
-        next_(nullptr), backend_(std::move(backend)) {}
+      : raw_iter_(iter.get()),
+        iter_(std::make_unique<ArrowIterator>(Wrapper<T>(std::move(iter)))),
+        next_(nullptr),
+        backend_(std::move(backend)) {}
 
   bool HasNext() override {
     CheckValid();

@@ -49,8 +49,8 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::GlutenResultIterator>
-ArrowExecBackend::GetResultIterator(gluten::memory::MemoryAllocator* allocator) {
+std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
+    gluten::memory::MemoryAllocator* allocator) {
   return GetResultIterator(allocator, {});
 }
 
@@ -80,8 +80,7 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
           },
           std::move(*inputs[i]->ToArrowArrayIterator()));
       GLUTEN_ASSIGN_OR_THROW(
-          auto gen,
-          arrow::MakeBackgroundGenerator(std::move(batch_it), arrow::internal::GetCpuThreadPool()));
+          auto gen, arrow::MakeBackgroundGenerator(std::move(batch_it), arrow::internal::GetCpuThreadPool()));
       source_decls.emplace_back("source", arrow::compute::SourceNodeOptions{schema, std::move(gen)});
     }
     ReplaceSourceDecls(std::move(source_decls));
@@ -112,11 +111,8 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
   // Add sink node. It's added after constructing plan from decls because sink
   // node doesn't have output schema.
   arrow::AsyncGenerator<arrow::util::optional<arrow::compute::ExecBatch>> sink_gen;
-  GLUTEN_THROW_NOT_OK(arrow::compute::MakeExecNode(
-      "sink",
-      exec_plan_.get(),
-      {node},
-      arrow::compute::SinkNodeOptions{&sink_gen}));
+  GLUTEN_THROW_NOT_OK(
+      arrow::compute::MakeExecNode("sink", exec_plan_.get(), {node}, arrow::compute::SinkNodeOptions{&sink_gen}));
 
   GLUTEN_THROW_NOT_OK(exec_plan_->Validate());
   GLUTEN_THROW_NOT_OK(exec_plan_->StartProducing());
@@ -150,8 +146,8 @@ void ArrowExecBackend::PushDownFilter() {
       if (input_decl.factory_name == "filter" && input_decl.inputs.size() == 1) {
         auto scan_decl = arrow::util::get<arrow::compute::Declaration>(input_decl.inputs[0]);
         if (scan_decl.factory_name == "scan") {
-          auto expression =
-              arrow::internal::checked_pointer_cast<arrow::compute::FilterNodeOptions>(input_decl.options)->filter_expression;
+          auto expression = arrow::internal::checked_pointer_cast<arrow::compute::FilterNodeOptions>(input_decl.options)
+                                ->filter_expression;
           auto scan_options = arrow::internal::checked_pointer_cast<arrow::dataset::ScanNodeOptions>(scan_decl.options);
           const auto& schema = scan_options->dataset->schema();
           FieldPathToName(&expression, schema);
@@ -385,4 +381,4 @@ void GazelleInitialize() {
   }
 }
 
-} // namespace gazellecpp
+} // namespace gluten

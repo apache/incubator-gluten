@@ -24,9 +24,7 @@ namespace gluten {
 
 class Reader {
  public:
-  Reader(std::shared_ptr<arrow::io::InputStream> in,
-      std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options);
+  Reader(std::shared_ptr<arrow::io::InputStream> in, std::shared_ptr<arrow::Schema> schema, ReaderOptions options);
 
   arrow::Result<std::shared_ptr<ColumnarBatch>> Next();
   arrow::Status Close();

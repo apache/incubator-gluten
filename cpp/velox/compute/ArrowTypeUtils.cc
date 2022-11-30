@@ -165,4 +165,3 @@ std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const RowType
   }
   return arrow::schema(fields);
 }
-

@@ -49,9 +49,10 @@ Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
   JNI_METHOD_END()
 }
 
-JNIEXPORT jboolean JNICALL
-Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
-    JNIEnv* env, jobject obj, jbyteArray planArray) {
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeDoValidate(
+    JNIEnv* env,
+    jobject obj,
+    jbyteArray planArray) {
   JNI_METHOD_START
   auto data = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto size = env->GetArrayLength(planArray);

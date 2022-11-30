@@ -64,7 +64,7 @@ std::shared_ptr<arrow::DataType> GetOffsetDataType(std::shared_ptr<arrow::DataTy
   switch (parent_type->id()) {
     case arrow::BinaryType::type_id:
       return std::make_shared<arrow::TypeTraits<arrow::BinaryType>::OffsetType>();
-    case arrow::LargeBinaryType::type_id: 
+    case arrow::LargeBinaryType::type_id:
       return std::make_shared<arrow::TypeTraits<arrow::LargeBinaryType>::OffsetType>();
     case arrow::ListType::type_id:
       return std::make_shared<arrow::TypeTraits<arrow::ListType>::OffsetType>();
@@ -95,7 +95,8 @@ arrow::Status AppendNodes(std::shared_ptr<arrow::Array> column, std::vector<std:
   return arrow::Status::OK();
 }
 
-arrow::Status AppendBuffers(std::shared_ptr<arrow::Array> column,
+arrow::Status AppendBuffers(
+    std::shared_ptr<arrow::Array> column,
     std::vector<std::shared_ptr<arrow::Buffer>>* buffers) {
   auto type = column->type();
   switch (type->id()) {
@@ -395,14 +396,10 @@ void CheckException(JNIEnv* env) {
     jthrowable t = env->ExceptionOccurred();
     env->ExceptionClear();
     jclass describer_class = env->FindClass("io/glutenproject/exception/JniExceptionDescriber");
-    jmethodID describe_method = env->GetStaticMethodID(
-        describer_class,
-        "describe",
-        "(Ljava/lang/Throwable;)Ljava/lang/String;");
-    std::string description = JStringToCString(
-        env,
-        (jstring)env->CallStaticObjectMethod(
-            describer_class, describe_method, t));
+    jmethodID describe_method =
+        env->GetStaticMethodID(describer_class, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
+    std::string description =
+        JStringToCString(env, (jstring)env->CallStaticObjectMethod(describer_class, describe_method, t));
     throw gluten::GlutenException("Error during calling Java code from native code: " + description);
   }
 }
@@ -429,8 +426,8 @@ class SparkAllocationListener : public gluten::AllocationListener {
   ~SparkAllocationListener() override {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
-      std::cerr << "SparkAllocationListener#~SparkAllocationListener(): " 
-          << "JNIEnv was not attached to current thread" << std::endl;
+      std::cerr << "SparkAllocationListener#~SparkAllocationListener(): "
+                << "JNIEnv was not attached to current thread" << std::endl;
       return;
     }
     env->DeleteGlobalRef(java_listener_);
@@ -487,4 +484,3 @@ class SparkAllocationListener : public gluten::AllocationListener {
   int64_t max_bytes_reserved_ = 0L;
   std::mutex mutex_;
 };
-

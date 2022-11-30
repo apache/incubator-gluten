@@ -40,13 +40,13 @@ using namespace facebook::velox::parquet;
 namespace gluten {
 
 namespace {
-  const std::string kHiveConnectorId = "test-hive";
-  const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
-  const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
-  const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
-  const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
-  const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
-  std::atomic<int32_t> taskSerial;
+const std::string kHiveConnectorId = "test-hive";
+const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
+const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
+const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
+const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
+const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
+std::atomic<int32_t> taskSerial;
 } // namespace
 
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* memoryPool) {
@@ -130,7 +130,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 
   auto properties = std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector = getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, properties, nullptr);
+                           ->newConnector(kHiveConnectorId, properties, nullptr);
   registerConnector(hiveConnector);
   parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   dwrf::registerDwrfReaderFactory();
@@ -246,10 +246,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto arrowStreamNode = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(),
-      outputType,
-      arrowStream,
-      GetDefaultWrappedVeloxMemoryPool().get());
+      nextPlanNodeId(), outputType, arrowStream, GetDefaultWrappedVeloxMemoryPool().get());
   subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
 }
 
@@ -284,8 +281,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::RelRoot& sroot) {
   }
 }
 
-std::shared_ptr<const core::PlanNode> VeloxBackend::getVeloxPlanNode(
-    const ::substrait::Plan& splan) {
+std::shared_ptr<const core::PlanNode> VeloxBackend::getVeloxPlanNode(const ::substrait::Plan& splan) {
   // In fact, only one RelRoot is expected here.
   for (auto& srel : splan.relations()) {
     if (srel.has_root()) {
@@ -331,14 +327,12 @@ void VeloxBackend::getInfoAndIds(
   }
 }
 
-std::shared_ptr<GlutenResultIterator>
-VeloxBackend::GetResultIterator(MemoryAllocator* allocator) {
+std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(MemoryAllocator* allocator) {
   std::vector<std::shared_ptr<GlutenResultIterator>> inputs = {};
   return GetResultIterator(allocator, inputs);
 }
 
-std::shared_ptr<GlutenResultIterator>
-VeloxBackend::GetResultIterator(
+std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
     std::vector<std::shared_ptr<GlutenResultIterator>> inputs) {
   if (inputs.size() > 0) {
@@ -360,12 +354,13 @@ VeloxBackend::GetResultIterator(
     auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
     return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
   }
-  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
+  auto wholestageIter =
+      std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
   return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
-std::shared_ptr<GlutenResultIterator>
-VeloxBackend::GetResultIterator(MemoryAllocator* allocator,
+std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(
+    MemoryAllocator* allocator,
     const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& setScanInfos) {
   planNode_ = getVeloxPlanNode(plan_);
 
@@ -378,12 +373,14 @@ VeloxBackend::GetResultIterator(MemoryAllocator* allocator,
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
-  auto wholestageIter = std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
+  auto wholestageIter =
+      std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
   return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
-arrow::Result<std::shared_ptr<ColumnarToRowConverter>>
-VeloxBackend::getColumnarConverter(MemoryAllocator* allocator, std::shared_ptr<ColumnarBatch> cb) {
+arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnarConverter(
+    MemoryAllocator* allocator,
+    std::shared_ptr<ColumnarBatch> cb) {
   auto arrowPool = AsWrappedArrowMemoryPool(allocator);
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
@@ -393,7 +390,8 @@ VeloxBackend::getColumnarConverter(MemoryAllocator* allocator, std::shared_ptr<C
   // If the child is not Velox output, use Arrow-to-Row conversion instead.
   std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
   std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
-  ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+  ARROW_ASSIGN_OR_RAISE(
+      std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
   ArrowSchemaRelease(c_schema.get());
   ArrowArrayRelease(c_array.get());
   return std::make_shared<ArrowColumnarToRowConverter>(rb, arrowPool);
@@ -432,7 +430,9 @@ memory::MemoryPool* WholeStageResIter::getPool() const {
   return pool_.get();
 }
 
-void WholeStageResIter::getOrderedNodeIds(const std::shared_ptr<const core::PlanNode>& planNode, std::vector<core::PlanNodeId>& nodeIds) {
+void WholeStageResIter::getOrderedNodeIds(
+    const std::shared_ptr<const core::PlanNode>& planNode,
+    std::vector<core::PlanNodeId>& nodeIds) {
   bool isProjectNode = false;
   if (std::dynamic_pointer_cast<const core::ProjectNode>(planNode)) {
     isProjectNode = true;
@@ -503,18 +503,21 @@ void WholeStageResIter::collectMetrics() {
       metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
       metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
-      metrics_->numDynamicFiltersProduced[metricsIdx] = sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersProduced);
-      metrics_->numDynamicFiltersAccepted[metricsIdx] = sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersAccepted);
-      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] = sumOfRuntimeMetric(entry.second->customStats, kReplacedWithDynamicFilterRows);
+      metrics_->numDynamicFiltersProduced[metricsIdx] =
+          sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersProduced);
+      metrics_->numDynamicFiltersAccepted[metricsIdx] =
+          sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersAccepted);
+      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
+          sumOfRuntimeMetric(entry.second->customStats, kReplacedWithDynamicFilterRows);
       metricsIdx += 1;
     }
   }
 }
 
 int64_t WholeStageResIter::sumOfRuntimeMetric(
-    const std::unordered_map<std::string, RuntimeMetric>& runtimeStats, const std::string& metricId) const {
-  if (runtimeStats.size() == 0 ||
-      runtimeStats.find(metricId) == runtimeStats.end()) {
+    const std::unordered_map<std::string, RuntimeMetric>& runtimeStats,
+    const std::string& metricId) const {
+  if (runtimeStats.size() == 0 || runtimeStats.find(metricId) == runtimeStats.end()) {
     return 0;
   }
   return runtimeStats.at(metricId).sum;
@@ -545,7 +548,6 @@ class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
         scanNodeIds_(scanNodeIds),
         scanInfos_(scanInfos),
         streamIds_(streamIds) {
-
     // Generate splits for all scan nodes.
     splits_.reserve(scanInfos.size());
     if (scanNodeIds.size() != scanInfos.size()) {
@@ -586,10 +588,7 @@ class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
     // Set customized confs to query context.
     setConfToQueryContext(queryCtx);
     task_ = std::make_shared<exec::Task>(
-        fmt::format("gluten task {}", ++taskSerial),
-        std::move(planFragment),
-        0,
-        std::move(queryCtx));
+        fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
 
     if (!task_->supportsSingleThreadedExecution()) {
       throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
@@ -655,7 +654,8 @@ class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
 
 class VeloxBackend::WholeStageResIterMiddleStage : public WholeStageResIter {
  public:
-  WholeStageResIterMiddleStage(std::shared_ptr<memory::MemoryPool> pool,
+  WholeStageResIterMiddleStage(
+      std::shared_ptr<memory::MemoryPool> pool,
       const std::shared_ptr<const core::PlanNode>& planNode,
       const std::vector<core::PlanNodeId>& streamIds,
       const std::unordered_map<std::string, std::string>& confMap)
@@ -666,10 +666,7 @@ class VeloxBackend::WholeStageResIterMiddleStage : public WholeStageResIter {
     setConfToQueryContext(queryCtx);
 
     task_ = std::make_shared<exec::Task>(
-        fmt::format("gluten task {}", ++taskSerial),
-        std::move(planFragment),
-        0,
-        std::move(queryCtx));
+        fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
 
     if (!task_->supportsSingleThreadedExecution()) {
       throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());

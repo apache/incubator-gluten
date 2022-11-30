@@ -72,8 +72,8 @@
 
 namespace gluten {
 
-std::shared_ptr<facebook::velox::core::QueryCtx> 
-createNewVeloxQueryCtx(facebook::velox::memory::MemoryPool* memoryPool);
+std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx(
+    facebook::velox::memory::MemoryPool* memoryPool);
 
 class VeloxInitializer {
  public:
@@ -86,7 +86,8 @@ class VeloxInitializer {
 
 class WholeStageResIter {
  public:
-  WholeStageResIter(std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
+  WholeStageResIter(
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       std::shared_ptr<const facebook::velox::core::PlanNode> planNode,
       const std::unordered_map<std::string, std::string>& confMap)
       : pool_(pool), planNode_(planNode), confMap_(confMap) {
@@ -116,14 +117,16 @@ class WholeStageResIter {
 
  private:
   /// Get all the children plan node ids with postorder traversal.
-  void getOrderedNodeIds(const std::shared_ptr<const facebook::velox::core::PlanNode>&, 
+  void getOrderedNodeIds(
+      const std::shared_ptr<const facebook::velox::core::PlanNode>&,
       std::vector<facebook::velox::core::PlanNodeId>& nodeIds);
 
   /// Collect Velox metrics.
   void collectMetrics();
 
   /// Return the sum of one runtime metric.
-  int64_t sumOfRuntimeMetric(const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats, 
+  int64_t sumOfRuntimeMetric(
+      const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
       const std::string& metricId) const;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
@@ -148,19 +151,23 @@ class VeloxBackend : public Backend {
 
   std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator) override;
 
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator,
+  std::shared_ptr<GlutenResultIterator> GetResultIterator(
+      MemoryAllocator* allocator,
       std::vector<std::shared_ptr<GlutenResultIterator>> inputs) override;
 
   // Used by unit test and benchmark.
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator,
+  std::shared_ptr<GlutenResultIterator> GetResultIterator(
+      MemoryAllocator* allocator,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
 
-  arrow::Result<std::shared_ptr<ColumnarToRowConverter>>
-  getColumnarConverter(MemoryAllocator* allocator, std::shared_ptr<ColumnarBatch> cb) override;
+  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnarConverter(
+      MemoryAllocator* allocator,
+      std::shared_ptr<ColumnarBatch> cb) override;
 
   /// Separate the scan ids and stream ids, and get the scan infos.
-  void getInfoAndIds(std::unordered_map<facebook::velox::core::PlanNodeId,
-      std::shared_ptr<facebook::velox::substrait::SplitInfo>> splitInfoMap,
+  void getInfoAndIds(
+      std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>>
+          splitInfoMap,
       std::unordered_set<facebook::velox::core::PlanNodeId> leafPlanNodeIds,
       std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
       std::vector<facebook::velox::core::PlanNodeId>& scanIds,
@@ -214,8 +221,9 @@ class VeloxBackend : public Backend {
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
 
-  std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ = 
-      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(GetDefaultWrappedVeloxMemoryPool().get());
+  std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
+      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
+          GetDefaultWrappedVeloxMemoryPool().get());
 
   // Cache for tests/benchmark purpose.
   std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;

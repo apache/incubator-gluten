@@ -99,8 +99,9 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
   reader_options.setFileFormat(format);
 
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
-    std::unique_ptr<dwio::common::Reader> reader = dwio::common::getReaderFactory(reader_options.getFileFormat())
-          ->createReader(std::make_unique<dwio::common::FileInputStream>(file_path_.substr(5)), reader_options);
+    std::unique_ptr<dwio::common::Reader> reader =
+        dwio::common::getReaderFactory(reader_options.getFileFormat())
+            ->createReader(std::make_unique<dwio::common::FileInputStream>(file_path_.substr(5)), reader_options);
     return toArrowSchema(reader->rowType());
   }
 #ifdef VELOX_ENABLE_HDFS
@@ -113,7 +114,8 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
     std::regex hdfsPrefixExp("hdfs://(\\w+)/");
     std::string hdfsFilePath = regex_replace(file_path_.c_str(), hdfsPrefixExp, "/");
     HdfsReadFile readFile(hdfs, hdfsFilePath);
-    std::unique_ptr<dwio::common::Reader> reader = dwio::common::getReaderFactory(reader_options.getFileFormat())
+    std::unique_ptr<dwio::common::Reader> reader =
+        dwio::common::getReaderFactory(reader_options.getFileFormat())
             ->createReader(std::make_unique<dwio::common::ReadFileInputStream>(&readFile), reader_options);
     return toArrowSchema(reader->rowType());
   }
@@ -152,4 +154,4 @@ void DwrfDatasource::Write(const std::shared_ptr<arrow::RecordBatch>& rb) {
   writer_->write(row_vec);
 }
 
-} // namespace velox
+} // namespace gluten

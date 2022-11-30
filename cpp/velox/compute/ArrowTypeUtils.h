@@ -29,4 +29,3 @@ std::shared_ptr<arrow::DataType> toArrowType(const facebook::velox::TypePtr& typ
 const char* arrowTypeIdToFormatStr(arrow::Type::type typeId);
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const facebook::velox::RowType>& row_type);
-

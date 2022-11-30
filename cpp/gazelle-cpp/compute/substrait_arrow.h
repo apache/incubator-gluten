@@ -97,10 +97,13 @@ class ArrowExecBackend : public Backend {
 
 class ArrowExecResultIterator {
  public:
-  ArrowExecResultIterator(gluten::memory::MemoryAllocator* allocator, std::shared_ptr<arrow::Schema> schema,
+  ArrowExecResultIterator(
+      gluten::memory::MemoryAllocator* allocator,
+      std::shared_ptr<arrow::Schema> schema,
       arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter)
-      : memory_pool_(gluten::memory::AsWrappedArrowMemoryPool(allocator)), 
-      schema_(std::move(schema)), iter_(std::move(iter)) {}
+      : memory_pool_(gluten::memory::AsWrappedArrowMemoryPool(allocator)),
+        schema_(std::move(schema)),
+        iter_(std::move(iter)) {}
 
   std::shared_ptr<gluten::memory::GlutenColumnarBatch> Next();
 

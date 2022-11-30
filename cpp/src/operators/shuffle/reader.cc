@@ -27,12 +27,8 @@ ReaderOptions ReaderOptions::Defaults() {
   return {};
 }
 
-Reader::Reader(std::shared_ptr<arrow::io::InputStream> in,
-    std::shared_ptr<arrow::Schema> schema,
-    ReaderOptions options)
-    : in_(std::move(in)),
-      schema_(std::move(schema)),
-      options_(std::move(options)) {
+Reader::Reader(std::shared_ptr<arrow::io::InputStream> in, std::shared_ptr<arrow::Schema> schema, ReaderOptions options)
+    : in_(std::move(in)), schema_(std::move(schema)), options_(std::move(options)) {
   GLUTEN_ASSIGN_OR_THROW(first_message_, arrow::ipc::ReadMessage(in_.get()))
   if (first_message_->type() == arrow::ipc::MessageType::SCHEMA) {
     GLUTEN_ASSIGN_OR_THROW(schema_, arrow::ipc::ReadSchema(*first_message_, nullptr))
@@ -52,8 +48,8 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> Reader::Next() {
   if (message_to_read == nullptr) {
     return nullptr;
   }
-  GLUTEN_ASSIGN_OR_THROW(arrow_batch,
-      arrow::ipc::ReadRecordBatch(*message_to_read, schema_, nullptr, options_.ipc_read_options))
+  GLUTEN_ASSIGN_OR_THROW(
+      arrow_batch, arrow::ipc::ReadRecordBatch(*message_to_read, schema_, nullptr, options_.ipc_read_options))
   std::shared_ptr<ColumnarBatch> gluten_batch = std::make_shared<ArrowColumnarBatch>(arrow_batch);
   return gluten_batch;
 }

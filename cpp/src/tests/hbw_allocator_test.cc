@@ -64,4 +64,3 @@ TEST_F(TestHbwAllocator, Test) {
   allocator->ReallocateAligned(buf, 64, size, size << 1, &buf);
   CheckBytesAndFree(buf, size << 1);
 }
-

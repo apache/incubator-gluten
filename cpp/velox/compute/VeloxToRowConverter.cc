@@ -181,7 +181,7 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<DoubleType>( vec, write_address, row_idx);
+            auto serialized = row::UnsafeRowSerializer::serialize<DoubleType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -195,7 +195,7 @@ arrow::Status VeloxToRowConverter::Write() {
           } else {
             // Will use Velox's conversion.
             auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
-            auto serialized = row::UnsafeRowSerializer::serialize<BooleanType>( vec, write_address, row_idx);
+            auto serialized = row::UnsafeRowSerializer::serialize<BooleanType>(vec, write_address, row_idx);
           }
         }
         break;
@@ -222,7 +222,8 @@ arrow::Status VeloxToRowConverter::Write() {
         break;
       }
       default:
-        return arrow::Status::Invalid("Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");
+        return arrow::Status::Invalid(
+            "Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");
     }
   }
   return arrow::Status::OK();

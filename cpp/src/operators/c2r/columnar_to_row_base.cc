@@ -21,8 +21,7 @@
 
 namespace gluten {
 
-int64_t ColumnarToRowConverter::CalculateBitSetWidthInBytes(
-    int32_t numFields) {
+int64_t ColumnarToRowConverter::CalculateBitSetWidthInBytes(int32_t numFields) {
   return ((numFields + 63) >> 6) << 3;
 }
 
@@ -37,8 +36,7 @@ int32_t ColumnarToRowConverter::RoundNumberOfBytesToNearestWord(int32_t numBytes
   }*/
 }
 
-int64_t ColumnarToRowConverter::CalculatedFixeSizePerRow(
-    std::shared_ptr<arrow::Schema> schema, int64_t num_cols) {
+int64_t ColumnarToRowConverter::CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols) {
   std::vector<std::shared_ptr<arrow::Field>> fields = schema->fields();
   // Calculate the decimal col num when the precision >18
   int32_t count = 0;
@@ -61,7 +59,7 @@ int64_t ColumnarToRowConverter::GetFieldOffset(int64_t nullBitsetWidthInBytes, i
   return nullBitsetWidthInBytes + 8L * index;
 }
 
-void ColumnarToRowConverter::BitSet(uint8_t* buffer_address, int32_t index) { 
+void ColumnarToRowConverter::BitSet(uint8_t* buffer_address, int32_t index) {
   int64_t mask = 1L << (index & 0x3f); // mod 64 and shift
   int64_t wordOffset = (index >> 6) * 8;
   int64_t word;
@@ -80,7 +78,7 @@ void ColumnarToRowConverter::SetNullAt(
   *(int64_t*)(buffer_address + row_offset + field_offset) = 0;
 }
 
-int32_t ColumnarToRowConverter::FirstNonzeroLongNum( std::vector<int32_t> mag, int32_t length) {
+int32_t ColumnarToRowConverter::FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length) {
   int32_t fn = 0;
   int32_t i;
   for (i = length - 1; i >= 0 && mag[i] == 0; i--)

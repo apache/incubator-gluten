@@ -51,8 +51,7 @@ static std::string GenerateUUID() {
   return boost::uuids::to_string(generator());
 }
 
-static std::string GetSpilledShuffleFileDir(
-    const std::string& configured_dir, int32_t sub_dir_id) {
+static std::string GetSpilledShuffleFileDir(const std::string& configured_dir, int32_t sub_dir_id) {
   auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(2) << std::hex << sub_dir_id;
@@ -85,7 +84,7 @@ static arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
   }
 }
 
-static arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) { 
+static arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) {
   if (dir.length() == 0) {
     return arrow::Status::Invalid("Failed to create spilled file, got empty path.");
   }

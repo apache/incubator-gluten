@@ -49,8 +49,7 @@ using arrow::internal::checked_cast;
 static const std::vector<arrow::Compression::type> supported_codec = {
     arrow::Compression::LZ4_FRAME,
     arrow::Compression::ZSTD,
-    arrow::Compression::GZIP
-};
+    arrow::Compression::GZIP};
 
 template <typename T>
 std::string __m128i_toString(const __m128i var) {
@@ -129,7 +128,8 @@ class Splitter::PartitionWriter {
   }
 
   arrow::Status MergeSpilled() {
-    ARROW_ASSIGN_OR_RAISE(auto spilled_file_is_, arrow::io::MemoryMappedFile::Open(spilled_file_, arrow::io::FileMode::READ));
+    ARROW_ASSIGN_OR_RAISE(
+        auto spilled_file_is_, arrow::io::MemoryMappedFile::Open(spilled_file_, arrow::io::FileMode::READ));
     // copy spilled data blocks
     ARROW_ASSIGN_OR_RAISE(auto nbytes, spilled_file_is_->GetSize());
     ARROW_ASSIGN_OR_RAISE(auto buffer, spilled_file_is_->Read(nbytes));
@@ -154,11 +154,7 @@ class Splitter::PartitionWriter {
     int32_t metadata_length = 0; // unused
 #ifndef SKIPWRITE
     for (auto& payload : splitter_->partition_cached_recordbatch_[partition_id_]) {
-      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(
-          *payload,
-          splitter_->options_.ipc_write_options,
-          os,
-          &metadata_length));
+      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, splitter_->options_.ipc_write_options, os, &metadata_length));
       payload = nullptr;
     }
 #endif
@@ -270,22 +266,18 @@ arrow::Status Splitter::Init() {
   input_has_null_.resize(array_cnt, false);
   partition_binary_addrs_.resize(binary_array_idx.size());
 
-  std::for_each(
-      partition_validity_addrs_.begin(),
-      partition_validity_addrs_.end(),
-      [this](std::vector<uint8_t*>& v) { v.resize(num_partitions_, nullptr); });
+  std::for_each(partition_validity_addrs_.begin(), partition_validity_addrs_.end(), [this](std::vector<uint8_t*>& v) {
+    v.resize(num_partitions_, nullptr);
+  });
 
   std::for_each(
       partition_fixed_width_value_addrs_.begin(),
       partition_fixed_width_value_addrs_.end(),
       [this](std::vector<uint8_t*>& v) { v.resize(num_partitions_, nullptr); });
 
-  std::for_each(
-      partition_buffers_.begin(),
-      partition_buffers_.end(),
-      [this](std::vector<arrow::BufferVector>& v) {
-        v.resize(num_partitions_);
-      });
+  std::for_each(partition_buffers_.begin(), partition_buffers_.end(), [this](std::vector<arrow::BufferVector>& v) {
+    v.resize(num_partitions_);
+  });
 
   std::for_each(partition_binary_addrs_.begin(), partition_binary_addrs_.end(), [this](std::vector<BinaryBuff>& v) {
     v.resize(num_partitions_);
@@ -333,8 +325,7 @@ arrow::Status Splitter::AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& b
   } else if (combine_buffer_->capacity() - combine_buffer_->size() < size) {
     // memory pool is not enough
     ARROW_ASSIGN_OR_RAISE(
-        combine_buffer_,
-        arrow::AllocateResizableBuffer(SPLIT_BUFFER_SIZE, options_.memory_pool.get()));
+        combine_buffer_, arrow::AllocateResizableBuffer(SPLIT_BUFFER_SIZE, options_.memory_pool.get()));
     combine_buffer_->Resize(0, /*shrink_to_fit = */ false);
   }
   buffer = arrow::SliceMutableBuffer(combine_buffer_, combine_buffer_->size(), size);
@@ -356,10 +347,9 @@ int64_t Splitter::CompressedSize(const arrow::RecordBatch& rb) {
 }
 
 arrow::Status Splitter::SetCompressType(arrow::Compression::type compressed_type) {
-  if (std::any_of(
-          supported_codec.begin(),
-          supported_codec.end(),
-          [&](const auto& codec) { return codec == compressed_type; })) {
+  if (std::any_of(supported_codec.begin(), supported_codec.end(), [&](const auto& codec) {
+        return codec == compressed_type;
+      })) {
     ARROW_ASSIGN_OR_RAISE(options_.ipc_write_options.codec, arrow::util::Codec::Create(compressed_type));
   } else {
     options_.ipc_write_options.codec = nullptr;
@@ -381,8 +371,8 @@ arrow::Status Splitter::Stop() {
   std::shared_ptr<arrow::io::FileOutputStream> fout;
   ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(options_.data_file, true));
   if (options_.buffered_write) {
-    ARROW_ASSIGN_OR_RAISE(data_file_os_,
-        arrow::io::BufferedOutputStream::Create(16384, options_.memory_pool.get(), fout));
+    ARROW_ASSIGN_OR_RAISE(
+        data_file_os_, arrow::io::BufferedOutputStream::Create(16384, options_.memory_pool.get(), fout));
   } else {
     data_file_os_ = fout;
   }
@@ -533,8 +523,8 @@ arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, bool reset_buffer
             if (column_type_id_[i]->id() == arrow::BooleanType::type_id)
               buffers[1] = arrow::SliceBuffer(buffers[1], 0, arrow::bit_util::BytesForBits(num_rows));
             else
-              buffers[1] = arrow::SliceBuffer(buffers[1], 0,
-                  num_rows * (arrow::bit_width(column_type_id_[i]->id()) >> 3));
+              buffers[1] =
+                  arrow::SliceBuffer(buffers[1], 0, num_rows * (arrow::bit_width(column_type_id_[i]->id()) >> 3));
           }
 
           arrays[i] =
@@ -557,17 +547,15 @@ arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, bool reset_buffer
 #ifndef SKIPCOMPRESS
     if (num_rows <= options_.batch_compress_threshold) {
       TIME_NANO_OR_RAISE(
-          total_compress_time_,
-          arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
+          total_compress_time_, arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
     } else {
       TIME_NANO_OR_RAISE(
-          total_compress_time_,
-          arrow::ipc::GetRecordBatchPayload(*batch, options_.ipc_write_options, payload.get()));
+          total_compress_time_, arrow::ipc::GetRecordBatchPayload(*batch, options_.ipc_write_options, payload.get()));
     }
 #else
     // for test reason
-    TIME_NANO_OR_RAISE(total_compress_time_,
-        arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
+    TIME_NANO_OR_RAISE(
+        total_compress_time_, arrow::ipc::GetRecordBatchPayload(*batch, tiny_bach_write_options_, payload.get()));
 #endif
 
     partition_cached_recordbatch_size_[partition_id] += payload->body_length;
@@ -602,7 +590,8 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
         std::shared_ptr<arrow::Buffer> offset_buffer;
         std::shared_ptr<arrow::Buffer> validity_buffer = nullptr;
         auto value_buf_size = binary_array_empirical_size_[binary_idx] * new_size + 1024;
-        ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Buffer> value_buffer,
+        ARROW_ASSIGN_OR_RAISE(
+            std::shared_ptr<arrow::Buffer> value_buffer,
             arrow::AllocateResizableBuffer(value_buf_size, options_.memory_pool.get()));
         ARROW_RETURN_NOT_OK(AllocateBufferFromPool(offset_buffer, new_size * sizeof_binary_offset + 1));
         // set the first offset to 0
@@ -658,7 +647,7 @@ arrow::Status Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t n
         } else {
           partition_validity_addrs_[fixed_width_idx][partition_id] = nullptr;
         }
-        partition_buffers_[fixed_width_idx][partition_id] = { std::move(validity_buffer), std::move(value_buffer) };
+        partition_buffers_[fixed_width_idx][partition_id] = {std::move(validity_buffer), std::move(value_buffer)};
         fixed_width_idx++;
         break;
       }
@@ -1353,8 +1342,8 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
         "lea (%[num_partitions],%[pid],1),%[tmp]\n"
         "test %[pid],%[pid]\n"
         "cmovs %[tmp],%[pid]\n"
-        : [ pid ] "+r"(pid)
-        : [ num_partitions ] "r"(num_partitions_), [ tmp ] "r"(0));
+        : [pid] "+r"(pid)
+        : [num_partitions] "r"(num_partitions_), [tmp] "r"(0));
     partition_id_[i] = pid;
     partition_id_cnt_[pid]++;
   }
@@ -1396,7 +1385,7 @@ arrow::Status FallbackRangeSplitter::Split(const arrow::RecordBatch& rb) {
   return arrow::Status::OK();
 }
 
-arrow::Status FallbackRangeSplitter::ComputeAndCountPartitionId( const arrow::RecordBatch& rb) {
+arrow::Status FallbackRangeSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch& rb) {
   if (rb.column(0)->type_id() != arrow::Type::INT32) {
     return arrow::Status::Invalid(
         "RecordBatch field 0 should be ", arrow::int32()->ToString(), ", actual is ", rb.column(0)->type()->ToString());

@@ -34,7 +34,7 @@ bool HbwMemoryAllocator::AllocateZeroFilled(int64_t nmemb, int64_t size, void** 
   return true;
 }
 
-bool HbwMemoryAllocator::AllocateAligned(uint16_t alignment, int64_t size, void** out) { 
+bool HbwMemoryAllocator::AllocateAligned(uint16_t alignment, int64_t size, void** out) {
   if (hbw_posix_memalign(out, alignment, size) != 0) {
     return false;
   }

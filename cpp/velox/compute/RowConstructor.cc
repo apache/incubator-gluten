@@ -23,8 +23,8 @@ using namespace facebook::velox::exec;
 namespace gluten {
 
 class RowConstructor : public exec::VectorFunction {
-
-  void apply(const SelectivityVector& rows,
+  void apply(
+      const SelectivityVector& rows,
       std::vector<VectorPtr>& args,
       const TypePtr& outputType,
       exec::EvalCtx& context,
@@ -58,4 +58,4 @@ class RowConstructor : public exec::VectorFunction {
   }
 };
 
-} // namespace velox::compute
+} // namespace gluten

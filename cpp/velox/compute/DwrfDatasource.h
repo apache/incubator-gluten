@@ -39,8 +39,11 @@ namespace gluten {
 
 class DwrfDatasource {
  public:
-  DwrfDatasource(const std::string& file_path, std::shared_ptr<arrow::Schema> schema, 
-      facebook::velox::memory::MemoryPool* pool) : file_path_(file_path), schema_(schema), pool_(pool) {}
+  DwrfDatasource(
+      const std::string& file_path,
+      std::shared_ptr<arrow::Schema> schema,
+      facebook::velox::memory::MemoryPool* pool)
+      : file_path_(file_path), schema_(schema), pool_(pool) {}
 
   void Init(const std::unordered_map<std::string, std::string>& sparkConfs);
   std::shared_ptr<arrow::Schema> InspectSchema();
@@ -59,4 +62,4 @@ class DwrfDatasource {
   facebook::velox::memory::MemoryPool* pool_;
 };
 
-} // namespace velox
+} // namespace gluten

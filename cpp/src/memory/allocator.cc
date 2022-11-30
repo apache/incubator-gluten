@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-#include <iostream>
 #include "allocator.h"
+#include <iostream>
 #include "hbw_allocator.h"
 
 namespace gluten {
@@ -70,7 +70,12 @@ bool ListenableMemoryAllocator::Reallocate(void* p, int64_t size, int64_t new_si
   return succeed;
 }
 
-bool ListenableMemoryAllocator::ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) {
+bool ListenableMemoryAllocator::ReallocateAligned(
+    void* p,
+    uint16_t alignment,
+    int64_t size,
+    int64_t new_size,
+    void** out) {
   int64_t diff = new_size - size;
   listener_->AllocationChanged(diff);
   bool succeed = delegated_->ReallocateAligned(p, alignment, size, new_size, out);
@@ -146,7 +151,7 @@ int64_t StdMemoryAllocator::GetBytes() const {
   return bytes_;
 }
 
-arrow::Status WrappedArrowMemoryPool::Allocate(int64_t size, uint8_t** out) { 
+arrow::Status WrappedArrowMemoryPool::Allocate(int64_t size, uint8_t** out) {
   if (!allocator_->Allocate(size, reinterpret_cast<void**>(out))) {
     return arrow::Status::Invalid("WrappedMemoryPool: Error allocating " + std::to_string(size) + " bytes");
   }
@@ -160,7 +165,7 @@ arrow::Status WrappedArrowMemoryPool::Reallocate(int64_t old_size, int64_t new_s
   return arrow::Status::OK();
 }
 
-void WrappedArrowMemoryPool::Free(uint8_t* buffer, int64_t size) { 
+void WrappedArrowMemoryPool::Free(uint8_t* buffer, int64_t size) {
   allocator_->Free(buffer, size);
 }
 

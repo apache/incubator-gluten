@@ -134,7 +134,8 @@ class ExportedArrayStreamByArray {
 
 } // namespace
 
-arrow::Status ExportArrowArray(std::shared_ptr<arrow::Schema> schema,
+arrow::Status ExportArrowArray(
+    std::shared_ptr<arrow::Schema> schema,
     std::shared_ptr<gluten::ArrowArrayIterator> reader,
     struct ArrowArrayStream* out) {
   out->get_schema = ExportedArrayStreamByArray::StaticGetSchema;

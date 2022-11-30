@@ -26,8 +26,8 @@ namespace gluten {
 
 class VeloxColumnarBatch : public ColumnarBatch {
  public:
-  VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector) 
-    : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
+  VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
+      : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
 
   std::string GetType() const override {
     return "velox";

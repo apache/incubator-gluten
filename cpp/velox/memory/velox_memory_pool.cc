@@ -40,8 +40,9 @@ class VeloxMemoryAllocatorVariant {
   void* allocZeroFilled(int64_t numMembers, int64_t sizeEach) {
     void* out;
     if (!gluten_alloc_->AllocateZeroFilled(numMembers, sizeEach, &out)) {
-      VELOX_FAIL("VeloxMemoryAllocatorVariant: Failed to allocate (zero filled) " +
-          std::to_string(numMembers) + " members, " + std::to_string(sizeEach) + " bytes for each")
+      VELOX_FAIL(
+          "VeloxMemoryAllocatorVariant: Failed to allocate (zero filled) " + std::to_string(numMembers) + " members, " +
+          std::to_string(sizeEach) + " bytes for each")
     }
     return out;
   }
@@ -186,9 +187,8 @@ class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPool {
   }
 
   void setSubtreeMemoryUsage(int64_t size) {
-    updateSubtreeMemoryUsage([size](facebook::velox::memory::MemoryUsage& subtreeUsage) {
-          subtreeUsage.setCurrentBytes(size);
-        });
+    updateSubtreeMemoryUsage(
+        [size](facebook::velox::memory::MemoryUsage& subtreeUsage) { subtreeUsage.setCurrentBytes(size); });
   }
 
   int64_t updateSubtreeMemoryUsage(int64_t size) {
@@ -354,10 +354,9 @@ std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(Me
       "wrapped", nullptr, std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
 }
 
-std::shared_ptr<facebook::velox::memory::MemoryPool>
-GetDefaultWrappedVeloxMemoryPool() {
+std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool() {
   static auto default_pool = std::make_shared<WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>>(
-          "root", nullptr, VeloxMemoryAllocatorVariant::createDefaultAllocator());
+      "root", nullptr, VeloxMemoryAllocatorVariant::createDefaultAllocator());
   return default_pool;
 }
 

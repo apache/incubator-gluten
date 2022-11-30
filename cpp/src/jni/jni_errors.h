@@ -84,8 +84,8 @@ static struct JniErrorsGlobalState {
     std::lock_guard<std::mutex> lock_guard(mtx_);
     io_exception_class_ = CreateGlobalClassReference(env, "Ljava/io/IOException;");
     runtime_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/RuntimeException;");
-    unsupportedoperation_exception_class_ = CreateGlobalClassReference(env, 
-        "Ljava/lang/UnsupportedOperationException;");
+    unsupportedoperation_exception_class_ =
+        CreateGlobalClassReference(env, "Ljava/lang/UnsupportedOperationException;");
     illegal_access_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalAccessException;");
     illegal_argument_exception_class_ = CreateGlobalClassReference(env, "Ljava/lang/IllegalArgumentException;");
   }
