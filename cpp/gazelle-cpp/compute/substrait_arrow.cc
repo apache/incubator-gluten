@@ -49,13 +49,12 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
-    gluten::memory::MemoryAllocator* allocator) {
+std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(gluten::MemoryAllocator* allocator) {
   return GetResultIterator(allocator, {});
 }
 
 std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
-    gluten::memory::MemoryAllocator* allocator,
+    gluten::MemoryAllocator* allocator,
     std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
@@ -364,7 +363,7 @@ std::shared_ptr<gluten::ColumnarBatch> ArrowExecResultIterator::Next() {
     std::unique_ptr<ArrowSchema> c_schema = std::make_unique<ArrowSchema>();
     std::unique_ptr<ArrowArray> c_array = std::make_unique<ArrowArray>();
     GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, c_array.get(), c_schema.get()));
-    return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(std::move(c_schema), std::move(c_array));
+    return std::make_shared<gluten::ArrowCStructColumnarBatch>(std::move(c_schema), std::move(c_array));
   }
   return nullptr;
 }

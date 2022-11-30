@@ -31,10 +31,10 @@ class ArrowExecBackend : public Backend {
 
   ~ArrowExecBackend() override;
 
-  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override;
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(gluten::MemoryAllocator* allocator) override;
 
   std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator,
+      gluten::MemoryAllocator* allocator,
       std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) override;
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
@@ -98,12 +98,10 @@ class ArrowExecBackend : public Backend {
 class ArrowExecResultIterator {
  public:
   ArrowExecResultIterator(
-      gluten::memory::MemoryAllocator* allocator,
+      gluten::MemoryAllocator* allocator,
       std::shared_ptr<arrow::Schema> schema,
       arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter)
-      : memory_pool_(gluten::memory::AsWrappedArrowMemoryPool(allocator)),
-        schema_(std::move(schema)),
-        iter_(std::move(iter)) {}
+      : memory_pool_(gluten::AsWrappedArrowMemoryPool(allocator)), schema_(std::move(schema)), iter_(std::move(iter)) {}
 
   std::shared_ptr<gluten::ColumnarBatch> Next();
 
