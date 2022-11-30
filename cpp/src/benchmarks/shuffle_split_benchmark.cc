@@ -479,7 +479,7 @@ int main(int argc, char** argv) {
 
   */
 
-  sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_IterateScan_Benchmark bck(datafile);
+  gluten::BenchmarkShuffleSplit_IterateScan_Benchmark bck(datafile);
 
   benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", bck)
       ->Iterations(iterations)

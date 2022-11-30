@@ -105,7 +105,7 @@ class ArrowExecResultIterator {
         schema_(std::move(schema)),
         iter_(std::move(iter)) {}
 
-  std::shared_ptr<gluten::memory::GlutenColumnarBatch> Next();
+  std::shared_ptr<gluten::ColumnarBatch> Next();
 
  private:
   std::shared_ptr<arrow::MemoryPool> memory_pool_;

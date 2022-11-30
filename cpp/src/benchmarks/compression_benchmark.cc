@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
   std::cout << "threads = " << threads << std::endl;
   std::cout << "datafile = " << datafile << std::endl;
 
-  sparkcolumnarplugin::shuffle::BenchmarkCompression_IterateScan_Benchmark bck(datafile, split_buffer_size);
+  gluten::BenchmarkCompression_IterateScan_Benchmark bck(datafile, split_buffer_size);
 
   benchmark::RegisterBenchmark("BenchmarkCompression::IterateScan", bck)
       ->Iterations(iterations)

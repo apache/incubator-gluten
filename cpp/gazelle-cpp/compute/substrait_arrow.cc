@@ -303,7 +303,7 @@ void ArrowExecBackend::ReplaceSourceDecls(std::vector<arrow::compute::Declaratio
   }
 }
 
-std::shared_ptr<gluten::memory::GlutenColumnarBatch> ArrowExecResultIterator::Next() {
+std::shared_ptr<gluten::ColumnarBatch> ArrowExecResultIterator::Next() {
   GLUTEN_ASSIGN_OR_THROW(auto exec_batch, iter_.Next());
   if (exec_batch.has_value()) {
     cur_ = std::move(exec_batch.value());
