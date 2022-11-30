@@ -28,9 +28,9 @@ import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.memory.alloc.{NativeMemoryAllocator, Spiller, VeloxManagedReservationListener, VeloxMemoryAllocatorManager}
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
+import io.glutenproject.memory.alloc._
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -49,7 +49,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils}
-import org.apache.spark.util.memory.{TaskMemoryResourceManager, TaskMemoryResources}
+import org.apache.spark.util.memory.TaskMemoryResources
 
 class VeloxIteratorApi extends IIteratorApi with Logging {
 
@@ -221,7 +221,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
+                                     updateOutputMetrics: (Long, Long) => Unit,
                                      updateNativeMetrics: GeneralOutIterator => Unit,
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
@@ -275,7 +275,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
           case _ => 0L
         }
         inputMetrics.bridgeIncBytesRead(bytes)
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
@@ -302,7 +302,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                      outputAttributes: Seq[Attribute],
                                      rootNode: PlanNode,
                                      pipelineTime: SQLMetric,
-                                     updateMetrics: (Long, Long) => Unit,
+                                     updateOutputMetrics: (Long, Long) => Unit,
                                      updateNativeMetrics: GeneralOutIterator => Unit,
                                      buildRelationBatchHolder: Seq[ColumnarBatch],
                                      dependentKernels: Seq[ExpressionEvaluator],
@@ -346,7 +346,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
 
       override def next(): ColumnarBatch = {
         val cb = nativeResultIterator.next
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
@@ -376,7 +376,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
   override def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
                                                spiller: Spiller,
                                                taskMemoryMetrics: TaskMemoryMetrics
-                                              ): TaskMemoryResourceManager = {
+                                              ): NativeMemoryAllocatorManager = {
     val rl = new VeloxManagedReservationListener(
       new GlutenMemoryConsumer(taskMemoryManager, spiller),
       taskMemoryMetrics

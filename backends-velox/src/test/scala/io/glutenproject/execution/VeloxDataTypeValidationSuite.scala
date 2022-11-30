@@ -57,6 +57,8 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
   }
 
   test("Bool type") {
+    runQueryAndCompare("select bool from type1 limit 1") { _ => }
+
     // Validation: BatchScan Filter Project Aggregate Expand Sort Limit
     runQueryAndCompare("select int, bool from type1 where bool == true  " +
       " group by grouping sets(int, bool) sort by int, bool limit 1") { _ => }
@@ -199,5 +201,107 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
     runQueryAndCompare("select type1.date from type1," +
       " type2 where type1.date = type2.date") { _ => }
+  }
+
+  test("Byte type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, byte from type1 " +
+      " group by grouping sets(int, byte) sort by byte, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.byte from type1," +
+      " type2 where type1.byte = type2.byte") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.byte from type1," +
+      " type2 where type1.byte = type2.byte") { _ => }
+  }
+
+  test("Array type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, array from type1 " +
+      " group by grouping sets(int, array) sort by array, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.array from type1," +
+      " type2 where type1.array = type2.array") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.array from type1," +
+      " type2 where type1.array = type2.array") { _ => }
+  }
+
+  test("Map type") {
+    // Validation: BatchScan Project Limit
+    runQueryAndCompare("select map from type1 limit 1") { _ => }
+    // Validation: BatchScan Project Aggregate Sort Limit
+    // TODO validate Expand operator support map type ?
+    runQueryAndCompare("select map['key'] from type1 group by map['key']" +
+      " sort by map['key'] limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.map['key'] from type1," +
+      " type2 where type1.map['key'] = type2.map['key']") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.map['key'] from type1," +
+      " type2 where type1.map['key'] = type2.map['key']") { _ => }
+  }
+
+  test("Decimal type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, decimal from type1 " +
+      " group by grouping sets(int, decimal) sort by decimal, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.decimal from type1," +
+      " type2 where type1.decimal = type2.decimal") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.decimal from type1," +
+      " type2 where type1.decimal = type2.decimal") { _ => }
+  }
+
+  test("Timestamp type") {
+    // Validation: BatchScan Project Aggregate Expand Sort Limit
+    runQueryAndCompare("select int, timestamp from type1 " +
+      " group by grouping sets(int, timestamp) sort by timestamp, int limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.timestamp from type1," +
+      " type2 where type1.timestamp = type2.timestamp") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.timestamp from type1," +
+      " type2 where type1.timestamp = type2.timestamp") { _ => }
+  }
+
+  test("Struct type") {
+    // Validation: BatchScan Project Limit
+    runQueryAndCompare("select struct from type1") { _ => }
+    // Validation: BatchScan Project Aggregate Sort Limit
+    // TODO validate Expand operator support Struct type ?
+    runQueryAndCompare("select int, struct.struct_1 from type1 " +
+      "sort by struct.struct_1 limit 1") { _ => }
+
+    // Validation: BroadHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "10M")
+    runQueryAndCompare("select type1.struct.struct_1 from type1," +
+      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
+
+    // Validation: ShuffledHashJoin, Filter, Project
+    super.sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    runQueryAndCompare("select type1.struct.struct_1 from type1," +
+      " type2 where type1.struct.struct_1 = type2.struct.struct_1") { _ => }
   }
 }

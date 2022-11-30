@@ -102,7 +102,7 @@ case class SortExecTransformer(
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
     numOutputBatches += outNumBatches
     numOutputRows += outNumRows
   }

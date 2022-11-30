@@ -21,10 +21,10 @@ import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 class IsNotNullTransformer(child: Expression, original: Expression)
@@ -590,7 +590,8 @@ class CastTransformer(child: Expression,
     }
 
     val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode])
+    ExpressionBuilder.makeCast(typeNode, childNode.asInstanceOf[ExpressionNode],
+      SQLConf.get.ansiEnabled)
   }
 }
 
@@ -906,7 +907,7 @@ object UnaryOperatorTransformer {
     case t: Cosh =>
       new CoshTransformer(child, t)
     case t: ToDegrees =>
-      new DegreesTransformer(child, t)
+      new ToDegreesTransformer(child, t)
     case t: Log10 =>
       new Log10Transformer(child, t)
     case e: Exp =>
@@ -915,8 +916,6 @@ object UnaryOperatorTransformer {
       new SinTransformer(child, s)
     case s: Sinh =>
       new SinhTransformer(child, s)
-    case c: Cos =>
-      new CosTransformer(child, c)
     case t: Tan =>
       new TanTransformer(child, t)
     case t: Tanh =>
@@ -925,8 +924,6 @@ object UnaryOperatorTransformer {
       new SqrtTransformer(child, s)
     case c: Cbrt =>
       new CbrtTransformer(child, c)
-    case d: ToDegrees =>
-      new ToDegreesTransformer(child, d)
     case h: Hex =>
       new HexTransformer(child, h)
     case u: Unhex =>

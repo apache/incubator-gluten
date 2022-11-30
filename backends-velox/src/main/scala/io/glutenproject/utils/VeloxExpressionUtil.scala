@@ -30,14 +30,16 @@ object VeloxExpressionUtil {
   // The expression with empty type will fall back directly.
   final val EMPTY_TYPE = ""
   final val ARRAY_TYPE = "array"
-  final val VELOX_EXPR_BLACKLIST: Map[String, String] = Map(
-    CAST -> ARRAY_TYPE,
-    ROUND -> EMPTY_TYPE,
-    REGEXP_REPLACE -> EMPTY_TYPE,
-    SPLIT -> EMPTY_TYPE,
-    SPLIT_PART -> EMPTY_TYPE,
-    LENGTH -> DataTypes.BinaryType.typeName,
+  final val MAP_TYPE = "map"
+  final val STRUCT_TYPE = "struct"
+  final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
+    CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
+    ROUND -> Set(EMPTY_TYPE),
+    REGEXP_REPLACE -> Set(EMPTY_TYPE),
+    SPLIT -> Set(EMPTY_TYPE),
+    SPLIT_PART -> Set(EMPTY_TYPE),
+    LENGTH -> Set(DataTypes.BinaryType.typeName),
     // to be removed when Velox support compatible type
-    JSON_ARRAY_LENGTH -> EMPTY_TYPE
+    JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE)
     )
 }

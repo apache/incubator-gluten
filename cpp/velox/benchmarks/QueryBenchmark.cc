@@ -41,13 +41,10 @@ auto BM = [](::benchmark::State& state,
 
   for (auto _ : state) {
     state.PauseTiming();
-    auto backend =
-        std::dynamic_pointer_cast<velox::compute::VeloxPlanConverter>(
-            gluten::CreateBackend());
+    auto backend = std::dynamic_pointer_cast<velox::compute::VeloxPlanConverter>(gluten::CreateBackend());
     state.ResumeTiming();
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(
-        gluten::memory::DefaultMemoryAllocator().get(), scanInfos);
+    auto resultIter = backend->GetResultIterator(gluten::memory::DefaultMemoryAllocator().get(), scanInfos);
     auto outputSchema = backend->GetOutputSchema();
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
@@ -72,11 +69,7 @@ int main(int argc, char** argv) {
   std::string lineitemOrcPath = getExampleFilePath("orc/bm_lineitem/");
   if (argc < 2) {
     ::benchmark::RegisterBenchmark(
-        "q1_first_stage_orc",
-        BM,
-        std::vector<std::string>{lineitemOrcPath},
-        "q1_first_stage_orc.json",
-        "orc");
+        "q1_first_stage_orc", BM, std::vector<std::string>{lineitemOrcPath}, "q1_first_stage_orc.json", "orc");
   } else {
     ::benchmark::RegisterBenchmark(
         "q1_first_stage_orc",
@@ -89,11 +82,7 @@ int main(int argc, char** argv) {
   // Register for TPC-H Q6 ORC tests.
   if (argc < 2) {
     ::benchmark::RegisterBenchmark(
-        "q6_first_stage_orc",
-        BM,
-        std::vector<std::string>{lineitemOrcPath},
-        "q6_first_stage_orc.json",
-        "orc");
+        "q6_first_stage_orc", BM, std::vector<std::string>{lineitemOrcPath}, "q6_first_stage_orc.json", "orc");
   } else {
     ::benchmark::RegisterBenchmark(
         "q6_first_stage_orc",

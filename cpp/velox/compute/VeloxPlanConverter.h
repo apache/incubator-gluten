@@ -27,10 +27,10 @@
 
 #include "VeloxToRowConverter.h"
 #include "arrow/c/abi.h"
-#include "arrow/c/bridge.h"
 #include "compute/exec_backend.h"
 #include "memory/columnar_batch.h"
 #include "memory/velox_memory_pool.h"
+#include "releases/include/arrow/c/bridge.h"
 #include "substrait/algebra.pb.h"
 #include "substrait/capabilities.pb.h"
 #include "substrait/extensions/extensions.pb.h"
@@ -75,8 +75,7 @@ using namespace facebook::velox::exec;
 namespace velox {
 namespace compute {
 
-std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(
-    memory::MemoryPool* memoryPool);
+std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* memoryPool);
 
 class VeloxInitializer {
  public:
@@ -89,10 +88,7 @@ class VeloxInitializer {
 class GlutenVeloxColumnarBatch : public gluten::memory::GlutenColumnarBatch {
  public:
   GlutenVeloxColumnarBatch(RowVectorPtr rowVector)
-      : gluten::memory::GlutenColumnarBatch(
-            rowVector->childrenSize(),
-            rowVector->size()),
-        rowVector_(rowVector) {}
+      : gluten::memory::GlutenColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
 
   ~GlutenVeloxColumnarBatch() override;
 
@@ -144,9 +140,7 @@ class WholeStageResIter {
 
  private:
   /// Get all the children plan node ids with postorder traversal.
-  void getOrderedNodeIds(
-      const std::shared_ptr<const core::PlanNode>& planNode,
-      std::vector<core::PlanNodeId>& nodeIds);
+  void getOrderedNodeIds(const std::shared_ptr<const core::PlanNode>& planNode, std::vector<core::PlanNodeId>& nodeIds);
 
   /// Collect Velox metrics.
   void collectMetrics();
@@ -174,62 +168,47 @@ class WholeStageResIter {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter : public gluten::ExecBackendBase {
  public:
-  VeloxPlanConverter(
-      const std::unordered_map<std::string, std::string>& confMap)
-      : confMap_(confMap) {}
+  VeloxPlanConverter(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
 
-  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator) override;
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override;
 
   std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs)
-      override;
+      std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) override;
 
   // Used by unit test and benchmark.
   std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
       gluten::memory::MemoryAllocator* allocator,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
-          scanInfos);
+      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
 
-  arrow::Result<
-      std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>>
-  getColumnarConverter(
+  arrow::Result<std::shared_ptr<gluten::columnartorow::ColumnarToRowConverterBase>> getColumnarConverter(
       gluten::memory::MemoryAllocator* allocator,
       std::shared_ptr<gluten::memory::GlutenColumnarBatch> cb) override {
     auto arrowPool = gluten::memory::AsWrappedArrowMemoryPool(allocator);
     auto veloxPool = gluten::memory::AsWrappedVeloxMemoryPool(allocator);
-    std::shared_ptr<GlutenVeloxColumnarBatch> veloxBatch =
-        std::dynamic_pointer_cast<GlutenVeloxColumnarBatch>(cb);
+    std::shared_ptr<GlutenVeloxColumnarBatch> veloxBatch = std::dynamic_pointer_cast<GlutenVeloxColumnarBatch>(cb);
     if (veloxBatch != nullptr) {
-      return std::make_shared<VeloxToRowConverter>(
-          veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
+      return std::make_shared<VeloxToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
     }
     // If the child is not Velox output, use Arrow-to-Row conversion instead.
     std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
     std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
     ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::RecordBatch> rb,
-        arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
+        std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
     ArrowSchemaRelease(c_schema.get());
     ArrowArrayRelease(c_array.get());
-    return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(
-        rb, arrowPool);
+    return std::make_shared<gluten::columnartorow::ArrowColumnarToRowConverter>(rb, arrowPool);
   }
 
   /// Separate the scan ids and stream ids, and get the scan infos.
   void getInfoAndIds(
-      std::unordered_map<
-          core::PlanNodeId,
-          std::shared_ptr<facebook::velox::substrait::SplitInfo>> splitInfoMap,
+      std::unordered_map<core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>> splitInfoMap,
       std::unordered_set<core::PlanNodeId> leafPlanNodeIds,
-      std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
-          scanInfos,
+      std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
       std::vector<core::PlanNodeId>& scanIds,
       std::vector<core::PlanNodeId>& streamIds);
 
-  std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos)
-      override {
+  std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResIter*>(raw_iter);
     return iter->GetMetrics(exportNanos);
   }
@@ -257,8 +236,7 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
 
   void setInputPlanNode(const ::substrait::RelRoot& sroot);
 
-  std::shared_ptr<const core::PlanNode> getVeloxPlanNode(
-      const ::substrait::Plan& splan);
+  std::shared_ptr<const core::PlanNode> getVeloxPlanNode(const ::substrait::Plan& splan);
 
   std::string nextPlanNodeId();
 
@@ -278,9 +256,8 @@ class VeloxPlanConverter : public gluten::ExecBackendBase {
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
 
-  std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter>
-      subVeloxPlanConverter_ = std::make_shared<
-          facebook::velox::substrait::SubstraitVeloxPlanConverter>(
+  std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
+      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
           gluten::memory::GetDefaultWrappedVeloxMemoryPool().get());
 
   // Cache for tests/benchmark purpose.

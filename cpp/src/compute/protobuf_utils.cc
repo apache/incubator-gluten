@@ -27,10 +27,7 @@
 
 // Common for both projector and filters.
 
-bool ParseProtobuf(
-    const uint8_t* buf,
-    int bufLen,
-    google::protobuf::Message* msg) {
+bool ParseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
   google::protobuf::io::CodedInputStream coded_stream{buf, bufLen};
   // The default recursion limit is 100 which is too smaller for a deep
   // Substrait plan.
@@ -42,10 +39,8 @@ inline google::protobuf::util::TypeResolver* GetGeneratedTypeResolver() {
   static std::unique_ptr<google::protobuf::util::TypeResolver> type_resolver;
   static std::once_flag type_resolver_init;
   std::call_once(type_resolver_init, []() {
-    type_resolver.reset(
-        google::protobuf::util::NewTypeResolverForDescriptorPool(
-            /*url_prefix=*/"",
-            google::protobuf::DescriptorPool::generated_pool()));
+    type_resolver.reset(google::protobuf::util::NewTypeResolverForDescriptorPool(
+        /*url_prefix=*/"", google::protobuf::DescriptorPool::generated_pool()));
   });
   return type_resolver.get();
 }
@@ -55,14 +50,13 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
     arrow::util::string_view json) {
   std::string type_url = "/substrait." + type_name.to_string();
 
-  google::protobuf::io::ArrayInputStream json_stream{
-      json.data(), static_cast<int>(json.size())};
+  google::protobuf::io::ArrayInputStream json_stream{json.data(), static_cast<int>(json.size())};
 
   std::string out;
   google::protobuf::io::StringOutputStream out_stream{&out};
 
-  auto status = google::protobuf::util::JsonToBinaryStream(
-      GetGeneratedTypeResolver(), type_url, &json_stream, &out_stream);
+  auto status =
+      google::protobuf::util::JsonToBinaryStream(GetGeneratedTypeResolver(), type_url, &json_stream, &out_stream);
 
   if (!status.ok()) {
     return arrow::Status::Invalid("JsonToBinaryStream returned ", status);
@@ -70,28 +64,23 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
   return arrow::Buffer::FromString(std::move(out));
 }
 
-arrow::Result<std::string> SubstraitToJSON(
-    arrow::util::string_view type_name,
-    const arrow::Buffer& buf) {
+arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name, const arrow::Buffer& buf) {
   std::string type_url = "/substrait." + type_name.to_string();
 
-  google::protobuf::io::ArrayInputStream buf_stream{
-      buf.data(), static_cast<int>(buf.size())};
+  google::protobuf::io::ArrayInputStream buf_stream{buf.data(), static_cast<int>(buf.size())};
 
   std::string out;
   google::protobuf::io::StringOutputStream out_stream{&out};
 
-  auto status = google::protobuf::util::BinaryToJsonStream(
-      GetGeneratedTypeResolver(), type_url, &buf_stream, &out_stream);
+  auto status =
+      google::protobuf::util::BinaryToJsonStream(GetGeneratedTypeResolver(), type_url, &buf_stream, &out_stream);
   if (!status.ok()) {
     return arrow::Status::Invalid("BinaryToJsonStream returned ", status);
   }
   return out;
 }
 
-void MessageToJSONFile(
-    const google::protobuf::Message& message,
-    const std::string& file_path) {
+void MessageToJSONFile(const google::protobuf::Message& message, const std::string& file_path) {
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;

@@ -25,6 +25,7 @@ import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
+import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.flatbuf.MessageHeader
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, ValueVector}
@@ -34,9 +35,12 @@ import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkVectorUtils
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtils, SparkVectorUtils}
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+
+import java.util
 
 object ArrowConverterUtils extends Logging {
 
@@ -323,6 +327,20 @@ object ArrowConverterUtils extends Logging {
         Field.nullable(field.name, CodeGeneration.getResultType(field.dataType))
       })
     new Schema(fields.toList.asJava)
+  }
+
+  def toArrowSchema(cSchema: ArrowSchema,
+                    allocator: BufferAllocator,
+                    provider: CDataDictionaryProvider): Schema = {
+    val schema = Data.importSchema(allocator, cSchema, provider)
+    val originFields = schema.getFields
+    val fields = new util.ArrayList[Field](originFields.size)
+    originFields.forEach { field =>
+      val dt = ArrowUtils.fromArrowField(field)
+      fields.add(ArrowUtils.toArrowField("col",
+        dt, true, SparkSchemaUtils.getLocalTimezoneID))
+    }
+    new Schema(fields)
   }
 
 

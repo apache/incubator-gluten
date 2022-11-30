@@ -20,7 +20,7 @@ package io.glutenproject.backendsapi
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
-import io.glutenproject.memory.alloc.Spiller
+import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
@@ -32,7 +32,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskMemoryResourceManager
 
 trait IIteratorApi {
 
@@ -75,7 +74,7 @@ trait IIteratorApi {
   def genFirstStageIterator(inputPartition: BaseNativeFilePartition, loadNative: Boolean,
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
-                            updateMetrics: (Long, Long) => Unit,
+                            updateOutputMetrics: (Long, Long) => Unit,
                             updateNativeMetrics: GeneralOutIterator => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch]
@@ -95,7 +94,7 @@ trait IIteratorApi {
                             outputAttributes: Seq[Attribute],
                             rootNode: PlanNode,
                             pipelineTime: SQLMetric,
-                            updateMetrics: (Long, Long) => Unit,
+                            updateOutputMetrics: (Long, Long) => Unit,
                             updateNativeMetrics: GeneralOutIterator => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
                             dependentKernels: Seq[ExpressionEvaluator],
@@ -128,7 +127,7 @@ trait IIteratorApi {
   def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
                                       spiller: Spiller,
                                       taskMemoryMetrics: TaskMemoryMetrics
-                                     ): TaskMemoryResourceManager
+                                     ): NativeMemoryAllocatorManager
 
   /**
    * Generate BatchIterator for ExpressionEvaluator.

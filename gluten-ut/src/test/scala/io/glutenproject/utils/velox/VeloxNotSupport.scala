@@ -30,12 +30,19 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[LiteralExpressionSuite],
     simpleClassName[IntervalExpressionsSuite],
     simpleClassName[HashExpressionsSuite],
+    simpleClassName[CollectionExpressionsSuite],
     simpleClassName[DateExpressionsSuite],
     simpleClassName[DecimalExpressionSuite],
     simpleClassName[StringFunctionsSuite],
     simpleClassName[RegexpExpressionsSuite],
     simpleClassName[PredicateSuite],
     simpleClassName[MathExpressionsSuite],
-    simpleClassName[SortOrderExpressionsSuite]
+    simpleClassName[SortOrderExpressionsSuite],
+    simpleClassName[BitwiseExpressionsSuite],
+    simpleClassName[StringExpressionsSuite],
+    simpleClassName[MiscExpressionsSuite],
+    simpleClassName[NondeterministicSuite],
+    simpleClassName[RandomSuite],
+    simpleClassName[ArithmeticExpressionSuite]
   )
 }

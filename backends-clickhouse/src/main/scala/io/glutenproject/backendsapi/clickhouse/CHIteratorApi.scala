@@ -20,7 +20,7 @@ import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
-import io.glutenproject.memory.alloc.{CHManagedReservationListener, CHMemoryAllocatorManager, NativeMemoryAllocator, Spiller}
+import io.glutenproject.memory.alloc._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -36,7 +36,6 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskMemoryResourceManager
 
 import java.util.concurrent.TimeUnit
 
@@ -154,7 +153,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
       outputAttributes: Seq[Attribute],
       context: TaskContext,
       pipelineTime: SQLMetric,
-      updateMetrics: (Long, Long) => Unit,
+      updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     var resIter: GeneralOutIterator = null
@@ -183,7 +182,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
 
       override def next(): Any = {
         val cb = resIter.next()
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
@@ -207,7 +206,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
       outputAttributes: Seq[Attribute],
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
-      updateMetrics: (Long, Long) => Unit,
+      updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch],
       dependentKernels: Seq[ExpressionEvaluator],
@@ -233,7 +232,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
 
       override def next(): ColumnarBatch = {
         val cb = nativeIterator.next()
-        updateMetrics(1, cb.numRows())
+        updateOutputMetrics(1, cb.numRows())
         cb
       }
     }
@@ -282,7 +281,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
   override def genNativeMemoryAllocatorManager(
       taskMemoryManager: TaskMemoryManager,
       spiller: Spiller,
-      taskMemoryMetrics: TaskMemoryMetrics): TaskMemoryResourceManager = {
+      taskMemoryMetrics: TaskMemoryMetrics): NativeMemoryAllocatorManager = {
     val rl = new CHManagedReservationListener(
       new GlutenMemoryConsumer(taskMemoryManager, spiller),
       taskMemoryMetrics
