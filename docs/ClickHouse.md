@@ -130,7 +130,7 @@ rm -f jars/protobuf-java-2.5.0.jar
 wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.13.0/protobuf-java-3.13.0.jar -P ./jars -O protobuf-java-3.13.0.jar
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/1.2.1/delta-core_2.12-1.2.1.jar -P ./jars -O delta-core_2.12-1.2.1.jar
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/1.2.1/delta-storage-1.2.1.jar -P ./jars -O delta-storage-1.2.1.jar
-cp gluten-XXXXX-jar-with-dependencies.jar jars/
+cp gluten-XXXXX-jar-with-dependencies.jar jars/ 
 ```
 
 #### Data preparation
