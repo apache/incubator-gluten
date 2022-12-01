@@ -18,6 +18,10 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.GlutenTestsTrait
+import org.apache.spark.sql.types.{ExampleBaseTypeUDT, ExampleSubTypeUDT, IExampleBaseType, IExampleSubType, UDTRegistration}
 
 class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
+  // Register UDT For test("SPARK-32828")
+  UDTRegistration.register(classOf[IExampleBaseType].getName, classOf[ExampleBaseTypeUDT].getName)
+  UDTRegistration.register(classOf[IExampleSubType].getName, classOf[ExampleSubTypeUDT].getName)
 }

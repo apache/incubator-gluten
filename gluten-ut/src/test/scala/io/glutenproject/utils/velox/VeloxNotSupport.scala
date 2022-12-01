@@ -19,7 +19,6 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
 
-import org.apache.spark.sql.DateFunctionsSuite
 import org.apache.spark.sql.StringFunctionsSuite
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -27,10 +26,7 @@ object VeloxNotSupport extends NotSupport {
 
   override lazy val partialSupportSuiteList: Map[String, Seq[String]] = Map(
     simpleClassName[CastSuite] -> Seq(
-      "cast string to date", // Velox requires more strict format.
-      "data type casting", // Same as above.
-      "Process Infinity, -Infinity, NaN in case insensitive manner", // +inf not supported in folly.
-      "SPARK-32828: cast from a derived user-defined type to a base type"
+      "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
   )
 
