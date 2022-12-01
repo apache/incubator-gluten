@@ -17,6 +17,11 @@
 
 #pragma once
 
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <folly/executors/IOThreadPoolExecutor.h>
+
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
@@ -31,6 +36,10 @@ class VeloxInitializer {
   void Init(std::unordered_map<std::string, std::string> conf);
 
   void InitCache();
+
+  std::string genUuid() {
+    return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+  }
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::memory::MappedMemory> mappedMemory_;
   std::unique_ptr<folly::IOThreadPoolExecutor> cacheExecutor_;

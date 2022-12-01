@@ -55,7 +55,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   if (key != conf.end() && conf[kVeloxCacheEnabled] == "true") {
     uint64_t cacheSize = stol(conf[kVeloxCacheSize]);
     int32_t cacheShards = stoi(conf[kVeloxCacheShards]);
-    std::string cachePath = conf[kVeloxCachePath] + "/cache.";
+    std::string cachePath = conf[kVeloxCachePath] + "/cache." + genUuid();
     cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
     auto ssd = std::make_unique<cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
 
