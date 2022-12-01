@@ -17,7 +17,7 @@
 
 package org.apache.spark.softaffinity
 
-import io.glutenproject.execution.NativeMergeTreePartition
+import io.glutenproject.execution.GlutenMergeTreePartition
 import io.glutenproject.softaffinity.SoftAffinityManager
 
 import org.apache.spark.internal.Logging
@@ -59,7 +59,7 @@ object SoftAffinityUtil extends Logging {
   /**
    * Get the locations by SoftAffinityManager
    */
-  def getNativeMergeTreePartitionLocations(filePartition: NativeMergeTreePartition
+  def getNativeMergeTreePartitionLocations(filePartition: GlutenMergeTreePartition
                                           ): Array[String] = {
     if (SoftAffinityManager.usingSoftAffinity) {
       val file = filePartition.tablePath + "_" + filePartition.maxParts

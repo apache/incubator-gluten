@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.backendsapi.clickhouse
 
-package io.glutenproject.backendsapi
+import io.glutenproject.backendsapi.IValidatorApi
+import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
-trait Backend {
-  def name(): String
-  def initializerApi(): IInitializerApi
-  def iteratorApi(): IIteratorApi
-  def sparkPlanExecApi(): ISparkPlanExecApi
-  def transformerApi(): ITransformerApi
-  def validatorApi(): IValidatorApi
-  def settings(): BackendSettings
+class CHValidatorApi extends IValidatorApi {
+  override def doValidate(plan: PlanNode): Boolean = {
+    val validator = new CHNativeExpressionEvaluator()
+    validator.doValidate(plan.toProtobuf.toByteArray)
+  }
 }

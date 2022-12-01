@@ -169,10 +169,10 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       val startTime = System.nanoTime()
       val substraitPlanPartition = fileScan.getFlattenPartitions.map(
-        p => BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(-1, null, wsCxt))
+        p => BackendsApiManager.getIteratorApiInstance.genFilePartition(-1, null, wsCxt))
       logDebug(s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
 
-      val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition, false)
+      val wsRDD = new NativeWholeStageRowRDD(sparkContext, substraitPlanPartition, false)
       wsRDD
     } else {
       sparkContext.emptyRDD
@@ -279,20 +279,17 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
-    val signature = doBuild()
-    val listJars = uploadAndListJars(signature)
-
     // we should zip all dependent RDDs to current main RDD
     // TODO: Does it still need these parameters?
-    val dependentKernels: mutable.ListBuffer[ExpressionEvaluator] = mutable.ListBuffer()
+    val dependentKernels: mutable.ListBuffer[NativeExpressionEvaluator] = mutable.ListBuffer()
     val dependentKernelIterators: mutable.ListBuffer[GeneralOutIterator] = mutable.ListBuffer()
     val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
 
     val inputRDDs = columnarInputRDDs
     // Check if BatchScan exists.
-    val basicScanExecTransformer = checkBatchScanExecTransformerChildren()
+    val basicScanExecTransformers = checkBatchScanExecTransformerChildren()
 
-    if (basicScanExecTransformer.nonEmpty) {
+    if (basicScanExecTransformers.nonEmpty) {
 
       /**
        * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
@@ -300,7 +297,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
        * rather than genFinalStageIterator will be invoked
        */
       // the partition size of the all BasicScanExecTransformer must be the same
-      val allScanPartitions = basicScanExecTransformer.map(_.getFlattenPartitions)
+      val allScanPartitions = basicScanExecTransformers.map(_.getFlattenPartitions)
       val partitionLength = allScanPartitions.head.size
       if (allScanPartitions.exists(_.size != partitionLength)) {
         throw new RuntimeException(
@@ -311,14 +308,14 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       // the file format for each scan exec
       wsCxt.substraitContext.setFileFormat(
-        basicScanExecTransformer.map(ConverterUtils.getFileFormat).asJava)
+        basicScanExecTransformers.map(ConverterUtils.getFileFormat).asJava)
 
       // generate each partition of all scan exec
-      val substraitPlanPartition = (0 until partitionLength).map(
+      val substraitPlanPartitions = (0 until partitionLength).map(
         i => {
           val currentPartitions = allScanPartitions.map(_(i))
           BackendsApiManager.getIteratorApiInstance
-            .genNativeFilePartition(i, currentPartitions, wsCxt)
+            .genFilePartition(i, currentPartitions, wsCxt)
         })
 
       logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
@@ -332,7 +329,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       new NativeWholeStageColumnarRDD(
         sparkContext,
-        substraitPlanPartition,
+        substraitPlanPartitions,
         wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
@@ -365,8 +362,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           .genFinalStageIterator(
             inputIterators,
             numaBindingInfo,
-            listJars,
-            signature,
             sparkConf,
             resCtx.outputAttributes,
             resCtx.root,
@@ -385,19 +380,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         genFinalStageIterator)
     }
   }
-
-  def uploadAndListJars(signature: String): Seq[String] =
-    if (signature != "") {
-      if (sparkContext.listJars.filter(path => path.contains(s"$signature.jar")).isEmpty) {
-        val tempDir = GlutenConfig.getRandomTempDir
-        val jarFileName =
-          s"$tempDir/tmp/spark-columnar-plugin-codegen-precompile-$signature.jar"
-        sparkContext.addJar(jarFileName)
-      }
-      sparkContext.listJars.filter(path => path.contains(s"$signature.jar"))
-    } else {
-      Seq()
-    }
 
   override def getStreamedLeafPlan: SparkPlan = {
     child.asInstanceOf[TransformSupport].getStreamedLeafPlan
@@ -653,11 +635,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         logWarning(s"Updating native metrics failed due to ${e.getCause}.")
     }
     nativeMetricsUpdated = true
-  }
-
-  /** Return built cpp library's signature */
-  def doBuild(): String = {
-    ""
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {

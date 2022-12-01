@@ -15,14 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.backendsapi
+package io.glutenproject.vectorized;
 
-trait Backend {
-  def name(): String
-  def initializerApi(): IInitializerApi
-  def iteratorApi(): IIteratorApi
-  def sparkPlanExecApi(): ISparkPlanExecApi
-  def transformerApi(): ITransformerApi
-  def validatorApi(): IValidatorApi
-  def settings(): BackendSettings
+import org.apache.spark.sql.catalyst.expressions.Attribute;
+
+import java.io.IOException;
+import java.util.List;
+
+public class VeloxNativeExpressionEvaluator extends NativeExpressionEvaluator {
+  @Override
+  protected GeneralOutIterator createOutIterator(
+      long nativeHandle, List<Attribute> outAttrs) throws IOException {
+    return new ArrowOutIterator(nativeHandle, outAttrs);
+  }
 }

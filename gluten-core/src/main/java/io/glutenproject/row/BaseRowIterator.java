@@ -15,14 +15,15 @@
  * limitations under the License.
  */
 
-package io.glutenproject.backendsapi
+package io.glutenproject.row;
 
-trait Backend {
-  def name(): String
-  def initializerApi(): IInitializerApi
-  def iteratorApi(): IIteratorApi
-  def sparkPlanExecApi(): ISparkPlanExecApi
-  def transformerApi(): ITransformerApi
-  def validatorApi(): IValidatorApi
-  def settings(): BackendSettings
+import java.io.IOException;
+
+public interface BaseRowIterator {
+
+  boolean hasNext() throws IOException;
+
+  SparkRowInfo next() throws IOException;
+
+  void close();
 }

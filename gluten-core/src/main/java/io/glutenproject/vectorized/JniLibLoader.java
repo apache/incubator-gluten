@@ -312,14 +312,14 @@ public class JniLibLoader {
         return;
       }
       // create link
-      Path arrowTarget = Paths.get(req.file.getPath());
-      Path arrowLink = Paths.get(workDir, req.linkName);
-      if (Files.exists(arrowLink)) {
+      Path target = Paths.get(req.file.getPath());
+      Path link = Paths.get(workDir, req.linkName);
+      if (Files.exists(link)) {
         LOG.info("Symbolic link already exists for library {}, deleting", libPath);
-        Files.delete(arrowLink);
+        Files.delete(link);
       }
-      Files.createSymbolicLink(arrowLink, arrowTarget);
-      LOG.info("Symbolic link {} created for library {}", arrowLink, libPath);
+      Files.createSymbolicLink(link, target);
+      LOG.info("Symbolic link {} created for library {}", link, libPath);
     }
 
   }

@@ -14,15 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.vectorized;
 
-package io.glutenproject.backendsapi
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 
-trait Backend {
-  def name(): String
-  def initializerApi(): IInitializerApi
-  def iteratorApi(): IIteratorApi
-  def sparkPlanExecApi(): ISparkPlanExecApi
-  def transformerApi(): ITransformerApi
-  def validatorApi(): IValidatorApi
-  def settings(): BackendSettings
+import java.io.IOException;
+import java.util.List;
+
+public class CHNativeExpressionEvaluator extends NativeExpressionEvaluator {
+
+  public CHNativeExpressionEvaluator() {
+  }
+
+  @Override
+  protected GeneralOutIterator createOutIterator(
+      long nativeHandle, List<Attribute> outAttrs) throws IOException {
+    return new BatchIterator(nativeHandle, outAttrs);
+  }
 }
