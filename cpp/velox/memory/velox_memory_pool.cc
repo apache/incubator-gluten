@@ -355,7 +355,7 @@ std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(Me
 }
 
 facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool() {
-  static WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>> 
+  static WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>
     default_pool("root", nullptr, VeloxMemoryAllocatorVariant::createDefaultAllocator());
   return &default_pool;
 }

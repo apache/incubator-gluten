@@ -84,7 +84,7 @@ class ColumnarToRowConverter {
 
   int32_t GetBitCount(uint32_t i) const;
 
-  int32_t GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len);
+  int32_t GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len) const;
 
   std::vector<uint32_t> ConvertMagArray(int64_t new_high, uint64_t new_low, int32_t* size);
 

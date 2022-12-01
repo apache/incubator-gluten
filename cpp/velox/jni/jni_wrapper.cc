@@ -75,7 +75,7 @@ extern "C" {
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   JNIEnv* env;
-  if (vm->GetEnv(&env, JNI_VERSION) != JNI_OK) {
+  if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
     return JNI_ERR;
   }
   gluten::GetJniErrorsState()->Initialize(env);
@@ -87,7 +87,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
-  vm->GetEnv(&env, JNI_VERSION);
+  vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(
@@ -120,7 +120,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   core::ExecCtx execCtx(pool, &queryCtx);
 
   facebook::velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
-  return planValidator->validate(subPlan);
+  return planValidator.validate(subPlan);
   JNI_METHOD_END(false)
 }
 
