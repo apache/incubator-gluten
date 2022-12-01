@@ -481,7 +481,6 @@ trait HashJoinLikeExecTransformer
     }
   }
 
-  // Direct output order of substrait join operation
   protected val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
