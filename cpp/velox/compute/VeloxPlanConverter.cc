@@ -29,7 +29,7 @@
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
-#include "velox/vector/arrow/c/Bridge.h"
+#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;

@@ -31,7 +31,7 @@
 #include "velox/dwio/common/Options.h"
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
-#include "velox/vector/arrow/c/Bridge.h"
+#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook::velox;
 
