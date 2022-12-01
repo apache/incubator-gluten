@@ -66,13 +66,6 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  ignore("second") {
-    runQueryAndCompare(s"select l_orderkey, l_shipdate, second(l_shipdate) " +
-      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, second(null) " +
-      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-  }
-
   test("day") {
     runQueryAndCompare(s"select l_orderkey, l_shipdate, day(l_shipdate) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
@@ -94,14 +87,14 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  ignore("DAYOFWEEK") {// todo result mismatched
-    runQueryAndCompare(s"select l_orderkey, l_shipdate, DAYOFWEEK(l_shipdate) " +
+  test("dayofweek") {
+    runQueryAndCompare(s"select l_orderkey, l_shipdate, dayofweek(l_shipdate) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, DAYOFWEEK(null) " +
+    runQueryAndCompare(s"select l_orderkey, dayofweek(null) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
   }
 
-  ignore("weekday") {// todo result mismatched
+  ignore("weekday") {// todo: result mismatched
     runQueryAndCompare(s"select l_orderkey, l_shipdate, weekday(l_shipdate) " +
       s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
     runQueryAndCompare(s"select l_orderkey, weekday(null) " +

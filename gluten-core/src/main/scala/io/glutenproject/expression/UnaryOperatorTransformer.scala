@@ -940,8 +940,6 @@ object UnaryOperatorTransformer {
       new ToRadiansTransformer(child, t)
     case r: Rint =>
       new RintTransformer(child, r)
-//    case q: Quarter =>
-//      new QuarterTransformer(child, q)
     case ascii: Ascii =>
       new AsciiTransformer(child, ascii)
     case chr: Chr =>
