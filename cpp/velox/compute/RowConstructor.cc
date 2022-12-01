@@ -20,9 +20,8 @@
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 
-namespace velox::compute {
+namespace gluten {
 
-namespace {
 class RowConstructor : public exec::VectorFunction {
   void apply(
       const SelectivityVector& rows,
@@ -59,5 +58,4 @@ class RowConstructor : public exec::VectorFunction {
   }
 };
 
-} // namespace
-} // namespace velox::compute
+} // namespace gluten

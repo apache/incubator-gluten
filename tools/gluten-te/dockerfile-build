@@ -59,30 +59,16 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     then \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
-                           -Dbuild_protobuf=ON \
-                           -Dbuild_cpp=ON \
-                           -Dbuild_arrow=ON \
-                           -Dbuild_velox=ON \
-                           -Dbuild_velox_from_source=ON \
-                           -Dbuild_gazelle_cpp=OFF \
                            -DskipTests \
                            -Dscalastyle.skip=true \
-                           -Dcheckstyle.skip=true \
-                           -Denable_ep_cache=ON"; \
+                           -Dcheckstyle.skip=true"; \
     elif [ "$BUILD_BACKEND_TYPE" == "gazelle-cpp" ]; \
     then \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-gazelle \
-                           -Dbuild_protobuf=ON \
-                           -Dbuild_cpp=ON \
-                           -Dbuild_arrow=ON \
-                           -Dbuild_velox=OFF \
-                           -Dbuild_velox_from_source=OFF \
-                           -Dbuild_gazelle_cpp=ON \
                            -DskipTests \
                            -Dscalastyle.skip=true \
-                           -Dcheckstyle.skip=true \
-                           -Denable_ep_cache=ON"; \
+                           -Dcheckstyle.skip=true"; \
     else \
       echo "Unrecognizable backend type: $BUILD_BACKEND_TYPE"; \
       exit 1; \

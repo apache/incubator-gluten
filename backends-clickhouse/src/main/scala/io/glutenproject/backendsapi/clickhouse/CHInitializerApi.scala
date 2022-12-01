@@ -17,8 +17,9 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.GlutenPlugin.buildNativeConfNode
 import io.glutenproject.backendsapi.IInitializerApi
-import io.glutenproject.vectorized.JniLibLoader
+import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.SparkConf
 
@@ -34,5 +35,11 @@ class CHInitializerApi extends IInitializerApi {
     }
     // Path based load. Ignore all other loadees.
     JniLibLoader.loadFromPath(libPath, true)
+    // SQLConf is not initialed here, so it's not possible to use 'GlutenConfig.getConf' to
+    // get conf.
+    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
+      val initKernel = new CHNativeExpressionEvaluator()
+      initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
+    }
   }
 }

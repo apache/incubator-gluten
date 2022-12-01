@@ -20,7 +20,6 @@
 #include "allocator.h"
 
 namespace gluten {
-namespace memory {
 
 class HbwMemoryAllocator : public MemoryAllocator {
  public:
@@ -36,11 +35,10 @@ class HbwMemoryAllocator : public MemoryAllocator {
 
   bool Free(void* p, int64_t size) override;
 
-  int64_t GetBytes() override;
+  int64_t GetBytes() const override;
 
  private:
   std::atomic_int64_t bytes_{0};
 };
 
-} // namespace memory
 } // namespace gluten

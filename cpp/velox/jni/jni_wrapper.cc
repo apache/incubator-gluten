@@ -17,7 +17,7 @@
 
 #include <folly/system/ThreadName.h>
 #include <jni.h>
-#include "releases/include/arrow/c/bridge.h"
+#include "include/arrow/c/bridge.h"
 
 #include <jni/jni_common.h>
 #include "compute/DwrfDatasource.h"
@@ -28,6 +28,8 @@
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 #include <iostream>
+
+using namespace facebook::velox;
 
 static std::unordered_map<std::string, std::string> sparkConfs_;
 
@@ -49,8 +51,7 @@ void setUpConfMap(JNIEnv* env, jobject obj, jbyteArray planArray) {
       ::substrait::Expression expression;
       if (!enhancement.UnpackTo(&expression)) {
         std::string error_message =
-            "Can't Unapck the Any object to Expression Literal when passing the spark "
-            "conf to velox";
+            "Can't Unapck the Any object to Expression Literal when passing the spark conf to velox";
         gluten::JniThrow(error_message);
       }
       if (expression.has_literal()) {
@@ -95,8 +96,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
     jbyteArray planArray) {
   JNI_METHOD_START
   setUpConfMap(env, obj, planArray);
-  gluten::SetBackendFactory([] { return std::make_shared<::velox::compute::VeloxPlanConverter>(sparkConfs_); });
-  static auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>(sparkConfs_);
+  gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs_); });
+  static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()
 }
 
@@ -113,7 +114,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   // A query context used for function validation.
   std::shared_ptr<core::QueryCtx> queryCtx_ = std::make_shared<core::QueryCtx>();
   // A memory pool used for function validation.
-  std::shared_ptr<memory::MemoryPool> pool = gluten::memory::GetDefaultWrappedVeloxMemoryPool();
+  std::shared_ptr<memory::MemoryPool> pool = gluten::GetDefaultWrappedVeloxMemoryPool();
   // An execution context used for function validation.
   std::unique_ptr<core::ExecCtx> execCtx_ = std::make_unique<core::ExecCtx>(pool.get(), queryCtx_.get());
 
@@ -129,19 +130,17 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jstring file_path,
     jlong c_schema) {
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool = gluten::memory::GetDefaultWrappedVeloxMemoryPool();
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool = gluten::GetDefaultWrappedVeloxMemoryPool();
   if (c_schema == -1) {
     // Only inspect the schema and not write
     auto dwrfDatasource =
-        std::make_shared<::velox::compute::DwrfDatasource>(JStringToCString(env, file_path), nullptr, pool.get());
+        std::make_shared<gluten::DwrfDatasource>(JStringToCString(env, file_path), nullptr, pool.get());
     // dwrfDatasource->Init( );
     return CreateNativeRef(dwrfDatasource);
   } else {
-    std::shared_ptr<arrow::Schema> schema =
-        gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
-
+    auto schema = gluten::JniGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(c_schema)));
     auto dwrfDatasource =
-        std::make_shared<::velox::compute::DwrfDatasource>(JStringToCString(env, file_path), schema, pool.get());
+        std::make_shared<gluten::DwrfDatasource>(JStringToCString(env, file_path), schema, pool.get());
     dwrfDatasource->Init(sparkConfs_);
     return CreateNativeRef(dwrfDatasource);
   }
@@ -153,7 +152,7 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DwrfDatasourceJniWra
     jobject obj,
     jlong instanceId) {
   JNI_METHOD_START
-  auto dwrfDatasource = RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource = RetrieveNativeInstance<gluten::DwrfDatasource>(instanceId);
   auto schema = dwrfDatasource->InspectSchema();
   return ToSchemaByteArray(env, schema);
   JNI_METHOD_END(nullptr)
@@ -164,9 +163,9 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
     jobject obj,
     jlong instanceId) {
   JNI_METHOD_START
-  auto dwrfDatasource = RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource = RetrieveNativeInstance<gluten::DwrfDatasource>(instanceId);
   dwrfDatasource->Close();
-  ReleaseNativeRef<::velox::compute::DwrfDatasource>(instanceId);
+  ReleaseNativeRef<gluten::DwrfDatasource>(instanceId);
   JNI_METHOD_END()
 }
 
@@ -180,7 +179,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
   std::shared_ptr<arrow::RecordBatch> rb = gluten::JniGetOrThrow(arrow::ImportRecordBatch(
       reinterpret_cast<struct ArrowArray*>(c_array), reinterpret_cast<struct ArrowSchema*>(c_schema)));
 
-  auto dwrfDatasource = RetrieveNativeInstance<::velox::compute::DwrfDatasource>(instanceId);
+  auto dwrfDatasource = RetrieveNativeInstance<gluten::DwrfDatasource>(instanceId);
   dwrfDatasource->Write(rb);
   JNI_METHOD_END()
 }

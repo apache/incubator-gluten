@@ -29,6 +29,7 @@ class CHBackend extends Backend {
   override def iteratorApi(): IIteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): ISparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): ITransformerApi = new CHTransformerApi
+  override def validatorApi(): IValidatorApi = new CHValidatorApi
   override def settings(): BackendSettings = CHBackendSettings
 }
 

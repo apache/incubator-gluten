@@ -48,12 +48,12 @@ void print_trace(void) {
 
 using arrow::RecordBatchReader;
 using arrow::Status;
-using gluten::GlutenException;
-using gluten::shuffle::SplitOptions;
-using gluten::shuffle::Splitter;
 
-namespace sparkcolumnarplugin {
-namespace shuffle {
+using gluten::GlutenException;
+using gluten::SplitOptions;
+using gluten::Splitter;
+
+namespace gluten {
 
 #define ALIGNMENT 2 * 1024 * 1024
 
@@ -295,6 +295,7 @@ class BenchmarkShuffleSplit {
     CPU_SET(cpuindex, &cs);
     return sched_setaffinity(0, sizeof(cs), &cs);
   }
+
   virtual void Do_Split(
       std::shared_ptr<Splitter>& splitter,
       int64_t& elapse_read,
@@ -437,8 +438,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
   }
 };
 
-} // namespace shuffle
-} // namespace sparkcolumnarplugin
+} // namespace gluten
 
 int main(int argc, char** argv) {
   uint32_t iterations = 1;
@@ -479,7 +479,7 @@ int main(int argc, char** argv) {
 
   */
 
-  sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_IterateScan_Benchmark bck(datafile);
+  gluten::BenchmarkShuffleSplit_IterateScan_Benchmark bck(datafile);
 
   benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", bck)
       ->Iterations(iterations)

@@ -36,7 +36,7 @@
 #include "utils/macros.h"
 
 namespace gluten {
-namespace shuffle {
+
 using arrow::internal::checked_cast;
 
 #ifndef SPLIT_BUFFER_SIZE
@@ -57,12 +57,11 @@ std::string __m128i_toString(const __m128i var) {
   T values[16 / sizeof(T)];
   std::memcpy(values, &var, sizeof(values)); // See discussion below
   if (sizeof(T) == 1) {
-    for (unsigned int i = 0; i < sizeof(__m128i); i++) { // C++11: Range for
-                                                         // also possible
+    for (unsigned int i = 0; i < sizeof(__m128i); i++) { // C++11: Range for also possible
       sstr << std::hex << (int)values[i] << " " << std::dec;
     }
   } else {
-    for (unsigned int i = 0; i < sizeof(__m128i) / sizeof(T); i++) { // C++11: Range for also possible
+    for (unsigned int i = 0; i < sizeof(__m128i) / sizeof(T); i++) {
       sstr << std::hex << values[i] << " " << std::dec;
     }
   }
@@ -75,8 +74,7 @@ SplitOptions SplitOptions::Defaults() {
 
 class Splitter::PartitionWriter {
  public:
-  explicit PartitionWriter(Splitter* splitter, int32_t partition_id)
-      : splitter_(splitter), partition_id_(partition_id) {}
+  PartitionWriter(Splitter* splitter, int32_t partition_id) : splitter_(splitter), partition_id_(partition_id) {}
 
   arrow::Status Spill() {
 #ifndef SKIPWRITE
@@ -271,10 +269,12 @@ arrow::Status Splitter::Init() {
   std::for_each(partition_validity_addrs_.begin(), partition_validity_addrs_.end(), [this](std::vector<uint8_t*>& v) {
     v.resize(num_partitions_, nullptr);
   });
+
   std::for_each(
       partition_fixed_width_value_addrs_.begin(),
       partition_fixed_width_value_addrs_.end(),
       [this](std::vector<uint8_t*>& v) { v.resize(num_partitions_, nullptr); });
+
   std::for_each(partition_buffers_.begin(), partition_buffers_.end(), [this](std::vector<arrow::BufferVector>& v) {
     v.resize(num_partitions_);
   });
@@ -407,6 +407,7 @@ arrow::Status Splitter::Stop() {
 
   return arrow::Status::OK();
 }
+
 int64_t batch_nbytes(const arrow::RecordBatch& batch) {
   int64_t accumulated = 0L;
 
@@ -1406,5 +1407,4 @@ arrow::Status FallbackRangeSplitter::ComputeAndCountPartitionId(const arrow::Rec
   return arrow::Status::OK();
 }
 
-} // namespace shuffle
 } // namespace gluten

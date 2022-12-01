@@ -21,15 +21,12 @@
 #include "velox/common/memory/Memory.h"
 
 namespace gluten {
-namespace memory {
 
 constexpr uint16_t kNoAlignment = facebook::velox::memory::kNoAlignment;
 constexpr int64_t kMaxMemory = facebook::velox::memory::kMaxMemory;
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(
-    gluten::memory::MemoryAllocator* allocator);
+std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(MemoryAllocator* allocator);
 
 std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool();
 
-} // namespace memory
 } // namespace gluten

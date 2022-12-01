@@ -19,16 +19,18 @@
 
 #include <arrow/c/bridge.h>
 #include <gtest/gtest.h>
+
 namespace gluten {
 
-class DummyBackend : public ExecBackendBase {
+class DummyBackend : public Backend {
  public:
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override {
+  std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator) override {
     auto res_iter = std::make_shared<ResultIterator>();
     return std::make_shared<GlutenResultIterator>(std::move(res_iter));
   }
+
   std::shared_ptr<GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator,
+      MemoryAllocator* allocator,
       std::vector<std::shared_ptr<GlutenResultIterator>> inputs) {
     return GetResultIterator(allocator);
   }
@@ -36,7 +38,7 @@ class DummyBackend : public ExecBackendBase {
  private:
   class ResultIterator {
    public:
-    arrow::Result<std::shared_ptr<memory::GlutenColumnarBatch>> Next() {
+    arrow::Result<std::shared_ptr<ColumnarBatch>> Next() {
       if (!has_next_) {
         return nullptr;
       }
@@ -55,7 +57,7 @@ class DummyBackend : public ExecBackendBase {
       std::unique_ptr<ArrowSchema> cSchema = std::make_unique<ArrowSchema>();
       std::unique_ptr<ArrowArray> cArray = std::make_unique<ArrowArray>();
       GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, cArray.get(), cSchema.get()));
-      return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(std::move(cSchema), std::move(cArray));
+      return std::make_shared<ArrowCStructColumnarBatch>(std::move(cSchema), std::move(cArray));
     }
 
    private:
@@ -71,7 +73,7 @@ TEST(TestExecBackend, CreateBackend) {
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->GetResultIterator(gluten::memory::DefaultMemoryAllocator().get());
+  auto iter = backend->GetResultIterator(DefaultMemoryAllocator().get());
   ASSERT_TRUE(iter->HasNext());
   auto next = iter->Next();
   ASSERT_NE(next, nullptr);

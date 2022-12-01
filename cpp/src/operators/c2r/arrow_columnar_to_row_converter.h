@@ -20,12 +20,11 @@
 #include "columnar_to_row_base.h"
 
 namespace gluten {
-namespace columnartorow {
 
-class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
+class ArrowColumnarToRowConverter : public ColumnarToRowConverter {
  public:
   ArrowColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb, std::shared_ptr<arrow::MemoryPool> memory_pool)
-      : ColumnarToRowConverterBase(memory_pool), rb_(rb) {}
+      : ColumnarToRowConverter(memory_pool), rb_(rb) {}
 
   arrow::Status Init() override;
 
@@ -51,5 +50,4 @@ class ArrowColumnarToRowConverter : public ColumnarToRowConverterBase {
   std::shared_ptr<arrow::RecordBatch> rb_;
 };
 
-} // namespace columnartorow
 } // namespace gluten

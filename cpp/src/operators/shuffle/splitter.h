@@ -32,7 +32,6 @@
 #include "substrait/algebra.pb.h"
 
 namespace gluten {
-namespace shuffle {
 
 class Splitter {
  protected:
@@ -318,6 +317,7 @@ class HashSplitter : public Splitter {
  public:
   static arrow::Result<std::shared_ptr<HashSplitter>>
   Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+
   const std::shared_ptr<arrow::Schema>& input_schema() const override {
     return input_schema_;
   }
@@ -357,5 +357,4 @@ class FallbackRangeSplitter : public Splitter {
   std::shared_ptr<arrow::Schema> input_schema_;
 };
 
-} // namespace shuffle
 } // namespace gluten

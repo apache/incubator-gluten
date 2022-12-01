@@ -15,33 +15,32 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <memory>
 
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
-#include "releases/include/arrow/c/bridge.h"
+#include "include/arrow/c/bridge.h"
 #include "utils/exception.h"
 
-#pragma once
-
 namespace gluten {
-namespace memory {
-class GlutenColumnarBatch {
- public:
-  GlutenColumnarBatch(int32_t numColumns, int32_t numRows)
-      : numColumns(numColumns), numRows(numRows), exportNanos_(0) {}
 
-  virtual ~GlutenColumnarBatch() = default;
+class ColumnarBatch {
+ public:
+  ColumnarBatch(int32_t numColumns, int32_t numRows) : numColumns_(numColumns), numRows_(numRows), exportNanos_(0) {}
+
+  virtual ~ColumnarBatch() = default;
 
   int32_t GetNumColumns() const {
-    return numColumns;
+    return numColumns_;
   }
 
   int32_t GetNumRows() const {
-    return numRows;
+    return numRows_;
   }
 
-  virtual std::string GetType() = 0;
+  virtual std::string GetType() const = 0;
 
   virtual std::shared_ptr<ArrowArray> exportArrowArray() = 0;
 
@@ -52,32 +51,30 @@ class GlutenColumnarBatch {
   };
 
  private:
-  int32_t numColumns;
-  int32_t numRows;
+  int32_t numColumns_;
+  int32_t numRows_;
 
  protected:
   int64_t exportNanos_;
 };
 
-class GlutenArrowColumnarBatch : public GlutenColumnarBatch {
+class ArrowColumnarBatch : public ColumnarBatch {
  public:
-  explicit GlutenArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
-      : GlutenColumnarBatch(batch->num_columns(), batch->num_rows()), batch_(std::move(batch)) {}
+  explicit ArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
+      : ColumnarBatch(batch->num_columns(), batch->num_rows()), batch_(std::move(batch)) {}
 
-  ~GlutenArrowColumnarBatch() override = default;
-
-  std::string GetType() override {
+  std::string GetType() const override {
     return "arrow";
   }
 
   std::shared_ptr<ArrowSchema> exportArrowSchema() override {
-    std::shared_ptr<ArrowSchema> c_schema = std::make_shared<ArrowSchema>();
+    auto c_schema = std::make_shared<ArrowSchema>();
     GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*batch_->schema(), c_schema.get()));
     return c_schema;
   }
 
   std::shared_ptr<ArrowArray> exportArrowArray() override {
-    std::shared_ptr<ArrowArray> c_array = std::make_shared<ArrowArray>();
+    auto c_array = std::make_shared<ArrowArray>();
     GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch_, c_array.get()));
     return c_array;
   }
@@ -86,20 +83,20 @@ class GlutenArrowColumnarBatch : public GlutenColumnarBatch {
   std::shared_ptr<arrow::RecordBatch> batch_;
 };
 
-class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
+class ArrowCStructColumnarBatch : public ColumnarBatch {
  public:
-  GlutenArrowCStructColumnarBatch(std::unique_ptr<ArrowSchema> cSchema, std::unique_ptr<ArrowArray> cArray)
-      : GlutenColumnarBatch(cArray->n_children, cArray->length) {
+  ArrowCStructColumnarBatch(std::unique_ptr<ArrowSchema> cSchema, std::unique_ptr<ArrowArray> cArray)
+      : ColumnarBatch(cArray->n_children, cArray->length) {
     ArrowSchemaMove(cSchema.get(), cSchema_.get());
     ArrowArrayMove(cArray.get(), cArray_.get());
   }
 
-  ~GlutenArrowCStructColumnarBatch() override {
+  ~ArrowCStructColumnarBatch() override {
     ArrowSchemaRelease(cSchema_.get());
     ArrowArrayRelease(cArray_.get());
   }
 
-  std::string GetType() override {
+  std::string GetType() const override {
     return "arrow_array";
   }
 
@@ -116,5 +113,4 @@ class GlutenArrowCStructColumnarBatch : public GlutenColumnarBatch {
   std::shared_ptr<ArrowArray> cArray_ = std::make_shared<ArrowArray>();
 };
 
-} // namespace memory
 } // namespace gluten

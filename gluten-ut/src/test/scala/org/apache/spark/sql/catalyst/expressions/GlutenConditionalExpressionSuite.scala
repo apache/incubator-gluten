@@ -20,11 +20,4 @@ package org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenConditionalExpressionSuite extends ConditionalExpressionSuite with GlutenTestsTrait {
-  override def whiteTestNameList: Seq[String] = Seq(
-  )
-
-  override def blackTestNameList: Seq[String] = Seq(
-    "case when", // Because convertInternalRowToDataFrame can't decide datatype of null value
-    "case key when"
-  )
 }

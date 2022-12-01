@@ -23,19 +23,18 @@
 
 #include <utility>
 
-namespace gazellecpp {
-namespace compute {
+namespace gluten {
 
-class ArrowExecBackend : public gluten::ExecBackendBase {
+class ArrowExecBackend : public Backend {
  public:
   ArrowExecBackend();
 
   ~ArrowExecBackend() override;
 
-  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(gluten::memory::MemoryAllocator* allocator) override;
+  std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(gluten::MemoryAllocator* allocator) override;
 
   std::shared_ptr<gluten::GlutenResultIterator> GetResultIterator(
-      gluten::memory::MemoryAllocator* allocator,
+      gluten::MemoryAllocator* allocator,
       std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) override;
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
@@ -88,22 +87,23 @@ class ArrowExecBackend : public gluten::ExecBackendBase {
 
   // This method is used to get the input schema in InputRel.
   arrow::Status GetIterInputSchemaFromRel(const ::substrait::Rel& srel);
+
   void ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls);
+
   void PushDownFilter();
+
   static void FieldPathToName(arrow::compute::Expression* expression, const std::shared_ptr<arrow::Schema>& schema);
 };
 
 class ArrowExecResultIterator {
  public:
   ArrowExecResultIterator(
-      gluten::memory::MemoryAllocator* allocator,
+      gluten::MemoryAllocator* allocator,
       std::shared_ptr<arrow::Schema> schema,
       arrow::Iterator<nonstd::optional<arrow::compute::ExecBatch>> iter)
-      : memory_pool_(gluten::memory::AsWrappedArrowMemoryPool(allocator)),
-        schema_(std::move(schema)),
-        iter_(std::move(iter)) {}
+      : memory_pool_(gluten::AsWrappedArrowMemoryPool(allocator)), schema_(std::move(schema)), iter_(std::move(iter)) {}
 
-  std::shared_ptr<gluten::memory::GlutenColumnarBatch> Next();
+  std::shared_ptr<gluten::ColumnarBatch> Next();
 
  private:
   std::shared_ptr<arrow::MemoryPool> memory_pool_;
@@ -112,7 +112,6 @@ class ArrowExecResultIterator {
   arrow::compute::ExecBatch cur_;
 };
 
-void Initialize();
+void GazelleInitialize();
 
-} // namespace compute
-} // namespace gazellecpp
+} // namespace gluten

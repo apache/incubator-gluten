@@ -32,7 +32,6 @@
 #include <thread>
 
 namespace gluten {
-namespace shuffle {
 
 #define EVAL_START(name, thread_id) \
   //  auto eval_start = std::chrono::duration_cast<std::chrono::nanoseconds>(    \
@@ -161,5 +160,4 @@ static int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
       });
 }
 
-} // namespace shuffle
 } // namespace gluten
