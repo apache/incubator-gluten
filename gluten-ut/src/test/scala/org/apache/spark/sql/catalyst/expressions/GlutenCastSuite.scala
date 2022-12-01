@@ -18,10 +18,55 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.GlutenTestsTrait
-import org.apache.spark.sql.types.{ExampleBaseTypeUDT, ExampleSubTypeUDT, IExampleBaseType, IExampleSubType, UDTRegistration}
+import org.apache.spark.sql.types._
+
+import java.sql.Date
 
 class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
+  override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): CastBase = {
+    v match {
+      case lit: Expression =>
+        logDebug(s"Cast from: ${lit.dataType.typeName}, to: ${targetType.typeName}")
+        Cast(lit, targetType, timeZoneId)
+      case _ =>
+        val lit = Literal(v)
+        logDebug(s"Cast from: ${lit.dataType.typeName}, to: ${targetType.typeName}")
+        Cast(lit, targetType, timeZoneId)
+    }
+  }
+
   // Register UDT For test("SPARK-32828")
   UDTRegistration.register(classOf[IExampleBaseType].getName, classOf[ExampleBaseTypeUDT].getName)
   UDTRegistration.register(classOf[IExampleSubType].getName, classOf[ExampleSubTypeUDT].getName)
+
+  test("missing cases - from boolean") {
+    (DataTypeTestUtils.numericTypeWithoutDecimal + BooleanType).foreach {
+      t =>
+        checkEvaluation(cast(true, t), 1)
+        checkEvaluation(cast(false, t), 0)
+    }
+  }
+
+  test("missing cases - from byte") {
+    DataTypeTestUtils.numericTypeWithoutDecimal.foreach {
+      t =>
+        checkEvaluation(cast(cast(0, ByteType), t), 0)
+        checkEvaluation(cast(cast(-1, ByteType), t), -1)
+        checkEvaluation(cast(cast(1, ByteType), t), 1)
+    }
+  }
+
+  test("missing cases - from short") {
+    DataTypeTestUtils.numericTypeWithoutDecimal.foreach {
+      t =>
+        checkEvaluation(cast(cast(0, ShortType), t), 0)
+        checkEvaluation(cast(cast(-1, ShortType), t), -1)
+        checkEvaluation(cast(cast(1, ShortType), t), 1)
+    }
+  }
+
+  test("missing cases - date self check") {
+    val d = Date.valueOf("1970-01-01")
+    checkEvaluation(cast(d, DateType), d)
+  }
 }
