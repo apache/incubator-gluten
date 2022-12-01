@@ -20,7 +20,7 @@
 #include "memory/columnar_batch.h"
 #include "memory/velox_memory_pool.h"
 #include "velox/vector/ComplexVector.h"
-#include "velox/vector/arrow/c/Bridge.h"
+#include "velox/vector/arrow/Bridge.h"
 
 namespace gluten {
 
