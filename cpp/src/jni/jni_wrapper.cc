@@ -879,7 +879,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   std::shared_ptr<AllocationListener> listener = std::make_shared<SparkAllocationListener>(
       vm, jlistener, reserve_memory_method, unreserve_memory_method, 8L << 10 << 10);
   auto allocator = new ListenableMemoryAllocator(DefaultMemoryAllocator().get(), listener);
-  return reinterpret_cast<jlong>(allocator);
+  return (jlong)(allocator);
   JNI_METHOD_END(-1L)
 }
 
@@ -889,18 +889,14 @@ Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator(JNIEnv
   if (allocator_id == default_memory_allocator_id) {
     return;
   }
-  auto* alloc = reinterpret_cast<MemoryAllocator*>(allocator_id);
-  if (alloc == nullptr) {
-    return;
-  }
-  delete alloc;
+  delete (MemoryAllocator*)(allocator_id);
   JNI_METHOD_END()
 }
 
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated(JNIEnv* env, jclass, jlong allocator_id) {
   JNI_METHOD_START
-  auto* alloc = reinterpret_cast<MemoryAllocator*>(allocator_id);
+  auto* alloc = (MemoryAllocator*)(allocator_id);
   if (alloc == nullptr) {
     gluten::JniThrow("Memory allocator instance not found. It may not exist nor has been closed");
   }

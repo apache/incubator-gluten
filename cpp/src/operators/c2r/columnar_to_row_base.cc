@@ -78,7 +78,7 @@ void ColumnarToRowConverter::SetNullAt(
   *(int64_t*)(buffer_address + row_offset + field_offset) = 0;
 }
 
-int32_t ColumnarToRowConverter::FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length) {
+int32_t ColumnarToRowConverter::FirstNonzeroLongNum(const std::vector<int32_t>& mag, int32_t length) const {
   int32_t fn = 0;
   int32_t i;
   for (i = length - 1; i >= 0 && mag[i] == 0; i--)
@@ -87,7 +87,7 @@ int32_t ColumnarToRowConverter::FirstNonzeroLongNum(std::vector<int32_t> mag, in
   return fn;
 }
 
-int32_t ColumnarToRowConverter::GetInt(int32_t n, int32_t sig, std::vector<int32_t> mag, int32_t length) {
+int32_t ColumnarToRowConverter::GetInt(int32_t n, int32_t sig, const std::vector<int32_t>& mag, int32_t length) const {
   if (n < 0)
     return 0;
   if (n >= length)
@@ -97,7 +97,7 @@ int32_t ColumnarToRowConverter::GetInt(int32_t n, int32_t sig, std::vector<int32
   return (sig >= 0 ? magInt : (n <= FirstNonzeroLongNum(mag, length) ? -magInt : ~magInt));
 }
 
-int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) {
+int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) const {
   // HD, Figure 5-6
   if (i == 0)
     return 32;
@@ -122,11 +122,11 @@ int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) {
   return n;
 }
 
-int32_t ColumnarToRowConverter::GetBitLengthForInt(uint32_t n) {
+int32_t ColumnarToRowConverter::GetBitLengthForInt(uint32_t n) const {
   return 32 - GetNumberOfLeadingZeros(n);
 }
 
-int32_t ColumnarToRowConverter::GetBitCount(uint32_t i) {
+int32_t ColumnarToRowConverter::GetBitCount(uint32_t i) const {
   // HD, Figure 5-2
   i = i - ((i >> 1) & 0x55555555);
   i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
@@ -136,7 +136,7 @@ int32_t ColumnarToRowConverter::GetBitCount(uint32_t i) {
   return i & 0x3f;
 }
 
-int32_t ColumnarToRowConverter::GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len) {
+int32_t ColumnarToRowConverter::GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len) const {
   int32_t n = -1;
   if (len == 0) {
     n = 0;

@@ -27,6 +27,6 @@ constexpr int64_t kMaxMemory = facebook::velox::memory::kMaxMemory;
 
 std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(MemoryAllocator* allocator);
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool();
+facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool();
 
 } // namespace gluten

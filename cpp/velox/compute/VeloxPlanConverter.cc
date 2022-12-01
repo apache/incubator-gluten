@@ -246,7 +246,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto arrowStreamNode = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(), outputType, arrowStream, GetDefaultWrappedVeloxMemoryPool().get());
+      nextPlanNodeId(), outputType, arrowStream, GetDefaultWrappedVeloxMemoryPool());
   subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
 }
 
@@ -406,7 +406,7 @@ std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
 
 void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
-  exportToArrow(BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool().get()), arrowSchema);
+  exportToArrow(BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
 
