@@ -15,36 +15,43 @@ from Spark, and uses the optimized compute functions that are implemented in gaz
     - Maven 3.6.3 or higher version
     - Spark 3.1.1
 
-#### Environment Setup
+#### Building Gluten with Arrow Backend
 
 ```bash
-$ apt-get update -y && \
-    apt-get install -y \
-        build-essential \
-        ccache \
-        cmake \
-        git \
-        libssl-dev \
-        libcurl4-openssl-dev \
-        python3-pip \
-        wget \
-        llvm-10 \
-        clang-10 \
-        libboost-dev
+## install gcc and libraries to build arrow
+apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
+
+## make sure jdk8 is used
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+
+##setup proxy if needed
+export http_proxy=xxxx
+export https_proxy=xxxx
+
+##config maven proxy
+mkdir ~/.m2/
+apt install vim
+vim ~/.m2/settings.xml
+
+git clone https://github.com/oap-project/gluten.git
+
+## fetch arrow for gazelle and compile
+cd /path_to_gluten/ep/build-arrow/src
+./get_arrow.sh  --arrow_branch=arrow-8.0.0-gluten-20220427a
+./build_arrow_for_gazelle.sh
+
+## compile gluten cpp
+cd /path_to_gluten/cpp
+./compile.sh --build_gazelle_cpp_backend=ON --build_protobuf=ON
+
+## compile gluten jvm and package. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark3.3
+cd /path_to_gluten
+mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests
+
 ```
 
-#### Building Gluten
-
-The build and install of our custom Arrow is embedded into the build of Gluten.
-
-```bash
-$ git clone https://github.com/oap-project/gluten.git
-$ pushd gluten
-$ mvn clean package -Pbackends-gazelle -DskipTests -Dbuild_arrow=ON
-$ popd
-```
-
-### Enabling Arrow Bckend at Runtime
+### Enabling Arrow Backend at Runtime
 
 In addition to your cutomized Spark configurations, extra configurations for enabling Gluten with
 ArrowBackend should be added.

@@ -16,10 +16,22 @@ one or more input data files in parquet format.
 The commands below help to generate example input files:
 
 ```shell
-cd /path/to/gluten
-# First make sure Gluten is built with -Dcpp_benchmarks=ON -Dcpp_tests=ON. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark3.3
-mvn clean package -Pspark-3.2 -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
--Dbuild_protobuf=OFF -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+cd /path_to_gluten/ep/build-arrow/src
+./get_arrow.sh
+./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
+
+cd /path_to_gluten/ep/build-velox/src
+# get velox and compile
+./get_velox.sh
+./build_velox.sh
+
+# set BUILD_TESTS and BUILD_BENCHMARKS = ON in gluten cpp compile shell
+cd /path_to_gluten/cpp
+./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
+
+# Build gluten. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark3.3
+cd /path_to_gluten
+mvn clean package -Pspark-3.2 -Pbackends-velox
 
 mvn test -Pspark3.2 -Pbackends-velox -pl backends-velox -am \
 -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip

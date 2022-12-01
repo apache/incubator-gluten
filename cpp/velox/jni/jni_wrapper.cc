@@ -17,7 +17,7 @@
 
 #include <folly/system/ThreadName.h>
 #include <jni.h>
-#include "releases/include/arrow/c/bridge.h"
+#include "include/arrow/c/bridge.h"
 
 #include <jni/jni_common.h>
 #include "compute/DwrfDatasource.h"
