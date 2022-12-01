@@ -165,7 +165,7 @@ cd ${CURRENT_DIR}
 
 if [ $BUILD_ARROW == "ON" ]; then
   mkdir -p $BUILD_DIR
-  ARROW_REPO=https://github.com/oap-project/arrow.git
+  ARROW_REPO=https://github.com/zhejiangxiaomai/arrow.git
 
   if [ $BACKEND_TYPE == "velox" ]; then
       ARROW_BRANCH=backend_velox_main
