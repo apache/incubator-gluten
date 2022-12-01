@@ -52,7 +52,8 @@ public class DecimalLiteralNode implements ExpressionNode, Serializable {
   private static final byte minus_one = -1;
 
   public static byte[] encodeDecimalIntoBytes(BigDecimal decimal, int scale, int byteWidth) {
-    BigDecimal scaledDecimal = decimal.multiply(powerOfTen(scale));
+    BigDecimal scaledDecimal = BigDecimal.valueOf(decimal.unscaledValue().longValue(),
+      decimal.scale());
     byte[] bytes = scaledDecimal.toBigInteger().toByteArray();
     if (bytes.length > byteWidth) {
       throw new UnsupportedOperationException(

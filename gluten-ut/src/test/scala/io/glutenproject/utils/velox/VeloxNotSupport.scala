@@ -18,8 +18,7 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.DateFunctionsSuite
-import org.apache.spark.sql.StringFunctionsSuite
+import org.apache.spark.sql.{MathFunctionsSuite, StringFunctionsSuite}
 import org.apache.spark.sql.catalyst.expressions._
 
 object VeloxNotSupport extends NotSupport {
@@ -37,6 +36,7 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[RegexpExpressionsSuite],
     simpleClassName[PredicateSuite],
     simpleClassName[MathExpressionsSuite],
+    simpleClassName[MathFunctionsSuite],
     simpleClassName[SortOrderExpressionsSuite],
     simpleClassName[BitwiseExpressionsSuite],
     simpleClassName[StringExpressionsSuite],
