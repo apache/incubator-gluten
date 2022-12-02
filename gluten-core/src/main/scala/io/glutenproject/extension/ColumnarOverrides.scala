@@ -87,9 +87,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
    * @param removeHashColumn whether the hash column should be removed.
    * @return a columnar shuffle exchange.
    */
-  private def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
-                                         child: SparkPlan,
-                                         removeHashColumn: Boolean = false): SparkPlan = {
+  def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
+                                 child: SparkPlan,
+                                 removeHashColumn: Boolean = false): SparkPlan = {
     if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
       ColumnarShuffleExchangeAdaptor(
         plan.outputPartitioning, child, removeHashColumn = removeHashColumn)
@@ -197,6 +197,10 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
+      case plan: TakeOrderedAndProjectExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        val child = replaceWithTransformerPlan(plan.child)
+        TakeOrderedAndProjectExecTransformer(plan.limit, plan.sortOrder, plan.projectList, child)
       case plan: ShuffleExchangeExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
