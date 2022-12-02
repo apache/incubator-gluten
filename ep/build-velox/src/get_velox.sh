@@ -4,8 +4,8 @@ set -exu
 
 #setting this dir if need
 GLUTEN_DIR=/opt/gluten
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/rui-mo/velox.git
+VELOX_BRANCH=test
 
 for arg in "$@"
 do

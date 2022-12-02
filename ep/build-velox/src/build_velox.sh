@@ -115,8 +115,8 @@ function compile {
 }
 
 function check_commit {
-    VELOX_REPO=https://github.com/oap-project/velox.git
-    VELOX_BRANCH=main
+    VELOX_REPO=https://github.com/rui-mo/velox.git
+    VELOX_BRANCH=test
     COMMIT_ID="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
     if $(git merge-base --is-ancestor $COMMIT_ID HEAD);
     then
