@@ -16,6 +16,7 @@
  */
 
 #include "exec_backend.h"
+#include "compute/result_iterator.h"
 
 namespace gluten {
 
