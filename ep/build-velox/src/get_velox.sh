@@ -2,18 +2,12 @@
 
 set -exu
 
-#setting this dir if need
-GLUTEN_DIR=/opt/gluten
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=main
 
 for arg in "$@"
 do
     case $arg in
-        --gluten_dir=*)
-        GLUTEN_DIR=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
         --velox_repo=*)
         VELOX_REPO=("${arg#*=}")
         shift # Remove argument name from processing
@@ -28,11 +22,12 @@ do
         ;;
     esac
 done
+
 echo "Velox Get start..."
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+mkdir -p "$CURRENT_DIR/../build"
 
-mkdir -p "$GLUTEN_DIR/ep/build-velox/build"
-
-VELOX_SOURCE_DIR="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
+VELOX_SOURCE_DIR="$CURRENT_DIR/../build/velox_ep"
 
 if [ -d $VELOX_SOURCE_DIR ]; then
     rm -rf $VELOX_SOURCE_DIR
