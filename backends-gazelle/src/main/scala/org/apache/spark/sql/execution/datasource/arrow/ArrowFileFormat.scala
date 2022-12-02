@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.datasource.arrow
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.execution.FakeRow
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
@@ -32,9 +33,7 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, Out
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.VeloxColumnarRules.FakeRow
-import org.apache.spark.sql.utils.GazelleArrowUtils
+import org.apache.spark.sql.utils.{ArrowUtils, GazelleArrowUtils}
 
 class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 

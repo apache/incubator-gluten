@@ -13,7 +13,6 @@
     <name>Gluten Core</name>
 
     <properties>
-        <cpp.dir>../cpp/</cpp.dir>
         <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
         <build.testJarPhase>none</build.testJarPhase>

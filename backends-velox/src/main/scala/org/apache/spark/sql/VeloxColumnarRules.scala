@@ -17,9 +17,8 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.execution.VeloxRowToArrowColumnarExec
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.execution.{ColumnarToFakeRowAdaptor, GlutenDataRowToArrowColumnarExec}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -64,7 +63,7 @@ object VeloxColumnarRules {
                         c.isSubquery)))
                 case other =>
                   rc.withNewChildren(
-                    Array(ColumnarToFakeRowAdaptor(new VeloxRowToArrowColumnarExec(child))))
+                    Array(ColumnarToFakeRowAdaptor(GlutenDataRowToArrowColumnarExec(child))))
               }
             } else {
               plan.withNewChildren(plan.children.map(apply))
@@ -73,128 +72,5 @@ object VeloxColumnarRules {
         }
       case plan: SparkPlan => plan.withNewChildren(plan.children.map(apply))
     }
-  }
-
-  class FakeRow(val batch: ColumnarBatch) extends InternalRow {
-    override def numFields: Int = throw new UnsupportedOperationException()
-
-    override def setNullAt(i: Int): Unit = throw new UnsupportedOperationException()
-
-    override def update(i: Int, value: Any): Unit = throw new UnsupportedOperationException()
-
-    override def copy(): InternalRow = throw new UnsupportedOperationException()
-
-    override def isNullAt(ordinal: Int): Boolean = throw new UnsupportedOperationException()
-
-    override def getBoolean(ordinal: Int): Boolean = throw new UnsupportedOperationException()
-
-    override def getByte(ordinal: Int): Byte = throw new UnsupportedOperationException()
-
-    override def getShort(ordinal: Int): Short = throw new UnsupportedOperationException()
-
-    override def getInt(ordinal: Int): Int = throw new UnsupportedOperationException()
-
-    override def getLong(ordinal: Int): Long = throw new UnsupportedOperationException()
-
-    override def getFloat(ordinal: Int): Float = throw new UnsupportedOperationException()
-
-    override def getDouble(ordinal: Int): Double = throw new UnsupportedOperationException()
-
-    override def getDecimal(ordinal: Int, precision: Int, scale: Int): Decimal =
-      throw new UnsupportedOperationException()
-
-    override def getUTF8String(ordinal: Int): UTF8String =
-      throw new UnsupportedOperationException()
-
-    override def getBinary(ordinal: Int): Array[Byte] = throw new UnsupportedOperationException()
-
-    override def getInterval(ordinal: Int): CalendarInterval =
-      throw new UnsupportedOperationException()
-
-    override def getStruct(ordinal: Int, numFields: Int): InternalRow =
-      throw new UnsupportedOperationException()
-
-    override def getArray(ordinal: Int): ArrayData = throw new UnsupportedOperationException()
-
-    override def getMap(ordinal: Int): MapData = throw new UnsupportedOperationException()
-
-    override def get(ordinal: Int, dataType: DataType): AnyRef =
-      throw new UnsupportedOperationException()
-  }
-
-  case class SimpleStrategy() extends Strategy {
-    override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
-      case ColumnarToFakeRowLogicAdaptor(child: LogicalPlan) =>
-        Seq(ColumnarToFakeRowAdaptor(planLater(child)))
-      case other =>
-        Nil
-    }
-  }
-
-  private case class ColumnarToFakeRowLogicAdaptor(child: LogicalPlan)
-    extends OrderPreservingUnaryNode {
-    override def output: Seq[Attribute] = child.output
-
-    // For spark 3.2.
-    protected def withNewChildInternal(newChild: LogicalPlan): ColumnarToFakeRowLogicAdaptor =
-      copy(child = newChild)
-  }
-
-  case class ColumnarToFakeRowAdaptor(child: SparkPlan) extends ColumnarToRowTransition {
-    if (!child.logicalLink.isEmpty) {
-      setLogicalLink(ColumnarToFakeRowLogicAdaptor(child.logicalLink.get))
-    }
-
-    override def output: Seq[Attribute] = child.output
-
-    override protected def doExecute(): RDD[InternalRow] = {
-      child.executeColumnar().map { cb => new FakeRow(cb) }
-    }
-
-    // For spark 3.2.
-    protected def withNewChildInternal(newChild: SparkPlan): ColumnarToFakeRowAdaptor =
-      copy(child = newChild)
-  }
-
-  case class VeloxLoadArrowData(child: SparkPlan) extends UnaryExecNode {
-
-    override protected def doExecute(): RDD[InternalRow] = {
-      throw new UnsupportedOperationException(
-        "VeloxLoadArrowData does not support the execute() code path.")
-    }
-
-    override def nodeName: String = "VeloxLoadArrowData"
-
-    override def supportsColumnar: Boolean = true
-
-
-    override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-      child.executeColumnar().mapPartitions { itr =>
-        itr.map { cb =>
-          ArrowColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-        }
-      }
-    }
-
-    override def output: Seq[Attribute] = {
-      child.output
-    }
-
-    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-      copy(child = newChild)
-  }
-
-  case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
-    override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-      case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeAdaptor) =>
-        c2r // AdaptiveSparkPlanExec.scala:536
-      case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
-        c2r // AdaptiveSparkPlanExec.scala:546
-      case ColumnarToRowExec(child) => ColumnarToRowExec(VeloxLoadArrowData(child))
-    }
-  }
-
-  object DummyRule extends Rule[SparkPlan] {
-    def apply(p: SparkPlan): SparkPlan = p
   }
 }

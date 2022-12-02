@@ -29,10 +29,10 @@ import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
 class VeloxBackend extends Backend {
   override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
   override def initializerApi(): IInitializerApi = new VeloxInitializerApi
-  override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
-  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
-  override def transformerApi(): ITransformerApi = new VeloxTransformerApi
-  override def validatorApi(): IValidatorApi = new VeloxValidatorApi
+  override def iteratorApi(): IIteratorApi = new VeloxDataIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxDataSparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new VeloxDataTransformerApi
+  override def validatorApi(): IValidatorApi = new VeloxDataValidatorApi
   override def settings(): BackendSettings = VeloxBackendSettings
 }
 

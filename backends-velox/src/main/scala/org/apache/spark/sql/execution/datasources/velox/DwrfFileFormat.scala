@@ -17,6 +17,9 @@
 
 package org.apache.spark.sql.execution.datasources.velox
 
+import java.io.IOException
+
+import io.glutenproject.execution.FakeRow
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
@@ -25,16 +28,14 @@ import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
+
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.GlutenArrowUtils
-
-import java.io.IOException
+import org.apache.spark.sql.utils.GlutenArrowUtils
 
 class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializable {
 

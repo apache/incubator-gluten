@@ -17,6 +17,10 @@
 
 package io.glutenproject.execution
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
@@ -34,10 +38,6 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import com.google.common.collect.Lists
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 case class TransformContext(
     inputAttributes: Seq[Attribute],
@@ -302,7 +302,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           wsCxt.substraitContext.registeredJoinParams,
           wsCxt.substraitContext.registeredAggregationParams)
 
-      new NativeWholeStageColumnarRDD(
+      new GlutenWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartitions,
         wsCxt.outputAttributes,

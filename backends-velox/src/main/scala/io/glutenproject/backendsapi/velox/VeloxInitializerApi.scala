@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.IInitializerApi
-import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace, VeloxNativeExpressionEvaluator}
+import io.glutenproject.vectorized.{GlutenDataNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
 import io.glutenproject.GlutenPlugin.buildNativeConfNode
 import org.apache.commons.lang3.StringUtils
 
@@ -40,7 +40,7 @@ class VeloxInitializerApi extends IInitializerApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
-    val initKernel = new VeloxNativeExpressionEvaluator()
+    val initKernel = new GlutenDataNativeExpressionEvaluator()
     initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
   }
 }
