@@ -135,7 +135,7 @@ class DayOfWeekTransformer(child: Expression) extends DayOfWeek(child) with
 
 class WeekDayTransformer(child: Expression) extends WeekDay(child) with
   ExtractDateTransformer {
-  override def getField: String = "DAY_OF_WEEK"
+  override def getField: String = "WEEK_DAY"
 
   override def getDataType: DataType = dataType
 
