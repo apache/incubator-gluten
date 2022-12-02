@@ -38,12 +38,12 @@ git clone https://github.com/oap-project/gluten.git
 
 ## fetch arrow for gazelle and compile
 cd /path_to_gluten/ep/build-arrow/src
-./get_arrow.sh  --arrow_branch=arrow-8.0.0-gluten-20220427a
-./build_arrow_for_gazelle.sh
+./get_arrow.sh  --arrow_branch=arrow-8.0.0-gluten-20220427a --gluten_dir=/path_to_gluten 
+./build_arrow_for_gazelle.sh --gluten_dir=/path_to_gluten 
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
-./compile.sh --build_gazelle_cpp_backend=ON --build_protobuf=ON
+./compile.sh --build_gazelle_cpp_backend=ON --build_protobuf=ON --gluten_dir=/path_to_gluten 
 
 ## compile gluten jvm and package. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark3.3
 cd /path_to_gluten

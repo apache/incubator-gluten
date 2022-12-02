@@ -3,18 +3,7 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 # 1 Prerequisite
 
 <b>Currently Gluten+Velox backend is only tested on Ubuntu20.04 and Ubuntu22.04. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually:
-
-```shell script
-apt-get update
-apt-get install -y software-properties-common maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build uuid-dev sudo openjdk-8-jdk default-jdk
-```
-
-Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
-```shell script
-export JAVA_HOME=path/to/java/home
-export PATH=$JAVA_HOME/bin:$PATH
-```
+Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
 
 # 2 Build Gluten with Velox Backend
 
@@ -41,21 +30,21 @@ git clone https://github.com/oap-project/gluten.git
 
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
-./get_arrow.sh
-./build_arrow_for_velox.sh
+./get_arrow.sh --gluten_dir=/path_to_gluten
+./build_arrow_for_velox.sh --gluten_dir=/path_to_gluten
 
 ## fetch velox
 cd /path_to_gluten/ep/build-velox/src/
-./get_velox.sh
+./get_velox.sh --gluten_dir=/path_to_gluten
 ## compile velox and build protobuf and folly at first time
-./build_velox.sh --build_protobuf=ON --build_folly=ON
+./build_velox.sh --build_protobuf=ON --build_folly=ON --gluten_dir=/path_to_gluten
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
-./compile.sh --build_velox_backend=ON
+./compile.sh --build_velox_backend=ON --gluten_dir=/path_to_gluten
 
 ### compile gluten jvm and package jar
-cd /path_to_gluten/
+cd /path_to_gluten
 # For spark3.2.x
 mvn clean package -Pbackends-velox -Pspark-3.2
 # For spark3.3.x

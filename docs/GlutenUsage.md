@@ -1,6 +1,7 @@
 ### Build parameters
 
 Based on the different environment, there are some parameters can be set via -D with mvn.
+
 | Parameters                                            | Description                                                                                                                                                                         | Default Value                                       |
 |-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
 | backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                                                                                                     | false                                              |
@@ -8,6 +9,7 @@ Based on the different environment, there are some parameters can be set via -D 
 | backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.                                                                                           | false                                              |
 
 There are some parameters can be set via -- with build_arrow_for_gazelle.sh.
+
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | gluten_dir | Root path of gluten project | /path_to_gluten |
@@ -15,6 +17,7 @@ There are some parameters can be set via -- with build_arrow_for_gazelle.sh.
 | build_type | ARROW build type            | release|
 
 There are some parameters can be set via -- with build_arrow_for_velox.sh.
+
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | gluten_dir | Root path of gluten project               | /path_to_gluten |
@@ -24,6 +27,7 @@ There are some parameters can be set via -- with build_arrow_for_velox.sh.
 | build_benchmarks | Build arrow with -DWITH_PARQUET=ON  | OFF           |
 
 There are some parameters can be set via -- with compile.sh.
+
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | gluten_dir | Root path of gluten project | /path_to_gluten |

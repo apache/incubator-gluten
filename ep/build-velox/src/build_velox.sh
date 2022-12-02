@@ -13,6 +13,12 @@ BUILD_PROTOBUF=OFF
 BUILD_FOLLY=OFF
 BUILD_TYPE=release
 
+#for ep cache
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=main
+TARGET_BUILD_COMMIT=""
+ENABLE_EP_CACHE=OFF
+
 for arg in "$@"
 do
     case $arg in
@@ -42,6 +48,10 @@ do
         ;;
         --build_type=*)
         BUILD_TYPE=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
 	    *)
@@ -112,11 +122,10 @@ function compile {
     COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
     echo "COMPILE_OPTION: "$COMPILE_OPTION
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
+    echo $TARGET_BUILD_COMMIT > "${BUILD_DIR}/velox-commit.cache"
 }
 
 function check_commit {
-    VELOX_REPO=https://github.com/oap-project/velox.git
-    VELOX_BRANCH=main
     COMMIT_ID="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
     if $(git merge-base --is-ancestor $COMMIT_ID HEAD);
     then
@@ -127,8 +136,49 @@ function check_commit {
     fi
 }
 
+function check_rp_cache {
+  TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
+  echo "Target Velox commit: $TARGET_BUILD_COMMIT"
+  if [ $ENABLE_EP_CACHE == "ON" ]; then
+    if [ -e ${BUILD_DIR}/arrow-commit.cache ]; then
+      LAST_BUILT_COMMIT="$(cat ${BUILD_DIR}/velox-commit.cache)"
+      if [ -n $LAST_BUILT_COMMIT ]; then
+        if [ -z "$TARGET_BUILD_COMMIT" ]
+          then
+            echo "Unable to parse Velox commit: $TARGET_BUILD_COMMIT."
+            exit 1
+            fi
+            if [ "$TARGET_BUILD_COMMIT" = "$LAST_BUILT_COMMIT" ]; then
+                echo "Velox build of commit $TARGET_BUILD_COMMIT was cached, skipping build..."
+                exit 0
+            else
+                echo "Found cached commit $LAST_BUILT_COMMIT for Velox which is different with target commit $TARGET_BUILD_COMMIT."
+            fi
+        fi
+    fi
+  fi
+
+  if [ -e ${BUILD_DIR}/velox-commit.cache ]; then
+      rm -f ${BUILD_DIR}/velox-commit.cache
+  fi
+}
+
+function incremental_build {
+  if [ $ENABLE_EP_CACHE == "ON" ] && [ -d $ARROW_SOURCE_DIR ]; then
+    echo "Applying incremental build for Velox..."
+    git init .
+    EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true`
+    if [ -z "$EXISTS" ]; then
+      git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
+    fi
+    git reset --hard HEAD
+    git checkout build_$TARGET_BUILD_COMMIT
+  fi
+}
+
 cd $VELOX_HOME
 check_commit
+check_rp_cache
 process_script
 compile
 
