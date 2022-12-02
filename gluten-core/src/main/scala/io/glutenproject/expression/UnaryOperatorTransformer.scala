@@ -859,28 +859,6 @@ class RintTransformer(child: Expression, original: Expression)
   }
 }
 
-class QuarterTransformer(child: Expression, original: Expression)
-  extends Quarter(child: Expression)
-    with ExpressionTransformer
-    with Logging {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.QUARTER, Seq(child.dataType),
-      ConverterUtils.FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-
 object UnaryOperatorTransformer {
 
   def create(child: Expression, original: Expression): Expression = original match {
@@ -890,14 +868,22 @@ object UnaryOperatorTransformer {
       new IsNotNullTransformer(child, i)
     case y: Year =>
       new YearTransformer(child)
+    case q: Quarter =>
+      new QuarterTransformer(child)
     case m: Month =>
       new MonthTransformer(child)
+    case s: Second =>
+      new SecondTransformer(child)
     case d: DayOfMonth =>
       new DayOfMonthTransformer(child)
     case doy: DayOfYear =>
       new DayOfYearTransformer(child)
     case dow: DayOfWeek =>
       new DayOfWeekTransformer(child)
+    case wd: WeekDay =>
+      new WeekDayTransformer(child)
+    case wof: WeekOfYear =>
+      new WeekOfYearTransformer(child)
     case n: Not =>
       new NotTransformer(child, n)
     case md5: Md5 =>
@@ -954,8 +940,6 @@ object UnaryOperatorTransformer {
       new ToRadiansTransformer(child, t)
     case r: Rint =>
       new RintTransformer(child, r)
-    case q: Quarter =>
-      new QuarterTransformer(child, q)
     case ascii: Ascii =>
       new AsciiTransformer(child, ascii)
     case chr: Chr =>
