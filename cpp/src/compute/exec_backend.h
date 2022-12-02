@@ -72,7 +72,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
   /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
   /// used.
   virtual arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnarConverter(
-      MemoryAllocator* allocator, std::shared_ptr<ColumnarBatch> cb) {
+      MemoryAllocator* allocator,
+      std::shared_ptr<ColumnarBatch> cb) {
     auto memory_pool = AsWrappedArrowMemoryPool(allocator);
     std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
     std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();

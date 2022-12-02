@@ -31,8 +31,8 @@
 #include <utility>
 
 #include "compute/exec_backend.h"
-#include "compute/result_iterator.h"
 #include "compute/protobuf_utils.h"
+#include "compute/result_iterator.h"
 #include "jni/concurrent_map.h"
 #include "jni/jni_common.h"
 #include "jni/jni_errors.h"

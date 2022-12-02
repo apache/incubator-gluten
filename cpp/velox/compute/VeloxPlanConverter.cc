@@ -357,8 +357,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     return std::make_shared<ResultIteratorType>(std::move(wholestageIter), shared_from_this());
   } else {
     using ResultIteratorType = GlutenResultIterator<WholeStageResIterFirstStage>;
-    auto wholestageIter = 
-      std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
+    auto wholestageIter =
+        std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
     return std::make_shared<ResultIteratorType>(std::move(wholestageIter), shared_from_this());
   }
 }

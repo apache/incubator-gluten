@@ -69,19 +69,16 @@ class GlutenResultIterator : public ResultIterator {
   /// ArrowArrayResultIterator will no longer have access to the underlying
   /// iterator.
   std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() override {
-#if 0
     // TODO: zuochunwei
+#if 0
     ArrowArrayIterator itr = arrow::MakeMapIterator(
-        [](std::shared_ptr<ColumnarBatch> b) -> std::shared_ptr<ArrowArray> { 
-          return b->exportArrowArray(); 
-        },
+        [](std::shared_ptr<ColumnarBatch> b) -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
         std::move(*iterator_));
     ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
     *itr_ptr = std::move(itr);
     return std::shared_ptr<ArrowArrayIterator>(itr_ptr);
-#else
-    return nullptr;
 #endif
+    return nullptr;
   }
 
   // For testing and benchmarking.
@@ -130,4 +127,3 @@ class GlutenResultIterator : public ResultIterator {
 };
 
 } // namespace gluten
-

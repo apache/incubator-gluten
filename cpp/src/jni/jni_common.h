@@ -75,7 +75,7 @@ std::shared_ptr<arrow::DataType> GetOffsetDataType(std::shared_ptr<arrow::DataTy
   }
 }
 
-template <typename T> inline
+template <typename T>
 bool is_fixed_width_type(T _) {
   return std::is_base_of<arrow::FixedWidthType, T>::value;
 }
