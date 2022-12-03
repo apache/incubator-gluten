@@ -156,25 +156,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def getChild: SparkPlan = child
 
-  @deprecated
   override def doExecute(): RDD[InternalRow] = {
-    // check if BatchScan exists
-    val currentOp = checkBatchScanExecTransformerChild()
-    if (currentOp.isDefined) {
-      // If containing scan exec transformer, a new RDD is created.
-      val fileScan = currentOp.get
-      val wsCxt = doWholestageTransform()
-
-      val startTime = System.nanoTime()
-      val substraitPlanPartition = fileScan.getFlattenPartitions.map(
-        p => BackendsApiManager.getIteratorApiInstance.genFilePartition(-1, null, wsCxt))
-      logDebug(s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
-
-      val wsRDD = new NativeWholeStageRowRDD(sparkContext, substraitPlanPartition, false)
-      wsRDD
-    } else {
-      sparkContext.emptyRDD
-    }
+    throw new UnsupportedOperationException("Row based execution is not supported")
   }
 
   def doWholestageTransform(): WholestageTransformContext = {

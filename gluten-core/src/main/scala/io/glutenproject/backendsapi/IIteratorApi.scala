@@ -21,10 +21,10 @@ import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
 import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
-import io.glutenproject.row.BaseRowIterator
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.vectorized.{GeneralOutIterator, NativeExpressionEvaluator}
+
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
@@ -99,13 +99,6 @@ trait IIteratorApi {
                             dependentKernelIterators: Seq[GeneralOutIterator])
   : Iterator[ColumnarBatch]
   // scalastyle:on argcount
-
-  /**
-   * Generate row iterator for substrait partition.
-   *
-   * @return
-   */
-  def genRowIterator(partition: BaseGlutenPartition): BaseRowIterator
 
   /**
    * Generate Native FileScanRDD, currently only for ClickHouse Backend.

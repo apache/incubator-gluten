@@ -18,7 +18,6 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
-import io.glutenproject.row.RowIterator;
 import io.substrait.proto.Plan;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
@@ -62,15 +61,6 @@ public abstract class NativeExpressionEvaluator implements AutoCloseable {
 
   protected abstract GeneralOutIterator createOutIterator(
       long nativeHandle, List<Attribute> outAttrs) throws IOException;
-
-  // Used by WholeStageTransform to create the native computing pipeline and
-  // return a row result iterator.
-  public RowIterator createKernelWithRowIterator(
-      Plan wsPlan) throws RuntimeException {
-    long rowIteratorInstance = jniWrapper.nativeCreateKernelWithRowIterator(
-        getPlanBytesBuf(wsPlan));
-    return new RowIterator(rowIteratorInstance);
-  }
 
   byte[] getPlanBytesBuf(Plan planNode) {
     return planNode.toByteArray();
