@@ -150,35 +150,27 @@ class CHIteratorApi extends IIteratorApi with Logging {
    */
   override def genFirstStageIterator(
       inputPartition: BaseGlutenPartition,
-      loadNative: Boolean,
       outputAttributes: Seq[Attribute],
       context: TaskContext,
       pipelineTime: SQLMetric,
       updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
-    var resIter: GeneralOutIterator = null
-    if (loadNative) {
-      val beforeBuild = System.nanoTime()
-      val transKernel = new CHNativeExpressionEvaluator()
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map {
-        iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-      }.asJava)
-      resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.plan,
-        inBatchIters,
-        outputAttributes.asJava)
-      pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-      TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
-    }
+    val beforeBuild = System.nanoTime()
+    val transKernel = new CHNativeExpressionEvaluator()
+    val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map {
+      iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+    }.asJava)
+    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
+      inputPartition.plan,
+      inBatchIters,
+      outputAttributes.asJava)
+    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
 
       override def hasNext: Boolean = {
-        if (loadNative) {
-          resIter.hasNext
-        } else {
-          false
-        }
+        resIter.hasNext
       }
 
       override def next(): Any = {

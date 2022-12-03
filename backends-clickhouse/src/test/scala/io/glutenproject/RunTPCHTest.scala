@@ -92,7 +92,6 @@ object RunTPCHTest {
       .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
       .config("spark.gluten.sql.columnar.columnartorow", columnarColumnToRow)
       .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
       .config("spark.gluten.sql.columnar.iterator", "true")
       .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")

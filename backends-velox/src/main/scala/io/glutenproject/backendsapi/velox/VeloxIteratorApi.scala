@@ -218,7 +218,6 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
    * @return
    */
   override def genFirstStageIterator(inputPartition: BaseGlutenPartition,
-                                     loadNative: Boolean,
                                      outputAttributes: Seq[Attribute],
                                      context: TaskContext,
                                      pipelineTime: SQLMetric,
@@ -227,31 +226,22 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
                                      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch] = {
     import org.apache.spark.sql.util.OASPackageBridge._
-    var inputSchema: Schema = null
-    var outputSchema: Schema = null
-    var resIter: GeneralOutIterator = null
-    if (loadNative) {
-      val beforeBuild = System.nanoTime()
-      val columnarNativeIterators =
-        new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
-          new ArrowInIterator(iter.asJava)
-        }.asJava)
-      val transKernel = new VeloxNativeExpressionEvaluator()
-      outputSchema = ArrowConverterUtils.toArrowSchema(outputAttributes)
-      resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
-      pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-      TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
-    }
+    val beforeBuild = System.nanoTime()
+    val columnarNativeIterators =
+      new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
+        new ArrowInIterator(iter.asJava)
+      }.asJava)
+    val transKernel = new VeloxNativeExpressionEvaluator()
+    val outputSchema: Schema = ArrowConverterUtils.toArrowSchema(outputAttributes)
+    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
+      inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
+    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
+    TaskMemoryResources.addLeakSafeTaskCompletionListener[Unit] { _ => resIter.close() }
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
       override def hasNext: Boolean = {
-        val res = if (loadNative) {
-          resIter.hasNext
-        } else {
-          false
-        }
+        val res = resIter.hasNext
         if (!res) {
           updateNativeMetrics(resIter)
         }
