@@ -70,7 +70,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", resourcePath, "", "")
 
     for (sql <- parquetTables) {
-      spark.sql(sql).show(10, false)
+      spark.sql(sql)
     }
     spark.sql("use tpcdsdb;")
     val result = spark

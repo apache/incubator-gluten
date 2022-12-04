@@ -122,7 +122,7 @@ object RunTPCHTest {
     }
 
     for (sql <- bucketSQL) {
-      spark.sql(sql).show(10, truncate = false)
+      spark.sql(sql)
     }
   }
 
@@ -131,7 +131,6 @@ object RunTPCHTest {
       .sql(s"""
               |use default;
               |""".stripMargin)
-      .show(1000, truncate = false)
     try {
       val tookTimeArr = ArrayBuffer[Long]()
       for (i <- 1 to executedCnt) {

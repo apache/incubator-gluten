@@ -226,17 +226,11 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     val df = runQueryAndCompare("SELECT shiftleft(int_field1, 1) from datatab limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 
   test("Test shiftright function") {
     val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
-    df.show()
-    df.explain(false)
-    df.printSchema()
   }
 }

@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
@@ -35,6 +36,7 @@ import io.glutenproject.row.BaseRowIterator
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
 
@@ -52,7 +54,7 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskMemoryResources
 
-class VeloxIteratorApi extends IIteratorApi with Logging {
+class VeloxIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
 
   /**
    * Generate native row partition.
@@ -83,7 +85,15 @@ class VeloxIteratorApi extends IIteratorApi with Logging {
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
-    logDebug(s"The substrait plan for partition ${index}:\n${substraitPlan.toString}")
+    if (index < 3) {
+      logOnLevel(
+        GlutenConfig.getSessionConf.substraitPlanLogLevel,
+        s"The substrait plan for partition $index:\n${
+          SubstraitPlanPrinterUtil
+            .substraitPlanToJson(substraitPlan)
+        }"
+      )
+    }
     GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
   }
 

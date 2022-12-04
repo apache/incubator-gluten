@@ -70,7 +70,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
               file.delete()
             }
             salted_df.get.write.parquet(currentSaltedTablePath)
-//          salted_df.get.show(100)
           })
     }
 
