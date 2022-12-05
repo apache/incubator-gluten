@@ -43,38 +43,32 @@ import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.extension.columnar.RemoveTransformHintRule
 import io.glutenproject.extension.columnar.TransformHint
 import io.glutenproject.extension.columnar.StoreExpandGroupExpression
+import io.glutenproject.utils.LogLevelUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
-  @transient private val logOnLevel: ( => String) => Unit =
-    columnarConf.transformPlanLogLevel match {
-      case "TRACE" => logTrace(_)
-      case "DEBUG" => logDebug(_)
-      case "INFO" => logInfo(_)
-      case "WARN" => logWarning(_)
-      case "ERROR" => logError(_)
-      case _ => logDebug(_)
-    }
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
+  /**
+   * Insert a Project as the new child of Shuffle to calculate the hash expressions.
+   * @param exprs hash expressions in Shuffle HashPartitioning.
+   * @param child the original child of Shuffle.
+   * @return a new Spark plan with Project inserted.
+   */
   private def getProjectWithHash(exprs: Seq[Expression], child: SparkPlan)
   : SparkPlan = {
     val hashExpression = new Murmur3Hash(exprs)
     hashExpression.withNewChildren(exprs)
-    val project = child match {
-      case exec: ProjectExec =>
-        // merge the project node
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
-          child.output, exec.child)
-      case transformer: ProjectExecTransformer =>
-        // merge the project node
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
-          child.output, transformer.child)
-      case _ =>
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
-          child.output, child)
-    }
+    // If the child of shuffle is also a Project, we do not merge them together here.
+    // Suppose the plan is like below, in which Project2 is inserted for hash calculation.
+    // Because the hash expressions are based on Project1, Project1 cannot be merged with Project2.
+    // ... => Child_of_Project1(a, b)
+    //     => Project1(a as c, b as d)
+    //     => Project2(hash(c), c, d)
+    //     => Shuffle => ...
+    val project = ProjectExec(
+      Seq(Alias(hashExpression, "hash_partition_key")()) ++ child.output, child)
     AddTransformHintRule().apply(project)
     replaceWithTransformerPlan(project)
   }
@@ -331,10 +325,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     if (checkOneRowRelation) {
       plan
     } else {
-      logOnLevel(s"${ruleName} before plan ${plan.toString()}")
       val newPlan = replaceWithTransformerPlan(plan)
       planChangeLogger.logRule(ruleName, plan, newPlan)
-      logOnLevel(s"${ruleName} after plan ${newPlan.toString()}")
       newPlan
     }
   }
@@ -344,15 +336,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 // into columnar implementations.
 case class TransformPostOverrides() extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getSessionConf
-  @transient private val logOnLevel: ( => String) => Unit =
-    columnarConf.transformPlanLogLevel match {
-      case "TRACE" => logTrace(_)
-      case "DEBUG" => logDebug(_)
-      case "INFO" => logInfo(_)
-      case "WARN" => logWarning(_)
-      case "ERROR" => logError(_)
-      case _ => logDebug(_)
-    }
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
@@ -415,25 +398,16 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
 
   // apply for the physical not final plan
   def apply(plan: SparkPlan): SparkPlan = {
-    logOnLevel(s"${ruleName} before plan ${plan.toString()}")
     val newPlan = replaceWithTransformerPlan(plan)
     planChangeLogger.logRule(ruleName, plan, newPlan)
-    logOnLevel(s"${ruleName} after plan ${newPlan.toString()}")
     newPlan
   }
 }
 
-case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule with Logging {
+case class ColumnarOverrideRules(session: SparkSession)
+  extends ColumnarRule with Logging with LogLevelUtil {
 
-  @transient private lazy val logOnLevel: ( => String) => Unit =
-  GlutenConfig.getSessionConf.transformPlanLogLevel match {
-    case "TRACE" => logTrace(_)
-    case "DEBUG" => logDebug(_)
-    case "INFO" => logInfo(_)
-    case "WARN" => logWarning(_)
-    case "ERROR" => logError(_)
-    case _ => logDebug(_)
-  }
+  lazy val transformPlanLogLevel = GlutenConfig.getSessionConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -458,13 +432,18 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
     if (supportedGluten) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
-      logOnLevel(s"preColumnarTransitions preOverriden plan ${plan.toString}")
+      logOnLevel(
+        transformPlanLogLevel,
+        s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
       preOverrides.foreach { r =>
         overridden = r(session)(overridden)
         planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
-      logOnLevel(s"preColumnarTransitions afterOverriden plan ${overridden.toString}")
-      logInfo(
+      logOnLevel(
+        transformPlanLogLevel,
+        s"preColumnarTransitions afterOverriden plan:\n${overridden.toString}")
+      logOnLevel(
+        transformPlanLogLevel,
         s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
     } else {
@@ -477,7 +456,9 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
       nativeEngineEnabled,
       plan)
 
-    logOnLevel(s"postColumnarTransitions preOverriden plan ${plan.toString}")
+    logOnLevel(
+      transformPlanLogLevel,
+      s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
     if (supportedGluten) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
@@ -485,8 +466,11 @@ case class ColumnarOverrideRules(session: SparkSession) extends ColumnarRule wit
         overridden = r(session)(overridden)
         planChangeLogger.logRule(r(session).ruleName, plan, overridden)
       }
-      logOnLevel(s"postColumnarTransitions afterOverriden plan ${overridden.toString}")
-      logInfo(
+      logOnLevel(
+        transformPlanLogLevel,
+        s"postColumnarTransitions afterOverriden plan:\n${overridden.toString}")
+      logOnLevel(
+        transformPlanLogLevel,
         s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
     } else {

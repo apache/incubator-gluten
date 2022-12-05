@@ -1,6 +1,7 @@
 ### Build parameters
 
 Based on the different environment, there are some parameters can be set via -D with mvn.
+
 | Parameters                                            | Description                                                                                                                                                                         | Default Value                                       |
 |-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
 | backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                                                                                                     | false                                              |
@@ -8,25 +9,40 @@ Based on the different environment, there are some parameters can be set via -D 
 | backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.                                                                                           | false                                              |
 
 There are some parameters can be set via -- with build_arrow_for_gazelle.sh.
+
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
-| gluten_dir | Root path of gluten project | /path_to_gluten |
-| build_dir  | Arrow build path            | GLUTEN_DIR/ep/build-arrow/build|
+| arrow_home | Arrow build path            | GLUTEN_DIR/ep/build-arrow/build|
 | build_type | ARROW build type            | release|
+| enable_ep_cache |  Use cache lib when arrow is not change |  OFF   |      
 
 There are some parameters can be set via -- with build_arrow_for_velox.sh.
+
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
-| gluten_dir | Root path of gluten project               | /path_to_gluten |
-| build_dir  | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
+| arrow_home | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
 | build_type | ARROW build type                          | release|
 | build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
 | build_benchmarks | Build arrow with -DWITH_PARQUET=ON  | OFF           |
+| enable_ep_cache |  Use cache lib when arrow is not change |  OFF   |  
 
-There are some parameters can be set via -- with compile.sh.
+
+There are some parameters can be set via -- with build_velox.sh.
+
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
-| gluten_dir | Root path of gluten project | /path_to_gluten |
+| velox_home | Velox build path                          | GLUTEN_DIR/ep/build-velox/build/velox_ep|
+| build_type | Velox build type                          | release|
+| enable_s3  | Build Velox with -DENABLE_S3              | OFF           |
+| enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
+| build_protobuf | build protobuf from source            | ON           |
+| build_folly |  build folly from source                 | ON           |
+| enable_ep_cache |  Use cache lib when arrow is not change |  OFF       |  
+
+There are some parameters can be set via -- with compile.sh.
+
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
 | arrow_root | path of arrow lib           | /path_to_gluten/ep/build-arrow/build/arrow_install |
 | velox_home | path of velox lib           | /path_to_gluten/ep/build-velox/build/velox_ep |
 | build_type | Gluten cpp part build type  | release |

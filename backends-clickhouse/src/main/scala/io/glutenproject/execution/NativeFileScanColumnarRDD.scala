@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
@@ -39,39 +38,31 @@ class NativeFileScanColumnarRDD(
     scanTime: SQLMetric)
   extends RDD[ColumnarBatch](sc, Nil) {
 
-  val loadNative: Boolean = GlutenConfig.getConf.loadNative
-
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val inputPartition = castNativePartition(split)
 
-    var resIter: GeneralOutIterator = null
-    if (loadNative) {
-      val startNs = System.nanoTime()
-      val transKernel = new CHNativeExpressionEvaluator()
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
-      resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.plan,
-        inBatchIters,
-        outputAttributes.asJava)
-      scanTime += NANOSECONDS.toMillis(System.nanoTime() - startNs)
-      TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
-    }
+    val startNs = System.nanoTime()
+    val transKernel = new CHNativeExpressionEvaluator()
+    val inBatchIters = new java.util.ArrayList[GeneralInIterator]()
+    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
+      inputPartition.plan,
+      inBatchIters,
+      outputAttributes.asJava)
+    scanTime += NANOSECONDS.toMillis(System.nanoTime() - startNs)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
       var scanTotalTime = 0L
       var scanTimeAdded = false
+
       override def hasNext: Boolean = {
-        if (loadNative) {
-          val startNs = System.nanoTime()
-          val res = resIter.hasNext
-          scanTotalTime += System.nanoTime() - startNs
-          if (!res && !scanTimeAdded) {
-            scanTime += NANOSECONDS.toMillis(scanTotalTime)
-            scanTimeAdded = true
-          }
-          res
-        } else {
-          false
+        val startNs = System.nanoTime()
+        val res = resIter.hasNext
+        scanTotalTime += System.nanoTime() - startNs
+        if (!res && !scanTimeAdded) {
+          scanTime += NANOSECONDS.toMillis(scanTotalTime)
+          scanTimeAdded = true
         }
+        res
       }
 
       override def next(): Any = {

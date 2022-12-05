@@ -15,7 +15,7 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
             ./ep/build-arrow/src/get_arrow.sh  \
       && ./ep/build-arrow/src/build_arrow_for_velox.sh \
       && /ep/build-velox/src/get_velox.sh \
-      && ./ep/build-velox/src/build_velox.sh --build_protobuf=ON --build_folly=ON
+      && ./ep/build-velox/src/build_velox.sh
     elif [ "$BUILD_BACKEND_TYPE" == "gazelle-cpp" ]; \
     then \
       GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2 -Pgluten-gazellecpp -Darrow.version=8.0.0-gluten-SNAPSHOT"; \

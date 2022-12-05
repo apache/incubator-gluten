@@ -68,9 +68,8 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
    *
    * @return
    */
-  override def validateColumnarShuffleExchangeExec(
-                                                    outputPartitioning: Partitioning,
-                                                    outputAttributes: Seq[Attribute]): Boolean = {
+  override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
+                                                   outputAttributes: Seq[Attribute]): Boolean = {
     // check input datatype
     for (attr <- outputAttributes) {
       try ArrowConverterUtils.createArrowField(attr)

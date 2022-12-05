@@ -24,6 +24,7 @@ import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitConte
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
+import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.rdd.RDD
@@ -35,9 +36,6 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
-import com.google.protobuf.WrappersProto
-import com.google.protobuf.util.JsonFormat
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -93,8 +91,7 @@ trait TransformSupport extends SparkPlan {
 }
 
 case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode
-  with TransformSupport {
+  extends UnaryExecNode with TransformSupport with LogLevelUtil {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
@@ -102,6 +99,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
   val sparkConf = sparkContext.getConf
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val substraitPlanLogLevel = GlutenConfig.getSessionConf.substraitPlanLogLevel
 
   private var planJson: String = ""
 
@@ -158,25 +156,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def getChild: SparkPlan = child
 
-  @deprecated
   override def doExecute(): RDD[InternalRow] = {
-    // check if BatchScan exists
-    val currentOp = checkBatchScanExecTransformerChild()
-    if (currentOp.isDefined) {
-      // If containing scan exec transformer, a new RDD is created.
-      val fileScan = currentOp.get
-      val wsCxt = doWholestageTransform()
-
-      val startTime = System.nanoTime()
-      val substraitPlanPartition = fileScan.getFlattenPartitions.map(
-        p => BackendsApiManager.getIteratorApiInstance.genFilePartition(-1, null, wsCxt))
-      logDebug(s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
-
-      val wsRDD = new NativeWholeStageRowRDD(sparkContext, substraitPlanPartition, false)
-      wsRDD
-    } else {
-      sparkContext.emptyRDD
-    }
+    throw new UnsupportedOperationException("Row based execution is not supported")
   }
 
   def doWholestageTransform(): WholestageTransformContext = {
@@ -194,15 +175,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
 
-    val planNodeProto = planNode.toProtobuf
-    val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
-    val registry = com.google.protobuf.TypeRegistry
-      .newBuilder()
-      .add(planNodeProto.getDescriptorForType())
-      .add(defaultRegistry)
-      .build()
-    planJson = JsonFormat.printer.usingTypeRegistry(registry).print(planNode.toProtobuf)
-    logDebug("Generated substrait plan " + planJson)
+    planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
 
     WholestageTransformContext(
       childCtx.inputAttributes,
@@ -318,7 +291,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
             .genFilePartition(i, currentPartitions, wsCxt)
         })
 
-      logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
+      logOnLevel(
+        substraitPlanLogLevel,
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>
         updateNativeMetrics(
@@ -347,8 +322,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
        */
       val startTime = System.nanoTime()
       val resCtx = doWholestageTransform()
-      logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
-      logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
+
+      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n${planJson}")
+      logOnLevel(
+        substraitPlanLogLevel,
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>
         updateNativeMetrics(

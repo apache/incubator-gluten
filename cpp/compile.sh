@@ -2,7 +2,6 @@
 
 set -exu
 
-GLUTEN_DIR=/opt/gluten
 BUILD_TYPE=release
 BUILD_GAZELLE_CPP_BACKEND=OFF
 BUILD_VELOX_BACKEND=OFF
@@ -14,14 +13,12 @@ BUILD_PROTOBUF=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 NPROC=$(nproc --ignore=2)
+ARROW_ROOT=
+VELOX_HOME=
 
 for arg in "$@"
 do
     case $arg in
-        --gluten_dir=*)
-        GLUTEN_DIR=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
         --arrow_root=*)
         ARROW_ROOT=("${arg#*=}")
         shift # Remove argument name from processing
@@ -77,13 +74,19 @@ do
     esac
 done
 
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 #gluten cpp will find arrow lib from ARROW_ROOT
-ARROW_ROOT="$GLUTEN_DIR/ep/build-arrow/build/arrow_install"
+if [ "$ARROW_ROOT" == "" ]; then
+  ARROW_ROOT="$CURRENT_DIR/../ep/build-arrow/build/arrow_install"
+fi
+
 #gluten cpp will find velox lib from VELOX_HOME
-VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
+if [ "$VELOX_HOME" == "" ]; then
+  VELOX_HOME="$CURRENT_DIR/../ep/build-velox/build/velox_ep"
+fi
+
 echo "Building gluten cpp part..."
 echo "CMAKE Arguments:"
-echo "GLUTEN_DIR=${GLUTEN_DIR}"
 echo "ARROW_ROOT=${ARROW_ROOT}"
 echo "VELOX_HOME=${VELOX_HOME}"
 echo "BUILD_TYPE=${BUILD_TYPE}"

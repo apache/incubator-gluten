@@ -50,8 +50,7 @@ public class ExtensionTableNode implements Serializable {
     ReadRel.ExtensionTable.Builder extensionTableBuilder = ReadRel.ExtensionTable.newBuilder();
     StringValue extensionTable =  StringValue.newBuilder()
             .setValue(extensionTableStr.toString()).build();
-    extensionTableBuilder.setDetail(Any.newBuilder()
-            .setValue(extensionTable.toByteString()));
+    extensionTableBuilder.setDetail(Any.pack(extensionTable));
     return extensionTableBuilder.build();
   }
 }

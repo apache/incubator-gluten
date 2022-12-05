@@ -140,13 +140,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarIterator: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.iterator", "true").toBoolean
 
-  // This config is used for deciding whether to load the native library.
-  // When false, only Java code will be executed for a quick test.
-  //
-  // FIXME remove / rename this option to emphasize on "debug" rather than "native"
-  val loadNative: Boolean =
-    conf.getConfString(GlutenConfig.GLUTEN_LOAD_NATIVE, "true").toBoolean
-
   // This config is used for specifying the name of the native library.
   val nativeLibName: String =
     conf.getConfString(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
@@ -221,11 +214,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
 
+  val substraitPlanLogLevel: String =
+    conf.getConfString("spark.gluten.sql.substrait.plan.logLevel", "DEBUG")
 }
 
 object GlutenConfig {
 
-  val GLUTEN_LOAD_NATIVE = "spark.gluten.sql.columnar.loadnative"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
 

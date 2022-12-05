@@ -14,16 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.utils
 
-package io.glutenproject.row;
+import org.apache.spark.internal.Logging
 
-import java.io.IOException;
+trait LogLevelUtil { self: Logging =>
 
-public interface BaseRowIterator {
-
-  boolean hasNext() throws IOException;
-
-  SparkRowInfo next() throws IOException;
-
-  void close();
+  protected def logOnLevel(level: String, msg: => String): Unit =
+    level match {
+      case "TRACE" => logTrace(msg)
+      case "DEBUG" => logDebug(msg)
+      case "INFO" => logInfo(msg)
+      case "WARN" => logWarning(msg)
+      case "ERROR" => logError(msg)
+      case _ => logDebug(msg)
+    }
 }
