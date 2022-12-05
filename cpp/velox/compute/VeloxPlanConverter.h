@@ -96,7 +96,7 @@ class WholeStageResIter {
 
   virtual ~WholeStageResIter() = default;
 
-  std::shared_ptr<VeloxColumnarBatch> Next();
+  arrow::Result<std::shared_ptr<VeloxColumnarBatch>> Next();
 
   std::shared_ptr<Metrics> GetMetrics(int64_t exportNanos) {
     collectMetrics();

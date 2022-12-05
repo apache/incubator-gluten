@@ -17,7 +17,10 @@
 
 #pragma once
 
-#include <memory>
+#include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
+#include <arrow/record_batch.h>
+#include <arrow/util/iterator.h>
 
 #include "memory/columnar_batch.h"
 #include "utils/metrics.h"

@@ -413,7 +413,7 @@ void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const core::PlanNode>
   GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
 
-std::shared_ptr<VeloxColumnarBatch> WholeStageResIter::Next() {
+arrow::Result<std::shared_ptr<VeloxColumnarBatch>> WholeStageResIter::Next() {
   addSplits_(task_.get());
   if (task_->isFinished()) {
     return nullptr;
