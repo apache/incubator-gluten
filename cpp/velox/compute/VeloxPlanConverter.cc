@@ -353,11 +353,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResIterMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
-    return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+    return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter =
         std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
-    return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+    return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
 
@@ -378,7 +378,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
 
   auto wholestageIter =
       std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
-  return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+  return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
 arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnarConverter(

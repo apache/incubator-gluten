@@ -26,12 +26,12 @@ class DummyBackend : public Backend {
  public:
   std::shared_ptr<ResultIterator> GetResultIterator(MemoryAllocator* allocator) override {
     auto res_iter = std::make_shared<DummyResultIterator>();
-    return std::make_shared<GlutenResultIterator>(std::move(res_iter));
+    return std::make_shared<ResultIterator>(std::move(res_iter));
   }
 
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(
+  std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<GlutenResultIterator>> inputs) {
+      std::vector<std::shared_ptr<ResultIterator>> inputs) {
     return GetResultIterator(allocator);
   }
 

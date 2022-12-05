@@ -35,33 +35,20 @@ using ColumnBatchIterator = arrow::Iterator<std::shared_ptr<ColumnarBatch>>;
 
 class ResultIterator {
  public:
-  virtual ~ResultIterator() = default;
-  virtual bool HasNext() = 0;
-  virtual std::shared_ptr<ColumnarBatch> Next() = 0;
-  virtual std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() = 0;
-  virtual void* GetRaw() = 0;
-  virtual const void* GetRaw() const = 0;
-  virtual std::shared_ptr<Metrics> GetMetrics() = 0;
-  virtual void setExportNanos(int64_t exportNanos) = 0;
-  virtual int64_t getExportNanos() const = 0;
-};
-
-class GlutenResultIterator : public ResultIterator {
- public:
   template <typename T>
-  explicit GlutenResultIterator(std::unique_ptr<T>&& iter, std::shared_ptr<Backend> backend = nullptr)
+  explicit ResultIterator(std::unique_ptr<T>&& iter, std::shared_ptr<Backend> backend = nullptr)
       : raw_iter_(iter.get()),
         iter_(std::make_unique<ColumnBatchIterator>(Wrapper<T>(std::move(iter)))),
         next_(nullptr),
         backend_(std::move(backend)) {}
 
-  bool HasNext() override {
+  bool HasNext() {
     CheckValid();
     GetNext();
     return next_ != nullptr;
   }
 
-  std::shared_ptr<ColumnarBatch> Next() override {
+  std::shared_ptr<ColumnarBatch> Next() {
     CheckValid();
     GetNext();
     return std::move(next_);
@@ -81,26 +68,26 @@ class GlutenResultIterator : public ResultIterator {
   }
 
   // For testing and benchmarking.
-  void* GetRaw() override {
+  void* GetRaw() {
     return raw_iter_;
   }
 
-  const void* GetRaw() const override {
+  const void* GetRaw() const {
     return raw_iter_;
   }
 
-  std::shared_ptr<Metrics> GetMetrics() override {
+  std::shared_ptr<Metrics> GetMetrics() {
     if (backend_) {
       return backend_->GetMetrics(raw_iter_, exportNanos_);
     }
     return nullptr;
   }
 
-  void setExportNanos(int64_t exportNanos) override {
+  void setExportNanos(int64_t exportNanos) {
     exportNanos_ = exportNanos;
   }
 
-  int64_t getExportNanos() const override {
+  int64_t getExportNanos() const {
     return exportNanos_;
   }
 

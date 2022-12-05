@@ -132,12 +132,12 @@ std::shared_ptr<arrow::RecordBatchReader> createReader(const std::string& path) 
   return recordBatchReader;
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(const std::string& path) {
-  return std::make_shared<gluten::GlutenResultIterator>(std::make_unique<BatchVectorIterator>(path));
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchVector(const std::string& path) {
+  return std::make_shared<gluten::ResultIterator>(std::make_unique<BatchVectorIterator>(path));
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(const std::string& path) {
-  return std::make_shared<gluten::GlutenResultIterator>(std::make_unique<BatchStreamIterator>(path));
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchStream(const std::string& path) {
+  return std::make_shared<gluten::ResultIterator>(std::make_unique<BatchStreamIterator>(path));
 }
 
 void setCpu(uint32_t cpuindex) {
