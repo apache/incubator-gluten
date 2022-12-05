@@ -25,7 +25,7 @@ namespace gluten {
 class DummyBackend : public Backend {
  public:
   std::shared_ptr<ResultIterator> GetResultIterator(MemoryAllocator* allocator) override {
-    auto res_iter = std::make_shared<DummyResultIterator>();
+    auto res_iter = std::make_unique<DummyResultIterator>();
     return std::make_shared<ResultIterator>(std::move(res_iter));
   }
 
