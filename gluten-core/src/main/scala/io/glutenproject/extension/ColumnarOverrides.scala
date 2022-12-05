@@ -50,23 +50,25 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
+  /**
+   * Insert a Project as the new child of Shuffle to calculate the hash expressions.
+   * @param exprs hash expressions in Shuffle HashPartitioning.
+   * @param child the original child of Shuffle.
+   * @return a new Spark plan with Project inserted.
+   */
   private def getProjectWithHash(exprs: Seq[Expression], child: SparkPlan)
   : SparkPlan = {
     val hashExpression = new Murmur3Hash(exprs)
     hashExpression.withNewChildren(exprs)
-    val project = child match {
-      case exec: ProjectExec =>
-        // merge the project node
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
-          child.output, exec.child)
-      case transformer: ProjectExecTransformer =>
-        // merge the project node
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
-          child.output, transformer.child)
-      case _ =>
-        ProjectExec(Seq(Alias(hashExpression, "hash_partition_key")()) ++
-          child.output, child)
-    }
+    // If the child of shuffle is also a Project, we do not merge them together here.
+    // Suppose the plan is like below, in which Project2 is inserted for hash calculation.
+    // Because the hash expressions are based on Project1, Project1 cannot be merged with Project2.
+    // ... => Child_of_Project1(a, b)
+    //     => Project1(a as c, b as d)
+    //     => Project2(hash(c), c, d)
+    //     => Shuffle => ...
+    val project = ProjectExec(
+      Seq(Alias(hashExpression, "hash_partition_key")()) ++ child.output, child)
     AddTransformHintRule().apply(project)
     replaceWithTransformerPlan(project)
   }
