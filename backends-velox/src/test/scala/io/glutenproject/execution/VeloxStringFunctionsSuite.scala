@@ -96,11 +96,11 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
 
   test("second") {
     runQueryAndCompare(s"select l_orderkey, l_shipdate, second(l_shipdate) " +
-      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+      s"from lineitem limit $LENGTH") { _ => }
     runQueryAndCompare(s"select l_orderkey, l_shipdate, second('2009-07-30 12:58:59') " +
-      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
-    runQueryAndCompare(s"select l_orderkey, dayofweek(null) " +
-      s"from lineitem limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+      s"from lineitem limit $LENGTH") { _ => }
+    runQueryAndCompare(s"select l_orderkey, second(null) " +
+      s"from lineitem limit $LENGTH") { _ => }
   }
 
   ignore("weekday") {// todo: result mismatched
