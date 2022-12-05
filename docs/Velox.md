@@ -3,18 +3,7 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 # 1 Prerequisite
 
 <b>Currently Gluten+Velox backend is only tested on Ubuntu20.04 and Ubuntu22.04. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually:
-
-```shell script
-apt-get update
-apt-get install -y software-properties-common maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build uuid-dev sudo openjdk-8-jdk default-jdk
-```
-
-Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
-```shell script
-export JAVA_HOME=path/to/java/home
-export PATH=$JAVA_HOME/bin:$PATH
-```
+Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
 
 # 2 Build Gluten with Velox Backend
 
@@ -47,19 +36,19 @@ cd /path_to_gluten/ep/build-arrow/src/
 ## fetch velox
 cd /path_to_gluten/ep/build-velox/src/
 ./get_velox.sh
-## compile velox and build protobuf and folly at first time
-./build_velox.sh --build_protobuf=ON --build_folly=ON
+## compile velox
+./build_velox.sh
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
 ./compile.sh --build_velox_backend=ON
 
 ### compile gluten jvm and package jar
-cd /path_to_gluten/
+cd /path_to_gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 ```
 
@@ -72,22 +61,20 @@ Refer to [build configurations](GlutenUsage.md) for the list of configurations u
 You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it as below.
 
 ```shell script
-step 1: set velox_home in build_velox.sh and compile.sh or by --velox_home
-
-step 2: recompile velox
+step 1: recompile velox, set velox_home in build_velox.sh
 cd /path_to_gluten/ep/build_velox/src
-./build_velox.sh
+./build_velox.sh  --velox_home=/your_specified_velox_path
 
-step 3: recompile gluten cpp folder
+step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
-./compile.sh
+./compile.sh --velox_home=/your_specified_velox_path
 
-step 4: package jar
+step 3: package jar
 cd /path_to_gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 ```
 
@@ -97,24 +84,20 @@ Arrow home can be set as the same of Velox. We will soon switch to upstream Arro
 You can also clone the Arrow source from [OAP/Arrow](https://github.com/oap-project/arrow) to some other folder then specify it as below.
 
 ```shell script
-step 1: set ARROW_SOURCE_DIR in build_arrow_for_velox.sh
-
-step 2: set ARROW_ROOT in compile.sh or by --arrow_root
-
-step 3: comile arrow
+step 1: set ARROW_SOURCE_DIR in build_arrow_for_velox.sh and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./build_arrow_for_velox.sh
 
-step 4: compile cpp folder
+step 2: set ARROW_ROOT in compile.sh or run with --arrow_root
 cd /path_to_gluten/cpp
-sh ./compile.sh
+sh ./compile.sh --arrow_root=/your_arrow_lib
 
-step 5: package jar
+step 3: package jar
 cd /path_to_gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 ```
 
@@ -227,8 +210,7 @@ Gluten supports allocating memory on HBM. This feature is optional and is disabl
 To enable this feature in Gluten, users can. Below command is used to enable this feature.
 ```
 cd /path_to_gluten/cpp
-sed -i 's/ENABLE_HBM=OFF/ENABLE_HBM=ON/' ./compile.sh
-./compile.sh
+./compile.sh --enable_hbm
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip

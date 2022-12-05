@@ -68,7 +68,7 @@ jobs:
           ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
-          ./build_velox.sh --build_protobuf=ON --build_folly=ON && \
+          ./build_velox.sh && \
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON && \
           cd /opt/gluten && \

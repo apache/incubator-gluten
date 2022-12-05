@@ -1,9 +1,7 @@
 #!/bin/bash
 
 set -exu
-
 #setting gluten root path
-GLUTEN_DIR=/opt/gluten
 ARROW_REPO=https://github.com/oap-project/arrow.git
 #for velox_backend
 ARROW_BRANCH=backend_velox_main
@@ -14,10 +12,6 @@ ARROW_BRANCH=backend_velox_main
 for arg in "$@"
 do
     case $arg in
-        --gluten_dir=*)
-        GLUTEN_DIR=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
         --arrow_repo=*)
         ARROW_REPO=("${arg#*=}")
         shift # Remove argument name from processing
@@ -34,9 +28,10 @@ do
 done
 
 echo "Arrow Get start..."
-mkdir -p "$GLUTEN_DIR/ep/build-arrow/build"
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+mkdir -p "$CURRENT_DIR/../build"
 
-ARROW_SOURCE_DIR="$GLUTEN_DIR/ep/build-arrow/build/arrow_ep"
+ARROW_SOURCE_DIR="$CURRENT_DIR/../build/arrow_ep"
 
 if [ -d $ARROW_SOURCE_DIR ]; then
     rm -rf $ARROW_SOURCE_DIR
