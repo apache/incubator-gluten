@@ -21,7 +21,6 @@ import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
-import io.glutenproject.row.BaseRowIterator
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -301,15 +300,5 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       numOutputRows,
       numOutputBatches,
       scanTime)
-  }
-
-  /**
-   * Generate row iterator for substrait partition.
-   *
-   * @return
-   */
-  override def genRowIterator(partition: BaseGlutenPartition): BaseRowIterator = {
-    val transKernel = new CHNativeExpressionEvaluator()
-    transKernel.createKernelWithRowIterator(partition.plan)
   }
 }

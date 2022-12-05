@@ -32,7 +32,6 @@ import io.glutenproject.expression.ArrowConverterUtils
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.row.BaseRowIterator
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -362,6 +361,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
     )
     new VeloxMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
   }
+
   /**
    * Generate Native FileScanRDD, currently only for ClickHouse Backend.
    */
@@ -374,15 +374,5 @@ class VeloxIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
                                     scanTime: SQLMetric): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(
       "Cannot support to generate Native FileScanRDD.")
-  }
-
-  /**
-   * Generate row iterator for substrait partition.
-   *
-   * @return
-   */
-  override def genRowIterator(partition: BaseGlutenPartition): BaseRowIterator = {
-    val transKernel = new VeloxNativeExpressionEvaluator()
-    transKernel.createKernelWithRowIterator(partition.plan)
   }
 }
