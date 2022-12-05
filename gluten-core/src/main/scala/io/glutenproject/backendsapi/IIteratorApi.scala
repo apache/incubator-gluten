@@ -24,8 +24,7 @@ import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.row.BaseRowIterator
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.vectorized.{GeneralInIterator, GeneralOutIterator, NativeExpressionEvaluator}
-
+import io.glutenproject.vectorized.{GeneralOutIterator, NativeExpressionEvaluator}
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
@@ -72,7 +71,7 @@ trait IIteratorApi {
    *
    * @return
    */
-  def genFirstStageIterator(inputPartition: BaseGlutenPartition, loadNative: Boolean,
+  def genFirstStageIterator(inputPartition: BaseGlutenPartition,
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
                             updateOutputMetrics: (Long, Long) => Unit,

@@ -34,19 +34,16 @@ class NativeWholeStageRowRDD(
                               columnarReads: Boolean)
   extends RDD[InternalRow](sc, Nil) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val loadNative = GlutenConfig.getConf.loadNative
 
   override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
     val inputPartition = castNativePartition(split)
 
-    var resIter: BaseRowIterator = null
-    if (loadNative) {
-      val startTime = System.nanoTime()
-      resIter = BackendsApiManager.getIteratorApiInstance.genRowIterator(inputPartition)
-      logWarning(s"===========create ${System.nanoTime() - startTime}")
-    }
+    val startTime = System.nanoTime()
+    val resIter: BaseRowIterator =
+      BackendsApiManager.getIteratorApiInstance.genRowIterator(inputPartition)
+    logWarning(s"===========create ${System.nanoTime() - startTime}")
 
     val iter = new Iterator[InternalRow] with AutoCloseable {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
@@ -54,12 +51,7 @@ class NativeWholeStageRowRDD(
       private var totalBatch = 0
 
       override def hasNext: Boolean = {
-        if (loadNative) {
-          val hasNextRes = (currentIterator != null && currentIterator.hasNext) || nextIterator()
-          hasNextRes
-        } else {
-          false
-        }
+        (currentIterator != null && currentIterator.hasNext) || nextIterator()
       }
 
       private def nextIterator(): Boolean = {

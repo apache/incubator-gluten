@@ -80,7 +80,6 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
       .set("spark.sql.adaptive.enabled", "false")

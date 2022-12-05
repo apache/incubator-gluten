@@ -35,11 +35,7 @@ class CHInitializerApi extends IInitializerApi {
     }
     // Path based load. Ignore all other loadees.
     JniLibLoader.loadFromPath(libPath, true)
-    // SQLConf is not initialed here, so it's not possible to use 'GlutenConfig.getConf' to
-    // get conf.
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val initKernel = new CHNativeExpressionEvaluator()
-      initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
-    }
+    val initKernel = new CHNativeExpressionEvaluator()
+    initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
   }
 }

@@ -17,16 +17,11 @@
 
 package io.glutenproject.execution
 
-import java.io.Serializable
-
-import scala.collection.mutable
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
+import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.vectorized.GeneralOutIterator
 import io.substrait.proto.Plan
-
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -35,6 +30,9 @@ import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util._
+
+import java.io.Serializable
+import scala.collection.mutable
 
 trait BaseGlutenPartition extends Partition with InputPartition {
   def plan: Plan
@@ -106,7 +104,6 @@ class NativeWholeStageColumnarRDD(sc: SparkContext,
                                   updateNativeMetrics: GeneralOutIterator => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val loadNative: Boolean = GlutenConfig.getConf.loadNative
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     ExecutorManager.tryTaskSet(numaBindingInfo)
@@ -115,7 +112,6 @@ class NativeWholeStageColumnarRDD(sc: SparkContext,
     if (rdds.isEmpty) {
       BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
         inputPartition,
-        loadNative,
         outputAttributes,
         context,
         pipelineTime,
@@ -128,7 +124,6 @@ class NativeWholeStageColumnarRDD(sc: SparkContext,
       }
       BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
         inputPartition,
-        loadNative,
         outputAttributes,
         context,
         pipelineTime,

@@ -40,11 +40,7 @@ class VeloxInitializerApi extends IInitializerApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
-    // SQLConf is not initialed here, so it's not possible to use 'GlutenConfig.getConf' to
-    // get conf.
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val initKernel = new VeloxNativeExpressionEvaluator()
-      initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
-    }
+    val initKernel = new VeloxNativeExpressionEvaluator()
+    initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
   }
 }
