@@ -65,13 +65,30 @@ class MinuteTransformer(child: Expression, timeZoneId: Option[String] = None)
 }
 
 class SecondTransformer(child: Expression, timeZoneId: Option[String] = None)
-  extends Second(child, timeZoneId) with ExtractDateTransformer {
+   extends Second(child, timeZoneId) with ExtractDateTransformer {
 
   override def getField: String = "SECOND"
 
   override def getChild: Expression = child
 
-  override def getDataType: DataType = child.dataType
+  override def getDataType: DataType = dataType
+
+//  override def doTransform(args: java.lang.Object): ExpressionNode = {
+//    val childNode = getChild.asInstanceOf[ExpressionTransformer].doTransform(args)
+//    if (!childNode.isInstanceOf[ExpressionNode]) {
+//      throw new UnsupportedOperationException(s"not supported yet.")
+//    }
+//
+//    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+//    val functionName = ConverterUtils.makeFuncName(
+//      getField, Seq(getChild.dataType), FunctionConfig.OPT)
+//    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+//    // val fieldNode = ExpressionBuilder.makeStringLiteral(getField)
+//    val expressNodes = Lists.newArrayList(childNode.asInstanceOf[ExpressionNode])
+//    val typeNode = ConverterUtils.getTypeNode(getDataType, getChild.nullable)
+//
+//    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
+//  }
 }
 
 /**

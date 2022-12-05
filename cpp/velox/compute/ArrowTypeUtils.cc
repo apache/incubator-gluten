@@ -50,6 +50,9 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
   if (type_name == "DATE") {
     return arrow::date32();
   }
+  if (type_name == "TIMESTAMP") {
+    return arrow::timestamp(arrow::TimeUnit::MICRO);
+  }
   // The type name of Array type is like ARRAY<type>.
   std::string arrayType = "ARRAY";
   if (type_name.substr(0, arrayType.length()) == arrayType) {

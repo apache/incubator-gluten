@@ -23,6 +23,9 @@ import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTrait {
 
+  override def whiteTestNameList: Seq[String] = super.whiteTestNameList ++ Seq(
+    "Seconds")
+
   override protected def checkEvaluation(expression: => Expression,
                                          expected: Any,
                                          inputRow: InternalRow = EmptyRow): Unit = {

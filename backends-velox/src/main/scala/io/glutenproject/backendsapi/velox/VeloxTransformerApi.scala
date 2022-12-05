@@ -47,7 +47,7 @@ class VeloxTransformerApi extends ITransformerApi with Logging {
       if (inputTypeName.equals(VeloxExpressionUtil.EMPTY_TYPE)) {
         return false
       } else {
-        for (input <- expr.children) {
+        for (input <- expr.children ++ Seq(expr) ) {
           if (inputTypeName.equals(input.dataType.typeName)) {
             return false
           }
