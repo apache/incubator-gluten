@@ -76,12 +76,7 @@ class ResultIterator {
     return raw_iter_;
   }
 
-  std::shared_ptr<Metrics> GetMetrics() {
-    if (backend_) {
-      return backend_->GetMetrics(raw_iter_, exportNanos_);
-    }
-    return nullptr;
-  }
+  std::shared_ptr<Metrics> GetMetrics();
 
   void setExportNanos(int64_t exportNanos) {
     exportNanos_ = exportNanos;

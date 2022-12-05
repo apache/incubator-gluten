@@ -23,6 +23,7 @@
 #include <arrow/util/iterator.h>
 
 #include "compute/protobuf_utils.h"
+#include "compute/result_iterator.h"
 #include "memory/arrow_memory_pool.h"
 #include "memory/columnar_batch.h"
 #include "operators/c2r/arrow_columnar_to_row_converter.h"
