@@ -22,9 +22,9 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 
 class LiteralTransformer(lit: Literal)
-  extends Literal(lit.value, lit.dataType) with ExpressionTransformer {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    ExpressionBuilder.makeLiteral(lit.value, dataType, nullable)
+    ExpressionBuilder.makeLiteral(lit.value, lit.dataType, lit.nullable)
   }
 }

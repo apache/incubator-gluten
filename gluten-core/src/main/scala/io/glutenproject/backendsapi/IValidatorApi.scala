@@ -20,12 +20,32 @@ package io.glutenproject.backendsapi
 import io.glutenproject.substrait.plan.PlanNode
 
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 
 /**
  * Determine if a plan or expression can be accepted by the backend, or we fallback
  * the execution to vanilla Spark.
  */
 trait IValidatorApi {
-  def doValidate(expr: Expression): Boolean
+
+  /**
+   * Validate expression for specific backend, including input type.
+   * If the expression isn't implemented by the backend or
+   * it returns mismatched results with Vanilla Spark,
+   * it will fall back to Vanilla Spark.
+   *
+   * @return true by default
+   */
+  def doExprValidate(substraitExprName: String, expr: Expression): Boolean = true
+
+  /**
+   * Validate aggregate function for specific backend.
+   * If the aggregate function isn't implemented by the backend,
+   * it will fall back to Vanilla Spark.
+   */
+  def doAggregateFunctionValidate(
+      substraitFuncName: String,
+      func: AggregateFunction): Boolean = true
+
   def doValidate(plan: PlanNode): Boolean
 }

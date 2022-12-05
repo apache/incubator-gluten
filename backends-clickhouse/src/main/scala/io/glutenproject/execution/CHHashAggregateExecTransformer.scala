@@ -211,9 +211,9 @@ case class CHHashAggregateExecTransformer(
       expr => {
         // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
         // may be different for each backend.
-        val groupingExpr: Expression = ExpressionConverter
+        val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(expr, child.output)
-        val exprNode = groupingExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+          .doTransform(args)
         groupingList.add(exprNode)
       })
     // Get the aggregate function nodes.
@@ -235,9 +235,9 @@ case class CHHashAggregateExecTransformer(
           case Partial =>
             aggregateFunc.children.toList.map(
               expr => {
-                val aggExpr: Expression = ExpressionConverter
+                ExpressionConverter
                   .replaceWithExpressionTransformer(expr, child.output)
-                aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+                  .doTransform(args)
               })
           case PartialMerge if distinct_modes.contains(Partial) =>
             // this is the case where PartialMerge co-exists with Partial
@@ -248,18 +248,19 @@ case class CHHashAggregateExecTransformer(
                 "PartialMerge's child not being HashAggregateExecBaseTransformer" +
                   " is unsupported yet")
             }
-            val aggTypesExpr: Expression = ExpressionConverter
+            val aggTypesExpr = ExpressionConverter
               .replaceWithExpressionTransformer(
                 aggExpr.resultAttribute,
                 CHHashAggregateExecTransformer.getAggregateResultAttributes(
                   child.asInstanceOf[BaseAggregateExec].groupingExpressions,
                   child.asInstanceOf[BaseAggregateExec].aggregateExpressions)
               )
-            Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+            Seq(aggTypesExpr.doTransform(args))
           case Final | PartialMerge =>
-            val aggTypesExpr: Expression = ExpressionConverter
-              .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
-            Seq(aggTypesExpr.asInstanceOf[ExpressionTransformer].doTransform(args))
+            Seq(
+              ExpressionConverter
+                .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
+                .doTransform(args))
           case other =>
             throw new UnsupportedOperationException(s"$other not supported.")
         }

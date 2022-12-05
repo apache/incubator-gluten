@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec, ColumnarAQEShuffleReadExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
 
 class GlutenClickHouseColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite

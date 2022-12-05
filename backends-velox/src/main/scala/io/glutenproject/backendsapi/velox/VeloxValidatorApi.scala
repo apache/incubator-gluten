@@ -23,6 +23,6 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 
 class VeloxValidatorApi extends GlutenValidatorApi {
 
-  override def doValidate(expr: Expression): Boolean =
-    doValidate(VeloxExpressionUtil.VELOX_EXPR_BLACKLIST, expr)
+  override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
+    doExprValidate(VeloxExpressionUtil.VELOX_EXPR_BLACKLIST, substraitExprName, expr)
 }

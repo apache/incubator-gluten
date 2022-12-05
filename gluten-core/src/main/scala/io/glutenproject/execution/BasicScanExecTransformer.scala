@@ -131,8 +131,7 @@ trait BasicScanExecTransformer extends TransformSupport {
     val transformer = filterExprs()
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
-    val filterNodes = transformer.map(
-      _.asInstanceOf[ExpressionTransformer].doTransform(context.registeredFunction))
+    val filterNodes = transformer.map(_.doTransform(context.registeredFunction))
     val exprNode = filterNodes.orNull
 
     val relNode = RelBuilder.makeReadRel(

@@ -19,34 +19,48 @@ package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.DataType
 
-import scala.collection.mutable.ArrayBuffer
+import java.util.ArrayList
 
-class Murmur3HashTransformer(exps: Seq[Expression], original: Expression)
-  extends Murmur3Hash(exps: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
+/**
+ * Transformer for the normal complex type merging expression
+ */
+class ComplexTypeMergingExpressionTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: Expression)
+  extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val nodes = new java.util.ArrayList[ExpressionNode]()
-    val arrayBuffer = new ArrayBuffer[DataType]()
-    exps.foreach(expression => {
-      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
-      if (!expressionNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"Not supported yet.")
+    val childrenNodes = new ArrayList[ExpressionNode]
+    children.foreach(child => {
+      val childNode = child.doTransform(args)
+      if (!childNode.isInstanceOf[ExpressionNode]) {
+        throw new UnsupportedOperationException(s"${original} not supported yet.")
       }
-      arrayBuffer.append(expression.dataType)
-      nodes.add(expressionNode)
+      childrenNodes.add(childNode)
     })
+
+    val childrenTypes = original.children.map(child => child.dataType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.MURMUR3HASH,
-      arrayBuffer, FunctionConfig.OPT)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        childrenTypes,
+        FunctionConfig.OPT))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, childrenNodes, typeNode)
   }
 }
 
+object ComplexTypeMergingExpressionTransformer {
+  def apply(substraitExprName: String,
+            children: Seq[ExpressionTransformer],
+            original: Expression): ExpressionTransformer = {
+    new ComplexTypeMergingExpressionTransformer(substraitExprName, children, original)
+  }
+}

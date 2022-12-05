@@ -267,7 +267,7 @@ case class GlutenHashAggregateExecTransformer(
     groupingExpressions.foreach(expr => {
       exprNodes.add(ExpressionConverter
         .replaceWithExpressionTransformer(expr, originalInputAttributes)
-        .asInstanceOf[ExpressionTransformer].doTransform(args))
+        .doTransform(args))
     })
 
     for (aggregateExpression <- aggregateExpressions) {
@@ -281,9 +281,9 @@ case class GlutenHashAggregateExecTransformer(
               // Use a Velox function to combine the intermediate columns into struct.
               val childNodes = new util.ArrayList[ExpressionNode](
                 functionInputAttributes.toList.map(attr => {
-                val aggExpr: Expression = ExpressionConverter
+                ExpressionConverter
                   .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+                  .doTransform(args)
                 }).asJava)
               exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
             case other =>
@@ -299,9 +299,9 @@ case class GlutenHashAggregateExecTransformer(
               var newInputAttributes: Seq[Attribute] = Seq()
               val childNodes = new util.ArrayList[ExpressionNode](
                 functionInputAttributes.toList.map(attr => {
-                  val aggExpr: Expression = ExpressionConverter
+                  val aggExpr: ExpressionTransformer = ExpressionConverter
                     .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                  val aggNode = aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+                  val aggNode = aggExpr.doTransform(args)
                   val expressionNode = if (index == 0) {
                     // Cast count from DoubleType into LongType to align with Velox semantics.
                     newInputAttributes = newInputAttributes :+
@@ -325,9 +325,9 @@ case class GlutenHashAggregateExecTransformer(
           assert(functionInputAttributes.size == 1, "Only one input attribute is expected.")
           val childNodes = new util.ArrayList[ExpressionNode](
             functionInputAttributes.toList.map(attr => {
-            val aggExpr: Expression = ExpressionConverter
+            ExpressionConverter
               .replaceWithExpressionTransformer(attr, originalInputAttributes)
-            aggExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+              .doTransform(args)
           }).asJava)
           exprNodes.addAll(childNodes)
       }

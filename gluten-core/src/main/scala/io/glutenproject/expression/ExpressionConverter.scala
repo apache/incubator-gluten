@@ -19,30 +19,33 @@ package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{GlutenColumnarToRowExecBase, WholeStageTransformerExec}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.types.DecimalType
 
 object ExpressionConverter extends Logging {
 
   def replaceWithExpressionTransformer(expr: Expression,
-      attributeSeq: Seq[Attribute]): Expression = {
-    if (!BackendsApiManager.getValidatorApiInstance.doValidate(expr)) {
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    // Check whether Gluten supports this expression
+    val substraitExprName = ExpressionMappings.scalar_functions_map.get(expr.getClass)
+    if (substraitExprName.isEmpty) {
+      throw new UnsupportedOperationException(s"Not supported: $expr.")
+    }
+    // Check whether each backend supports this expression
+    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName.get, expr)) {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     expr match {
       case a: Alias =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
         BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
+          substraitExprName.get,
           replaceWithExpressionTransformer(a.child, attributeSeq),
-          a.name,
-          a.exprId,
-          a.qualifier,
-          a.explicitMetadata)
+          a)
       case a: AttributeReference =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
         if (attributeSeq == null) {
           throw new UnsupportedOperationException(s"attributeSeq should not be null.")
         }
@@ -54,67 +57,14 @@ object ExpressionConverter extends Logging {
         } else {
           val b = bindReference.asInstanceOf[BoundReference]
           new AttributeReferenceTransformer(
-            a.name, b.ordinal, a.dataType, b.nullable, a.metadata)(a.exprId, a.qualifier)
+            a.name, b.ordinal, a.dataType, b.nullable, a.exprId, a.qualifier, a.metadata)
         }
-      case l: Literal =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        new LiteralTransformer(l)
-      case b: BinaryArithmetic =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryArithmeticTransformer.create(
-          replaceWithExpressionTransformer(
-            b.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            b.right,
-            attributeSeq),
-          expr)
       case b: BoundReference =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
         new BoundReferenceTransformer(b.ordinal, b.dataType, b.nullable)
-      case r: Round =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        RoundOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            r.child,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            r.scale,
-            attributeSeq),
-          expr)
-      case r: BRound =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        RoundOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            r.child,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            r.scale,
-            attributeSeq),
-          expr)
-      case b: BinaryOperator =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryOperatorTransformer.create(
-          replaceWithExpressionTransformer(
-            b.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            b.right,
-            attributeSeq),
-          expr)
-      case b: BinaryExpression =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        BinaryExpressionTransformer.create(
-          replaceWithExpressionTransformer(
-            b.left,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            b.right,
-            attributeSeq),
-          expr)
+      case l: Literal =>
+        new LiteralTransformer(l)
       case i: If =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        IfOperatorTransformer.create(
+        new IfTransformer(
           replaceWithExpressionTransformer(
             i.predicate,
             attributeSeq),
@@ -124,206 +74,166 @@ object ExpressionConverter extends Logging {
           replaceWithExpressionTransformer(
             i.falseValue,
             attributeSeq),
-          expr)
+          i)
       case cw: CaseWhen =>
-        logInfo(s"${expr.getClass} ${expr} is supportedn.")
-        val colBranches = cw.branches.map { expr => {
-          (
+        new CaseWhenTransformer(
+          cw.branches.map { expr => {
+            (
+              replaceWithExpressionTransformer(
+                expr._1,
+                attributeSeq),
+              replaceWithExpressionTransformer(
+                expr._2,
+                attributeSeq))
+          }
+          },
+          cw.elseValue.map { expr => {
             replaceWithExpressionTransformer(
-              expr._1,
-              attributeSeq),
-            replaceWithExpressionTransformer(
-              expr._2,
-              attributeSeq))
-        }
-        }
-        val colElseValue = cw.elseValue.map { expr => {
-          replaceWithExpressionTransformer(
-            expr,
-            attributeSeq)
-        }
-        }
-        logDebug(s"colBanches: $colBranches")
-        logDebug(s"colElseValue: $colElseValue")
-        CaseWhenOperatorTransformer.create(colBranches, colElseValue, expr)
-      case g: Greatest =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        ComplexTypeMergeingOperatorTransformer.createGreatestOrLeast(
-          g.children.map(
-            child => replaceWithExpressionTransformer(child, attributeSeq)), g)
-      case l: Least =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        ComplexTypeMergeingOperatorTransformer.createGreatestOrLeast(
-          l.children.map(
-            child => replaceWithExpressionTransformer(child, attributeSeq)), l)
-      case c: Coalesce =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        val exprs = c.children.map { expr =>
-          replaceWithExpressionTransformer(
-            expr,
-            attributeSeq)
-        }
-        CoalesceExpressionTransformer.create(exprs, expr)
+              expr,
+              attributeSeq)
+          }
+          },
+          cw)
       case i: In =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        InExpressionTransformer.create(
+        new InTransformer(
           replaceWithExpressionTransformer(
             i.value,
             attributeSeq),
           i.list,
-          expr)
+          i.value.dataType,
+          i)
       case i: InSet =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        InSetOperatorTransformer.create(
+        new InSetTransformer(
           replaceWithExpressionTransformer(
             i.child,
             attributeSeq),
           i.hset,
-          expr)
-      case t: TernaryExpression =>
-        logInfo(s"${expr.getClass} ${expr} is supported.")
-        TernaryExpressionTransformer.create(
-          replaceWithExpressionTransformer(
-            t.first,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            t.second,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            t.third,
-            attributeSeq),
-          expr)
-      case l: LeafExpression =>
-        logInfo(s"${expr.getClass} $expr is supported")
-        LeafOperatorTransformer.create(l)
-      case t: QuaternaryExpression =>
-        logInfo(s"${expr.getClass} ${expr} is supported.")
-        QuaternaryExpressionTransformer.create(
-          replaceWithExpressionTransformer(
-            t.first,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            t.second,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            t.third,
-            attributeSeq),
-          replaceWithExpressionTransformer(
-            t.fourth,
-            attributeSeq),
-          expr)
-      case u: UnaryExpression =>
-        logInfo(s"${expr.getClass} $expr is supported")
-        if (!u.isInstanceOf[CheckOverflow] || !u.child.isInstanceOf[Divide]) {
-          UnaryOperatorTransformer.create(
-            replaceWithExpressionTransformer(
-              u.child,
-              attributeSeq),
-            expr)
-        } else {
-          // CheckOverflow[Divide]: pass resType to Divide to avoid precision loss.
-          val divide = u.child.asInstanceOf[Divide]
-          val columnarDivide = BinaryArithmeticTransformer.createDivide(
-            replaceWithExpressionTransformer(
-              divide.left,
-              attributeSeq),
-            replaceWithExpressionTransformer(
-              divide.right,
-              attributeSeq),
-            divide,
-            u.dataType.asInstanceOf[DecimalType])
-          UnaryOperatorTransformer.create(
-            columnarDivide,
-            expr)
-        }
+          i.child.dataType,
+          i)
       case s: org.apache.spark.sql.execution.ScalarSubquery =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
         new ScalarSubqueryTransformer(s.plan, s.exprId, s)
-      case c: Concat =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        val exprs = c.children.map { expr =>
+      case c: Cast =>
+        new CastTransformer(
           replaceWithExpressionTransformer(
-            expr,
-            attributeSeq)
-        }
-        ConcatExpressionTransformer.create(exprs, expr)
-      case m: Murmur3Hash =>
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        val exprs = m.children.map { expr =>
+            c.child,
+            attributeSeq),
+          c.dataType,
+          c.timeZoneId,
+          c)
+      case k: KnownFloatingPointNormalized =>
+        new KnownFloatingPointNormalizedTransformer(
           replaceWithExpressionTransformer(
-            expr,
-            attributeSeq)
-        }
-        new Murmur3HashTransformer(exprs, expr)
-      case l: StringTrim =>
-        if (l.trimStr != None) {
-          // todo: to be remove when Velox support this argument
+            k.child,
+            attributeSeq),
+          k)
+      case n: NormalizeNaNAndZero =>
+        new NormalizeNaNAndZeroTransformer(
+          replaceWithExpressionTransformer(
+            n.child,
+            attributeSeq),
+          n)
+      case t: StringTrim =>
+        if (t.trimStr != None) {
+          // todo: to be remove and deal all these three exprs together
+          //  when Velox support this argument
           throw new UnsupportedOperationException(s"not supported yet.")
         }
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        TrimOperatorTransformer.create(
-          replaceWithExpressionTransformer(l.srcStr, attributeSeq),
-          expr)
+        new String2TrimExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(t.srcStr, attributeSeq),
+          t)
       case l: StringTrimLeft =>
         if (l.trimStr != None) {
           throw new UnsupportedOperationException(s"not supported yet.")
         }
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        TrimOperatorTransformer.create(
+        new String2TrimExpressionTransformer(
+          substraitExprName.get,
           replaceWithExpressionTransformer(l.srcStr, attributeSeq),
-          expr)
+          l)
       case r: StringTrimRight =>
         if (r.trimStr != None) {
           throw new UnsupportedOperationException(s"not supported yet.")
         }
-        logInfo(s"${expr.getClass} ${expr} is supported")
-        TrimOperatorTransformer.create(
+        new String2TrimExpressionTransformer(
+          substraitExprName.get,
           replaceWithExpressionTransformer(r.srcStr, attributeSeq),
-          expr)
+          r)
+      case m: HashExpression[_] =>
+        new HashExpressionTransformer(
+          substraitExprName.get,
+          m.children.map { expr =>
+            replaceWithExpressionTransformer(
+              expr,
+              attributeSeq)
+          },
+          m)
+      case complex: ComplexTypeMergingExpression =>
+        ComplexTypeMergingExpressionTransformer(
+          substraitExprName.get,
+          complex.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          complex)
+      // Extract date
+      case g: GetDateField =>
+        new ExtractDateTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(
+            g.child,
+            attributeSeq),
+          g)
+      case l: LeafExpression =>
+        LeafExpressionTransformer(substraitExprName.get, l)
+      case u: UnaryExpression =>
+        UnaryExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(
+            u.child,
+            attributeSeq),
+          u)
+      case b: BinaryExpression =>
+        BinaryExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(
+            b.left,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            b.right,
+            attributeSeq),
+          b)
+      case t: TernaryExpression =>
+        TernaryExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(
+            t.first,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            t.second,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            t.third,
+            attributeSeq),
+          t)
+      case q: QuaternaryExpression =>
+        QuaternaryExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(
+            q.first,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            q.second,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            q.third,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            q.fourth,
+            attributeSeq),
+          q)
       case expr =>
-        logDebug(s"${expr.getClass} or ${expr} is not currently supported.")
+        logWarning(s"${expr.getClass} or ${expr} is not currently supported.")
         throw new UnsupportedOperationException(
           s"${expr.getClass} or ${expr} is not currently supported.")
     }
   }
-
-  def containsSubquery(expr: Expression): Boolean =
-    expr match {
-      case a: AttributeReference =>
-        return false
-      case lit: Literal =>
-        return false
-      case b: BoundReference =>
-        return false
-      case u: UnaryExpression =>
-        containsSubquery(u.child)
-      case b: BinaryOperator =>
-        containsSubquery(b.left) || containsSubquery(b.right)
-      case i: If =>
-        containsSubquery(i.predicate) || containsSubquery(i.trueValue) || containsSubquery(
-          i.falseValue)
-      case cw: CaseWhen =>
-        cw.branches.exists(p => containsSubquery(p._1) || containsSubquery(p._2)) ||
-          cw.elseValue.exists(containsSubquery)
-      case c: Coalesce =>
-        c.children.exists(containsSubquery)
-      case i: In =>
-        containsSubquery(i.value)
-      case ss: Substring =>
-        containsSubquery(ss.str) || containsSubquery(ss.pos) || containsSubquery(ss.len)
-      case oaps: io.glutenproject.expression.ScalarSubqueryTransformer =>
-        return true
-      case s: org.apache.spark.sql.execution.ScalarSubquery =>
-        return true
-      case c: Concat =>
-        c.children.exists(containsSubquery)
-      case b: BinaryExpression =>
-        containsSubquery(b.left) || containsSubquery(b.right)
-      case expr =>
-        logDebug(s"${expr.getClass} | ${expr} is not currently supported.")
-        throw new UnsupportedOperationException(
-          s" --> ${expr.getClass} | ${expr} is not currently supported.")
-    }
 
   /**
    * Transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in DynamicPruningExpression.

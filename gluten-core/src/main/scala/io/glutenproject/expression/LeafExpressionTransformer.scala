@@ -17,29 +17,33 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.internal.Logging
 
-class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
-                                query: ScalarSubquery)
-  extends ExpressionTransformer {
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
+/**
+ * Transformer for the normal leaf expression
+ */
+class LeafExpressionTransformer(
+    substraitExprName: String,
+    original: Expression)
+  extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // the first column in first row from `query`.
-    val rows = query.plan.executeCollect()
-    if (rows.length > 1) {
-      sys.error(s"more than one row returned by a subquery used as an expression:\n${query.plan}")
-    }
-    val result: AnyRef = if (rows.length == 1) {
-      assert(rows(0).numFields == 1,
-        s"Expects 1 field, but got ${rows(0).numFields}; something went wrong in analysis")
-      rows(0).get(0, query.dataType)
-    } else {
-      // If there is no rows returned, the result should be null.
-      null
-    }
-    ExpressionBuilder.makeLiteral(result, query.dataType, result == null)
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, Seq()))
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+object LeafExpressionTransformer {
+  def apply(substraitExprName: String,
+            original: Expression): ExpressionTransformer = {
+    new LeafExpressionTransformer(substraitExprName, original)
   }
 }

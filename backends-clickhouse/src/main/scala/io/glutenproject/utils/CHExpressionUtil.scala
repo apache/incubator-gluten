@@ -14,29 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionMappings._
-import io.glutenproject.utils.GlutenExpressionUtil.{ARRAY_TYPE, EMPTY_TYPE, MAP_TYPE, STRUCT_TYPE}
 
-import org.apache.spark.sql.types.DataTypes
-
-object VeloxExpressionUtil {
+object CHExpressionUtil {
 
   /**
-   * The blacklist for Velox unsupported or mismatched expressions with specific input type, such as
-   * Cast(ArrayType)
+   * The blacklist for Clickhouse unsupported or mismatched expression / aggregate function with
+   * specific input type.
    */
-  // The expression with empty type will fall back directly.
-  final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
-    CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
-    ROUND -> Set(EMPTY_TYPE),
+  final val EMPTY_TYPE = ""
+
+  final val CH_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
+    COALESCE -> Set(EMPTY_TYPE),
+    RLIKE -> Set(EMPTY_TYPE),
     REGEXP_REPLACE -> Set(EMPTY_TYPE),
+    REGEXP_EXTRACT -> Set(EMPTY_TYPE),
+    REGEXP_EXTRACT_ALL -> Set(EMPTY_TYPE),
+    ASCII -> Set(EMPTY_TYPE),
+    LOCATE -> Set(EMPTY_TYPE),
+    LPAD -> Set(EMPTY_TYPE),
+    RPAD -> Set(EMPTY_TYPE),
+    REVERSE -> Set(EMPTY_TYPE),
     SPLIT -> Set(EMPTY_TYPE),
-    SPLIT_PART -> Set(EMPTY_TYPE),
-    LENGTH -> Set(DataTypes.BinaryType.typeName),
-    // to be removed when Velox support compatible type
-    JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE)
+    PMOD -> Set(EMPTY_TYPE),
+    GET_JSON_OBJECT -> Set(EMPTY_TYPE),
+    JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
+    MURMUR3HASH -> Set(EMPTY_TYPE),
+    MD5 -> Set(EMPTY_TYPE),
+    SPLIT_PART -> Set(EMPTY_TYPE)
+  )
+
+  final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
+    STDDEV_SAMP -> Set(EMPTY_TYPE)
   )
 }

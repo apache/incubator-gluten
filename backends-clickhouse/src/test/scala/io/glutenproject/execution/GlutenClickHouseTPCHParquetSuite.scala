@@ -301,7 +301,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(15) { df => }
   }
 
-  // see issue CH-93
+  // see issue https://github.com/Kyligence/ClickHouse/issues/93
   ignore("TPCH Q16") {
     runTPCHQuery(16) { df => }
   }
@@ -326,7 +326,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(20) { df => }
   }
 
-  // see issue CH-93
+  // see issue https://github.com/Kyligence/ClickHouse/issues/93
   ignore("TPCH Q22") {
     runTPCHQuery(22) { df => }
   }
