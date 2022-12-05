@@ -19,6 +19,7 @@
 
 #include <memory>
 
+#include "compute/transfer_iterator.h"
 #include "memory/columnar_batch.h"
 #include "utils/metrics.h"
 
@@ -39,6 +40,7 @@ class ResultIterator {
   virtual bool HasNext() = 0;
   virtual std::shared_ptr<ColumnarBatch> Next() = 0;
   virtual std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() = 0;
+  virtual std::unique_ptr<TransferIterator> ToTransferIterator() = 0;
   virtual void* GetRaw() = 0;
   virtual const void* GetRaw() const = 0;
   virtual std::shared_ptr<Metrics> GetMetrics() = 0;
@@ -46,11 +48,25 @@ class ResultIterator {
   virtual int64_t getExportNanos() const = 0;
 };
 
-template <typename Iterator>
+template <typename Iterator> inline
+std::shared_ptr<ColumnarBatch> IteratorNext(void* iterator) {
+  return ((Iterator*)iterator)->Next();
+}
+
+template <typename Iterator> inline 
+void IteratorDelete(void* p) {
+  delete (Iterator*)p;
+}
+
 class GlutenResultIterator : public ResultIterator {
  public:
+  template <typename Iterator>
   explicit GlutenResultIterator(std::unique_ptr<Iterator>&& iter, std::shared_ptr<Backend> backend = nullptr)
-      : raw_iterator_(iter.get()), iterator_(std::move(iter)), next_(nullptr), backend_(std::move(backend)) {}
+      : raw_iterator_(iter.get()),
+      iterator_(iter.release(), IteratorDelete<Iterator>),
+      iterator_next_fn_(IteratorNext<Iterator>),
+      next_(nullptr),
+      backend_(std::move(backend)) {}
 
   bool HasNext() override {
     CheckValid();
@@ -64,21 +80,25 @@ class GlutenResultIterator : public ResultIterator {
     return std::move(next_);
   }
 
+  std::unique_ptr<TransferIterator> ToTransferIterator() override {
+    return std::make_unique<TransferIterator>(raw_iterator_, std::move(iterator_), iterator_next_fn_);
+  }
+
   /// ArrowArrayIterator doesn't support shared ownership. Once this method is
   /// called, the caller should take it's ownership, and
   /// ArrowArrayResultIterator will no longer have access to the underlying
   /// iterator.
   std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() override {
-    // TODO: zuochunwei
 #if 0
     ArrowArrayIterator itr = arrow::MakeMapIterator(
         [](std::shared_ptr<ColumnarBatch> b) -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
-        std::move(*iterator_));
+        std::move(*iter_));
     ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
     *itr_ptr = std::move(itr);
     return std::shared_ptr<ArrowArrayIterator>(itr_ptr);
-#endif
+#else
     return nullptr;
+#endif
   }
 
   // For testing and benchmarking.
@@ -115,12 +135,13 @@ class GlutenResultIterator : public ResultIterator {
 
   void GetNext() {
     if (next_ == nullptr) {
-      next_ = iterator_->Next();
+      next_ = (*iterator_next_fn_)(raw_iterator_);
     }
   }
 
   void* raw_iterator_;
-  std::unique_ptr<Iterator> iterator_;
+  std::unique_ptr<void, void (*)(void*)> iterator_;
+  std::shared_ptr<ColumnarBatch> (*iterator_next_fn_)(void*);
   std::shared_ptr<ColumnarBatch> next_;
   std::shared_ptr<Backend> backend_;
   int64_t exportNanos_;

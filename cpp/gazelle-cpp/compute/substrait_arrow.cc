@@ -55,7 +55,7 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
 
 std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
     gluten::MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
+    std::vector<std::shared_ptr<gluten::ResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
     throw gluten::GlutenException("Expected 1 decl, but got " + std::to_string(decls.size()));

@@ -373,7 +373,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
       auto array_iter = MakeJavaArrowArrayIterator(env, iter);
-      auto result_iter = std::make_shared<GlutenResultIterator<JavaArrowArrayIterator>>(std::move(array_iter));
+      auto result_iter = std::make_shared<GlutenResultIterator>(std::move(array_iter));
       input_iters.push_back(std::move(result_iter));
     }
   }

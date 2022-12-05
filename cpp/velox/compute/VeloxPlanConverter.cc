@@ -236,9 +236,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   std::shared_ptr<arrow::Schema> schema = arrow::schema(arrowFields);
   auto arrayIter = std::move(arrowInputIters_[iterIdx]);
   // Create ArrowArrayStream.
-  struct ArrowArrayStream veloxArrayStream;
-  GLUTEN_THROW_NOT_OK(ExportArrowArray(schema, arrayIter->ToArrowArrayIterator(), &veloxArrayStream));
-  auto arrowStream = std::make_shared<ArrowArrayStream>(veloxArrayStream);
+  auto arrowStream = CreateArrowArrayStream(schema, arrayIter->ToTransferIterator());
 
   // Create Velox ArrowStream node.
   std::vector<TypePtr> veloxTypeList;
@@ -352,14 +350,12 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
   if (scanInfos.size() == 0) {
     // Source node is not required.
-    using ResultIteratorType = GlutenResultIterator<WholeStageResIterMiddleStage>;
     auto wholestageIter = std::make_unique<WholeStageResIterMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
-    return std::make_shared<ResultIteratorType>(std::move(wholestageIter), shared_from_this());
+    return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
-    using ResultIteratorType = GlutenResultIterator<WholeStageResIterFirstStage>;
     auto wholestageIter =
         std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
-    return std::make_shared<ResultIteratorType>(std::move(wholestageIter), shared_from_this());
+    return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
 
@@ -378,10 +374,9 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
 
-  using ResultIteratorType = GlutenResultIterator<WholeStageResIterFirstStage>;
   auto wholestageIter =
       std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
-  return std::make_shared<ResultIteratorType>(std::move(wholestageIter), shared_from_this());
+  return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
 arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnarConverter(
