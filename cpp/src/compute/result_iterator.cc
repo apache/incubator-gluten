@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-#include "exec_backend.h"
 #include "result_iterator.h"
+#include "exec_backend.h"
 
 namespace gluten {
 

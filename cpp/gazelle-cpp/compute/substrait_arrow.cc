@@ -123,7 +123,7 @@ std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(
 #endif
 
   auto iter = arrow::MakeGeneratorIterator(std::move(sink_gen));
-  auto sink_iter = std::make_shared<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
+  auto sink_iter = std::make_unique<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
 
   return std::make_shared<gluten::ResultIterator>(std::move(sink_iter), shared_from_this());
 }
