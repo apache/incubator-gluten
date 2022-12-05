@@ -25,6 +25,7 @@ import io.glutenproject.row.BaseRowIterator
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
@@ -42,7 +43,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
-class CHIteratorApi extends IIteratorApi with Logging {
+class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
 
   /**
    * Generate native row partition.
@@ -86,7 +87,11 @@ class CHIteratorApi extends IIteratorApi with Logging {
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
     if (index < 3) {
-      logDebug(s"The substrait plan for partition $index:\n${substraitPlan.toString}")
+      logOnLevel(
+        GlutenConfig.getSessionConf.substraitPlanLogLevel,
+        s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
+            .substraitPlanToJson(substraitPlan)}"
+      )
     }
     GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
   }

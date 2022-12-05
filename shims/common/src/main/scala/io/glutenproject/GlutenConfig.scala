@@ -214,6 +214,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
 
+  val substraitPlanLogLevel: String =
+    conf.getConfString("spark.gluten.sql.substrait.plan.logLevel", "DEBUG")
 }
 
 object GlutenConfig {
