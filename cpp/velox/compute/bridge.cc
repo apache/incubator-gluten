@@ -29,6 +29,122 @@
 
 namespace gluten {
 
+namespace {
+
+class ExportedArrayStreamByArray {
+ public:
+  struct PrivateData {
+    explicit PrivateData(std::shared_ptr<gluten::ArrowArrayIterator> reader, std::shared_ptr<arrow::Schema> schema)
+        : reader_(std::move(reader)), schema_(schema) {}
+
+    std::shared_ptr<gluten::ArrowArrayIterator> reader_;
+    std::string last_error_;
+    std::shared_ptr<arrow::Schema> schema_;
+
+    PrivateData() = default;
+    ARROW_DISALLOW_COPY_AND_ASSIGN(PrivateData);
+  };
+
+  explicit ExportedArrayStreamByArray(struct ArrowArrayStream* stream) : stream_(stream) {}
+
+  arrow::Status GetSchema(struct ArrowSchema* out_schema) {
+    return ExportSchema(*schema(), out_schema);
+  }
+
+  arrow::Status GetNext(struct ArrowArray* out_array) {
+    std::shared_ptr<ArrowArray> array;
+    RETURN_NOT_OK(reader()->Next().Value(&array));
+    if (array == nullptr) {
+      // End of stream
+      ArrowArrayMarkReleased(out_array);
+    } else {
+      ArrowArrayMove(array.get(), out_array);
+    }
+    return arrow::Status::OK();
+  }
+
+  const char* GetLastError() {
+    const auto& last_error = private_data()->last_error_;
+    return last_error.empty() ? nullptr : last_error.c_str();
+  }
+
+  void Release() {
+    if (ArrowArrayStreamIsReleased(stream_)) {
+      return;
+    }
+    DCHECK_NE(private_data(), nullptr);
+    delete private_data();
+
+    ArrowArrayStreamMarkReleased(stream_);
+  }
+
+  // C-compatible callbacks
+
+  static int StaticGetSchema(struct ArrowArrayStream* stream, struct ArrowSchema* out_schema) {
+    ExportedArrayStreamByArray self{stream};
+    return self.ToCError(self.GetSchema(out_schema));
+  }
+
+  static int StaticGetNext(struct ArrowArrayStream* stream, struct ArrowArray* out_array) {
+    ExportedArrayStreamByArray self{stream};
+    return self.ToCError(self.GetNext(out_array));
+  }
+
+  static void StaticRelease(struct ArrowArrayStream* stream) {
+    ExportedArrayStreamByArray{stream}.Release();
+  }
+
+  static const char* StaticGetLastError(struct ArrowArrayStream* stream) {
+    return ExportedArrayStreamByArray{stream}.GetLastError();
+  }
+
+ private:
+  int ToCError(const arrow::Status& status) {
+    if (ARROW_PREDICT_TRUE(status.ok())) {
+      private_data()->last_error_.clear();
+      return 0;
+    }
+    private_data()->last_error_ = status.ToString();
+    switch (status.code()) {
+      case arrow::StatusCode::IOError:
+        return EIO;
+      case arrow::StatusCode::NotImplemented:
+        return ENOSYS;
+      case arrow::StatusCode::OutOfMemory:
+        return ENOMEM;
+      default:
+        return EINVAL; // Fallback for Invalid, TypeError, etc.
+    }
+  }
+
+  PrivateData* private_data() {
+    return reinterpret_cast<PrivateData*>(stream_->private_data);
+  }
+
+  const std::shared_ptr<gluten::ArrowArrayIterator> reader() {
+    return private_data()->reader_;
+  }
+
+  const std::shared_ptr<arrow::Schema> schema() {
+    return private_data()->schema_;
+  }
+
+  struct ArrowArrayStream* stream_;
+};
+
+} // namespace
+
+arrow::Status ExportArrowArray(
+    std::shared_ptr<arrow::Schema> schema,
+    std::shared_ptr<gluten::ArrowArrayIterator> reader,
+    struct ArrowArrayStream* out) {
+  out->get_schema = ExportedArrayStreamByArray::StaticGetSchema;
+  out->get_next = ExportedArrayStreamByArray::StaticGetNext;
+  out->get_last_error = ExportedArrayStreamByArray::StaticGetLastError;
+  out->release = ExportedArrayStreamByArray::StaticRelease;
+  out->private_data = new ExportedArrayStreamByArray::PrivateData{std::move(reader), std::move(schema)};
+  return arrow::Status::OK();
+}
 
 //////////////////////////////////////////////////////////////////////////
 // C stream import

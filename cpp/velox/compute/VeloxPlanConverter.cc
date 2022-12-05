@@ -236,7 +236,9 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   std::shared_ptr<arrow::Schema> schema = arrow::schema(arrowFields);
   auto arrayIter = std::move(arrowInputIters_[iterIdx]);
   // Create ArrowArrayStream.
-  auto arrowStream = CreateArrowArrayStream(schema, arrayIter->ToTransferIterator());
+  struct ArrowArrayStream veloxArrayStream;
+  GLUTEN_THROW_NOT_OK(ExportArrowArray(schema, arrayIter->ToArrowArrayIterator(), &veloxArrayStream));
+  auto arrowStream = std::make_shared<ArrowArrayStream>(veloxArrayStream);
 
   // Create Velox ArrowStream node.
   std::vector<TypePtr> veloxTypeList;
