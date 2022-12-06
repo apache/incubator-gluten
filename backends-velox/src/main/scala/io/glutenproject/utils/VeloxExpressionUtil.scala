@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, JSON_ARRAY_LENGTH, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART}
+import io.glutenproject.expression.ConverterUtils.{BROUND, CAST, JSON_ARRAY_LENGTH, LENGTH, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART}
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
