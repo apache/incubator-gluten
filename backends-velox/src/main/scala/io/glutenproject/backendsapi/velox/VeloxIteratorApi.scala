@@ -28,7 +28,7 @@ import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
-import io.glutenproject.expression.ArrowConverterUtils
+import io.glutenproject.expression.VeloxArrowUtils
 import io.glutenproject.memory.{GlutenMemoryConsumer, TaskMemoryMetrics}
 import io.glutenproject.memory.alloc._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -48,7 +48,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.sql.util.GlutenArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskMemoryResources
@@ -174,7 +174,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
           }
 
           val resultStructType =
-            ArrowUtils.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
+            GlutenArrowUtils.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
           val beforeConcat = System.nanoTime
           val resultColumnVectors =
             ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType).toArray
@@ -241,7 +241,7 @@ class VeloxIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
         new ArrowInIterator(iter.asJava)
       }.asJava)
     val transKernel = new VeloxNativeExpressionEvaluator()
-    val outputSchema: Schema = ArrowConverterUtils.toArrowSchema(outputAttributes)
+    val outputSchema: Schema = VeloxArrowUtils.toArrowSchema(outputAttributes)
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)

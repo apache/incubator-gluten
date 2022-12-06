@@ -25,7 +25,10 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-object ArrowUtils {
+/**
+ * Originated from org.apache.spark.sql.util.ArrowUtils.
+ */
+object GlutenArrowUtils {
   // todo: support more types.
 
   /** Maps data type from Spark to Arrow. NOTE: timeZoneId required for TimestampTypes */

@@ -53,9 +53,14 @@ object VeloxBackendSettings extends BackendSettings {
         true
       } else {
         t match {
-          // For Velox backend, build right and left are both supported for
+          // OPPRO-266: For Velox backend, build right and left are both supported for
           // LeftOuter and LeftSemi.
-          case LeftOuter | LeftSemi => true
+          // FIXME Hongze 22/12/06
+          //  HashJoin.scala in shim was not always loaded by class loader.
+          //  The file should be removed and we temporarily disable the improvement
+          //  introduced by OPPRO-266 by commenting out the following prerequisite
+          //  condition.
+//          case LeftOuter | LeftSemi => true
           case _ => false
         }
       }
@@ -66,8 +71,13 @@ object VeloxBackendSettings extends BackendSettings {
         true
       } else {
         t match {
-          // For Velox backend, build right and left are both supported for RightOuter.
-          case RightOuter => true
+          // OPPRO-266: For Velox backend, build right and left are both supported for RightOuter.
+          // FIXME Hongze 22/12/06
+          //  HashJoin.scala in shim was not always loaded by class loader.
+          //  The file should be removed and we temporarily disable the improvement
+          //  introduced by OPPRO-266 by commenting out the following prerequisite
+          //  condition.
+//          case RightOuter => true
           case _ => false
         }
       }

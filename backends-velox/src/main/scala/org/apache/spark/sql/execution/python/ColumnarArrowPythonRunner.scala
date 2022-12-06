@@ -31,7 +31,7 @@ import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.api.python.{BasePythonRunner, ChainedPythonFunctions, PythonRDD, SpecialLengths}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.sql.util.GlutenArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.Utils
 
@@ -106,7 +106,7 @@ class ColumnarArrowPythonRunner(
               case SpecialLengths.START_ARROW_STREAM =>
                 reader = new ArrowStreamReader(stream, allocator)
                 root = reader.getVectorSchemaRoot()
-                schema = ArrowUtils.fromArrowSchema(root.getSchema())
+                schema = GlutenArrowUtils.fromArrowSchema(root.getSchema())
                 vectors = ArrowWritableColumnVector.loadColumns(root.getRowCount,
                   root.getFieldVectors).toArray[ColumnVector]
                 read()
@@ -147,7 +147,7 @@ class ColumnarArrowPythonRunner(
 
       protected override def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
         var numRows: Long = 0
-        val arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId)
+        val arrowSchema = GlutenArrowUtils.toArrowSchema(schema, timeZoneId)
         val allocator = ArrowBufferAllocators.contextInstance().newChildAllocator(
           s"stdout writer for $pythonExec", 0, Long.MaxValue)
         val root = VectorSchemaRoot.create(arrowSchema, allocator)
@@ -159,10 +159,10 @@ class ColumnarArrowPythonRunner(
           while (inputIterator.hasNext) {
             val nextBatch = inputIterator.next()
             numRows += nextBatch.numRows
-            val next_rb = ArrowConverterUtils.createArrowRecordBatch(nextBatch)
+            val next_rb = VeloxArrowUtils.createArrowRecordBatch(nextBatch)
             loader.load(next_rb)
             writer.writeBatch()
-            ArrowConverterUtils.releaseArrowRecordBatch(next_rb)
+            VeloxArrowUtils.releaseArrowRecordBatch(next_rb)
           }
           // end writes footer to the output stream and doesn't clean any resources.
           // It could throw exception if the output stream is closed, so it should be

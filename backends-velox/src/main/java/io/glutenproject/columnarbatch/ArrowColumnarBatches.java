@@ -17,7 +17,7 @@
 
 package io.glutenproject.columnarbatch;
 
-import io.glutenproject.expression.ArrowConverterUtils;
+import io.glutenproject.expression.VeloxArrowUtils;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.utils.ArrowAbiUtil;
 import io.glutenproject.utils.VeloxImplicitClass;
@@ -86,7 +86,7 @@ public class ArrowColumnarBatches {
           cArray.memoryAddress());
 
       Data.exportSchema(allocator,
-          ArrowConverterUtils.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+          VeloxArrowUtils.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
 
       ColumnarBatch output = ArrowAbiUtil.importToSparkColumnarBatch(
           allocator, arrowSchema, cArray);
