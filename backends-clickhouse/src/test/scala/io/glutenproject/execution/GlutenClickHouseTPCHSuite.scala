@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.types.Decimal
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -283,6 +284,20 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(sortExec.size == 1)
     val result = df.collect()
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
+    TestUtils.compareAnswers(result, expectedResult)
+  }
+
+  test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
+    val df = spark.sql(
+      """
+        |SELECT cast(1.11 as decimal(20, 3)) FROM lineitem
+        |WHERE l_shipdate <= date'1998-09-02' - interval 1 day limit 1
+        |""".stripMargin
+    )
+
+    val result = df.collect()
+    assert(result.size == 1)
+    val expectedResult = Seq(Row(new java.math.BigDecimal("1.110")))
     TestUtils.compareAnswers(result, expectedResult)
   }
 
