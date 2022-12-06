@@ -27,6 +27,7 @@
 #include "velox/row/UnsafeRowDynamicSerializer.h"
 #include "velox/row/UnsafeRowSerializer.h"
 #include "velox/vector/arrow/Bridge.h"
+#include "iostream"
 
 using namespace facebook::velox;
 
@@ -87,6 +88,7 @@ arrow::Status VeloxToRowConverter::Write() {
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
     int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
     auto col_type_id = schema_->field(col_idx)->type()->id();
+    std::cout << "VeloxToRowConverter::Write: " << schema_->field(col_idx)->type()->ToString() << std::endl;
     switch (col_type_id) {
       case arrow::Int8Type::type_id: {
         auto vec = vecs_[col_idx];
