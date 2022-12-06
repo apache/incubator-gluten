@@ -371,11 +371,10 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
     case plan: ColumnarToRowExec =>
       if (columnarConf.enableNativeColumnarToRow) {
         plan.child match {
-          // Currently, it is not supported to directly use vanilla spark's vectorized input.
-          // So we keep vanilla spark's C2R unchanged to convert the columnar input to row input.
-          // Then, R2C will be applied to get a kind of columnar data compatible with gluten's
-          // specific backend. We strongly recommend user to disable vanilla spark's vectorized
-          // reader to reduce the overhead brought by stated conversion.
+          // Currently, it is not supported to use vanilla spark's vectorized input directly or
+          // by a kind of columnar-to-columnar conversion. So we keep vanilla spark's C2R used
+          // here to convert columnar data to row data. Then, specific R2C will be applied to get
+          // a kind of columnar data compatible with gluten's certain backend.
           case _: FileSourceScanExec =>
             logInfo("Use vanilla spark's RowToColumnar for FileSourceScanExec")
             plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
