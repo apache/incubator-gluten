@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, JSON_ARRAY_LENGTH, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART, DAY_OF_MONTH}
+import io.glutenproject.expression.ConverterUtils.{BROUND, CAST, DAY_OF_MONTH, JSON_ARRAY_LENGTH, LENGTH, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART}
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
@@ -35,6 +35,7 @@ object VeloxExpressionUtil {
   final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
     CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
     ROUND -> Set(EMPTY_TYPE),
+    BROUND -> Set(EMPTY_TYPE),
     REGEXP_REPLACE -> Set(EMPTY_TYPE),
     SPLIT -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),
