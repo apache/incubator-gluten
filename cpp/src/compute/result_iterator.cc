@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include "memory/allocator.h"
-#include "velox/common/memory/Memory.h"
+#include "result_iterator.h"
+#include "exec_backend.h"
 
 namespace gluten {
 
-constexpr uint16_t kNoAlignment = facebook::velox::memory::kNoAlignment;
-constexpr int64_t kMaxMemory = facebook::velox::memory::kMaxMemory;
-
-std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(MemoryAllocator* allocator);
-
-facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool();
+std::shared_ptr<Metrics> ResultIterator::GetMetrics() {
+  if (backend_) {
+    return backend_->GetMetrics(raw_iter_, exportNanos_);
+  }
+  return nullptr;
+}
 
 } // namespace gluten

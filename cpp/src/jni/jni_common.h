@@ -253,35 +253,6 @@ std::string JStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer.data(), clen);
 }
 
-/// \brief Create a new shared_ptr on heap from shared_ptr t to prevent
-/// the managed object from being garbage-collected.
-///
-/// \return address of the newly created shared pointer
-template <typename T>
-jlong CreateNativeRef(std::shared_ptr<T> t) {
-  std::shared_ptr<T>* retained_ptr = new std::shared_ptr<T>(t);
-  return reinterpret_cast<jlong>(retained_ptr);
-}
-
-/// \brief Get the shared_ptr that was derived via function CreateNativeRef.
-///
-/// \param[in] ref address of the shared_ptr
-/// \return the shared_ptr object
-template <typename T>
-std::shared_ptr<T> RetrieveNativeInstance(jlong ref) {
-  std::shared_ptr<T>* retrieved_ptr = reinterpret_cast<std::shared_ptr<T>*>(ref);
-  return *retrieved_ptr;
-}
-
-/// \brief Destroy a shared_ptr using its memory address.
-///
-/// \param[in] ref address of the shared_ptr
-template <typename T>
-void ReleaseNativeRef(jlong ref) {
-  std::shared_ptr<T>* retrieved_ptr = reinterpret_cast<std::shared_ptr<T>*>(ref);
-  delete retrieved_ptr;
-}
-
 jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;

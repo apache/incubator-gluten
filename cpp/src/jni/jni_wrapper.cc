@@ -32,6 +32,7 @@
 
 #include "compute/exec_backend.h"
 #include "compute/protobuf_utils.h"
+#include "compute/result_iterator.h"
 #include "jni/concurrent_map.h"
 #include "jni/jni_common.h"
 #include "jni/jni_errors.h"
@@ -80,7 +81,7 @@ jlong default_memory_allocator_id = -1L;
 
 static ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnar_to_row_converter_holder_;
 
-static ConcurrentMap<std::shared_ptr<GlutenResultIterator>> array_iterator_holder_;
+static ConcurrentMap<std::shared_ptr<ResultIterator>> result_iterator_holder_;
 
 static ConcurrentMap<std::shared_ptr<Splitter>> shuffle_splitter_holder_;
 
@@ -88,8 +89,8 @@ static ConcurrentMap<std::shared_ptr<Reader>> shuffle_reader_holder_;
 
 static ConcurrentMap<std::shared_ptr<ColumnarBatch>> gluten_columnarbatch_holder_;
 
-std::shared_ptr<GlutenResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
-  auto handler = array_iterator_holder_.Lookup(id);
+std::shared_ptr<ResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
+  auto handler = result_iterator_holder_.Lookup(id);
   if (!handler) {
     std::string error_message = "invalid handler id " + std::to_string(id);
     gluten::JniThrow(error_message);
@@ -186,7 +187,7 @@ class JavaArrowArrayIterator {
     vm_->DetachCurrentThread();
   }
 
-  arrow::Result<std::shared_ptr<ColumnarBatch>> Next() {
+  std::shared_ptr<ColumnarBatch> Next() {
     JNIEnv* env;
     AttachCurrentThreadAsDaemonOrThrow(vm_, &env);
 #ifdef GLUTEN_PRINT_DEBUG
@@ -201,8 +202,7 @@ class JavaArrowArrayIterator {
     CheckException(env);
     jlong handle = env->CallLongMethod(java_serialized_arrow_array_iterator_, serialized_arrow_array_iterator_next);
     CheckException(env);
-    auto output = gluten_columnarbatch_holder_.Lookup(handle);
-    return output;
+    return gluten_columnarbatch_holder_.Lookup(handle);
   }
 
  private:
@@ -213,16 +213,14 @@ class JavaArrowArrayIterator {
 // See Java class
 // org/apache/arrow/dataset/jni/NativeSerializedRecordBatchIterator
 //
-std::shared_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
+std::unique_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
     JNIEnv* env,
     jobject java_serialized_arrow_array_iterator) {
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "CREATING ITERATOR REF " << reinterpret_cast<long>(java_serialized_arrow_array_iterator) << "..."
             << std::endl;
 #endif
-  std::shared_ptr<JavaArrowArrayIterator> itr =
-      std::make_shared<JavaArrowArrayIterator>(env, java_serialized_arrow_array_iterator);
-  return itr;
+  return std::make_unique<JavaArrowArrayIterator>(env, java_serialized_arrow_array_iterator);
 }
 
 jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
@@ -305,7 +303,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   std::cerr << "JNI_OnUnload" << std::endl;
 
-  array_iterator_holder_.Clear();
+  result_iterator_holder_.Clear();
   columnar_to_row_converter_holder_.Clear();
   shuffle_splitter_holder_.Clear();
   shuffle_reader_holder_.Clear();
@@ -370,22 +368,23 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
 
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
-  std::vector<std::shared_ptr<GlutenResultIterator>> input_iters;
+  std::vector<std::shared_ptr<ResultIterator>> input_iters;
   if (iters_len > 0) {
     for (int idx = 0; idx < iters_len; idx++) {
       jobject iter = env->GetObjectArrayElement(iter_arr, idx);
       auto array_iter = MakeJavaArrowArrayIterator(env, iter);
-      input_iters.push_back(std::make_shared<GlutenResultIterator>(std::move(array_iter)));
+      auto result_iter = std::make_shared<ResultIterator>(std::move(array_iter));
+      input_iters.push_back(std::move(result_iter));
     }
   }
 
-  std::shared_ptr<GlutenResultIterator> res_iter;
+  std::shared_ptr<ResultIterator> res_iter;
   if (input_iters.empty()) {
     res_iter = backend->GetResultIterator(allocator);
   } else {
     res_iter = backend->GetResultIterator(allocator, input_iters);
   }
-  return array_iterator_holder_.Insert(std::move(res_iter));
+  return result_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
 }
 
@@ -490,13 +489,13 @@ JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ArrowOutIterator_nativeClose(JNIEnv* env, jobject this_obj, jlong id) {
   JNI_METHOD_START
 #ifdef GLUTEN_PRINT_DEBUG
-  auto it = array_iterator_holder_.Lookup(id);
+  auto it = result_iterator_holder_.Lookup(id);
   if (it.use_count() > 2) {
     std::cout << "ArrowArrayResultIterator Id " << id << " use count is " << it.use_count() << std::endl;
   }
   std::cout << "BatchIterator nativeClose." << std::endl;
 #endif
-  array_iterator_holder_.Erase(id);
+  result_iterator_holder_.Erase(id);
   JNI_METHOD_END()
 }
 
@@ -879,7 +878,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   std::shared_ptr<AllocationListener> listener = std::make_shared<SparkAllocationListener>(
       vm, jlistener, reserve_memory_method, unreserve_memory_method, 8L << 10 << 10);
   auto allocator = new ListenableMemoryAllocator(DefaultMemoryAllocator().get(), listener);
-  return reinterpret_cast<jlong>(allocator);
+  return (jlong)(allocator);
   JNI_METHOD_END(-1L)
 }
 
@@ -889,18 +888,14 @@ Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator(JNIEnv
   if (allocator_id == default_memory_allocator_id) {
     return;
   }
-  auto* alloc = reinterpret_cast<MemoryAllocator*>(allocator_id);
-  if (alloc == nullptr) {
-    return;
-  }
-  delete alloc;
+  delete (MemoryAllocator*)(allocator_id);
   JNI_METHOD_END()
 }
 
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated(JNIEnv* env, jclass, jlong allocator_id) {
   JNI_METHOD_START
-  auto* alloc = reinterpret_cast<MemoryAllocator*>(allocator_id);
+  auto* alloc = (MemoryAllocator*)(allocator_id);
   if (alloc == nullptr) {
     gluten::JniThrow("Memory allocator instance not found. It may not exist nor has been closed");
   }

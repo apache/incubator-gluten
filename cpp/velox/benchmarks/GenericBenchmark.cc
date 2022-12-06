@@ -52,14 +52,14 @@ auto BM_Generic = [](::benchmark::State& state,
 
   for (auto _ : state) {
     auto backend = gluten::CreateBackend();
-    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputIters;
+    std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
     std::transform(input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
     std::vector<BatchIteratorWrapper*> inputItersRaw;
     std::transform(
         inputIters.begin(),
         inputIters.end(),
         std::back_inserter(inputItersRaw),
-        [](std::shared_ptr<gluten::GlutenResultIterator> iter) {
+        [](std::shared_ptr<gluten::ResultIterator> iter) {
           return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
         });
 

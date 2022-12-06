@@ -36,7 +36,7 @@ DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
 
-using GetInputFunc = std::shared_ptr<gluten::GlutenResultIterator>(const std::string&);
+using GetInputFunc = std::shared_ptr<gluten::ResultIterator>(const std::string&);
 
 /// Initilize the Velox backend.
 void InitVeloxBackend();
@@ -137,8 +137,8 @@ class BatchStreamIterator : public BatchIteratorWrapper {
   }
 };
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(const std::string& path);
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchVector(const std::string& path);
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(const std::string& path);
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchStream(const std::string& path);
 
 void setCpu(uint32_t cpuindex);

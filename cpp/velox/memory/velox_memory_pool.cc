@@ -354,10 +354,10 @@ std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(Me
       "wrapped", nullptr, std::make_shared<VeloxMemoryAllocatorVariant>(allocator));
 }
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> GetDefaultWrappedVeloxMemoryPool() {
-  static auto default_pool = std::make_shared<WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant>>(
+facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool() {
+  static WrappedVeloxMemoryPool<VeloxMemoryAllocatorVariant> default_pool(
       "root", nullptr, VeloxMemoryAllocatorVariant::createDefaultAllocator());
-  return default_pool;
+  return &default_pool;
 }
 
 } // namespace gluten
