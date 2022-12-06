@@ -337,7 +337,7 @@ object ArrowConverterUtils extends Logging {
     val fields = new util.ArrayList[Field](originFields.size)
     originFields.forEach { field =>
       val dt = ArrowUtils.fromArrowField(field)
-      fields.add(ArrowUtils.toArrowField("col",
+      fields.add(ArrowUtils.toArrowField(field.getName,
         dt, true, SparkSchemaUtils.getLocalTimezoneID))
     }
     new Schema(fields)

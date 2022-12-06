@@ -79,16 +79,6 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-//  override def equals(other: Any): Boolean = other match {
-//    case that: WindowExecTransformer =>
-//      (that canEqual this) && (that eq this)
-//    case _ => false
-//  }
-//
-//  override def canEqual(other: Any): Boolean = other.isInstanceOf[WindowExecTransformer]
-
-//  override def hashCode(): Int = System.identityHashCode(this)
-
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
     case c: TransformSupport =>
       c.columnarInputRDDs
