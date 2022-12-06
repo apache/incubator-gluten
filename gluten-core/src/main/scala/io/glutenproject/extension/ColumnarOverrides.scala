@@ -123,6 +123,10 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             } else {
               return shj.withNewChildren(shj.children.map(replaceWithTransformerPlan))
             }
+//          case _: FileSourceScanExec =>
+//            if (plan.supportsColumnar) {
+//              return ColumnarToRowExec(plan)
+//            }
           case p =>
             return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
         }
@@ -368,17 +372,25 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
+    case ColumnarToRowExec(child: FileSourceScanExec)
+      if !child.isInstanceOf[FileSourceScanExecTransformer] && child.supportsColumnar =>
+      plan
     case plan: ColumnarToRowExec =>
       if (columnarConf.enableNativeColumnarToRow) {
-        val child = replaceWithTransformerPlan(plan.child)
-        logDebug(s"ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
-        val nativeConversion =
-          BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
-        if (nativeConversion.doValidate()) {
-          nativeConversion
-        } else {
-          logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
-          plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
+        plan.child match {
+          case c: FileSourceScanExec if c.supportsColumnar =>
+            plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
+          case _ =>
+            val child = replaceWithTransformerPlan(plan.child)
+            logDebug(s"ColumnarPostOverrides NativeColumnarToRowExec(${child.getClass})")
+            val nativeConversion =
+              BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
+            if (nativeConversion.doValidate()) {
+              nativeConversion
+            } else {
+              logDebug("NativeColumnarToRow : Falling back to ColumnarToRow...")
+              plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
+            }
         }
       } else {
         val children = plan.children.map(replaceWithTransformerPlan)
@@ -392,14 +404,20 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       val children = r.children.map {
         case c: ColumnarToRowExec =>
           if (columnarConf.enableNativeColumnarToRow) {
-            val child = replaceWithTransformerPlan(c.child)
-            val nativeConversion =
-              BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
-            if (nativeConversion.doValidate()) {
-              nativeConversion
-            } else {
-              logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
-              c.withNewChildren(c.children.map(replaceWithTransformerPlan))
+            c.child match {
+              case _: FileSourceScanExec =>
+                logInfo("Use vanilla spark's RowToColumnar for FileSourceScanExec")
+                c.withNewChildren(c.children.map(replaceWithTransformerPlan))
+              case _ =>
+                val child = replaceWithTransformerPlan(c.child)
+                val nativeConversion =
+                  BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
+                if (nativeConversion.doValidate()) {
+                  nativeConversion
+                } else {
+                  logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
+                  c.withNewChildren(c.children.map(replaceWithTransformerPlan))
+                }
             }
           } else {
             c.withNewChildren(c.children.map(replaceWithTransformerPlan))

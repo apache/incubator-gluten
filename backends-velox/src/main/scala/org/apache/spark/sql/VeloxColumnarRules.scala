@@ -190,7 +190,8 @@ object VeloxColumnarRules {
         c2r // AdaptiveSparkPlanExec.scala:536
       case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
-      case ColumnarToRowExec(child) => ColumnarToRowExec(VeloxLoadArrowData(child))
+      case ColumnarToRowExec(child) if !child.isInstanceOf[FileSourceScanExec] =>
+        ColumnarToRowExec(VeloxLoadArrowData(child))
     }
   }
 
