@@ -9,8 +9,9 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | build_test | build test code in cpp folder and arrow | OFF |
 | build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
 | build_jemalloc   | build with jemalloc | ON |
-| enable_hbm | enable HBM allocator      | OFF|
 | build_protobuf | build protobuf lib    | ON|
+| enable_qat | enable QAT for shuffle data de/compression| OFF|
+| enable_hbm | enable HBM allocator      | OFF|
 | enable_s3   | build with s3 lib        | OFF|
 | enable_hdfs | build with hdfs lib      | OFF|
 | enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |

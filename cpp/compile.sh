@@ -8,8 +8,9 @@ BUILD_VELOX_BACKEND=OFF
 BUILD_TESTS=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=ON
-ENABLE_HBM=OFF
 BUILD_PROTOBUF=OFF
+ENABLE_QAT=OFF
+ENABLE_HBM=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 NPROC=$(nproc --ignore=2)
@@ -49,6 +50,10 @@ do
         ;;
         --build_jemalloc=*)
         BUILD_JEMALLOC=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_qat=*)
+        ENABLE_QAT=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hbm=*)
@@ -114,8 +119,9 @@ cmake .. \
   -DVELOX_HOME=${VELOX_HOME} \
   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
   -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS} \
-  -DENABLE_HBM=${ENABLE_HBM} \
   -DBUILD_PROTOBUF=${BUILD_PROTOBUF} \
+  -DENABLE_QAT=${ENABLE_QAT} \
+  -DENABLE_HBM=${ENABLE_HBM} \
   -DVELOX_ENABLE_S3=${ENABLE_S3} \
   -DVELOX_ENABLE_HDFS=${ENABLE_HDFS}
 make -j$NPROC
