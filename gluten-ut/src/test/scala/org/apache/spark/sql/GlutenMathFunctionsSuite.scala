@@ -24,6 +24,7 @@ class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTra
 
   override def blackTestNameList: Seq[String] = super.blackTestNameList ++ Seq(
     "round/bround",
-    "round/bround with data frame from a local Seq of Product"
+    "round/bround with data frame from a local Seq of Product",
+    "round/bround with table columns"
   )
 }
