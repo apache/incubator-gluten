@@ -95,7 +95,8 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
-      (that canEqual this) && super.equals(that) && pushdownFilters == that.pushdownFilters
+      (that canEqual this) && super.equals(that) &&
+        this.pushdownFilters == that.getPushdownFilters()
     case _ => false
   }
 
@@ -144,4 +145,8 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   @transient private lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
+
+  def getPushdownFilters(): Seq[Expression] = {
+    pushdownFilters
+  }
 }
