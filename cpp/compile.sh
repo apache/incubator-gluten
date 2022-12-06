@@ -67,8 +67,8 @@ do
         ENABLE_HDFS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-	    *)
-	      OTHER_ARGUMENTS+=("$1")
+        *)
+        OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
         ;;
     esac

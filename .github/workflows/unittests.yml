@@ -63,7 +63,8 @@ jobs:
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
       - name: Install Gluten Velox-backend spark3.2 and Run Unit test
         run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/ep/build-arrow/src && \
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'apt-get update && \
+          cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
           cd /opt/gluten/ep/build-velox/src

@@ -2,13 +2,11 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # 1 Prerequisite
 
-<b>Currently Gluten+Velox backend is only tested on Ubuntu20.04 and Ubuntu22.04. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
-
-# 2 Build Gluten with Velox Backend
+Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04 and Ubuntu22.04</b>. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
+Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
 ```shell script
-
+## run as root
 ## install gcc and libraries to build arrow
 apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
 
@@ -16,18 +14,32 @@ apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cma
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
 
-##setup proxy if needed
-export http_proxy=xxxx
-export https_proxy=xxxx
+## config maven, like proxy in ~/.m2/settings.xml
 
-##config maven proxy
-mkdir ~/.m2/
-apt install vim
-vim ~/.m2/settings.xml
-
+## fetch gluten code
 git clone https://github.com/oap-project/gluten.git
 
+```
+# 2 Build Gluten with Velox Backend
 
+It's recommended to use one_step_veloxbackend.sh and build gluten in one script.
+[Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference.
+
+```shell script
+cd /path_to_gluten
+
+## The script builds two jars for spark 3.2.2 and 3.3.1.
+./tools/one_step_veloxbackend.sh
+
+## When you have successfully compiled once and changed some codes then compile again.
+## you may use following command to skip the arrow, velox, folly and protobuf build
+# ./tools/one_step_veloxbackend.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_folly=OFF --build_protobuf=OFF
+
+```
+
+Alternatively you may build gluten step by step as below.
+
+```shell script
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./get_arrow.sh
@@ -52,9 +64,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 ```
 
-The command generates the Jar file in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark. So as spark3.3.
-
-Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
+Once building successfully, the Jar file is generated in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark 3.2.2. Jar for spark3.3.1 is package/velox/spark32/target/gluten-spark3.3_1.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 ## 2.1 Specify velox home directory
 
