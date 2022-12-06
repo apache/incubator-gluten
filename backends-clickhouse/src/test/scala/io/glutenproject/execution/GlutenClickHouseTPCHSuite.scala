@@ -19,8 +19,6 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
-import org.apache.spark.sql.catalyst.plans.physical.RangePartitioning
-import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -271,6 +269,21 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val expected =
       Seq(Row(0, "ALGERIA", 0), Row(1, "ARGENTINA", 1), Row(2, "BRAZIL", 1))
     TestUtils.compareAnswers(result, expected)
+  }
+
+  test("test 'order by limit'") {
+    val df = spark.sql(
+      """
+        |select n_nationkey from nation order by n_nationkey limit 5
+        |""".stripMargin
+    )
+    val sortExec = df.queryExecution.executedPlan.collect {
+      case sortExec: TakeOrderedAndProjectExecTransformer => sortExec
+    }
+    assert(sortExec.size == 1)
+    val result = df.collect()
+    val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
+    TestUtils.compareAnswers(result, expectedResult)
   }
 
   ignore("TPCH Q21") {

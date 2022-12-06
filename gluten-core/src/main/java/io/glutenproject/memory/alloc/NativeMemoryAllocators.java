@@ -20,7 +20,20 @@ package io.glutenproject.memory.alloc;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
 
-public class NativeMemoryAllocators {
+/**
+ * Built-in toolkit for managing native memory allocations. To use the facility, one should
+ * import Gluten's C++ library then create the c++ instance using following example code:
+ *
+ * ```c++
+ * auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+ * ```
+ *
+ * The ID "allocator_id" can be retrieved from Java API
+ * {@link NativeMemoryAllocator#getNativeInstanceId()}.
+ *
+ * FIXME: to export the native APIs in a standard way
+ */
+public abstract class NativeMemoryAllocators {
   private NativeMemoryAllocators() {
   }
 

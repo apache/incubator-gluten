@@ -29,7 +29,7 @@ import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOver
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.NativeExpressionEvaluator
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
@@ -53,7 +53,6 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
-    GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
     Collections.emptyMap()
   }
@@ -84,7 +83,6 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
-    GlutenPlugin.initNative(ctx.conf())
   }
 
   /**
@@ -184,13 +182,5 @@ private[glutenproject] object GlutenPlugin {
     val extensionNode = ExtensionBuilder
       .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf))
     PlanBuilder.makePlan(extensionNode)
-  }
-
-  def initNative(conf: SparkConf): Unit = {
-    // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String])
-      initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
-    }
   }
 }

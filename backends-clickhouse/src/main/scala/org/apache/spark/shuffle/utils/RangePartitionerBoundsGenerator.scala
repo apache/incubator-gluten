@@ -299,6 +299,11 @@ object RangePartitionerBoundsGenerator {
           enableRangePartitioning = false
           break
         }
+        // FIXME: there is a weird bug to handle expressions.
+        if (!ordering.child.isInstanceOf[Attribute]) {
+          enableRangePartitioning = false
+          break
+        }
       }
     }
     enableRangePartitioning

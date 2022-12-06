@@ -108,7 +108,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         .config("spark.memory.offHeap.size", "1024MB")
         .config("spark.plugins", "io.glutenproject.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-        .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid static evaluation for literal input by spark catalyst.
         .config("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + ","  +

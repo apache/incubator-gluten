@@ -12,9 +12,15 @@ RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false
 RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     then \
       GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT"; \
+            ./ep/build-arrow/src/get_arrow.sh  \
+      && ./ep/build-arrow/src/build_arrow_for_velox.sh \
+      && /ep/build-velox/src/get_velox.sh \
+      && ./ep/build-velox/src/build_velox.sh
     elif [ "$BUILD_BACKEND_TYPE" == "gazelle-cpp" ]; \
     then \
       GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2 -Pgluten-gazellecpp -Darrow.version=8.0.0-gluten-SNAPSHOT"; \
+      && ./ep/build-arrow/src/get_arrow.sh --arrow_branch=arrow-8.0.0-gluten-20220427a\
+      && ./ep/build-arrow/src/build_arrow_for_gazelle.sh
     else \
       echo "Unrecognizable backend type: $BUILD_BACKEND_TYPE"; \
       exit 1; \

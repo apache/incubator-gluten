@@ -158,7 +158,6 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     var expected: Seq[Row] = null;
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
-      df.show(false)
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)

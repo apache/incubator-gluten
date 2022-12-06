@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.util.List;
 
 public class ArrowOutIterator extends GeneralOutIterator {
+  private final long handle;
 
-  public ArrowOutIterator(long instance_id, List<Attribute> outAttrs) throws IOException {
-    super(instance_id, outAttrs);
+  public ArrowOutIterator(long handle, List<Attribute> outAttrs) throws IOException {
+    super(outAttrs);
+    this.handle = handle;
   }
 
   private native boolean nativeHasNext(long nativeHandle);

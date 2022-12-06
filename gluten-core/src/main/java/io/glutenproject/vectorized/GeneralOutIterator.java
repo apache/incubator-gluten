@@ -18,8 +18,6 @@
 package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.Serializable;
@@ -27,21 +25,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class GeneralOutIterator implements AutoCloseable, Serializable {
-  protected final long handle;
   protected final AtomicBoolean closed = new AtomicBoolean(false);
   protected final transient List<Attribute> outAttrs;
 
-  public GeneralOutIterator(long handle, List<Attribute> outAttrs) {
-    this.handle = handle;
+  public GeneralOutIterator(List<Attribute> outAttrs) {
     this.outAttrs = outAttrs;
-  }
-
-  private static StructType fromAttributes(List<Attribute> attributes) {
-    // a => StructField(a.name, a.dataType, a.nullable, a.metadata))
-    return new StructType(
-        attributes.stream().map(attribute -> new StructField(attribute.name(),
-            attribute.dataType(), attribute.nullable(), attribute.metadata())
-        ).toArray(StructField[]::new));
   }
 
   public final boolean hasNext() throws Exception {
@@ -61,11 +49,6 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
     if (closed.compareAndSet(false, true)) {
       closeInternal();
     }
-  }
-
-
-  public long getHandle() {
-    return handle;
   }
 
   protected abstract void closeInternal();

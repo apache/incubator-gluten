@@ -108,7 +108,6 @@ case class VeloxShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
     }
   }
 
-  // Direct output order of Substrait join operation.
   override protected val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
@@ -179,6 +178,25 @@ case class VeloxBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     left,
     right,
     isNullAwareAntiJoin) {
+
+  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+    case Inner =>
+      JoinRel.JoinType.JOIN_TYPE_INNER
+    case FullOuter =>
+      JoinRel.JoinType.JOIN_TYPE_OUTER
+    case LeftOuter | RightOuter =>
+      // The right side is required to be used for building hash table in Substrait plan.
+      // Therefore, for RightOuter Join, the left and right relations are exchanged and the
+      // join type is reverted.
+      JoinRel.JoinType.JOIN_TYPE_LEFT
+    case LeftSemi | ExistenceJoin(_) =>
+      JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+    case LeftAnti =>
+      JoinRel.JoinType.JOIN_TYPE_ANTI
+    case _ =>
+      // TODO: Support cross join with Cross Rel
+      JoinRel.JoinType.UNRECOGNIZED
+  }
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan, newRight: SparkPlan): VeloxBroadcastHashJoinExecTransformer =

@@ -24,6 +24,7 @@ import io.glutenproject.memory.alloc._
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
@@ -41,21 +42,21 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
-class CHIteratorApi extends IIteratorApi with Logging {
+class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
 
   /**
    * Generate native row partition.
    *
    * @return
    */
-  override def genNativeFilePartition(
+  override def genFilePartition(
       index: Int,
       partitions: Seq[InputPartition],
-      wsCxt: WholestageTransformContext): BaseNativeFilePartition = {
+      wsCxt: WholestageTransformContext): BaseGlutenPartition = {
     val localFilesNodesWithLocations = partitions.indices.map(
       i =>
         partitions(i) match {
-          case p: NativeMergeTreePartition =>
+          case p: GlutenMergeTreePartition =>
             (
               ExtensionTableBuilder
                 .makeExtensionTable(p.minParts, p.maxParts, p.database, p.table, p.tablePath),
@@ -85,9 +86,13 @@ class CHIteratorApi extends IIteratorApi with Logging {
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
     if (index < 3) {
-      logDebug(s"The substrait plan for partition $index:\n${substraitPlan.toString}")
+      logOnLevel(
+        GlutenConfig.getSessionConf.substraitPlanLogLevel,
+        s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
+            .substraitPlanToJson(substraitPlan)}"
+      )
     }
-    NativePartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
+    GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
   }
 
   /** Generate Iterator[ColumnarBatch] for CoalesceBatchesExec. */
@@ -148,36 +153,28 @@ class CHIteratorApi extends IIteratorApi with Logging {
    * @return
    */
   override def genFirstStageIterator(
-      inputPartition: BaseNativeFilePartition,
-      loadNative: Boolean,
+      inputPartition: BaseGlutenPartition,
       outputAttributes: Seq[Attribute],
       context: TaskContext,
       pipelineTime: SQLMetric,
       updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
-    var resIter: GeneralOutIterator = null
-    if (loadNative) {
-      val beforeBuild = System.nanoTime()
-      val transKernel = new ExpressionEvaluator()
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map {
-        iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-      }.asJava)
-      resIter = transKernel.createKernelWithBatchIterator(
-        inputPartition.substraitPlan,
-        inBatchIters,
-        outputAttributes.asJava)
-      pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-      TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
-    }
+    val beforeBuild = System.nanoTime()
+    val transKernel = new CHNativeExpressionEvaluator()
+    val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map {
+      iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+    }.asJava)
+    val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
+      inputPartition.plan,
+      inBatchIters,
+      outputAttributes.asJava)
+    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
 
       override def hasNext: Boolean = {
-        if (loadNative) {
-          resIter.hasNext
-        } else {
-          false
-        }
+        resIter.hasNext
       }
 
       override def next(): Any = {
@@ -200,8 +197,6 @@ class CHIteratorApi extends IIteratorApi with Logging {
   override def genFinalStageIterator(
       inputIterators: Seq[Iterator[ColumnarBatch]],
       numaBindingInfo: GlutenNumaBindingInfo,
-      listJars: Seq[String],
-      signature: String,
       sparkConf: SparkConf,
       outputAttributes: Seq[Attribute],
       rootNode: PlanNode,
@@ -209,19 +204,19 @@ class CHIteratorApi extends IIteratorApi with Logging {
       updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: GeneralOutIterator => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch],
-      dependentKernels: Seq[ExpressionEvaluator],
+      dependentKernels: Seq[NativeExpressionEvaluator],
       dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
     val beforeBuild = System.nanoTime()
-    val transKernel = new ExpressionEvaluator()
+    val transKernel = new CHNativeExpressionEvaluator()
     val columnarNativeIterator =
       new java.util.ArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
       }.asJava)
     // we need to complete dependency RDD's firstly
     val nativeIterator = transKernel.createKernelWithBatchIterator(
-      rootNode,
+      rootNode.toProtobuf,
       columnarNativeIterator,
       outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
@@ -264,16 +259,6 @@ class CHIteratorApi extends IIteratorApi with Logging {
   }
 
   /**
-   * Generate columnar native iterator.
-   *
-   * @return
-   */
-  override def genColumnarNativeIterator(
-      delegated: Iterator[ColumnarBatch]): ColumnarNativeIterator = {
-    new ColumnarNativeIterator(delegated.asJava)
-  }
-
-  /**
    * Generate NativeMemoryAllocatorManager.
    *
    * @return
@@ -287,22 +272,6 @@ class CHIteratorApi extends IIteratorApi with Logging {
       taskMemoryMetrics
     )
     new CHMemoryAllocatorManager(NativeMemoryAllocator.createListenable(rl))
-  }
-
-  /**
-   * Generate BatchIterator for ExpressionEvaluator.
-   *
-   * @return
-   */
-  override def genBatchIterator(
-      allocId: java.lang.Long,
-      wsPlan: Array[Byte],
-      iterList: Seq[GeneralInIterator],
-      jniWrapper: ExpressionEvaluatorJniWrapper,
-      outAttrs: Seq[Attribute]): GeneralOutIterator = {
-    val batchIteratorInstance =
-      jniWrapper.nativeCreateKernelWithIterator(allocId, wsPlan, iterList.toArray)
-    new BatchIterator(batchIteratorInstance, outAttrs.asJava)
   }
 
   /** Generate Native FileScanRDD, currently only for ClickHouse Backend. */
@@ -321,7 +290,7 @@ class CHIteratorApi extends IIteratorApi with Logging {
     // generate each partition of all scan exec
     val substraitPlanPartition = inputPartitions.indices.map(
       i => {
-        genNativeFilePartition(i, Seq(inputPartitions(i)), wsCxt)
+        genFilePartition(i, Seq(inputPartitions(i)), wsCxt)
       })
     logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
     new NativeFileScanColumnarRDD(
