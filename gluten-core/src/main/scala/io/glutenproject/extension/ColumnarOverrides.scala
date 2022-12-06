@@ -123,10 +123,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             } else {
               return shj.withNewChildren(shj.children.map(replaceWithTransformerPlan))
             }
-//          case _: FileSourceScanExec =>
-//            if (plan.supportsColumnar) {
-//              return ColumnarToRowExec(plan)
-//            }
           case p =>
             return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
         }
@@ -372,13 +368,14 @@ case class TransformPostOverrides() extends Rule[SparkPlan] {
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: CoalesceBatchesExec) =>
       plan.withNewChildren(Seq(replaceWithTransformerPlan(child.child)))
-    case ColumnarToRowExec(child: FileSourceScanExec)
-      if !child.isInstanceOf[FileSourceScanExecTransformer] && child.supportsColumnar =>
-      plan
     case plan: ColumnarToRowExec =>
       if (columnarConf.enableNativeColumnarToRow) {
         plan.child match {
-          case c: FileSourceScanExec if c.supportsColumnar =>
+          // Currently, it is not supported to directly use or convert vanilla spark's
+          // vectorized input. So we keep vanilla spark's C2R unchanged to convert the
+          // columnar input to row input.
+          case c: FileSourceScanExec =>
+            logInfo("Use vanilla spark's RowToColumnar for FileSourceScanExec")
             plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
           case _ =>
             val child = replaceWithTransformerPlan(plan.child)
