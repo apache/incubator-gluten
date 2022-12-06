@@ -22,7 +22,8 @@ import io.glutenproject.GlutenConfig
 
 class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = super.whiteTestNameList ++ Seq(
+  override def blackTestNameList: Seq[String] = super.blackTestNameList ++ Seq(
+    "round/bround",
     "round/bround with data frame from a local Seq of Product"
   )
 }
