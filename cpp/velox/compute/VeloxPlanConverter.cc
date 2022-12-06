@@ -25,6 +25,7 @@
 #include "RegistrationAllFunctions.cc"
 #include "bridge.h"
 #include "compute/exec_backend.h"
+#include "compute/result_iterator.h"
 #include "include/arrow/c/bridge.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
@@ -246,7 +247,7 @@ void VeloxBackend::setInputPlanNode(const ::substrait::ReadRel& sread) {
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto arrowStreamNode = std::make_shared<core::ArrowStreamNode>(
-      nextPlanNodeId(), outputType, arrowStream, GetDefaultWrappedVeloxMemoryPool().get());
+      nextPlanNodeId(), outputType, arrowStream, GetDefaultWrappedVeloxMemoryPool());
   subVeloxPlanConverter_->insertInputNode(iterIdx, arrowStreamNode, planNodeId_);
 }
 
@@ -327,14 +328,14 @@ void VeloxBackend::getInfoAndIds(
   }
 }
 
-std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(MemoryAllocator* allocator) {
-  std::vector<std::shared_ptr<GlutenResultIterator>> inputs = {};
+std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(MemoryAllocator* allocator) {
+  std::vector<std::shared_ptr<ResultIterator>> inputs = {};
   return GetResultIterator(allocator, inputs);
 }
 
-std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(
+std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<GlutenResultIterator>> inputs) {
+    std::vector<std::shared_ptr<ResultIterator>> inputs) {
   if (inputs.size() > 0) {
     arrowInputIters_ = std::move(inputs);
   }
@@ -351,15 +352,16 @@ std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
   if (scanInfos.size() == 0) {
     // Source node is not required.
-    auto wholestageIter = std::make_shared<WholeStageResIterMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
-    return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+    auto wholestageIter = std::make_unique<WholeStageResIterMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
+    return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
+  } else {
+    auto wholestageIter =
+        std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
+    return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
-  auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
-  return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
-std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(
+std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
     const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& setScanInfos) {
   planNode_ = getVeloxPlanNode(plan_);
@@ -373,9 +375,10 @@ std::shared_ptr<GlutenResultIterator> VeloxBackend::GetResultIterator(
   getInfoAndIds(subVeloxPlanConverter_->splitInfos(), planNode_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+
   auto wholestageIter =
-      std::make_shared<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
-  return std::make_shared<GlutenResultIterator>(std::move(wholestageIter), shared_from_this());
+      std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
+  return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
 arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnarConverter(
@@ -406,7 +409,7 @@ std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
 
 void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const core::PlanNode>& planNode) {
   ArrowSchema arrowSchema{};
-  exportToArrow(BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool().get()), arrowSchema);
+  exportToArrow(BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
 
