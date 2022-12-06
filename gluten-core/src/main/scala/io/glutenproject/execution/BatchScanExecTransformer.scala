@@ -17,6 +17,8 @@
 
 package io.glutenproject.execution
 
+import java.util.Objects
+
 import io.glutenproject.GlutenConfig
 import io.glutenproject.vectorized.OperatorMetrics
 
@@ -93,11 +95,11 @@ class BatchScanExecTransformer(output: Seq[AttributeReference], @transient scan:
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
-      (that canEqual this) && super.equals(that)
+      (that canEqual this) && super.equals(that) && pushdownFilters == that.pushdownFilters
     case _ => false
   }
 
-  override def hashCode(): Int = super.hashCode()
+  override def hashCode(): Int = Objects.hash(batch, runtimeFilters, pushdownFilters)
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]
 
