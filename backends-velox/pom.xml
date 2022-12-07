@@ -17,47 +17,8 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-        <cpp.dir>../cpp/</cpp.dir>
         <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
     </properties>
-
-    <profiles>
-        <profile>
-            <id>spark-3.2</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>io.glutenproject</groupId>
-                    <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-                    <version>${project.version}</version>
-                    <scope>compile</scope>
-                </dependency>
-                <dependency>
-                    <groupId>org.apache.spark</groupId>
-                    <artifactId>spark-sql_${scala.binary.version}</artifactId>
-                    <scope>provided</scope>
-                </dependency>
-            </dependencies>
-        </profile>
-        <profile>
-            <id>spark-3.3</id>
-            <dependencies>
-                <dependency>
-                    <groupId>io.glutenproject</groupId>
-                    <artifactId>spark-sql-columnar-shims-spark33</artifactId>
-                    <version>${project.version}</version>
-                    <scope>compile</scope>
-                </dependency>
-                <dependency>
-                    <groupId>org.apache.spark</groupId>
-                    <artifactId>spark-sql_${scala.binary.version}</artifactId>
-                    <scope>provided</scope>
-                </dependency>
-            </dependencies>
-        </profile>
-    </profiles>
 
     <dependencies>
         <dependency>

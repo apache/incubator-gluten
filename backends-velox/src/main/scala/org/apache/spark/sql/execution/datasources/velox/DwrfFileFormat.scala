@@ -17,24 +17,25 @@
 
 package org.apache.spark.sql.execution.datasources.velox
 
+import java.io.IOException
+
+import io.glutenproject.execution.FakeRow
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
-import io.glutenproject.utils.{ArrowAbiUtil, VeloxDatasourceUtil}
+import io.glutenproject.utils.{GlutenArrowAbiUtil, VeloxDatasourceUtil}
 import io.glutenproject.vectorized.NativeColumnarToRowInfo
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 import org.apache.parquet.hadoop.codec.CodecConfig
+
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.VeloxColumnarRules._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.GlutenArrowUtils
-
-import java.io.IOException
+import org.apache.spark.sql.utils.SparkArrowUtil
 
 class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
@@ -57,13 +58,14 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
       override def newInstance(path: String, dataSchema: StructType,
                                context: TaskAttemptContext): OutputWriter = {
         val originPath = path
-        val arrowSchema = GlutenArrowUtils.toArrowSchema(
+        val arrowSchema = SparkArrowUtil.toArrowSchema(
           dataSchema, SQLConf.get.sessionLocalTimeZone)
         val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         var instanceId = -1L
         val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
         try {
-          ArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(), arrowSchema, cSchema)
+          GlutenArrowAbiUtil.exportSchema(
+            ArrowBufferAllocators.contextInstance(), arrowSchema, cSchema)
           instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath,
             cSchema.memoryAddress())
         } catch {
@@ -81,7 +83,7 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
             val cSchema = ArrowSchema.allocateNew(allocator)
             var info: NativeColumnarToRowInfo = null
             try {
-              ArrowAbiUtil.exportFromSparkColumnarBatch(
+              GlutenArrowAbiUtil.exportFromSparkColumnarBatch(
                 ArrowBufferAllocators.contextInstance(), batch, cSchema, cArray)
 
               dwrfDatasourceJniWrapper.write(instanceId, cSchema.memoryAddress(),

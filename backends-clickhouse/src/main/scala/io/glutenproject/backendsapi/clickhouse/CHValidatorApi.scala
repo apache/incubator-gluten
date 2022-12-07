@@ -20,9 +20,13 @@ import io.glutenproject.backendsapi.IValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
+import org.apache.spark.sql.catalyst.expressions.Expression
+
 class CHValidatorApi extends IValidatorApi {
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new CHNativeExpressionEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)
   }
+
+  override def doValidate(expr: Expression): Boolean = true
 }

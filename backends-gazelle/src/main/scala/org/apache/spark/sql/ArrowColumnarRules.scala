@@ -17,17 +17,17 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.VeloxRowToArrowColumnarExec
+import io.glutenproject.execution.{ColumnarToFakeRowAdaptor, GlutenRowToArrowColumnarExec}
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.VeloxColumnarRules.ColumnarToFakeRowAdaptor
-import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.execution.datasource.arrow.ArrowFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 
+@deprecated
 object ArrowColumnarRules {
   case class ArrowWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan match {
@@ -58,7 +58,7 @@ object ArrowColumnarRules {
                         c.isSubquery)))
                 case other =>
                   rc.withNewChildren(
-                    Array(ColumnarToFakeRowAdaptor(new VeloxRowToArrowColumnarExec(child))))
+                    Array(ColumnarToFakeRowAdaptor(new GlutenRowToArrowColumnarExec(child))))
               }
               val new_cmd = command.copy(fileFormat = new ArrowFileFormat())
               new_rc.asInstanceOf[DataWritingCommandExec].copy(cmd = new_cmd)

@@ -21,7 +21,6 @@ import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransf
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.substrait.proto.Type;
-import io.substrait.proto.Expression.WindowFunction
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
