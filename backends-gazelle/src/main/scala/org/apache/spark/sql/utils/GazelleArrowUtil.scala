@@ -23,10 +23,10 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import org.apache.arrow.dataset.file.{FileFormat, FileSystemDatasetFactory}
 import org.apache.hadoop.fs.FileStatus
 
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.types.StructType
 
-object GazelleArrowUtils {
+object GazelleArrowUtil {
 
   private def rewriteUri(encodeUri: String): String = {
     val decodedUri = encodeUri
@@ -67,7 +67,7 @@ object GazelleArrowUtils {
       makeArrowDiscovery(file.getPath.toString, -1L, -1L)
     val schema = factory.inspect()
     try {
-      Option(SparkSchemaUtils.fromArrowSchema(schema))
+      Option(SparkSchemaUtil.fromArrowSchema(schema))
     } finally {
       factory.close()
     }
