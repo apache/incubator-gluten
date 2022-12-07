@@ -42,6 +42,7 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[StringExpressionsSuite],
     simpleClassName[MiscExpressionsSuite],
     simpleClassName[NondeterministicSuite],
-    simpleClassName[RandomSuite]
+    simpleClassName[RandomSuite],
+    simpleClassName[ComplexTypeSuite]
   )
 }

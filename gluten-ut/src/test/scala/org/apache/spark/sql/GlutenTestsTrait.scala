@@ -18,9 +18,7 @@
 package org.apache.spark.sql
 
 import java.io.File
-
 import scala.collection.mutable.ArrayBuffer
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ProjectExecTransformer
@@ -29,12 +27,13 @@ import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
 import org.scalactic.source.Position
 import org.scalatest.{Args, Status, Tag}
-
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
+import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -152,7 +151,17 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     assert(expr.resolved)
 
     val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
-    glutenCheckExpression(expr, catalystValue, inputRow)
+
+    if(canConvertToDataFrame(inputRow)) {
+      glutenCheckExpression(expr, catalystValue, inputRow)
+    } else {
+      checkEvaluationWithoutCodegen(expr, catalystValue, inputRow)
+      checkEvaluationWithMutableProjection(expr, catalystValue, inputRow)
+      if (GenerateUnsafeProjection.canSupport(expr.dataType)) {
+        checkEvaluationWithUnsafeProjection(expr, catalystValue, inputRow)
+      }
+      checkEvaluationWithOptimization(expr, catalystValue, inputRow)
+    }
   }
 
   def checkDataTypeSupported(expr: Expression): Boolean = {
@@ -195,6 +204,23 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
     }
     checkResult(result, expected, expression)
   }
+
+  def canConvertToDataFrame(inputRow: InternalRow): Boolean = {
+    if (!inputRow.isInstanceOf[GenericInternalRow]) {
+      return false
+    }
+    val values = inputRow.asInstanceOf[GenericInternalRow].values
+    for (value <- values) {
+      value match {
+        case map: MapData => return false
+        case array: ArrayData => return false
+        case struct: InternalRow => return false
+        case _ => return true
+      }
+    }
+    return true
+  }
+
 
   def convertInternalRowToDataFrame(inputRow: InternalRow): DataFrame = {
     val structFileSeq = new ArrayBuffer[StructField]()
