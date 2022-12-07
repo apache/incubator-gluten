@@ -190,8 +190,14 @@ object VeloxColumnarRules {
         c2r // AdaptiveSparkPlanExec.scala:536
       case c2r @ ColumnarToRowExec(_: ColumnarBroadcastExchangeExec) =>
         c2r // AdaptiveSparkPlanExec.scala:546
-      case ColumnarToRowExec(child) if !child.isInstanceOf[FileSourceScanExec] =>
-        ColumnarToRowExec(VeloxLoadArrowData(child))
+      case c2r @ ColumnarToRowExec(child) =>
+        child match {
+          // Keep vanilla spark's C2R used for supporting vanilla spark's vectorized reader.
+          case _: FileSourceScanExec =>
+            c2r
+          case _ =>
+            ColumnarToRowExec(VeloxLoadArrowData(child))
+        }
     }
   }
 
