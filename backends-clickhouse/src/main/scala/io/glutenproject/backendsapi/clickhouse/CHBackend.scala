@@ -46,6 +46,16 @@ object CHBackendSettings extends BackendSettings {
       ".files.per.partition.threshold"
   val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT = "-1"
 
+  val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+      ".customized.shuffle.codec.enable"
+  val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT = "false"
+
+  val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+      ".customized.buffer.size"
+  val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = "4096"
+
   override def supportFileFormatRead(): FileFormat => Boolean = {
     case _: ParquetFileFormat => true
     case _: OrcFileFormat => true

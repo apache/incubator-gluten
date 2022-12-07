@@ -16,10 +16,12 @@
  */
 package org.apache.spark.sql.execution.joins
 
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeIterator}
 import io.glutenproject.utils.PlanNodesUtil
 import io.glutenproject.vectorized._
 
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
@@ -38,6 +40,11 @@ case class ClickHouseBuildSideRelation(
   extends BuildSideRelation
   with Logging {
 
+  private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
+  )
+
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
   override def asReadOnlyCopy(
@@ -47,10 +54,15 @@ case class ClickHouseBuildSideRelation(
       s"BHJ value size: " +
         s"${broadCastContext.buildHashTableId} = ${allBatches.size}")
     val storageJoinBuilder = new StorageJoinBuilder(
-      new ByteArrayInputStream(allBatches),
+      new OnHeapCopyShuffleInputStream(
+        new ByteArrayInputStream(allBatches),
+        customizeBufferSize,
+        false),
       broadCastContext,
+      customizeBufferSize,
       output.asJava,
-      newBuildKeys.asJava)
+      newBuildKeys.asJava
+    )
     // Build the hash table
     storageJoinBuilder.build()
     this
@@ -64,7 +76,7 @@ case class ClickHouseBuildSideRelation(
     val allBatches = batches.flatten
     // native block reader
     val input = new ByteArrayInputStream(allBatches)
-    val blockReader = new CHStreamReader(input, false)
+    val blockReader = new CHStreamReader(input, customizeBufferSize)
     val broadCastIter = new Iterator[ColumnarBatch] {
       private var current: CHNativeBlock = _
 
