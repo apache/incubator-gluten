@@ -19,7 +19,7 @@ ENABLE_HDFS=OFF
 BUILD_FOLLY=ON
 BUILD_ARROW_FROM_SOURCE=ON
 BUILD_VELOX_FROM_SOURCE=ON
-
+ENABLE_EP_CACHE=OFF
 for arg in "$@"
 do
     case $arg in
@@ -67,6 +67,10 @@ do
         BUILD_VELOX_FROM_SOURCE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --enable_ep_cache=*)
+        ENABLE_EP_CACHE=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
 	      *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
@@ -79,7 +83,8 @@ cd $GLUTEN_DIR/ep/build-arrow/src
 if [ $BUILD_ARROW_FROM_SOURCE == "ON" ]; then
   ./get_arrow.sh
 fi
-./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS
+./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
+                           --enable_ep_cache=$ENABLE_EP_CACHE
 
 ##install velox
 cd $GLUTEN_DIR/ep/build-velox/src
@@ -88,7 +93,7 @@ if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
 fi
 ./build_velox.sh --build_protobuf=$BUILD_PROTOBUF --build_folly=$BUILD_FOLLY --enable_s3=$ENABLE_S3 \
                  --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS  --build_type=$BUILD_TYPE \
-                 
+                 --enable_ep_cache=$ENABLE_EP_CACHE
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
@@ -97,4 +102,5 @@ cd $GLUTEN_DIR/cpp
              --enable_hbm=$ENABLE_HBM --enable_s3=$ENABLE_S3 --enable_hdfs=$ENABLE_HDFS
 
 cd $GLUTEN_DIR
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pspark-3.3 -DskipTests
+

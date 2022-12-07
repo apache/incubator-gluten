@@ -1,22 +1,29 @@
 ### Build parameters
 
-Based on the different environment, there are some parameters can be set via -D with mvn.
+#### Parameters for one_step_veloxbackend.sh setting via --
 
-| Parameters                                            | Description                                                                                                                                                                         | Default Value                                       |
-|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
-| backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                                                                                                     | false                                              |
-| backends-gazelle                                        | Add -Pbackends-gazelle in maven command to compile the JVM part of Gazelle backend.                                                                                                     | false                                              |
-| backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.                                                                                           | false                                              |
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| build_type | Gluten build type(for arrow/velox/cpp)  | release |
+| build_test | build test code in cpp folder and arrow | OFF |
+| build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
+| build_jemalloc   | build with jemalloc | ON |
+| enable_hbm | enable HBM allocator      | OFF|
+| build_protobuf | build protobuf lib    | ON|
+| enable_s3   | build with s3 lib        | OFF|
+| enable_hdfs | build with hdfs lib      | OFF|
+| build_folly | build folly lib    | ON|
+| build_arrow_from_source   | pull the source code and build arrow lib| ON|
+| build_velox_from_source   | pull the source code and build velox lib| ON|
 
-There are some parameters can be set via -- with build_arrow_for_gazelle.sh.
+#### Parameters for build_arrow_for_gazelle.sh setting via --
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | arrow_home | Arrow build path            | GLUTEN_DIR/ep/build-arrow/build|
-| build_type | ARROW build type            | release|
-| enable_ep_cache |  Use cache lib when arrow is not change |  OFF   |      
+| build_type | ARROW build type            | release|   
 
-There are some parameters can be set via -- with build_arrow_for_velox.sh.
+#### Parameters for build_arrow_for_velox.sh setting via --
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
@@ -24,10 +31,8 @@ There are some parameters can be set via -- with build_arrow_for_velox.sh.
 | build_type | ARROW build type                          | release|
 | build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
 | build_benchmarks | Build arrow with -DWITH_PARQUET=ON  | OFF           |
-| enable_ep_cache |  Use cache lib when arrow is not change |  OFF   |  
 
-
-There are some parameters can be set via -- with build_velox.sh.
+#### Parameters for build_velox.sh setting via --
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
@@ -37,9 +42,8 @@ There are some parameters can be set via -- with build_velox.sh.
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
 | build_folly |  build folly from source                 | ON           |
-| enable_ep_cache |  Use cache lib when arrow is not change |  OFF       |  
 
-There are some parameters can be set via -- with compile.sh.
+#### Parameters for compile.sh setting via --
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
@@ -55,6 +59,14 @@ There are some parameters can be set via -- with compile.sh.
 | build_protobuf | build protobuf lib    | OFF|
 | enable_s3   | build with s3 lib        | OFF|
 | enable_hdfs | build with hdfs lib      | OFF|
+
+#### To build different backends, there are 3 parameters can be set via -D with mvn 
+
+| Parameters                                            | Description                                                                                                                                                                         | Default Value                                       |
+|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
+| backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                                                                                                     | false                                              |
+| backends-gazelle                                        | Add -Pbackends-gazelle in maven command to compile the JVM part of Gazelle backend.                                                                                                     | false                                              |
+| backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.                                                                                           | false                                              |
 
 ### Build jar
 
