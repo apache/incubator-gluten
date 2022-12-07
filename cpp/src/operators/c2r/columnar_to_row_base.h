@@ -28,13 +28,12 @@
 #include <boost/align.hpp>
 
 namespace gluten {
-namespace columnartorow {
 
-class ColumnarToRowConverterBase {
+class ColumnarToRowConverter {
  public:
-  ColumnarToRowConverterBase(std::shared_ptr<arrow::MemoryPool> arrow_pool) : arrow_pool_(arrow_pool) {}
+  ColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> arrow_pool) : arrow_pool_(arrow_pool) {}
 
-  virtual ~ColumnarToRowConverterBase() = default;
+  virtual ~ColumnarToRowConverter() = default;
 
   virtual arrow::Status Init() = 0;
   virtual arrow::Status Write() = 0;
@@ -42,10 +41,12 @@ class ColumnarToRowConverterBase {
   uint8_t* GetBufferAddress() {
     return buffer_address_;
   }
-  const std::vector<int32_t>& GetOffsets() {
+
+  const std::vector<int32_t>& GetOffsets() const {
     return offsets_;
   }
-  const std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>& GetLengths() {
+
+  const std::vector<int32_t, boost::alignment::aligned_allocator<int32_t, 32>>& GetLengths() const {
     return lengths_;
   }
 
@@ -73,17 +74,17 @@ class ColumnarToRowConverterBase {
 
   void SetNullAt(uint8_t* buffer_address, int64_t row_offset, int64_t field_offset, int32_t col_index);
 
-  int32_t FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length);
+  int32_t FirstNonzeroLongNum(const std::vector<int32_t>& mag, int32_t length) const;
 
-  int32_t GetInt(int32_t n, int32_t sig, std::vector<int32_t> mag, int32_t length);
+  int32_t GetInt(int32_t n, int32_t sig, const std::vector<int32_t>& mag, int32_t length) const;
 
-  int32_t GetNumberOfLeadingZeros(uint32_t i);
+  int32_t GetNumberOfLeadingZeros(uint32_t i) const;
 
-  int32_t GetBitLengthForInt(uint32_t n);
+  int32_t GetBitLengthForInt(uint32_t n) const;
 
-  int32_t GetBitCount(uint32_t i);
+  int32_t GetBitCount(uint32_t i) const;
 
-  int32_t GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len);
+  int32_t GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len) const;
 
   std::vector<uint32_t> ConvertMagArray(int64_t new_high, uint64_t new_low, int32_t* size);
 
@@ -91,5 +92,4 @@ class ColumnarToRowConverterBase {
   std::array<uint8_t, 16> ToByteArray(arrow::Decimal128 value, int32_t* length);
 };
 
-} // namespace columnartorow
 } // namespace gluten

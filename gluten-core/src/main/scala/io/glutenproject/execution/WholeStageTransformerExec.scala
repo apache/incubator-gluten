@@ -24,6 +24,7 @@ import io.glutenproject.substrait.{AggregationParams, JoinParams, SubstraitConte
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
+import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.rdd.RDD
@@ -35,9 +36,6 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
-import com.google.protobuf.WrappersProto
-import com.google.protobuf.util.JsonFormat
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -93,8 +91,7 @@ trait TransformSupport extends SparkPlan {
 }
 
 case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode
-  with TransformSupport {
+  extends UnaryExecNode with TransformSupport with LogLevelUtil {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
@@ -102,6 +99,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
   val sparkConf = sparkContext.getConf
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val substraitPlanLogLevel = GlutenConfig.getSessionConf.substraitPlanLogLevel
 
   private var planJson: String = ""
 
@@ -158,25 +156,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
   override def getChild: SparkPlan = child
 
-  @deprecated
   override def doExecute(): RDD[InternalRow] = {
-    // check if BatchScan exists
-    val currentOp = checkBatchScanExecTransformerChild()
-    if (currentOp.isDefined) {
-      // If containing scan exec transformer, a new RDD is created.
-      val fileScan = currentOp.get
-      val wsCxt = doWholestageTransform()
-
-      val startTime = System.nanoTime()
-      val substraitPlanPartition = fileScan.getFlattenPartitions.map(
-        p => BackendsApiManager.getIteratorApiInstance.genNativeFilePartition(-1, null, wsCxt))
-      logDebug(s"Generated substrait plan tooks: ${(System.nanoTime() - startTime) / 1000000} ms")
-
-      val wsRDD = new NativeWholestageRowRDD(sparkContext, substraitPlanPartition, false)
-      wsRDD
-    } else {
-      sparkContext.emptyRDD
-    }
+    throw new UnsupportedOperationException("Row based execution is not supported")
   }
 
   def doWholestageTransform(): WholestageTransformContext = {
@@ -194,15 +175,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
 
-    val planNodeProto = planNode.toProtobuf
-    val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
-    val registry = com.google.protobuf.TypeRegistry
-      .newBuilder()
-      .add(planNodeProto.getDescriptorForType())
-      .add(defaultRegistry)
-      .build()
-    planJson = JsonFormat.printer.usingTypeRegistry(registry).print(planNode.toProtobuf)
-    logDebug("Generated substrait plan " + planJson)
+    planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
 
     WholestageTransformContext(
       childCtx.inputAttributes,
@@ -279,20 +252,17 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
-    val signature = doBuild()
-    val listJars = uploadAndListJars(signature)
-
     // we should zip all dependent RDDs to current main RDD
     // TODO: Does it still need these parameters?
-    val dependentKernels: mutable.ListBuffer[ExpressionEvaluator] = mutable.ListBuffer()
+    val dependentKernels: mutable.ListBuffer[NativeExpressionEvaluator] = mutable.ListBuffer()
     val dependentKernelIterators: mutable.ListBuffer[GeneralOutIterator] = mutable.ListBuffer()
     val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
 
     val inputRDDs = columnarInputRDDs
     // Check if BatchScan exists.
-    val basicScanExecTransformer = checkBatchScanExecTransformerChildren()
+    val basicScanExecTransformers = checkBatchScanExecTransformerChildren()
 
-    if (basicScanExecTransformer.nonEmpty) {
+    if (basicScanExecTransformers.nonEmpty) {
 
       /**
        * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
@@ -300,7 +270,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
        * rather than genFinalStageIterator will be invoked
        */
       // the partition size of the all BasicScanExecTransformer must be the same
-      val allScanPartitions = basicScanExecTransformer.map(_.getFlattenPartitions)
+      val allScanPartitions = basicScanExecTransformers.map(_.getFlattenPartitions)
       val partitionLength = allScanPartitions.head.size
       if (allScanPartitions.exists(_.size != partitionLength)) {
         throw new RuntimeException(
@@ -311,17 +281,19 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       // the file format for each scan exec
       wsCxt.substraitContext.setFileFormat(
-        basicScanExecTransformer.map(ConverterUtils.getFileFormat).asJava)
+        basicScanExecTransformers.map(ConverterUtils.getFileFormat).asJava)
 
       // generate each partition of all scan exec
-      val substraitPlanPartition = (0 until partitionLength).map(
+      val substraitPlanPartitions = (0 until partitionLength).map(
         i => {
           val currentPartitions = allScanPartitions.map(_(i))
           BackendsApiManager.getIteratorApiInstance
-            .genNativeFilePartition(i, currentPartitions, wsCxt)
+            .genFilePartition(i, currentPartitions, wsCxt)
         })
 
-      logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
+      logOnLevel(
+        substraitPlanLogLevel,
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>
         updateNativeMetrics(
@@ -332,7 +304,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
 
       new NativeWholeStageColumnarRDD(
         sparkContext,
-        substraitPlanPartition,
+        substraitPlanPartitions,
         wsCxt.outputAttributes,
         genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
         pipelineTime,
@@ -350,8 +322,11 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
        */
       val startTime = System.nanoTime()
       val resCtx = doWholestageTransform()
-      logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
-      logDebug(s"Generating substrait plan:\n${resCtx.root.toProtobuf.toString}")
+
+      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n${planJson}")
+      logOnLevel(
+        substraitPlanLogLevel,
+        s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
 
       val metricsUpdatingFunction: GeneralOutIterator => Unit = (resIter: GeneralOutIterator) =>
         updateNativeMetrics(
@@ -365,8 +340,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           .genFinalStageIterator(
             inputIterators,
             numaBindingInfo,
-            listJars,
-            signature,
             sparkConf,
             resCtx.outputAttributes,
             resCtx.root,
@@ -385,19 +358,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         genFinalStageIterator)
     }
   }
-
-  def uploadAndListJars(signature: String): Seq[String] =
-    if (signature != "") {
-      if (sparkContext.listJars.filter(path => path.contains(s"$signature.jar")).isEmpty) {
-        val tempDir = GlutenConfig.getRandomTempDir
-        val jarFileName =
-          s"$tempDir/tmp/spark-columnar-plugin-codegen-precompile-$signature.jar"
-        sparkContext.addJar(jarFileName)
-      }
-      sparkContext.listJars.filter(path => path.contains(s"$signature.jar"))
-    } else {
-      Seq()
-    }
 
   override def getStreamedLeafPlan: SparkPlan = {
     child.asInstanceOf[TransformSupport].getStreamedLeafPlan
@@ -653,11 +613,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         logWarning(s"Updating native metrics failed due to ${e.getCause}.")
     }
     nativeMetricsUpdated = true
-  }
-
-  /** Return built cpp library's signature */
-  def doBuild(): String = {
-    ""
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {

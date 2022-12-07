@@ -18,13 +18,17 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
-import org.apache.spark.sql.DateFunctionsSuite
+
 import org.apache.spark.sql.StringFunctionsSuite
 import org.apache.spark.sql.catalyst.expressions._
 
 object VeloxNotSupport extends NotSupport {
 
-  override lazy val partialSupportSuiteList: Map[String, Seq[String]] = Map.empty
+  override lazy val partialSupportSuiteList: Map[String, Seq[String]] = Map(
+    simpleClassName[CastSuite] -> Seq(
+      "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
+    )
+  )
 
   override lazy val fullSupportSuiteList: Set[String] = Set(
     simpleClassName[LiteralExpressionSuite],
@@ -43,6 +47,7 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[MiscExpressionsSuite],
     simpleClassName[NondeterministicSuite],
     simpleClassName[RandomSuite],
-    simpleClassName[ArithmeticExpressionSuite]
+    simpleClassName[ArithmeticExpressionSuite],
+    simpleClassName[ConditionalExpressionSuite]
   )
 }

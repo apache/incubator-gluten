@@ -18,12 +18,12 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
 import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
+import io.glutenproject.vectorized.{GeneralOutIterator, NativeExpressionEvaluator}
 
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
@@ -40,9 +40,9 @@ trait IIteratorApi {
    *
    * @return
    */
-  def genNativeFilePartition(index: Int,
-                             partitions: Seq[InputPartition],
-                             wsCxt: WholestageTransformContext): BaseNativeFilePartition
+  def genFilePartition(index: Int,
+                       partitions: Seq[InputPartition],
+                       wsCxt: WholestageTransformContext): BaseGlutenPartition
 
   /**
    * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
@@ -71,7 +71,7 @@ trait IIteratorApi {
    *
    * @return
    */
-  def genFirstStageIterator(inputPartition: BaseNativeFilePartition, loadNative: Boolean,
+  def genFirstStageIterator(inputPartition: BaseGlutenPartition,
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
                             updateOutputMetrics: (Long, Long) => Unit,
@@ -88,8 +88,6 @@ trait IIteratorApi {
   // scalastyle:off argcount
   def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                             numaBindingInfo: GlutenNumaBindingInfo,
-                            listJars: Seq[String],
-                            signature: String,
                             sparkConf: SparkConf,
                             outputAttributes: Seq[Attribute],
                             rootNode: PlanNode,
@@ -97,16 +95,10 @@ trait IIteratorApi {
                             updateOutputMetrics: (Long, Long) => Unit,
                             updateNativeMetrics: GeneralOutIterator => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
-                            dependentKernels: Seq[ExpressionEvaluator],
+                            dependentKernels: Seq[NativeExpressionEvaluator],
                             dependentKernelIterators: Seq[GeneralOutIterator])
   : Iterator[ColumnarBatch]
   // scalastyle:on argcount
-  /**
-   * Generate columnar native iterator.
-   *
-   * @return
-   */
-  def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]): GeneralInIterator
 
   /**
    * Generate Native FileScanRDD, currently only for ClickHouse Backend.
@@ -128,14 +120,4 @@ trait IIteratorApi {
                                       spiller: Spiller,
                                       taskMemoryMetrics: TaskMemoryMetrics
                                      ): NativeMemoryAllocatorManager
-
-  /**
-   * Generate BatchIterator for ExpressionEvaluator.
-   *
-   * @return
-   */
-  def genBatchIterator(allocId: java.lang.Long, wsPlan: Array[Byte],
-                       iterList: Seq[GeneralInIterator],
-                       jniWrapper: ExpressionEvaluatorJniWrapper,
-                       outAttrs: Seq[Attribute]): GeneralOutIterator
 }

@@ -27,9 +27,10 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
+import io.glutenproject.vectorized.{NativeExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,10 +42,12 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import java.{lang, util}
+
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
+
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.sql.shims.SparkShimLoader
 
 trait ColumnarShuffledJoin extends BaseJoinExec {
@@ -478,7 +481,6 @@ trait HashJoinLikeExecTransformer
     }
   }
 
-  // Direct output order of substrait join operation
   protected val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
@@ -688,9 +690,8 @@ trait HashJoinLikeExecTransformer
     }
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new ExpressionEvaluator()
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }

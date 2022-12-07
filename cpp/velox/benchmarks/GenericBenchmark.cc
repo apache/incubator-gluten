@@ -52,19 +52,19 @@ auto BM_Generic = [](::benchmark::State& state,
 
   for (auto _ : state) {
     auto backend = gluten::CreateBackend();
-    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputIters;
+    std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
     std::transform(input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
     std::vector<BatchIteratorWrapper*> inputItersRaw;
     std::transform(
         inputIters.begin(),
         inputIters.end(),
         std::back_inserter(inputItersRaw),
-        [](std::shared_ptr<gluten::GlutenResultIterator> iter) {
+        [](std::shared_ptr<gluten::ResultIterator> iter) {
           return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
         });
 
     backend->ParsePlan(plan->data(), plan->size());
-    auto resultIter = backend->GetResultIterator(gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
+    auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
     auto outputSchema = backend->GetOutputSchema();
 
     while (resultIter->HasNext()) {
@@ -86,7 +86,7 @@ auto BM_Generic = [](::benchmark::State& state,
           return sum + iter->GetCollectBatchTime();
         });
 
-    auto* rawIter = static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
+    auto* rawIter = static_cast<gluten::WholeStageResIter*>(resultIter->GetRaw());
     const auto& task = rawIter->task_;
     const auto& planNode = rawIter->planNode_;
     auto statsStr = ::facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
@@ -114,8 +114,11 @@ int main(int argc, char** argv) {
     inputFiles.resize(2);
     try {
       GLUTEN_ASSIGN_OR_THROW(substraitJsonFile, getGeneratedFilePath("example.json"));
-      GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_lineitem"));
-      GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_orders"));
+      // FIXME Following code is in a way not 100% stable since it's not guaranteed that
+      //   tables appear in the input plan are of the same order
+      // See NativeBenchmarkPlanGenerator.scala
+      GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
+      GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
     } catch (const std::exception& e) {
       std::cout << "Failed to run example: " << e.what() << std::endl;
       ::benchmark::Shutdown();

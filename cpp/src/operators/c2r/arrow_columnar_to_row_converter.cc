@@ -23,7 +23,6 @@
 #include <iostream>
 
 namespace gluten {
-namespace columnartorow {
 
 uint32_t x_7[8] __attribute__((aligned(32))) = {0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7};
 uint32_t x_8[8] __attribute__((aligned(32))) = {0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8};
@@ -375,5 +374,4 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
   return arrow::Status::OK();
 }
 
-} // namespace columnartorow
 } // namespace gluten

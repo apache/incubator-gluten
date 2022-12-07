@@ -19,8 +19,8 @@ tables.genData(
     location = rootDir,
     format = format,
     overwrite = true, // overwrite the data that is already there
-    partitionTables = false, // do not create the partitioned fact tables
-    clusterByPartitionColumns = false, // shuffle to get partitions coalesced into single files.
+    partitionTables = true, // create the partitioned fact tables
+    clusterByPartitionColumns = true, // shuffle to get partitions coalesced into single files.
     filterOutNullPartitionValues = false, // true to filter out the partition with NULL key value
     tableFilter = "", // "" means generate all tables
     numPartitions = numPartitions) // how many dsdgen partitions to run - number of input tasks.

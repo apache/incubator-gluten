@@ -17,14 +17,16 @@
 
 package io.glutenproject.execution
 
+import java.util
+
 import scala.collection.JavaConverters._
+
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
-import java.util
+import io.glutenproject.vectorized.VeloxNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
@@ -54,7 +56,7 @@ case class VeloxFilterExecTransformer(condition: Expression,
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new ExpressionEvaluator()
+      val validator = new VeloxNativeExpressionEvaluator()
       validator.doValidate(planNode.toProtobuf.toByteArray)
     } else {
       true

@@ -20,8 +20,7 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
-import org.apache.spark.sql.catalyst.expressions.{CurrentDate, CurrentTimestamp, DateDiff, DayOfMonth, DayOfWeek, DayOfYear, Expression, Hour, MakeDate, MakeTimestamp, MicrosToTimestamp, MillisToTimestamp, Minute, Month, Now, Second, SecondsToTimestamp, UnixDate, UnixMicros, UnixMillis, UnixSeconds, UnixTimestamp, Year}
+import org.apache.spark.sql.catalyst.expressions.{CurrentDate, CurrentTimestamp, DateDiff, DayOfMonth, DayOfWeek, DayOfYear, Expression, Hour, MakeDate, MakeTimestamp, MicrosToTimestamp, MillisToTimestamp, Minute, Month, Now, Quarter, Second, SecondsToTimestamp, UnixDate, UnixMicros, UnixMillis, UnixSeconds, UnixTimestamp, WeekDay, WeekOfYear, Year}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -66,10 +65,13 @@ class MinuteTransformer(child: Expression, timeZoneId: Option[String] = None)
 }
 
 class SecondTransformer(child: Expression, timeZoneId: Option[String] = None)
-  extends Second(child, timeZoneId) with ExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException("Not supported: Second.")
-  }
+  extends Second(child, timeZoneId) with ExtractDateTransformer {
+
+  override def getField: String = "SECOND"
+
+  override def getChild: Expression = child
+
+  override def getDataType: DataType = child.dataType
 }
 
 /**
@@ -77,6 +79,7 @@ class SecondTransformer(child: Expression, timeZoneId: Option[String] = None)
  */
 trait ExtractDateTransformer extends ExpressionTransformer {
 
+  // mapping Substrait function name
   def getField: String
 
   def getChild: Expression
@@ -108,35 +111,40 @@ class DayOfMonthTransformer(child: Expression) extends DayOfMonth(child) with
   override def getDataType: DataType = dataType
 
   override def getChild: Expression = child
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"Not supported yet.")
-    }
-
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.DAY_OF_MONTH,
-        Seq(child.dataType), FunctionConfig.OPT))
-    val expressionNodes = Lists.newArrayList(childNode)
-    val typeNode = ConverterUtils.getTypeNode(getDataType, true)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
 }
 
 class DayOfYearTransformer(child: Expression) extends DayOfYear(child) with
   ExtractDateTransformer {
-  override def getField: String = "DAYOFYEAR"
+  override def getField: String = "DAY_OF_YEAR"
+
+  override def getDataType: DataType = dataType
+
+  override def getChild: Expression = child
+
+}
+
+class DayOfWeekTransformer(child: Expression) extends DayOfWeek(child) with
+  ExtractDateTransformer {
+  override def getField: String = "DAY_OF_WEEK"
+
+  override def getDataType: DataType = dataType
+
+  override def getChild: Expression = child
+
+}
+
+class WeekDayTransformer(child: Expression) extends WeekDay(child) with
+  ExtractDateTransformer {
+  override def getField: String = "WEEK_DAY"
 
   override def getDataType: DataType = dataType
 
   override def getChild: Expression = child
 }
 
-class DayOfWeekTransformer(child: Expression) extends DayOfWeek(child) with
+class WeekOfYearTransformer(child: Expression) extends WeekOfYear(child) with
   ExtractDateTransformer {
-  override def getField: String = "DAYOFWEEK"
+  override def getField: String = "WEEK_OF_YEAR"
 
   override def getDataType: DataType = dataType
 
@@ -146,6 +154,15 @@ class DayOfWeekTransformer(child: Expression) extends DayOfWeek(child) with
 class MonthTransformer(child: Expression) extends Month(child) with
   ExtractDateTransformer {
   override def getField: String = "MONTH"
+
+  override def getDataType: DataType = dataType
+
+  override def getChild: Expression = child
+}
+
+class QuarterTransformer(child: Expression) extends Quarter(child) with
+  ExtractDateTransformer {
+  override def getField: String = "QUARTER"
 
   override def getDataType: DataType = dataType
 

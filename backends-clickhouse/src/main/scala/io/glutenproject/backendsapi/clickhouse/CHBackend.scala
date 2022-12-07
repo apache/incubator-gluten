@@ -29,6 +29,7 @@ class CHBackend extends Backend {
   override def iteratorApi(): IIteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): ISparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): ITransformerApi = new CHTransformerApi
+  override def validatorApi(): IValidatorApi = new CHValidatorApi
   override def settings(): BackendSettings = CHBackendSettings
 }
 
@@ -36,6 +37,13 @@ object CHBackendSettings extends BackendSettings {
 
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
+
+  // experimental: when the files count per partition exceeds this threshold,
+  // it will put the files into one partition.
+  val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+      ".files.per.partition.threshold"
+  val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT = "-1"
 
   override def supportFileFormatRead(): FileFormat => Boolean = {
     case _: ParquetFileFormat => true

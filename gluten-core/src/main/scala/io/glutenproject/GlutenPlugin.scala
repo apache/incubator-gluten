@@ -29,7 +29,7 @@ import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOver
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.NativeExpressionEvaluator
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
@@ -53,7 +53,6 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
-    GlutenPlugin.initNative(conf)
     setPredefinedConfigs(conf)
     Collections.emptyMap()
   }
@@ -65,6 +64,13 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
       s"${GLUTEN_SESSION_EXTENSION_NAME}"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
+    // FIXME Hongze 22/12/06
+    //  BatchScan.scala in shim was not always loaded by class loader.
+    //  The file should be removed and the "ClassCastException" issue caused by
+    //  spark.sql.parquet.enableVectorizedReader=true should be fixed in another way.
+    //  Before the issue was fixed we force the use of vanilla row reader by using
+    //  the following statement.
+    conf.set("spark.sql.parquet.enableVectorizedReader", "false")
   }
 }
 
@@ -84,7 +90,6 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
-    GlutenPlugin.initNative(ctx.conf())
   }
 
   /**
@@ -184,13 +189,5 @@ private[glutenproject] object GlutenPlugin {
     val extensionNode = ExtensionBuilder
       .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf))
     PlanBuilder.makePlan(extensionNode)
-  }
-
-  def initNative(conf: SparkConf): Unit = {
-    // SQLConf is not initialed here, so it can not use 'GlutenConfig.getConf' to get conf.
-    if (conf.getBoolean(GlutenConfig.GLUTEN_LOAD_NATIVE, defaultValue = true)) {
-      val initKernel = new ExpressionEvaluator(java.util.Collections.emptyList[String])
-      initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
-    }
   }
 }

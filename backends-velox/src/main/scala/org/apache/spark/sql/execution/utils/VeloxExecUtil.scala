@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.utils
 import scala.collection.JavaConverters._
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.expression.{ArrowConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{VeloxArrowUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
@@ -132,11 +132,11 @@ object VeloxExecUtil {
 
     def serializeSchema(fields: Seq[Field]): Array[Byte] = {
       val schema = new Schema(fields.asJava)
-      ArrowConverterUtils.getSchemaBytesBuf(schema)
+      VeloxArrowUtils.getSchemaBytesBuf(schema)
     }
 
     val arrowFields = outputAttributes.map(attr =>
-      ArrowConverterUtils.createArrowField(attr)
+      VeloxArrowUtils.createArrowField(attr)
     )
 
     val nativePartitioning: NativePartitioning = newPartitioning match {

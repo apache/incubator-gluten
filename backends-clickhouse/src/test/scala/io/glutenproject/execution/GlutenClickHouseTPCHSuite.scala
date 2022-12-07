@@ -19,8 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
-import org.apache.spark.sql.catalyst.plans.physical.RangePartitioning
-import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
+import org.apache.spark.sql.types.Decimal
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -271,6 +270,35 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val expected =
       Seq(Row(0, "ALGERIA", 0), Row(1, "ARGENTINA", 1), Row(2, "BRAZIL", 1))
     TestUtils.compareAnswers(result, expected)
+  }
+
+  test("test 'order by limit'") {
+    val df = spark.sql(
+      """
+        |select n_nationkey from nation order by n_nationkey limit 5
+        |""".stripMargin
+    )
+    val sortExec = df.queryExecution.executedPlan.collect {
+      case sortExec: TakeOrderedAndProjectExecTransformer => sortExec
+    }
+    assert(sortExec.size == 1)
+    val result = df.collect()
+    val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
+    TestUtils.compareAnswers(result, expectedResult)
+  }
+
+  test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
+    val df = spark.sql(
+      """
+        |SELECT cast(1.11 as decimal(20, 3)) FROM lineitem
+        |WHERE l_shipdate <= date'1998-09-02' - interval 1 day limit 1
+        |""".stripMargin
+    )
+
+    val result = df.collect()
+    assert(result.size == 1)
+    val expectedResult = Seq(Row(new java.math.BigDecimal("1.110")))
+    TestUtils.compareAnswers(result, expectedResult)
   }
 
   ignore("TPCH Q21") {

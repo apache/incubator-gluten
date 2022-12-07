@@ -52,7 +52,7 @@ import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.ArrowUtils;
+import org.apache.spark.sql.util.GlutenArrowUtils;
 import org.apache.spark.sql.vectorized.ArrowColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
@@ -97,7 +97,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   public static ArrowWritableColumnVector[] allocateColumns(
       int capacity, StructType schema) {
     String timeZoneId = SparkSchemaUtils.getLocalTimezoneID();
-    Schema arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId);
+    Schema arrowSchema = GlutenArrowUtils.toArrowSchema(schema, timeZoneId);
     VectorSchemaRoot new_root =
         VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());
 
@@ -155,7 +155,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
   public ArrowWritableColumnVector(ValueVector vector, ValueVector dicionaryVector,
                                    int ordinal, int capacity, boolean init) {
-    super(capacity, ArrowUtils.fromArrowField(vector.getField()));
+    super(capacity, GlutenArrowUtils.fromArrowField(vector.getField()));
     vectorCount.getAndIncrement();
     refCnt.getAndIncrement();
 
@@ -176,7 +176,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     refCnt.getAndIncrement();
     String timeZoneId = SparkSchemaUtils.getLocalTimezoneID();
     List<Field> fields =
-        Arrays.asList(ArrowUtils.toArrowField("col", dataType, true, timeZoneId));
+        Arrays.asList(GlutenArrowUtils.toArrowField("col", dataType, true, timeZoneId));
     Schema arrowSchema = new Schema(fields);
     VectorSchemaRoot root =
         VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());

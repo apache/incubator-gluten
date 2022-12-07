@@ -21,7 +21,6 @@
 #include "allocator.h"
 
 namespace gluten {
-namespace memory {
 
 bool HbwMemoryAllocator::Allocate(int64_t size, void** out) {
   *out = hbw_malloc(size);
@@ -70,9 +69,8 @@ bool HbwMemoryAllocator::Free(void* p, int64_t size) {
   return true;
 }
 
-int64_t HbwMemoryAllocator::GetBytes() {
+int64_t HbwMemoryAllocator::GetBytes() const {
   return bytes_;
 }
 
-} // namespace memory
 } // namespace gluten

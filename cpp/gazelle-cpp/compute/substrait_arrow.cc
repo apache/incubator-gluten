@@ -27,8 +27,7 @@
 
 #include "compute/exec_backend.h"
 
-namespace gazellecpp {
-namespace compute {
+namespace gluten {
 
 const arrow::FieldVector kAugmentedFields{
     field("__fragment_index", arrow::int32()),
@@ -50,14 +49,13 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
-    gluten::memory::MemoryAllocator* allocator) {
+std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(gluten::MemoryAllocator* allocator) {
   return GetResultIterator(allocator, {});
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
-    gluten::memory::MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
+std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(
+    gluten::MemoryAllocator* allocator,
+    std::vector<std::shared_ptr<gluten::ResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
     throw gluten::GlutenException("Expected 1 decl, but got " + std::to_string(decls.size()));
@@ -125,9 +123,9 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
 #endif
 
   auto iter = arrow::MakeGeneratorIterator(std::move(sink_gen));
-  auto sink_iter = std::make_shared<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
+  auto sink_iter = std::make_unique<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
 
-  return std::make_shared<gluten::GlutenResultIterator>(std::move(sink_iter), shared_from_this());
+  return std::make_shared<gluten::ResultIterator>(std::move(sink_iter), shared_from_this());
 }
 
 std::shared_ptr<arrow::Schema> ArrowExecBackend::GetOutputSchema() {
@@ -304,7 +302,7 @@ void ArrowExecBackend::ReplaceSourceDecls(std::vector<arrow::compute::Declaratio
   }
 }
 
-std::shared_ptr<gluten::memory::GlutenColumnarBatch> ArrowExecResultIterator::Next() {
+std::shared_ptr<gluten::ColumnarBatch> ArrowExecResultIterator::Next() {
   GLUTEN_ASSIGN_OR_THROW(auto exec_batch, iter_.Next());
   if (exec_batch.has_value()) {
     cur_ = std::move(exec_batch.value());
@@ -365,12 +363,12 @@ std::shared_ptr<gluten::memory::GlutenColumnarBatch> ArrowExecResultIterator::Ne
     std::unique_ptr<ArrowSchema> c_schema = std::make_unique<ArrowSchema>();
     std::unique_ptr<ArrowArray> c_array = std::make_unique<ArrowArray>();
     GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch, c_array.get(), c_schema.get()));
-    return std::make_shared<gluten::memory::GlutenArrowCStructColumnarBatch>(std::move(c_schema), std::move(c_array));
+    return std::make_shared<gluten::ArrowCStructColumnarBatch>(std::move(c_schema), std::move(c_array));
   }
   return nullptr;
 }
 
-void Initialize() {
+void GazelleInitialize() {
   static auto function_registry = arrow::compute::GetFunctionRegistry();
   static auto extension_registry = arrow::engine::default_extension_id_registry();
   if (function_registry && extension_registry) {
@@ -382,5 +380,4 @@ void Initialize() {
   }
 }
 
-} // namespace compute
-} // namespace gazellecpp
+} // namespace gluten
