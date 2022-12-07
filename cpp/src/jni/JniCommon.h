@@ -37,9 +37,9 @@
 #include <utility>
 #include <vector>
 
-#include "compute/protobuf_utils.h"
-#include "memory/arrow_memory_pool.h"
-#include "utils/exception.h"
+#include "compute/ProtobufUtils.h"
+#include "memory/ArrowMemoryPool.h"
+#include "utils/Exception.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 

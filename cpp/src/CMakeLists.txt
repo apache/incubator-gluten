@@ -229,17 +229,17 @@ file(COPY utils/metrics.h DESTINATION ${root_directory}/releases/include/common/
 add_definitions(-DNATIVESQL_SRC_PATH="${root_directory}/releases")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 set(SPARK_COLUMNAR_PLUGIN_SRCS
-        jni/jni_wrapper.cc
-        compute/exec_backend.cc
-        compute/result_iterator.cc
-        memory/allocator.cc
-        memory/arrow_memory_pool.cc
+        jni/JniWrapper.cc
+        compute/Backend.cc
+        compute/ResultIterator.cc
+        memory/Allocator.cc
+        memory/ArrowMemoryPool.cc
         ${PROTO_SRCS}
-        compute/protobuf_utils.cc
-        operators/c2r/arrow_columnar_to_row_converter.cc
-        operators/c2r/columnar_to_row_base.cc
-        operators/shuffle/reader.cc
-        operators/shuffle/splitter.cc
+        compute/ProtobufUtils.cc
+        operators/c2r/ArrowColumnarToRowConverter.cc
+        operators/c2r/ColumnarToRow.cc
+        operators/shuffle/Reader.cc
+        operators/shuffle/Splitter.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
@@ -257,11 +257,11 @@ if(ENABLE_HBM)
     message(FATAL_ERROR "Memkind Library Not Found")
   endif()
   message(STATUS "Found Memkind Library: ${MEMKIND_LIBRARY}")
-  target_sources(spark_columnar_jni PRIVATE memory/hbw_allocator.cc)
+  target_sources(spark_columnar_jni PRIVATE memory/HbwAllocator.cc)
   target_link_libraries(spark_columnar_jni PUBLIC ${MEMKIND_LIBRARY})
   add_definitions(-DGLUTEN_ENABLE_HBM)
   if(BUILD_TESTS)
-    add_test_case(hbw_allocator_test SOURCES tests/hbw_allocator_test.cc)
+    add_test_case(hbw_allocator_test SOURCES tests/HbwAllocatorTest.cc)
   endif()
 endif()
 
@@ -304,7 +304,7 @@ else() #
 endif()
 
 if(BUILD_TESTS)
-  add_test_case(exec_backend_test SOURCES compute/exec_backend_test.cc)
+  add_test_case(exec_backend_test SOURCES compute/BackendTest.cc)
 endif()
 
 if(BUILD_BENCHMARKS)

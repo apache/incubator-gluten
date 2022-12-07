@@ -19,8 +19,8 @@
 
 #include <stdexcept>
 
-#include "jni_common.h"
-#include "utils/exception.h"
+#include "JniCommon.h"
+#include "utils/Exception.h"
 
 #define JNI_METHOD_START try {
 // macro ended
