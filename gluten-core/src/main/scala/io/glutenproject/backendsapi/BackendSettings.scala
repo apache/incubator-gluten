@@ -25,6 +25,7 @@ trait BackendSettings {
   def supportFileFormatRead: FileFormat => Boolean = _ => false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
+  def supportWindowExec(): Boolean = false
   def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getSessionConf.enableColumnarShuffle
   }

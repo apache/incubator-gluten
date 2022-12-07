@@ -49,13 +49,13 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(gluten::MemoryAllocator* allocator) {
+std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(gluten::MemoryAllocator* allocator) {
   return GetResultIterator(allocator, {});
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterator(
+std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(
     gluten::MemoryAllocator* allocator,
-    std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputs) {
+    std::vector<std::shared_ptr<gluten::ResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
   if (decls.size() != 1) {
     throw gluten::GlutenException("Expected 1 decl, but got " + std::to_string(decls.size()));
@@ -123,9 +123,9 @@ std::shared_ptr<gluten::GlutenResultIterator> ArrowExecBackend::GetResultIterato
 #endif
 
   auto iter = arrow::MakeGeneratorIterator(std::move(sink_gen));
-  auto sink_iter = std::make_shared<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
+  auto sink_iter = std::make_unique<ArrowExecResultIterator>(allocator, output_schema_, std::move(iter));
 
-  return std::make_shared<gluten::GlutenResultIterator>(std::move(sink_iter), shared_from_this());
+  return std::make_shared<gluten::ResultIterator>(std::move(sink_iter), shared_from_this());
 }
 
 std::shared_ptr<arrow::Schema> ArrowExecBackend::GetOutputSchema() {

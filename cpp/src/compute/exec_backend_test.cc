@@ -24,19 +24,19 @@ namespace gluten {
 
 class DummyBackend : public Backend {
  public:
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator) override {
-    auto res_iter = std::make_shared<ResultIterator>();
-    return std::make_shared<GlutenResultIterator>(std::move(res_iter));
+  std::shared_ptr<ResultIterator> GetResultIterator(MemoryAllocator* allocator) override {
+    auto res_iter = std::make_unique<DummyResultIterator>();
+    return std::make_shared<ResultIterator>(std::move(res_iter));
   }
 
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(
+  std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<GlutenResultIterator>> inputs) {
+      std::vector<std::shared_ptr<ResultIterator>> inputs) {
     return GetResultIterator(allocator);
   }
 
  private:
-  class ResultIterator {
+  class DummyResultIterator {
    public:
     arrow::Result<std::shared_ptr<ColumnarBatch>> Next() {
       if (!has_next_) {

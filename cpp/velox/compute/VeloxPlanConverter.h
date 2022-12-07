@@ -149,14 +149,14 @@ class VeloxBackend : public Backend {
  public:
   VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
 
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator) override;
+  std::shared_ptr<ResultIterator> GetResultIterator(MemoryAllocator* allocator) override;
 
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(
+  std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<GlutenResultIterator>> inputs) override;
+      std::vector<std::shared_ptr<ResultIterator>> inputs) override;
 
   // Used by unit test and benchmark.
-  std::shared_ptr<GlutenResultIterator> GetResultIterator(
+  std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
 
@@ -187,6 +187,8 @@ class VeloxBackend : public Backend {
 
   void setInputPlanNode(const ::substrait::SortRel& sSort);
 
+  void setInputPlanNode(const ::substrait::WindowRel& s);
+
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
 
   void setInputPlanNode(const ::substrait::ProjectRel& sproject);
@@ -216,14 +218,13 @@ class VeloxBackend : public Backend {
 
   std::unordered_map<std::string, std::string> confMap_;
 
-  std::vector<std::shared_ptr<GlutenResultIterator>> arrowInputIters_;
+  std::vector<std::shared_ptr<ResultIterator>> arrowInputIters_;
 
   std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
       std::make_shared<facebook::velox::substrait::SubstraitParser>();
 
   std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
-      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(
-          GetDefaultWrappedVeloxMemoryPool().get());
+      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(GetDefaultWrappedVeloxMemoryPool());
 
   // Cache for tests/benchmark purpose.
   std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;

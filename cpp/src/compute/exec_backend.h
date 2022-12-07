@@ -23,6 +23,7 @@
 #include <arrow/util/iterator.h>
 
 #include "compute/protobuf_utils.h"
+#include "compute/result_iterator.h"
 #include "memory/arrow_memory_pool.h"
 #include "memory/columnar_batch.h"
 #include "operators/c2r/arrow_columnar_to_row_converter.h"
@@ -36,31 +37,17 @@
 
 namespace gluten {
 
-using ArrowArrayIterator = arrow::Iterator<std::shared_ptr<ArrowArray>>;
-using ArrowIterator = arrow::Iterator<std::shared_ptr<ColumnarBatch>>;
-
-template <typename T>
-class ResultIterator {
- public:
-  virtual ~ResultIterator() = default;
-
-  virtual void Init() {} // unused
-  virtual void Close() {} // unused
-  virtual bool HasNext() = 0;
-  virtual std::shared_ptr<T> Next() = 0;
-};
-
-class GlutenResultIterator;
+class ResultIterator;
 
 class Backend : public std::enable_shared_from_this<Backend> {
  public:
   virtual ~Backend() = default;
 
-  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(MemoryAllocator* allocator) = 0;
+  virtual std::shared_ptr<ResultIterator> GetResultIterator(MemoryAllocator* allocator) = 0;
 
-  virtual std::shared_ptr<GlutenResultIterator> GetResultIterator(
+  virtual std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<GlutenResultIterator>> inputs) = 0;
+      std::vector<std::shared_ptr<ResultIterator>> inputs) = 0;
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
@@ -108,100 +95,6 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
  protected:
   ::substrait::Plan plan_;
-};
-
-class GlutenResultIterator : public ResultIterator<ColumnarBatch> {
- public:
-  /// \brief Iterator may be constructed from any type which has a member
-  /// function with signature arrow::Result<std::shared_ptr<ArrowArray>> Next();
-  /// and will be wrapped in ArrowArrayIterator.
-  /// For details, please see <arrow/util/iterator.h>
-  /// This class is used as input/output iterator for Backend. As
-  /// output, it can hold the backend to tie their lifetimes, which can be used
-  /// when the production of the iterator relies on the backend.
-  template <typename T>
-  explicit GlutenResultIterator(std::shared_ptr<T> iter, std::shared_ptr<Backend> backend = nullptr)
-      : raw_iter_(iter.get()),
-        iter_(std::make_unique<ArrowIterator>(Wrapper<T>(std::move(iter)))),
-        next_(nullptr),
-        backend_(std::move(backend)) {}
-
-  bool HasNext() override {
-    CheckValid();
-    GetNext();
-    return next_ != nullptr;
-  }
-
-  std::shared_ptr<ColumnarBatch> Next() override {
-    CheckValid();
-    GetNext();
-    return std::move(next_);
-  }
-
-  /// ArrowArrayIterator doesn't support shared ownership. Once this method is
-  /// called, the caller should take it's ownership, and
-  /// ArrowArrayResultIterator will no longer have access to the underlying
-  /// iterator.
-  std::shared_ptr<ArrowArrayIterator> ToArrowArrayIterator() {
-    ArrowArrayIterator itr = arrow::MakeMapIterator(
-        [](std::shared_ptr<ColumnarBatch> b) -> std::shared_ptr<ArrowArray> { return b->exportArrowArray(); },
-        std::move(*iter_));
-    ArrowArrayIterator* itr_ptr = new ArrowArrayIterator();
-    *itr_ptr = std::move(itr);
-    return std::shared_ptr<ArrowArrayIterator>(itr_ptr);
-  }
-
-  // For testing and benchmarking.
-  void* GetRaw() {
-    return raw_iter_;
-  }
-
-  std::shared_ptr<Metrics> GetMetrics() {
-    if (backend_) {
-      return backend_->GetMetrics(raw_iter_, exportNanos_);
-    }
-    return nullptr;
-  }
-
-  void setExportNanos(int64_t exportNanos) {
-    exportNanos_ = exportNanos;
-  }
-
-  int64_t getExportNanos() const {
-    return exportNanos_;
-  }
-
- private:
-  template <typename T>
-  class Wrapper {
-   public:
-    explicit Wrapper(std::shared_ptr<T> ptr) : ptr_(std::move(ptr)) {}
-
-    arrow::Result<std::shared_ptr<ColumnarBatch>> Next() {
-      return ptr_->Next();
-    }
-
-   private:
-    std::shared_ptr<T> ptr_;
-  };
-
-  void* raw_iter_;
-  std::unique_ptr<ArrowIterator> iter_;
-  std::shared_ptr<ColumnarBatch> next_;
-  std::shared_ptr<Backend> backend_;
-  int64_t exportNanos_;
-
-  void CheckValid() const {
-    if (iter_ == nullptr) {
-      throw GlutenException("ArrowExecResultIterator: the underlying iterator has expired.");
-    }
-  }
-
-  void GetNext() {
-    if (next_ == nullptr) {
-      GLUTEN_ASSIGN_OR_THROW(next_, iter_->Next());
-    }
-  }
 };
 
 void SetBackendFactory(std::function<std::shared_ptr<Backend>()> factory);

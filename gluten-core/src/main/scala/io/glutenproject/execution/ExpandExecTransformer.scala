@@ -115,9 +115,7 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
   }
 
-  override def getChild: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
-  }
+  override def getChild: SparkPlan = child
 
   def getRelNode(context: SubstraitContext,
                  projections: Seq[Seq[Expression]],
@@ -128,13 +126,13 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
                  validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val groupSize = groupExpression.size
-    val aggSize = projections(0).size - groupSize
+    val aggSize = projections.head.size - groupSize
 
     val groupsetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
     val aggExprNodes = new util.ArrayList[ExpressionNode]()
     for (i <- 0 until aggSize) {
       val expr = ExpressionConverter
-        .replaceWithExpressionTransformer(projections(0)(i),
+        .replaceWithExpressionTransformer(projections.head(i),
           originalInputAttributes)
       val aggExprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
       aggExprNodes.add(aggExprNode)

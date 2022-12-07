@@ -21,9 +21,11 @@ import io.glutenproject.expression.ConverterUtils$;
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.expression.WindowFunctionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.SortField;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
@@ -225,5 +227,30 @@ public class RelBuilder {
                                      Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new FetchRelNode(input, offset, count, extensionNode);
+  }
+
+    public static RelNode makeWindowRel(RelNode input,
+                                      ArrayList<WindowFunctionNode> windowFunctionNodes,
+                                      ArrayList<ExpressionNode> partitionExpressions,
+                                      ArrayList<SortField> sorts,
+                                      AdvancedExtensionNode extensionNode,
+                                      SubstraitContext context,
+                                      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WindowRelNode(
+        input, windowFunctionNodes,
+        partitionExpressions, sorts, extensionNode);
+  }
+
+  public static RelNode makeWindowRel(RelNode input,
+                                      ArrayList<WindowFunctionNode> windowFunctionNodes,
+                                      ArrayList<ExpressionNode> partitionExpressions,
+                                      ArrayList<SortField> sorts,
+                                      SubstraitContext context,
+                                      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WindowRelNode(
+        input, windowFunctionNodes,
+        partitionExpressions, sorts);
   }
 }

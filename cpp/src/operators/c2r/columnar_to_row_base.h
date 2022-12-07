@@ -42,7 +42,7 @@ class ColumnarToRowConverter {
     return buffer_address_;
   }
 
-  const std::vector<int32_t>& GetOffsets() {
+  const std::vector<int32_t>& GetOffsets() const {
     return offsets_;
   }
 
@@ -74,17 +74,17 @@ class ColumnarToRowConverter {
 
   void SetNullAt(uint8_t* buffer_address, int64_t row_offset, int64_t field_offset, int32_t col_index);
 
-  int32_t FirstNonzeroLongNum(std::vector<int32_t> mag, int32_t length);
+  int32_t FirstNonzeroLongNum(const std::vector<int32_t>& mag, int32_t length) const;
 
-  int32_t GetInt(int32_t n, int32_t sig, std::vector<int32_t> mag, int32_t length);
+  int32_t GetInt(int32_t n, int32_t sig, const std::vector<int32_t>& mag, int32_t length) const;
 
-  int32_t GetNumberOfLeadingZeros(uint32_t i);
+  int32_t GetNumberOfLeadingZeros(uint32_t i) const;
 
-  int32_t GetBitLengthForInt(uint32_t n);
+  int32_t GetBitLengthForInt(uint32_t n) const;
 
-  int32_t GetBitCount(uint32_t i);
+  int32_t GetBitCount(uint32_t i) const;
 
-  int32_t GetBitLength(int32_t sig, std::vector<int32_t> mag, int32_t len);
+  int32_t GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len) const;
 
   std::vector<uint32_t> ConvertMagArray(int64_t new_high, uint64_t new_low, int32_t* size);
 
