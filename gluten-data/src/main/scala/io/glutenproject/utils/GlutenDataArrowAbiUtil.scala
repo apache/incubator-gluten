@@ -20,7 +20,6 @@ package io.glutenproject.utils
 import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.expression.VeloxArrowUtils
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import org.apache.arrow.c.{ArrowArray, ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.memory.BufferAllocator
@@ -31,7 +30,7 @@ import org.apache.arrow.vector.types.pojo.{Field, Schema}
 
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
-object ArrowAbiUtil {
+object GlutenDataArrowAbiUtil {
 
   def importIntoVectorSchemaRoot(allocator: BufferAllocator,
                                  array: ArrowArray, root: VectorSchemaRoot,
@@ -125,12 +124,12 @@ object ArrowAbiUtil {
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
                                    cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
     val loaded = ArrowColumnarBatches.ensureLoaded(allocator, columnarBatch)
-    val schema = VeloxArrowUtils.toSchema(loaded)
-    val rb = VeloxArrowUtils.createArrowRecordBatch(loaded)
+    val schema = GlutenDataArrowUtil.toSchema(loaded)
+    val rb = GlutenDataArrowUtil.createArrowRecordBatch(loaded)
     try {
       exportFromArrowRecordBatch(allocator, rb, schema, cSchema, cArray)
     } finally {
-      VeloxArrowUtils.releaseArrowRecordBatch(rb)
+      GlutenDataArrowUtil.releaseArrowRecordBatch(rb)
     }
   }
 

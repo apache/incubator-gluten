@@ -20,11 +20,12 @@ package org.apache.spark.sql.execution.utils
 import scala.collection.JavaConverters._
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.expression.{VeloxArrowUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.utils.GlutenDataArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 
@@ -132,11 +133,11 @@ object GlutenDataExecUtil {
 
     def serializeSchema(fields: Seq[Field]): Array[Byte] = {
       val schema = new Schema(fields.asJava)
-      VeloxArrowUtils.getSchemaBytesBuf(schema)
+      GlutenDataArrowUtil.getSchemaBytesBuf(schema)
     }
 
     val arrowFields = outputAttributes.map(attr =>
-      VeloxArrowUtils.createArrowField(attr)
+      GlutenDataArrowUtil.createArrowField(attr)
     )
 
     val nativePartitioning: NativePartitioning = newPartitioning match {

@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.utils.GlutenArrowUtils
+import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 @deprecated
@@ -46,7 +46,7 @@ case class ArrowEvalPythonExecTransformer(udfs: Seq[PythonUDF], resultAttrs: Seq
 
   private val batchSize = conf.arrowMaxRecordsPerBatch
   private val sessionLocalTimeZone = conf.sessionLocalTimeZone
-  private val pythonRunnerConf = GlutenArrowUtils.getPythonRunnerConfMap(conf)
+  private val pythonRunnerConf = SparkArrowUtil.getPythonRunnerConfMap(conf)
 
   override def supportsColumnar: Boolean = true
 

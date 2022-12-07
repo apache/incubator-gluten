@@ -24,14 +24,14 @@ import scala.reflect.ClassTag
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.GlutenDataArrowAbiUtil
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorLoader
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtils, SparkSchemaUtils}
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkMemoryUtil, SparkSchemaUtil}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -63,8 +63,8 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
       private val shuffleReaderHandle = {
         val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         val arrowSchema =
-          SparkSchemaUtils.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+          SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
+        GlutenDataArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.make(
           JniByteInputStreams.create(in), cSchema.memoryAddress())
         cSchema.close()

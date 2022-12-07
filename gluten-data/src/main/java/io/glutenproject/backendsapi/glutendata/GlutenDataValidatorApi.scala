@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.IValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.utils.GlutenExpressionUtil
+import io.glutenproject.utils.GlutenDataExpressionUtil
 import io.glutenproject.vectorized.GlutenDataNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
@@ -41,7 +41,7 @@ abstract class GlutenDataValidatorApi extends IValidatorApi {
     }
     val inputTypeNames = value.get
     inputTypeNames.foreach { inputTypeName =>
-      if (inputTypeName.equals(GlutenExpressionUtil.EMPTY_TYPE)) {
+      if (inputTypeName.equals(GlutenDataExpressionUtil.EMPTY_TYPE)) {
         return false
       } else {
         for (input <- expr.children) {

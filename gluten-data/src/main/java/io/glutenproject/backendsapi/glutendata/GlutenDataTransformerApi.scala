@@ -18,8 +18,7 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
-import io.glutenproject.expression.VeloxArrowUtils
-import io.glutenproject.utils.InputPartitionsUtil
+import io.glutenproject.utils.{GlutenDataArrowUtil, InputPartitionsUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -38,7 +37,7 @@ abstract class GlutenDataTransformerApi extends ITransformerApi with Logging {
                                                    outputAttributes: Seq[Attribute]): Boolean = {
     // check input datatype
     for (attr <- outputAttributes) {
-      try VeloxArrowUtils.createArrowField(attr)
+      try GlutenDataArrowUtil.createArrowField(attr)
       catch {
         case e: UnsupportedOperationException =>
           logInfo(s"${attr.dataType} is not supported in VeloxColumnarShuffledExchangeExec.")

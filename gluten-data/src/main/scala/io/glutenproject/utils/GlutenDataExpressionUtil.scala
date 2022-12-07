@@ -17,7 +17,7 @@
 
 package io.glutenproject.utils
 
-object GlutenExpressionUtil {
+object GlutenDataExpressionUtil {
   final val EMPTY_TYPE = ""
   final val ARRAY_TYPE = "array"
   final val MAP_TYPE = "map"

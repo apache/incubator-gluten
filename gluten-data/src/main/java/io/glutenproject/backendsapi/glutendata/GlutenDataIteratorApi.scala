@@ -46,7 +46,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.utils.GlutenArrowUtils
+import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
@@ -163,7 +163,7 @@ abstract class GlutenDataIteratorApi extends IIteratorApi with Logging {
           }
 
           val resultStructType =
-            GlutenArrowUtils.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
+            SparkArrowUtil.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
           val beforeConcat = System.nanoTime
           val resultColumnVectors =
             ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType).toArray

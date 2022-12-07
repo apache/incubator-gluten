@@ -21,7 +21,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.memory.TaskMemoryResources
 
-object SparkMemoryUtils extends Logging {
+object SparkMemoryUtil extends Logging {
 
   class UnsafeItr[T <: AutoCloseable](delegate: Iterator[T])
     extends Iterator[T] {

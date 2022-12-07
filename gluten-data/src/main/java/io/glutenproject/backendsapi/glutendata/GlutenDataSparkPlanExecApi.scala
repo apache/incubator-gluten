@@ -23,8 +23,9 @@ import io.glutenproject.backendsapi.{BackendsApiManager, ISparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.execution.GlutenDataColumnarRules.LoadBeforeColumnarToRow
-import io.glutenproject.expression.{AliasBaseTransformer, GlutenDataAliasTransformer, VeloxArrowUtils}
+import io.glutenproject.expression.{AliasBaseTransformer, GlutenDataAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.utils.GlutenDataArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -242,7 +243,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
           _numRows += acb.numRows
           _input += acb
         }
-        val bytes = VeloxArrowUtils.convertToNetty(_input.toArray)
+        val bytes = GlutenDataArrowUtil.convertToNetty(_input.toArray)
         _input.foreach(_.close)
 
         Iterator((_numRows, bytes))

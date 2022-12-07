@@ -19,12 +19,12 @@ package io.glutenproject.expression
 
 import org.apache.arrow.vector.types.pojo.ArrowType
 
-import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
+import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtil
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.utils.GlutenArrowUtils
+import org.apache.spark.sql.utils.SparkArrowUtil
 
 object CodeGeneration {
-  private val defaultTimeZoneId = SparkSchemaUtils.getLocalTimezoneID()
+  private val defaultTimeZoneId = SparkSchemaUtil.getLocalTimezoneID()
 
   def getResultType(dataType: DataType): ArrowType = {
     getResultType(dataType, defaultTimeZoneId)
@@ -33,7 +33,7 @@ object CodeGeneration {
   def getResultType(dataType: DataType, timeZoneId: String): ArrowType = {
     dataType match {
       case other =>
-        GlutenArrowUtils.toArrowType(dataType, timeZoneId)
+        SparkArrowUtil.toArrowType(dataType, timeZoneId)
     }
     /* dataType match {
     case t: IntegerType =>

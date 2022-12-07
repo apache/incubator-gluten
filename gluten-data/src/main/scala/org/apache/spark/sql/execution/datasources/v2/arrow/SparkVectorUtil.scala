@@ -28,7 +28,7 @@ import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch}
 
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-object SparkVectorUtils {
+object SparkVectorUtil {
 
   def estimateSize(columnarBatch: ColumnarBatch): Long = {
     val cols = (0 until columnarBatch.numCols).toList.map(i =>

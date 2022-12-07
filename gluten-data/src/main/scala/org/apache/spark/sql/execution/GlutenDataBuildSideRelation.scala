@@ -19,17 +19,18 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
 import io.glutenproject.execution.BroadCastHashJoinContext
-import io.glutenproject.expression.VeloxArrowUtils
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import scala.collection.JavaConverters.asScalaIteratorConverter
+
+import io.glutenproject.utils.GlutenDataArrowUtil
 
 case class GlutenDataBuildSideRelation(mode: BroadcastMode,
   output: Seq[Attribute],
@@ -37,7 +38,7 @@ case class GlutenDataBuildSideRelation(mode: BroadcastMode,
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    VeloxArrowUtils.convertFromNetty(output, batches)
+    GlutenDataArrowUtil.convertFromNetty(output, batches)
   }
 
   override def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext
@@ -49,7 +50,7 @@ case class GlutenDataBuildSideRelation(mode: BroadcastMode,
    */
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
-    val batchIter = VeloxArrowUtils.convertFromNetty(output, batches)
+    val batchIter = GlutenDataArrowUtil.convertFromNetty(output, batches)
     // Convert columnar to Row.
     batchIter.flatMap(batch => {
       if (batch.numRows == 0) {

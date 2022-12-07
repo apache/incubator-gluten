@@ -23,16 +23,16 @@ import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.utils.GlutenArrowUtils
+import org.apache.spark.sql.utils.SparkArrowUtil
 
-object SparkSchemaUtils {
+object SparkSchemaUtil {
 
   def fromArrowSchema(schema: Schema): StructType = {
-    GlutenArrowUtils.fromArrowSchema(schema)
+    SparkArrowUtil.fromArrowSchema(schema)
   }
 
   def toArrowSchema(schema: StructType, timeZoneId: String): Schema = {
-    GlutenArrowUtils.toArrowSchema(schema, timeZoneId)
+    SparkArrowUtil.toArrowSchema(schema, timeZoneId)
   }
 
   def isTimeZoneIDEquivalentToUTC(zoneId: String): Boolean = {

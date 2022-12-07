@@ -22,8 +22,8 @@ import java.io._
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.expression.VeloxArrowUtils
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.utils.GlutenDataArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, SerializableObject}
 import sun.misc.Cleaner
 
@@ -54,13 +54,13 @@ class ColumnarHashedRelation(
 
   override def writeExternal(out: ObjectOutput): Unit = {
     out.writeObject(hashRelationObj)
-    val rawArrowData = VeloxArrowUtils.convertToNetty(arrowColumnarBatch)
+    val rawArrowData = GlutenDataArrowUtil.convertToNetty(arrowColumnarBatch)
     out.writeObject(rawArrowData)
   }
 
   override def write(kryo: Kryo, out: Output): Unit = {
     kryo.writeObject(out, hashRelationObj)
-    val rawArrowData = VeloxArrowUtils.convertToNetty(arrowColumnarBatch)
+    val rawArrowData = GlutenDataArrowUtil.convertToNetty(arrowColumnarBatch)
     kryo.writeObject(out, rawArrowData)
   }
 
@@ -69,7 +69,7 @@ class ColumnarHashedRelation(
     val rawArrowData = in.readObject().asInstanceOf[Array[Byte]]
     arrowColumnarBatchSize = rawArrowData.length
     arrowColumnarBatch =
-      VeloxArrowUtils.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
+      GlutenDataArrowUtil.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
     createCleaner(hashRelationObj, arrowColumnarBatch)
     // retain all cols
     /* arrowColumnarBatch.foreach(cb => {
@@ -92,7 +92,7 @@ class ColumnarHashedRelation(
     val rawArrowData = kryo.readObject(in, classOf[Array[Byte]]).asInstanceOf[Array[Byte]]
     arrowColumnarBatchSize = rawArrowData.length
     arrowColumnarBatch =
-      VeloxArrowUtils.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
+      GlutenDataArrowUtil.convertFromNetty(null, new ByteArrayInputStream(rawArrowData)).toArray
     createCleaner(hashRelationObj, arrowColumnarBatch)
     // retain all cols
     /* arrowColumnarBatch.foreach(cb => {

@@ -15,15 +15,17 @@
  * limitations under the License.
  */
 
-package io.glutenproject.expression
+package io.glutenproject.utils
 
 import java.io._
 import java.nio.channels.Channels
+import java.util
 
 import scala.collection.JavaConverters._
 
 import com.google.common.collect.Lists
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.expression.CodeGeneration
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 import io.netty.buffer.{ByteBufAllocator, ByteBufOutputStream}
@@ -38,25 +40,23 @@ import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtils, SparkVectorUtils}
+import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtil, SparkVectorUtil}
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import java.util
 
-import org.apache.spark.sql.utils.GlutenArrowUtils
-
-object VeloxArrowUtils extends Logging {
+object GlutenDataArrowUtil extends Logging {
 
   def calcuateEstimatedSize(columnarBatch: ColumnarBatch): Long = {
-    SparkVectorUtils.estimateSize(columnarBatch)
+    SparkVectorUtil.estimateSize(columnarBatch)
   }
 
   def createArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
-    SparkVectorUtils.toArrowRecordBatch(columnarBatch)
+    SparkVectorUtil.toArrowRecordBatch(columnarBatch)
   }
 
   def createFieldVectorList(columnarBatch: ColumnarBatch): List[FieldVector] = {
-    SparkVectorUtils.toFieldVectorList(columnarBatch)
+    SparkVectorUtil.toFieldVectorList(columnarBatch)
   }
 
   def convertToNetty(iter: Array[ColumnarBatch]): Array[Byte] = {
@@ -75,41 +75,44 @@ object VeloxArrowUtils extends Logging {
     var schema: Schema = null
     val option = new IpcOption
 
-    iter.foreach { columnarBatch =>
-      val vectors = (0 until columnarBatch.numCols)
-        .map(i => ArrowColumnarBatches
-          .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
-          .column(i).asInstanceOf[ArrowWritableColumnVector])
-        .toList
-      try {
-        if (schema == null) {
-          schema = new Schema(vectors.map(_.getValueVector().getField).asJava)
-          MessageSerializer.serialize(channel, schema, option)
-        }
-        val batch = VeloxArrowUtils
-          .createArrowRecordBatch(columnarBatch.numRows, vectors.map(_.getValueVector))
+    iter.foreach {
+      columnarBatch =>
+        val vectors = (0 until columnarBatch.numCols)
+          .map(
+            i =>
+              ArrowColumnarBatches
+                .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
+                .column(i)
+                .asInstanceOf[ArrowWritableColumnVector])
+          .toList
         try {
-          MessageSerializer.serialize(channel, batch, option)
-        } finally {
-          batch.close()
+          if (schema == null) {
+            schema = new Schema(vectors.map(_.getValueVector().getField).asJava)
+            MessageSerializer.serialize(channel, schema, option)
+          }
+          val batch = GlutenDataArrowUtil
+            .createArrowRecordBatch(columnarBatch.numRows, vectors.map(_.getValueVector))
+          try {
+            MessageSerializer.serialize(channel, batch, option)
+          } finally {
+            batch.close()
+          }
+        } catch {
+          case e =>
+            // scalastyle:off println
+            System.err.println(s"Failed converting to Netty. ")
+            e.printStackTrace()
+            // scalastyle:on println
+            throw e
         }
-      } catch {
-        case e =>
-          // scalastyle:off println
-          System.err.println(s"Failed converting to Netty. ")
-          e.printStackTrace()
-          // scalastyle:on println
-          throw e
-      }
     }
   }
 
   def createArrowRecordBatch(numRowsInBatch: Int, cols: List[ValueVector]): ArrowRecordBatch = {
-    SparkVectorUtils.toArrowRecordBatch(numRowsInBatch, cols)
+    SparkVectorUtil.toArrowRecordBatch(numRowsInBatch, cols)
   }
 
-  def convertFromNetty(attributes: Seq[Attribute],
-                       input: InputStream): Iterator[ColumnarBatch] = {
+  def convertFromNetty(attributes: Seq[Attribute], input: InputStream): Iterator[ColumnarBatch] = {
     new Iterator[ColumnarBatch] {
       val allocator = ArrowBufferAllocators.contextInstance()
       var messageReader =
@@ -174,17 +177,17 @@ object VeloxArrowUtils extends Logging {
     }
   }
 
-  def convertFromNetty(attributes: Seq[Attribute],
-                       data: Array[Array[Byte]],
-                       columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
+  def convertFromNetty(
+      attributes: Seq[Attribute],
+      data: Array[Array[Byte]],
+      columnIndices: Array[Int] = null): Iterator[ColumnarBatch] = {
     if (data.length == 0) {
       return new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = false
 
         override def next(): ColumnarBatch = {
           val resultStructType = if (columnIndices == null) {
-            StructType(
-              attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
+            StructType(attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
           } else {
             StructType(
               columnIndices
@@ -268,9 +271,7 @@ object VeloxArrowUtils extends Logging {
           if (columnIndices == null) {
             new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), length)
           } else {
-            new ColumnarBatch(
-              columnIndices.map(i => vectors(i).asInstanceOf[ColumnVector]),
-              length)
+            new ColumnarBatch(columnIndices.map(i => vectors(i).asInstanceOf[ColumnVector]), length)
           }
 
         } catch {
@@ -283,18 +284,19 @@ object VeloxArrowUtils extends Logging {
   }
 
   def fromArrowRecordBatch(
-                            recordBatchSchema: Schema,
-                            recordBatch: ArrowRecordBatch,
-                            allocator: BufferAllocator = null): Array[ArrowWritableColumnVector] = {
+      recordBatchSchema: Schema,
+      recordBatch: ArrowRecordBatch,
+      allocator: BufferAllocator = null): Array[ArrowWritableColumnVector] = {
     val numRows = recordBatch.getLength()
     ArrowWritableColumnVector.loadColumns(numRows, recordBatchSchema, recordBatch, allocator)
   }
 
   def releaseArrowRecordBatchList(recordBatchList: Array[ArrowRecordBatch]): Unit = {
-    recordBatchList.foreach({ recordBatch =>
-      if (recordBatch != null) {
-        releaseArrowRecordBatch(recordBatch)
-      }
+    recordBatchList.foreach({
+      recordBatch =>
+        if (recordBatch != null) {
+          releaseArrowRecordBatch(recordBatch)
+        }
     })
   }
 
@@ -317,35 +319,38 @@ object VeloxArrowUtils extends Logging {
   }
 
   def toArrowSchema(attributes: Seq[Attribute]): Schema = {
-    val fields = attributes.map(attr => {
-      Field
-        .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
-    })
+    val fields = attributes.map(
+      attr => {
+        Field
+          .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
+      })
     new Schema(fields.toList.asJava)
   }
 
   def toArrowSchema(schema: StructType): Schema = {
     val fields = schema
-      .map(field => {
-        Field.nullable(field.name, CodeGeneration.getResultType(field.dataType))
-      })
+      .map(
+        field => {
+          Field.nullable(field.name, CodeGeneration.getResultType(field.dataType))
+        })
     new Schema(fields.toList.asJava)
   }
 
-  def toArrowSchema(cSchema: ArrowSchema,
-                    allocator: BufferAllocator,
-                    provider: CDataDictionaryProvider): Schema = {
+  def toArrowSchema(
+      cSchema: ArrowSchema,
+      allocator: BufferAllocator,
+      provider: CDataDictionaryProvider): Schema = {
     val schema = Data.importSchema(allocator, cSchema, provider)
     val originFields = schema.getFields
     val fields = new util.ArrayList[Field](originFields.size)
-    originFields.forEach { field =>
-      val dt = GlutenArrowUtils.fromArrowField(field)
-      fields.add(GlutenArrowUtils.toArrowField(field.getName,
-        dt, true, SparkSchemaUtils.getLocalTimezoneID))
+    originFields.forEach {
+      field =>
+        val dt = SparkArrowUtil.fromArrowField(field)
+        fields.add(
+          SparkArrowUtil.toArrowField(field.getName, dt, true, SparkSchemaUtil.getLocalTimezoneID))
     }
     new Schema(fields)
   }
-
 
   @throws[IOException]
   def getSchemaBytesBuf(schema: Schema): Array[Byte] = {
@@ -381,11 +386,11 @@ object VeloxArrowUtils extends Logging {
       new Field(
         name,
         FieldType.nullable(ArrowType.List.INSTANCE),
-        Lists.newArrayList(createArrowField(s"${name}_${dt}", at.elementType)))
+        Lists.newArrayList(createArrowField(s"${name}_$dt", at.elementType)))
     case mt: MapType =>
-      throw new UnsupportedOperationException(s"${dt} is not supported yet")
+      throw new UnsupportedOperationException(s"$dt is not supported yet")
     case st: StructType =>
-      throw new UnsupportedOperationException(s"${dt} is not supported yet")
+      throw new UnsupportedOperationException(s"$dt is not supported yet")
     case _ =>
       Field.nullable(name, CodeGeneration.getResultType(dt))
   }
@@ -416,6 +421,6 @@ object VeloxArrowUtils extends Logging {
   }
 
   override def toString: String = {
-    s"VeloxArrowUtils"
+    s"GlutenDataArrowUtil"
   }
 }
