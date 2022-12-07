@@ -187,6 +187,8 @@ class VeloxBackend : public Backend {
 
   void setInputPlanNode(const ::substrait::SortRel& sSort);
 
+  void setInputPlanNode(const ::substrait::WindowRel& s);
+
   void setInputPlanNode(const ::substrait::AggregateRel& sagg);
 
   void setInputPlanNode(const ::substrait::ProjectRel& sproject);

@@ -114,8 +114,11 @@ int main(int argc, char** argv) {
     inputFiles.resize(2);
     try {
       GLUTEN_ASSIGN_OR_THROW(substraitJsonFile, getGeneratedFilePath("example.json"));
-      GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_lineitem"));
-      GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_orders"));
+      // FIXME Following code is in a way not 100% stable since it's not guaranteed that
+      //   tables appear in the input plan are of the same order
+      // See NativeBenchmarkPlanGenerator.scala
+      GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
+      GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
     } catch (const std::exception& e) {
       std::cout << "Failed to run example: " << e.what() << std::endl;
       ::benchmark::Shutdown();
