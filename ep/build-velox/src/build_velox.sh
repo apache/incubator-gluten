@@ -101,21 +101,25 @@ function process_setup_centos8 {
       git checkout scripts/setup-centos8.sh
       sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
 
+      # install gtest
+      sed -i '/^cmake_install_deps gflags/i function install_gtest {\n  wget https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz\n  tar -xzf release-1.12.1.tar.gz\n  cd googletest-release-1.12.1\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos8.sh
+      sed -i '/^cmake_install_deps fmt/a \ \ install_gtest' scripts/setup-centos8.sh
+
       if [ $BUILD_FOLLY == "ON" ]; then
         sed -i '/^cmake_install_deps gflags/i function install_folly {\n  github_checkout facebook/folly v2022.07.11.00\n  cmake_install -DBUILD_TESTS=OFF\n}\n' scripts/setup-centos8.sh
-        sed -i '/^cmake_install_deps fmt/a \ \ run_and_time install_folly' scripts/setup-centos8.sh
+        sed -i '/^cmake_install_deps fmt/a \ \ install_folly' scripts/setup-centos8.sh
       fi
       if [ $ENABLE_HDFS == "ON" ]; then
         sed -i '/^cmake_install_deps gflags/i function install_libhdfs3 {\n  github_checkout apache/hawq master\n  cd depends/libhdfs3\n sed -i "/FIND_PACKAGE(GoogleTest REQUIRED)/d" ./CMakeLists.txt\n  sed -i "s/dumpversion/dumpfullversion/" ./CMake/Platform.cmake\n sed -i "s/dfs.domain.socket.path\\", \\"\\"/dfs.domain.socket.path\\", \\"\\/var\\/lib\\/hadoop-hdfs\\/dn_socket\\"/g" src/common/SessionConfig.cpp\n cmake_install\n}\n' scripts/setup-centos8.sh
-        sed -i '/^cmake_install_deps fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos8.sh
+        sed -i '/^cmake_install_deps fmt/a \ \ install_libhdfs3' scripts/setup-centos8.sh
       fi
       if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
         sed -i '/^cmake_install_deps gflags/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos8.sh
-        sed -i '/^cmake_install_deps fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos8.sh
+        sed -i '/^cmake_install_deps fmt/a \ \ install_protobuf' scripts/setup-centos8.sh
       fi
       if [ $ENABLE_S3 == "ON" ]; then
         sed -i '/^cmake_install_deps gflags/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-centos8.sh
-        sed -i '/^cmake_install_deps fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos8.sh
+        sed -i '/^cmake_install_deps fmt/a \ \ install_awssdk' scripts/setup-centos8.sh
       fi
 }
 
