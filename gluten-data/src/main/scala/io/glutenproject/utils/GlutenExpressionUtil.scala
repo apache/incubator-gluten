@@ -15,24 +15,11 @@
  * limitations under the License.
  */
 
-package io.glutenproject.expression
+package io.glutenproject.utils
 
-import io.glutenproject.substrait.expression.ExpressionNode
-
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types._
-
-class GlutenDataAliasTransformer(child: Expression, name: String)(
-  override val exprId: ExprId,
-  override val qualifier: Seq[String],
-  override val explicitMetadata: Option[Metadata])
-  extends AliasBaseTransformer(child, name)(exprId, qualifier, explicitMetadata) {
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"not supported yet")
-    }
-    childNode
-  }
+object GlutenExpressionUtil {
+  final val EMPTY_TYPE = ""
+  final val ARRAY_TYPE = "array"
+  final val MAP_TYPE = "map"
+  final val STRUCT_TYPE = "struct"
 }

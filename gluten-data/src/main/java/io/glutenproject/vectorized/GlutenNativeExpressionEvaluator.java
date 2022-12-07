@@ -15,18 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.utils
+package io.glutenproject.vectorized;
 
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, GlutenDataColumnarShuffleWriter}
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 
-object GlutenDataShuffleUtil {
+import java.io.IOException;
+import java.util.List;
 
-  def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V]
-                                    ): GlutenShuffleWriterWrapper[K, V] = {
-    GlutenShuffleWriterWrapper(new GlutenDataColumnarShuffleWriter[K, V](
-      parameters.shuffleBlockResolver,
-      parameters.columnarShuffleHandle,
-      parameters.mapId,
-      parameters.metrics))
+public class GlutenNativeExpressionEvaluator extends NativeExpressionEvaluator {
+  @Override
+  protected GeneralOutIterator createOutIterator(
+      long nativeHandle, List<Attribute> outAttrs) throws IOException {
+    return new ArrowOutIterator(nativeHandle, outAttrs);
   }
 }

@@ -45,7 +45,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
-object GlutenDataArrowUtil extends Logging {
+object GlutenArrowUtil extends Logging {
 
   def calcuateEstimatedSize(columnarBatch: ColumnarBatch): Long = {
     SparkVectorUtil.estimateSize(columnarBatch)
@@ -90,7 +90,7 @@ object GlutenDataArrowUtil extends Logging {
             schema = new Schema(vectors.map(_.getValueVector().getField).asJava)
             MessageSerializer.serialize(channel, schema, option)
           }
-          val batch = GlutenDataArrowUtil
+          val batch = GlutenArrowUtil
             .createArrowRecordBatch(columnarBatch.numRows, vectors.map(_.getValueVector))
           try {
             MessageSerializer.serialize(channel, batch, option)
@@ -421,6 +421,6 @@ object GlutenDataArrowUtil extends Logging {
   }
 
   override def toString: String = {
-    s"GlutenDataArrowUtil"
+    s"GlutenArrowUtil"
   }
 }

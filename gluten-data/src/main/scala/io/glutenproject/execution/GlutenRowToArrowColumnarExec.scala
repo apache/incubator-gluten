@@ -239,7 +239,7 @@ object RowToColumnConverter {
  * populate with [[RowToColumnConverter]], but the performance requirements are different and it
  * would only be to reduce code.
  */
-case class GlutenDataRowToArrowColumnarExec(child: SparkPlan)
+case class GlutenRowToArrowColumnarExec(child: SparkPlan)
   extends GlutenRowToColumnarExec(child = child) with UnaryExecNode {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
@@ -298,7 +298,7 @@ case class GlutenDataRowToArrowColumnarExec(child: SparkPlan)
   override def supportsColumnar: Boolean = true
 
   // For spark 3.2.
-  protected def withNewChildInternal(newChild: SparkPlan): GlutenDataRowToArrowColumnarExec =
+  protected def withNewChildInternal(newChild: SparkPlan): GlutenRowToArrowColumnarExec =
     copy(child = newChild)
 
   override def doExecute(): RDD[InternalRow] = {

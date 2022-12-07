@@ -17,8 +17,8 @@
 
 package io.glutenproject.backendsapi.gazelle
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataSparkPlanExecApi
+import io.glutenproject.backendsapi.glutendata.GlutenSparkPlanExecApi
 
-class GazelleSparkPlanExecApi extends GlutenDataSparkPlanExecApi {
+class GazelleSparkPlanExecApi extends GlutenSparkPlanExecApi {
 
 }

@@ -15,17 +15,24 @@
  * limitations under the License.
  */
 
-package io.glutenproject.vectorized;
+package io.glutenproject.expression
 
-import org.apache.spark.sql.catalyst.expressions.Attribute;
+import io.glutenproject.substrait.expression.ExpressionNode
 
-import java.io.IOException;
-import java.util.List;
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types._
 
-public class GlutenDataNativeExpressionEvaluator extends NativeExpressionEvaluator {
-  @Override
-  protected GeneralOutIterator createOutIterator(
-      long nativeHandle, List<Attribute> outAttrs) throws IOException {
-    return new ArrowOutIterator(nativeHandle, outAttrs);
+class GlutenAliasTransformer(child: Expression, name: String)(
+  override val exprId: ExprId,
+  override val qualifier: Seq[String],
+  override val explicitMetadata: Option[Metadata])
+  extends AliasBaseTransformer(child, name)(exprId, qualifier, explicitMetadata) {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
+    if (!childNode.isInstanceOf[ExpressionNode]) {
+      throw new UnsupportedOperationException(s"not supported yet")
+    }
+    childNode
   }
 }

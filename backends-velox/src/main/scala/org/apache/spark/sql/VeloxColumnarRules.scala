@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{ColumnarToFakeRowAdaptor, GlutenDataRowToArrowColumnarExec}
+import io.glutenproject.execution.{ColumnarToFakeRowAdaptor, GlutenRowToArrowColumnarExec}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -63,7 +63,7 @@ object VeloxColumnarRules {
                         c.isSubquery)))
                 case other =>
                   rc.withNewChildren(
-                    Array(ColumnarToFakeRowAdaptor(GlutenDataRowToArrowColumnarExec(child))))
+                    Array(ColumnarToFakeRowAdaptor(GlutenRowToArrowColumnarExec(child))))
               }
             } else {
               plan.withNewChildren(plan.children.map(apply))

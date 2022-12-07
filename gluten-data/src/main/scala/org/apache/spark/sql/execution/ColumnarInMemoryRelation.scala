@@ -28,7 +28,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.expression._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.GlutenDataArrowUtil
+import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.internal.Logging
@@ -73,21 +73,21 @@ case class ArrowCachedBatch(
   override def estimatedSize: Long = {
     var size: Long = 0
     buffer.foreach(batch => {
-      size += GlutenDataArrowUtil.calcuateEstimatedSize(batch)
+      size += GlutenArrowUtil.calcuateEstimatedSize(batch)
     })
     size
   }
 
   override def writeExternal(out: ObjectOutput): Unit = {
     out.writeObject(numRows)
-    val rawArrowData = GlutenDataArrowUtil.convertToNetty(buffer)
+    val rawArrowData = GlutenArrowUtil.convertToNetty(buffer)
     out.writeObject(rawArrowData)
     buffer.foreach(_.close)
   }
 
   override def write(kryo: Kryo, out: Output): Unit = {
     kryo.writeObject(out, numRows)
-    val rawArrowData = GlutenDataArrowUtil.convertToNetty(buffer)
+    val rawArrowData = GlutenArrowUtil.convertToNetty(buffer)
     kryo.writeObject(out, rawArrowData)
     logInfo("ArrowCachedBatch close when write to disk")
     buffer.foreach(_.close)
@@ -96,14 +96,14 @@ case class ArrowCachedBatch(
   override def readExternal(in: ObjectInput): Unit = {
     numRows = in.readObject().asInstanceOf[Integer]
     val rawArrowData = in.readObject().asInstanceOf[Array[Byte]]
-    buffer = GlutenDataArrowUtil.convertFromNetty(null,
+    buffer = GlutenArrowUtil.convertFromNetty(null,
       new ByteArrayInputStream(rawArrowData)).toArray
   }
 
   override def read(kryo: Kryo, in: Input): Unit = {
     numRows = kryo.readObject(in, classOf[Integer]).asInstanceOf[Integer]
     val rawArrowData = kryo.readObject(in, classOf[Array[Byte]]).asInstanceOf[Array[Byte]]
-    buffer = GlutenDataArrowUtil.convertFromNetty(null,
+    buffer = GlutenArrowUtil.convertFromNetty(null,
       new ByteArrayInputStream(rawArrowData)).toArray
   }
 }

@@ -17,8 +17,8 @@
 
 package io.glutenproject.backendsapi.gazelle
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataValidatorApi
+import io.glutenproject.backendsapi.glutendata.GlutenValidatorApi
 
-class GazelleValidatorApi extends GlutenDataValidatorApi {
+class GazelleValidatorApi extends GlutenValidatorApi {
 
 }

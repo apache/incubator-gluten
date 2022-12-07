@@ -24,7 +24,7 @@ import scala.reflect.ClassTag
 
 import io.glutenproject.columnarbatch.GlutenColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.GlutenDataArrowAbiUtil
+import io.glutenproject.utils.GlutenArrowAbiUtil
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorLoader
@@ -64,7 +64,7 @@ private class GlutenColumnarBatchSerializerInstance(schema: StructType,
         val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
         val arrowSchema =
           SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-        GlutenDataArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+        GlutenArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ShuffleReaderJniWrapper.make(
           JniByteInputStreams.create(in), cSchema.memoryAddress())
         cSchema.close()

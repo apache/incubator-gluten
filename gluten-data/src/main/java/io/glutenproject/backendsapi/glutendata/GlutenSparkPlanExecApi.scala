@@ -22,17 +22,17 @@ import scala.collection.mutable.ArrayBuffer
 import io.glutenproject.backendsapi.{BackendsApiManager, ISparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
-import io.glutenproject.execution.GlutenDataColumnarRules.LoadBeforeColumnarToRow
-import io.glutenproject.expression.{AliasBaseTransformer, GlutenDataAliasTransformer}
+import io.glutenproject.execution.GlutenColumnarRules.LoadBeforeColumnarToRow
+import io.glutenproject.expression.{AliasBaseTransformer, GlutenAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.GlutenDataArrowUtil
+import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
-import org.apache.spark.shuffle.utils.GlutenDataShuffleUtil
+import org.apache.spark.shuffle.utils.GlutenShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
@@ -41,15 +41,15 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{GlutenDataBuildSideRelation, SparkPlan}
+import org.apache.spark.sql.execution.{GlutenBuildSideRelation, SparkPlan}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.utils.GlutenDataExecUtil
+import org.apache.spark.sql.execution.utils.GlutenExecUtil
 import org.apache.spark.sql.types.{Metadata, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
+abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
 
   /**
    * Whether support gluten for current SparkPlan
@@ -60,13 +60,13 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
     nativeEngineEnabled
 
   /**
-   * Generate GlutenColumnarToRowExec.
+   * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExec =
-    new GlutenDataColumnarToRowExec(child)
+  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase =
+    new GlutenColumnarToRowExec(child)
 
   /**
    * Generate RowToColumnarExec.
@@ -75,7 +75,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
    * @return
    */
   override def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec =
-    new GlutenDataRowToArrowColumnarExec(child)
+    new GlutenRowToArrowColumnarExec(child)
 
   // scalastyle:off argcount
 
@@ -92,7 +92,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
       // Use the original Filter for Arrow backend.
       FilterExecTransformer(condition, child)
     } else {
-      GlutenDataFilterExecTransformer(condition, child)
+      GlutenFilterExecTransformer(condition, child)
     }
 
   /**
@@ -106,7 +106,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan): HashAggregateExecBaseTransformer =
-    GlutenDataHashAggregateExecTransformer(
+    GlutenHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions,
       aggregateExpressions,
@@ -125,7 +125,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
     condition: Option[Expression],
     left: SparkPlan,
     right: SparkPlan): ShuffledHashJoinExecTransformer =
-    GlutenDataShuffledHashJoinExecTransformer(
+    GlutenShuffledHashJoinExecTransformer(
       leftKeys, rightKeys, joinType, buildSide, condition, left, right)
 
   /**
@@ -139,7 +139,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
     left: SparkPlan,
     right: SparkPlan,
     isNullAwareAntiJoin: Boolean = false)
-  : BroadcastHashJoinExecTransformer = GlutenDataBroadcastHashJoinExecTransformer(
+  : BroadcastHashJoinExecTransformer = GlutenBroadcastHashJoinExecTransformer(
     leftKeys, rightKeys, joinType, buildSide, condition, left, right, isNullAwareAntiJoin)
 
   /**
@@ -155,7 +155,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
   def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
     qualifier: Seq[String], explicitMetadata: Option[Metadata])
   : AliasBaseTransformer =
-    new GlutenDataAliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
+    new GlutenAliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -179,7 +179,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
     inputBatches: SQLMetric)
   : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
-    GlutenDataExecUtil.genShuffleDependency(
+    GlutenExecUtil.genShuffleDependency(
       rdd,
       outputAttributes,
       newPartitioning,
@@ -204,7 +204,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
    */
   override def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V])
   : GlutenShuffleWriterWrapper[K, V] = {
-    GlutenDataShuffleUtil.genColumnarShuffleWriter(parameters)
+    GlutenShuffleUtil.genColumnarShuffleWriter(parameters)
   }
 
   /**
@@ -243,7 +243,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
           _numRows += acb.numRows
           _input += acb
         }
-        val bytes = GlutenDataArrowUtil.convertToNetty(_input.toArray)
+        val bytes = GlutenArrowUtil.convertToNetty(_input.toArray)
         _input.foreach(_.close)
 
         Iterator((_numRows, bytes))
@@ -259,7 +259,7 @@ abstract class GlutenDataSparkPlanExecApi extends ISparkPlanExecApi {
     numOutputRows += countsAndBytes.map(_._1).sum
     dataSize += rawSize
 
-    GlutenDataBuildSideRelation(mode, child.output, batches)
+    GlutenBuildSideRelation(mode, child.output, batches)
   }
 
   /**

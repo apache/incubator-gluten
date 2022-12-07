@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DoubleType, LongType}
 
-case class GlutenDataHashAggregateExecTransformer(
+case class GlutenHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
@@ -430,7 +430,7 @@ case class GlutenDataHashAggregateExecTransformer(
   def numShufflePartitions: Option[Int] = Some(0)
 
   override protected def withNewChildInternal(newChild: SparkPlan)
-    : GlutenDataHashAggregateExecTransformer = {
+    : GlutenHashAggregateExecTransformer = {
       copy(child = newChild)
     }
 }

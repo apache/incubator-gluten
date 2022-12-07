@@ -144,7 +144,7 @@ case class LoadArrowData(child: SparkPlan) extends UnaryExecNode {
     copy(child = newChild)
 }
 
-object GlutenDataColumnarRules {
+object GlutenColumnarRules {
   case class LoadBeforeColumnarToRow() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
       case c2r @ ColumnarToRowExec(_: ColumnarShuffleExchangeAdaptor) =>

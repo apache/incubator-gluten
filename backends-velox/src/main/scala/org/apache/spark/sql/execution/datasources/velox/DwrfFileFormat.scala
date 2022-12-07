@@ -22,7 +22,7 @@ import java.io.IOException
 import io.glutenproject.execution.FakeRow
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DwrfDatasourceJniWrapper
-import io.glutenproject.utils.{GlutenDataArrowAbiUtil, VeloxDatasourceUtil}
+import io.glutenproject.utils.{GlutenArrowAbiUtil, VeloxDatasourceUtil}
 import io.glutenproject.vectorized.NativeColumnarToRowInfo
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.hadoop.fs.FileStatus
@@ -64,7 +64,7 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
         var instanceId = -1L
         val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
         try {
-          GlutenDataArrowAbiUtil.exportSchema(
+          GlutenArrowAbiUtil.exportSchema(
             ArrowBufferAllocators.contextInstance(), arrowSchema, cSchema)
           instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath,
             cSchema.memoryAddress())
@@ -83,7 +83,7 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
             val cSchema = ArrowSchema.allocateNew(allocator)
             var info: NativeColumnarToRowInfo = null
             try {
-              GlutenDataArrowAbiUtil.exportFromSparkColumnarBatch(
+              GlutenArrowAbiUtil.exportFromSparkColumnarBatch(
                 ArrowBufferAllocators.contextInstance(), batch, cSchema, cArray)
 
               dwrfDatasourceJniWrapper.write(instanceId, cSchema.memoryAddress(),

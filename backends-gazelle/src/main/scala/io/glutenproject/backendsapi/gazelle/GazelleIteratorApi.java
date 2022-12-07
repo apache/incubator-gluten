@@ -17,7 +17,7 @@
 
 package io.glutenproject.backendsapi.gazelle;
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataIteratorApi;
+import io.glutenproject.backendsapi.glutendata.GlutenIteratorApi;
 
-public class GazelleIteratorApi extends GlutenDataIteratorApi {
+public class GazelleIteratorApi extends GlutenIteratorApi {
 }

@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import io.glutenproject.expression._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.GlutenDataArrowUtil
+import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
@@ -161,10 +161,10 @@ class ColumnarArrowPythonRunner(
           while (inputIterator.hasNext) {
             val nextBatch = inputIterator.next()
             numRows += nextBatch.numRows
-            val next_rb = GlutenDataArrowUtil.createArrowRecordBatch(nextBatch)
+            val next_rb = GlutenArrowUtil.createArrowRecordBatch(nextBatch)
             loader.load(next_rb)
             writer.writeBatch()
-            GlutenDataArrowUtil.releaseArrowRecordBatch(next_rb)
+            GlutenArrowUtil.releaseArrowRecordBatch(next_rb)
           }
           // end writes footer to the output stream and doesn't clean any resources.
           // It could throw exception if the output stream is closed, so it should be

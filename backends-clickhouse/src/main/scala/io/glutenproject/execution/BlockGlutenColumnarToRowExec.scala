@@ -28,7 +28,7 @@ import org.apache.spark.sql.types._
 import scala.concurrent.duration.NANOSECONDS
 
 case class BlockGlutenColumnarToRowExec(child: SparkPlan)
-  extends GlutenColumnarToRowExec(child = child) {
+  extends GlutenColumnarToRowExecBase(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"
 
   override def supportCodegen: Boolean = false
@@ -54,7 +54,7 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
         case d: MapType =>
         case _ =>
           throw new UnsupportedOperationException(
-            s"${field.dataType} is not supported in GlutenColumnarToRowExec.")
+            s"${field.dataType} is not supported in GlutenColumnarToRowExecBase.")
       }
     }
   }

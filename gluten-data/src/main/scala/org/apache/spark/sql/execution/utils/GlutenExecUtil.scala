@@ -25,7 +25,7 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.utils.GlutenDataArrowUtil
+import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 
@@ -47,7 +47,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.MutablePair
 import org.apache.spark.util.memory.TaskMemoryResources
 
-object GlutenDataExecUtil {
+object GlutenExecUtil {
   // scalastyle:off argcount
   def genShuffleDependency(rdd: RDD[ColumnarBatch],
                            outputAttributes: Seq[Attribute],
@@ -133,11 +133,11 @@ object GlutenDataExecUtil {
 
     def serializeSchema(fields: Seq[Field]): Array[Byte] = {
       val schema = new Schema(fields.asJava)
-      GlutenDataArrowUtil.getSchemaBytesBuf(schema)
+      GlutenArrowUtil.getSchemaBytesBuf(schema)
     }
 
     val arrowFields = outputAttributes.map(attr =>
-      GlutenDataArrowUtil.createArrowField(attr)
+      GlutenArrowUtil.createArrowField(attr)
     )
 
     val nativePartitioning: NativePartitioning = newPartitioning match {

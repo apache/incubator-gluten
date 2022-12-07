@@ -30,7 +30,7 @@ import org.apache.arrow.vector.types.pojo.{Field, Schema}
 
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
-object GlutenDataArrowAbiUtil {
+object GlutenArrowAbiUtil {
 
   def importIntoVectorSchemaRoot(allocator: BufferAllocator,
                                  array: ArrowArray, root: VectorSchemaRoot,
@@ -124,12 +124,12 @@ object GlutenDataArrowAbiUtil {
   def exportFromSparkColumnarBatch(allocator: BufferAllocator, columnarBatch: ColumnarBatch,
                                    cSchema: ArrowSchema, cArray: ArrowArray): Unit = {
     val loaded = ArrowColumnarBatches.ensureLoaded(allocator, columnarBatch)
-    val schema = GlutenDataArrowUtil.toSchema(loaded)
-    val rb = GlutenDataArrowUtil.createArrowRecordBatch(loaded)
+    val schema = GlutenArrowUtil.toSchema(loaded)
+    val rb = GlutenArrowUtil.createArrowRecordBatch(loaded)
     try {
       exportFromArrowRecordBatch(allocator, rb, schema, cSchema, cArray)
     } finally {
-      GlutenDataArrowUtil.releaseArrowRecordBatch(rb)
+      GlutenArrowUtil.releaseArrowRecordBatch(rb)
     }
   }
 

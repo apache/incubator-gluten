@@ -26,12 +26,12 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.GlutenDataNativeExpressionEvaluator
+import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
 
-case class GlutenDataFilterExecTransformer(condition: Expression,
+case class GlutenFilterExecTransformer(condition: Expression,
                                       child: SparkPlan)
   extends FilterExecBaseTransformer(condition, child) with TransformSupport {
 
@@ -56,7 +56,7 @@ case class GlutenDataFilterExecTransformer(condition: Expression,
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new GlutenDataNativeExpressionEvaluator()
+      val validator = new GlutenNativeExpressionEvaluator()
       validator.doValidate(planNode.toProtobuf.toByteArray)
     } else {
       true
@@ -120,5 +120,5 @@ case class GlutenDataFilterExecTransformer(condition: Expression,
   }
 
   override protected def withNewChildInternal(
-      newChild: SparkPlan): GlutenDataFilterExecTransformer = copy(child = newChild)
+      newChild: SparkPlan): GlutenFilterExecTransformer = copy(child = newChild)
 }

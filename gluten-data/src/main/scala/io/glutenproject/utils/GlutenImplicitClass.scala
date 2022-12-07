@@ -24,7 +24,7 @@ import org.apache.arrow.vector.util.VectorBatchAppender
 
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-object GlutenDataImplicitClass {
+object GlutenImplicitClass {
 
   implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
     def retain(): Unit = {

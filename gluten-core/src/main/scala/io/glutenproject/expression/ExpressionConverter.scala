@@ -18,7 +18,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{GlutenColumnarToRowExec, WholeStageTransformerExec}
+import io.glutenproject.execution.{GlutenColumnarToRowExecBase, WholeStageTransformerExec}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
@@ -337,7 +337,7 @@ object ExpressionConverter extends Logging {
     : ColumnarBroadcastExchangeExec = {
       val newChild = exchange.child match {
         // get WholeStageTransformerExec directly
-        case c2r: GlutenColumnarToRowExec => c2r.child
+        case c2r: GlutenColumnarToRowExecBase => c2r.child
         // in case of fallbacking
         case codeGen: WholeStageCodegenExec =>
           if (codeGen.child.isInstanceOf[ColumnarToRowExec]) {

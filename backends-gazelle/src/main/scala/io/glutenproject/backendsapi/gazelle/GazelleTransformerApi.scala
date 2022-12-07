@@ -17,8 +17,8 @@
 
 package io.glutenproject.backendsapi.gazelle
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataTransformerApi
+import io.glutenproject.backendsapi.glutendata.GlutenTransformerApi
 
-class GazelleTransformerApi extends GlutenDataTransformerApi {
+class GazelleTransformerApi extends GlutenTransformerApi {
 
 }

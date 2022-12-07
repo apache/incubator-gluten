@@ -17,14 +17,14 @@
 
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataSparkPlanExecApi
+import io.glutenproject.backendsapi.glutendata.GlutenSparkPlanExecApi
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.VeloxColumnarRules.OtherWritePostRule
 
-class VeloxSparkPlanExecApi extends GlutenDataSparkPlanExecApi {
+class VeloxSparkPlanExecApi extends GlutenSparkPlanExecApi {
   /**
    * Generate extended columnar post-rules.
    * Currently only for Velox backend.

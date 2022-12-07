@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{ColumnarToFakeRowAdaptor, GlutenDataRowToArrowColumnarExec}
+import io.glutenproject.execution.{ColumnarToFakeRowAdaptor, GlutenRowToArrowColumnarExec}
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
@@ -58,7 +58,7 @@ object ArrowColumnarRules {
                         c.isSubquery)))
                 case other =>
                   rc.withNewChildren(
-                    Array(ColumnarToFakeRowAdaptor(new GlutenDataRowToArrowColumnarExec(child))))
+                    Array(ColumnarToFakeRowAdaptor(new GlutenRowToArrowColumnarExec(child))))
               }
               val new_cmd = command.copy(fileFormat = new ArrowFileFormat())
               new_rc.asInstanceOf[DataWritingCommandExec].copy(cmd = new_cmd)

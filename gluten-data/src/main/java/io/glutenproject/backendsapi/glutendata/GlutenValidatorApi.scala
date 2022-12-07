@@ -19,12 +19,12 @@ package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.IValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.utils.GlutenDataExpressionUtil
-import io.glutenproject.vectorized.GlutenDataNativeExpressionEvaluator
+import io.glutenproject.utils.GlutenExpressionUtil
+import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
 
-abstract class GlutenDataValidatorApi extends IValidatorApi {
+abstract class GlutenValidatorApi extends IValidatorApi {
 
   /**
    * Validate target expression within an input blacklist. Return false if target expression
@@ -41,7 +41,7 @@ abstract class GlutenDataValidatorApi extends IValidatorApi {
     }
     val inputTypeNames = value.get
     inputTypeNames.foreach { inputTypeName =>
-      if (inputTypeName.equals(GlutenDataExpressionUtil.EMPTY_TYPE)) {
+      if (inputTypeName.equals(GlutenExpressionUtil.EMPTY_TYPE)) {
         return false
       } else {
         for (input <- expr.children) {
@@ -57,7 +57,7 @@ abstract class GlutenDataValidatorApi extends IValidatorApi {
   override def doValidate(expr: Expression): Boolean = doValidate(Map(), expr)
 
   override def doValidate(plan: PlanNode): Boolean = {
-    val validator = new GlutenDataNativeExpressionEvaluator()
+    val validator = new GlutenNativeExpressionEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)
   }
 }

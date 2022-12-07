@@ -17,7 +17,7 @@
 
 package io.glutenproject.backendsapi.gazelle
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataSparkPlanExecApi
+import io.glutenproject.backendsapi.glutendata.GlutenSparkPlanExecApi
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
@@ -27,7 +27,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 // FIXME Methods in this class never get called since no service file is registered for it,
 // marked deprecated
 @deprecated
-class GazelleSparkPlanExecApiDeprecated extends GlutenDataSparkPlanExecApi {
+class GazelleSparkPlanExecApiDeprecated extends GlutenSparkPlanExecApi {
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
     val arrowRule = (spark: SparkSession)
     => ArrowWritePostRule(spark)

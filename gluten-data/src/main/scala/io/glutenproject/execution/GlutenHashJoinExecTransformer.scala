@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 
-case class GlutenDataShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
+case class GlutenShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
                                                 rightKeys: Seq[Expression],
                                                 joinType: JoinType,
                                                 buildSide: BuildSide,
@@ -157,11 +157,11 @@ case class GlutenDataShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
   }
 
   override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): GlutenDataShuffledHashJoinExecTransformer =
+      newLeft: SparkPlan, newRight: SparkPlan): GlutenShuffledHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 }
 
-case class GlutenDataBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
+case class GlutenBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
                                                  rightKeys: Seq[Expression],
                                                  joinType: JoinType,
                                                  buildSide: BuildSide,
@@ -199,6 +199,6 @@ case class GlutenDataBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
   }
 
   override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): GlutenDataBroadcastHashJoinExecTransformer =
+      newLeft: SparkPlan, newRight: SparkPlan): GlutenBroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 }

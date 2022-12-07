@@ -15,11 +15,18 @@
  * limitations under the License.
  */
 
-package io.glutenproject.utils
+package org.apache.spark.shuffle.utils
 
-object GlutenDataExpressionUtil {
-  final val EMPTY_TYPE = ""
-  final val ARRAY_TYPE = "array"
-  final val MAP_TYPE = "map"
-  final val STRUCT_TYPE = "struct"
+import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, GlutenColumnarShuffleWriter}
+
+object GlutenShuffleUtil {
+
+  def genColumnarShuffleWriter[K, V](parameters: GenShuffleWriterParameters[K, V]
+                                    ): GlutenShuffleWriterWrapper[K, V] = {
+    GlutenShuffleWriterWrapper(new GlutenColumnarShuffleWriter[K, V](
+      parameters.shuffleBlockResolver,
+      parameters.columnarShuffleHandle,
+      parameters.mapId,
+      parameters.metrics))
+  }
 }

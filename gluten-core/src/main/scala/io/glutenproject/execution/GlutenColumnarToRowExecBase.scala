@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{CodegenSupport, ColumnarToRowTransition, SparkPlan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
-abstract class GlutenColumnarToRowExec(child: SparkPlan) extends ColumnarToRowTransition
+abstract class GlutenColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTransition
   with CodegenSupport {
 
   override lazy val metrics: Map[String, SQLMetric] = Map(

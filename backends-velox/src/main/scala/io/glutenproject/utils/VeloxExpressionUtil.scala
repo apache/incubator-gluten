@@ -18,7 +18,7 @@
 package io.glutenproject.utils
 
 import io.glutenproject.expression.ConverterUtils._
-import io.glutenproject.utils.GlutenDataExpressionUtil.{ARRAY_TYPE, EMPTY_TYPE, MAP_TYPE, STRUCT_TYPE}
+import io.glutenproject.utils.GlutenExpressionUtil.{ARRAY_TYPE, EMPTY_TYPE, MAP_TYPE, STRUCT_TYPE}
 
 import org.apache.spark.sql.types.DataTypes
 

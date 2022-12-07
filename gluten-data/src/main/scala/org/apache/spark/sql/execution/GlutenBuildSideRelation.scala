@@ -30,19 +30,19 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
-import io.glutenproject.utils.GlutenDataArrowUtil
+import io.glutenproject.utils.GlutenArrowUtil
 
-case class GlutenDataBuildSideRelation(mode: BroadcastMode,
+case class GlutenBuildSideRelation(mode: BroadcastMode,
   output: Seq[Attribute],
   batches: Array[Array[Byte]])
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    GlutenDataArrowUtil.convertFromNetty(output, batches)
+    GlutenArrowUtil.convertFromNetty(output, batches)
   }
 
   override def asReadOnlyCopy(broadCastContext: BroadCastHashJoinContext
-  ): GlutenDataBuildSideRelation = this
+  ): GlutenBuildSideRelation = this
 
   /**
    * Transform columnar broadcasted value to Array[InternalRow] by key and distinct.
@@ -50,7 +50,7 @@ case class GlutenDataBuildSideRelation(mode: BroadcastMode,
    */
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
-    val batchIter = GlutenDataArrowUtil.convertFromNetty(output, batches)
+    val batchIter = GlutenArrowUtil.convertFromNetty(output, batches)
     // Convert columnar to Row.
     batchIter.flatMap(batch => {
       if (batch.numRows == 0) {

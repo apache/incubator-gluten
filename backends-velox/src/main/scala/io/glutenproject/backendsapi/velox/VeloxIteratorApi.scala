@@ -17,8 +17,8 @@
 
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataIteratorApi
+import io.glutenproject.backendsapi.glutendata.GlutenIteratorApi
 
-class VeloxIteratorApi extends GlutenDataIteratorApi {
+class VeloxIteratorApi extends GlutenIteratorApi {
 
 }

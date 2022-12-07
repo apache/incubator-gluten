@@ -18,9 +18,9 @@
 package io.glutenproject.columnarbatch;
 
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
-import io.glutenproject.utils.GlutenDataArrowAbiUtil;
-import io.glutenproject.utils.GlutenDataArrowUtil;
-import io.glutenproject.utils.GlutenDataImplicitClass;
+import io.glutenproject.utils.GlutenArrowAbiUtil;
+import io.glutenproject.utils.GlutenArrowUtil;
+import io.glutenproject.utils.GlutenImplicitClass;
 import io.glutenproject.vectorized.ArrowWritableColumnVector;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
@@ -86,16 +86,16 @@ public class ArrowColumnarBatches {
           cArray.memoryAddress());
 
       Data.exportSchema(allocator,
-          GlutenDataArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+          GlutenArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
 
-      ColumnarBatch output = GlutenDataArrowAbiUtil.importToSparkColumnarBatch(
+      ColumnarBatch output = GlutenArrowAbiUtil.importToSparkColumnarBatch(
           allocator, arrowSchema, cArray);
 
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
       GlutenIndicatorVector giv = (GlutenIndicatorVector) input.column(0);
-      GlutenDataImplicitClass.ArrowColumnarBatchRetainer retainer =
-          new GlutenDataImplicitClass.ArrowColumnarBatchRetainer(output);
+      GlutenImplicitClass.ArrowColumnarBatchRetainer retainer =
+          new GlutenImplicitClass.ArrowColumnarBatchRetainer(output);
       for (long i = 0; i < (giv.refCnt() - 1); i++) {
         retainer.retain();
       }
@@ -120,7 +120,7 @@ public class ArrowColumnarBatches {
     }
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
          ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      GlutenDataArrowAbiUtil.exportFromSparkColumnarBatch(
+      GlutenArrowAbiUtil.exportFromSparkColumnarBatch(
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),
           cArray.memoryAddress());

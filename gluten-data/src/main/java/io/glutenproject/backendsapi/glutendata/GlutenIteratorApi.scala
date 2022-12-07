@@ -33,7 +33,7 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.utils.GlutenDataImplicitClass.{coalesce, ArrowColumnarBatchRetainer}
+import io.glutenproject.utils.GlutenImplicitClass.{coalesce, ArrowColumnarBatchRetainer}
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
 
@@ -52,7 +52,7 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskMemoryResources
 
-abstract class GlutenDataIteratorApi extends IIteratorApi with Logging {
+abstract class GlutenIteratorApi extends IIteratorApi with Logging {
 
   /**
    * Generate native row partition.
@@ -228,7 +228,7 @@ abstract class GlutenDataIteratorApi extends IIteratorApi with Logging {
       new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
         new ArrowInIterator(iter.asJava)
       }.asJava)
-    val transKernel = new GlutenDataNativeExpressionEvaluator()
+    val transKernel = new GlutenNativeExpressionEvaluator()
     val resIter: GeneralOutIterator = transKernel.createKernelWithBatchIterator(
       inputPartition.plan, columnarNativeIterators, outputAttributes.asJava)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
@@ -298,7 +298,7 @@ abstract class GlutenDataIteratorApi extends IIteratorApi with Logging {
 
     val beforeBuild = System.nanoTime()
 
-    val transKernel = new GlutenDataNativeExpressionEvaluator()
+    val transKernel = new GlutenNativeExpressionEvaluator()
     val columnarNativeIterator =
       new util.ArrayList[GeneralInIterator](inputIterators.map { iter =>
         new ArrowInIterator(iter.asJava)

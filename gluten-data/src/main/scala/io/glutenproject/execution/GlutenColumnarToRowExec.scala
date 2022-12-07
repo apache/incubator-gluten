@@ -34,11 +34,11 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 import org.apache.spark.TaskContext
 
-case class GlutenDataColumnarToRowExec(child: SparkPlan)
-  extends GlutenColumnarToRowExec(child = child) {
-  private val LOG = LoggerFactory.getLogger(classOf[GlutenDataColumnarToRowExec])
+case class GlutenColumnarToRowExec(child: SparkPlan)
+  extends GlutenColumnarToRowExecBase(child = child) {
+  private val LOG = LoggerFactory.getLogger(classOf[GlutenColumnarToRowExec])
 
-  override def nodeName: String = "GlutenDataColumnarToRowExec"
+  override def nodeName: String = "GlutenColumnarToRowExec"
 
   override def supportCodegen: Boolean = false
 
@@ -59,7 +59,7 @@ case class GlutenDataColumnarToRowExec(child: SparkPlan)
         case d: BinaryType =>
         case _ =>
           throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-            s"GlutenColumnarToRowExec.")
+            s"GlutenColumnarToRowExecBase.")
       }
     }
   }
@@ -139,10 +139,10 @@ case class GlutenDataColumnarToRowExec(child: SparkPlan)
     }
   }
 
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[GlutenDataColumnarToRowExec]
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[GlutenColumnarToRowExec]
 
   override def equals(other: Any): Boolean = other match {
-    case that: GlutenDataColumnarToRowExec =>
+    case that: GlutenColumnarToRowExec =>
       (that canEqual this) && super.equals(that)
     case _ => false
   }
@@ -159,7 +159,7 @@ case class GlutenDataColumnarToRowExec(child: SparkPlan)
     throw new RuntimeException("Codegen is not supported!")
   }
 
-  protected def withNewChildInternal(newChild: SparkPlan): GlutenDataColumnarToRowExec =
+  protected def withNewChildInternal(newChild: SparkPlan): GlutenColumnarToRowExec =
     copy(child = newChild)
 }
 
