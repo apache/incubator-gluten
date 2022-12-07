@@ -24,7 +24,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.VeloxColumnarRules.OtherWritePostRule
 
-class VeloxDataSparkPlanExecApi extends GlutenDataSparkPlanExecApi {
+class VeloxSparkPlanExecApi extends GlutenDataSparkPlanExecApi {
   /**
    * Generate extended columnar post-rules.
    * Currently only for Velox backend.

@@ -19,6 +19,6 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.glutendata.GlutenDataTransformerApi
 
-class VeloxDataTransformerApi extends GlutenDataTransformerApi {
+class VeloxTransformerApi extends GlutenDataTransformerApi {
 
 }

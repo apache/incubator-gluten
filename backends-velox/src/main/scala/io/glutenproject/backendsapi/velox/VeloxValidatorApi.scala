@@ -16,9 +16,13 @@
  */
 
 package io.glutenproject.backendsapi.velox
+import io.glutenproject.backendsapi.glutendata.GlutenDataValidatorApi
+import io.glutenproject.utils.VeloxExpressionUtil
 
-import io.glutenproject.backendsapi.glutendata.GlutenDataIteratorApi
+import org.apache.spark.sql.catalyst.expressions.Expression
 
-class VeloxDataIteratorApi extends GlutenDataIteratorApi {
+class VeloxValidatorApi extends GlutenDataValidatorApi {
 
+  override def doValidate(expr: Expression): Boolean =
+    doValidate(VeloxExpressionUtil.VELOX_EXPR_BLACKLIST, expr)
 }
