@@ -10,10 +10,12 @@ Philosophical rules are generally not measurable. However, they are valuable. fo
 Gluten CPP coding, there are a few Philosophical rules as the following.
 
 * Write in ISO Standard C++.
-* Write code consistently.
+* Standard API first, the CPP programming APIs are priority to system calls.
+* Write code consistently. it's good for understanding.
 * Keep simple, Make code clear and easy.
 * Optimize code for the reader, not the writer, more time will be spent reading
 	code than writing it.
+* Make it work, and then make it better or faster.
 
 ## Code Formatting
 
@@ -34,25 +36,38 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * Use **UPPER_SNAKE_CASE** for macros.
 * Use **kPascalCase** for static constants and enumerators.
 
+## Designs
+* No over design.
+* No negation of negation, `isValid` is better than `isNotInvalid`.
+* Avoid corner case, and common case first.
+* Express ideas directly, don't let me think.
+
 ## Files
 
 * All header files must have a single-inclusion guard using `#pragma once`
+* Always use `.h` as header file suffix, not `.hpp`.
+* Always use `.cc` as source file suffix, neither `.cpp` nor `.cxx`.
+* One file should contain one main class, and the file name should be consistent with
+	the main class name.
+	* Obvious exception: files used for defining various misc functions.
+* If a header file has a corresponding source file, they should have the same file
+	name with different suffix, such as `a.h vs a.cc`.
+* If a function is declared in the file `a.h`, ensure it's defined in the corrosponding
+	source file `a.cc`, do not define it in other files.
+* No deep source directory for CPP files, not do it as JAVA.
 * Include header files should satisfy the following rules.
 	* Include the necessary header files, which means the source file (.cc) containing 
 	the only one line `#include "test.h"` can be compiled successfully without
 	including any other header files.
 	* Do not include any unnecessary header files, the more including, the slower
 	compiling.
-	* In on word, no more, no less, just OK.
-* One file should contain one main class, and the file name should be consistent with
-	the main class name.
-	* Obvious exception: files used for defining various misc functions.
-* If a header file has a corresponding source file, they should have the same file
-	name with different suffix, such as `a.h vs a.cc`.
+	* In one word, no more, no less, just as needed.
 
 ## Classes
 
 * Base class name do not end with Base, use `Backend` instead of `BackendBase`.
+* Ensure one class do one thing, follow the single responsibility principle.
+* No big class, No huge class, No too much interfaces.
 * Distinguish interface from implementation, make implementations private.
 * When designing a class hierarchy, distinguish between interface inheritance
 	and implementation inheritance.
@@ -97,10 +112,12 @@ line width, indentation and ordering (for includes, using directives and etc). 
 
 ## Namespaces
 
-* Don't `using namespace xxx` in header files.
+* Don't `using namespace xxx` in header files, but do this in source files is 
+	acceptable, but it's not encouraged.
 * Place all Gluten CPP codes under `namespace gluten` because one level namespace
 	is enough, no nested namespace, too much level namespaces bring mess.
-* Anonymous namespace is used for defining file level classes,functions,variables
+* The anonymous namespace is recommended for defining file level classes, functions
+	and variables, it's used to replace file scoped static functions and variables.
 
 ## Resource Management
 
@@ -109,6 +126,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
 	object.
 * Prefer scoped objects, Prefer stack objects.
 * Use raw pointers to denote individual objects.
+* Use `pointer + size_t` to denote array objects if you don't want to use containers.
 * A raw pointer (a `T*`) is non-owning.
 * A raw reference (a `T&`) is non-owning.
 * Understand the difference of `unique_ptr`, `shared_ptr`, `weak_ptr`.
