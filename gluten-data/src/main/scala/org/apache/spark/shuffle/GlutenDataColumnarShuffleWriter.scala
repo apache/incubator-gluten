@@ -25,7 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.GlutenConfig
-import io.glutenproject.utils.GlutenDataArrowAbiUtil
+import io.glutenproject.utils.{GlutenDataArrowAbiUtil, GlutenDataArrowUtil}
 import io.glutenproject.vectorized._
 import org.apache.arrow.c.ArrowArray
 import org.apache.arrow.vector.types.pojo.Schema
@@ -35,7 +35,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Utils
+import org.apache.spark.util.Utils;
 
 class GlutenDataColumnarShuffleWriter[K, V](
   shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -138,18 +138,18 @@ class GlutenDataColumnarShuffleWriter[K, V](
         val cArray = ArrowArray.allocateNew(allocator)
         // here we cannot convert RecordBatch to ArrowArray directly, in C++ code, we can convert
         // RecordBatch to ArrowArray without Schema, may optimize later
-        val rb = GlutenDataArrowUtils.createArrowRecordBatch(cb)
+        val rb = GlutenDataArrowUtil.createArrowRecordBatch(cb)
         dep.dataSize.add(rb.getBuffersLayout.asScala.map(buf => buf.getSize).sum)
 
         if (firstRecordBatch) {
-          schema = GlutenDataArrowUtils.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
+          schema = GlutenDataArrowUtil.getSchemaFromBytesBuf(dep.nativePartitioning.getSchema)
           firstRecordBatch = false
         }
         try {
           GlutenDataArrowAbiUtil.exportFromArrowRecordBatch(allocator, rb, schema,
             null, cArray)
         } finally {
-          GlutenDataArrowUtils.releaseArrowRecordBatch(rb)
+          GlutenDataArrowUtil.releaseArrowRecordBatch(rb)
         }
 
         val startTime = System.nanoTime()

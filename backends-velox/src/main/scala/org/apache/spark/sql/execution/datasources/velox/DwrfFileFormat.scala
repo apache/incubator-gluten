@@ -64,7 +64,8 @@ class DwrfFileFormat extends FileFormat with DataSourceRegister with Serializabl
         var instanceId = -1L
         val dwrfDatasourceJniWrapper = new DwrfDatasourceJniWrapper()
         try {
-          GlutenDataArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(), arrowSchema, cSchema)
+          GlutenDataArrowAbiUtil.exportSchema(
+            ArrowBufferAllocators.contextInstance(), arrowSchema, cSchema)
           instanceId = dwrfDatasourceJniWrapper.nativeInitDwrfDatasource(originPath,
             cSchema.memoryAddress())
         } catch {

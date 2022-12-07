@@ -17,9 +17,9 @@
 
 package io.glutenproject.columnarbatch;
 
-import io.glutenproject.expression.GlutenDataArrowUtils;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.utils.GlutenDataArrowAbiUtil;
+import io.glutenproject.utils.GlutenDataArrowUtil;
 import io.glutenproject.utils.GlutenDataImplicitClass;
 import io.glutenproject.vectorized.ArrowWritableColumnVector;
 import org.apache.arrow.c.ArrowArray;
@@ -86,7 +86,7 @@ public class ArrowColumnarBatches {
           cArray.memoryAddress());
 
       Data.exportSchema(allocator,
-          GlutenDataArrowUtils.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
+          GlutenDataArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
 
       ColumnarBatch output = GlutenDataArrowAbiUtil.importToSparkColumnarBatch(
           allocator, arrowSchema, cArray);
@@ -120,8 +120,8 @@ public class ArrowColumnarBatches {
     }
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
          ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      GlutenDataArrowAbiUtil.exportFromSparkColumnarBatch(ArrowBufferAllocators.contextInstance(), input,
-          cSchema, cArray);
+      GlutenDataArrowAbiUtil.exportFromSparkColumnarBatch(
+          ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle = ColumnarBatchJniWrapper.INSTANCE.createWithArrowArray(cSchema.memoryAddress(),
           cArray.memoryAddress());
       ColumnarBatch output = GlutenColumnarBatches.create(handle);

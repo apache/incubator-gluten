@@ -17,9 +17,9 @@
 
 package io.glutenproject.vectorized;
 
-import io.glutenproject.expression.GlutenDataArrowUtils;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.utils.GlutenDataArrowAbiUtil;
+import io.glutenproject.utils.GlutenDataArrowUtil;
 import org.apache.arrow.c.ArrowSchema;
 
 import java.io.IOException;
@@ -47,7 +47,7 @@ public class ShuffleSplitterJniWrapper {
                    String localDirs, boolean preferSpill, long memoryPoolId, boolean writeSchema) {
     try (ArrowSchema schema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())) {
       GlutenDataArrowAbiUtil.exportSchema(ArrowBufferAllocators.contextInstance(),
-          GlutenDataArrowUtils.getSchemaFromBytesBuf(part.getSchema()), schema);
+          GlutenDataArrowUtil.getSchemaFromBytesBuf(part.getSchema()), schema);
       return nativeMake(part.getShortName(), part.getNumPartitions(), schema.memoryAddress(),
           offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
           subDirsPerLocalDir, localDirs, preferSpill, memoryPoolId, writeSchema);
