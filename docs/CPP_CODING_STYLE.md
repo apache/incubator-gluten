@@ -6,18 +6,18 @@ to best practices.
 
 ## Philosophy
 
-Philosophical rules are generally not measurable. However, it's valuable. for 
+Philosophical rules are generally not measurable. However, they are valuable. for 
 Gluten CPP coding, there are a few Philosophical rules as the following.
 
 * Write in ISO Standard C++.
+* Write code consistently.
 * Keep simple, Make code clear and easy.
 * Optimize code for the reader, not the writer, more time will be spent reading
 	code than writing it.
-* Prefer readability to performance.
 
 ## Code Formatting
 
-Many aspects of C++ style will be covered by clang-format, such as spacing,
+Many aspects of C++ coding style will be covered by clang-format, such as spacing,
 line width, indentation and ordering (for includes, using directives and etc). 
 
 * Always ensure your code is clang-format compatible.
@@ -29,8 +29,8 @@ line width, indentation and ordering (for includes, using directives and etc). 
   template parameters) and file names.
 * Use **camelCase** for functions, member and local variables, and non-type
   template parameters.
-* **camelCase_** for private and protected members variables.
-* Use **snake_case** for namespace names and build targets
+* Use **camelCase_** for private and protected members variables.
+* Use **snake_case** for namespace names and build targets.
 * Use **UPPER_SNAKE_CASE** for macros.
 * Use **kPascalCase** for static constants and enumerators.
 
@@ -38,19 +38,22 @@ line width, indentation and ordering (for includes, using directives and etc). 
 
 * All header files must have a single-inclusion guard using `#pragma once`
 * Include header files should satisfy the following rules.
-	* Include the necessary header files, that means source cpp file with the
-	only line `#include "test_header.h"` can be compiled successfully.
-	* Do not include unnecessary header files, this is about compiling time.
-* One file should contain one main class, and the file name should consist with
+	* Include the necessary header files, which means the source file (.cc) containing 
+	the only one line `#include "test.h"` can be compiled successfully without
+	including any other header files.
+	* Do not include any unnecessary header files, the more including, the slower
+	compiling.
+	* In on word, no more, no less, just OK.
+* One file should contain one main class, and the file name should be consistent with
 	the main class name.
-	* Obvious exception: files for defining various misc functions.
-* If a header file has a corresponding source file, they should have the same
-	file name with different suffix, such as `a.h vs a.cc`.
+	* Obvious exception: files used for defining various misc functions.
+* If a header file has a corresponding source file, they should have the same file
+	name with different suffix, such as `a.h vs a.cc`.
 
 ## Classes
 
 * Base class name do not end with Base, use `Backend` instead of `BackendBase`.
-* Distinguish interface with implementation, make implementations private.
+* Distinguish interface from implementation, make implementations private.
 * When designing a class hierarchy, distinguish between interface inheritance
 	and implementation inheritance.
 	* Ensure that public inheritance represent the relation of `is-a`.
@@ -58,7 +61,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * Don't make a function `virtual` without reason.
 * Use `override` to make overriding explicit and to make the compiler work.
 * Use	`const` to mark the member function as read-only.
-* When you try to define a `constructor` or a `operator=` for a class, remember
+* When you try to define a `copy constructor` or a `operator=` for a class, remember
 	the `Rule of three/five/zero`.
 
 ## Functions
@@ -70,15 +73,15 @@ line width, indentation and ordering (for includes, using directives and etc). 
 	* The information can be represented by arguments should not be encoded into 
 		the function name. such as. use `get` instead of `getByIndex`.
 * A function should focus on a single logic operation.
-* A function should do as the name expression.
+* A function should do as the name meaning.
 	* do everything converd by the function name
 	* don't do anything not convered by the function name
 
 ## Variables
 
+* Make variables name simple and meaningful.
 * Don't group all your variables at the top of the scope, it's a outdated habit.
 * Declare variables as close to the usage point as possible.
-* Make variable name simple and meaningful
 
 ## Constants
 * Prefer const variables to using preprocessor (`#define`) to define constant values.
@@ -89,14 +92,14 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * Macros have side effects.
 * Use macros cautiously and carefully.
 * Consider using `const` variables or `inline` functions to replace macros.
-* Consider defining macro with the wrap of `do {...} while (0)`
+* Consider defining macros with the wrap of `do {...} while (0)`
 * Avoid using 3rd party library macros directly.
 
 ## Namespaces
 
 * Don't `using namespace xxx` in header files.
 * Place all Gluten CPP codes under `namespace gluten` because one level namespace
-	is enough, too much level namespaces bring mess.
+	is enough, no nested namespace, too much level namespaces bring mess.
 * Anonymous namespace is used for defining file level classes,functions,variables
 
 ## Resource Management
@@ -124,7 +127,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
 
 ## Exceptions
 
-* The exception specifications are changing, the difference between various CPP
+* The exception specifications are changing always, the difference between various CPP
 	standards is big, so Gluten use exception cautiously.
 * Prefer `return code` to throwing exceptions.
 * Prefer compile-time checking to run-time checking.
@@ -136,4 +139,9 @@ line width, indentation and ordering (for includes, using directives and etc). 
 	less the better.
 * The comment is used to express the writer's mind that couldn't be represented
 	as code, it's not encouraged to add obvious comments.
+
+## References
+* [CppCoreGuidelines](https://github.com/fluz/CppCoreGuidelines)
+* [Velox CODING_STYLE](https://github.com/facebookincubator/velox/blob/main/CODING_STYLE.md)
+* thanks Gluten developers for your wise suggestions and helps
 
