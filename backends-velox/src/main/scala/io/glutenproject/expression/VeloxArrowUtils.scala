@@ -37,12 +37,12 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.v2.arrow.{SparkSchemaUtils, SparkVectorUtils}
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.sql.util.GlutenArrowUtils
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 import java.util
 
-object ArrowConverterUtils extends Logging {
+object VeloxArrowUtils extends Logging {
 
   def calcuateEstimatedSize(columnarBatch: ColumnarBatch): Long = {
     SparkVectorUtils.estimateSize(columnarBatch)
@@ -83,7 +83,7 @@ object ArrowConverterUtils extends Logging {
           schema = new Schema(vectors.map(_.getValueVector().getField).asJava)
           MessageSerializer.serialize(channel, schema, option)
         }
-        val batch = ArrowConverterUtils
+        val batch = VeloxArrowUtils
           .createArrowRecordBatch(columnarBatch.numRows, vectors.map(_.getValueVector))
         try {
           MessageSerializer.serialize(channel, batch, option)
@@ -336,8 +336,8 @@ object ArrowConverterUtils extends Logging {
     val originFields = schema.getFields
     val fields = new util.ArrayList[Field](originFields.size)
     originFields.forEach { field =>
-      val dt = ArrowUtils.fromArrowField(field)
-      fields.add(ArrowUtils.toArrowField(field.getName,
+      val dt = GlutenArrowUtils.fromArrowField(field)
+      fields.add(GlutenArrowUtils.toArrowField(field.getName,
         dt, true, SparkSchemaUtils.getLocalTimezoneID))
     }
     new Schema(fields)
@@ -413,6 +413,6 @@ object ArrowConverterUtils extends Logging {
   }
 
   override def toString: String = {
-    s"ArrowConverterUtils"
+    s"VeloxArrowUtils"
   }
 }

@@ -21,7 +21,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType
 
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkSchemaUtils
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.util.ArrowUtils
+import org.apache.spark.sql.util.GlutenArrowUtils
 
 object CodeGeneration {
   private val defaultTimeZoneId = SparkSchemaUtils.getLocalTimezoneID()
@@ -33,7 +33,7 @@ object CodeGeneration {
   def getResultType(dataType: DataType, timeZoneId: String): ArrowType = {
     dataType match {
       case other =>
-        ArrowUtils.toArrowType(dataType, timeZoneId)
+        GlutenArrowUtils.toArrowType(dataType, timeZoneId)
     }
     /* dataType match {
     case t: IntegerType =>

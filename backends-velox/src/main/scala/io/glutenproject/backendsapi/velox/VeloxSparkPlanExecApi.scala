@@ -22,7 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 import io.glutenproject.backendsapi.{BackendsApiManager, ISparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ArrowConverterUtils, VeloxAliasTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, VeloxArrowUtils, VeloxAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
 
@@ -242,7 +242,7 @@ class VeloxSparkPlanExecApi extends ISparkPlanExecApi {
           _numRows += acb.numRows
           _input += acb
         }
-        val bytes = ArrowConverterUtils.convertToNetty(_input.toArray)
+        val bytes = VeloxArrowUtils.convertToNetty(_input.toArray)
         _input.foreach(_.close)
 
         Iterator((_numRows, bytes))
