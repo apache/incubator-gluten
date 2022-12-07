@@ -30,7 +30,7 @@
 #include <memory>
 #include <sstream>
 
-#include "utils/macros.h"
+#include "utils/Macros.h"
 using namespace arrow;
 
 #define ASSERT_NOT_OK(status)                  \

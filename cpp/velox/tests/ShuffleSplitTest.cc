@@ -39,8 +39,8 @@ void print_trace(void) {
   free(strings);
 }
 
-#include "operators/shuffle/splitter.h"
-#include "test_utils.h"
+#include "TestUtils.h"
+#include "operators/shuffle/Splitter.h"
 
 namespace gluten {
 namespace shuffle {

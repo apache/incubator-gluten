@@ -23,8 +23,8 @@
 #include <arrow/type_fwd.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
-#include "operators/c2r/arrow_columnar_to_row_converter.h"
-#include "operators/c2r/columnar_to_row_base.h"
+#include "operators/c2r/ArrowColumnarToRowConverter.h"
+#include "operators/c2r/ColumnarToRow.h"
 
 #include "velox/common/file/FileSystems.h"
 #ifdef VELOX_ENABLE_HDFS

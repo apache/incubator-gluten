@@ -18,8 +18,7 @@
 #include <benchmark/benchmark.h>
 
 #include "BenchmarkUtils.h"
-#include "compute/VeloxPlanConverter.h"
-#include "compute/exec_backend.h"
+#include "compute/VeloxBackend.h"
 
 auto BM = [](::benchmark::State& state,
              const std::vector<std::string>& datasetPaths,

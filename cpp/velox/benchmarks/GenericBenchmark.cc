@@ -24,9 +24,8 @@
 #include <chrono>
 
 #include "BenchmarkUtils.h"
-#include "compute/VeloxPlanConverter.h"
-#include "compute/exec_backend.h"
-#include "utils/exception.h"
+#include "compute/VeloxBackend.h"
+#include "utils/Exception.h"
 
 #include <thread>
 

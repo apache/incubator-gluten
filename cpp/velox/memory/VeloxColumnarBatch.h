@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "memory/columnar_batch.h"
-#include "memory/velox_memory_pool.h"
+#include "memory/ColumnarBatch.h"
+#include "memory/VeloxMemoryPool.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/arrow/Bridge.h"
 
