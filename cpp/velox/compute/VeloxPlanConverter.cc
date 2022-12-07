@@ -30,6 +30,7 @@
 #include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
+#include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook::velox;
@@ -163,6 +164,14 @@ void VeloxBackend::setInputPlanNode(const ::substrait::SortRel& ssort) {
   }
 }
 
+void VeloxBackend::setInputPlanNode(const ::substrait::WindowRel& swindow) {
+  if (swindow.has_input()) {
+    setInputPlanNode(swindow.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
 void VeloxBackend::setInputPlanNode(const ::substrait::AggregateRel& sagg) {
   if (sagg.has_input()) {
     setInputPlanNode(sagg.input());
@@ -268,6 +277,8 @@ void VeloxBackend::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.expand());
   } else if (srel.has_fetch()) {
     setInputPlanNode(srel.fetch());
+  } else if (srel.has_window()) {
+    setInputPlanNode(srel.window());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }

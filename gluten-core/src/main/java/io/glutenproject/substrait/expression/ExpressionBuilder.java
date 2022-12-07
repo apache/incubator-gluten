@@ -248,4 +248,16 @@ public class ExpressionBuilder {
                                                           List<ExpressionNode> expressionNodes) {
     return new SingularOrListNode(value, expressionNodes);
   }
+
+  public static WindowFunctionNode makeWindowFunction(
+      Integer functionId,
+      ArrayList<ExpressionNode> expressionNodes,
+      String columnName,
+      TypeNode outputTypeNode,
+      String upperBound,
+      String lowerBound,
+      String windowType) {
+    return new WindowFunctionNode(functionId, expressionNodes, columnName,
+        outputTypeNode, upperBound, lowerBound, windowType);
+  }
 }

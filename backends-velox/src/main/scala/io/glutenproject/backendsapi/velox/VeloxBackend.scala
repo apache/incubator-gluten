@@ -43,6 +43,7 @@ object VeloxBackendSettings extends BackendSettings {
   }
   override def supportExpandExec(): Boolean = true
   override def supportSortExec(): Boolean = true
+  override def supportWindowExec(): Boolean = true
   override def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getSessionConf.isUseColumnarShuffleManager
   }
