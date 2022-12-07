@@ -11,11 +11,13 @@ Gluten CPP coding, there are a few Philosophical rules as the following.
 
 * Write in ISO Standard C++.
 * Standard API first, the CPP programming APIs are priority to system calls.
-* Write code consistently. it's good for understanding.
+* Write code consistently. it's good for understanding and maintaining.
 * Keep simple, Make code clear and easy.
 * Optimize code for the reader, not the writer, more time will be spent reading
 	code than writing it.
 * Make it work, and then make it better or faster.
+* Don't import any complexity if possible. collaborate with minimal knowledge
+	consensus.
 
 ## Code Formatting
 
