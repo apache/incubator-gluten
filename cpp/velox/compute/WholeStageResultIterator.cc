@@ -18,8 +18,11 @@ const std::string kFlushRowCount = "flushRowCount";
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
 const std::string kVeloxCachePath = "spark.gluten.sql.columnar.backend.velox.cachePath";
+const std::string kVeloxCachePathDefault = "/tmp/";
 const std::string kVeloxCacheSize = "spark.gluten.sql.columnar.backend.velox.cacheSize";
+const std::string kVeloxCacheSizeDefault = "1073741824";
 const std::string kVeloxCacheShards = "spark.gluten.sql.columnar.backend.velox.cacheShards";
+const std::string kVeloxCacheShardsDefault = "1";
 std::atomic<int32_t> taskSerial;
 } // namespace
 
