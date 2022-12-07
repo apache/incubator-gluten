@@ -215,7 +215,17 @@ spark.hadoop.fs.s3a.use.instance.credentials true
 ```
 If you are using instance credentials you do not have to set the access key or secret key.
 
-Note if testing with local S3-like service(Minio/Ceph), users may need to use different configurations for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
+Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
+
+## 2.6 Local Cache support
+Velox supports local cache when reading data from HDFS/S3. The feature is very useful if the remote storage is slow, e.g., reading from a public S3 repo. With this feature, Velox can asynchronously cache the data when reading from remote storage, and the future reading requests on already cached blocks will be serviced from local cache. To enable the local caching feature, below configurations are required:
+```
+spark.gluten.sql.columnar.backend.velox.cacheEnabled // enable or disable velox cache, default off
+spark.gluten.sql.columnar.backend.velox.cachePath  // the folder to store the cache files, default to /tmp
+spark.gluten.sql.columnar.backend.velox.cacheSize  // the total size of the cache, default to 128MB
+spark.gluten.sql.columnar.backend.velox.cacheShards // the shards of the cache, default to 1
+```
+It's recommened to mount SSDs to the cache path to get the best performance of local caching.
 
 # 3 Coverage
 
