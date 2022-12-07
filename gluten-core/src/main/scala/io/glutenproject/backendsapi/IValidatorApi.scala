@@ -19,6 +19,13 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.substrait.plan.PlanNode
 
+import org.apache.spark.sql.catalyst.expressions.Expression
+
+/**
+ * Determine if a plan or expression can be accepted by the backend, or we fallback
+ * the execution to vanilla Spark.
+ */
 trait IValidatorApi {
+  def doValidate(expr: Expression): Boolean
   def doValidate(plan: PlanNode): Boolean
 }

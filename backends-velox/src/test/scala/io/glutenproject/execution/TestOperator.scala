@@ -364,14 +364,14 @@ class TestOperator extends WholeStageTransformerSuite {
         """
           |select stddev_samp(l_quantity) from lineitem;
           |""".stripMargin) {
-        checkOperatorMatch[VeloxHashAggregateExecTransformer]
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
       }
       runQueryAndCompare(
         """
           |select l_orderkey, stddev_samp(l_quantity) from lineitem
           |group by l_orderkey;
           |""".stripMargin) {
-        checkOperatorMatch[VeloxHashAggregateExecTransformer]
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
       }
     }
   }

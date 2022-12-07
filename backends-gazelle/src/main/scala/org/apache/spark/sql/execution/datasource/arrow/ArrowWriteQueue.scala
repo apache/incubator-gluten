@@ -25,10 +25,9 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.GlutenArrowAbiUtil
 import org.apache.arrow.c.ArrowArray
-import org.apache.arrow.dataset.file.DatasetFileWriter
-import org.apache.arrow.dataset.file.FileFormat
+import org.apache.arrow.dataset.file.{DatasetFileWriter, FileFormat}
 import org.apache.arrow.dataset.scanner.{Scanner, ScanTask}
 import org.apache.arrow.vector.ipc.ArrowReader
 import org.apache.arrow.vector.types.pojo.Schema
@@ -114,7 +113,7 @@ object ArrowWriteQueue {
                 EOS_ARROW_ARRAY.release()
                 return false
               }
-              ArrowAbiUtil.importIntoVectorSchemaRoot(
+              GlutenArrowAbiUtil.importIntoVectorSchemaRoot(
                 allocator, currentArray, getVectorSchemaRoot(), this)
               true
             }

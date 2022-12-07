@@ -17,21 +17,18 @@
 
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ConverterUtils.{CAST, LENGTH, JSON_ARRAY_LENGTH, REGEXP_REPLACE, ROUND, SPLIT, SPLIT_PART}
+import io.glutenproject.expression.ConverterUtils._
+import io.glutenproject.utils.GlutenExpressionUtil.{ARRAY_TYPE, EMPTY_TYPE, MAP_TYPE, STRUCT_TYPE}
+
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
 
-
   /**
-   * The blacklist for Velox unsupported or mismatched expressions with specific input type,
-   * such as Cast(ArrayType)
+   * The blacklist for Velox unsupported or mismatched expressions with specific input type, such as
+   * Cast(ArrayType)
    */
   // The expression with empty type will fall back directly.
-  final val EMPTY_TYPE = ""
-  final val ARRAY_TYPE = "array"
-  final val MAP_TYPE = "map"
-  final val STRUCT_TYPE = "struct"
   final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
     CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
     ROUND -> Set(EMPTY_TYPE),
@@ -41,5 +38,5 @@ object VeloxExpressionUtil {
     LENGTH -> Set(DataTypes.BinaryType.typeName),
     // to be removed when Velox support compatible type
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE)
-    )
+  )
 }

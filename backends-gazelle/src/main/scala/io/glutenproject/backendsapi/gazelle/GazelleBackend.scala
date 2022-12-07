@@ -18,7 +18,6 @@ package io.glutenproject.backendsapi.gazelle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-import io.glutenproject.backendsapi.velox.{VeloxIteratorApi, VeloxSparkPlanExecApi, VeloxTransformerApi, VeloxValidatorApi}
 
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -28,10 +27,10 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 class GazelleBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_GAZELLE_BACKEND
   override def initializerApi(): IInitializerApi = new GazelleInitializerApi
-  override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
-  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
-  override def transformerApi(): ITransformerApi = new VeloxTransformerApi
-  override def validatorApi(): IValidatorApi = new VeloxValidatorApi
+  override def iteratorApi(): IIteratorApi = new GazelleIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new GazelleSparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new GazelleTransformerApi
+  override def validatorApi(): IValidatorApi = new GazelleValidatorApi
   override def settings(): BackendSettings = GazelleBackendSettings
 }
 
