@@ -17,11 +17,9 @@
 
 package io.glutenproject.execution
 
-import java.util
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
@@ -32,7 +30,6 @@ import io.glutenproject.vectorized.OperatorMetrics
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.BindReferencesUtil
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -40,6 +37,8 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartit
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util
 
 case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
                                  groupExpression: Seq[NamedExpression],
@@ -131,10 +130,11 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
     val groupsetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
     val aggExprNodes = new util.ArrayList[ExpressionNode]()
     for (i <- 0 until aggSize) {
-      val expr = ExpressionConverter
-        .replaceWithExpressionTransformer(projections.head(i),
+      val aggExprNode = ExpressionConverter
+        .replaceWithExpressionTransformer(
+          projections.head(i),
           originalInputAttributes)
-      val aggExprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+        .doTransform(args)
       aggExprNodes.add(aggExprNode)
     }
 
@@ -143,10 +143,11 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       for (i <- aggSize until (projection.size - 1)) {
         if (!(projection(i).isInstanceOf[Literal] &&
           projection(i).asInstanceOf[Literal].value == null)) {
-          val expr = ExpressionConverter
-            .replaceWithExpressionTransformer(projection(i),
-              originalInputAttributes)
-          val groupExprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+          val groupExprNode = ExpressionConverter
+            .replaceWithExpressionTransformer(
+              projection(i),
+              originalInputAttributes
+            ).doTransform(args)
           groupExprNodes.add(groupExprNode)
         }
       }

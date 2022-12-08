@@ -16,10 +16,9 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -46,7 +45,7 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
-import org.apache.spark.sql.types.{Metadata, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable.ArrayBuffer
@@ -85,13 +84,13 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
   }
 
   /**
-   * Generate NativeColumnarToRowExec.
+   * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec = {
-    BlockNativeColumnarToRowExec(child);
+  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
+    BlockGlutenColumnarToRowExec(child);
   }
 
   /**
@@ -197,12 +196,10 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    *   a transformer for alias
    */
   def genAliasTransformer(
-      child: Expression,
-      name: String,
-      exprId: ExprId,
-      qualifier: Seq[String],
-      explicitMetadata: Option[Metadata]): AliasBaseTransformer =
-    new AliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Expression): AliasBaseTransformer =
+    new AliasTransformer(substraitExprName, child, original)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.

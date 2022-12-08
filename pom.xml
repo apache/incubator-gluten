@@ -206,7 +206,6 @@
       </activation>
       <modules>
         <module>gluten-data</module>
-        <module>backends-velox</module>
         <module>backends-gazelle</module>
         <module>package/gazelle</module>
       </modules>

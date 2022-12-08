@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
-import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
 import io.glutenproject.utils.CHInputPartitionsUtil
@@ -53,7 +53,6 @@ class CHTransformerApi extends ITransformerApi with Logging {
             expr => {
               val node = ExpressionConverter
                 .replaceWithExpressionTransformer(expr, outputAttributes)
-                .asInstanceOf[ExpressionTransformer]
                 .doTransform(substraitContext.registeredFunction)
               if (!node.isInstanceOf[SelectionNode]) {
                 logDebug("Expressions are not supported in HashPartitioning.")

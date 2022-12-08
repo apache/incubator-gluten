@@ -17,10 +17,6 @@
 
 package io.glutenproject.execution
 
-import java.util
-
-import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
@@ -33,8 +29,7 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
-import io.glutenproject.vectorized.{NativeExpressionEvaluator, OperatorMetrics}
-
+import io.glutenproject.vectorized.OperatorMetrics
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -42,8 +37,11 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.util.StructTypeFWD
+import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util
+import scala.collection.JavaConverters._
 
 abstract class FilterExecBaseTransformer(condition: Expression,
                                          child: SparkPlan) extends UnaryExecNode
@@ -161,10 +159,9 @@ abstract class FilterExecBaseTransformer(condition: Expression,
     if (condExpr == null) {
       return input
     }
-    val columnarCondExpr: Expression = ExpressionConverter
-      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-    val condExprNode =
-      columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val condExprNode = ExpressionConverter.replaceWithExpressionTransformer(
+      condExpr, attributeSeq = originalInputAttributes)
+      .doTransform(args)
 
     if (!validation) {
       RelBuilder.makeFilterRel(input, condExprNode, context, operatorId)
@@ -437,13 +434,13 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
                  input: RelNode,
                  validation: Boolean): RelNode = {
     val args = context.registeredFunction
-    val columnarProjExprs: Seq[Expression] = projectList.map(expr => {
+    val columnarProjExprs: Seq[ExpressionTransformer] = projectList.map(expr => {
       ExpressionConverter
         .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
     })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
-      projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      projExprNodeList.add(expr.doTransform(args))
     }
     if (!validation) {
       RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId)

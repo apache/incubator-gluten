@@ -22,7 +22,7 @@ import com.google.protobuf.Any
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.expression.{AggregateFunctionsBuilder, ConverterUtils, ExpressionConverter, ExpressionTransformer, WindowFunctionsBuilder}
+import io.glutenproject.expression._
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -32,7 +32,7 @@ import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, ExprId, NamedExpression, Rank, RowNumber, SortOrder, SpecifiedWindowFrame, WindowExpression, WindowFunction}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Expression, NamedExpression, Rank, RowNumber, SortOrder, SpecifiedWindowFrame, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
@@ -196,9 +196,9 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     // Partition By Expressions
     val partitionsExpressions = new util.ArrayList[ExpressionNode]()
     partitionSpec.map { partitionExpr =>
-      val expr = ExpressionConverter
+      val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(partitionExpr, attributeSeq = child.output)
-      val exprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+        .doTransform(args)
       partitionsExpressions.add(exprNode)
     }
 
@@ -206,9 +206,9 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     val sortFieldList = new util.ArrayList[SortField]()
     sortOrder.map(order => {
       val builder = SortField.newBuilder();
-      val expr = ExpressionConverter
+      val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-      val exprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+        .doTransform(args)
       builder.setExpr(exprNode.toProtobuf)
 
       (order.direction.sql, order.nullOrdering.sql) match {

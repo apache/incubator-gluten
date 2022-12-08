@@ -16,6 +16,7 @@
  */
 package io.glutenproject.sql.shims.spark32
 
+import io.glutenproject.expression.Sig
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -44,4 +45,6 @@ class Spark32Shims extends SparkShims {
         !plan.logicalLink.exists(_.isStreaming) &&
         plan.children.forall(supportAdaptiveWithExchangeConsidered)))
   }
+
+  override def expressionMappings: Seq[Sig] = Seq.empty
 }

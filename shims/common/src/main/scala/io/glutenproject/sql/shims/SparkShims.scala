@@ -16,6 +16,8 @@
  */
 package io.glutenproject.sql.shims
 
+import io.glutenproject.expression.Sig
+
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.execution.SparkPlan
@@ -36,4 +38,6 @@ trait SparkShims {
   protected def sanityCheck(plan: SparkPlan): Boolean = plan.logicalLink.isDefined
 
   def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
+
+  def expressionMappings: Seq[Sig]
 }

@@ -17,7 +17,7 @@
 
 package io.glutenproject.backendsapi.gazelle
 
-import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace, VeloxNativeExpressionEvaluator}
+import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.IInitializerApi
 import io.glutenproject.GlutenPlugin.buildNativeConfNode
@@ -43,7 +43,7 @@ class GazelleInitializerApi extends IInitializerApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_GAZELLE_BACKEND, false)
-    val initKernel = new VeloxNativeExpressionEvaluator()
+    val initKernel = new GlutenNativeExpressionEvaluator()
     initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
   }
 }
