@@ -210,7 +210,7 @@
         <module>package/gazelle</module>
       </modules>
       <properties>
-        <backend_type>gazelle_cpp</backend_type>
+        <backend_type>gazelle</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
       </properties>
     </profile>

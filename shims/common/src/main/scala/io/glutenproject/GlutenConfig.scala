@@ -250,7 +250,7 @@ object GlutenConfig {
   // Backends.
   val GLUTEN_VELOX_BACKEND = "velox"
   val GLUTEN_CLICKHOUSE_BACKEND = "ch"
-  val GLUTEN_GAZELLE_BACKEND = "gazelle_cpp"
+  val GLUTEN_GAZELLE_BACKEND = "gazelle"
 
   val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 

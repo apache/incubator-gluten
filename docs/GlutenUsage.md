@@ -50,7 +50,7 @@
 | arrow_root | path of arrow lib           | /path_to_gluten/ep/build-arrow/build/arrow_install |
 | velox_home | path of velox lib           | /path_to_gluten/ep/build-velox/build/velox_ep |
 | build_type | Gluten cpp part build type  | release |
-| build_gazelle_cpp_backend | build gazelle-cpp in cpp folder | OFF |
+| build_gazelle_backend | build gazelle in cpp folder | OFF |
 | build_velox_backend | build velox in cpp folder | OFF |
 | build_test | build test code in cpp folder      | OFF |
 | build_benchmarks | build benchmark code in cpp folder | OFF |

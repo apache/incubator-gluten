@@ -39,7 +39,7 @@ jobs:
           ./get_arrow.sh --arrow_branch=arrow-8.0.0-gluten-20220427a && \
           ./build_arrow_for_gazelle.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_gazelle_cpp_backend=ON --build_protobuf=ON && \
+          ./compile.sh --build_gazelle_backend=ON --build_protobuf=ON && \
           cd /opt/gluten && \
           mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests"
       # - name: Run unit tests

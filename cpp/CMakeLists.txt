@@ -36,7 +36,7 @@ project(spark_columnar_plugin)
 
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
-option(BUILD_GAZELLE_CPP_BACKEND "Build the gazelle-cpp libraries" OFF)
+option(BUILD_GAZELLE_BACKEND "Build the gazelle libraries" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
@@ -98,7 +98,7 @@ function(ADD_TEST_CASE TEST_NAME)
 
   add_executable(${TEST_NAME} ${SOURCES})
   target_link_libraries(${TEST_NAME} spark_columnar_jni gtest gtest_main Threads::Threads)
-  target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)
     target_link_libraries(${TEST_NAME} ${ARG_EXTRA_LINK_LIBS})
@@ -127,10 +127,10 @@ endif()
 # Subdirectories
 #
 
-add_subdirectory(src)
+add_subdirectory(core)
 
-if(BUILD_GAZELLE_CPP_BACKEND)
-  add_subdirectory(gazelle-cpp)
+if(BUILD_GAZELLE_BACKEND)
+  add_subdirectory(gazelle)
 endif()
 
 if(BUILD_VELOX_BACKEND)

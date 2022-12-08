@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(gazelle_cpp)
+project(gazelle)
 
 include(ExternalProject)
 include(FindPkgConfig)
@@ -31,20 +31,20 @@ find_arrow_lib(${ARROW_SUBSTRAIT_LIB_NAME})
 find_arrow_lib(${PARQUET_LIB_NAME})
 find_arrow_lib(${ARROW_DATASET_LIB_NAME})
 
-set(GAZELLE_CPP_JNI_SRCS
+set(GAZELLE_JNI_SRCS
     jni/JniWrapper.cc
     compute/SubstraitArrow.cc
     )
 
-add_library(gazelle_cpp SHARED ${GAZELLE_CPP_JNI_SRCS})
+add_library(gazelle SHARED ${GAZELLE_JNI_SRCS})
 
-target_include_directories(gazelle_cpp PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${root_directory}/src)
-target_link_libraries(gazelle_cpp spark_columnar_jni Arrow::arrow_substrait Arrow::parquet Arrow::arrow_dataset)
+target_include_directories(gazelle PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${root_directory}/src)
+target_link_libraries(gazelle spark_columnar_jni Arrow::arrow_substrait Arrow::parquet Arrow::arrow_dataset)
 
-set_target_properties(gazelle_cpp PROPERTIES
+set_target_properties(gazelle PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
 if(BUILD_TESTS)
-    add_test_case(test_substrait SOURCES tests/TestSubstrait.cc EXTRA_LINK_LIBS gazelle_cpp)
+    add_test_case(test_substrait SOURCES tests/TestSubstrait.cc EXTRA_LINK_LIBS gazelle)
 endif()

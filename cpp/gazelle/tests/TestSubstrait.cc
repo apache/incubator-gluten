@@ -47,7 +47,7 @@ class TestSubstrait : public ::testing::Test {
 
 TEST_F(TestSubstrait, TestParsePlan) {
   std::string current_path = get_current_dir_name();
-  const auto filePath = current_path + "/../../gazelle-cpp/tests/data/query.json";
+  const auto filePath = current_path + "/../../gazelle/tests/data/query.json";
   auto maybePlan = getPlanFromFile(filePath);
   if (!maybePlan.ok()) {
     throw gluten::GlutenException("Can not get plan from file " + filePath + " Error: " + maybePlan.status().message());

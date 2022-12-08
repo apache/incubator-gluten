@@ -43,7 +43,7 @@ cd /path_to_gluten/ep/build-arrow/src
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
-./compile.sh --build_gazelle_cpp_backend=ON --build_protobuf=ON
+./compile.sh --build_gazelle_backend=ON --build_protobuf=ON
 
 ## compile gluten jvm and package. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark3.3
 cd /path_to_gluten
@@ -63,7 +63,7 @@ ArrowBackend should be added.
 | spark.driver.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar |  |
 | spark.executor.extraClassPath | /path/to/gluten/backends-velox/target/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar |  |
 | spark.plugins | io.glutenproject.GlutenPlugin |  |
-| spark.gluten.sql.columnar.backend.lib | gazelle_cpp |  |
+| spark.gluten.sql.columnar.backend.lib | gazelle |  |
 | spark.shuffle.manager | org.apache.spark.shuffle.sort.ColumnarShuffleManager |  |
 | spark.sql.sources.useV1SourceList | avro |  |
 | spark.memory.offHeap.size | 20g |  |

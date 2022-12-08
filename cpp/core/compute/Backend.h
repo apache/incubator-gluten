@@ -43,11 +43,9 @@ class Backend : public std::enable_shared_from_this<Backend> {
  public:
   virtual ~Backend() = default;
 
-  virtual std::shared_ptr<ResultIterator> GetResultIterator(MemoryAllocator* allocator) = 0;
-
   virtual std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs) = 0;
+      std::vector<std::shared_ptr<ResultIterator>> inputs = {}) = 0;
 
   /// Parse and cache the plan.
   /// Return true if parsed successfully.

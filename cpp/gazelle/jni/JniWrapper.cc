@@ -32,7 +32,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     return JNI_ERR;
   }
   gluten::GetJniErrorsState()->Initialize(env);
-  std::cout << "loaded gazelle_cpp" << std::endl;
+  std::cout << "loaded gazelle" << std::endl;
   return JNI_VERSION;
 }
 
