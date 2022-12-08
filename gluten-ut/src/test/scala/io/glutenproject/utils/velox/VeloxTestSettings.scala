@@ -24,7 +24,7 @@ import org.apache.spark.sql.{GlutenDataFrameAggregateSuite, GlutenDataFrameSelfJ
 object VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDataFrameAggregateSuite] {
-    ExcludeOnly(
+    exclude(
       "zero moments", // [velox does not return NaN]
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
       "rollup overlapping columns", // wait velox to fix
@@ -42,31 +42,31 @@ object VeloxTestSettings extends BackendTestSettings {
   }
 
   enableSuite[GlutenCastSuite] {
-    ExcludeOnly(
+    exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
   }
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff] {
-    ExcludeOnly(
+    exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
   }
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn] {
-    ExcludeOnly(
+    exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
   }
 
   enableSuite[GlutenCastSuiteWithAnsiModeOn] {
-    ExcludeOnly(
+    exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
   }
 
   enableSuite[GlutenTryCastSuite] {
-    ExcludeOnly(
+    exclude(
       // array/map/struct not supported yet.
       "cast from invalid string array to numeric array should throw NumberFormatException",
       "cast from array II",

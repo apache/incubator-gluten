@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions._
 object ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDataFrameAggregateSuite] {
-    ExcludeOnly(
+    exclude(
       "average", // [overwritten by Gluten - xxx]
       "groupBy", // [overwritten by Gluten - xxx]
       "count", // [overwritten by Gluten - xxx]
@@ -65,20 +65,20 @@ object ClickHouseTestSettings extends BackendTestSettings {
   }
 
   enableSuite[GlutenDataFrameFunctionsSuite] {
-    IncludeOnly(
+    include(
       "conditional function: least",
       "conditional function: greatest"
     )
   }
 
   enableSuite[GlutenDateFunctionsSuite] {
-    IncludeOnly(
+    include(
       "quarter"
     )
   }
 
   enableSuite[GlutenMathFunctionsSuite] {
-    IncludeOnly(
+    include(
       // "round/bround", // Scale argument of round/bround function currently don't support
       //   negative.
       // "radians",      // Relies on the transformation of function `CheckOverflow`.
