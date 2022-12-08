@@ -72,6 +72,7 @@ object ClickHouseNotSupport extends NotSupport {
       "factorial",
       "exp",
       "pow / power",
+      "cbrt",
       "csc",
       "SPARK-35926: Support YearMonthIntervalType in width-bucket function",
       "sqrt",
