@@ -27,10 +27,6 @@ class GlutenAliasTransformer(substraitExprName: String,
   extends AliasBaseTransformer(substraitExprName, child, original) {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"${original} not supported yet")
-    }
-    childNode
+    child.doTransform(args)
   }
 }

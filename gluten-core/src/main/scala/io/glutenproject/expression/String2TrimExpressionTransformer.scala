@@ -33,10 +33,6 @@ class String2TrimExpressionTransformer(
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val srcStrNode = srcStr.doTransform(args)
-    if (!srcStrNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
-    }
-
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName =
       ConverterUtils.makeFuncName(

@@ -37,11 +37,7 @@ class ComplexTypeMergingExpressionTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childrenNodes = new ArrayList[ExpressionNode]
     children.foreach(child => {
-      val childNode = child.doTransform(args)
-      if (!childNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"${original} not supported yet.")
-      }
-      childrenNodes.add(childNode)
+      childrenNodes.add(child.doTransform(args))
     })
 
     val childrenTypes = original.children.map(child => child.dataType)

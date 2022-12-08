@@ -38,14 +38,8 @@ class CaseWhenTransformer(
     val ifNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
     val thenNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
     branches.foreach(branch => {
-      val branchCondNode = branch._1.doTransform(args)
-      val branchThenNode = branch._2.doTransform(args)
-      if (!branchCondNode.isInstanceOf[ExpressionNode] ||
-        !branchThenNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"not supported yet.")
-      }
-      ifNodes.add(branchCondNode)
-      thenNodes.add(branchThenNode)
+      ifNodes.add(branch._1.doTransform(args))
+      thenNodes.add(branch._2.doTransform(args))
     })
     // generate else value node, maybe null
     val elseValueNode = elseValue.map(_.doTransform(args))
