@@ -21,7 +21,7 @@
 
 #include <chrono>
 
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 #define TIME_NANO_DIFF(finish, start) (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec)
 
