@@ -22,16 +22,14 @@
 #include <unistd.h>
 #include <fstream>
 #include <sstream>
-#include "compute/exec_backend.h"
-#include "compute/protobuf_utils.h"
-#include "compute/substrait_arrow.h"
-#include "utils/exception.h"
+#include "compute/ProtobufUtils.h"
+#include "compute/SubstraitArrow.h"
 
 class TestSubstrait : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
     GazelleInitialize();
-    gluten::SetBackendFactory([] { return std::make_shared<gluten::ArrowExecBackend>(); });
+    gluten::SetBackendFactory([] { return std::make_shared<gluten::ArrowBackend>(); });
     // setenv("MEMKIND_HBW_NODES", "0", 1);
   }
 

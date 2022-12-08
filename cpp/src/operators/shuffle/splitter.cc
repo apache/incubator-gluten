@@ -31,7 +31,7 @@
 #include <string>
 #include <utility>
 
-#include "compute/protobuf_utils.h"
+#include "compute/ProtobufUtils.h"
 #include "operators/shuffle/utils.h"
 #include "utils/macros.h"
 

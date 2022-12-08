@@ -30,14 +30,14 @@
 #include <string>
 #include <utility>
 
-#include "compute/exec_backend.h"
-#include "compute/protobuf_utils.h"
-#include "compute/result_iterator.h"
-#include "jni/concurrent_map.h"
-#include "jni/jni_common.h"
-#include "jni/jni_errors.h"
-#include "memory/columnar_batch.h"
-#include "operators/c2r/columnar_to_row_base.h"
+#include "compute/Backend.h"
+#include "compute/ProtobufUtils.h"
+#include "compute/ResultIterator.h"
+#include "jni/ConcurrentMap.h"
+#include "jni/JniCommon.h"
+#include "jni/JniErrors.h"
+#include "memory/ColumnarBatch.h"
+#include "operators/c2r/ColumnarToRow.h"
 #include "operators/shuffle/reader.h"
 #include "operators/shuffle/splitter.h"
 #include "utils/exception.h"

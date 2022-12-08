@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-#include "hbw_allocator.h"
+#include "HbwAllocator.h"
 
 #include <hbwmalloc.h>
-#include "allocator.h"
+#include "MemoryAllocator.h"
 
 namespace gluten {
 

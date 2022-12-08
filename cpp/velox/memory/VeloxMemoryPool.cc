@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "velox_memory_pool.h"
+#include "VeloxMemoryPool.h"
 
 namespace gluten {
 

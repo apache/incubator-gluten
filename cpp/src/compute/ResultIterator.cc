@@ -15,17 +15,16 @@
  * limitations under the License.
  */
 
-#include "arrow_memory_pool.h"
+#include "ResultIterator.h"
+#include "Backend.h"
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator) {
-  return std::make_shared<WrappedArrowMemoryPool>(allocator);
-}
-
-std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool() {
-  static auto static_pool = AsWrappedArrowMemoryPool(DefaultMemoryAllocator().get());
-  return static_pool;
+std::shared_ptr<Metrics> ResultIterator::GetMetrics() {
+  if (backend_) {
+    return backend_->GetMetrics(raw_iter_, exportNanos_);
+  }
+  return nullptr;
 }
 
 } // namespace gluten

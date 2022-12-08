@@ -22,7 +22,7 @@
 #include <arrow/record_batch.h>
 #include <arrow/util/iterator.h>
 
-#include "memory/columnar_batch.h"
+#include "memory/ColumnarBatch.h"
 #include "utils/metrics.h"
 
 #ifdef GLUTEN_PRINT_DEBUG

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "substrait_arrow.h"
+#include "SubstraitArrow.h"
 
 #include <arrow/c/bridge.h>
 #include <arrow/compute/exec/options.h>
@@ -24,8 +24,6 @@
 #include <arrow/dataset/scanner.h>
 #include <arrow/type_fwd.h>
 #include <arrow/util/async_generator.h>
-
-#include "compute/exec_backend.h"
 
 namespace gluten {
 
@@ -36,11 +34,11 @@ const arrow::FieldVector kAugmentedFields{
     field("__filename", arrow::utf8()),
 };
 
-ArrowExecBackend::ArrowExecBackend() {
+ArrowBackend::ArrowBackend() {
   arrow::dataset::internal::Initialize();
 }
 
-ArrowExecBackend::~ArrowExecBackend() {
+ArrowBackend::~ArrowBackend() {
   if (exec_plan_ != nullptr) {
     exec_plan_->finished().Wait();
   }
@@ -49,11 +47,11 @@ ArrowExecBackend::~ArrowExecBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(gluten::MemoryAllocator* allocator) {
+std::shared_ptr<gluten::ResultIterator> ArrowBackend::GetResultIterator(gluten::MemoryAllocator* allocator) {
   return GetResultIterator(allocator, {});
 }
 
-std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(
+std::shared_ptr<gluten::ResultIterator> ArrowBackend::GetResultIterator(
     gluten::MemoryAllocator* allocator,
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputs) {
   GLUTEN_ASSIGN_OR_THROW(auto decls, arrow::engine::ConvertPlan(plan_));
@@ -128,11 +126,11 @@ std::shared_ptr<gluten::ResultIterator> ArrowExecBackend::GetResultIterator(
   return std::make_shared<gluten::ResultIterator>(std::move(sink_iter), shared_from_this());
 }
 
-std::shared_ptr<arrow::Schema> ArrowExecBackend::GetOutputSchema() {
+std::shared_ptr<arrow::Schema> ArrowBackend::GetOutputSchema() {
   return output_schema_;
 }
 
-void ArrowExecBackend::PushDownFilter() {
+void ArrowBackend::PushDownFilter() {
   std::vector<arrow::compute::Declaration*> visited;
 
   visited.push_back(decl_.get());
@@ -160,7 +158,7 @@ void ArrowExecBackend::PushDownFilter() {
 }
 
 // This method is used to get the input schema in InputRel.
-arrow::Status ArrowExecBackend::GetIterInputSchemaFromRel(const ::substrait::Rel& srel) {
+arrow::Status ArrowBackend::GetIterInputSchemaFromRel(const ::substrait::Rel& srel) {
   // TODO: need to support more Substrait Rels here.
   if (srel.has_aggregate() && srel.aggregate().has_input()) {
     return GetIterInputSchemaFromRel(srel.aggregate().input());
@@ -241,7 +239,7 @@ arrow::Status ArrowExecBackend::GetIterInputSchemaFromRel(const ::substrait::Rel
   return arrow::Status::OK();
 }
 
-void ArrowExecBackend::FieldPathToName(
+void ArrowBackend::FieldPathToName(
     arrow::compute::Expression* expression,
     const std::shared_ptr<arrow::Schema>& schema) {
   std::vector<arrow::compute::Expression*> visited;
@@ -269,7 +267,7 @@ void ArrowExecBackend::FieldPathToName(
   }
 }
 
-void ArrowExecBackend::ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls) {
+void ArrowBackend::ReplaceSourceDecls(std::vector<arrow::compute::Declaration> source_decls) {
   std::vector<arrow::compute::Declaration*> visited;
   std::vector<arrow::compute::Declaration*> source_indexes;
 

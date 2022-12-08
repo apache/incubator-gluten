@@ -17,8 +17,8 @@
 
 #include <jni.h>
 
-#include "compute/substrait_arrow.h"
-#include "jni/jni_errors.h"
+#include "compute/SubstraitArrow.h"
+#include "jni/JniErrors.h"
 
 #include <google/protobuf/wrappers.pb.h>
 
@@ -45,7 +45,7 @@ JNIEXPORT void JNICALL
 Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv* env, jobject obj) {
   JNI_METHOD_START
   gluten::GazelleInitialize();
-  gluten::SetBackendFactory([] { return std::make_shared<gluten::ArrowExecBackend>(); });
+  gluten::SetBackendFactory([] { return std::make_shared<gluten::ArrowBackend>(); });
   JNI_METHOD_END()
 }
 

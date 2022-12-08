@@ -15,16 +15,35 @@
  * limitations under the License.
  */
 
-#include "result_iterator.h"
-#include "exec_backend.h"
+#pragma once
+
+#include "memory/ColumnarBatch.h"
+#include "memory/VeloxMemoryPool.h"
+#include "velox/vector/ComplexVector.h"
+#include "velox/vector/arrow/Bridge.h"
 
 namespace gluten {
 
-std::shared_ptr<Metrics> ResultIterator::GetMetrics() {
-  if (backend_) {
-    return backend_->GetMetrics(raw_iter_, exportNanos_);
+class VeloxColumnarBatch : public ColumnarBatch {
+ public:
+  VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
+      : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}
+
+  std::string GetType() const override {
+    return "velox";
   }
-  return nullptr;
-}
+
+  std::shared_ptr<ArrowSchema> exportArrowSchema() override;
+  std::shared_ptr<ArrowArray> exportArrowArray() override;
+
+  facebook::velox::RowVectorPtr getRowVector() const;
+  facebook::velox::RowVectorPtr getFlattenedRowVector();
+
+ private:
+  void EnsureFlattened();
+
+  facebook::velox::RowVectorPtr rowVector_ = nullptr;
+  facebook::velox::RowVectorPtr flattened_ = nullptr;
+};
 
 } // namespace gluten

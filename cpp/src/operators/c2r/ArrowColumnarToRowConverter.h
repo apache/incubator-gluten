@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "columnar_to_row_base.h"
+#include "ColumnarToRow.h"
 
 namespace gluten {
 

@@ -17,16 +17,28 @@
 
 #pragma once
 
-#include "memory/allocator.h"
-#include "velox/common/memory/Memory.h"
+#include "MemoryAllocator.h"
 
 namespace gluten {
 
-constexpr uint16_t kNoAlignment = facebook::velox::memory::kNoAlignment;
-constexpr int64_t kMaxMemory = facebook::velox::memory::kMaxMemory;
+class HbwMemoryAllocator : public MemoryAllocator {
+ public:
+  bool Allocate(int64_t size, void** out) override;
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(MemoryAllocator* allocator);
+  bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
 
-facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool();
+  bool AllocateAligned(uint16_t alignment, int64_t size, void** out) override;
+
+  bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
+
+  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
+
+  bool Free(void* p, int64_t size) override;
+
+  int64_t GetBytes() const override;
+
+ private:
+  std::atomic_int64_t bytes_{0};
+};
 
 } // namespace gluten
