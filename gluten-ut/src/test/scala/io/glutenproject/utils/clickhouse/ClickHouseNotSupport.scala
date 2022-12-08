@@ -68,7 +68,39 @@ object ClickHouseNotSupport extends NotSupport {
       "degrees",      // Relies on the transformation of function `CheckOverflow`.
       "hex",          // Leading 0 is cut in different ways between CH and Spark.
       "log1p",        // In CH log1p(1) returns -inf, in spark it returns null.
-      "rint"          // Relies on the right transformation of function `cast` when null is input
+      "rint",          // Relies on the right transformation of function `cast` when null is input
+      "factorial",
+      "exp",
+      "pow / power",
+      "csc",
+      "SPARK-35926: Support YearMonthIntervalType in width-bucket function",
+      "sqrt",
+      "round/bround/ceil/floor with data frame from a local Seq of Product",
+      "signum / sign",
+      "SPARK-36229 conv should return result equal to -1 in base of toBase",
+      "expm1",
+      "atanh",
+      "abs",
+      "shift right unsigned",
+      "floor",
+      "SPARK-33428 conv function shouldn't raise error if input string is too big",
+      "shift right",
+      "cot",
+      "conv",
+      "shift left",
+      "positive",
+      "round/bround/ceil/floor",
+      "SPARK-33428 conv function should trim input string",
+      "log2",
+      "SPARK-36229 inconsistently behaviour where returned value is above the 64 char threshold",
+      "binary log",
+      "negative",
+      "ceil and ceiling",
+      "round/bround/ceil/floor with table columns",
+      "log / ln",
+      "asinh",
+      "acosh",
+      "sec"
     )
   )
   override lazy val fullSupportSuiteList: Set[String] = Set(
