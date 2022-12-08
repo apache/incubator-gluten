@@ -19,7 +19,7 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
 
-import org.apache.spark.sql.{DataFrameAggregateSuite, GlutenDataFrameAggregateSuite, StringFunctionsSuite}
+import org.apache.spark.sql.{DataFrameAggregateSuite, DataFrameSelfJoinSuite, GlutenDataFrameAggregateSuite, StringFunctionsSuite}
 import org.apache.spark.sql.catalyst.expressions._
 
 object VeloxNotSupport extends NotSupport {
@@ -64,7 +64,8 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[RandomSuite],
     simpleClassName[ArithmeticExpressionSuite],
     simpleClassName[ConditionalExpressionSuite],
-    simpleClassName[GlutenDataFrameAggregateSuite]
+    simpleClassName[GlutenDataFrameAggregateSuite],
+    simpleClassName[DataFrameSelfJoinSuite]
   )
 
 }
