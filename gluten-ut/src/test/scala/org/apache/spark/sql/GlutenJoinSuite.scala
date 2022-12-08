@@ -19,7 +19,7 @@ package org.apache.spark.sql
 
 class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL,
     "broadcasted hash join operator selection",
     "broadcasted hash outer join operator selection",

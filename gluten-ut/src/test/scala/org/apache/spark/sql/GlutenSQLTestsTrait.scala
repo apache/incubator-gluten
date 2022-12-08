@@ -64,7 +64,7 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
 
   override protected def test(testName: String,
                               testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
-    if (whiteBlackCheck(testName)) {
+    if (shouldRun(testName)) {
       super.test(testName, testTags: _*)(testFun)
     } else {
       logWarning(s"Ignore test case: ${testName}")
@@ -73,6 +73,7 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
 
   override def logForFailedTest(): Unit = {
     logError("Test failed so abort")
+    // FIXME the code swallows exceptions. See https://github.com/oap-project/gluten/issues/676
     System.exit(1)
   }
 

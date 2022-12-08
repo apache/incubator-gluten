@@ -19,7 +19,7 @@ package org.apache.spark.sql
 
 class GlutenDataFrameNaFunctionsSuite extends DataFrameNaFunctionsSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL
   )
 }

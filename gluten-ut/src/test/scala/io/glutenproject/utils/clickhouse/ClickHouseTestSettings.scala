@@ -17,14 +17,14 @@
 
 package io.glutenproject.utils.clickhouse
 
-import io.glutenproject.utils.NotSupport
-
+import io.glutenproject.utils.BackendTestSettings
+import org.apache.spark.sql.{GlutenDataFrameAggregateSuite, GlutenDataFrameFunctionsSuite, GlutenDateFunctionsSuite, GlutenMathFunctionsSuite}
 import org.apache.spark.sql.catalyst.expressions._
 
-object ClickHouseNotSupport extends NotSupport {
+object ClickHouseTestSettings extends BackendTestSettings {
 
-  override lazy val partialSupportSuiteList: Map[String, Seq[String]] = Map(
-    "DataFrameAggregateSuite" -> Seq(
+  enableSuite[GlutenDataFrameAggregateSuite] {
+    ExcludeOnly(
       "average", // [overwritten by Gluten - xxx]
       "groupBy", // [overwritten by Gluten - xxx]
       "count", // [overwritten by Gluten - xxx]
@@ -61,8 +61,49 @@ object ClickHouseNotSupport extends NotSupport {
       "SPARK-38185", // [not urgent] empty agg
       "SPARK-18952", // [not urgent]
       "SPARK-32038" // [not urgent]
-    ))
-  override lazy val fullSupportSuiteList: Set[String] = Set(
-    "ComplexTypesSuite"
-  )
+    )
+  }
+
+  enableSuite[GlutenDataFrameFunctionsSuite] {
+    IncludeOnly(
+      "conditional function: least",
+      "conditional function: greatest"
+    )
+  }
+
+  enableSuite[GlutenDateFunctionsSuite] {
+    IncludeOnly(
+      "quarter"
+    )
+  }
+
+  enableSuite[GlutenMathFunctionsSuite] {
+    IncludeOnly(
+      // "round/bround", // Scale argument of round/bround function currently don't support
+      //   negative.
+      // "radians",      // Relies on the transformation of function `CheckOverflow`.
+      // "degrees",      // Relies on the transformation of function `CheckOverflow`.
+      // "hex",          // Leading 0 is cut in different ways between CH and Spark.
+      // "log1p",        // In CH log1p(1) returns -inf, in spark it returns null.
+      // "rint",         // Relies on the right transformation of function `cast` when null is input
+      // "log2",         // Make sure velox ut is success
+      // "log / ln"      // Make sure velox ut is success
+      "cos",
+      "cosh",
+      "sin",
+      "sinh",
+      "tan",
+      "tanh",
+      "acos",
+      "asin",
+      "atan",
+      "atan2",
+      "cbrt",
+      "unhex",
+      "hypot",
+      "log10"
+    )
+  }
+
+  enableSuite[GlutenComplexTypeSuite]()
 }

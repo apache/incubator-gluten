@@ -20,7 +20,7 @@ package org.apache.spark.sql
 class GlutenDynamicPartitionPruningV2SuiteAEOn extends DynamicPartitionPruningV2SuiteAEOn
   with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL
   )
 
