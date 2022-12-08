@@ -1,4 +1,4 @@
-#include "velox_columnar_batch.h"
+#include "VeloxColumnarBatch.h"
 
 namespace gluten {
 

@@ -15,30 +15,25 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include "allocator.h"
+#include "Backend.h"
 
 namespace gluten {
 
-class HbwMemoryAllocator : public MemoryAllocator {
- public:
-  bool Allocate(int64_t size, void** out) override;
+static std::function<std::shared_ptr<Backend>()> backend_factory;
 
-  bool AllocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
+void SetBackendFactory(std::function<std::shared_ptr<Backend>()> factory) {
+#ifdef GLUTEN_PRINT_DEBUG
+  std::cout << "Set backend factory." << std::endl;
+#endif
+  backend_factory = std::move(factory);
+}
 
-  bool AllocateAligned(uint16_t alignment, int64_t size, void** out) override;
-
-  bool Reallocate(void* p, int64_t size, int64_t new_size, void** out) override;
-
-  bool ReallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t new_size, void** out) override;
-
-  bool Free(void* p, int64_t size) override;
-
-  int64_t GetBytes() const override;
-
- private:
-  std::atomic_int64_t bytes_{0};
-};
+std::shared_ptr<Backend> CreateBackend() {
+  if (backend_factory == nullptr) {
+    throw std::runtime_error(
+        "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");
+  }
+  return backend_factory();
+}
 
 } // namespace gluten

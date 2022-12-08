@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "arrow_columnar_to_row_converter.h"
+#include "ArrowColumnarToRowConverter.h"
 
 #include <arrow/array/array_decimal.h>
 #include <arrow/util/decimal.h>

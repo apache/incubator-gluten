@@ -17,12 +17,16 @@
 
 #pragma once
 
-#include "allocator.h"
+#include "memory/MemoryAllocator.h"
+#include "velox/common/memory/Memory.h"
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator);
+constexpr uint16_t kNoAlignment = facebook::velox::memory::kNoAlignment;
+constexpr int64_t kMaxMemory = facebook::velox::memory::kMaxMemory;
 
-std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool();
+std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(MemoryAllocator* allocator);
+
+facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool();
 
 } // namespace gluten

@@ -19,7 +19,7 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.NotSupport
 
-import org.apache.spark.sql.{MathFunctionsSuite, DataFrameAggregateSuite, GlutenDataFrameAggregateSuite, StringFunctionsSuite}
+import org.apache.spark.sql.{DataFrameAggregateSuite, DataFrameSelfJoinSuite, GlutenDataFrameAggregateSuite, MathFunctionsSuite, StringFunctionsSuite}
 import org.apache.spark.sql.catalyst.expressions._
 
 object VeloxNotSupport extends NotSupport {
@@ -27,6 +27,16 @@ object VeloxNotSupport extends NotSupport {
   override lazy val partialSupportSuiteList: Map[String, Seq[String]] = Map(
     simpleClassName[CastSuite] -> Seq(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
+    ),
+    simpleClassName[AnsiCastSuiteBase]->Seq(
+      "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
+    ),
+    simpleClassName[TryCastSuite] -> Seq(
+      // array/map/struct not supported yet.
+      "cast from invalid string array to numeric array should throw NumberFormatException",
+      "cast from array II",
+      "cast from map II",
+      "cast from struct II"
     ),
     simpleClassName[DataFrameAggregateSuite] -> Seq(
       "zero moments", // [velox does not return NaN]
@@ -65,7 +75,8 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[RandomSuite],
     simpleClassName[ArithmeticExpressionSuite],
     simpleClassName[ConditionalExpressionSuite],
-    simpleClassName[GlutenDataFrameAggregateSuite]
+    simpleClassName[GlutenDataFrameAggregateSuite],
+    simpleClassName[DataFrameSelfJoinSuite]
   )
 
 }

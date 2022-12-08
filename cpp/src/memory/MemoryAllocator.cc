@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-#include "allocator.h"
+#include "MemoryAllocator.h"
 #include <iostream>
-#include "hbw_allocator.h"
+#include "HbwAllocator.h"
 
 namespace gluten {
 

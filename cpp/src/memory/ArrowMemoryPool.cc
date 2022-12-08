@@ -15,25 +15,17 @@
  * limitations under the License.
  */
 
-#include "exec_backend.h"
+#include "ArrowMemoryPool.h"
 
 namespace gluten {
 
-static std::function<std::shared_ptr<Backend>()> backend_factory;
-
-void SetBackendFactory(std::function<std::shared_ptr<Backend>()> factory) {
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory." << std::endl;
-#endif
-  backend_factory = std::move(factory);
+std::shared_ptr<arrow::MemoryPool> AsWrappedArrowMemoryPool(MemoryAllocator* allocator) {
+  return std::make_shared<WrappedArrowMemoryPool>(allocator);
 }
 
-std::shared_ptr<Backend> CreateBackend() {
-  if (backend_factory == nullptr) {
-    throw std::runtime_error(
-        "Execution backend not set. This may due to the backend library not loaded, or SetBackendFactory() is not called in nativeInitNative() JNI call.");
-  }
-  return backend_factory();
+std::shared_ptr<arrow::MemoryPool> GetDefaultWrappedArrowMemoryPool() {
+  static auto static_pool = AsWrappedArrowMemoryPool(DefaultMemoryAllocator().get());
+  return static_pool;
 }
 
 } // namespace gluten

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "columnar_to_row_base.h"
+#include "ColumnarToRow.h"
 
 #include <arrow/util/decimal.h>
 
