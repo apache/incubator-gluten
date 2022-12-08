@@ -22,36 +22,30 @@ import io.glutenproject.substrait.expression.IfThenNode
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+
 import java.util.ArrayList
 
-class IfTransformer(predicate: Expression, trueValue: Expression,
-                    falseValue: Expression, original: Expression)
-  extends If(predicate: Expression, trueValue: Expression, falseValue: Expression)
-    with ExpressionTransformer
-    with Logging {
+class IfTransformer(predicate: ExpressionTransformer, trueValue: ExpressionTransformer,
+                    falseValue: ExpressionTransformer, original: Expression)
+  extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (!predicate.isInstanceOf[ExpressionTransformer] ||
-      !trueValue.isInstanceOf[ExpressionTransformer] ||
-      !falseValue.isInstanceOf[ExpressionTransformer]) {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-
     val ifNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
-    ifNodes.add(predicate.asInstanceOf[ExpressionTransformer].doTransform(args))
+    ifNodes.add(predicate.doTransform(args))
 
     val thenNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
-    thenNodes.add(trueValue.asInstanceOf[ExpressionTransformer].doTransform(args))
+    thenNodes.add(trueValue.doTransform(args))
 
-    val elseValueNode = falseValue.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val elseValueNode = falseValue.doTransform(args)
     new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
 }
 
 object IfOperatorTransformer {
 
-  def create(predicate: Expression, trueValue: Expression,
-             falseValue: Expression, original: Expression): Expression = original match {
+  def create(predicate: ExpressionTransformer, trueValue: ExpressionTransformer,
+             falseValue: ExpressionTransformer, original: Expression
+            ): ExpressionTransformer = original match {
     case i: If =>
       new IfTransformer(predicate, trueValue, falseValue, original)
     case other =>

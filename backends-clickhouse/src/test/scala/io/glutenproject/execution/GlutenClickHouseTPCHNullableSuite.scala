@@ -175,8 +175,7 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
     runTPCHQuery(22) { df => }
   }
 
-  ignore("test 'select count(*) from table'") {
-    // currently, it can't support 'select count(*)' for non-partitioned tables.
+  test("test 'select count(*) from table'") {
     val df = spark.sql("""
                          |select count(*) from lineitem
                          |""".stripMargin)

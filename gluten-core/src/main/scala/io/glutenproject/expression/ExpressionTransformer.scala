@@ -20,7 +20,5 @@ package io.glutenproject.expression
 import io.glutenproject.substrait.expression.ExpressionNode
 
 trait ExpressionTransformer {
-  def doTransform(args: java.lang.Object): ExpressionNode = {
-    throw new UnsupportedOperationException(s"Not support doTransform.")
-  }
+  def doTransform(args: java.lang.Object): ExpressionNode
 }

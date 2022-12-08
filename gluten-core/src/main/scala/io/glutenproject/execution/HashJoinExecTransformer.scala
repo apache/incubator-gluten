@@ -18,19 +18,20 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import com.google.protobuf.{Any, ByteString, StringValue}
+import com.google.protobuf.{Any, StringValue}
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.{NativeExpressionEvaluator, OperatorMetrics}
 import io.glutenproject.vectorized.Metrics.SingleMetric
+import io.glutenproject.vectorized.OperatorMetrics
 import io.substrait.proto.JoinRel
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -42,13 +43,10 @@ import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, Ha
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import java.{lang, util}
 
+import java.{lang, util}
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
-
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.sql.shims.SparkShimLoader
 
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
@@ -783,7 +781,6 @@ trait HashJoinLikeExecTransformer
           Some(
             (ExpressionConverter
               .replaceWithExpressionTransformer(expr, inputNodeOutput)
-              .asInstanceOf[ExpressionTransformer]
               .doTransform(substraitContext.registeredFunction), expr.dataType))
       }
       val preProjectNode = RelBuilder.makeProjectRel(
@@ -857,7 +854,6 @@ trait HashJoinLikeExecTransformer
       expr =>
         ExpressionConverter
           .replaceWithExpressionTransformer(expr, streamedOutput ++ buildOutput)
-          .asInstanceOf[ExpressionTransformer]
           .doTransform(substraitContext.registeredFunction)
     }
 
@@ -1026,7 +1022,7 @@ object HashJoinLikeExecTransformer {
                             functionMap: java.util.HashMap[String, java.lang.Long]
                            ): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.EQUAL, Seq(leftType, rightType)))
+      ConverterUtils.makeFuncName(ExpressionMappings.EQUAL, Seq(leftType, rightType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
     val typeNode = TypeBuilder.makeBoolean(true)
@@ -1038,7 +1034,7 @@ object HashJoinLikeExecTransformer {
                         rightNode: ExpressionNode,
                         functionMap: java.util.HashMap[String, java.lang.Long]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(functionMap,
-      ConverterUtils.makeFuncName(ConverterUtils.AND, Seq(BooleanType, BooleanType)))
+      ConverterUtils.makeFuncName(ExpressionMappings.AND, Seq(BooleanType, BooleanType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
     val typeNode = TypeBuilder.makeBoolean(true)
@@ -1050,7 +1046,7 @@ object HashJoinLikeExecTransformer {
                            functionMap: java.util.HashMap[String, java.lang.Long])
     : ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap, ConverterUtils.makeFuncName(ConverterUtils.IS_NULL, Seq(BooleanType)))
+      functionMap, ConverterUtils.makeFuncName(ExpressionMappings.IS_NULL, Seq(BooleanType)))
 
     ExpressionBuilder.makeScalarFunction(
       functionId,

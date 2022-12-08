@@ -18,32 +18,23 @@ package org.apache.spark.shuffle.utils
 
 import io.glutenproject.execution.SortExecTransformer
 import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.expression.ExpressionTransformer
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.plan.PlanNode
+import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.{BlockNativeConverter, BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
 
-import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
-import org.apache.spark.internal.Logging
+import org.apache.spark.RangePartitioner
 import org.apache.spark.rdd.{PartitionPruningRDD, RDD}
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, BoundReference, NamedExpression, SortOrder, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression, SortOrder, UnsafeRow}
 import org.apache.spark.sql.types._
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 
 import java.util
 import java.util.Base64
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -130,9 +121,9 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
       ordering: SortOrder,
       attributes: Seq[Attribute]): Int = {
     val funcs = context.registeredFunction
-    val colExpr =
-      ExpressionConverter.replaceWithExpressionTransformer(ordering.child, attributes)
-    val projExprNode = colExpr.asInstanceOf[ExpressionTransformer].doTransform(funcs)
+    val projExprNode = ExpressionConverter
+      .replaceWithExpressionTransformer(ordering.child, attributes)
+      .doTransform(funcs)
     val pb = projExprNode.toProtobuf
     if (!pb.hasSelection()) {
       throw new IllegalArgumentException(s"A sorting field should be an attribute")
@@ -152,7 +143,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
       })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
-      projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      projExprNodeList.add(expr.doTransform(args))
     }
     val projectRel = RelBuilder.makeProjectRel(null, projExprNodeList, context, 0)
     val outNames = new util.ArrayList[String]

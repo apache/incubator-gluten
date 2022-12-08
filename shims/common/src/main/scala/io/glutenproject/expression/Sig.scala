@@ -14,10 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.expression
 
-package io.glutenproject.backendsapi.velox
+import org.apache.spark.sql.catalyst.expressions.Expression
 
-import io.glutenproject.backendsapi.glutendata.GlutenTransformerApi
+import scala.reflect.ClassTag
 
-class VeloxTransformerApi extends GlutenTransformerApi {
+/** Signature for a expression */
+case class Sig(expClass: Class[_], name: String)
+
+object Sig {
+
+  def apply[T <: Expression: ClassTag](name: String): Sig = {
+    Sig(scala.reflect.classTag[T].runtimeClass, name)
+  }
 }

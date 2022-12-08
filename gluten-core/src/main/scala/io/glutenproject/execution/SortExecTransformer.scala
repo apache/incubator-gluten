@@ -17,14 +17,9 @@
 
 package io.glutenproject.execution
 
-import java.util
-
-import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
@@ -36,7 +31,6 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.utils.BindReferencesUtil
 import io.substrait.proto.SortField
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -44,6 +38,10 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util
+import scala.collection.JavaConverters._
+import scala.util.control.Breaks.{break, breakable}
 
 case class SortExecTransformer(sortOrder: Seq[SortOrder],
                                global: Boolean,
@@ -158,9 +156,8 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     var colIdx = originalInputAttributes.size
     sortOrder.map(order => {
       val builder = SortField.newBuilder();
-      val expr = ExpressionConverter
-        .replaceWithExpressionTransformer(order.child, originalInputAttributes)
-      val projectExprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+      val projectExprNode = ExpressionConverter
+        .replaceWithExpressionTransformer(order.child, originalInputAttributes).doTransform(args)
       projectExpressions.add(projectExprNode)
 
       val exprNode = ExpressionBuilder.makeSelection(colIdx)
@@ -245,9 +242,9 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     val sortFieldList = new util.ArrayList[SortField]()
     sortOrder.map(order => {
       val builder = SortField.newBuilder();
-      val expr = ExpressionConverter
+      val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-      val exprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+        .doTransform(args)
       builder.setExpr(exprNode.toProtobuf)
 
       builder.setDirectionValue(SortExecTransformer.transformSortDirection(order.direction.sql,

@@ -14,47 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.DataType
 
-import scala.collection.mutable.ArrayBuffer
-
-class ConcatTransformer(exps: Seq[Expression], original: Expression)
-  extends Concat(exps: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
+class HashExpressionTransformer(
+                              substraitExprName: String,
+                              exps: Seq[ExpressionTransformer],
+                              original: Expression)
+  extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val nodes = new java.util.ArrayList[ExpressionNode]()
-    val arrayBuffer = new ArrayBuffer[DataType]()
     exps.foreach(expression => {
-      val expressionNode = expression.asInstanceOf[ExpressionTransformer].doTransform(args)
+      val expressionNode = expression.doTransform(args)
       if (!expressionNode.isInstanceOf[ExpressionNode]) {
         throw new UnsupportedOperationException(s"Not supported yet.")
       }
-      arrayBuffer.append(expression.dataType)
       nodes.add(expressionNode)
     })
+    val childrenTypes = original.children.map(child => child.dataType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(ConverterUtils.CONCAT,
-      arrayBuffer, FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(substraitExprName,
+      childrenTypes, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val typeNode = ConverterUtils.getTypeNode(exps.head.dataType, original.nullable)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }
 
-object ConcatExpressionTransformer {
-
-  def create(exps: Seq[Expression], original: Expression): Expression = original match {
-    case c: Concat =>
-      new ConcatTransformer(exps, original)
-    case other =>
-      throw new UnsupportedOperationException(s"not currently supported: $other.")
-  }
-}

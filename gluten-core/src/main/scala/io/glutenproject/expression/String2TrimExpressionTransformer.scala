@@ -20,56 +20,32 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 
-/**
- * Transformer for the normal quaternary expression
- */
-class QuaternaryExpressionTransformer(
+class String2TrimExpressionTransformer(
     substraitExprName: String,
-    first: ExpressionTransformer,
-    second: ExpressionTransformer,
-    third: ExpressionTransformer,
-    forth: ExpressionTransformer,
+    srcStr: ExpressionTransformer,
     original: Expression)
     extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val firstNode = first.doTransform(args)
-    val secondNode = second.doTransform(args)
-    val thirdNode = third.doTransform(args)
-    val forthNode = forth.doTransform(args)
-    if (!firstNode.isInstanceOf[ExpressionNode] ||
-      !secondNode.isInstanceOf[ExpressionNode] ||
-      !thirdNode.isInstanceOf[ExpressionNode] ||
-      !forthNode.isInstanceOf[ExpressionNode]) {
+    val srcStrNode = srcStr.doTransform(args)
+    if (!srcStrNode.isInstanceOf[ExpressionNode]) {
       throw new UnsupportedOperationException(s"${original} not supported yet.")
     }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(
-      substraitExprName,
-      original.children.map(_.dataType),
-      FunctionConfig.OPT)
+    val functionName =
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        original.children.map(_.dataType),
+        FunctionConfig.REQ)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val expressionNodes = Lists.newArrayList(firstNode, secondNode, thirdNode, forthNode)
+    val expressNodes = Lists.newArrayList(srcStrNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-object QuaternaryExpressionTransformer {
-
-  def apply(
-      substraitExprName: String,
-      first: ExpressionTransformer,
-      second: ExpressionTransformer,
-      third: ExpressionTransformer,
-      forth: ExpressionTransformer,
-      original: Expression): ExpressionTransformer = {
-    new QuaternaryExpressionTransformer(substraitExprName, first, second, third, forth, original)
+    ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
 }
