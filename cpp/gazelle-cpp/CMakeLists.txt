@@ -32,8 +32,8 @@ find_arrow_lib(${PARQUET_LIB_NAME})
 find_arrow_lib(${ARROW_DATASET_LIB_NAME})
 
 set(GAZELLE_CPP_JNI_SRCS
-    jni/jni_wrapper.cc
-    compute/substrait_arrow.cc
+    jni/JniWrapper.cc
+    compute/SubstraitArrow.cc
     )
 
 add_library(gazelle_cpp SHARED ${GAZELLE_CPP_JNI_SRCS})
@@ -46,5 +46,5 @@ set_target_properties(gazelle_cpp PROPERTIES
     )
 
 if(BUILD_TESTS)
-    add_test_case(test_substrait SOURCES tests/test_substrait.cc EXTRA_LINK_LIBS gazelle_cpp)
-  endif()
+    add_test_case(test_substrait SOURCES tests/TestSubstrait.cc EXTRA_LINK_LIBS gazelle_cpp)
+endif()
