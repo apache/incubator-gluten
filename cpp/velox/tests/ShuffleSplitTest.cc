@@ -40,7 +40,7 @@ void print_trace(void) {
 }
 
 #include "TestUtils.h"
-#include "operators/shuffle/Splitter.h"
+#include "operators/shuffle/splitter.h"
 
 namespace gluten {
 namespace shuffle {
