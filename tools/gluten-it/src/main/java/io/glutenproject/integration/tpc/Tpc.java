@@ -92,7 +92,7 @@ public class Tpc implements Callable<Integer> {
         conf = Constants.VELOX_BACKEND_CONF();
         break;
       case "gazelle-cpp":
-        conf = Constants.GAZELLE_CPP_BACKEND_CONF();
+        conf = Constants.GAZELLE_BACKEND_CONF();
         break;
       default:
         throw new IllegalArgumentException("Backend type not found: " + backendType);

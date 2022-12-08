@@ -16,7 +16,7 @@ object Constants {
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
-  val GAZELLE_CPP_BACKEND_CONF: SparkConf = new SparkConf()
+  val GAZELLE_BACKEND_CONF: SparkConf = new SparkConf()
     .set("spark.gluten.sql.columnar.backend.lib", "gazelle")
     .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
