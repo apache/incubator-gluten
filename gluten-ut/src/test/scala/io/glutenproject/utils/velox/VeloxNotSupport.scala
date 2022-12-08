@@ -28,6 +28,16 @@ object VeloxNotSupport extends NotSupport {
     simpleClassName[CastSuite] -> Seq(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     ),
+    simpleClassName[AnsiCastSuiteBase]->Seq(
+      "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
+    ),
+    simpleClassName[TryCastSuite] -> Seq(
+      // array/map/struct not supported yet.
+      "cast from invalid string array to numeric array should throw NumberFormatException",
+      "cast from array II",
+      "cast from map II",
+      "cast from struct II"
+    ),
     simpleClassName[DataFrameAggregateSuite] -> Seq(
       "zero moments", // [velox does not return NaN]
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
