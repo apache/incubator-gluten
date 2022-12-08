@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "arrow_memory_pool.h"
+#include "ArrowMemoryPool.h"
 
 namespace gluten {
 

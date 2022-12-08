@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "allocator.h"
+#include "MemoryAllocator.h"
 
 namespace gluten {
 
