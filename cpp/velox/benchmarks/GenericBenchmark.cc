@@ -25,7 +25,7 @@
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
-#include "utils/Exception.h"
+#include "utils/exception.h"
 
 #include <thread>
 

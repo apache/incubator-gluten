@@ -38,10 +38,10 @@
 #include "jni/JniErrors.h"
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ColumnarToRow.h"
-#include "operators/shuffle/Reader.h"
-#include "operators/shuffle/Splitter.h"
-#include "utils/Exception.h"
-#include "utils/Metrics.h"
+#include "operators/shuffle/reader.h"
+#include "operators/shuffle/splitter.h"
+#include "utils/exception.h"
+#include "utils/metrics.h"
 
 namespace types {
 class ExpressionList;

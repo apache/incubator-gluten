@@ -23,7 +23,7 @@
 #include <arrow/util/iterator.h>
 
 #include "memory/ColumnarBatch.h"
-#include "utils/Metrics.h"
+#include "utils/metrics.h"
 
 #ifdef GLUTEN_PRINT_DEBUG
 #include <iostream>

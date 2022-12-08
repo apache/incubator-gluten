@@ -40,7 +40,7 @@
 #include "substrait/plan.pb.h"
 #include "substrait/type.pb.h"
 #include "substrait/type_expressions.pb.h"
-#include "utils/Metrics.h"
+#include "utils/metrics.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConnector.h"

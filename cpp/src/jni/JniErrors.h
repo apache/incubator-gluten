@@ -20,7 +20,7 @@
 #include <stdexcept>
 
 #include "JniCommon.h"
-#include "utils/Exception.h"
+#include "utils/exception.h"
 
 #define JNI_METHOD_START try {
 // macro ended

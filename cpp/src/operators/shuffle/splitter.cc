@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "operators/shuffle/Splitter.h"
+#include "operators/shuffle/splitter.h"
 
 #include <arrow/ipc/writer.h>
 #include <arrow/memory_pool.h>

@@ -39,7 +39,7 @@
 
 #include "compute/ProtobufUtils.h"
 #include "memory/ArrowMemoryPool.h"
-#include "utils/Exception.h"
+#include "utils/exception.h"
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 

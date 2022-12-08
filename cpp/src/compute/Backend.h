@@ -28,8 +28,8 @@
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
 #include "substrait/plan.pb.h"
-#include "utils/Exception.h"
-#include "utils/Metrics.h"
+#include "utils/exception.h"
+#include "utils/metrics.h"
 
 #ifdef GLUTEN_PRINT_DEBUG
 #include <iostream>
