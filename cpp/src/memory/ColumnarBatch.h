@@ -22,7 +22,7 @@
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
 #include "include/arrow/c/bridge.h"
-#include "utils/Exception.h"
+#include "utils/exception.h"
 
 namespace gluten {
 

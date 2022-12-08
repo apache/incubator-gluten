@@ -232,14 +232,14 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         jni/JniWrapper.cc
         compute/Backend.cc
         compute/ResultIterator.cc
-        memory/Allocator.cc
+        memory/MemoryAllocator.cc
         memory/ArrowMemoryPool.cc
         ${PROTO_SRCS}
         compute/ProtobufUtils.cc
         operators/c2r/ArrowColumnarToRowConverter.cc
         operators/c2r/ColumnarToRow.cc
-        operators/shuffle/Reader.cc
-        operators/shuffle/Splitter.cc
+        operators/shuffle/reader.cc
+        operators/shuffle/splitter.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)

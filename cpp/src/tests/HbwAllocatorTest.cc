@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 #include <cstdlib>
 
-#include "memory/Allocator.h"
+#include "memory/MemoryAllocator.h"
 #include "memory/HbwAllocator.h"
 
 class TestHbwAllocator : public ::testing::Test {
