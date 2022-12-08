@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "operators/shuffle/splitter.h"
+#include "operators/shuffle/Splitter.h"
 
 #include <arrow/ipc/writer.h>
 #include <arrow/memory_pool.h>
@@ -31,9 +31,9 @@
 #include <string>
 #include <utility>
 
-#include "compute/protobuf_utils.h"
-#include "operators/shuffle/utils.h"
-#include "utils/macros.h"
+#include "compute/ProtobufUtils.h"
+#include "operators/shuffle/Utils.h"
+#include "utils/Macros.h"
 
 namespace gluten {
 

@@ -24,7 +24,7 @@
 
 #include <deque>
 
-#include "memory/arrow_memory_pool.h"
+#include "memory/ArrowMemoryPool.h"
 
 namespace gluten {
 
