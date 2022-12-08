@@ -25,6 +25,7 @@
 
 #include "operators/c2r/arrow_columnar_to_row_converter.h"
 #include "operators/c2r/columnar_to_row_base.h"
+
 #include "velox/common/file/FileSystems.h"
 #ifdef VELOX_ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsReadFile.h"
@@ -34,14 +35,14 @@
 #include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/vector/ComplexVector.h"
 
-using namespace facebook::velox;
-
-namespace velox {
-namespace compute {
+namespace gluten {
 
 class DwrfDatasource {
  public:
-  DwrfDatasource(const std::string& file_path, std::shared_ptr<arrow::Schema> schema, memory::MemoryPool* pool)
+  DwrfDatasource(
+      const std::string& file_path,
+      std::shared_ptr<arrow::Schema> schema,
+      facebook::velox::memory::MemoryPool* pool)
       : file_path_(file_path), schema_(schema), pool_(pool) {}
 
   void Init(const std::unordered_map<std::string, std::string>& sparkConfs);
@@ -55,11 +56,10 @@ class DwrfDatasource {
   int32_t count_ = 0;
   int64_t num_rbs_ = 0;
   std::shared_ptr<arrow::Schema> schema_;
-  std::vector<RowVectorPtr> row_vecs_;
+  std::vector<facebook::velox::RowVectorPtr> row_vecs_;
   std::shared_ptr<const facebook::velox::Type> type_;
   std::shared_ptr<facebook::velox::dwrf::Writer> writer_;
-  memory::MemoryPool* pool_;
+  facebook::velox::memory::MemoryPool* pool_;
 };
 
-} // namespace compute
-} // namespace velox
+} // namespace gluten

@@ -34,7 +34,6 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 project(spark_columnar_plugin)
 
-option(DEBUG "Enable Debug Info" OFF)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
 option(BUILD_GAZELLE_CPP_BACKEND "Build the gazelle-cpp libraries" OFF)
@@ -50,8 +49,8 @@ set(root_directory ${PROJECT_BINARY_DIR})
 #
 # Compiler flags
 #
-
-if(DEBUG)
+string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
+if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
   add_definitions(-DGLUTEN_PRINT_DEBUG)
 endif()
 
@@ -64,7 +63,7 @@ option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
 
 include(ConfigArrow)
 
-include_directories(build)
+include_directories(build/releases)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

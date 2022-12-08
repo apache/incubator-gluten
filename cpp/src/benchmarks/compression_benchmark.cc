@@ -49,11 +49,10 @@ void print_trace(void) {
 using arrow::RecordBatchReader;
 using arrow::Status;
 using gluten::GlutenException;
-using gluten::shuffle::SplitOptions;
-using gluten::shuffle::Splitter;
+using gluten::SplitOptions;
+using gluten::Splitter;
 
-namespace sparkcolumnarplugin {
-namespace shuffle {
+namespace gluten {
 
 #define ALIGNMENT 2 * 1024 * 1024
 
@@ -232,12 +231,16 @@ class BenchmarkCompression {
 
     state.counters["rowgroups"] = benchmark::Counter(
         row_group_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+
     state.counters["columns"] =
         benchmark::Counter(column_indices.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+
     state.counters["batches"] =
         benchmark::Counter(num_batches, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+
     state.counters["num_rows"] =
         benchmark::Counter(num_rows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+
     state.counters["batch_buffer_size"] =
         benchmark::Counter(split_buffer_size, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
@@ -315,8 +318,7 @@ class BenchmarkCompression_IterateScan_Benchmark : public BenchmarkCompression {
   }
 };
 
-} // namespace shuffle
-} // namespace sparkcolumnarplugin
+} // namespace gluten
 
 int main(int argc, char** argv) {
   uint32_t iterations = 1;
@@ -343,7 +345,7 @@ int main(int argc, char** argv) {
   std::cout << "threads = " << threads << std::endl;
   std::cout << "datafile = " << datafile << std::endl;
 
-  sparkcolumnarplugin::shuffle::BenchmarkCompression_IterateScan_Benchmark bck(datafile, split_buffer_size);
+  gluten::BenchmarkCompression_IterateScan_Benchmark bck(datafile, split_buffer_size);
 
   benchmark::RegisterBenchmark("BenchmarkCompression::IterateScan", bck)
       ->Iterations(iterations)

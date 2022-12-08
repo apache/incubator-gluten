@@ -4,7 +4,7 @@
 Parquet format is supported. Here are the steps to generate the testing datasets:
 
 ### Generate the Parquet dataset
-Please refer to the scripts in ./gen_data/parquet_dataset/ directory to generate parquet dataset. Note this script relies on the [spark-sql-perf](https://github.com/databricks/spark-sql-perf) package from Databricks.
+Please refer to the scripts in ./gen_data/parquet_dataset/ directory to generate parquet dataset. Note this script relies on the [spark-sql-perf](https://github.com/databricks/spark-sql-perf) and the [tpcds-kit](https://github.com/databricks/tpcds-kit) package from Databricks.
 
 In tpcds_datagen_parquet.sh, several parameters should be configured according to the system.
 ```

@@ -16,11 +16,12 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
 import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
-import io.glutenproject.utils.InputPartitionsUtil
+import io.glutenproject.utils.CHInputPartitionsUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
@@ -63,6 +64,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
             })
           .exists(_ == false))
       case RangePartitioning(orderings, _) =>
+        GlutenConfig.getSessionConf.enableColumnarSort &&
         RangePartitionerBoundsGenerator.supportedOrderings(orderings)
       case _ => true
     }
@@ -86,7 +88,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
       relation.location.asInstanceOf[ClickHouseFileIndex].partsPartitions
     } else {
       // Generate FilePartition for Parquet
-      InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+      CHInputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
     }
   }
 }

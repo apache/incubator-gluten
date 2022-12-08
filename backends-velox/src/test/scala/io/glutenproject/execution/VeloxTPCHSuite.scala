@@ -17,13 +17,16 @@
 
 package io.glutenproject.execution
 
-import java.io.File
+import io.glutenproject.execution.TakeOrderedAndProjectExecTransformer
 
+import java.io.File
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.execution.ColumnarInputAdapter
 import org.apache.spark.sql.types.DoubleType
 
+import scala.collection.Seq
 import scala.io.Source
 
 abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
@@ -273,6 +276,21 @@ abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "30M")) {
       runTPCHQuery(22, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
     }
+  }
+
+  test("test 'order by limit'") {
+    val df = spark.sql(
+      """
+        |select n_nationkey from nation order by n_nationkey limit 5
+        |""".stripMargin
+    )
+    val sortExec = df.queryExecution.executedPlan.collect {
+      case sortExec: TakeOrderedAndProjectExecTransformer => sortExec
+    }
+    assert(sortExec.size == 1)
+    val result = df.collect()
+    val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
+    TestUtils.compareAnswers(result, expectedResult)
   }
 }
 

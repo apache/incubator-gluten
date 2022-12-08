@@ -17,6 +17,8 @@
 
 #pragma once
 
+namespace gluten {
+
 struct Metrics {
   int numMetrics = 0;
 
@@ -60,6 +62,11 @@ struct Metrics {
     numReplacedWithDynamicFilterRows = new long[numMetrics]();
   }
 
+  Metrics(const Metrics&) = delete;
+  Metrics(Metrics&&) = delete;
+  Metrics& operator=(const Metrics&) = delete;
+  Metrics& operator=(Metrics&&) = delete;
+
   ~Metrics() {
     delete[] inputRows;
     delete[] inputVectors;
@@ -75,3 +82,5 @@ struct Metrics {
     delete[] numMemoryAllocations;
   }
 };
+
+} // namespace gluten

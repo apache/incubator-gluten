@@ -69,8 +69,8 @@ arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
 }
 
 void InitVeloxBackend() {
-  gluten::SetBackendFactory([] { return std::make_shared<::velox::compute::VeloxPlanConverter>(confMap); });
-  auto veloxInitializer = std::make_shared<::velox::compute::VeloxInitializer>(confMap);
+  gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(confMap); });
+  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(confMap);
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
@@ -132,12 +132,12 @@ std::shared_ptr<arrow::RecordBatchReader> createReader(const std::string& path) 
   return recordBatchReader;
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(const std::string& path) {
-  return std::make_shared<gluten::GlutenResultIterator>(std::make_shared<BatchVectorIterator>(path));
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchVector(const std::string& path) {
+  return std::make_shared<gluten::ResultIterator>(std::make_unique<BatchVectorIterator>(path));
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(const std::string& path) {
-  return std::make_shared<gluten::GlutenResultIterator>(std::make_shared<BatchStreamIterator>(path));
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchStream(const std::string& path) {
+  return std::make_shared<gluten::ResultIterator>(std::make_unique<BatchStreamIterator>(path));
 }
 
 void setCpu(uint32_t cpuindex) {

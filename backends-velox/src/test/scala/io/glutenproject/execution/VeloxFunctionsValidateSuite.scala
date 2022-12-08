@@ -18,13 +18,11 @@
 package io.glutenproject.execution
 
 import java.nio.file.Files
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.functions.{col, expr}
-
 
 import scala.collection.JavaConverters._
 
@@ -59,12 +57,13 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
 
     val schema = StructType(Array(
       StructField("double_field1", DoubleType, true),
+      StructField("int_field1", IntegerType, true),
       StructField("string_field1", StringType, true)
     ))
     val rowData = Seq(
-      Row(1.025, "{\"a\":\"b\"}"),
-      Row(1.035, null),
-      Row(1.045, null)
+      Row(1.025, 1, "{\"a\":\"b\"}"),
+      Row(1.035, 2, null),
+      Row(1.045, 3, null)
     )
 
     var dfParquet = spark.createDataFrame(rowData.asJava, schema)
@@ -219,6 +218,18 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
 
   test("Test log10 function") {
     runQueryAndCompare("SELECT log10(l_orderkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test shiftleft function") {
+    val df = runQueryAndCompare("SELECT shiftleft(int_field1, 1) from datatab limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test shiftright function") {
+    val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }

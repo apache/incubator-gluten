@@ -313,6 +313,26 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
         case _: AQEShuffleReadExec =>
           TransformHints.tagTransformable(plan)
+        case plan: TakeOrderedAndProjectExec =>
+          if (!enableColumnarSort || !enableColumnarLimit || !enableColumnarShuffle ||
+            !enableColumnarProject) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            var tagged = false
+            val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
+            tagged = limitPlan.doValidate()
+
+            if (tagged) {
+              val sortPlan = SortExecTransformer(plan.sortOrder, false, plan.child)
+              tagged = sortPlan.doValidate()
+            }
+
+            if (tagged) {
+              val projectPlan = ProjectExecTransformer(plan.projectList, plan.child)
+              tagged = projectPlan.doValidate()
+            }
+            TransformHints.tag(plan, tagged.toTransformHint)
+          }
         case _ =>
           // currently we assume a plan to be transformable by default
           TransformHints.tagTransformable(plan)

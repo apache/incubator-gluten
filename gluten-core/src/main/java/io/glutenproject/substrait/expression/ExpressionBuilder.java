@@ -235,8 +235,9 @@ public class ExpressionBuilder {
     return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
   }
 
-  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode) {
-    return new CastNode(typeNode, expressionNode);
+  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode,
+                                  boolean ansiEnabled) {
+    return new CastNode(typeNode, expressionNode, ansiEnabled);
   }
 
   public static StringMapNode makeStringMap(Map<String, String> values) {
@@ -246,5 +247,17 @@ public class ExpressionBuilder {
   public static SingularOrListNode makeSingularOrListNode(ExpressionNode value,
                                                           List<ExpressionNode> expressionNodes) {
     return new SingularOrListNode(value, expressionNodes);
+  }
+
+  public static WindowFunctionNode makeWindowFunction(
+      Integer functionId,
+      ArrayList<ExpressionNode> expressionNodes,
+      String columnName,
+      TypeNode outputTypeNode,
+      String upperBound,
+      String lowerBound,
+      String windowType) {
+    return new WindowFunctionNode(functionId, expressionNodes, columnName,
+        outputTypeNode, upperBound, lowerBound, windowType);
   }
 }

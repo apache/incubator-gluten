@@ -21,7 +21,7 @@ import io.glutenproject.execution._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.execution.SparkPlan
@@ -63,7 +63,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new ExpressionEvaluator()
+      val validator = new CHNativeExpressionEvaluator()
       validator.doValidate(planNode.toProtobuf.toByteArray)
     } else {
       true

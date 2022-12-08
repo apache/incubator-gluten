@@ -84,7 +84,6 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "true")

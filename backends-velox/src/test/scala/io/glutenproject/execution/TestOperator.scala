@@ -205,6 +205,33 @@ class TestOperator extends WholeStageTransformerSuite {
     checkLengthAndPlan(df, 7)
   }
 
+  test("test window expression") {
+    runQueryAndCompare(
+      "select row_number() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+    runQueryAndCompare(
+      "select rank() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+    runQueryAndCompare(
+      "select sum(l_partkey + 1) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") { _ => }
+
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+    runQueryAndCompare(
+      "select min(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+    runQueryAndCompare(
+      "select avg(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+  }
+
   test("Test chr function") {
     val df = runQueryAndCompare("SELECT chr(l_orderkey + 64) " +
       "from lineitem limit 1") { _ => }
@@ -337,14 +364,14 @@ class TestOperator extends WholeStageTransformerSuite {
         """
           |select stddev_samp(l_quantity) from lineitem;
           |""".stripMargin) {
-        checkOperatorMatch[VeloxHashAggregateExecTransformer]
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
       }
       runQueryAndCompare(
         """
           |select l_orderkey, stddev_samp(l_quantity) from lineitem
           |group by l_orderkey;
           |""".stripMargin) {
-        checkOperatorMatch[VeloxHashAggregateExecTransformer]
+        checkOperatorMatch[GlutenHashAggregateExecTransformer]
       }
     }
   }

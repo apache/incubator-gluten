@@ -17,13 +17,14 @@
 #include "RegistrationAllFunctions.h"
 #include "RowConstructor.cc"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
+#include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/functions/sparksql/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
 using namespace facebook::velox::aggregate::prestosql;
 
-namespace velox::compute {
+namespace gluten {
 
 void registerCustomFunctions() {
   exec::registerVectorFunction(
@@ -38,6 +39,7 @@ void registerAllFunctions() {
   functions::sparksql::registerFunctions("");
   registerCustomFunctions();
   registerAllAggregateFunctions();
+  facebook::velox::window::registerWindowFunctions();
 }
 
-} // namespace velox::compute
+} // namespace gluten

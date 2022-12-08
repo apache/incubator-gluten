@@ -17,86 +17,8 @@
 
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
-import io.glutenproject.expression.ArrowConverterUtils
-import io.glutenproject.utils.{InputPartitionsUtil, VeloxExpressionUtil}
-import io.glutenproject.utils.VeloxExpressionUtil.VELOX_EXPR_BLACKLIST
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, Expression}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
+import io.glutenproject.backendsapi.glutendata.GlutenTransformerApi
 
-class VeloxTransformerApi extends ITransformerApi with Logging {
+class VeloxTransformerApi extends GlutenTransformerApi {
 
-  /**
-   * Add the validation for Velox unsupported or mismatched expressions with specific input type,
-   * such as Cast(ArrayType).
-   */
-  def doValidate(blacklist: Map[String, Set[String]], expr: Expression): Boolean = {
-    // To handle cast(struct as string) AS col_name expression
-    val key = if (expr.prettyName.toLowerCase().equals("alias")) {
-      expr.asInstanceOf[Alias].child.prettyName.toLowerCase()
-    } else expr.prettyName.toLowerCase()
-    val value = blacklist.get(key)
-    if (value.isEmpty) {
-      return true
-    }
-    val inputTypeNames = value.get
-    inputTypeNames.foreach { inputTypeName =>
-      if (inputTypeName.equals(VeloxExpressionUtil.EMPTY_TYPE)) {
-        return false
-      } else {
-        for (input <- expr.children) {
-          if (inputTypeName.equals(input.dataType.typeName)) {
-            return false
-          }
-        }
-      }
-    }
-    true
-  }
-
-  /**
-   * Do validate the expressions based on the specific backend blacklist,
-   * the existed expression will fall back to Vanilla Spark.
-   */
-  override def doValidate(expr: Expression): Boolean = doValidate(VELOX_EXPR_BLACKLIST, expr)
-
-  /**
-   * Do validate for ColumnarShuffleExchangeExec.
-   *
-   * @return
-   */
-  override def validateColumnarShuffleExchangeExec(
-                                                    outputPartitioning: Partitioning,
-                                                    outputAttributes: Seq[Attribute]): Boolean = {
-    // check input datatype
-    for (attr <- outputAttributes) {
-      try ArrowConverterUtils.createArrowField(attr)
-      catch {
-        case e: UnsupportedOperationException =>
-          logInfo(s"${attr.dataType} is not supported in VeloxColumnarShuffledExchangeExec.")
-          return false
-      }
-    }
-    true
-  }
-
-  /**
-   * Used for table scan validation.
-   *
-   * @return true if backend supports reading the file format.
-   */
-  override def supportsReadFileFormat(fileFormat: FileFormat): Boolean = {
-    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat)
-  }
-
-  /**
-   * Generate Seq[InputPartition] for FileSourceScanExecTransformer.
-   */
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
-    InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
-  }
 }

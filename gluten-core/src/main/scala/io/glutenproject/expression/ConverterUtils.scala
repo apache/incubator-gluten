@@ -482,6 +482,8 @@ object ConverterUtils extends Logging {
   final val BITWISE_AND = "BitwiseAnd"
   final val BITWISE_OR = "BitwiseOr"
   final val BITWISE_XOR = "BitwiseXor"
+  final val SHIFTLEFT = "shiftleft"
+  final val SHIFTRIGHT = "shiftright"
   final val SQRT = "sqrt"
   final val CBRT = "cbrt"
   final val E = "e"
@@ -521,4 +523,6 @@ object ConverterUtils extends Logging {
 
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
+  final val ROW_NUMBER = "row_number"
+  final val RANK = "rank"
 }

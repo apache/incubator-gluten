@@ -92,7 +92,6 @@ object RunTPCHTest {
       .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
       .config("spark.gluten.sql.columnar.columnartorow", columnarColumnToRow)
       .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .config(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
       .config("spark.gluten.sql.columnar.iterator", "true")
       .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -122,7 +121,7 @@ object RunTPCHTest {
     }
 
     for (sql <- bucketSQL) {
-      spark.sql(sql).show(10, truncate = false)
+      spark.sql(sql)
     }
   }
 
@@ -131,7 +130,6 @@ object RunTPCHTest {
       .sql(s"""
               |use default;
               |""".stripMargin)
-      .show(1000, truncate = false)
     try {
       val tookTimeArr = ArrayBuffer[Long]()
       for (i <- 1 to executedCnt) {

@@ -27,38 +27,32 @@ concurrency:
 jobs:
 
   arrow-backend-test:
-    runs-on: sr404-self-hosted
+    runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'zulu'
-          java-version: '8'
-          java-package: jdk
-          overwrite-settings: false
-      - run: sudo swapoff -a
-      - run: free
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y cmake ccache build-essential
-      - run: sudo apt-get install -y maven
-      - run: sudo apt-get install -y libboost-all-dev libcurl4-openssl-dev
-      - run: sudo apt-get install -y libssl-dev
-      - run: sudo apt-get install -y libz-dev
-      - run: sudo apt-get install -y llvm clang
+      - name: Setup docker container
+        run: |
+          EXTRA_DOCKER_OPTIONS="--name arrow-backend-test-$GITHUB_RUN_ID -v /mnt/tpcds:/mnt/tpcds -v /home/sparkuser:/home/sparkuser -v /tmp:/tmp --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
       - name: Install Gluten Arrow-backend
         run: |
-          rm -rf ~/.m2/repository/org/apache/arrow && rm -rf ~/.m2/repository/io/glutenproject/
-          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests -Dbuild_cpp=ON -Dbuild_gazelle_cpp_backend=ON -Dbuild_arrow=ON
-          rm -rf /tmp/gluten_jars && mkdir -p /tmp/gluten_jars
-          cp package/gazelle/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar /tmp/gluten_jars/
+          docker exec arrow-backend-test-$GITHUB_RUN_ID bash -c "cd /opt/gluten/ep/build-arrow/src && \
+          ./get_arrow.sh --arrow_branch=arrow-8.0.0-gluten-20220427a && \
+          ./build_arrow_for_gazelle.sh && \
+          cd /opt/gluten/cpp && \
+          ./compile.sh --build_gazelle_cpp_backend=ON --build_protobuf=ON && \
+          cd /opt/gluten && \
+          mvn clean package -Pspark-3.2 -Pbackends-gazelle -DskipTests"
       # - name: Run unit tests
       #   run: |
-      #     mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -Dbuild_cpp=OFF -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
+      #     mvn test -Dcheckstyle.skip -Dexec.skip -Pbackends-gazelle -pl backends-gazelle -DwildcardSuites=io.glutenproject.execution.ArrowParquetWriteSuite -DfailIfNoTests=false
       - name: Run TPCDS q82,q85,q37,q60,q26
         run: |
-          cd /home/sparkuser/tpcds/
-          bash tpcds_spark.sh
+          docker exec arrow-backend-test-$GITHUB_RUN_ID bash -c "cd /mnt/tpcds && \
+          bash tpcds_spark.sh"
+      - name: Exit docker container
+        if: ${{ always() }}
+        run: |
+          docker stop velox-backend-test-$GITHUB_RUN_ID || true
 
   velox-backend-test:
     runs-on: velox-self-hosted 
@@ -69,9 +63,17 @@ jobs:
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
       - name: Install Gluten Velox-backend spark3.2 and Run Unit test
         run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Dcpp_tests=ON -Dcpp_benchmarks=ON \
-            -Dbuild_velox_from_source=ON -Dbuild_arrow=ON'
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'apt-get update && \
+          cd /opt/gluten/ep/build-arrow/src && \
+          ./get_arrow.sh  && \
+          ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
+          cd /opt/gluten/ep/build-velox/src
+          ./get_velox.sh && \
+          ./build_velox.sh && \
+          cd /opt/gluten/cpp && \
+          ./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON && \
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox'
       - name: Run Cpp Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \

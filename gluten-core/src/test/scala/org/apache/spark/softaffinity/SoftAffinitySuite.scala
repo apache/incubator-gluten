@@ -18,9 +18,11 @@
 package org.apache.spark.softaffinity
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{NativeMergeTreePartition, NativePartition}
+import io.glutenproject.execution.{GlutenMergeTreePartition, GlutenPartition}
 import io.glutenproject.softaffinity.scheduler.SoftAffinityListener
 import io.glutenproject.softaffinity.SoftAffinityManager
+import io.glutenproject.substrait.plan.PlanBuilder
+
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListenerExecutorAdded, SparkListenerExecutorRemoved}
 import org.apache.spark.scheduler.cluster.ExecutorInfo
@@ -45,7 +47,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new NativePartition(0, Array.empty, locations)
+    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
     assertResult(Set("host-1", "host-2", "host-3")) {
       nativePartition.preferredLocations().toSet
     }
@@ -59,7 +61,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new NativePartition(0, Array.empty, locations)
+    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
 
     assertResult(Set("host-1", "host-4", "host-5")) {
       nativePartition.preferredLocations().toSet
@@ -74,7 +76,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new NativePartition(0, Array.empty, locations)
+    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
 
     assertResult(Set("executor_host-2_2", "executor_host-1_0")) {
       nativePartition.preferredLocations().toSet
@@ -82,11 +84,11 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
   }
 
   def generateNativePartition4(): Unit = {
-    val partition = NativeMergeTreePartition(0, "", "", "", "fakePath", 0, 0, Array.empty)
+    val partition = GlutenMergeTreePartition(0, "", "", "", "fakePath", 0, 0)
 
     val locations = SoftAffinityUtil.getNativeMergeTreePartitionLocations(partition)
 
-    val nativePartition = new NativePartition(0, Array.empty, locations)
+    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
 
     assertResult(Set("executor_host-1_1")) {
       nativePartition.preferredLocations().toSet
@@ -101,7 +103,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new NativePartition(0, Array.empty, locations)
+    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
 
     assertResult(Set("host-1", "host-5", "host-6")) {
       nativePartition.preferredLocations().toSet
