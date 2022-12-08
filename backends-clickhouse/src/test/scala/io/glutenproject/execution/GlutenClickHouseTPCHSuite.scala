@@ -287,7 +287,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     TestUtils.compareAnswers(result, expectedResult)
   }
 
-  test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
+  ignore("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
     val df = spark.sql(
       """
         |SELECT cast(1.11 as decimal(20, 3)) FROM lineitem

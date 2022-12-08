@@ -35,7 +35,6 @@ object VeloxExpressionUtil {
   final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
     CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
     ROUND -> Set(EMPTY_TYPE),
-    BROUND -> Set(EMPTY_TYPE),
     REGEXP_REPLACE -> Set(EMPTY_TYPE),
     SPLIT -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),

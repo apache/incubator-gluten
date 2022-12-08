@@ -18,7 +18,7 @@
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.NotSupport
-
+import org.apache.spark.sql.MathFunctionsSuite
 import org.apache.spark.sql.catalyst.expressions._
 
 object ClickHouseNotSupport extends NotSupport {
@@ -61,7 +61,15 @@ object ClickHouseNotSupport extends NotSupport {
       "SPARK-38185", // [not urgent] empty agg
       "SPARK-18952", // [not urgent]
       "SPARK-32038" // [not urgent]
-    ))
+    ),
+    simpleClassName[MathFunctionsSuite] -> Seq(
+       "radians",      // Relies on the transformation of function `CheckOverflow`.
+       "degrees",      // Relies on the transformation of function `CheckOverflow`.
+       "hex",          // Leading 0 is cut in different ways between CH and Spark.
+       "log1p",        // In CH log1p(1) returns -inf, in spark it returns null.
+       "rint"          // Relies on the right transformation of function `cast` when null is input
+    )
+  )
   override lazy val fullSupportSuiteList: Set[String] = Set(
     "ComplexTypesSuite"
   )
