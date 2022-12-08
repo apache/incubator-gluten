@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "memory/Allocator.h"
+#include "memory/MemoryAllocator.h"
 #include "velox/common/memory/Memory.h"
 
 namespace gluten {

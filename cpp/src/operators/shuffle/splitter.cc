@@ -32,8 +32,8 @@
 #include <utility>
 
 #include "compute/ProtobufUtils.h"
-#include "operators/shuffle/Utils.h"
-#include "utils/Macros.h"
+#include "operators/shuffle/utils.h"
+#include "utils/macros.h"
 
 namespace gluten {
 
