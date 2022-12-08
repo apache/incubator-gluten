@@ -18,8 +18,8 @@
 #include <gtest/gtest.h>
 #include <cstdlib>
 
-#include "memory/MemoryAllocator.h"
 #include "memory/HbwAllocator.h"
+#include "memory/MemoryAllocator.h"
 
 class TestHbwAllocator : public ::testing::Test {
  protected:
