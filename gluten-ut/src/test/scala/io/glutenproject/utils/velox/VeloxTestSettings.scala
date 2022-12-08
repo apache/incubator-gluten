@@ -23,12 +23,6 @@ import org.apache.spark.sql.{GlutenDataFrameAggregateSuite, GlutenDataFrameSelfJ
 
 object VeloxTestSettings extends BackendTestSettings {
 
-  enableSuite[GlutenCastSuite] {
-    ExcludeOnly(
-      "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
-    )
-  }
-
   enableSuite[GlutenDataFrameAggregateSuite] {
     ExcludeOnly(
       "zero moments", // [velox does not return NaN]
@@ -44,6 +38,12 @@ object VeloxTestSettings extends BackendTestSettings {
       // incorrect result, distinct NaN case
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       "SPARK-32136: NormalizeFloatingNumbers should work on null struct" // integer overflow
+    )
+  }
+
+  enableSuite[GlutenCastSuite] {
+    ExcludeOnly(
+      "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
   }
 
