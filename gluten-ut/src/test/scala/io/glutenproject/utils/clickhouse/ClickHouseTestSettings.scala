@@ -18,8 +18,7 @@
 package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
-import org.apache.spark.sql.{GlutenDataFrameAggregateSuite, GlutenDataFrameFunctionsSuite, GlutenDateFunctionsSuite, GlutenMathFunctionsSuite}
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql._
 
 object ClickHouseTestSettings extends BackendTestSettings {
 
@@ -105,5 +104,5 @@ object ClickHouseTestSettings extends BackendTestSettings {
     )
   }
 
-  enableSuite[GlutenComplexTypeSuite]()
+  enableSuite[GlutenComplexTypesSuite]()
 }
