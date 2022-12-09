@@ -57,8 +57,8 @@ abstract class BackendTestSettings {
   private case class ExcludeOnly(testNames: String*) extends SuiteAction {
     val nameSet: Set[String] = Set(testNames: _*)
   }
-  protected def include(testNames: String*) = IncludeOnly(testNames: _*)
-  protected def exclude(testNames: String*) = ExcludeOnly(testNames: _*)
+  protected def include(testNames: String*): SuiteAction = IncludeOnly(testNames: _*)
+  protected def exclude(testNames: String*): SuiteAction = ExcludeOnly(testNames: _*)
 }
 
 object BackendTestSettings {
