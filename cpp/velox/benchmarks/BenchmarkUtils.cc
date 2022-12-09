@@ -116,6 +116,19 @@ std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
   return scanInfo;
 }
 
+bool CheckPathExists(const std::string& filepath) {
+  std::filesystem::path f{filepath};
+  return std::filesystem::exists(f);
+}
+
+void AbortIfFileNotExists(const std::string& filepath) {
+  if (!CheckPathExists(filepath)) {
+    std::cerr << "File path does not exist: " << filepath << std::endl;
+    ::benchmark::Shutdown();
+    std::exit(EXIT_FAILURE);
+  }
+}
+
 bool EndsWith(const std::string& data, const std::string& suffix) {
   return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
 }

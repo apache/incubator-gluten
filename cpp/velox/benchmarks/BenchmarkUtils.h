@@ -57,6 +57,10 @@ std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
     const std::string& datasetPath,
     const std::string& fileFormat);
 
+bool CheckPathExists(const std::string& filepath);
+
+void AbortIfFileNotExists(const std::string& filepath);
+
 /// Return whether the data ends with suffix.
 bool EndsWith(const std::string& data, const std::string& suffix);
 
