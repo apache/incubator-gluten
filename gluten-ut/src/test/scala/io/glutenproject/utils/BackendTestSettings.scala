@@ -58,7 +58,7 @@ abstract class BackendTestSettings {
     if (inclusion.nonEmpty && exclusion.nonEmpty) {
       // error
       throw new IllegalStateException(
-        s"Do not use include and exclude condition on the same test case: $suiteName:$testName")
+        s"Do not use include and exclude conditions on the same test case: $suiteName:$testName")
     }
 
     if (inclusion.nonEmpty) {
