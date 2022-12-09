@@ -42,7 +42,6 @@ abstract class BackendTestSettings {
     if (!enabledSuites.containsKey(suiteName)) {
       return false
     }
-
     val filter: TestNameFilter = enabledSuites.get(suiteName)
     filter.shouldRun(testName)
   }
