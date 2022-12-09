@@ -42,16 +42,6 @@ trait GlutenTestsBaseTrait {
     if (testNameBlackList.contains(testName)) {
       return false
     }
-    if (testName.startsWith("SPARK-")) {
-      val issueIDPattern = "SPARK-[0-9]+".r
-      val issueID = issueIDPattern.findFirstIn(testName) match {
-        case Some(x: String) => x
-      }
-      if (testNameBlackList.exists(_.startsWith(issueID))) {
-        return false
-      }
-    }
-
     BackendTestSettings.shouldRun(getClass.getCanonicalName, testName)
   }
 }
