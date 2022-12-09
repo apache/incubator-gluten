@@ -30,9 +30,8 @@ abstract class BackendTestSettings {
   private val enabledSuites: java.util.Map[String, SuiteAction] = new util.HashMap()
 
   // default to exclude no cases (run all tests under this suite)
-  protected def enableSuite[T: ClassTag](action: SuiteAction = ExcludeOnly())(
-    implicit suiteClass: ClassTag[T]): Unit = {
-    val suiteName = suiteClass.runtimeClass.getCanonicalName
+  protected def enableSuite[T: ClassTag](action: SuiteAction = ExcludeOnly()): Unit = {
+    val suiteName = implicitly[ClassTag[T]].runtimeClass.getCanonicalName
     if (enabledSuites.containsKey(suiteName)) {
       throw new IllegalArgumentException("Duplicated suite name: " + suiteName)
     }
