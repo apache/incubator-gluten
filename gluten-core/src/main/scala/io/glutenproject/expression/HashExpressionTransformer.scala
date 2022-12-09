@@ -32,11 +32,7 @@ class HashExpressionTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val nodes = new java.util.ArrayList[ExpressionNode]()
     exps.foreach(expression => {
-      val expressionNode = expression.doTransform(args)
-      if (!expressionNode.isInstanceOf[ExpressionNode]) {
-        throw new UnsupportedOperationException(s"Not supported yet.")
-      }
-      nodes.add(expressionNode)
+      nodes.add(expression.doTransform(args))
     })
     val childrenTypes = original.children.map(child => child.dataType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]

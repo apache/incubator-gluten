@@ -31,17 +31,12 @@ class InTransformer(value: ExpressionTransformer,
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val leftNode = value.doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-
     // Stores the values in a List Literal.
     val values: Set[Any] = list.map(v => {
       v.asInstanceOf[Literal].value
     }).toSet
 
-    InExpressionTransformer.toTransformer(value, leftNode, values, valueType)
+    InExpressionTransformer.toTransformer(value, value.doTransform(args), values, valueType)
   }
 }
 
@@ -52,12 +47,7 @@ class InSetTransformer(value: ExpressionTransformer,
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val leftNode = value.doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-
-    InExpressionTransformer.toTransformer(value, leftNode, hset, valueType)
+    InExpressionTransformer.toTransformer(value, value.doTransform(args), hset, valueType)
   }
 }
 

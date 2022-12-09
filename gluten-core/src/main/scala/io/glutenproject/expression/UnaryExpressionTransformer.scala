@@ -45,13 +45,8 @@ class CastTransformer(child: ExpressionTransformer,
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
-    }
-
     val typeNode = ConverterUtils.getTypeNode(datatype, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, childNode, SQLConf.get.ansiEnabled)
+    ExpressionBuilder.makeCast(typeNode, child.doTransform(args), SQLConf.get.ansiEnabled)
   }
 }
 
@@ -74,9 +69,6 @@ class UnaryExpressionTransformer(substraitExprName: String,
   extends ExpressionTransformer with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
-    }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,

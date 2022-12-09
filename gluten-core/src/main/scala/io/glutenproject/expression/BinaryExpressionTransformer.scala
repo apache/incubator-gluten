@@ -37,10 +37,6 @@ class BinaryExpressionTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode] ||
-      !rightNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
-    }
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,

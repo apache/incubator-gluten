@@ -40,11 +40,6 @@ class TernaryExpressionTransformer(
     val firstNode = first.doTransform(args)
     val secondNode = second.doTransform(args)
     val thirdNode = third.doTransform(args)
-    if (!firstNode.isInstanceOf[ExpressionNode] ||
-      !secondNode.isInstanceOf[ExpressionNode] ||
-      !thirdNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
-    }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
