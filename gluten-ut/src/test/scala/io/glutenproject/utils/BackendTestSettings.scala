@@ -53,7 +53,7 @@ abstract class BackendTestSettings {
     }
   }
 
-  private trait SuiteAction
+  protected trait SuiteAction
   private case class IncludeOnly(testNames: String*) extends SuiteAction {
     val nameSet: Set[String] = Set(testNames: _*)
   }
