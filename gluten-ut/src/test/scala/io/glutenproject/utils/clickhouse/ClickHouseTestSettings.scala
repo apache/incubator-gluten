@@ -22,8 +22,8 @@ import org.apache.spark.sql._
 
 object ClickHouseTestSettings extends BackendTestSettings {
 
-  enableSuite[GlutenDataFrameAggregateSuite] {
-    exclude(
+  enableSuite[GlutenDataFrameAggregateSuite]
+    .exclude(
       "average", // [overwritten by Gluten - xxx]
       "groupBy", // [overwritten by Gluten - xxx]
       "count", // [overwritten by Gluten - xxx]
@@ -42,12 +42,14 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-17616: distinct aggregate combined with a non-partial aggregate", // [not urgent]
       "SPARK-17237 remove backticks in a pivot result schema", // [not urgent]
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
-        " before using it", // [not urgent]
-      "SPARK-22951", // [not urgent] dropDuplicates
-      "SPARK-26021", // [not urgent] behavior on NaN and -0.0 are different
+      " before using it", // [not urgent]
       "max_by", // [not urgent]
       "min_by", // [not urgent]
-      "count_if", // [not urgent]
+      "count_if" // [not urgent]
+    )
+    .excludeByPrefix(
+      "SPARK-22951", // [not urgent] dropDuplicates
+      "SPARK-26021", // [not urgent] behavior on NaN and -0.0 are different
       "SPARK-31620", // [not urgent] sum_if
       "SPARK-32136", // [not urgent] struct type
       "SPARK-32344", // [not urgent] FIRST/LAST
@@ -61,23 +63,20 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-18952", // [not urgent]
       "SPARK-32038" // [not urgent]
     )
-  }
 
-  enableSuite[GlutenDataFrameFunctionsSuite] {
-    include(
+  enableSuite[GlutenDataFrameFunctionsSuite]
+    .include(
       "conditional function: least",
       "conditional function: greatest"
     )
-  }
 
-  enableSuite[GlutenDateFunctionsSuite] {
-    include(
+  enableSuite[GlutenDateFunctionsSuite]
+    .include(
       "quarter"
     )
-  }
 
-  enableSuite[GlutenMathFunctionsSuite] {
-    include(
+  enableSuite[GlutenMathFunctionsSuite]
+    .include(
       // "round/bround", // Scale argument of round/bround function currently don't support
       //   negative.
       // "radians",      // Relies on the transformation of function `CheckOverflow`.
@@ -102,7 +101,6 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "hypot",
       "log10"
     )
-  }
 
-  enableSuite[GlutenComplexTypesSuite]()
+  enableSuite[GlutenComplexTypesSuite]
 }

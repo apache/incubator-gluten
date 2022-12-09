@@ -22,9 +22,8 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.{GlutenDataFrameAggregateSuite, GlutenDataFrameSelfJoinSuite, GlutenStringFunctionsSuite}
 
 object VeloxTestSettings extends BackendTestSettings {
-
-  enableSuite[GlutenDataFrameAggregateSuite] {
-    exclude(
+  enableSuite[GlutenDataFrameAggregateSuite]
+    .exclude(
       "zero moments", // [velox does not return NaN]
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
       "rollup overlapping columns", // wait velox to fix
@@ -39,60 +38,54 @@ object VeloxTestSettings extends BackendTestSettings {
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       "SPARK-32136: NormalizeFloatingNumbers should work on null struct" // integer overflow
     )
-  }
 
-  enableSuite[GlutenCastSuite] {
-    exclude(
+  enableSuite[GlutenCastSuite]
+    .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-  }
 
-  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff] {
-    exclude(
+  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
+    .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-  }
 
-  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn] {
-    exclude(
+  enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
+    .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-  }
 
-  enableSuite[GlutenCastSuiteWithAnsiModeOn] {
-    exclude(
+  enableSuite[GlutenCastSuiteWithAnsiModeOn]
+    .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-  }
 
-  enableSuite[GlutenTryCastSuite] {
-    exclude(
+  enableSuite[GlutenTryCastSuite]
+    .exclude(
       // array/map/struct not supported yet.
       "cast from invalid string array to numeric array should throw NumberFormatException",
       "cast from array II",
       "cast from map II",
       "cast from struct II"
     )
-  }
 
-  enableSuite[GlutenLiteralExpressionSuite]()
-  enableSuite[GlutenIntervalExpressionsSuite]()
-  enableSuite[GlutenHashExpressionsSuite]()
-  enableSuite[GlutenCollectionExpressionsSuite]()
-  enableSuite[GlutenDateExpressionsSuite]()
-  enableSuite[GlutenDecimalExpressionSuite]()
-  enableSuite[GlutenStringFunctionsSuite]()
-  enableSuite[GlutenRegexpExpressionsSuite]()
-  enableSuite[GlutenPredicateSuite]()
-  enableSuite[GlutenMathExpressionsSuite]()
-  enableSuite[GlutenSortOrderExpressionsSuite]()
-  enableSuite[GlutenBitwiseExpressionsSuite]()
-  enableSuite[GlutenStringExpressionsSuite]()
-  enableSuite[GlutenMiscExpressionsSuite]()
-  enableSuite[GlutenNondeterministicSuite]()
-  enableSuite[GlutenRandomSuite]()
-  enableSuite[GlutenArithmeticExpressionSuite]()
-  enableSuite[GlutenConditionalExpressionSuite]()
-  enableSuite[GlutenDataFrameSelfJoinSuite]()
+  enableSuite[GlutenLiteralExpressionSuite]
+  enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenHashExpressionsSuite]
+  enableSuite[GlutenCollectionExpressionsSuite]
+  enableSuite[GlutenDateExpressionsSuite]
+  enableSuite[GlutenDecimalExpressionSuite]
+  enableSuite[GlutenStringFunctionsSuite]
+  enableSuite[GlutenRegexpExpressionsSuite]
+  enableSuite[GlutenPredicateSuite]
+  enableSuite[GlutenMathExpressionsSuite]
+  enableSuite[GlutenSortOrderExpressionsSuite]
+  enableSuite[GlutenBitwiseExpressionsSuite]
+  enableSuite[GlutenStringExpressionsSuite]
+  enableSuite[GlutenMiscExpressionsSuite]
+  enableSuite[GlutenNondeterministicSuite]
+  enableSuite[GlutenRandomSuite]
+  enableSuite[GlutenArithmeticExpressionSuite]
+  enableSuite[GlutenConditionalExpressionSuite]
+  enableSuite[GlutenDataFrameSelfJoinSuite]
 
 }

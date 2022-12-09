@@ -24,45 +24,117 @@ import io.glutenproject.utils.velox.VeloxTestSettings
 
 import java.util
 import scala.reflect.ClassTag
+import scala.collection.JavaConverters._
 
 abstract class BackendTestSettings {
 
-  private val enabledSuites: java.util.Map[String, TestNameFilter] = new util.HashMap()
+  private val enabledSuites: java.util.Map[String, TestNameFilters] = new util.HashMap()
 
-  // default to exclude no cases (run all tests under this suite)
-  protected def enableSuite[T: ClassTag](filter: TestNameFilter = ExcludeOnly()): Unit = {
+  protected def enableSuite[T: ClassTag]: TestNameFilters = {
     val suiteName = implicitly[ClassTag[T]].runtimeClass.getCanonicalName
     if (enabledSuites.containsKey(suiteName)) {
       throw new IllegalArgumentException("Duplicated suite name: " + suiteName)
     }
-    enabledSuites.put(suiteName, filter)
+    val filters = new TestNameFilters
+    enabledSuites.put(suiteName, filters)
+    filters
   }
 
-  def shouldRun(suiteName: String, testName: String): Boolean = {
+  private[utils] def shouldRun(suiteName: String, testName: String): Boolean = {
     if (!enabledSuites.containsKey(suiteName)) {
       return false
     }
-    val filter: TestNameFilter = enabledSuites.get(suiteName)
-    filter.shouldRun(testName)
+
+    val filters = enabledSuites.get(suiteName)
+
+    val inclusion = filters.inclusion.asScala
+    val exclusion = filters.exclusion.asScala
+
+    if (inclusion.isEmpty && exclusion.isEmpty) {
+      // default to run all cases under this suite
+      return true
+    }
+
+    if (inclusion.nonEmpty && exclusion.nonEmpty) {
+      // error
+      throw new IllegalStateException(
+        s"Do not use include and exclude condition on the same test case: $suiteName:$testName")
+    }
+
+    if (inclusion.nonEmpty) {
+      // include mode
+      val isIncluded = inclusion.exists(_.isIncluded(testName))
+      return isIncluded
+    }
+
+    if (exclusion.nonEmpty) {
+      // exclude mode
+      val isExcluded = exclusion.exists(_.isExcluded(testName))
+      return !isExcluded
+    }
+
+    throw new IllegalStateException("Unreachable code")
   }
 
-  protected trait TestNameFilter {
-    def shouldRun(testName: String): Boolean
+  protected final class TestNameFilters {
+    private[utils] val inclusion: util.List[IncludeBase] = new util.ArrayList()
+    private[utils] val exclusion: util.List[ExcludeBase] = new util.ArrayList()
+
+    def include(testNames: String*): TestNameFilters = {
+      inclusion.add(Include(testNames: _*))
+      this
+    }
+    def exclude(testNames: String*): TestNameFilters = {
+      exclusion.add(Exclude(testNames: _*))
+      this
+    }
+    def includeByPrefix(prefixes: String*): TestNameFilters = {
+      inclusion.add(IncludeByPrefix(prefixes: _*))
+      this
+    }
+    def excludeByPrefix(prefixes: String*): TestNameFilters = {
+      exclusion.add(ExcludeByPrefix(prefixes: _*))
+      this
+    }
   }
-  private case class IncludeOnly(testNames: String*) extends TestNameFilter {
+
+  protected trait IncludeBase {
+    def isIncluded(testName: String): Boolean
+  }
+  protected trait ExcludeBase {
+    def isExcluded(testName: String): Boolean
+  }
+  private case class Include(testNames: String*) extends IncludeBase {
     val nameSet: Set[String] = Set(testNames: _*)
-    override def shouldRun(testName: String): Boolean = nameSet.contains(testName)
+    override def isIncluded(testName: String): Boolean = nameSet.contains(testName)
   }
-  private case class ExcludeOnly(testNames: String*) extends TestNameFilter {
+  private case class Exclude(testNames: String*) extends ExcludeBase {
     val nameSet: Set[String] = Set(testNames: _*)
-    override def shouldRun(testName: String): Boolean = !nameSet.contains(testName)
+    override def isExcluded(testName: String): Boolean = nameSet.contains(testName)
   }
-  protected def include(testNames: String*): TestNameFilter = IncludeOnly(testNames: _*)
-  protected def exclude(testNames: String*): TestNameFilter = ExcludeOnly(testNames: _*)
+  private case class IncludeByPrefix(prefixes: String*) extends IncludeBase {
+    override def isIncluded(testName: String): Boolean = {
+      if (prefixes.exists(
+        prefix => testName.startsWith(prefix)
+      )) {
+        return true
+      }
+      false
+    }
+  }
+  private case class ExcludeByPrefix(prefixes: String*) extends ExcludeBase {
+    override def isExcluded(testName: String): Boolean = {
+      if (prefixes.exists(
+        prefix => testName.startsWith(prefix)
+      )) {
+        return true
+      }
+      false
+    }
+  }
 }
 
 object BackendTestSettings {
-
   val instance: BackendTestSettings = BackendsApiManager.getBackendName match {
     case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
       ClickHouseTestSettings
