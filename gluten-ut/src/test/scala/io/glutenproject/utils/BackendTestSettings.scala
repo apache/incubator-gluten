@@ -27,10 +27,10 @@ import scala.reflect.ClassTag
 
 abstract class BackendTestSettings {
 
-  private val enabledSuites: java.util.Map[String, SuiteAction] = new util.HashMap()
+  private val enabledSuites: java.util.Map[String, TestNameFilter] = new util.HashMap()
 
   // default to exclude no cases (run all tests under this suite)
-  protected def enableSuite[T: ClassTag](action: SuiteAction = ExcludeOnly()): Unit = {
+  protected def enableSuite[T: ClassTag](action: TestNameFilter = ExcludeOnly()): Unit = {
     val suiteName = implicitly[ClassTag[T]].runtimeClass.getCanonicalName
     if (enabledSuites.containsKey(suiteName)) {
       throw new IllegalArgumentException("Duplicated suite name: " + suiteName)
@@ -43,22 +43,23 @@ abstract class BackendTestSettings {
       return false
     }
 
-    val action: SuiteAction = enabledSuites.get(suiteName)
-    action match {
-      case io@IncludeOnly(_ @ _*) => io.nameSet.contains(testName)
-      case eo@ExcludeOnly(_ @ _*) => !eo.nameSet.contains(testName)
-    }
+    val filter: TestNameFilter = enabledSuites.get(suiteName)
+    filter.shouldRun(testName)
   }
 
-  protected trait SuiteAction
-  private case class IncludeOnly(testNames: String*) extends SuiteAction {
-    val nameSet: Set[String] = Set(testNames: _*)
+  protected trait TestNameFilter {
+    def shouldRun(testName: String): Boolean
   }
-  private case class ExcludeOnly(testNames: String*) extends SuiteAction {
+  private case class IncludeOnly(testNames: String*) extends TestNameFilter {
     val nameSet: Set[String] = Set(testNames: _*)
+    override def shouldRun(testName: String): Boolean = nameSet.contains(testName)
   }
-  protected def include(testNames: String*): SuiteAction = IncludeOnly(testNames: _*)
-  protected def exclude(testNames: String*): SuiteAction = ExcludeOnly(testNames: _*)
+  private case class ExcludeOnly(testNames: String*) extends TestNameFilter {
+    val nameSet: Set[String] = Set(testNames: _*)
+    override def shouldRun(testName: String): Boolean = !nameSet.contains(testName)
+  }
+  protected def include(testNames: String*): TestNameFilter = IncludeOnly(testNames: _*)
+  protected def exclude(testNames: String*): TestNameFilter = ExcludeOnly(testNames: _*)
 }
 
 object BackendTestSettings {
