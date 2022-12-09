@@ -26,8 +26,6 @@ import java.util
 import scala.reflect.ClassTag
 
 abstract class BackendTestSettings {
-  protected val INCLUDE_ONLY: Int = 1
-  protected val EXCLUDE_ONLY: Int = 2
 
   private val enabledSuites: java.util.Map[String, SuiteAction] = new util.HashMap()
 
