@@ -20,7 +20,7 @@ package io.glutenproject.expression
 import com.google.common.collect.Lists
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
@@ -81,6 +81,38 @@ class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer
   }
 }
 
+class PromotePrecisionTransformer(child: ExpressionTransformer, original: PromotePrecision)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    child.doTransform(args)
+  }
+}
+
+class CheckOverflowTransformer(
+                                substraitExprName: String,
+                                child: ExpressionTransformer,
+                                original: CheckOverflow)
+  extends ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode = child.doTransform(args)
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        Seq(original.dataType, BooleanType),
+        FunctionConfig.OPT))
+
+    val expressionNodes = Lists.newArrayList(childNode,
+      new BooleanLiteralNode(original.nullOnOverflow))
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
 /**
  * Transformer for the normal unary expression
  */
@@ -109,6 +141,13 @@ object UnaryExpressionTransformer {
   def apply(substraitExprName: String,
             child: ExpressionTransformer,
             original: Expression): ExpressionTransformer = {
-    new UnaryExpressionTransformer(substraitExprName, child, original)
+    original match {
+      case c: CheckOverflow =>
+        new CheckOverflowTransformer(substraitExprName, child, c)
+      case p: PromotePrecision =>
+        new PromotePrecisionTransformer(child, p)
+      case _ =>
+        new UnaryExpressionTransformer(substraitExprName, child, original)
+    }
   }
 }

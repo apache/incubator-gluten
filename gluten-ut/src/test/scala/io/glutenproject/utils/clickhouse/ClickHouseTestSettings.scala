@@ -19,6 +19,7 @@ package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.expressions.GlutenArithmeticExpressionSuite
 
 object ClickHouseTestSettings extends BackendTestSettings {
 
@@ -103,4 +104,19 @@ object ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenComplexTypesSuite]
+
+  enableSuite[GlutenArithmeticExpressionSuite]
+    .exclude(
+      "- (UnaryMinus)",
+      "/ (Divide) basic",
+      "/ (Divide) for Long and Decimal type",
+      "% (Remainder)",
+      "SPARK-17617: % (Remainder) double % double on super big double",
+      "pmod",
+      "function least",
+      "function greatest",
+      "SPARK-28322: IntegralDivide supports decimal type",
+      "SPARK-33008: division by zero on divide-like operations returns incorrect result",
+      "SPARK-34920: error class"
+    )
 }
