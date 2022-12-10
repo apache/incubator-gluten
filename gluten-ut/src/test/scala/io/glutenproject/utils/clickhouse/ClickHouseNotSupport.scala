@@ -80,6 +80,7 @@ object ClickHouseNotSupport extends NotSupport {
       "signum / sign",
       "SPARK-36229 conv should return result equal to -1 in base of toBase",
       "expm1",
+      "tanh",
       "atanh",
       "abs",
       "shift right unsigned",
