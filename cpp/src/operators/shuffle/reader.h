@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "memory/columnar_batch.h"
+#include "memory/ColumnarBatch.h"
 #include "type.h"
 
 namespace gluten {

@@ -19,12 +19,12 @@
 #include <jni.h>
 #include "include/arrow/c/bridge.h"
 
-#include <jni/jni_common.h>
+#include <jni/JniCommon.h>
 #include "compute/DwrfDatasource.h"
 #include "compute/RegistrationAllFunctions.h"
-#include "compute/VeloxPlanConverter.h"
-#include "jni/jni_errors.h"
-#include "memory/velox_memory_pool.h"
+#include "compute/VeloxBackend.h"
+#include "jni/JniErrors.h"
+#include "memory/VeloxMemoryPool.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
 
 #include <iostream>

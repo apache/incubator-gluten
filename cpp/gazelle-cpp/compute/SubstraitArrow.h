@@ -19,17 +19,17 @@
 
 #include <arrow/engine/substrait/serde.h>
 
-#include "compute/exec_backend.h"
+#include "compute/Backend.h"
 
 #include <utility>
 
 namespace gluten {
 
-class ArrowExecBackend : public Backend {
+class ArrowBackend : public Backend {
  public:
-  ArrowExecBackend();
+  ArrowBackend();
 
-  ~ArrowExecBackend() override;
+  ~ArrowBackend() override;
 
   std::shared_ptr<gluten::ResultIterator> GetResultIterator(gluten::MemoryAllocator* allocator) override;
 

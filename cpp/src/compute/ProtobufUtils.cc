@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "protobuf_utils.h"
+#include "ProtobufUtils.h"
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/util/json_util.h>

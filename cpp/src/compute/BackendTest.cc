@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "exec_backend.h"
+#include "Backend.h"
 
 #include <arrow/c/bridge.h>
 #include <gtest/gtest.h>
