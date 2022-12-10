@@ -21,20 +21,20 @@ import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
 import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
 import io.glutenproject.extension.columnar.TransformHint.TransformHint
+import org.apache.spark.sql.SparkSession
 
 object TransformHint extends Enumeration {
   type TransformHint = Value
@@ -83,6 +83,76 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
       agg.copy(child = CustomExpandExec(
         child.projections, agg.groupingExpressions,
         child.output, child.child))
+  }
+}
+
+case class FallbackMultiMultiCodegens() extends Rule[SparkPlan] {
+  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  val optimizeLevel: Integer = columnarConf.joinOptimizationThrottle
+
+  def existsMultiCodegens(plan: SparkPlan, count: Int = 0): Boolean =
+    plan match {
+      case plan: CodegenSupport if plan.supportCodegen =>
+        if ((count + 1) >= optimizeLevel) return true
+        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
+      case plan: ShuffledHashJoinExec =>
+        if ((count + 1) >= optimizeLevel) return true
+        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
+      case other => false
+    }
+
+  def tagNotTransformable(plan: SparkPlan): SparkPlan = {
+    TransformHints.tagNotTransformable(plan)
+    plan
+  }
+
+  def supportCodegen(plan: SparkPlan): Boolean = plan match {
+    case plan: CodegenSupport =>
+      plan.supportCodegen
+    case _ => false
+  }
+
+  def isAQEShuffleReadExec(plan: SparkPlan): Boolean = {
+    plan match {
+      case _: AQEShuffleReadExec => true
+      case _ => false
+    }
+  }
+
+  def insertRowGuardRecursive(plan: SparkPlan): SparkPlan = {
+    plan match {
+      case p: ShuffleExchangeExec =>
+        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
+      case p: BroadcastExchangeExec =>
+        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
+      case p: ShuffledHashJoinExec =>
+        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
+      case p if !supportCodegen(p) =>
+        // insert row guard them recursively
+        p.withNewChildren(p.children.map(insertRowGuardOrNot))
+      case p if isAQEShuffleReadExec(p) =>
+        p.withNewChildren(p.children.map(insertRowGuardOrNot))
+      case p: BroadcastQueryStageExec =>
+        p
+      case p => tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
+    }
+  }
+
+  def insertRowGuardOrNot(plan: SparkPlan): SparkPlan = {
+    plan match {
+      // For operators that will output domain object, do not insert WholeStageCodegen for it as
+      // domain object can not be written into unsafe row.
+      case plan if existsMultiCodegens(plan) =>
+        insertRowGuardRecursive(plan)
+      case p: BroadcastQueryStageExec =>
+        p
+      case other =>
+        other.withNewChildren(other.children.map(insertRowGuardOrNot))
+    }
+  }
+
+  override def apply(plan: SparkPlan): SparkPlan = {
+    insertRowGuardOrNot(plan)
   }
 }
 

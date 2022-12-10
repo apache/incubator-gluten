@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package io.glutenproject.execution
-
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
+package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
+import io.glutenproject.execution.GlutenColumnarToRowExecBase
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
-import org.slf4j.LoggerFactory
-
+import org.apache.spark.TaskContext
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
-import org.apache.spark.TaskContext
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConverters._
+import scala.concurrent.duration.NANOSECONDS
 
 case class GlutenColumnarToRowExec(child: SparkPlan)
   extends GlutenColumnarToRowExecBase(child = child) {
@@ -62,6 +62,10 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
             s"GlutenColumnarToRowExecBase.")
       }
     }
+  }
+
+  override def doExecuteBroadcast[T](): Broadcast[T] = {
+    child.doExecuteBroadcast()
   }
 
   override def doExecuteInternal(): RDD[InternalRow] = {
@@ -162,4 +166,3 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
   protected def withNewChildInternal(newChild: SparkPlan): GlutenColumnarToRowExec =
     copy(child = newChild)
 }
-

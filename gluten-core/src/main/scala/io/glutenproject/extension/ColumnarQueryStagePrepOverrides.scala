@@ -19,13 +19,12 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.TransformHints
+import io.glutenproject.extension.columnar.{FallbackMultiMultiCodegens, StoreExpandGroupExpression, TransformHint, TransformHints}
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
-
 import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
 import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
 import io.glutenproject.extension.columnar.TransformHint.TransformHint
@@ -39,9 +38,19 @@ import io.glutenproject.extension.columnar.TransformHint.TransformHint
 case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
-    plan.transformDown {
+    // TODO move this rule before ColumnarQueryStagePrepRule
+    val newPlan = FallbackMultiMultiCodegens().apply(plan)
+    newPlan.transformDown {
       case bhj: BroadcastHashJoinExec =>
-        if (columnarConf.enableColumnarBroadcastExchange &&
+        if (TransformHints.isAlreadyTagged(bhj) &&
+          TransformHints.getHint(bhj) == TransformHint.TRANSFORM_UNSUPPORTED) {
+          bhj.children.foreach {
+            // ResuedExchange is not created yet, so we don't need to handle that case.
+            case be: BroadcastExchangeExec =>
+              TransformHints.tagNotTransformable(be)
+            case _ =>
+          }
+        } else if (columnarConf.enableColumnarBroadcastExchange &&
           columnarConf.enableColumnarBroadcastJoin) {
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance
             .genBroadcastHashJoinExecTransformer(
