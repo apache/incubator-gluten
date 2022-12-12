@@ -22,9 +22,6 @@
 
 namespace gluten {
 
-constexpr uint16_t kNoAlignment = facebook::velox::memory::kNoAlignment;
-constexpr int64_t kMaxMemory = facebook::velox::memory::kMaxMemory;
-
 std::shared_ptr<facebook::velox::memory::MemoryPool> AsWrappedVeloxMemoryPool(MemoryAllocator* allocator);
 
 facebook::velox::memory::MemoryPool* GetDefaultWrappedVeloxMemoryPool();

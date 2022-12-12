@@ -39,7 +39,7 @@ void registerAllFunctions() {
   functions::sparksql::registerFunctions("");
   registerCustomFunctions();
   registerAllAggregateFunctions();
-  facebook::velox::window::registerWindowFunctions();
+  window::prestosql::registerAllWindowFunctions();
 }
 
 } // namespace gluten

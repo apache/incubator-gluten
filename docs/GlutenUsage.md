@@ -12,7 +12,6 @@
 | build_protobuf | build protobuf lib    | ON|
 | enable_s3   | build with s3 lib        | OFF|
 | enable_hdfs | build with hdfs lib      | OFF|
-| build_folly | build folly lib    | ON|
 | build_arrow_from_source   | pull the source code and build arrow lib| ON|
 | build_velox_from_source   | pull the source code and build velox lib| ON|
 
@@ -41,7 +40,6 @@
 | enable_s3  | Build Velox with -DENABLE_S3              | OFF           |
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
-| build_folly |  build folly from source                 | ON           |
 
 #### Parameters for compile.sh setting via --
 

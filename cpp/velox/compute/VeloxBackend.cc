@@ -59,7 +59,7 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* memor
       nullptr,
       std::make_shared<facebook::velox::core::MemConfig>(),
       std::unordered_map<std::string, std::shared_ptr<Config>>(),
-      memory::MappedMemory::getInstance(),
+      memory::MemoryAllocator::getInstance(),
       std::move(ctxRoot),
       nullptr,
       "");

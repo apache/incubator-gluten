@@ -32,8 +32,8 @@ cd /path_to_gluten
 ./tools/one_step_veloxbackend.sh
 
 ## When you have successfully compiled once and changed some codes then compile again.
-## you may use following command to skip the arrow, velox, folly and protobuf build
-# ./tools/one_step_veloxbackend.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_folly=OFF --build_protobuf=OFF
+## you may use following command to skip the arrow, velox and protobuf build
+# ./tools/one_step_veloxbackend.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
 
 ```
 
