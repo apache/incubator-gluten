@@ -184,6 +184,11 @@ public class ExpressionBuilder {
     } else if (dataType instanceof DecimalType) {
       if (obj == null) {
         DecimalType decimal = (DecimalType)dataType;
+        if (decimal.scale() < 0) {
+          // Substrait don't support decimal type with negative scale.
+          throw new UnsupportedOperationException(String.format(
+            "DecimalType with negative scale not supported: %s.", dataType));
+        }
         return makeNullLiteral(TypeBuilder.makeDecimal(nullable, decimal.precision(),
           decimal.scale()));
       } else {
