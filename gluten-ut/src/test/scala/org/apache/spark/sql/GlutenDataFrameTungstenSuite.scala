@@ -19,7 +19,7 @@ package org.apache.spark.sql
 
 class GlutenDataFrameTungstenSuite extends DataFrameTungstenSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL,
     "access cache multiple times",
     "access only some column of the all of columns"

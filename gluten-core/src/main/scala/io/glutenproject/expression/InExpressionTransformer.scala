@@ -17,38 +17,51 @@
 
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
-
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.DataType
 
-class InTransformer(value: Expression, list: Seq[Expression], original: Expression)
-  extends In(value: Expression, list: Seq[Expression])
-    with ExpressionTransformer
-    with Logging {
+import scala.collection.JavaConverters._
+
+class InTransformer(value: ExpressionTransformer,
+                    list: Seq[Expression],
+                    valueType: DataType,
+                    original: Expression)
+  extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val leftNode = value.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!leftNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"not supported yet.")
-    }
-
     // Stores the values in a List Literal.
-    val values: Set[Any] = list.map(value => {
-      value.asInstanceOf[Literal].value
+    val values: Set[Any] = list.map(v => {
+      v.asInstanceOf[Literal].value
     }).toSet
 
-    InSetOperatorTransformer.toTransformer(value, leftNode, values)
+    InExpressionTransformer.toTransformer(value, value.doTransform(args), values, valueType)
+  }
+}
+
+class InSetTransformer(value: ExpressionTransformer,
+                       hset: Set[Any],
+                       valueType: DataType,
+                       original: Expression)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    InExpressionTransformer.toTransformer(value, value.doTransform(args), hset, valueType)
   }
 }
 
 object InExpressionTransformer {
 
-  def create(value: Expression, list: Seq[Expression], original: Expression): Expression =
-    original match {
-      case i: In =>
-        new InTransformer(value, list, i)
-      case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
-    }
+  def toTransformer(value: ExpressionTransformer,
+                    leftNode: ExpressionNode,
+                    values: Set[Any],
+                    valueType: DataType): ExpressionNode = {
+    val expressionNodes = new java.util.ArrayList[ExpressionNode](values.map({
+      value =>
+        ExpressionBuilder.makeLiteral(value, valueType, value == null)
+    }).asJava)
+
+    ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
+  }
 }

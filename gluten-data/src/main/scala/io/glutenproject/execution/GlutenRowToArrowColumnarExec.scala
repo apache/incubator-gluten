@@ -68,6 +68,7 @@ object RowToColumnConverter {
       case dt: DecimalType => new DecimalConverter(dt)
       case mt: MapType => new MapConverter(getConverterForType(mt.keyType, nullable),
         getConverterForType(mt.valueType, nullable))
+      case NullType => NullConverter
       case unknown => throw new UnsupportedOperationException(
         s"Type $unknown not supported")
     }
@@ -208,6 +209,12 @@ object RowToColumnConverter {
     override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
       val data = row.getBinary(column)
       cv.asInstanceOf[ArrowWritableColumnVector].appendString(data, 0, data.length)
+    }
+  }
+
+  private object NullConverter extends TypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
+      cv.asInstanceOf[ArrowWritableColumnVector].appendNull()
     }
   }
 

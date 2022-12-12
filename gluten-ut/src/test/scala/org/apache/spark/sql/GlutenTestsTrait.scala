@@ -137,7 +137,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
 
   override protected def test(testName: String,
                               testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
-    if (whiteBlackCheck(testName)) {
+    if (shouldRun(testName)) {
       super.test(testName, testTags: _*)(testFun)
     }
   }

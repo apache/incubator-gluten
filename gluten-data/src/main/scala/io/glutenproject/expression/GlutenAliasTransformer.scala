@@ -20,19 +20,13 @@ package io.glutenproject.expression
 import io.glutenproject.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types._
 
-class GlutenAliasTransformer(child: Expression, name: String)(
-  override val exprId: ExprId,
-  override val qualifier: Seq[String],
-  override val explicitMetadata: Option[Metadata])
-  extends AliasBaseTransformer(child, name)(exprId, qualifier, explicitMetadata) {
+class GlutenAliasTransformer(substraitExprName: String,
+                             child: ExpressionTransformer,
+                             original: Expression)
+  extends AliasBaseTransformer(substraitExprName, child, original) {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.asInstanceOf[ExpressionTransformer].doTransform(args)
-    if (!childNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"not supported yet")
-    }
-    childNode
+    child.doTransform(args)
   }
 }

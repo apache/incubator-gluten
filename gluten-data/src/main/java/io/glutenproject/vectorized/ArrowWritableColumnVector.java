@@ -27,6 +27,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.NullVector;
 import org.apache.arrow.vector.SmallIntVector;
 import org.apache.arrow.vector.TimeStampMicroTZVector;
 import org.apache.arrow.vector.TimeStampMicroVector;
@@ -266,8 +267,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
         childColumns[i] = new ArrowWritableColumnVector(structVector.getVectorById(i),
             i, structVector.size(), false);
       }
+    } else if (vector instanceof NullVector) {
+      NullVector nullVector = (NullVector) vector;
+      accessor = new NullAccessor(nullVector);
     } else {
-      throw new UnsupportedOperationException();
+      throw new UnsupportedOperationException("Unsupported vector " + vector.getMinorType());
     }
   }
 
@@ -308,6 +312,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
         children[ordinal] = createVectorWriter(structVector.getChildByOrdinal(ordinal));
       }
       return new StructWriter(structVector, children);
+    } else if (vector instanceof NullVector) {
+      return new NullWriter((NullVector) vector);
     } else {
       throw new UnsupportedOperationException(
           "Unsupported data type: " + vector.getMinorType());
@@ -1223,6 +1229,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     }
   }
 
+  private static class NullAccessor extends ArrowVectorAccessor {
+    NullAccessor(NullVector vector) {
+      super(vector);
+    }
+  }
+
   /* Arrow Vector Writer */
   private abstract static class ArrowVectorWriter {
     private final ValueVector vector;
@@ -1895,6 +1907,20 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     void setNotNull(int rowId) {
       writer.setIndexDefined(rowId);
+    }
+  }
+
+  private static class NullWriter extends ArrowVectorWriter {
+    private final NullVector writer;
+
+    NullWriter(NullVector vector) {
+      super(vector);
+      this.writer = vector;
+    }
+
+    @Override
+    void setNull(int rowId) {
+      writer.setValueCount(writer.getValueCount() + 1);
     }
   }
 }

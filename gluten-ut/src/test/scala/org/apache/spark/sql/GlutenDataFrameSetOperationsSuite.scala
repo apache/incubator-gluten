@@ -20,7 +20,7 @@ package org.apache.spark.sql
 class GlutenDataFrameSetOperationsSuite extends DataFrameSetOperationsSuite
   with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL
   )
 }

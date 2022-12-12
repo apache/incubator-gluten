@@ -27,7 +27,7 @@
 #include <sstream>
 #include <thread>
 
-#include "compute/VeloxPlanConverter.h"
+#include "compute/VeloxBackend.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");

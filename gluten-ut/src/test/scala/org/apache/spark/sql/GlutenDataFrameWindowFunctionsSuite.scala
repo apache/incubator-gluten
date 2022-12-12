@@ -20,7 +20,7 @@ package org.apache.spark.sql
 class GlutenDataFrameWindowFunctionsSuite extends DataFrameWindowFunctionsSuite
   with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL
   )
 }

@@ -21,7 +21,7 @@ import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHash
 
 class GlutenDataFrameJoinSuite extends DataFrameJoinSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     "join - sorted columns not in join's outputSet",
     "join - join using multiple columns and specifying join type",
     "broadcast join hint using broadcast function",

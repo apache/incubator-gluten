@@ -162,15 +162,15 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
-    jni/jni_wrapper.cc
-    compute/VeloxPlanConverter.cc
+    jni/JniWrapper.cc
+    compute/VeloxBackend.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxToRowConverter.cc
     compute/RowConstructor.cc
     compute/DwrfDatasource.cc
-    compute/bridge.cc
-    memory/velox_memory_pool.cc
-    memory/velox_columnar_batch.cc
+    compute/VeloxBridge.cc
+    memory/VeloxMemoryPool.cc
+    memory/VeloxColumnarBatch.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
@@ -208,7 +208,7 @@ if(BUILD_BENCHMARKS)
 endif()
 
 if(BUILD_TESTS)
-  add_test_case(shuffle_test SOURCES tests/shuffle_split_test.cc)
+  add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
 endif()
 
 if(VELOX_ENABLE_S3)

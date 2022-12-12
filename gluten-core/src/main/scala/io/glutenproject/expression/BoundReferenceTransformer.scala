@@ -19,15 +19,10 @@ package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import com.google.common.collect.Lists
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
-  extends BoundReference(ordinal, dataType, nullable)
-    with ExpressionTransformer
-    with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     ExpressionBuilder.makeSelection(ordinal.asInstanceOf[java.lang.Integer])

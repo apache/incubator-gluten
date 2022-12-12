@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.utils.NotSupport
+import io.glutenproject.utils.BackendTestSettings
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 
 trait GlutenTestsBaseTrait {
 
@@ -27,41 +28,20 @@ trait GlutenTestsBaseTrait {
   protected val warehouse: String = basePath + "/spark-warehouse"
   protected val metaStorePathAbsolute: String = basePath + "/meta"
 
-  def whiteTestNameList: Seq[String] = Seq.empty
+  // The blacklist is taken in highest priority. Tests on the
+  // list will never be run with no regard to backend test settings.
+  def testNameBlackList: Seq[String] = Seq()
 
-  // prefer to use blackTestNameList
-  def blackTestNameList: Seq[String] =
-    NotSupport.NotYetSupportCase(getClass.getSuperclass.getSimpleName)
-
-
-  def whiteBlackCheck(testName: String): Boolean = {
-    if (testName.startsWith(GlutenTestConstants.GLUTEN_TEST)) {
-      true
-    } else if (blackTestNameList.isEmpty && whiteTestNameList.isEmpty) {
-      true
-    } else if (blackTestNameList.nonEmpty &&
-               blackTestNameList.head.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL)) {
-      false
-    } else if (blackTestNameList.nonEmpty) {
-      val exactContain = blackTestNameList.contains(testName)
-      if (exactContain) return false
-
-      // some test cases' names start with SPARK-ISSUE_ID:
-      // we allow simply put SPARK-ISSUE_ID in blacklist for short
-      var fuzzyContain = false
-      if (testName.startsWith("SPARK-")) {
-        import scala.util.matching.Regex
-        val issueIDPattern = "SPARK-[0-9]+".r
-        val issueID = issueIDPattern.findFirstIn(testName) match {
-          case Some(x: String) => x
-        }
-        fuzzyContain = blackTestNameList.exists(_.startsWith(issueID))
-      }
-      !fuzzyContain
-    } else if (whiteTestNameList.nonEmpty) {
-      whiteTestNameList.contains(testName)
-    } else {
-      false
+  def shouldRun(testName: String): Boolean = {
+    if (testName.startsWith(GLUTEN_TEST)) {
+      return true
     }
+    if (testNameBlackList.exists(_.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL))) {
+      return false
+    }
+    if (testNameBlackList.contains(testName)) {
+      return false
+    }
+    BackendTestSettings.shouldRun(getClass.getCanonicalName, testName)
   }
 }

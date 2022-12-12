@@ -16,9 +16,10 @@
  */
 package io.glutenproject.sql.shims.spark33
 
+import io.glutenproject.expression.Sig
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.sql.catalyst.expressions.{DynamicPruningSubquery, Expression}
+import org.apache.spark.sql.catalyst.expressions.{DynamicPruningSubquery, Expression, SplitPart}
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.Exchange
@@ -46,4 +47,8 @@ class Spark33Shims extends SparkShims {
         !plan.expressions.exists(_.find(_.isInstanceOf[DynamicPruningSubquery]).isDefined) &&
         plan.children.forall(supportAdaptiveWithExchangeConsidered)))
   }
+
+  override def expressionMappings: Seq[Sig] = Seq(
+    Sig[SplitPart]("split_part")
+  )
 }

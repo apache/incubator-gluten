@@ -18,6 +18,7 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.IValidatorApi
+import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.GlutenExpressionUtil
 import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
@@ -30,12 +31,17 @@ abstract class GlutenValidatorApi extends IValidatorApi {
    * Validate target expression within an input blacklist. Return false if target expression
    * (with the information of its args' types) matches any of the entry in the blacklist.
    */
-  protected def doValidate(blacklist: Map[String, Set[String]], expr: Expression): Boolean = {
+  protected def doExprValidate(
+                  blacklist: Map[String, Set[String]],
+                  substraitExprName: String,
+                  expr: Expression): Boolean = {
     // To handle cast(struct as string) AS col_name expression
-    val key = if (expr.prettyName.toLowerCase().equals("alias")) {
-      expr.asInstanceOf[Alias].child.prettyName.toLowerCase()
-    } else expr.prettyName.toLowerCase()
-    val value = blacklist.get(key)
+    val key = if (substraitExprName.toLowerCase().equals(ExpressionMappings.ALIAS)) {
+      ExpressionMappings.scalar_functions_map.get(expr.asInstanceOf[Alias].child.getClass)
+    } else Some(substraitExprName)
+    if (key.isEmpty) return false
+    if (blacklist.isEmpty) return true
+    val value = blacklist.get(key.get)
     if (value.isEmpty) {
       return true
     }
@@ -54,7 +60,8 @@ abstract class GlutenValidatorApi extends IValidatorApi {
     true
   }
 
-  override def doValidate(expr: Expression): Boolean = doValidate(Map(), expr)
+  override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
+    doExprValidate(Map(), substraitExprName, expr)
 
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new GlutenNativeExpressionEvaluator()

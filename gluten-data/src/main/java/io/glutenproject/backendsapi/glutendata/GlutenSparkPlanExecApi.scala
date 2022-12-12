@@ -17,24 +17,21 @@
 
 package io.glutenproject.backendsapi.glutendata
 
-import scala.collection.mutable.ArrayBuffer
-
 import io.glutenproject.backendsapi.{BackendsApiManager, ISparkPlanExecApi}
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.execution.GlutenColumnarRules.LoadBeforeColumnarToRow
-import io.glutenproject.expression.{AliasBaseTransformer, GlutenAliasTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GlutenAliasTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, GlutenColumnarBatchSerializer}
-
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.GlutenShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -46,8 +43,10 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.GlutenExecUtil
-import org.apache.spark.sql.types.{Metadata, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.mutable.ArrayBuffer
 
 abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
 
@@ -145,17 +144,13 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
   /**
    * Generate Alias transformer.
    *
-   * @param child The computation being performed
-   * @param name  The name to be associated with the result of computing.
-   * @param exprId
-   * @param qualifier
-   * @param explicitMetadata
    * @return a transformer for alias
    */
-  def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
-    qualifier: Seq[String], explicitMetadata: Option[Metadata])
-  : AliasBaseTransformer =
-    new GlutenAliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
+  def genAliasTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Expression): AliasBaseTransformer =
+    new GlutenAliasTransformer(substraitExprName, child, original)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
