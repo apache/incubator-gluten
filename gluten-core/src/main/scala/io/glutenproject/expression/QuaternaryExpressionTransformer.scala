@@ -42,12 +42,6 @@ class QuaternaryExpressionTransformer(
     val secondNode = second.doTransform(args)
     val thirdNode = third.doTransform(args)
     val forthNode = forth.doTransform(args)
-    if (!firstNode.isInstanceOf[ExpressionNode] ||
-      !secondNode.isInstanceOf[ExpressionNode] ||
-      !thirdNode.isInstanceOf[ExpressionNode] ||
-      !forthNode.isInstanceOf[ExpressionNode]) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
-    }
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(

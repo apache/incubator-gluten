@@ -18,9 +18,4 @@
 package org.apache.spark.sql
 
 class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTrait {
-  override def whiteTestNameList: Seq[String] = Seq(
-    "quarter"
-  )
-
-  override def blackTestNameList: Seq[String] = Seq()
 }

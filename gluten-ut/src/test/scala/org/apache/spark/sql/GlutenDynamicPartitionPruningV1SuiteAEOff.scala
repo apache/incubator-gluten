@@ -26,7 +26,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV
     spark.sparkContext.setLogLevel("WARN")
   }
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL
   )
 }

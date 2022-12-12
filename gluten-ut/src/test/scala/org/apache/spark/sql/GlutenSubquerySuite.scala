@@ -19,7 +19,7 @@ package org.apache.spark.sql
 
 class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
+  override def testNameBlackList: Seq[String] = Seq(
     GlutenTestConstants.IGNORE_ALL,
     "SPARK-28441: COUNT bug in WHERE clause (Filter) with PythonUDF",
     "SPARK-28441: COUNT bug in SELECT clause (Project) with PythonUDF",

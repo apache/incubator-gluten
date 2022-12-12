@@ -17,9 +17,6 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.utils.SystemParameters
-import io.glutenproject.GlutenConfig
-
 class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTrait {
 
 }

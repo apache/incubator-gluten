@@ -197,6 +197,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
 
   override def logForFailedTest(): Unit = {
     logError("Test failed so abort")
+    // FIXME the code swallows exceptions. See https://github.com/oap-project/gluten/issues/676
     System.exit(1)
   }
 }

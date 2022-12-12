@@ -21,7 +21,7 @@ import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
 
 class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTrait {
 
-  override def blackTestNameList: Seq[String] = super.blackTestNameList ++ Seq(
+  override def testNameBlackList: Seq[String] = super.testNameBlackList ++ Seq(
     "bin"
   )
 
