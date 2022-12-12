@@ -205,6 +205,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   }
 
   def canConvertToDataFrame(inputRow: InternalRow): Boolean = {
+    if (inputRow == EmptyRow || inputRow == InternalRow.empty) return true
     if (!inputRow.isInstanceOf[GenericInternalRow]) {
       return false
     }
@@ -214,7 +215,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
         case map: MapData => return false
         case array: ArrayData => return false
         case struct: InternalRow => return false
-        case _ => return true
+        case _ => None
       }
     }
     return true
