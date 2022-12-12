@@ -184,10 +184,13 @@ public class ExpressionBuilder {
     } else if (dataType instanceof DecimalType) {
       if (obj == null) {
         DecimalType decimal = (DecimalType)dataType;
+        checkDecimalScale(decimal.scale());
         return makeNullLiteral(TypeBuilder.makeDecimal(nullable, decimal.precision(),
           decimal.scale()));
       } else {
-        return makeDecimalLiteral((Decimal) obj);
+        Decimal decimal = (Decimal) obj;
+        checkDecimalScale(decimal.scale());
+        return makeDecimalLiteral(decimal);
       }
     }  else if (dataType instanceof ArrayType) {
       if (obj == null) {
@@ -211,6 +214,14 @@ public class ExpressionBuilder {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
       throw new UnsupportedOperationException(
           String.format("Type not supported: %s.", dataType.toString()));
+    }
+  }
+
+  public static void checkDecimalScale(int scale) {
+    if (scale < 0) {
+      // Substrait don't support decimal type with negative scale.
+      throw new UnsupportedOperationException(String.format(
+        "DecimalType with negative scale not supported: %s.", scale));
     }
   }
 
