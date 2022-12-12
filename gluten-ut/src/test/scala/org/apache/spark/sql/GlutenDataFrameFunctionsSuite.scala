@@ -17,15 +17,5 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.utils.SystemParameters
-import io.glutenproject.GlutenConfig
-
 class GlutenDataFrameFunctionsSuite extends DataFrameFunctionsSuite with GlutenSQLTestsTrait {
-  override def whiteTestNameList: Seq[String] = Seq(
-    "conditional function: least",
-    "conditional function: greatest"
-
-  )
-
-  override def blackTestNameList: Seq[String] = Seq()
 }
