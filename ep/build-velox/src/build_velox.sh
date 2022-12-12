@@ -12,8 +12,8 @@ BUILD_FOLLY=ON
 BUILD_TYPE=release
 VELOX_HOME=
 #for ep cache
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/PHILO-HE/velox.git
+VELOX_BRANCH=enable-date
 TARGET_BUILD_COMMIT=""
 ENABLE_EP_CACHE=OFF
 
