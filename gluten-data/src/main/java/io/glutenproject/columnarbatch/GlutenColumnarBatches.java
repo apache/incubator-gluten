@@ -53,7 +53,8 @@ public final class GlutenColumnarBatches {
 
   public static boolean isIntermediateColumnarBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
-      return false;
+      throw new IllegalArgumentException("Cannot decide if a batch that has " +
+              "no column is intermediate columnar batch or not");
     }
     ColumnVector col0 = batch.column(0);
     if (!(col0 instanceof GlutenIndicatorVector)) {

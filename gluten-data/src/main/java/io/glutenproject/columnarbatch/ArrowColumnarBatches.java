@@ -73,9 +73,6 @@ public class ArrowColumnarBatches {
           "spark.sql.inMemoryColumnarStorage.enableVectorizedReader=false\n" +
           "spark.sql.orc.enableVectorizedReader=false\n");
     }
-    if (input.numCols() == 0) {
-      return input;
-    }
     GlutenIndicatorVector iv = (GlutenIndicatorVector) input.column(0);
     final long handle = iv.getNativeHandle();
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
@@ -114,9 +111,6 @@ public class ArrowColumnarBatches {
   public static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
     if (!isArrowColumnarBatch(input)) {
       throw new IllegalArgumentException("batch is not Arrow columnar batch");
-    }
-    if (input.numCols() == 0) {
-      return input;
     }
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
          ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
@@ -183,7 +177,8 @@ public class ArrowColumnarBatches {
 
   public static boolean isArrowColumnarBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
-      return true;
+      throw new IllegalArgumentException("Cannot decide if a batch that " +
+              "has no column is Arrow columnar batch or not");
     }
     for (int i = 0; i < batch.numCols(); i++) {
       ColumnVector col = batch.column(i);
