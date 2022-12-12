@@ -108,26 +108,31 @@ int main(int argc, char** argv) {
 
   std::string substraitJsonFile;
   std::vector<std::string> inputFiles;
-  if (argc < 2) {
-    std::cout << "No input args. Running example..." << std::endl;
-    inputFiles.resize(2);
-    try {
+  try {
+    if (argc < 2) {
+      std::cout << "No input args. Usage: " << std::endl
+                << "./generic_benchmark /path/to/substrait_json_file /path/to/data_file_1 /path/to/data_file_2 ..."
+                << std::endl;
+      std::cout << "Running example..." << std::endl;
+      inputFiles.resize(2);
       GLUTEN_ASSIGN_OR_THROW(substraitJsonFile, getGeneratedFilePath("example.json"));
-      // FIXME Following code is in a way not 100% stable since it's not guaranteed that
-      //   tables appear in the input plan are of the same order
-      // See NativeBenchmarkPlanGenerator.scala
       GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
       GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
-    } catch (const std::exception& e) {
-      std::cout << "Failed to run example: " << e.what() << std::endl;
-      ::benchmark::Shutdown();
-      std::exit(EXIT_FAILURE);
+    } else {
+      substraitJsonFile = argv[1];
+      AbortIfFileNotExists(substraitJsonFile);
+      std::cout << "Using substrait json file: " << std::endl << substraitJsonFile << std::endl;
+      std::cout << "Using " << argc - 2 << " input data file(s): " << std::endl;
+      for (auto i = 2; i < argc; ++i) {
+        inputFiles.emplace_back(argv[i]);
+        AbortIfFileNotExists(inputFiles.back());
+        std::cout << inputFiles.back() << std::endl;
+      }
     }
-  } else {
-    substraitJsonFile = argv[1];
-    for (auto i = 2; i < argc; ++i) {
-      inputFiles.emplace_back(argv[i]);
-    }
+  } catch (const std::exception& e) {
+    std::cout << "Failed to run benchmark: " << e.what() << std::endl;
+    ::benchmark::Shutdown();
+    std::exit(EXIT_FAILURE);
   }
 
 #define GENERIC_BENCHMARK(NAME, FUNC)                                                                \

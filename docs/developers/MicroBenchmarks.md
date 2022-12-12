@@ -29,11 +29,11 @@ cd /path_to_gluten/ep/build-velox/src
 cd /path_to_gluten/cpp
 ./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
 
-# Build gluten. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark3.3
+# Build gluten. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3
 cd /path_to_gluten
 mvn clean package -Pspark-3.2 -Pbackends-velox
 
-mvn test -Pspark3.2 -Pbackends-velox -pl backends-velox -am \
+mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am \
 -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
 ```
 
@@ -50,11 +50,14 @@ gluten/backends-velox/generated-native-benchmark/
     └── _SUCCESS
 ```
 
-Run micro benchmark with the generated files as input:
+Run micro benchmark with the generated files as input. You need to specify the **absolute** path to the input files:
 ```shell
 cd /path/to/gluten/cpp/velox/benchmarks
-./generic_benchmark /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example.json 
-/home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_lineitem/part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet --threads 1 --iterations 1 --noprint-result --benchmark_filter=InputFromBatchVector
+./generic_benchmark \
+/home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example.json \
+/home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet \
+/home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_lineitem/part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet \
+--threads 1 --iterations 1 --noprint-result --benchmark_filter=InputFromBatchVector
 ```
 The output should like:
 ```shell
