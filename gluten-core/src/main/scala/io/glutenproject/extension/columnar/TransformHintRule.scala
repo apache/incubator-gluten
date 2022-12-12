@@ -86,9 +86,10 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
   }
 }
 
-case class FallbackMultiMultiCodegens() extends Rule[SparkPlan] {
+case class FallbackMultiCodegens() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
-  val optimizeLevel: Integer = columnarConf.joinOptimizationThrottle
+  val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
+  val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
 
   def existsMultiCodegens(plan: SparkPlan, count: Int = 0): Boolean =
     plan match {
@@ -152,7 +153,9 @@ case class FallbackMultiMultiCodegens() extends Rule[SparkPlan] {
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    insertRowGuardOrNot(plan)
+    if (physicalJoinOptimize) {
+      insertRowGuardOrNot(plan)
+    } else plan
   }
 }
 
@@ -163,7 +166,7 @@ case class FallbackMultiMultiCodegens() extends Rule[SparkPlan] {
 case class AddTransformHintRule() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
-  val optimizeLevel: Integer = columnarConf.joinOptimizationThrottle
+  val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
   val enableColumnarShuffle: Boolean = BackendsApiManager.getSettings.supportColumnarShuffleExec()
   val enableColumnarSort: Boolean = columnarConf.enableColumnarSort
   val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow

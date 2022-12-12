@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import io.glutenproject.extension.columnar.{AddTransformHintRule, FallbackMultiMultiCodegens, RemoveTransformHintRule, StoreExpandGroupExpression, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{AddTransformHintRule, FallbackMultiCodegens, RemoveTransformHintRule, StoreExpandGroupExpression, TransformHint, TransformHints}
 import io.glutenproject.utils.LogLevelUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -414,7 +414,7 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   def preOverrides: List[SparkSession => Rule[SparkPlan]] =
     List((_: SparkSession) => StoreExpandGroupExpression(),
-      (_: SparkSession) => FallbackMultiMultiCodegens(),
+      (_: SparkSession) => FallbackMultiCodegens(),
       (_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(),
       (_: SparkSession) => RemoveTransformHintRule()) :::

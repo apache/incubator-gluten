@@ -19,7 +19,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.{FallbackMultiMultiCodegens, StoreExpandGroupExpression, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{FallbackMultiCodegens, StoreExpandGroupExpression, TransformHint, TransformHints}
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
@@ -39,7 +39,7 @@ case class ColumnarQueryStagePrepRule(session: SparkSession) extends Rule[SparkP
   override def apply(plan: SparkPlan): SparkPlan = {
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
     // TODO move this rule before ColumnarQueryStagePrepRule
-    val newPlan = FallbackMultiMultiCodegens().apply(plan)
+    val newPlan = FallbackMultiCodegens().apply(plan)
     newPlan.transformDown {
       case bhj: BroadcastHashJoinExec =>
         if (TransformHints.isAlreadyTagged(bhj) &&
