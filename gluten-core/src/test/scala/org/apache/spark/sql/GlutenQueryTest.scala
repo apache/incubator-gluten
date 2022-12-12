@@ -380,11 +380,18 @@ object GlutenQueryTest extends Assertions {
       compare(a.toSeq, b.toSeq)
     // 0.0 == -0.0, turn float/double to bits before comparison, to distinguish 0.0 and -0.0.
     case (a: Double, b: Double) =>
-      // java.lang.Double.doubleToRawLongBits(a) == java.lang.Double.doubleToRawLongBits(b)
-      Math.abs(a - b) < 0.00001
+      if (isNaNOrInf(a) || isNaNOrInf(b)) {
+        java.lang.Double.doubleToRawLongBits(a) == java.lang.Double.doubleToRawLongBits(b)
+      } else {
+        Math.abs(a - b) < 0.00001
+      }
     case (a: Float, b: Float) =>
       java.lang.Float.floatToRawIntBits(a) == java.lang.Float.floatToRawIntBits(b)
     case (a, b) => a == b
+  }
+
+  def isNaNOrInf(num: Double): Boolean = {
+    num.isNaN || num.isInfinite || num.isNegInfinity || num.isPosInfinity
   }
 
   def sameRows(
