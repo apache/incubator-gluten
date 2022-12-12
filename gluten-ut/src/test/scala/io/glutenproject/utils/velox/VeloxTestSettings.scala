@@ -87,5 +87,6 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenArithmeticExpressionSuite]
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameSelfJoinSuite]
+  enableSuite[GlutenComplexTypeSuite]
 
 }
