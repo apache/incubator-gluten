@@ -65,7 +65,10 @@ auto BM_Generic = [](::benchmark::State& state,
     backend->ParsePlan(plan->data(), plan->size());
     auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
     auto outputSchema = backend->GetOutputSchema();
-
+    ArrowWriter writer;
+    if (!FLAGS_write_file.empty()) {
+      writer.initWriter("/mnt/DP_disk2/tpcds/data/result_table.parquet", *(outputSchema.get()));
+    }
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
       if (FLAGS_print_result) {
@@ -76,8 +79,22 @@ auto BM_Generic = [](::benchmark::State& state,
           return;
         }
         std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
+        auto batch = maybeBatch.ValueOrDie();
         state.ResumeTiming();
       }
+      if (FLAGS_write_file) {
+        state.PauseTiming();
+        auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+        if (!maybeBatch.ok()) {
+          state.SkipWithError(maybeBatch.status().message().c_str());
+          return;
+        }
+        writer.WriteInBatches(maybeBatch.ValueOrDie());
+        state.ResumeTiming();
+      }
+    }
+    if (FLAGS_write_file) {
+      writer.closeWriter();
     }
 
     collectBatchTime +=
@@ -151,7 +168,7 @@ int main(int argc, char** argv) {
   } while (0)
 
   GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);
-  GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
+  // GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
