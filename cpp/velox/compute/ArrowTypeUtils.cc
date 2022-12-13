@@ -53,64 +53,103 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& type_nam
   // The type name of Array type is like ARRAY<type>.
   std::string arrayType = "ARRAY";
   if (type_name.substr(0, arrayType.length()) == arrayType) {
-    std::size_t start = type_name.find_first_of("<");
-    std::size_t end = type_name.find_last_of(">");
+    std::size_t start = type_name.find_first_of('<');
+    std::size_t end = type_name.find_last_of('>');
     if (start == std::string::npos || end == std::string::npos) {
-      throw std::runtime_error("Invalid array type.");
+      throw std::runtime_error("Invalid array type: " + type_name);
     }
     // Extract the inner type of array type.
-    std::string innerType = type_name.substr(start + 1, end - start - 1);
+    auto innerType = type_name.substr(start + 1, end - start - 1);
     return arrow::list(toArrowTypeFromName(innerType));
   }
 
   // The type name of MAP type is like MAP<type, type>.
   std::string mapType = "MAP";
   if (type_name.substr(0, mapType.length()) == mapType) {
-    std::size_t start = type_name.find_first_of("<");
-    std::size_t end = type_name.find_last_of(">");
+    std::size_t start = type_name.find_first_of('<');
+    std::size_t end = type_name.find_last_of('>');
     if (start == std::string::npos || end == std::string::npos) {
-      throw std::runtime_error("Invalid map type.");
+      throw std::runtime_error("Invalid map type: " + type_name);
     }
 
     // Extract the types of map type.
-    std::string innerType = type_name.substr(start + 1, end - start - 1);
-    std::vector<std::shared_ptr<arrow::DataType>> innerTypes;
-    std::shared_ptr<arrow::DataType> keyType;
-    std::shared_ptr<arrow::DataType> valueType;
-    std::size_t token_pos = innerType.find_first_of(",");
+    auto inner_type = type_name.substr(start + 1, end - start - 1);
+    std::size_t token_pos = inner_type.find_first_of(',');
+    if (token_pos == std::string::npos) {
+      throw std::runtime_error("Invalid map type: " + type_name);
+    }
 
-    keyType = toArrowTypeFromName(innerType.substr(0, token_pos));
-    valueType = toArrowTypeFromName(innerType.substr(token_pos + 1, innerType.length() - 1));
+    auto split = inner_type.substr(0, token_pos);
+    // Count '<', '>' in split.
+    auto num_left = std::count_if(split.begin(), split.end(), [](const auto& c) { return c == '<'; });
+    auto num_right = std::count_if(split.begin(), split.end(), [](const auto& c) { return c == '>'; });
+    if (num_left > num_right) {
+      size_t i = token_pos + 1;
+      for (; num_left > num_right && i < inner_type.length(); ++i) {
+        if (inner_type[i] == '<') {
+          ++num_left;
+        } else if (inner_type[i] == '>') {
+          ++num_right;
+        }
+      }
+      // Next character must be ','.
+      if (num_left != num_right || i >= inner_type.length() || inner_type[i] != ',') {
+        throw std::runtime_error("Invalid map type: " + type_name);
+      }
+      token_pos = i;
+    }
 
-    return arrow::map(keyType, valueType);
+    auto key_type = toArrowTypeFromName(inner_type.substr(0, token_pos));
+    auto value_type = toArrowTypeFromName(inner_type.substr(token_pos + 1, inner_type.length() - 1));
+
+    return arrow::map(key_type, value_type);
   }
 
   // The type name of ROW type is like ROW<type, type>.
-  std::string structType = "ROW";
+  const std::string structType = "ROW";
   if (type_name.substr(0, structType.length()) == structType) {
-    std::size_t start = type_name.find_first_of("<");
-    std::size_t end = type_name.find_last_of(">");
+    std::size_t start = type_name.find_first_of('<');
+    std::size_t end = type_name.find_last_of('>');
     if (start == std::string::npos || end == std::string::npos) {
-      throw std::runtime_error("Invalid struct type.");
+      throw std::runtime_error("Invalid struct type: " + type_name);
     }
 
-    // // Extract the types of struct type.
-    std::string innerType = type_name.substr(start + 1, end - start - 1);
+    // Extract the types of struct type.
+    auto inner_type = type_name.substr(start + 1, end - start - 1);
     std::vector<std::shared_ptr<arrow::Field>> fields;
-    std::size_t token_pos = innerType.find_first_of(",");
-    auto from = 0;
-    auto count = 0;
-    do {
-      if (token_pos != std::string::npos) {
-        auto typeName = innerType.substr(from, token_pos - from);
-        fields.push_back(arrow::field("col_" + std::to_string(count), toArrowTypeFromName(typeName)));
-        from = token_pos + 1;
-        token_pos = innerType.find(",", from);
+    std::size_t token_pos = inner_type.find_first_of(',');
+    size_t split_start = 0;
+    auto col_pos = 0;
+    while (token_pos != std::string::npos && token_pos < inner_type.length()) {
+      auto split = inner_type.substr(split_start, token_pos - split_start);
+      // Count '<', '>' in split.
+      auto num_left = std::count_if(split.begin(), split.end(), [](const auto& c) { return c == '<'; });
+      auto num_right = std::count_if(split.begin(), split.end(), [](const auto& c) { return c == '>'; });
+      if (num_left > num_right) {
+        // Has unclosed '<'.
+        size_t i = token_pos + 1;
+        for (; num_left > num_right && i < inner_type.length(); ++i) {
+          if (inner_type[i] == '<') {
+            ++num_left;
+          } else if (inner_type[i] == '>') {
+            ++num_right;
+          }
+        }
+        // If not reach to end of string, next character must be ','.
+        if (num_left != num_right || i < inner_type.length() && inner_type[i] != ',') {
+          throw std::runtime_error("Invalid struct type: " + type_name);
+        }
+        token_pos = i;
+        split = inner_type.substr(split_start, token_pos - split_start);
       }
-    } while (token_pos != std::string::npos);
-
-    auto finalName = innerType.substr(from);
-    fields.push_back(arrow::field("col_" + std::to_string(count + 1), toArrowTypeFromName(finalName)));
+      fields.push_back(arrow::field("col_" + std::to_string(col_pos++), toArrowTypeFromName(split)));
+      split_start = token_pos + 1;
+      token_pos = inner_type.find(',', split_start);
+    }
+    if (split_start < inner_type.length()) {
+      auto finalName = inner_type.substr(split_start);
+      fields.push_back(arrow::field("col_" + std::to_string(col_pos), toArrowTypeFromName(finalName)));
+    }
     return arrow::struct_(fields);
   }
 
