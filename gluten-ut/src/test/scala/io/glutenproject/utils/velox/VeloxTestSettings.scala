@@ -19,7 +19,7 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.{GlutenDataFrameAggregateSuite, GlutenDataFrameSelfJoinSuite, GlutenMathFunctionsSuite, GlutenStringFunctionsSuite}
+import org.apache.spark.sql._
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -89,5 +89,6 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
+  enableSuite[GlutenDateFunctionsSuite]
 
 }
