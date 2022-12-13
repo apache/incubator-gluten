@@ -166,10 +166,17 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     tagNotTransformable(plan.withNewChildren(plan.children.map(tagNotTransformableRecursive)))
   }
 
+  def existLeftOuterJoin(plan: LogicalPlan): Boolean = {
+    plan.collect {
+      case join: Join if join.joinType.sql.equals("LEFT OUTER") =>
+        return true
+    }.size > 0
+  }
+
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     // Ignore forceShuffledHashJoin if exist multi continuous joins
     if (GlutenConfig.getSessionConf.enableLogicalJoinOptimize &&
-      existsMultiJoins(plan)) {
+      existsMultiJoins(plan) && existLeftOuterJoin(plan)) {
       tagNotTransformableRecursive(plan)
     }
     plan match {
