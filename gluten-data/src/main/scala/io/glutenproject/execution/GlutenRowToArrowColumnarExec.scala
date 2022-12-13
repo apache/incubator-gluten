@@ -296,7 +296,23 @@ case class GlutenRowToArrowColumnarExec(child: SparkPlan)
     }
   }
 
-  override def output: Seq[Attribute] = child.output
+  override def output: Seq[Attribute] = getOutput(child)
+
+  def getOutput(child: SparkPlan): Seq[Attribute] = {
+    var output = child.output
+    if (output.nonEmpty) {
+      output
+    } else {
+      child.children.foreach(plan => {
+        if (plan.output.nonEmpty) {
+          output = plan.output
+        } else {
+          output = getOutput(plan)
+        }
+      })
+    }
+    output
+  }
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 

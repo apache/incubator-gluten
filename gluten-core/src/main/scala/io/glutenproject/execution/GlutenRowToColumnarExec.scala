@@ -51,23 +51,8 @@ abstract class GlutenRowToColumnarExec(child: SparkPlan) extends UnaryExecNode {
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_rowtoarrowcolumnar")
   )
 
-
   // fix schema is empty when converting unsafe row to columnar batch
-  override def output: Seq[Attribute] = getOutput(child)
-
-  def getOutput(child: SparkPlan): Seq[Attribute] = {
-    var output = child.output
-    if (output.isEmpty) {
-      child.children.foreach(plan => {
-        if (plan.output.nonEmpty) {
-          output = plan.output
-        } else {
-          output = getOutput(plan)
-        }
-      })
-    }
-    output
-  }
+  override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 

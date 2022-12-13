@@ -67,6 +67,9 @@ object VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+  enableSuite[GlutenDataFrameSuite]
+    .excludeByPrefix("SPARK-2")
+    .excludeByPrefix("SPARK-3")
 
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]

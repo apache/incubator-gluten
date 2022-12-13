@@ -20,6 +20,12 @@ package org.apache.spark.sql
 class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
 
   override def testNameBlackList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
+    "repartitionByRange",
+    "coalesce",
+    "describe", // coredump
+    "NaN is greater than all other non-NaN numeric values",
+    "distributeBy and localSort",
+    "reuse exchange",
+    "SPARK-16664: persist with more than 200 columns",
   )
 }
