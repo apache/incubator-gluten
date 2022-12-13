@@ -145,7 +145,7 @@ class BatchStreamIterator : public BatchIteratorWrapper {
 
 class ArrowWriter {
  public:
-  arrow::Status initWriter(std::string path_to_file, arrow::Schema& schema);
+  arrow::Status initWriter(std::string& path_to_file, arrow::Schema& schema);
 
   arrow::Status WriteInBatches(std::shared_ptr<arrow::RecordBatch> batch);
 
@@ -155,8 +155,7 @@ class ArrowWriter {
   std::unique_ptr<parquet::arrow::FileWriter> writer_;
 };
 
-std::shared_ptr<gluten::ResultIterator>
-getInputFromBatchVector(const std::string& path);
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchVector(const std::string& path);
 
 std::shared_ptr<gluten::ResultIterator> getInputFromBatchStream(const std::string& path);
 

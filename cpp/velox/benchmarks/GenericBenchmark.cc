@@ -66,36 +66,32 @@ auto BM_Generic = [](::benchmark::State& state,
     auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
     auto outputSchema = backend->GetOutputSchema();
     ArrowWriter writer;
+    state.PauseTiming();
     if (!FLAGS_write_file.empty()) {
-      writer.initWriter("/mnt/DP_disk2/tpcds/data/result_table.parquet", *(outputSchema.get()));
+      writer.initWriter(FLAGS_write_file, *(outputSchema.get()));
     }
+    state.ResumeTiming();
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
+      state.PauseTiming();
+      auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+      if (!maybeBatch.ok()) {
+        state.SkipWithError(maybeBatch.status().message().c_str());
+        return;
+      }
       if (FLAGS_print_result) {
-        state.PauseTiming();
-        auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-        if (!maybeBatch.ok()) {
-          state.SkipWithError(maybeBatch.status().message().c_str());
-          return;
-        }
         std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
-        auto batch = maybeBatch.ValueOrDie();
-        state.ResumeTiming();
       }
-      if (FLAGS_write_file) {
-        state.PauseTiming();
-        auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-        if (!maybeBatch.ok()) {
-          state.SkipWithError(maybeBatch.status().message().c_str());
-          return;
-        }
+      if (!FLAGS_write_file.empty()) {
         writer.WriteInBatches(maybeBatch.ValueOrDie());
-        state.ResumeTiming();
       }
+      state.ResumeTiming();
     }
-    if (FLAGS_write_file) {
+    state.PauseTiming();
+    if (!FLAGS_write_file.empty()) {
       writer.closeWriter();
     }
+    state.ResumeTiming();
 
     collectBatchTime +=
         std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIteratorWrapper* iter) {
@@ -168,7 +164,7 @@ int main(int argc, char** argv) {
   } while (0)
 
   GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);
-  // GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
+  GENERIC_BENCHMARK("InputFromBatchStream", getInputFromBatchStream);
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();

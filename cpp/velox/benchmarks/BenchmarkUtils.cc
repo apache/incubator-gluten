@@ -77,9 +77,7 @@ void InitVeloxBackend() {
   auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(confMap);
 }
 
-arrow::Status ArrowWriter::initWriter(std::string path_to_file, arrow::Schema& schema) {
-  // #include "parquet/arrow/writer.h"
-  // #include "arrow/util/type_fwd.h"
+arrow::Status ArrowWriter::initWriter(std::string& path_to_file, arrow::Schema& schema) {
   using parquet::ArrowWriterProperties;
   using parquet::WriterProperties;
   // Choose compression
