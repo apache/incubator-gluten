@@ -43,7 +43,12 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
   override def supportCodegen: Boolean = false
 
   override def buildCheck(): Unit = {
+    // todo: ArrowInIterator -> ArrowOutIterator caused empty ColumnarBatch
     val schema = child.schema
+    if (schema.isEmpty) {
+      throw new UnsupportedOperationException(s"${child.toString()} has no field schema," +
+        s" so fall back to Vanilla Spark.")
+    }
     for (field <- schema.fields) {
       field.dataType match {
         case d: BooleanType =>
