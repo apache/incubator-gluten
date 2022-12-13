@@ -20,28 +20,27 @@ package io.glutenproject.expression
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.DataType
+import io.glutenproject.backendsapi.BackendsApiManager
 
 import scala.collection.mutable.ArrayBuffer
 import com.google.common.collect.Lists
+import io.glutenproject.GlutenConfig
 
-class CreateArrayTransformer(substraitExprName: String, children: Seq[ExpressionTransformer],
-  useStringTypeWhenEmpty: Boolean,
-  original: CreateArray)
-    extends ExpressionTransformer
-    with Logging {
+class CreateMapTransformer(substraitExprName: String, children: Seq[ExpressionTransformer],
+  useStringTypeWhenEmpty: Boolean, original: CreateMap)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // If children is empty,
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
-    if (useStringTypeWhenEmpty && children.isEmpty) {
-      throw new UnsupportedOperationException(s"${original} not supported yet.")
+    if (children.isEmpty && useStringTypeWhenEmpty) {
+      throw new UnsupportedOperationException(s"not supported yet.")
     }
 
     val childNodes = new java.util.ArrayList[ExpressionNode]()
@@ -59,33 +58,34 @@ class CreateArrayTransformer(substraitExprName: String, children: Seq[Expression
   }
 }
 
-class GetArrayItemTransformer(substraitExprName: String, left: ExpressionTransformer,
-  right: ExpressionTransformer, failOnError: Boolean, original: GetArrayItem)
-    extends ExpressionTransformer
-    with Logging {
+class GetMapValueTransformer(substraitExprName: String, child: ExpressionTransformer,
+  key: ExpressionTransformer, failOnError: Boolean, original: GetMapValue)
+  extends ExpressionTransformer
+  with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // Ignore failOnError for clickhouse backend
+    // ClickHouse backend doesn't support fail on error
+    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND) && failOnError) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    // Velox backend always fails on error
+    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
+      GlutenConfig.GLUTEN_VELOX_BACKEND) && !failOnError) {
+      throw new UnsupportedOperationException(s"not supported yet.")
+    }
+
+    val childNode = child.doTransform(args)
+    val keyNode = key.doTransform(args)
+
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val leftNode = left.doTransform(args)
-    var rightNode = right.doTransform(args)
-
-    // In Spark, the index of getarrayitem starts from 0
-    // But in CH and velox, the index of arrayElement starts from 1, besides index argument must
-    // So we need to do transform: rightNode = add(rightNode, 1)
-    val addFunctionName = ConverterUtils.makeFuncName(ExpressionMappings.ADD,
-      Seq(IntegerType, original.right.dataType), FunctionConfig.OPT)
-    val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, addFunctionName)
-    val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
-    rightNode = ExpressionBuilder.makeScalarFunction(addFunctionId,
-      Lists.newArrayList(literalNode, rightNode),
-      ConverterUtils.getTypeNode(original.right.dataType, original.right.nullable))
-
     val functionName = ConverterUtils.makeFuncName(substraitExprName,
-      Seq(original.left.dataType, original.right.dataType), FunctionConfig.OPT)
+      Seq(original.child.dataType, original.key.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val exprNodes = Lists.newArrayList(leftNode.asInstanceOf[ExpressionNode],
-      rightNode.asInstanceOf[ExpressionNode])
+    val exprNodes = Lists.newArrayList(
+      childNode.asInstanceOf[ExpressionNode],
+      keyNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
   }
