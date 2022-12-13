@@ -44,10 +44,6 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     case _ => false
   }
 
-  private def ignoreForceShuffleJoin(plan: LogicalPlan): Boolean = {
-    plan.getTagValue(TAG) == TransformHint.TRANSFORM_UNSUPPORTED
-  }
-
   def extractEqualJoinKeyCondition(
                                     joinType: JoinType,
                                     leftKeys: Seq[Expression],
@@ -56,8 +52,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
                                     left: LogicalPlan,
                                     right: LogicalPlan,
                                     hint: JoinHint,
-                                    forceShuffledHashJoin: Boolean,
-                                    ignoreForceSHJ: Boolean): Seq[SparkPlan] = {
+                                    forceShuffledHashJoin: Boolean): Seq[SparkPlan] = {
     if (isBroadcastStage(left) || isBroadcastStage(right)) {
       // equal condition
       val buildSide = if (isBroadcastStage(left)) BuildLeft else BuildRight
@@ -86,9 +81,9 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
             planLater(right)))
       }
 
-      if (!ignoreForceSHJ && forceShuffledHashJoin &&
-        !ignoreForceShuffleJoin(left)
-        && !ignoreForceShuffleJoin(right)) {
+      if (forceShuffledHashJoin &&
+        !left.getTagValue(TAG).isDefined &&
+        !right.getTagValue(TAG).isDefined) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
         val (leftBuildable, rightBuildable) = if (
@@ -173,11 +168,9 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     // Ignore forceShuffledHashJoin if exist multi continuous joins
-    var ignoreForceSHJ = false
     if (GlutenConfig.getSessionConf.enableLogicalJoinOptimize &&
       existsMultiJoins(plan)) {
       tagNotTransformableRecursive(plan)
-      ignoreForceSHJ = true
     }
     plan match {
       // If the build side of BHJ is already decided by AQE, we need to keep the build side.
@@ -191,8 +184,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
           left,
           right,
           hint,
-          GlutenConfig.getSessionConf.forceShuffledHashJoin,
-          ignoreForceSHJ)
+          GlutenConfig.getSessionConf.forceShuffledHashJoin)
       case _ => Nil
     }
   }
