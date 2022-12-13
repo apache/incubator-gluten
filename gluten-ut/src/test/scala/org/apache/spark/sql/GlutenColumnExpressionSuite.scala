@@ -20,6 +20,6 @@ package org.apache.spark.sql
 class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTestsTrait {
 
   override def testNameBlackList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
+    "assert_true", "raise_error"
   )
 }

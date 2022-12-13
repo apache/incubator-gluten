@@ -28,9 +28,10 @@ import io.glutenproject.utils.SystemParameters
 import org.apache.commons.io.FileUtils
 import org.junit.Assert
 import org.scalactic.source.Position
-import org.scalatest.{Assertions, Canceled, Tag}
+import org.scalatest.{Assertions, Tag}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
 import org.apache.spark.sql.execution.SQLExecution
@@ -84,6 +85,9 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.warehouse.dir", warehouse)
+      // Avoid static evaluation by spark catalyst.
+      .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
+          NullPropagation.ruleName)
 
     if (BackendsApiManager.getBackendName.equalsIgnoreCase(
       GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
