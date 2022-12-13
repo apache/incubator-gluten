@@ -151,7 +151,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // fallback to row operators if there are several continous joins
   val physicalJoinOptimizationThrottle: Integer =
     conf.getConfString("spark.gluten.sql.columnar.physicalJoinOptimizationLevel", "12").toInt
-  // spark.gluten.sql.enable.
+
   val enablePhysicalJoinOptimize: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false").toBoolean
 
