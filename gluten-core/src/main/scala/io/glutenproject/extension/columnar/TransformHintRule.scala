@@ -134,15 +134,17 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       return
     }
     try {
-      if (plan.output.isEmpty) {
-        // Gluten is not eligible to offload zero-column plan so far
-        TransformHints.tagNotTransformable(plan)
-        return
-      }
-      if (plan.children.exists(_.output.isEmpty)) {
-        // Gluten is also not eligible to offload plan within zero-column input so far
-        TransformHints.tagNotTransformable(plan)
-        return
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
+        if (plan.output.isEmpty) {
+          // Some backends are not eligible to offload zero-column plan so far
+          TransformHints.tagNotTransformable(plan)
+          return
+        }
+        if (plan.children.exists(_.output.isEmpty)) {
+          // Some backends are also not eligible to offload plan within zero-column input so far
+          TransformHints.tagNotTransformable(plan)
+          return
+        }
       }
       plan match {
         case plan: BatchScanExec =>

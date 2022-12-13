@@ -82,6 +82,8 @@ object VeloxBackendSettings extends BackendSettings {
         }
       }
   }
+
+  override def fallbackOnEmptySchema(): Boolean = true
   override def recreateJoinExecOnFallback(): Boolean = true
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
 

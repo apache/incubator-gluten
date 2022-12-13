@@ -37,6 +37,7 @@ trait BackendSettings {
     case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
     case _ => false
   }
+  def fallbackOnEmptySchema(): Boolean = false
   def recreateJoinExecOnFallback(): Boolean = false
   def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
   def utilizeShuffledHashJoinHint(): Boolean = false
