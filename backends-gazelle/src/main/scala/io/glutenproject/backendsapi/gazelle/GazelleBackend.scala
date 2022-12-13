@@ -39,6 +39,7 @@ object GazelleBackendSettings extends BackendSettings {
     case _ => false
   }
 
+  override def disableVanillaColumnarReaders(): Boolean = false
   override def fallbackOnEmptySchema(): Boolean = true
   override def supportColumnarShuffleExec(): Boolean = false
   override def avoidOverwritingFilterTransformer(): Boolean = true
