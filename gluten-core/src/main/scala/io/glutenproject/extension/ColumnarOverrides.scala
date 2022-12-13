@@ -295,6 +295,11 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
         LimitTransformer(child, 0L, plan.limit)
+      case plan: GenerateExec =>
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        var child = replaceWithTransformerPlan(plan.child)
+        GenerateExecTransformer(plan.generator, plan.requiredChildOutput,
+          plan.outer, plan.generatorOutput, child)
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)

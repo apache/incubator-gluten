@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+import io.glutenproject.substrait.`type`.ListNode
 
 class KnownFloatingPointNormalizedTransformer(
                                                child: ExpressionTransformer,
@@ -57,6 +58,26 @@ class NormalizeNaNAndZeroTransformer(
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     child.doTransform(args)
+  }
+}
+
+class ExplodeTransformer(substraitExprName: String, child: ExpressionTransformer, original: Explode)
+    extends ExpressionTransformer
+    with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val childNode: ExpressionNode = child.doTransform(args)
+
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
+
+    val expressionNodes = Lists.newArrayList(childNode)
+
+    val childTypeNode = ConverterUtils.getTypeNode(original.child.dataType, original.child.nullable)
+    val typeNode = childTypeNode.asInstanceOf[ListNode].getNestedType()
+
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
 

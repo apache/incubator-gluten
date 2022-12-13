@@ -40,6 +40,13 @@ object ExpressionConverter extends Logging {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     expr match {
+      case c: CreateArray =>
+        val children = c.children.map(child =>
+          replaceWithExpressionTransformer(child, attributeSeq))
+        new CreateArrayTransformer(substraitExprName.get, children, true, c)
+      case e: Explode =>
+        new ExplodeTransformer(substraitExprName.get,
+          replaceWithExpressionTransformer(e.child, attributeSeq), e)
       case a: Alias =>
         BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
           substraitExprName.get,

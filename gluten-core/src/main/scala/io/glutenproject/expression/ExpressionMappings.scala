@@ -144,6 +144,10 @@ object ExpressionMappings {
   final val MURMUR3HASH = "murmur3hash"
   final val MD5 = "md5"
 
+  // Array functions
+  final val SIZE = "size"
+  final val CREATE_ARRAY = "array"
+
   // Spark 3.3
   final val SPLIT_PART = "split_part"
 
@@ -156,6 +160,7 @@ object ExpressionMappings {
   final val IN = "in"
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
+  final val EXPLODE = "explode"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
@@ -267,6 +272,10 @@ object ExpressionMappings {
     // Hash functions
     Sig[Murmur3Hash](MURMUR3HASH),
     Sig[Md5](MD5),
+    // Array functions
+    Sig[Size](SIZE),
+    Sig[CreateArray](CREATE_ARRAY),
+    Sig[Explode](EXPLODE),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
