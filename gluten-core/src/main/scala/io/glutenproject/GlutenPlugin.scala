@@ -64,15 +64,17 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
       s"${GLUTEN_SESSION_EXTENSION_NAME}"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
-    // FIXME Hongze 22/12/06
-    //  BatchScan.scala in shim was not always loaded by class loader.
-    //  The file should be removed and the "ClassCastException" issue caused by
-    //  spark.sql.<format>.enableVectorizedReader=true should be fixed in another way.
-    //  Before the issue was fixed we force the use of vanilla row reader by using
-    //  the following statement.
-    conf.set("spark.sql.parquet.enableVectorizedReader", "false")
-    conf.set("spark.sql.orc.enableVectorizedReader", "false")
-    conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+    if (BackendsApiManager.getSettings.disableVanillaColumnarReaders()) {
+      // FIXME Hongze 22/12/06
+      //  BatchScan.scala in shim was not always loaded by class loader.
+      //  The file should be removed and the "ClassCastException" issue caused by
+      //  spark.sql.<format>.enableVectorizedReader=true should be fixed in another way.
+      //  Before the issue was fixed we force the use of vanilla row reader by using
+      //  the following statement.
+      conf.set("spark.sql.parquet.enableVectorizedReader", "false")
+      conf.set("spark.sql.orc.enableVectorizedReader", "false")
+      conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+    }
   }
 }
 
