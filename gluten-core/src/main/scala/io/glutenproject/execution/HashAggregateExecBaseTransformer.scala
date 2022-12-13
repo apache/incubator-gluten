@@ -125,6 +125,8 @@ abstract class HashAggregateExecBaseTransformer(
       sparkContext, "aggregation peak memory bytes"),
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of aggregation memory allocations"),
+    "flushRowCount" -> SQLMetrics.createMetric(
+      sparkContext, "number of aggregation flushed rows"),
 
     "extractionInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of extraction input rows"),
@@ -219,6 +221,7 @@ abstract class HashAggregateExecBaseTransformer(
   val aggWallNanos: SQLMetric = longMetric("aggWallNanos")
   val aggPeakMemoryBytes: SQLMetric = longMetric("aggPeakMemoryBytes")
   val aggNumMemoryAllocations: SQLMetric = longMetric("aggNumMemoryAllocations")
+  val flushRowCount: SQLMetric = longMetric("flushRowCount")
 
   val extractionInputRows: SQLMetric = longMetric("extractionInputRows")
   val extractionInputVectors: SQLMetric = longMetric("extractionInputVectors")
@@ -346,6 +349,7 @@ abstract class HashAggregateExecBaseTransformer(
     aggWallNanos += aggMetrics.wallNanos
     aggPeakMemoryBytes += aggMetrics.peakMemoryBytes
     aggNumMemoryAllocations += aggMetrics.numMemoryAllocations
+    flushRowCount += aggMetrics.flushRowCount
     idx += 1
 
     if (aggParams.preProjectionNeeded) {

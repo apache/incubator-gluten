@@ -411,6 +411,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     var numDynamicFiltersProduced: Long = 0
     var numDynamicFiltersAccepted: Long = 0
     var numReplacedWithDynamicFilterRows: Long = 0
+    var flushRowCount: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -422,6 +423,7 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       numDynamicFiltersProduced += metrics.numDynamicFiltersProduced
       numDynamicFiltersAccepted += metrics.numDynamicFiltersAccepted
       numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
+      flushRowCount += metrics.flushRowCount
     }
 
     new OperatorMetrics(
@@ -439,7 +441,8 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       numMemoryAllocations,
       numDynamicFiltersProduced,
       numDynamicFiltersAccepted,
-      numReplacedWithDynamicFilterRows
+      numReplacedWithDynamicFilterRows,
+      flushRowCount
     )
   }
 
