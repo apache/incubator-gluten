@@ -161,6 +161,8 @@ object ExpressionMappings {
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
   final val EXPLODE = "explode"
+  final val CHECK_OVERFLOW = "check_overflow"
+  final val PROMOTE_PRECISION = "promote_precision"
 
   // Directly use child expression transformer
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
@@ -287,7 +289,9 @@ object ExpressionMappings {
     Sig[CaseWhen](CASE_WHEN),
     Sig[In](IN),
     Sig[InSet](IN_SET),
-    Sig[ScalarSubquery](SCALAR_SUBQUERY)
+    Sig[ScalarSubquery](SCALAR_SUBQUERY),
+    Sig[CheckOverflow](CHECK_OVERFLOW),
+    Sig[PromotePrecision](PROMOTE_PRECISION)
   ) ++ SparkShimLoader.getSparkShims.expressionMappings
 
   /**
