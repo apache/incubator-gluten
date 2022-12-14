@@ -131,12 +131,6 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
       this
   }
 
-  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    // When Sort is the last child of a wholestage transformer, no need to update the output
-    // metrics manually here because updateNativeMetrics can already set the right metrics with
-    // Velox returning correct value in this case.
-  }
-
   def getRelWithProject(context: SubstraitContext,
                         sortOrder: Seq[SortOrder],
                         originalInputAttributes: Seq[Attribute],
