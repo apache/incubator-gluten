@@ -65,20 +65,33 @@ auto BM_Generic = [](::benchmark::State& state,
     backend->ParsePlan(plan->data(), plan->size());
     auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
     auto outputSchema = backend->GetOutputSchema();
-
+    ArrowWriter writer;
+    state.PauseTiming();
+    if (!FLAGS_write_file.empty()) {
+      writer.initWriter(FLAGS_write_file, *(outputSchema.get()));
+    }
+    state.ResumeTiming();
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
-      if (FLAGS_print_result) {
-        state.PauseTiming();
-        auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-        if (!maybeBatch.ok()) {
-          state.SkipWithError(maybeBatch.status().message().c_str());
-          return;
-        }
-        std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
-        state.ResumeTiming();
+      state.PauseTiming();
+      auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+      if (!maybeBatch.ok()) {
+        state.SkipWithError(maybeBatch.status().message().c_str());
+        return;
       }
+      if (FLAGS_print_result) {
+        std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
+      }
+      if (!FLAGS_write_file.empty()) {
+        writer.WriteInBatches(maybeBatch.ValueOrDie());
+      }
+      state.ResumeTiming();
     }
+    state.PauseTiming();
+    if (!FLAGS_write_file.empty()) {
+      writer.closeWriter();
+    }
+    state.ResumeTiming();
 
     collectBatchTime +=
         std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIteratorWrapper* iter) {

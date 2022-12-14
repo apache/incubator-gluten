@@ -71,12 +71,6 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
     }
   }
 
-  override def logForFailedTest(): Unit = {
-    logError("Test failed so abort")
-    // FIXME the code swallows exceptions. See https://github.com/oap-project/gluten/issues/676
-    System.exit(1)
-  }
-
   override def sparkConf: SparkConf = {
     // Native SQL configs
     val conf = super.sparkConf

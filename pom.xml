@@ -501,6 +501,7 @@
           <artifactId>scalatest-maven-plugin</artifactId>
           <version>${scalatest-maven-plugin.version}</version>
           <configuration>
+            <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
           </configuration>
           <executions>
