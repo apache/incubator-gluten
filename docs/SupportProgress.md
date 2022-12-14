@@ -4,39 +4,39 @@ Although the Gluten project is still in active development, we still have made b
 - The number of Functions supported is 94, and Velox supports 127 Functions.
 - The number of Functions commonly used by Spark is 240, and the total number for Spark3.3 is 387.
 
-Generally speaking, there are lots of work to do, but all 22 TPC-H queries can be offloaded to the native backend. the information
-is presented separately according to the type of backend. the detail information is as follows:
+Generally speaking, there are lots of work to do, but all 22 TPC-H queries can be offloaded to the native backend. The information
+is presented separately according to the type of backend. The detail information is as follows:
 
 ## Backend-Velox
 
 ### Operator support
 Support List
 - TableScan
-- Values
 - Project
 - Filter
-- Aggregate: HashAggregate or StreamingAggregate
+- Aggregate: HashAggregate
 - GroupId
-- HashJoin: HashProbe and HashBuild
 - OrderBy
 - Limit/Offset
-- TopN
+- MergeJoin
+- Unnest
 - Window
 
 Unsupported List
-- Unnest
-- MergeJoin
+- Values
+- TableWrite
+- HashJoin: HashProbe and HashBuild
 - CrossJoin
-- MergeJoin
+- TopN
 - PartitionedOutput
-- AssignUniqueId
+- StreamingAggregate
 - Exchange
 - MergeExchange
 - LocalMerge
 - LocalPartition and LocalExchange
-- TableWrite
 - PartitionedOutput
 - EnforceSingleRow
+- AssignUniqueId
 
 ### Function support
 Wait to add
