@@ -98,7 +98,7 @@ function(ADD_TEST_CASE TEST_NAME)
 
   add_executable(${TEST_NAME} ${SOURCES})
   target_link_libraries(${TEST_NAME} spark_columnar_jni gtest gtest_main Threads::Threads)
-  target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)
     target_link_libraries(${TEST_NAME} ${ARG_EXTRA_LINK_LIBS})
@@ -127,7 +127,7 @@ endif()
 # Subdirectories
 #
 
-add_subdirectory(src)
+add_subdirectory(core)
 
 if(BUILD_GAZELLE_CPP_BACKEND)
   add_subdirectory(gazelle-cpp)
