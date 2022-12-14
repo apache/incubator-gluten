@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/JkSelf/velox.git
+VELOX_BRANCH=add-smj-operator
 
 for arg in "$@"
 do
