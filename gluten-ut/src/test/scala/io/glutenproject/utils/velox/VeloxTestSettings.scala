@@ -75,6 +75,17 @@ object VeloxTestSettings extends BackendTestSettings {
       "replace nan with double"
     )
 
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
+    // overwritten
+    "DPP should not be rewritten as an existential join",
+    "no partition pruning when the build side is a stream",
+    "Make sure dynamic pruning works on uncorrelated queries",
+    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
+      "canonicalization and exchange reuse",
+    "Subquery reuse across the whole plan",
+    "static scan metrics"
+  )
+
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenIntervalFunctionsSuite]
