@@ -1,6 +1,8 @@
 ### Build parameters
 
-#### Parameters for buildbundle-veloxbe.sh setting via --
+<<<<<<< HEAD
+#### Parameters for buildbundle-veloxbe.sh
+Please set them via `--`, e.g. `--build_type=release`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
@@ -15,14 +17,16 @@
 | build_arrow_from_source   | pull the source code and build arrow lib| ON|
 | build_velox_from_source   | pull the source code and build velox lib| ON|
 
-#### Parameters for build_arrow_for_gazelle.sh setting via --
+#### Parameters for build_arrow_for_gazelle.sh
+Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | arrow_home | Arrow build path            | GLUTEN_DIR/ep/build-arrow/build|
 | build_type | ARROW build type            | release|   
 
-#### Parameters for build_arrow_for_velox.sh setting via --
+#### Parameters for build_arrow_for_velox.sh
+Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
@@ -30,7 +34,8 @@
 | build_type | ARROW build type                          | release|
 | build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
 
-#### Parameters for build_velox.sh setting via --
+#### Parameters for build_velox.sh
+Please setting via `--`, e.g., `--velox_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
@@ -40,7 +45,8 @@
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
 
-#### Parameters for compile.sh setting via --
+#### Parameters for compile.sh.
+Please set them via `--`, e.g., `--arrow_root=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
@@ -57,21 +63,22 @@
 | enable_s3   | build with s3 lib        | OFF|
 | enable_hdfs | build with hdfs lib      | OFF|
 
-#### To build different backends, there are 3 parameters can be set via -D with mvn 
+#### Maven building parameters
+To build different backends, there are 3 parameters can be set via `-P` for mvn.
 
-| Parameters                                            | Description                                                                                                                                                                         | Default Value                                       |
-|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
-| backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                                                                                                     | false                                              |
-| backends-gazelle                                        | Add -Pbackends-gazelle in maven command to compile the JVM part of Gazelle backend.                                                                                                     | false                                              |
-| backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.                                                                                           | false                                              |
+| Parameters               | Description                                                                                      | Activation state by default |
+|--------------------------|--------------------------------------------------------------------------------------------------|-----------------------------|
+| backends-velox           | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                  | disabled                    |
+| backends-gazelle         | Add -Pbackends-gazelle in maven command to compile the JVM part of Gazelle backend.              | disabled                    |
+| backends-clickhouse      | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.        | disabled                    |
 
-### Build jar
+### Gluten jar for deployment
 
-The gluten jar name pattern is gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar
+The gluten jar's name pattern is `gluten-spark<sparkbundle.version>_<scala.binary.version>-<version>-SNAPSHOT-jar-with-dependencies.jar`.
 
 | Spark Version | sparkbundle.version | scala.binary.version |
 | ---------- | ----------- | ------------- |
 | 3.2.2 | 3.2 | 2.12 |
 | 3.3.1 | 3.3 | 2.12 |
 
-Backend velox support both spark3.2.2 and spark3.3.1 while backend clickhouse support spark3.2.2
+The velox backend supports both spark-3.2.2 and spark-3.3.1 while the clickhouse backend only supports spark-3.2.2.
