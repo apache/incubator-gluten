@@ -93,9 +93,5 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateFunctionsSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
-    .exclude(
-      "primitive data type accesses in persist data",
-      "access cache multiple times",
-      "access only some column of the all of columns")
 
 }
