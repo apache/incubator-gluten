@@ -1,22 +1,22 @@
 # Gluten CPP Core Guidelines
 
-This is a set of CPP core guidelines for Gluten, The aim is to make the codebase
-simper, more efficient, more maintainable by promoting consistency and according
+This is a set of CPP core guidelines for Gluten. The aim is to make the codebase
+simpler, more efficient, more maintainable by promoting consistency and according
 to best practices.
 
 ## Philosophy
 
-Philosophical rules are generally not measurable. However, they are valuable. for 
+Philosophical rules are generally not measurable. However, they are valuable. For
 Gluten CPP coding, there are a few Philosophical rules as the following.
 
 * Write in ISO Standard C++.
 * Standard API first, the CPP programming APIs are priority to system calls.
-* Write code consistently. it's good for understanding and maintaining.
-* Keep simple, Make code clear and easy.
-* Optimize code for the reader, not the writer, more time will be spent reading
+* Write code consistently. It's good for understanding and maintaining.
+* Keep simple, making code clear and easy to read.
+* Optimize code for reader, not for writer. Thus, more time will be spent reading
 	code than writing it.
 * Make it work, and then make it better or faster.
-* Don't import any complexity if possible. collaborate with minimal knowledge
+* Don't import any complexity if possible. Collaborate with minimal knowledge
 	consensus.
 
 ## Code Formatting
@@ -24,27 +24,27 @@ Gluten CPP coding, there are a few Philosophical rules as the following.
 Many aspects of C++ coding style will be covered by clang-format, such as spacing,
 line width, indentation and ordering (for includes, using directives and etc). 
 
-* Always ensure your code is clang-format compatible.
-* `tools/formatcppcode.sh` is provided for formating CPP codes.
+* Always ensure your code is compatible with clang-format.
+* `tools/formatcppcode.sh` is provided for formating CPP code.
 
 ## Naming Conventions
 
-* Use **PascalCase** for types (classes, structs, enums, type aliases, type
-  template parameters) and file names.
-* Use **camelCase** for functions, member and local variables, and non-type
-  template parameters.
-* Use **camelCase_** for private and protected members variables.
-* Use **snake_case** for namespace names and build targets.
-* Use **UPPER_SNAKE_CASE** for macros.
-* Use **kPascalCase** for static constants and enumerators.
+* Use **PascalCase** for types (class, struct, enum, type alias, type
+  template parameter) and file name.
+* Use **camelCase** for function, member and local variable, and non-type
+  template parameter.
+* Use **camelCase_** for private and protected member variable.
+* Use **snake_case** for namespace name and build target.
+* Use **UPPER_SNAKE_CASE** for macro.
+* Use **kPascalCase** for static constant and enumerator.
 
-## Designs
+## Design
 * No over design.
 * No negation of negation, `isValid` is better than `isNotInvalid`.
 * Avoid corner case, and common case first.
 * Express ideas directly, don't let me think.
 
-## Files
+## Source File & Header File
 
 * All header files must have a single-inclusion guard using `#pragma once`
 * Always use `.h` as header file suffix, not `.hpp`.
@@ -65,7 +65,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
 	compiling.
 	* In one word, no more, no less, just as needed.
 
-## Classes
+## Class
 
 * Base class name do not end with Base, use `Backend` instead of `BackendBase`.
 * Ensure one class do one thing, follow the single responsibility principle.
@@ -81,7 +81,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * When you try to define a `copy constructor` or a `operator=` for a class, remember
 	the `Rule of three/five/zero`.
 
-## Functions
+## Function
 
 * Make functions short and simple.
 * Give the function a good name, how to check whether the function name is good
@@ -94,16 +94,16 @@ line width, indentation and ordering (for includes, using directives and etc). 
 	* do everything converd by the function name
 	* don't do anything not convered by the function name
 
-## Variables
+## Variable
 
 * Make variables name simple and meaningful.
-* Don't group all your variables at the top of the scope, it's a outdated habit.
+* Don't group all your variables at the top of the scope, it's an outdated habit.
 * Declare variables as close to the usage point as possible.
 
-## Constants
+## Constant
 * Prefer const variables to using preprocessor (`#define`) to define constant values.
 
-## Macros
+## Macro
 
 * Macros downgrade readability, break mind, and affect debug.
 * Macros have side effects.
@@ -112,56 +112,55 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * Consider defining macros with the wrap of `do {...} while (0)`
 * Avoid using 3rd party library macros directly.
 
-## Namespaces
+## Namespace
 
-* Don't `using namespace xxx` in header files, but do this in source files is 
-	acceptable, but it's not encouraged.
+* Don't `using namespace xxx` in header files. Instead, you can do this in source files.
+  But it's still not encouraged.
 * Place all Gluten CPP codes under `namespace gluten` because one level namespace
-	is enough, no nested namespace, too much level namespaces bring mess.
+	is enough. No nested namespace. Nested namespaces bring mess.
 * The anonymous namespace is recommended for defining file level classes, functions
-	and variables, it's used to replace file scoped static functions and variables.
+	and variables. It's used to place file scoped static functions and variables.
 
 ## Resource Management
 
 * Use handles and RAII to manage resources automatically.
 * Immediately give the result of an explicit resource allocation to a manager 
 	object.
-* Prefer scoped objects, Prefer stack objects.
+* Prefer scoped objects and prefer stack objects.
 * Use raw pointers to denote individual objects.
 * Use `pointer + size_t` to denote array objects if you don't want to use containers.
 * A raw pointer (a `T*`) is non-owning.
 * A raw reference (a `T&`) is non-owning.
 * Understand the difference of `unique_ptr`, `shared_ptr`, `weak_ptr`.
 	* `unique_ptr` represents ownership, but not share ownership. `unique_ptr` is
-		equivalent to RAII, release the resouce when the object is destructed.
-	* `shared_ptr` represents share ownership by use-count, it is more expensive 
+		equivalent to RAII, release the resource when the object is destructed.
+	* `shared_ptr` represents shared ownership by use-count. It is more expensive 
 		that `unqiue_ptr`.
-	* `weak_ptr` models temporary ownership, it is used to break reference cycles 
+	* `weak_ptr` models temporary ownership. It is useful in breaking reference cycles 
 		formed by objects managed by `shared_ptr`.
 * Use `unique_ptr` or `shared_ptr` to represent ownership.
 * Prefer `unique_ptr` over `shared_ptr` unless you need to share ownership.
 * Use `make_unique` to make `unique_ptr`s.
 * Use `make_shared` to make `shared_ptr`s.
-* Take smart pointers as parameters only to explicitly express lifetime semantics
+* Take smart pointers as parameters only to explicitly express lifetime semantics.
 * **For general use**, take `T*` or `T&` arguments rather than smart pointers.
 
-## Exceptions
+## Exception
 
-* The exception specifications are changing always, the difference between various CPP
-	standards is big, so Gluten use exception cautiously.
+* The exception specifications are changing always. The difference between various CPP
+	standards is big, so we should use exception cautiously in Gluten.
 * Prefer `return code` to throwing exceptions.
 * Prefer compile-time checking to run-time checking.
-* Encapsulate messy costructs, rather than spreading through the code.
+* Encapsulate messy constructors, rather than spreading through the code.
 
-## Comments
+## Code Comment
 
-* Add necessary comments, the comment is not the more the better, also not the
+* Add necessary comments. The comment is not the more the better, also not the
 	less the better.
-* The comment is used to express the writer's mind that couldn't be represented
-	as code, it's not encouraged to add obvious comments.
+* Good comment makes obscure code easily understood. It's unnecessary to add comments for
+    quite obvious code.
 
 ## References
 * [CppCoreGuidelines](https://github.com/fluz/CppCoreGuidelines)
 * [Velox CODING_STYLE](https://github.com/facebookincubator/velox/blob/main/CODING_STYLE.md)
-* thanks Gluten developers for your wise suggestions and helps
-
+* Thanks Gluten developers for their wise suggestions and helps.
