@@ -479,7 +479,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
     children.map(_.output).transpose.map { attrs =>
       val firstAttr = attrs.head
       val nullable = attrs.exists(_.nullable)
-      val newDt = attrs.map(_.dataType).reduce(StructTypeFWD.merge)
+      val newDt = attrs.map(_.dataType).reduce(StructTypeFWD.unionLikeMerge)
       if (firstAttr.dataType == newDt) {
         firstAttr.withNullability(nullable)
       } else {
@@ -514,7 +514,9 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  def doValidate(): Boolean = true
+  def doValidate(): Boolean = {
+    BackendsApiManager.getValidatorApiInstance.doValidateSchema(schema)
+  }
 }
 
 /** Contains functions for the comparision and separation of the filter conditions

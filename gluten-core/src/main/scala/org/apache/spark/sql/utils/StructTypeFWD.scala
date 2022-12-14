@@ -21,4 +21,7 @@ import org.apache.spark.sql.types._
 
 object StructTypeFWD {
   def merge(left: DataType, right: DataType): DataType = StructType.merge(left, right)
+
+  def unionLikeMerge(left: DataType, right: DataType): DataType =
+    StructType.unionLikeMerge(left, right)
 }

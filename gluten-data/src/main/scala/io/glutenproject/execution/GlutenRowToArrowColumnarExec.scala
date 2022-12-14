@@ -84,6 +84,18 @@ object RowToColumnConverter {
     }
   }
 
+  def supportSchema(schema: StructType): Boolean = {
+    try {
+      schema.fields.map {
+        f => RowToColumnConverter.getConverterForType(f.dataType, f.nullable)
+      }
+      true
+    } catch {
+      case _: UnsupportedOperationException => false
+      case e => throw e
+    }
+  }
+
   private abstract class TypeConverter extends Serializable {
     def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit
   }
