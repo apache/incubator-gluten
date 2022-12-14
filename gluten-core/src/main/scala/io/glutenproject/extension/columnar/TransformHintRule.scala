@@ -208,6 +208,18 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       return
     }
     try {
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
+        if (plan.output.isEmpty) {
+          // Some backends are not eligible to offload zero-column plan so far
+          TransformHints.tagNotTransformable(plan)
+          return
+        }
+        if (plan.children.exists(_.output.isEmpty)) {
+          // Some backends are also not eligible to offload plan within zero-column input so far
+          TransformHints.tagNotTransformable(plan)
+          return
+        }
+      }
       plan match {
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) {
@@ -232,8 +244,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.disableBucketedScan)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-        case _: InMemoryTableScanExec =>
-          false
+        case plan: InMemoryTableScanExec =>
+          // ColumnarInMemoryTableScanExec.scala appears to be out-of-date
+          //   and need some tests before being enabled.
+          TransformHints.tagNotTransformable(plan)
         case plan: ProjectExec =>
           if (!enableColumnarProject) {
             TransformHints.tagNotTransformable(plan)

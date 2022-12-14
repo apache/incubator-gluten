@@ -18,7 +18,6 @@ package io.glutenproject.backendsapi.gazelle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 
@@ -35,10 +34,13 @@ class GazelleBackend extends Backend {
 }
 
 object GazelleBackendSettings extends BackendSettings {
-  override def supportFileFormatRead(): FileFormat => Boolean = {
+  override def supportFileFormatRead: FileFormat => Boolean = {
     case _: ParquetFileFormat => true
     case _ => false
   }
+
+  override def disableVanillaColumnarReaders(): Boolean = true
+  override def fallbackOnEmptySchema(): Boolean = true
   override def supportColumnarShuffleExec(): Boolean = false
   override def avoidOverwritingFilterTransformer(): Boolean = true
   override def fallbackFilterWithoutConjunctiveScan(): Boolean = true
