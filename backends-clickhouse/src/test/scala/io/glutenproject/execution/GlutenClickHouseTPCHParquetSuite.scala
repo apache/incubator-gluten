@@ -425,6 +425,117 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(22) { df => }
   }
 
+  test("window row_number") {
+    val sql =
+      """
+        |select row_number() over (partition by n_regionkey order by n_nationkey) from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window sum 1") {
+    val sql =
+      """
+        |select sum(n_nationkey + 1) over (partition by n_regionkey order by n_nationkey)
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window sum 2") {
+    val sql =
+      """
+        |select sum(n_nationkey + 1) over (partition by n_regionkey order by n_name)
+        |from nation
+        |order by n_regionkey, n_name
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window max") {
+    val sql =
+      """
+        |select max(n_nationkey) over (partition by n_regionkey order by n_nationkey) from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window min") {
+    val sql =
+      """
+        |select min(n_nationkey) over (partition by n_regionkey order by n_nationkey) from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window avg") {
+    val sql =
+      """
+        |select avg(n_nationkey) over (partition by n_regionkey order by n_nationkey) from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window offset preceding") {
+    val sql =
+      """
+        |select avg(n_nationkey) over (partition by n_regionkey order by n_nationkey rows between 3
+        |preceding and current row) from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window offset following") {
+    val sql =
+      """
+        |select avg(n_nationkey) over (partition by n_regionkey order by n_nationkey rows between
+        |current row and 3 following) from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window range") {
+    val sql =
+      """
+        |select n_nationkey, n_name, n_regionkey,
+        |  sum(n_nationkey) over (partition by n_regionkey order by n_nationkey range
+        |  between unbounded preceding and current row) as n_sum
+        |from nation
+        |order by n_regionkey,n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("windows") {
+    val sql =
+      """
+        |select n_nationkey, n_name, n_regionkey,
+        | rank() over (partition by n_regionkey order by n_nationkey) as n_rank,
+        | sum(n_nationkey) over (partition by n_regionkey order by n_nationkey) as n_sum
+        |from nation
+        |order by n_regionkey,n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window rank") {
+    val sql =
+      """
+        |select n_nationkey, n_name, n_regionkey,
+        | rank() over (partition by n_regionkey order by n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey,n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   override protected def runTPCHQuery(
       queryNum: Int,
       tpchQueries: String = tpchQueries,
