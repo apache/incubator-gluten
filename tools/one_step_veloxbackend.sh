@@ -16,7 +16,6 @@ ENABLE_HBM=OFF
 BUILD_PROTOBUF=ON
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
-BUILD_FOLLY=ON
 BUILD_ARROW_FROM_SOURCE=ON
 BUILD_VELOX_FROM_SOURCE=ON
 ENABLE_EP_CACHE=OFF
@@ -55,10 +54,6 @@ do
         ENABLE_HDFS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --build_folly=*)
-        BUILD_FOLLY=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
         --build_arrow_from_source=*)
         BUILD_ARROW_FROM_SOURCE=("${arg#*=}")
         shift # Remove argument name from processing
@@ -91,7 +86,7 @@ cd $GLUTEN_DIR/ep/build-velox/src
 if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
   ./get_velox.sh
 fi
-./build_velox.sh --build_protobuf=$BUILD_PROTOBUF --build_folly=$BUILD_FOLLY --enable_s3=$ENABLE_S3 \
+./build_velox.sh --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 \
                  --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS  --build_type=$BUILD_TYPE \
                  --enable_ep_cache=$ENABLE_EP_CACHE
 
@@ -102,5 +97,7 @@ cd $GLUTEN_DIR/cpp
              --enable_hbm=$ENABLE_HBM --enable_s3=$ENABLE_S3 --enable_hdfs=$ENABLE_HDFS
 
 cd $GLUTEN_DIR
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pspark-3.3 -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+
 
