@@ -124,8 +124,9 @@ class WholeStageResIter {
   /// Collect Velox metrics.
   void collectMetrics();
 
-  /// Return the sum of one runtime metric.
-  int64_t sumOfRuntimeMetric(
+  /// Return a certain type of runtime metric. Supported metric types are: sum, count, min, max.
+  int64_t runtimeMetric(
+      const std::string& metricType,
       const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
       const std::string& metricId) const;
 
