@@ -76,7 +76,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     mappedMemory_ = std::make_shared<cache::AsyncDataCache>(allocator, memoryBytes, std::move(ssd));
 
     // register as default instance, will be used in parquet reader
-    memory::MappedMemory::setDefaultInstance(mappedMemory_.get());
+    memory::MemoryAllocator::setDefaultInstance(mappedMemory_.get());
     VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
     LOG(INFO) << "STARTUP: Using AsyncDataCache";
   }

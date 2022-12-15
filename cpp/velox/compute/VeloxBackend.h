@@ -41,7 +41,7 @@ class VeloxInitializer {
     return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
   }
   // Instance of AsyncDataCache used for all large allocations.
-  std::shared_ptr<facebook::velox::memory::MappedMemory> mappedMemory_;
+  std::shared_ptr<facebook::velox::memory::MemoryAllocator> mappedMemory_;
   std::unique_ptr<folly::IOThreadPoolExecutor> cacheExecutor_;
 };
 
