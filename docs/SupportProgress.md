@@ -1,8 +1,9 @@
 # The Operators and Functions Support Progress
 Although the Gluten project is still in active development, we still have made big progress on Operators and Functions support.
-- The number of Operators supported is 12, the most common Operators are covered.
-- The number of Functions supported is 94, and Velox supports 127 Functions.
-- The number of Functions commonly used by Spark is 240, and the total number for Spark3.3 is 387.
+
+The total supported functions' number for [Spark3.3 is 387](https://spark.apache.org/docs/latest/api/sql/) and for [Velox is 204](https://facebookincubator.github.io/velox/functions/coverage.html). 
+Gluten supported frequently used 94, in which offloaded 62 is implemented in velox/spark and 32 in velox/presto, shown as below picture.
+![support](./docs/image/support.png)
 
 Generally speaking, there are lots of work to do, but all 22 TPC-H queries can be offloaded to the native backend. The information
 is presented separately according to the type of backend. The detail information is as follows:
@@ -20,7 +21,6 @@ Support List
 - OrderBy
 - Limit/Offset
 - MergeJoin
-- Unnest
 - Window
 
 Unsupported List
@@ -37,6 +37,7 @@ Unsupported List
 - PartitionedOutput
 - EnforceSingleRow
 - AssignUniqueId
+- Unnest
 
 ### Function support
 Wait to add
