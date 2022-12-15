@@ -147,6 +147,11 @@ object ExpressionMappings {
   // Array functions
   final val SIZE = "size"
   final val CREATE_ARRAY = "array"
+  final val GET_ARRAY_ITEM = "get_array_item"
+
+  // Map functions
+  final val CREATE_MAP = "map"
+  final val GET_MAP_VALUE = "get_map_value"
 
   // Spark 3.3
   final val SPLIT_PART = "split_part"
@@ -278,6 +283,10 @@ object ExpressionMappings {
     Sig[Size](SIZE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[GetArrayItem](GET_ARRAY_ITEM),
+    // Map functions
+    Sig[CreateMap](CREATE_MAP),
+    Sig[GetMapValue](GET_MAP_VALUE),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),

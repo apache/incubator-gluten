@@ -44,6 +44,24 @@ object ExpressionConverter extends Logging {
         val children = c.children.map(child =>
           replaceWithExpressionTransformer(child, attributeSeq))
         new CreateArrayTransformer(substraitExprName.get, children, true, c)
+      case g: GetArrayItem =>
+        new GetArrayItemTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(g.left, attributeSeq),
+          replaceWithExpressionTransformer(g.right, attributeSeq),
+          g.failOnError,
+          g)
+      case c: CreateMap =>
+        val children = c.children.map(child =>
+          replaceWithExpressionTransformer(child, attributeSeq))
+        new CreateMapTransformer(substraitExprName.get, children, c.useStringTypeWhenEmpty, c)
+      case g: GetMapValue =>
+        new GetMapValueTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(g.child, attributeSeq),
+          replaceWithExpressionTransformer(g.key, attributeSeq),
+          g.failOnError,
+          g)
       case e: Explode =>
         new ExplodeTransformer(substraitExprName.get,
           replaceWithExpressionTransformer(e.child, attributeSeq), e)

@@ -19,7 +19,7 @@ package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.GlutenArithmeticExpressionSuite
+import org.apache.spark.sql.catalyst.expressions._
 
 object ClickHouseTestSettings extends BackendTestSettings {
 
@@ -104,7 +104,7 @@ object ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenComplexTypesSuite]
-
+  enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
       "- (UnaryMinus)",
