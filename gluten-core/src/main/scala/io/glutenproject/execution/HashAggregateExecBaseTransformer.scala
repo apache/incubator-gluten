@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
@@ -407,11 +408,19 @@ abstract class HashAggregateExecBaseTransformer(
 
   override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
 
+  private def checkType(dataType: DataType): Boolean = {
+      dataType match {
+        case BooleanType | ByteType | ShortType | ShortType | IntegerType | LongType | FloatType
+         | DoubleType | StringType | TimestampType | DateType | BinaryType => true
+        case _ => logInfo(s"Type ${dataType} not support"); false
+      }
+  }
+
   override def doValidate(): Boolean = {
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
     val aggParams = new AggregationParams
-    val relNode =
+    val relNode = {
       try {
         getAggRel(substraitContext, operatorId, aggParams, null, validation = true)
       } catch {
@@ -419,6 +428,13 @@ abstract class HashAggregateExecBaseTransformer(
           logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
           return false
       }
+    }
+    if (aggregateAttributes.exists(attr => !checkType(attr.dataType))) {
+      return false
+    }
+    if (groupingExpressions.exists(attr => !checkType(attr.dataType))) {
+      return false
+    }
     val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {

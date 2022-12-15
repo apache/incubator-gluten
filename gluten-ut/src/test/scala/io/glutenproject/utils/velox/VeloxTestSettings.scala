@@ -29,12 +29,6 @@ object VeloxTestSettings extends BackendTestSettings {
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
       "rollup overlapping columns", // wait velox to fix
       "cube overlapping columns", // wait velox to fix
-      // Type YearMonthIntervalType(0,1) not supported
-      "SPARK-34716: Support ANSI SQL intervals by the aggregate function `sum`",
-      "SPARK-34837: Support ANSI SQL intervals by the aggregate function `avg`",
-      // numCols=0, empty intermediate batch
-      "count",
-      "SPARK-38185: Fix data incorrect if aggregate function is empty",
       // incorrect result, distinct NaN case
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       "SPARK-32136: NormalizeFloatingNumbers should work on null struct" // integer overflow
