@@ -227,25 +227,15 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
           case shj: HashJoinLikeExecTransformer =>
             transformChildren(shj.streamedPlan, basicScanExecTransformers)
             transformChildren(shj.buildPlan, basicScanExecTransformers)
-          case _ =>
-            plan
-              .asInstanceOf[TransformSupport]
-              .children
+          case t: TransformSupport =>
+            t.children
               .foreach(transformChildren(_, basicScanExecTransformers))
         }
       }
     }
 
     transformChildren(child, basicScanExecTransformers)
-    basicScanExecTransformers.toSeq.map(
-      scan => {
-        scan match {
-          case op: BatchScanExecTransformer =>
-            op.asInstanceOf[BatchScanExecTransformer]
-          case op: FileSourceScanExecTransformer =>
-            op.asInstanceOf[FileSourceScanExecTransformer]
-        }
-      })
+    basicScanExecTransformers.toSeq
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
