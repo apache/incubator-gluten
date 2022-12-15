@@ -71,6 +71,7 @@ object VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
   enableSuite[GlutenDateExpressionsSuite]
