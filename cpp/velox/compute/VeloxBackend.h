@@ -148,7 +148,7 @@ class WholeStageResIter {
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxBackend : public Backend {
  public:
-  VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
+  VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {}
 
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
@@ -214,8 +214,6 @@ class VeloxBackend : public Backend {
   class WholeStageResIterMiddleStage;
 
   int planNodeId_ = 0;
-
-  std::unordered_map<std::string, std::string> confMap_;
 
   std::vector<std::shared_ptr<ResultIterator>> arrowInputIters_;
 

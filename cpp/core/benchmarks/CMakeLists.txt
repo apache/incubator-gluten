@@ -17,7 +17,7 @@
 
 macro(package_add_gbenchmark TESTNAME)
   add_executable(${TESTNAME} ${ARGN})
-  target_link_libraries(${TESTNAME} benchmark::benchmark spark_columnar_jni Arrow::parquet ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(${TESTNAME} benchmark::benchmark spark_columnar_jni ${CMAKE_THREAD_LIBS_INIT})
   target_include_directories(${TESTNAME} PUBLIC ${source_root_directory})
   set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 endmacro()
