@@ -18,9 +18,9 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.substrait.plan.PlanNode
-
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
+import org.apache.spark.sql.types.StructType
 
 /**
  * Determine if a plan or expression can be accepted by the backend, or we fallback
@@ -48,4 +48,13 @@ trait IValidatorApi {
       func: AggregateFunction): Boolean = true
 
   def doValidate(plan: PlanNode): Boolean
+
+  /**
+   * Validate the input schema.
+   * Transformers like UnionExecTransformer that do not generate Substrait plan
+   * need to validate the input schema and fall back if there are any unsupported types.
+   *
+   * @return true by default
+   */
+  def doValidateSchema(schema: StructType): Boolean = true
 }

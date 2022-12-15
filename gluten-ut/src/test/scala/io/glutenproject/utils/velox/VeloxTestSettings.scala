@@ -93,5 +93,6 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateFunctionsSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
+  enableSuite[GlutenDataFrameSetOperationsSuite]
 
 }

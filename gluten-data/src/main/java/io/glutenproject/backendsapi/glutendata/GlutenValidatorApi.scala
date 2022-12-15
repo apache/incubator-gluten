@@ -18,12 +18,13 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.IValidatorApi
+import io.glutenproject.execution.RowToColumnConverter
 import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.GlutenExpressionUtil
 import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
-
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
+import org.apache.spark.sql.types.StructType
 
 abstract class GlutenValidatorApi extends IValidatorApi {
 
@@ -66,5 +67,9 @@ abstract class GlutenValidatorApi extends IValidatorApi {
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new GlutenNativeExpressionEvaluator()
     validator.doValidate(plan.toProtobuf.toByteArray)
+  }
+
+  override def doValidateSchema(schema: StructType): Boolean = {
+    RowToColumnConverter.supportSchema(schema)
   }
 }
