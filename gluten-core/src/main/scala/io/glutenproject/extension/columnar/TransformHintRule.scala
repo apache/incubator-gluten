@@ -21,20 +21,20 @@ import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
 import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
 import io.glutenproject.extension.columnar.TransformHint.TransformHint
+import org.apache.spark.sql.SparkSession
 
 object TransformHint extends Enumeration {
   type TransformHint = Value
@@ -86,6 +86,79 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
   }
 }
 
+case class FallbackMultiCodegens() extends Rule[SparkPlan] {
+  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
+  val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
+
+  def existsMultiCodegens(plan: SparkPlan, count: Int = 0): Boolean =
+    plan match {
+      case plan: CodegenSupport if plan.supportCodegen =>
+        if ((count + 1) >= optimizeLevel) return true
+        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
+      case plan: ShuffledHashJoinExec =>
+        if ((count + 1) >= optimizeLevel) return true
+        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
+      case other => false
+    }
+
+  def tagNotTransformable(plan: SparkPlan): SparkPlan = {
+    TransformHints.tagNotTransformable(plan)
+    plan
+  }
+
+  def supportCodegen(plan: SparkPlan): Boolean = plan match {
+    case plan: CodegenSupport =>
+      plan.supportCodegen
+    case _ => false
+  }
+
+  def isAQEShuffleReadExec(plan: SparkPlan): Boolean = {
+    plan match {
+      case _: AQEShuffleReadExec => true
+      case _ => false
+    }
+  }
+
+  def insertRowGuardRecursive(plan: SparkPlan): SparkPlan = {
+    plan match {
+      case p: ShuffleExchangeExec =>
+        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
+      case p: BroadcastExchangeExec =>
+        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardOrNot)))
+      case p: ShuffledHashJoinExec =>
+        tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
+      case p if !supportCodegen(p) =>
+        // insert row guard them recursively
+        p.withNewChildren(p.children.map(insertRowGuardOrNot))
+      case p if isAQEShuffleReadExec(p) =>
+        p.withNewChildren(p.children.map(insertRowGuardOrNot))
+      case p: BroadcastQueryStageExec =>
+        p
+      case p => tagNotTransformable(p.withNewChildren(p.children.map(insertRowGuardRecursive)))
+    }
+  }
+
+  def insertRowGuardOrNot(plan: SparkPlan): SparkPlan = {
+    plan match {
+      // For operators that will output domain object, do not insert WholeStageCodegen for it as
+      // domain object can not be written into unsafe row.
+      case plan if existsMultiCodegens(plan) =>
+        insertRowGuardRecursive(plan)
+      case p: BroadcastQueryStageExec =>
+        p
+      case other =>
+        other.withNewChildren(other.children.map(insertRowGuardOrNot))
+    }
+  }
+
+  override def apply(plan: SparkPlan): SparkPlan = {
+    if (physicalJoinOptimize) {
+      insertRowGuardOrNot(plan)
+    } else plan
+  }
+}
+
 // This rule will try to convert a plan into plan transformer.
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
@@ -93,7 +166,7 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
 case class AddTransformHintRule() extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   val preferColumnar: Boolean = columnarConf.enablePreferColumnar
-  val optimizeLevel: Integer = columnarConf.joinOptimizationThrottle
+  val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
   val enableColumnarShuffle: Boolean = BackendsApiManager.getSettings.supportColumnarShuffleExec()
   val enableColumnarSort: Boolean = columnarConf.enableColumnarSort
   val enableColumnarWindow: Boolean = columnarConf.enableColumnarWindow
@@ -135,6 +208,18 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       return
     }
     try {
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
+        if (plan.output.isEmpty) {
+          // Some backends are not eligible to offload zero-column plan so far
+          TransformHints.tagNotTransformable(plan)
+          return
+        }
+        if (plan.children.exists(_.output.isEmpty)) {
+          // Some backends are also not eligible to offload plan within zero-column input so far
+          TransformHints.tagNotTransformable(plan)
+          return
+        }
+      }
       plan match {
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) {
@@ -159,8 +244,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.disableBucketedScan)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
-        case _: InMemoryTableScanExec =>
-          false
+        case plan: InMemoryTableScanExec =>
+          // ColumnarInMemoryTableScanExec.scala appears to be out-of-date
+          //   and need some tests before being enabled.
+          TransformHints.tagNotTransformable(plan)
         case plan: ProjectExec =>
           if (!enableColumnarProject) {
             TransformHints.tagNotTransformable(plan)

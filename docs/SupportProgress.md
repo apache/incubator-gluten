@@ -15,6 +15,7 @@ Support List
 - Project
 - Filter
 - Aggregate: HashAggregate
+- HashJoin: HashProbe and HashBuild
 - GroupId
 - OrderBy
 - Limit/Offset
@@ -25,7 +26,6 @@ Support List
 Unsupported List
 - Values
 - TableWrite
-- HashJoin: HashProbe and HashBuild
 - CrossJoin
 - TopN
 - PartitionedOutput

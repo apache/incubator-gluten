@@ -19,16 +19,17 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-
+import io.glutenproject.extension.columnar.{TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.TransformHints.TAG
 import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical.{JoinHint, LogicalPlan, SHUFFLE_MERGE}
-import org.apache.spark.sql.execution.{joins, JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan, Project, SHUFFLE_MERGE}
+import org.apache.spark.sql.execution.{joins, CodegenSupport, JoinSelectionShim, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
-import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
@@ -80,7 +81,9 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
             planLater(right)))
       }
 
-      if (forceShuffledHashJoin) {
+      if (forceShuffledHashJoin &&
+        !left.getTagValue(TAG).isDefined &&
+        !right.getTagValue(TAG).isDefined) {
         // Force use of ShuffledHashJoin in preference to SortMergeJoin. With no respect to
         // conf setting "spark.sql.join.preferSortMergeJoin".
         val (leftBuildable, rightBuildable) = if (
@@ -142,7 +145,40 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(joinType)
   }
 
+  def existsMultiJoins(plan: LogicalPlan, count: Int = 0): Boolean = {
+    plan match {
+      case plan: Join =>
+        if ((count + 1) >= GlutenConfig.getSessionConf.logicalJoinOptimizationThrottle) return true
+        plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
+      case plan: Project =>
+        if ((count + 1) >= GlutenConfig.getSessionConf.logicalJoinOptimizationThrottle) return true
+        plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
+      case other => false
+    }
+  }
+
+  def tagNotTransformable(plan: LogicalPlan): LogicalPlan = {
+    plan.setTagValue(TAG, TransformHint.TRANSFORM_UNSUPPORTED)
+    plan
+  }
+
+  def tagNotTransformableRecursive(plan: LogicalPlan): LogicalPlan = {
+    tagNotTransformable(plan.withNewChildren(plan.children.map(tagNotTransformableRecursive)))
+  }
+
+  def existLeftOuterJoin(plan: LogicalPlan): Boolean = {
+    plan.collect {
+      case join: Join if join.joinType.sql.equals("LEFT OUTER") =>
+        return true
+    }.size > 0
+  }
+
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+    // Ignore forceShuffledHashJoin if exist multi continuous joins
+    if (GlutenConfig.getSessionConf.enableLogicalJoinOptimize &&
+      existsMultiJoins(plan) && existLeftOuterJoin(plan)) {
+      tagNotTransformableRecursive(plan)
+    }
     plan match {
       // If the build side of BHJ is already decided by AQE, we need to keep the build side.
       case JoinSelectionShim.ExtractEquiJoinKeysShim(
@@ -155,7 +191,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
           left,
           right,
           hint,
-          GlutenConfig.getConf.forceShuffledHashJoin)
+          GlutenConfig.getSessionConf.forceShuffledHashJoin)
       case _ => Nil
     }
   }

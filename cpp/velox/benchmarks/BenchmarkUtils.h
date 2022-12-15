@@ -23,6 +23,7 @@
 #include <parquet/arrow/reader.h>
 #include <velox/common/memory/Memory.h>
 #include <velox/substrait/SubstraitToVeloxPlan.h>
+#include "parquet/arrow/writer.h"
 
 #include <thread>
 #include <utility>
@@ -32,6 +33,7 @@
 #include "velox/common/memory/Memory.h"
 
 DECLARE_bool(print_result);
+DECLARE_string(write_file);
 DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
@@ -139,6 +141,18 @@ class BatchStreamIterator : public BatchIteratorWrapper {
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
     return std::make_shared<gluten::ArrowColumnarBatch>(batch);
   }
+};
+
+class ArrowWriter {
+ public:
+  arrow::Status initWriter(std::string& path_to_file, arrow::Schema& schema);
+
+  arrow::Status WriteInBatches(std::shared_ptr<arrow::RecordBatch> batch);
+
+  arrow::Status closeWriter();
+
+ private:
+  std::unique_ptr<parquet::arrow::FileWriter> writer_;
 };
 
 std::shared_ptr<gluten::ResultIterator> getInputFromBatchVector(const std::string& path);

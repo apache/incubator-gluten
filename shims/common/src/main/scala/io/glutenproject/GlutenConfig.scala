@@ -149,8 +149,17 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString(GlutenConfig.GLUTEN_LIB_PATH, "")
 
   // fallback to row operators if there are several continous joins
-  val joinOptimizationThrottle: Integer =
-    conf.getConfString("spark.gluten.sql.columnar.joinOptimizationLevel", "12").toInt
+  val physicalJoinOptimizationThrottle: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.physicalJoinOptimizationLevel", "12").toInt
+
+  val enablePhysicalJoinOptimize: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false").toBoolean
+
+  val logicalJoinOptimizationThrottle: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.logicalJoinOptimizationLevel", "12").toInt
+
+  val enableLogicalJoinOptimize: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.logicalJoinOptimizeEnable", "false").toBoolean
 
   val batchSize: Int =
     conf.getConfString(GlutenConfig.SPARK_BATCH_SIZE, "32768").toInt
