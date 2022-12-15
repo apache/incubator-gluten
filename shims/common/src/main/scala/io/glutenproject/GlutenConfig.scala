@@ -205,7 +205,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // The total cache size
   val veloxCacheSize: Long =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheSize", "134217728").toLong
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheSize", "1073741824").toLong
 
   // The cache shards
   val veloxCacheShards: Integer =
