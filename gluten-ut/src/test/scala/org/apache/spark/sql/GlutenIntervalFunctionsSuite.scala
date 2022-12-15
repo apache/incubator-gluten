@@ -19,7 +19,4 @@ package org.apache.spark.sql
 
 class GlutenIntervalFunctionsSuite extends IntervalFunctionsSuite with GlutenSQLTestsTrait {
 
-  override def testNameBlackList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
 }
