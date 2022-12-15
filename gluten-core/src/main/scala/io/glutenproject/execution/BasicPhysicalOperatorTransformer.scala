@@ -360,12 +360,6 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       this
   }
 
-  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    // When Project is the last child of a wholestage transformer, no need to update the output
-    // metrics manually here because updateNativeMetrics can already set the right metrics with
-    // Velox returning correct value in this case.
-  }
-
   override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
     if (operatorMetrics != null) {
       inputRows += operatorMetrics.inputRows
