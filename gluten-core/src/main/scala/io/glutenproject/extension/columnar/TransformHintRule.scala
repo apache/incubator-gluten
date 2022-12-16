@@ -77,6 +77,14 @@ object TransformHints {
   }
 }
 
+// Holds rules which have higher privilege to tag (not) transformable before AddTransformHintRule.
+object TagBeforeTransformHits {
+  val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
+    List((_: SparkSession) => FallbackOneRowRelation(),
+      (_: SparkSession) => FallbackMultiCodegens())
+  }
+}
+
 case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case agg @ HashAggregateExec(_, _, _, _, _, _, _, _, child: ExpandExec) =>
@@ -87,9 +95,9 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
 }
 
 case class FallbackMultiCodegens() extends Rule[SparkPlan] {
-  val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
-  val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
-  val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
+  lazy val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
+  lazy val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
+  lazy val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
 
   def existsMultiCodegens(plan: SparkPlan, count: Int = 0): Boolean =
     plan match {
@@ -156,6 +164,20 @@ case class FallbackMultiCodegens() extends Rule[SparkPlan] {
     if (physicalJoinOptimize) {
       insertRowGuardOrNot(plan)
     } else plan
+  }
+}
+
+case class FallbackOneRowRelation() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    val hasOneRowRelation =
+      plan.find(_.isInstanceOf[RDDScanExec]) match {
+        case Some(scan: RDDScanExec) => scan.name.equals("OneRowRelation")
+        case _ => false
+      }
+    if (hasOneRowRelation) {
+      plan.foreach(TransformHints.tagNotTransformable)
+    }
+    plan
   }
 }
 
