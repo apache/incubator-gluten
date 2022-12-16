@@ -18,17 +18,4 @@
 package org.apache.spark.sql
 
 class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
-
-  override def testNameBlackList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL,
-    "SPARK-28441: COUNT bug in WHERE clause (Filter) with PythonUDF",
-    "SPARK-28441: COUNT bug in SELECT clause (Project) with PythonUDF",
-    "SPARK-28441: COUNT bug in Aggregate with PythonUDF",
-    "SPARK-28441: COUNT bug negative examples with PythonUDF",
-    "SPARK-28441: COUNT bug in nested subquery with PythonUDF",
-    "SPARK-28441: COUNT bug with nasty predicate expr with PythonUDF",
-    "SPARK-28441: COUNT bug in HAVING clause (Filter) with PythonUDF",
-    "SPARK-28441: COUNT bug with attribute ref in subquery input and output with PythonUDF",
-    "SPARK-35080: correlated equality predicates contain only outer references"
-  )
 }

@@ -95,5 +95,7 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
+  enableSuite[GlutenSubquerySuite]
+    .include("SPARK-27279: Reuse Subquery", "Subquery reuse across the whole plan")
 
 }
