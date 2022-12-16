@@ -341,10 +341,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("test 'function rand'") {
-    val df = runQueryAndCompare(
-      "select rand(), rand(1), rand(null) from range(10)"
-    )(checkOperatorMatch[ProjectExecTransformer])
-    checkLengthAndPlan(df, 10)
+    runSql("select rand(), rand(1), rand(null) from range(10)")(
+      checkOperatorMatch[ProjectExecTransformer])
   }
 
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
