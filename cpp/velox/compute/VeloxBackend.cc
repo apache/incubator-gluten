@@ -341,11 +341,6 @@ void VeloxBackend::getInfoAndIds(
   }
 }
 
-std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(MemoryAllocator* allocator) {
-  std::vector<std::shared_ptr<ResultIterator>> inputs = {};
-  return GetResultIterator(allocator, inputs);
-}
-
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
     std::vector<std::shared_ptr<ResultIterator>> inputs) {

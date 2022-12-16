@@ -150,11 +150,9 @@ class VeloxBackend : public Backend {
  public:
   VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
 
-  std::shared_ptr<ResultIterator> GetResultIterator(MemoryAllocator* allocator) override;
-
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs) override;
+      std::vector<std::shared_ptr<ResultIterator>> inputs = {}) override;
 
   // Used by unit test and benchmark.
   std::shared_ptr<ResultIterator> GetResultIterator(

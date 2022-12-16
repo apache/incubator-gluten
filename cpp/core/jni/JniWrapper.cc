@@ -167,7 +167,7 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
 
 class JavaArrowArrayIterator {
  public:
-  explicit JavaArrowArrayIterator(JNIEnv* env, jobject java_serialized_arrow_array_iterator) {
+  JavaArrowArrayIterator(JNIEnv* env, jobject java_serialized_arrow_array_iterator) {
     // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
     if (env->GetJavaVM(&vm_) != JNI_OK) {
       std::string error_message = "Unable to get JavaVM instance";
@@ -177,8 +177,10 @@ class JavaArrowArrayIterator {
   }
 
   // singleton, avoid stack instantiation
-  JavaArrowArrayIterator(const JavaArrowArrayIterator& itr) = delete;
-  JavaArrowArrayIterator(JavaArrowArrayIterator&& itr) = delete;
+  JavaArrowArrayIterator(const JavaArrowArrayIterator&) = delete;
+  JavaArrowArrayIterator(JavaArrowArrayIterator&&) = delete;
+  JavaArrowArrayIterator& operator=(const JavaArrowArrayIterator&) = delete;
+  JavaArrowArrayIterator& operator=(JavaArrowArrayIterator&&) = delete;
 
   virtual ~JavaArrowArrayIterator() {
     JNIEnv* env;
@@ -369,21 +371,14 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<ResultIterator>> input_iters;
-  if (iters_len > 0) {
-    for (int idx = 0; idx < iters_len; idx++) {
-      jobject iter = env->GetObjectArrayElement(iter_arr, idx);
-      auto array_iter = MakeJavaArrowArrayIterator(env, iter);
-      auto result_iter = std::make_shared<ResultIterator>(std::move(array_iter));
-      input_iters.push_back(std::move(result_iter));
-    }
+  for (int idx = 0; idx < iters_len; idx++) {
+    jobject iter = env->GetObjectArrayElement(iter_arr, idx);
+    auto array_iter = MakeJavaArrowArrayIterator(env, iter);
+    auto result_iter = std::make_shared<ResultIterator>(std::move(array_iter));
+    input_iters.push_back(std::move(result_iter));
   }
 
-  std::shared_ptr<ResultIterator> res_iter;
-  if (input_iters.empty()) {
-    res_iter = backend->GetResultIterator(allocator);
-  } else {
-    res_iter = backend->GetResultIterator(allocator, input_iters);
-  }
+  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, input_iters);
   return result_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
 }

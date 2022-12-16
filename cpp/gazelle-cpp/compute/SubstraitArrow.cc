@@ -47,10 +47,6 @@ ArrowBackend::~ArrowBackend() {
 #endif
 }
 
-std::shared_ptr<gluten::ResultIterator> ArrowBackend::GetResultIterator(gluten::MemoryAllocator* allocator) {
-  return GetResultIterator(allocator, {});
-}
-
 std::shared_ptr<gluten::ResultIterator> ArrowBackend::GetResultIterator(
     gluten::MemoryAllocator* allocator,
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputs) {
