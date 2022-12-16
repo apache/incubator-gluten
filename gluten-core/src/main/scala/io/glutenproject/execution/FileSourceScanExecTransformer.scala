@@ -18,21 +18,22 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable.HashMap
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution.FileSourceScanExecTransformer.isDynamicPruningFilter
 import io.glutenproject.vectorized.OperatorMetrics
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLExecution, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
+
+import java.util.concurrent.TimeUnit.NANOSECONDS
 
 class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
                                     output: Seq[Attribute],
@@ -194,7 +195,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       metrics.filter(e => driverMetrics.contains(e._1)).values.toSeq)
   }
 
-  def setFilesNumAndSizeMetric(partitions: Seq[PartitionDirectory]): Unit = {
+  private def setFilesNumAndSizeMetric(partitions: Seq[PartitionDirectory]): Unit = {
     val filesNum = partitions.map(_.files.size.toLong).sum
     val filesSizeSum = partitions.map(_.files.map(_.getLen).sum).sum
     driverMetrics("numFiles") = filesNum
@@ -204,14 +205,26 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     }
   }
 
+  @transient override lazy val selectedPartitions: Array[PartitionDirectory] = {
+    val optimizerMetadataTimeNs = relation.location.metadataOpsTimeNs.getOrElse(0L)
+    val startTime = System.nanoTime()
+    val ret =
+      relation.location.listFiles(
+        partitionFilters.filterNot(isDynamicPruningFilter), dataFilters)
+    setFilesNumAndSizeMetric(ret)
+    val timeTakenMs = NANOSECONDS.toMillis(
+      (System.nanoTime() - startTime) + optimizerMetadataTimeNs)
+    driverMetrics("metadataTime") = timeTakenMs
+    ret
+  }.toArray
+
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
   // present. This is because such a filter relies on information that is only available at run
   // time (for instance the keys used in the other side of a join).
-  @transient lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
+  @transient private lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
     val dynamicPartitionFilters = partitionFilters.filter(
       FileSourceScanExecTransformer.isDynamicPruningFilter)
-
-    if (dynamicPartitionFilters.nonEmpty) {
+    val selected = if (dynamicPartitionFilters.nonEmpty) {
       // When it includes some DynamicPruningExpression,
       // it needs to execute InSubqueryExec first,
       // because doTransform path can't execute 'doExecuteColumnar' which will
@@ -235,11 +248,12 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       setFilesNumAndSizeMetric(ret)
       val timeTakenMs = (System.nanoTime() - startTime) / 1000 / 1000
       driverMetrics("pruningTime") = timeTakenMs
-      sendDriverMetrics()
       ret
     } else {
       selectedPartitions
     }
+    sendDriverMetrics()
+    selected
   }
 
 }
