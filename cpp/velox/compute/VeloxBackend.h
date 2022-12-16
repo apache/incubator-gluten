@@ -43,6 +43,7 @@ class VeloxInitializer {
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::memory::MemoryAllocator> mappedMemory_;
   std::unique_ptr<folly::IOThreadPoolExecutor> cacheExecutor_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
 };
 
 // This class is used to convert the Substrait plan into Velox plan.

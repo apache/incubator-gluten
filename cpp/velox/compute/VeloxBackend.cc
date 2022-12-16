@@ -66,6 +66,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     }
     std::string cachePath = cachePathPrefix + "/cache." + genUuid();
     cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
+    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
     auto ssd = std::make_unique<cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
 
     memory::MmapAllocatorOptions options;
@@ -141,7 +142,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 
   auto properties = std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector = getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
-                           ->newConnector(kHiveConnectorId, properties);
+                           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
 
   registerConnector(hiveConnector);
   facebook::velox::parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
