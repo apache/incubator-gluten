@@ -25,8 +25,9 @@ import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.types.UTF8String;
 
 public class GlutenPlaceholderVector extends ColumnVector {
+  public static final GlutenPlaceholderVector INSTANCE = new GlutenPlaceholderVector();
 
-  protected GlutenPlaceholderVector() {
+  private GlutenPlaceholderVector() {
     super(DataTypes.NullType);
   }
 
