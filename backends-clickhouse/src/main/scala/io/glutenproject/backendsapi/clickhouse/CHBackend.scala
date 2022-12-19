@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 
@@ -47,6 +48,7 @@ object CHBackendSettings extends BackendSettings {
 
   override def supportFileFormatRead(): FileFormat => Boolean = {
     case _: ParquetFileFormat => true
+    case _: OrcFileFormat => true
     case _ => false
   }
 
