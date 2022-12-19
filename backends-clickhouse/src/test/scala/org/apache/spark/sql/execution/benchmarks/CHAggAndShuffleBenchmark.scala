@@ -58,10 +58,10 @@ import org.apache.spark.storage.ShuffleBlockId
  */
 object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
 
-  protected lazy val thrdNum = "16"
-  protected lazy val shufflePartition = "32"
-  protected lazy val memorySize = "30G"
-  protected lazy val offheapSize = "32G"
+  protected lazy val thrdNum = "3"
+  protected lazy val shufflePartition = "12"
+  protected lazy val memorySize = "15G"
+  protected lazy val offheapSize = "15G"
 
   def beforeAll(): Unit = {}
 
@@ -220,7 +220,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
 
     // Scan + Filter + Project Stages, if there is no filter or project, will not run.
     val projectFilter = executedPlan.collect { case project: ProjectExecTransformer => project }
-    if (!projectFilter.nonEmpty) {
+    if (projectFilter.nonEmpty) {
       val projectFilterStage = WholeStageTransformerExec(projectFilter.head)(
         ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
       val projectFilterStageRDD = projectFilterStage.executeColumnar()
