@@ -73,7 +73,7 @@ You can also clone the Velox source from [OAP/velox](https://github.com/oap-proj
 ```shell script
 step 1: recompile velox, set velox_home in build_velox.sh
 cd /path_to_gluten/ep/build_velox/src
-./build_velox.sh  --velox_home=/your_specified_velox_path
+./build_velox.sh  --velox_home=/your_specified_velox_path  --build_velox_backend=ON
 
 step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
