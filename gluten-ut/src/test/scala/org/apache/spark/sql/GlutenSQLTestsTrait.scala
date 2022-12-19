@@ -85,9 +85,11 @@ trait GlutenSQLTestsTrait extends QueryTest with SharedSparkSession with GlutenT
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.warehouse.dir", warehouse)
-      // Avoid static evaluation by spark catalyst.
-      .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-          NullPropagation.ruleName)
+      // Avoid static evaluation by spark catalyst. But there are some UT issues
+      // coming from spark, e.g., expecting SparkException is thrown, but the wrapped
+      // exception is thrown.
+      // .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
+      //     NullPropagation.ruleName)
 
     if (BackendsApiManager.getBackendName.equalsIgnoreCase(
       GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
