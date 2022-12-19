@@ -37,8 +37,9 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import io.glutenproject.extension.columnar.{AddTransformHintRule, FallbackMultiCodegens, RemoveTransformHintRule, StoreExpandGroupExpression, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{AddTransformHintRule, FallbackMultiCodegens, FallbackOneRowRelation, RemoveTransformHintRule, StoreExpandGroupExpression, TagBeforeTransformHits, TransformHint, TransformHints}
 import io.glutenproject.utils.LogLevelUtil
+import org.apache.spark.sql.internal.SQLConf.ADAPTIVE_EXECUTION_ENABLED
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides() extends Rule[SparkPlan] {
@@ -317,18 +318,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
   }
 
   def apply(plan: SparkPlan): SparkPlan = {
-    var checkOneRowRelation = false
-    if (plan.find(_.isInstanceOf[RDDScanExec]).isDefined) {
-      val rddScan = plan.find(_.isInstanceOf[RDDScanExec]).get
-      checkOneRowRelation = rddScan.asInstanceOf[RDDScanExec].name.equals("OneRowRelation")
-    }
-    if (checkOneRowRelation) {
-      plan
-    } else {
-      val newPlan = replaceWithTransformerPlan(plan)
-      planChangeLogger.logRule(ruleName, plan, newPlan)
-      newPlan
-    }
+    val newPlan = replaceWithTransformerPlan(plan)
+    planChangeLogger.logRule(ruleName, plan, newPlan)
+    newPlan
   }
 }
 
@@ -408,17 +400,25 @@ case class ColumnarOverrideRules(session: SparkSession)
   extends ColumnarRule with Logging with LogLevelUtil {
 
   lazy val transformPlanLogLevel = GlutenConfig.getSessionConf.transformPlanLogLevel
+  lazy val adaptiveExecutionEnabled = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
-  def preOverrides: List[SparkSession => Rule[SparkPlan]] =
+  def preOverrides: List[SparkSession => Rule[SparkPlan]] = {
+    val tagBeforeTransformHitsRules = if (!adaptiveExecutionEnabled) {
+      TagBeforeTransformHits.ruleBuilders
+    } else {
+      // When AQE is on, rules are applied in ColumnarQueryStagePrepOverrides
+      List.empty
+    }
+    tagBeforeTransformHitsRules :::
     List((_: SparkSession) => StoreExpandGroupExpression(),
-      (_: SparkSession) => FallbackMultiCodegens(),
       (_: SparkSession) => AddTransformHintRule(),
       (_: SparkSession) => TransformPreOverrides(),
       (_: SparkSession) => RemoveTransformHintRule()) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules()
+  }
 
   def postOverrides: List[SparkSession => Rule[SparkPlan]] =
     List((_: SparkSession) => TransformPostOverrides()) :::
