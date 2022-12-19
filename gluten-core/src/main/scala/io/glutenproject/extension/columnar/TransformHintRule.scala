@@ -167,6 +167,8 @@ case class FallbackMultiCodegens() extends Rule[SparkPlan] {
   }
 }
 
+// This rule will fall back the whole plan if it contains OneRowRelation scan.
+// This should only affect some light-weight cases in some basic UTs.
 case class FallbackOneRowRelation() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     val hasOneRowRelation =
