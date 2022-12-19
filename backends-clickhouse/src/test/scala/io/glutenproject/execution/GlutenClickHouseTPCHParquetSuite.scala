@@ -326,6 +326,25 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(20) { df => }
   }
 
+  test("test 'function pmod'") {
+    val df = runQueryAndCompare(
+      "select pmod(-10, id+10) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test 'function ascii'") {
+    val df = runQueryAndCompare(
+      "select ascii(cast(id as String)) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test 'function rand'") {
+    runSql("select rand(), rand(1), rand(null) from range(10)")(
+      checkOperatorMatch[ProjectExecTransformer])
+  }
+
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
   ignore("TPCH Q22") {
     runTPCHQuery(22) { df => }

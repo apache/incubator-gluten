@@ -100,7 +100,8 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "cbrt",
       "unhex",
       "hypot",
-      "log10"
+      "log10",
+      "factorial"
     )
 
   enableSuite[GlutenComplexTypesSuite]
@@ -113,10 +114,23 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "% (Remainder)",
       "SPARK-17617: % (Remainder) double % double on super big double",
       "pmod",
-      "function least",
-      "function greatest",
       "SPARK-28322: IntegralDivide supports decimal type",
       "SPARK-33008: division by zero on divide-like operations returns incorrect result",
       "SPARK-34920: error class"
+    )
+
+  enableSuite[GlutenRegexpExpressionsSuite]
+    .include(
+      "SPLIT"
+    )
+
+  enableSuite[GlutenStringExpressionsSuite]
+    .include(
+      "concat_ws"
+    )
+
+  enableSuite[GlutenStringFunctionsSuite]
+    .include(
+      "string concat_ws"
     )
 }

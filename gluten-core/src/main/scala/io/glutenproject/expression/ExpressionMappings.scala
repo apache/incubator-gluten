@@ -79,6 +79,7 @@ object ExpressionMappings {
   final val REVERSE = "reverse"
   final val SPLIT = "split"
   final val SUBSTRING = "substring"
+  final val CONCAT_WS = "concat_ws"
 
   // SparkSQL Math functions
   final val ABS = "abs"
@@ -113,6 +114,8 @@ object ExpressionMappings {
   final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"
+  final val FACTORIAL = "factorial"
+  final val RAND = "rand"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -221,6 +224,7 @@ object ExpressionMappings {
     Sig[Reverse](REVERSE),
     Sig[StringSplit](SPLIT),
     Sig[Substring](SUBSTRING),
+    Sig[ConcatWs](CONCAT_WS),
     // SparkSQL Math functions
     Sig[Abs](ABS),
     Sig[Ceil](CEIL),
@@ -254,6 +258,8 @@ object ExpressionMappings {
     Sig[ToRadians](RADIANS),
     Sig[Greatest](GREATEST),
     Sig[Least](LEAST),
+    Sig[Factorial](FACTORIAL),
+    Sig[Rand](RAND),
     // PrestoSQL Math functions
     Sig[Acos](ACOS),
     Sig[Asin](ASIN),
