@@ -68,6 +68,12 @@ object VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+  enableSuite[GlutenDataFrameNaFunctionsSuite]
+    .exclude(
+       // NaN case
+      "replace nan with float",
+      "replace nan with double"
+    )
 
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
