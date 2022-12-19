@@ -71,6 +71,8 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
 
   override protected def withNewChildInternal(newChild: SparkPlan): CoalesceExecTransformer =
     copy(child = newChild)
+
+  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
 }
 
 object CoalesceExecTransformer {

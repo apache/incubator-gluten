@@ -23,12 +23,11 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.substrait.{JoinParams, SubstraitContext}
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.vectorized.Metrics.SingleMetric
 import io.glutenproject.vectorized.OperatorMetrics
 import io.substrait.proto.JoinRel
@@ -96,6 +95,12 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
           s"${getClass.getSimpleName} not take $x as the JoinType")
     }
   }
+}
+
+trait HashJoinMetricsUpdater extends MetricsUpdater {
+  def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
+                        singleMetrics: SingleMetric,
+                        joinParams: JoinParams): Unit
 }
 
 /**
@@ -344,114 +349,250 @@ trait HashJoinLikeExecTransformer
     "finalOutputVectors" -> SQLMetrics.createMetric(
       sparkContext, "number of final output vectors"))
 
-  val streamInputRows: SQLMetric = longMetric("streamInputRows")
-  val streamInputVectors: SQLMetric = longMetric("streamInputVectors")
-  val streamInputBytes: SQLMetric = longMetric("streamInputBytes")
-  val streamRawInputRows: SQLMetric = longMetric("streamRawInputRows")
-  val streamRawInputBytes: SQLMetric = longMetric("streamRawInputBytes")
-  val streamOutputRows: SQLMetric = longMetric("streamOutputRows")
-  val streamOutputVectors: SQLMetric = longMetric("streamOutputVectors")
-  val streamOutputBytes: SQLMetric = longMetric("streamOutputBytes")
-  val streamCount: SQLMetric = longMetric("streamCount")
-  val streamWallNanos: SQLMetric = longMetric("streamWallNanos")
-  val streamVeloxToArrow: SQLMetric = longMetric("streamVeloxToArrow")
-  val streamPeakMemoryBytes: SQLMetric = longMetric("streamPeakMemoryBytes")
-  val streamNumMemoryAllocations: SQLMetric = longMetric("streamNumMemoryAllocations")
+  object MetricsUpdaterImpl extends HashJoinMetricsUpdater {
+    val streamInputRows: SQLMetric = longMetric("streamInputRows")
+    val streamInputVectors: SQLMetric = longMetric("streamInputVectors")
+    val streamInputBytes: SQLMetric = longMetric("streamInputBytes")
+    val streamRawInputRows: SQLMetric = longMetric("streamRawInputRows")
+    val streamRawInputBytes: SQLMetric = longMetric("streamRawInputBytes")
+    val streamOutputRows: SQLMetric = longMetric("streamOutputRows")
+    val streamOutputVectors: SQLMetric = longMetric("streamOutputVectors")
+    val streamOutputBytes: SQLMetric = longMetric("streamOutputBytes")
+    val streamCount: SQLMetric = longMetric("streamCount")
+    val streamWallNanos: SQLMetric = longMetric("streamWallNanos")
+    val streamVeloxToArrow: SQLMetric = longMetric("streamVeloxToArrow")
+    val streamPeakMemoryBytes: SQLMetric = longMetric("streamPeakMemoryBytes")
+    val streamNumMemoryAllocations: SQLMetric = longMetric("streamNumMemoryAllocations")
 
-  val streamPreProjectionInputRows: SQLMetric = longMetric("streamPreProjectionInputRows")
-  val streamPreProjectionInputVectors: SQLMetric = longMetric("streamPreProjectionInputVectors")
-  val streamPreProjectionInputBytes: SQLMetric = longMetric("streamPreProjectionInputBytes")
-  val streamPreProjectionRawInputRows: SQLMetric = longMetric("streamPreProjectionRawInputRows")
-  val streamPreProjectionRawInputBytes: SQLMetric = longMetric("streamPreProjectionRawInputBytes")
-  val streamPreProjectionOutputRows: SQLMetric = longMetric("streamPreProjectionOutputRows")
-  val streamPreProjectionOutputVectors: SQLMetric = longMetric("streamPreProjectionOutputVectors")
-  val streamPreProjectionOutputBytes: SQLMetric = longMetric("streamPreProjectionOutputBytes")
-  val streamPreProjectionCount: SQLMetric = longMetric("streamPreProjectionCount")
-  val streamPreProjectionWallNanos: SQLMetric = longMetric("streamPreProjectionWallNanos")
-  val streamPreProjectionPeakMemoryBytes: SQLMetric =
-    longMetric("streamPreProjectionPeakMemoryBytes")
-  val streamPreProjectionNumMemoryAllocations: SQLMetric =
-    longMetric("streamPreProjectionNumMemoryAllocations")
+    val streamPreProjectionInputRows: SQLMetric = longMetric("streamPreProjectionInputRows")
+    val streamPreProjectionInputVectors: SQLMetric = longMetric("streamPreProjectionInputVectors")
+    val streamPreProjectionInputBytes: SQLMetric = longMetric("streamPreProjectionInputBytes")
+    val streamPreProjectionRawInputRows: SQLMetric = longMetric("streamPreProjectionRawInputRows")
+    val streamPreProjectionRawInputBytes: SQLMetric = longMetric("streamPreProjectionRawInputBytes")
+    val streamPreProjectionOutputRows: SQLMetric = longMetric("streamPreProjectionOutputRows")
+    val streamPreProjectionOutputVectors: SQLMetric = longMetric("streamPreProjectionOutputVectors")
+    val streamPreProjectionOutputBytes: SQLMetric = longMetric("streamPreProjectionOutputBytes")
+    val streamPreProjectionCount: SQLMetric = longMetric("streamPreProjectionCount")
+    val streamPreProjectionWallNanos: SQLMetric = longMetric("streamPreProjectionWallNanos")
+    val streamPreProjectionPeakMemoryBytes: SQLMetric =
+      longMetric("streamPreProjectionPeakMemoryBytes")
+    val streamPreProjectionNumMemoryAllocations: SQLMetric =
+      longMetric("streamPreProjectionNumMemoryAllocations")
 
-  val buildInputRows: SQLMetric = longMetric("buildInputRows")
-  val buildInputVectors: SQLMetric = longMetric("buildInputVectors")
-  val buildInputBytes: SQLMetric = longMetric("buildInputBytes")
-  val buildRawInputRows: SQLMetric = longMetric("buildRawInputRows")
-  val buildRawInputBytes: SQLMetric = longMetric("buildRawInputBytes")
-  val buildOutputRows: SQLMetric = longMetric("buildOutputRows")
-  val buildOutputVectors: SQLMetric = longMetric("buildOutputVectors")
-  val buildOutputBytes: SQLMetric = longMetric("buildOutputBytes")
-  val buildCount: SQLMetric = longMetric("buildCount")
-  val buildWallNanos: SQLMetric = longMetric("buildWallNanos")
-  val buildPeakMemoryBytes: SQLMetric = longMetric("buildPeakMemoryBytes")
-  val buildNumMemoryAllocations: SQLMetric = longMetric("buildNumMemoryAllocations")
+    val buildInputRows: SQLMetric = longMetric("buildInputRows")
+    val buildInputVectors: SQLMetric = longMetric("buildInputVectors")
+    val buildInputBytes: SQLMetric = longMetric("buildInputBytes")
+    val buildRawInputRows: SQLMetric = longMetric("buildRawInputRows")
+    val buildRawInputBytes: SQLMetric = longMetric("buildRawInputBytes")
+    val buildOutputRows: SQLMetric = longMetric("buildOutputRows")
+    val buildOutputVectors: SQLMetric = longMetric("buildOutputVectors")
+    val buildOutputBytes: SQLMetric = longMetric("buildOutputBytes")
+    val buildCount: SQLMetric = longMetric("buildCount")
+    val buildWallNanos: SQLMetric = longMetric("buildWallNanos")
+    val buildPeakMemoryBytes: SQLMetric = longMetric("buildPeakMemoryBytes")
+    val buildNumMemoryAllocations: SQLMetric = longMetric("buildNumMemoryAllocations")
 
-  val buildPreProjectionInputRows: SQLMetric = longMetric("buildPreProjectionInputRows")
-  val buildPreProjectionInputVectors: SQLMetric = longMetric("buildPreProjectionInputVectors")
-  val buildPreProjectionInputBytes: SQLMetric = longMetric("buildPreProjectionInputBytes")
-  val buildPreProjectionRawInputRows: SQLMetric = longMetric("buildPreProjectionRawInputRows")
-  val buildPreProjectionRawInputBytes: SQLMetric = longMetric("buildPreProjectionRawInputBytes")
-  val buildPreProjectionOutputRows: SQLMetric = longMetric("buildPreProjectionOutputRows")
-  val buildPreProjectionOutputVectors: SQLMetric = longMetric("buildPreProjectionOutputVectors")
-  val buildPreProjectionOutputBytes: SQLMetric = longMetric("buildPreProjectionOutputBytes")
-  val buildPreProjectionCount: SQLMetric = longMetric("buildPreProjectionCount")
-  val buildPreProjectionWallNanos: SQLMetric = longMetric("buildPreProjectionWallNanos")
-  val buildPreProjectionPeakMemoryBytes: SQLMetric =
-    longMetric("buildPreProjectionPeakMemoryBytes")
-  val buildPreProjectionNumMemoryAllocations: SQLMetric =
-    longMetric("buildPreProjectionNumMemoryAllocations")
+    val buildPreProjectionInputRows: SQLMetric = longMetric("buildPreProjectionInputRows")
+    val buildPreProjectionInputVectors: SQLMetric = longMetric("buildPreProjectionInputVectors")
+    val buildPreProjectionInputBytes: SQLMetric = longMetric("buildPreProjectionInputBytes")
+    val buildPreProjectionRawInputRows: SQLMetric = longMetric("buildPreProjectionRawInputRows")
+    val buildPreProjectionRawInputBytes: SQLMetric = longMetric("buildPreProjectionRawInputBytes")
+    val buildPreProjectionOutputRows: SQLMetric = longMetric("buildPreProjectionOutputRows")
+    val buildPreProjectionOutputVectors: SQLMetric = longMetric("buildPreProjectionOutputVectors")
+    val buildPreProjectionOutputBytes: SQLMetric = longMetric("buildPreProjectionOutputBytes")
+    val buildPreProjectionCount: SQLMetric = longMetric("buildPreProjectionCount")
+    val buildPreProjectionWallNanos: SQLMetric = longMetric("buildPreProjectionWallNanos")
+    val buildPreProjectionPeakMemoryBytes: SQLMetric =
+      longMetric("buildPreProjectionPeakMemoryBytes")
+    val buildPreProjectionNumMemoryAllocations: SQLMetric =
+      longMetric("buildPreProjectionNumMemoryAllocations")
 
-  val hashBuildInputRows: SQLMetric = longMetric("hashBuildInputRows")
-  val hashBuildInputVectors: SQLMetric = longMetric("hashBuildInputVectors")
-  val hashBuildInputBytes: SQLMetric = longMetric("hashBuildInputBytes")
-  val hashBuildRawInputRows: SQLMetric = longMetric("hashBuildRawInputRows")
-  val hashBuildRawInputBytes: SQLMetric = longMetric("hashBuildRawInputBytes")
-  val hashBuildOutputRows: SQLMetric = longMetric("hashBuildOutputRows")
-  val hashBuildOutputVectors: SQLMetric = longMetric("hashBuildOutputVectors")
-  val hashBuildOutputBytes: SQLMetric = longMetric("hashBuildOutputBytes")
-  val hashBuildCount: SQLMetric = longMetric("hashBuildCount")
-  val hashBuildWallNanos: SQLMetric = longMetric("hashBuildWallNanos")
-  val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
-  val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
+    val hashBuildInputRows: SQLMetric = longMetric("hashBuildInputRows")
+    val hashBuildInputVectors: SQLMetric = longMetric("hashBuildInputVectors")
+    val hashBuildInputBytes: SQLMetric = longMetric("hashBuildInputBytes")
+    val hashBuildRawInputRows: SQLMetric = longMetric("hashBuildRawInputRows")
+    val hashBuildRawInputBytes: SQLMetric = longMetric("hashBuildRawInputBytes")
+    val hashBuildOutputRows: SQLMetric = longMetric("hashBuildOutputRows")
+    val hashBuildOutputVectors: SQLMetric = longMetric("hashBuildOutputVectors")
+    val hashBuildOutputBytes: SQLMetric = longMetric("hashBuildOutputBytes")
+    val hashBuildCount: SQLMetric = longMetric("hashBuildCount")
+    val hashBuildWallNanos: SQLMetric = longMetric("hashBuildWallNanos")
+    val hashBuildPeakMemoryBytes: SQLMetric = longMetric("hashBuildPeakMemoryBytes")
+    val hashBuildNumMemoryAllocations: SQLMetric = longMetric("hashBuildNumMemoryAllocations")
 
-  val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
-  val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
-  val hashProbeInputBytes: SQLMetric = longMetric("hashProbeInputBytes")
-  val hashProbeRawInputRows: SQLMetric = longMetric("hashProbeRawInputRows")
-  val hashProbeRawInputBytes: SQLMetric = longMetric("hashProbeRawInputBytes")
-  val hashProbeOutputRows: SQLMetric = longMetric("hashProbeOutputRows")
-  val hashProbeOutputVectors: SQLMetric = longMetric("hashProbeOutputVectors")
-  val hashProbeOutputBytes: SQLMetric = longMetric("hashProbeOutputBytes")
-  val hashProbeCount: SQLMetric = longMetric("hashProbeCount")
-  val hashProbeWallNanos: SQLMetric = longMetric("hashProbeWallNanos")
-  val hashProbePeakMemoryBytes: SQLMetric = longMetric("hashProbePeakMemoryBytes")
-  val hashProbeNumMemoryAllocations: SQLMetric = longMetric("hashProbeNumMemoryAllocations")
+    val hashProbeInputRows: SQLMetric = longMetric("hashProbeInputRows")
+    val hashProbeInputVectors: SQLMetric = longMetric("hashProbeInputVectors")
+    val hashProbeInputBytes: SQLMetric = longMetric("hashProbeInputBytes")
+    val hashProbeRawInputRows: SQLMetric = longMetric("hashProbeRawInputRows")
+    val hashProbeRawInputBytes: SQLMetric = longMetric("hashProbeRawInputBytes")
+    val hashProbeOutputRows: SQLMetric = longMetric("hashProbeOutputRows")
+    val hashProbeOutputVectors: SQLMetric = longMetric("hashProbeOutputVectors")
+    val hashProbeOutputBytes: SQLMetric = longMetric("hashProbeOutputBytes")
+    val hashProbeCount: SQLMetric = longMetric("hashProbeCount")
+    val hashProbeWallNanos: SQLMetric = longMetric("hashProbeWallNanos")
+    val hashProbePeakMemoryBytes: SQLMetric = longMetric("hashProbePeakMemoryBytes")
+    val hashProbeNumMemoryAllocations: SQLMetric = longMetric("hashProbeNumMemoryAllocations")
 
-  // The number of rows which were passed through without any processing
-  // after filter was pushed down.
-  val hashProbeReplacedWithDynamicFilterRows: SQLMetric =
+    // The number of rows which were passed through without any processing
+    // after filter was pushed down.
+    val hashProbeReplacedWithDynamicFilterRows: SQLMetric =
     longMetric("hashProbeReplacedWithDynamicFilterRows")
 
-  // The number of dynamic filters this join generated for push down.
-  val hashProbeDynamicFiltersProduced: SQLMetric =
-    longMetric("hashProbeDynamicFiltersProduced")
+    // The number of dynamic filters this join generated for push down.
+    val hashProbeDynamicFiltersProduced: SQLMetric =
+      longMetric("hashProbeDynamicFiltersProduced")
 
-  val postProjectionInputRows: SQLMetric = longMetric("postProjectionInputRows")
-  val postProjectionInputVectors: SQLMetric = longMetric("postProjectionInputVectors")
-  val postProjectionInputBytes: SQLMetric = longMetric("postProjectionInputBytes")
-  val postProjectionRawInputRows: SQLMetric = longMetric("postProjectionRawInputRows")
-  val postProjectionRawInputBytes: SQLMetric = longMetric("postProjectionRawInputBytes")
-  val postProjectionOutputRows: SQLMetric = longMetric("postProjectionOutputRows")
-  val postProjectionOutputVectors: SQLMetric = longMetric("postProjectionOutputVectors")
-  val postProjectionOutputBytes: SQLMetric = longMetric("postProjectionOutputBytes")
-  val postProjectionCount: SQLMetric = longMetric("postProjectionCount")
-  val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
-  val postProjectionPeakMemoryBytes: SQLMetric = longMetric("postProjectionPeakMemoryBytes")
-  val postProjectionNumMemoryAllocations: SQLMetric =
-    longMetric("postProjectionNumMemoryAllocations")
+    val postProjectionInputRows: SQLMetric = longMetric("postProjectionInputRows")
+    val postProjectionInputVectors: SQLMetric = longMetric("postProjectionInputVectors")
+    val postProjectionInputBytes: SQLMetric = longMetric("postProjectionInputBytes")
+    val postProjectionRawInputRows: SQLMetric = longMetric("postProjectionRawInputRows")
+    val postProjectionRawInputBytes: SQLMetric = longMetric("postProjectionRawInputBytes")
+    val postProjectionOutputRows: SQLMetric = longMetric("postProjectionOutputRows")
+    val postProjectionOutputVectors: SQLMetric = longMetric("postProjectionOutputVectors")
+    val postProjectionOutputBytes: SQLMetric = longMetric("postProjectionOutputBytes")
+    val postProjectionCount: SQLMetric = longMetric("postProjectionCount")
+    val postProjectionWallNanos: SQLMetric = longMetric("postProjectionWallNanos")
+    val postProjectionPeakMemoryBytes: SQLMetric = longMetric("postProjectionPeakMemoryBytes")
+    val postProjectionNumMemoryAllocations: SQLMetric =
+      longMetric("postProjectionNumMemoryAllocations")
 
-  val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
-  val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
+    val finalOutputRows: SQLMetric = longMetric("finalOutputRows")
+    val finalOutputVectors: SQLMetric = longMetric("finalOutputVectors")
+
+    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+      finalOutputVectors += outNumBatches
+      finalOutputRows += outNumRows
+    }
+
+    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+      throw new UnsupportedOperationException(s"updateNativeMetrics is not supported for join.")
+    }
+
+    override def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
+                          singleMetrics: SingleMetric,
+                          joinParams: JoinParams): Unit = {
+      var idx = 0
+      if (joinParams.postProjectionNeeded) {
+        val metrics = joinMetrics.get(idx)
+        postProjectionInputRows += metrics.inputRows
+        postProjectionInputVectors += metrics.inputVectors
+        postProjectionInputBytes += metrics.inputBytes
+        postProjectionRawInputRows += metrics.rawInputRows
+        postProjectionRawInputBytes += metrics.rawInputBytes
+        postProjectionOutputRows += metrics.outputRows
+        postProjectionOutputVectors += metrics.outputVectors
+        postProjectionOutputBytes += metrics.outputBytes
+        postProjectionCount += metrics.count
+        postProjectionWallNanos += metrics.wallNanos
+        postProjectionPeakMemoryBytes += metrics.peakMemoryBytes
+        postProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+        idx += 1
+      }
+
+      // HashProbe
+      val hashProbeMetrics = joinMetrics.get(idx)
+      hashProbeInputRows += hashProbeMetrics.inputRows
+      hashProbeInputVectors += hashProbeMetrics.inputVectors
+      hashProbeInputBytes += hashProbeMetrics.inputBytes
+      hashProbeRawInputRows += hashProbeMetrics.rawInputRows
+      hashProbeRawInputBytes += hashProbeMetrics.rawInputBytes
+      hashProbeOutputRows += hashProbeMetrics.outputRows
+      hashProbeOutputVectors += hashProbeMetrics.outputVectors
+      hashProbeOutputBytes += hashProbeMetrics.outputBytes
+      hashProbeCount += hashProbeMetrics.count
+      hashProbeWallNanos += hashProbeMetrics.wallNanos
+      hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
+      hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
+      hashProbeReplacedWithDynamicFilterRows += hashProbeMetrics.numReplacedWithDynamicFilterRows
+      hashProbeDynamicFiltersProduced += hashProbeMetrics.numDynamicFiltersProduced
+      idx += 1
+
+      // HashBuild
+      val hashBuildMetrics = joinMetrics.get(idx)
+      hashBuildInputRows += hashBuildMetrics.inputRows
+      hashBuildInputVectors += hashBuildMetrics.inputVectors
+      hashBuildInputBytes += hashBuildMetrics.inputBytes
+      hashBuildRawInputRows += hashBuildMetrics.rawInputRows
+      hashBuildRawInputBytes += hashBuildMetrics.rawInputBytes
+      hashBuildOutputRows += hashBuildMetrics.outputRows
+      hashBuildOutputVectors += hashBuildMetrics.outputVectors
+      hashBuildOutputBytes += hashBuildMetrics.outputBytes
+      hashBuildCount += hashBuildMetrics.count
+      hashBuildWallNanos += hashBuildMetrics.wallNanos
+      hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
+      hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
+      idx += 1
+
+      if (joinParams.buildPreProjectionNeeded) {
+        val metrics = joinMetrics.get(idx)
+        buildPreProjectionInputRows += metrics.inputRows
+        buildPreProjectionInputVectors += metrics.inputVectors
+        buildPreProjectionInputBytes += metrics.inputBytes
+        buildPreProjectionRawInputRows += metrics.rawInputRows
+        buildPreProjectionRawInputBytes += metrics.rawInputBytes
+        buildPreProjectionOutputRows += metrics.outputRows
+        buildPreProjectionOutputVectors += metrics.outputVectors
+        buildPreProjectionOutputBytes += metrics.outputBytes
+        buildPreProjectionCount += metrics.count
+        buildPreProjectionWallNanos += metrics.wallNanos
+        buildPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
+        buildPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+        idx += 1
+      }
+
+      if (joinParams.isBuildReadRel) {
+        val metrics = joinMetrics.get(idx)
+        buildInputRows += metrics.inputRows
+        buildInputVectors += metrics.inputVectors
+        buildInputBytes += metrics.inputBytes
+        buildRawInputRows += metrics.rawInputRows
+        buildRawInputBytes += metrics.rawInputBytes
+        buildOutputRows += metrics.outputRows
+        buildOutputVectors += metrics.outputVectors
+        buildOutputBytes += metrics.outputBytes
+        buildCount += metrics.count
+        buildWallNanos += metrics.wallNanos
+        buildPeakMemoryBytes += metrics.peakMemoryBytes
+        buildNumMemoryAllocations += metrics.numMemoryAllocations
+        idx += 1
+      }
+
+      if (joinParams.streamPreProjectionNeeded) {
+        val metrics = joinMetrics.get(idx)
+        streamPreProjectionInputRows += metrics.inputRows
+        streamPreProjectionInputVectors += metrics.inputVectors
+        streamPreProjectionInputBytes += metrics.inputBytes
+        streamPreProjectionRawInputRows += metrics.rawInputRows
+        streamPreProjectionRawInputBytes += metrics.rawInputBytes
+        streamPreProjectionOutputRows += metrics.outputRows
+        streamPreProjectionOutputVectors += metrics.outputVectors
+        streamPreProjectionOutputBytes += metrics.outputBytes
+        streamPreProjectionCount += metrics.count
+        streamPreProjectionWallNanos += metrics.wallNanos
+        streamPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
+        streamPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
+        idx += 1
+      }
+
+      if (joinParams.isStreamedReadRel) {
+        val metrics = joinMetrics.get(idx)
+        streamInputRows += metrics.inputRows
+        streamInputVectors += metrics.inputVectors
+        streamInputBytes += metrics.inputBytes
+        streamRawInputRows += metrics.rawInputRows
+        streamRawInputBytes += metrics.rawInputBytes
+        streamOutputRows += metrics.outputRows
+        streamOutputVectors += metrics.outputVectors
+        streamOutputBytes += metrics.outputBytes
+        streamCount += metrics.count
+        streamWallNanos += metrics.wallNanos
+        streamVeloxToArrow += singleMetrics.veloxToArrow
+        streamPeakMemoryBytes += metrics.peakMemoryBytes
+        streamNumMemoryAllocations += metrics.numMemoryAllocations
+        idx += 1
+      }
+    }
+  }
   def isSkewJoin: Boolean = false
 
   // Whether the left and right side should be exchanged.
@@ -499,139 +640,7 @@ trait HashJoinLikeExecTransformer
       JoinRel.JoinType.UNRECOGNIZED
   }
 
-  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    finalOutputVectors += outNumBatches
-    finalOutputRows += outNumRows
-  }
-
-  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-    throw new UnsupportedOperationException(s"updateNativeMetrics is not supported for join.")
-  }
-
-  def updateJoinMetrics(joinMetrics: java.util.ArrayList[OperatorMetrics],
-                        singleMetrics: SingleMetric,
-                        joinParams: JoinParams): Unit = {
-    var idx = 0
-    if (joinParams.postProjectionNeeded) {
-      val metrics = joinMetrics.get(idx)
-      postProjectionInputRows += metrics.inputRows
-      postProjectionInputVectors += metrics.inputVectors
-      postProjectionInputBytes += metrics.inputBytes
-      postProjectionRawInputRows += metrics.rawInputRows
-      postProjectionRawInputBytes += metrics.rawInputBytes
-      postProjectionOutputRows += metrics.outputRows
-      postProjectionOutputVectors += metrics.outputVectors
-      postProjectionOutputBytes += metrics.outputBytes
-      postProjectionCount += metrics.count
-      postProjectionWallNanos += metrics.wallNanos
-      postProjectionPeakMemoryBytes += metrics.peakMemoryBytes
-      postProjectionNumMemoryAllocations += metrics.numMemoryAllocations
-      idx += 1
-    }
-
-    // HashProbe
-    val hashProbeMetrics = joinMetrics.get(idx)
-    hashProbeInputRows += hashProbeMetrics.inputRows
-    hashProbeInputVectors += hashProbeMetrics.inputVectors
-    hashProbeInputBytes += hashProbeMetrics.inputBytes
-    hashProbeRawInputRows += hashProbeMetrics.rawInputRows
-    hashProbeRawInputBytes += hashProbeMetrics.rawInputBytes
-    hashProbeOutputRows += hashProbeMetrics.outputRows
-    hashProbeOutputVectors += hashProbeMetrics.outputVectors
-    hashProbeOutputBytes += hashProbeMetrics.outputBytes
-    hashProbeCount += hashProbeMetrics.count
-    hashProbeWallNanos += hashProbeMetrics.wallNanos
-    hashProbePeakMemoryBytes += hashProbeMetrics.peakMemoryBytes
-    hashProbeNumMemoryAllocations += hashProbeMetrics.numMemoryAllocations
-    hashProbeReplacedWithDynamicFilterRows += hashProbeMetrics.numReplacedWithDynamicFilterRows
-    hashProbeDynamicFiltersProduced += hashProbeMetrics.numDynamicFiltersProduced
-    idx += 1
-
-    // HashBuild
-    val hashBuildMetrics = joinMetrics.get(idx)
-    hashBuildInputRows += hashBuildMetrics.inputRows
-    hashBuildInputVectors += hashBuildMetrics.inputVectors
-    hashBuildInputBytes += hashBuildMetrics.inputBytes
-    hashBuildRawInputRows += hashBuildMetrics.rawInputRows
-    hashBuildRawInputBytes += hashBuildMetrics.rawInputBytes
-    hashBuildOutputRows += hashBuildMetrics.outputRows
-    hashBuildOutputVectors += hashBuildMetrics.outputVectors
-    hashBuildOutputBytes += hashBuildMetrics.outputBytes
-    hashBuildCount += hashBuildMetrics.count
-    hashBuildWallNanos += hashBuildMetrics.wallNanos
-    hashBuildPeakMemoryBytes += hashBuildMetrics.peakMemoryBytes
-    hashBuildNumMemoryAllocations += hashBuildMetrics.numMemoryAllocations
-    idx += 1
-
-    if (joinParams.buildPreProjectionNeeded) {
-      val metrics = joinMetrics.get(idx)
-      buildPreProjectionInputRows += metrics.inputRows
-      buildPreProjectionInputVectors += metrics.inputVectors
-      buildPreProjectionInputBytes += metrics.inputBytes
-      buildPreProjectionRawInputRows += metrics.rawInputRows
-      buildPreProjectionRawInputBytes += metrics.rawInputBytes
-      buildPreProjectionOutputRows += metrics.outputRows
-      buildPreProjectionOutputVectors += metrics.outputVectors
-      buildPreProjectionOutputBytes += metrics.outputBytes
-      buildPreProjectionCount += metrics.count
-      buildPreProjectionWallNanos += metrics.wallNanos
-      buildPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
-      buildPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
-      idx += 1
-    }
-
-    if (joinParams.isBuildReadRel) {
-      val metrics = joinMetrics.get(idx)
-      buildInputRows += metrics.inputRows
-      buildInputVectors += metrics.inputVectors
-      buildInputBytes += metrics.inputBytes
-      buildRawInputRows += metrics.rawInputRows
-      buildRawInputBytes += metrics.rawInputBytes
-      buildOutputRows += metrics.outputRows
-      buildOutputVectors += metrics.outputVectors
-      buildOutputBytes += metrics.outputBytes
-      buildCount += metrics.count
-      buildWallNanos += metrics.wallNanos
-      buildPeakMemoryBytes += metrics.peakMemoryBytes
-      buildNumMemoryAllocations += metrics.numMemoryAllocations
-      idx += 1
-    }
-
-    if (joinParams.streamPreProjectionNeeded) {
-      val metrics = joinMetrics.get(idx)
-      streamPreProjectionInputRows += metrics.inputRows
-      streamPreProjectionInputVectors += metrics.inputVectors
-      streamPreProjectionInputBytes += metrics.inputBytes
-      streamPreProjectionRawInputRows += metrics.rawInputRows
-      streamPreProjectionRawInputBytes += metrics.rawInputBytes
-      streamPreProjectionOutputRows += metrics.outputRows
-      streamPreProjectionOutputVectors += metrics.outputVectors
-      streamPreProjectionOutputBytes += metrics.outputBytes
-      streamPreProjectionCount += metrics.count
-      streamPreProjectionWallNanos += metrics.wallNanos
-      streamPreProjectionPeakMemoryBytes += metrics.peakMemoryBytes
-      streamPreProjectionNumMemoryAllocations += metrics.numMemoryAllocations
-      idx += 1
-    }
-
-    if (joinParams.isStreamedReadRel) {
-      val metrics = joinMetrics.get(idx)
-      streamInputRows += metrics.inputRows
-      streamInputVectors += metrics.inputVectors
-      streamInputBytes += metrics.inputBytes
-      streamRawInputRows += metrics.rawInputRows
-      streamRawInputBytes += metrics.rawInputBytes
-      streamOutputRows += metrics.outputRows
-      streamOutputVectors += metrics.outputVectors
-      streamOutputBytes += metrics.outputBytes
-      streamCount += metrics.count
-      streamWallNanos += metrics.wallNanos
-      streamVeloxToArrow += singleMetrics.veloxToArrow
-      streamPeakMemoryBytes += metrics.peakMemoryBytes
-      streamNumMemoryAllocations += metrics.numMemoryAllocations
-      idx += 1
-    }
-  }
+  override def metricsUpdater(): HashJoinMetricsUpdater = MetricsUpdaterImpl
 
   override def outputPartitioning: Partitioning = joinBuildSide match {
     case BuildLeft =>

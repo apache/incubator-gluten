@@ -158,7 +158,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       context: TaskContext,
       pipelineTime: SQLMetric,
       updateOutputMetrics: (Long, Long) => Unit,
-      updateNativeMetrics: GeneralOutIterator => Unit,
+      updateNativeMetrics: Metrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
     val transKernel = new CHNativeExpressionEvaluator()
@@ -202,7 +202,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateOutputMetrics: (Long, Long) => Unit,
-      updateNativeMetrics: GeneralOutIterator => Unit,
+      updateNativeMetrics: Metrics => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch],
       dependentKernels: Seq[NativeExpressionEvaluator],
       dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {

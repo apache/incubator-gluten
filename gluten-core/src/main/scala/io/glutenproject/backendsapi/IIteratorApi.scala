@@ -18,13 +18,12 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, MetricsUpdater, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
 import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.vectorized.{GeneralOutIterator, NativeExpressionEvaluator}
-
+import io.glutenproject.vectorized.{GeneralOutIterator, Metrics, NativeExpressionEvaluator}
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
@@ -75,7 +74,7 @@ trait IIteratorApi {
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
                             updateOutputMetrics: (Long, Long) => Unit,
-                            updateNativeMetrics: GeneralOutIterator => Unit,
+                            updateNativeMetrics: Metrics => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch]
 
@@ -93,7 +92,7 @@ trait IIteratorApi {
                             rootNode: PlanNode,
                             pipelineTime: SQLMetric,
                             updateOutputMetrics: (Long, Long) => Unit,
-                            updateNativeMetrics: GeneralOutIterator => Unit,
+                            updateNativeMetrics: Metrics => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
                             dependentKernels: Seq[NativeExpressionEvaluator],
                             dependentKernelIterators: Seq[GeneralOutIterator])
