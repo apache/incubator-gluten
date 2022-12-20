@@ -40,8 +40,8 @@ object ColumnarShuffleUtil {
       ColumnarShuffleExchangeExec(plan.outputPartitioning, child,
         plan.shuffleOrigin, shuffleOutputAttributes)
     } else {
-      CoalesceBatchesExec(ColumnarShuffleExchangeExec(
-        plan.outputPartitioning, child, plan.shuffleOrigin, shuffleOutputAttributes))
+      ColumnarShuffleExchangeExec(
+        plan.outputPartitioning, child, plan.shuffleOrigin, shuffleOutputAttributes)
     }
   }
 }

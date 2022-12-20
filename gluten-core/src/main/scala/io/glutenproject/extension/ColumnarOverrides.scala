@@ -391,15 +391,15 @@ case class TransformPreOverrides(isAdaptiveContextOrTopParentExchange: Boolean)
         plan.child match {
           case _: ColumnarShuffleExchangeExec =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
           case ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _) =>
             logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            CoalesceBatchesExec(ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
+            (ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
           case ShuffleQueryStageExec(_, reused: ReusedExchangeExec, _) =>
             reused match {
               case ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeExec) =>
                 logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-                CoalesceBatchesExec(
+                (
                   ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs))
               case _ =>
                 plan
