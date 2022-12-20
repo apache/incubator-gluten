@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.catalyst.expressions
+package org.apache.spark.sql.execution.joins
 
-import org.apache.spark.sql.GlutenTestsTrait
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenIntervalExpressionsSuite extends IntervalExpressionsSuite with GlutenTestsTrait {
+class GlutenInnerJoinSuite extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
 
 }
