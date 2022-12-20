@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer, GlutenFilterExecTransformer}
+import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer}
 
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
