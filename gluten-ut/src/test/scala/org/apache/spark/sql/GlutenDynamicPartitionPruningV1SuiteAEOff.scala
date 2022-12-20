@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformer, GlutenBroadcastHashJoinExecTransformer, GlutenFilterExecTransformer}
+import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer, GlutenFilterExecTransformer}
+
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.catalyst.plans.ExistenceJoin
@@ -399,13 +400,22 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV
           case _: DynamicPruningExpression => true
           case _ => false
         }
-      case GlutenFilterExecTransformer(condition, _) =>
-        // FIXME this is backend-specific code for Velox / Gazelle
+      case FilterTransformer(condition, _) =>
         splitConjunctivePredicates(condition).exists {
           case _: DynamicPruningExpression => true
           case _ => false
         }
       case _ => false
     }.isDefined
+  }
+
+  object FilterTransformer {
+    def unapply(plan: SparkPlan): Option[(Expression, SparkPlan)] = {
+      plan match {
+        case transformer: FilterExecBaseTransformer =>
+          Some((transformer.cond, transformer.input))
+        case _ => None
+      }
+    }
   }
 }

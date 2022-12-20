@@ -43,8 +43,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import java.util
 import scala.collection.JavaConverters._
 
-abstract class FilterExecBaseTransformer(condition: Expression,
-                                         child: SparkPlan) extends UnaryExecNode
+abstract class FilterExecBaseTransformer(val cond: Expression,
+                                         val input: SparkPlan) extends UnaryExecNode
   with TransformSupport
   with PredicateHelper
   with AliasAwareOutputPartitioning
@@ -104,7 +104,7 @@ abstract class FilterExecBaseTransformer(condition: Expression,
 
   val sparkConf: SparkConf = sparkContext.getConf
   // Split out all the IsNotNulls from condition.
-  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
+  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
