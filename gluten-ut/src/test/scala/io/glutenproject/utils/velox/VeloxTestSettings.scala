@@ -108,6 +108,7 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSubquerySuite]
     .include("SPARK-27279: Reuse Subquery", "Subquery reuse across the whole plan")
     .include("SPARK-15832: Test embedded existential predicate sub-queries")
+    .include("EXISTS predicate subquery within OR")
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]
 

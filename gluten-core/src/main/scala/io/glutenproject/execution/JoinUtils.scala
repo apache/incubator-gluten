@@ -26,7 +26,7 @@ import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.substrait.proto.JoinRel
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
-import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, LeftSemiOrAnti, RightOuter}
 import org.apache.spark.sql.types.DataType
 
 import java.util
@@ -228,9 +228,15 @@ object JoinUtils {
         getDirectJoinOutput(joinType, inputBuildOutput, inputStreamedOutput)
       joinType match {
         case _: ExistenceJoin =>
-          inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
-            Seq(ExpressionBuilder.makeSelection(buildOutput.size))
-        case LeftExistence(_) =>
+          inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
+          {
+            val field = ExpressionBuilder.makeSelection(buildOutput.size)
+            val notNull = HashJoinLikeExecTransformer
+              .makeIsNotNullExpression(field, substraitContext.registeredFunction)
+            HashJoinLikeExecTransformer
+              .makeAndExpression(field, notNull, substraitContext.registeredFunction)
+          }
+        case LeftSemiOrAnti(_) =>
           leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
         case _ =>
           // Exchange the order of build and streamed.
@@ -243,8 +249,14 @@ object JoinUtils {
       val (leftOutput, rightOutput) =
         getDirectJoinOutput(joinType, inputStreamedOutput, inputBuildOutput)
       if (joinType.isInstanceOf[ExistenceJoin]) {
-        inputStreamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
-          Seq(ExpressionBuilder.makeSelection(streamedOutput.size))
+        inputStreamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
+        {
+          val field = ExpressionBuilder.makeSelection(streamedOutput.size)
+          val notNull = HashJoinLikeExecTransformer
+            .makeIsNotNullExpression(field, substraitContext.registeredFunction)
+          HashJoinLikeExecTransformer
+            .makeAndExpression(field, notNull, substraitContext.registeredFunction)
+        }
       } else {
         leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
           rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
