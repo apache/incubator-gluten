@@ -205,20 +205,22 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   }
 
   def canConvertToDataFrame(inputRow: InternalRow): Boolean = {
-    if (inputRow == EmptyRow || inputRow == InternalRow.empty) return true
+    if (inputRow == EmptyRow || inputRow == InternalRow.empty) {
+      return true
+    }
     if (!inputRow.isInstanceOf[GenericInternalRow]) {
       return false
     }
     val values = inputRow.asInstanceOf[GenericInternalRow].values
     for (value <- values) {
       value match {
-        case map: MapData => return false
-        case array: ArrayData => return false
-        case struct: InternalRow => return false
-        case _ => None
+        case _: MapData => return false
+        case _: ArrayData => return false
+        case _: InternalRow => return false
+        case _ =>
       }
     }
-    return true
+    true
   }
 
 
