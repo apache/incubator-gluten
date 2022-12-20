@@ -28,6 +28,10 @@ public class IntLiteralNode implements ExpressionNode, Serializable {
     this.value = value;
   }
 
+  public Integer getValue() {
+    return value;
+  }
+
   @Override
   public Expression toProtobuf() {
     Expression.Literal.Builder intBuilder =

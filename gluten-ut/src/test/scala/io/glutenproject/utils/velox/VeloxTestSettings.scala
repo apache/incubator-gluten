@@ -94,6 +94,9 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNondeterministicSuite]
   enableSuite[GlutenRandomSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
+    .exclude(
+      "% (Remainder)" // Velox will throw exception when right is zero
+    )
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
