@@ -18,6 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.protobuf.Any
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
@@ -229,13 +230,8 @@ object JoinUtils {
       joinType match {
         case _: ExistenceJoin =>
           inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
-          {
-            val field = ExpressionBuilder.makeSelection(buildOutput.size)
-            val notNull = HashJoinLikeExecTransformer
-              .makeIsNotNullExpression(field, substraitContext.registeredFunction)
-            HashJoinLikeExecTransformer
-              .makeAndExpression(field, notNull, substraitContext.registeredFunction)
-          }
+            BackendsApiManager.getTransformerApiInstance.genExistsColumnProjection(
+              ExpressionBuilder.makeSelection(buildOutput.size), substraitContext)
         case LeftSemiOrAnti(_) =>
           leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
         case _ =>
@@ -250,13 +246,8 @@ object JoinUtils {
         getDirectJoinOutput(joinType, inputStreamedOutput, inputBuildOutput)
       if (joinType.isInstanceOf[ExistenceJoin]) {
         inputStreamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
-        {
-          val field = ExpressionBuilder.makeSelection(streamedOutput.size)
-          val notNull = HashJoinLikeExecTransformer
-            .makeIsNotNullExpression(field, substraitContext.registeredFunction)
-          HashJoinLikeExecTransformer
-            .makeAndExpression(field, notNull, substraitContext.registeredFunction)
-        }
+          BackendsApiManager.getTransformerApiInstance.genExistsColumnProjection(
+            ExpressionBuilder.makeSelection(streamedOutput.size), substraitContext)
       } else {
         leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
           rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))

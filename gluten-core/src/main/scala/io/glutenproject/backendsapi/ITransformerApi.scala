@@ -17,6 +17,9 @@
 
 package io.glutenproject.backendsapi
 
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
+
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
@@ -44,5 +47,16 @@ trait ITransformerApi {
    */
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
+
+  /**
+   * Generate the post-project expression for "exists" in ExistenceJoin.
+   * In case the "exists" column added by native backend has different semantics,
+   * this will help to convert the column to make semantics consistent.
+   *
+   * @param exists Selection node that refer to the "exists" column.
+   * @return No conversion by default.
+   */
+  def genExistsColumnProjection(exists: SelectionNode,
+                                substraitContext: SubstraitContext): ExpressionNode = exists
 
 }
