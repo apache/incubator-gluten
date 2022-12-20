@@ -160,9 +160,9 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
       printNodeId,
       indent)
     if (verbose && planJson.nonEmpty) {
-//      append(prefix + "Substrait plan:\n")
-//      append(planJson)
-//      append("\n")
+      append(prefix + "Substrait plan:\n")
+      append(planJson)
+      append("\n")
     }
   }
 
