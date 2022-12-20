@@ -18,7 +18,7 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
-
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 
@@ -68,6 +68,27 @@ object VeloxTestSettings extends BackendTestSettings {
       "replace nan with float",
       "replace nan with double"
     )
+
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
+    // overwritten
+    "DPP should not be rewritten as an existential join",
+    "no partition pruning when the build side is a stream",
+    "Make sure dynamic pruning works on uncorrelated queries",
+    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
+      "canonicalization and exchange reuse",
+    "Subquery reuse across the whole plan",
+    "static scan metrics",
+
+    // to be fixed
+    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+    "partition pruning in broadcast hash joins with aliases",
+    "broadcast multiple keys in an UnsafeHashedRelation",
+    "different broadcast subqueries with identical children",
+    "avoid reordering broadcast join keys to match input hash partitioning",
+    "dynamic partition pruning ambiguity issue across nested joins",
+    "Plan broadcast pruning only when the broadcast can be reused",
+    GLUTEN_TEST + "Subquery reuse across the whole plan"
+  )
 
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]

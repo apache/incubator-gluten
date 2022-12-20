@@ -64,35 +64,39 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
 
-  val inputRows: SQLMetric = longMetric("inputRows")
-  val inputVectors: SQLMetric = longMetric("inputVectors")
-  val inputBytes: SQLMetric = longMetric("inputBytes")
-  val rawInputRows: SQLMetric = longMetric("rawInputRows")
-  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-  val outputRows: SQLMetric = longMetric("outputRows")
-  val outputVectors: SQLMetric = longMetric("outputVectors")
-  val outputBytes: SQLMetric = longMetric("outputBytes")
-  val cpuCount: SQLMetric = longMetric("count")
-  val wallNanos: SQLMetric = longMetric("wallNanos")
-  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val inputRows: SQLMetric = longMetric("inputRows")
+    val inputVectors: SQLMetric = longMetric("inputVectors")
+    val inputBytes: SQLMetric = longMetric("inputBytes")
+    val rawInputRows: SQLMetric = longMetric("rawInputRows")
+    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+    val outputRows: SQLMetric = longMetric("outputRows")
+    val outputVectors: SQLMetric = longMetric("outputVectors")
+    val outputBytes: SQLMetric = longMetric("outputBytes")
+    val cpuCount: SQLMetric = longMetric("count")
+    val wallNanos: SQLMetric = longMetric("wallNanos")
+    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
-  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-    if (operatorMetrics != null) {
-      inputRows += operatorMetrics.inputRows
-      inputVectors += operatorMetrics.inputVectors
-      inputBytes += operatorMetrics.inputBytes
-      rawInputRows += operatorMetrics.rawInputRows
-      rawInputBytes += operatorMetrics.rawInputBytes
-      outputRows += operatorMetrics.outputRows
-      outputVectors += operatorMetrics.outputVectors
-      outputBytes += operatorMetrics.outputBytes
-      cpuCount += operatorMetrics.count
-      wallNanos += operatorMetrics.wallNanos
-      peakMemoryBytes += operatorMetrics.peakMemoryBytes
-      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+      if (operatorMetrics != null) {
+        inputRows += operatorMetrics.inputRows
+        inputVectors += operatorMetrics.inputVectors
+        inputBytes += operatorMetrics.inputBytes
+        rawInputRows += operatorMetrics.rawInputRows
+        rawInputBytes += operatorMetrics.rawInputBytes
+        outputRows += operatorMetrics.outputRows
+        outputVectors += operatorMetrics.outputVectors
+        outputBytes += operatorMetrics.outputBytes
+        cpuCount += operatorMetrics.count
+        wallNanos += operatorMetrics.wallNanos
+        peakMemoryBytes += operatorMetrics.peakMemoryBytes
+        numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      }
     }
   }
+
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
 
   val sparkConf = sparkContext.getConf
 

@@ -187,5 +187,5 @@ case class GenerateExecTransformer(
     }
   }
 
-
+  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
 }

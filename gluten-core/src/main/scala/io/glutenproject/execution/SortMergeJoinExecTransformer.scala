@@ -63,11 +63,20 @@ case class SortMergeJoinExecTransformer(
     "totaltime_sortmergejoin" -> SQLMetrics
       .createTimingMetric(sparkContext, "totaltime_sortmergejoin"))
   val sparkConf = sparkContext.getConf
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
-  val joinTime = longMetric("joinTime")
-  val prepareTime = longMetric("prepareTime")
-  val totaltime_sortmegejoin = longMetric("totaltime_sortmergejoin")
+
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val numOutputRows = longMetric("numOutputRows")
+    val numOutputBatches = longMetric("numOutputBatches")
+    val joinTime = longMetric("joinTime")
+    val prepareTime = longMetric("prepareTime")
+    val totaltime_sortmegejoin = longMetric("totaltime_sortmergejoin")
+
+    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+      numOutputBatches += outNumBatches
+      numOutputRows += outNumRows
+    }
+  }
+
   val resultSchema = this.schema
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
@@ -218,10 +227,7 @@ case class SortMergeJoinExecTransformer(
       this
   }
 
-  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    numOutputBatches += outNumBatches
-    numOutputRows += outNumRows
-  }
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
 
   override def getChild: SparkPlan = streamedPlan
 
