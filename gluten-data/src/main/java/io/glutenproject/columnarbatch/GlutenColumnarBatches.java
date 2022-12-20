@@ -37,7 +37,7 @@ public final class GlutenColumnarBatches {
     columnVectors[0] = iv;
     long numPlaceholders = numColumns - 1;
     for (int i = 0; i < numPlaceholders; i++) {
-      final GlutenPlaceholderVector pv = new GlutenPlaceholderVector();
+      final GlutenPlaceholderVector pv = GlutenPlaceholderVector.INSTANCE;
       columnVectors[i + 1] = pv;
     }
     return new ColumnarBatch(columnVectors, numRows);
