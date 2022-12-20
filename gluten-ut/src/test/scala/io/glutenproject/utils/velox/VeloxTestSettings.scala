@@ -110,6 +110,7 @@ object VeloxTestSettings extends BackendTestSettings {
     .include("SPARK-15832: Test embedded existential predicate sub-queries")
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]
-  enableSuite[GlutenGeneratorFunctionSuite]
+  enableSuite[GlutenDataFrameTimeWindowingSuite]
+  enableSuite[GlutenDataFrameSessionWindowingSuite]
 
 }
