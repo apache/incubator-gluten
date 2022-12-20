@@ -111,5 +111,7 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
+  enableSuite[GlutenDataFrameTimeWindowingSuite]
+  enableSuite[GlutenDataFrameSessionWindowingSuite]
 
 }
