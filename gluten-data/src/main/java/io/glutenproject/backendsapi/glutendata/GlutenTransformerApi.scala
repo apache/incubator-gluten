@@ -18,6 +18,9 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
+import io.glutenproject.execution.HashJoinLikeExecTransformer
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{GlutenArrowUtil, InputPartitionsUtil}
 
 import org.apache.spark.internal.Logging
@@ -62,5 +65,18 @@ abstract class GlutenTransformerApi extends ITransformerApi with Logging {
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+  }
+
+  override def genExistsColumnProjection(selectionNode: SelectionNode,
+                                         substraitContext: SubstraitContext): ExpressionNode = {
+    // Velox will return "null" for unmatched join keys if:
+    // 1. probe-side join key is null
+    // 2. probe-side join key is not null but build-side contains null keys
+    // For theses cases, Spark will return "false".
+    // Add a projection here to make the conversion { true => true, (false, null) => false }
+    val notNull = HashJoinLikeExecTransformer
+      .makeIsNotNullExpression(selectionNode, substraitContext.registeredFunction)
+    HashJoinLikeExecTransformer
+      .makeAndExpression(selectionNode, notNull, substraitContext.registeredFunction)
   }
 }
