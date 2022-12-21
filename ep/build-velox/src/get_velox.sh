@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/rui-mo/velox.git
-VELOX_BRANCH=wip_func
+VELOX_REPO=https://github.com/oap-project/velox.git
+VELOX_BRANCH=main
 
 for arg in "$@"
 do
