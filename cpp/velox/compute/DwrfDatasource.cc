@@ -63,7 +63,7 @@ void DwrfDatasource::Init(const std::unordered_map<std::string, std::string>& sp
   }
 
   type_ = importFromArrow(c_schema);
-  auto sink = std::make_unique<dwio::common::FileSink>(final_path_);
+  auto sink = std::make_unique<dwio::common::LocalFileSink>(final_path_);
   auto config = std::make_shared<dwrf::Config>();
 
   for (auto iter = sparkConfs.begin(); iter != sparkConfs.end(); iter++) {
