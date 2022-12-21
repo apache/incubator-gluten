@@ -52,7 +52,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 
   // TODO(yuan): move to seperate func initcache()
   auto key = conf.find(kVeloxCacheEnabled);
-  if (key != conf.end() && conf[kVeloxCacheEnabled] == "true") {
+  if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
     uint64_t cacheSize = stol(kVeloxCacheSizeDefault);
     int32_t cacheShards = stoi(kVeloxCacheShardsDefault);
     std::string cachePathPrefix = kVeloxCachePathDefault;
