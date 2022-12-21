@@ -20,16 +20,14 @@ package io.glutenproject.execution
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import scala.collection.mutable.HashMap
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.vectorized.OperatorMetrics
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, SQLExecution, ScalarSubquery, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
@@ -245,7 +243,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
   // present. This is because such a filter relies on information that is only available at run
   // time (for instance the keys used in the other side of a join).
-  @transient private lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
+  @transient lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
     val dynamicPartitionFilters = partitionFilters.filter(
       FileSourceScanExecTransformer.isDynamicPruningFilter)
     val selected = if (dynamicPartitionFilters.nonEmpty) {
@@ -253,12 +251,16 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       // it needs to execute InSubqueryExec first,
       // because doTransform path can't execute 'doExecuteColumnar' which will
       // execute prepare subquery first.
-      dynamicPartitionFilters.map(dynamicPartitionFilter => {
-        dynamicPartitionFilter match {
-          case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
-            executeInSubqueryForDynamicPruningExpression(inSubquery)
-        }
-      })
+      dynamicPartitionFilters.foreach {
+        case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
+          executeInSubqueryForDynamicPruningExpression(inSubquery)
+        case e: Expression =>
+          e.foreach {
+            case s: ScalarSubquery => s.updateResult()
+            case _ =>
+          }
+        case _ =>
+      }
       val startTime = System.nanoTime()
       // call the file index for the files matching all filters except dynamic partition filters
       val predicate = dynamicPartitionFilters.reduce(And)
