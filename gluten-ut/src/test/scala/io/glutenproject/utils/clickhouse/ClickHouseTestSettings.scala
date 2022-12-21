@@ -26,7 +26,6 @@ object ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(
       "average", // [overwritten by Gluten - xxx]
-      "groupBy", // [overwritten by Gluten - xxx]
       "count", // [overwritten by Gluten - xxx]
       "null count", // [overwritten by Gluten - xxx]
       "multiple column distinct count", // [not urgent, function with multiple params]
