@@ -156,5 +156,6 @@ object VeloxTestSettings extends BackendTestSettings {
   // spill not supported yet.
   enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
   enableSuite[GlutenSortSuite]
+      .include("sorting on DecimalType(20,5) with nullable=true, sortOrder=List('a ASC NULLS FIRST)")
 
 }

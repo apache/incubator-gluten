@@ -45,4 +45,25 @@ class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait {
       input.sortBy(t => (t._1, t._2, t._3)).map(Row.fromTuple),
       sortAnswers = false)
   }
+
+  test(s"sorting on with nullable=true, sortOrder=") {
+      val dataType = DecimalType(20, 5)
+      val nullable = true;
+      val sortOrder = Seq('a.asc);
+      val randomDataGenerator = RandomDataGenerator.forType(dataType, nullable)
+      val inputData = Seq.fill(1000)(randomDataGenerator)
+      val inputDf = spark.createDataFrame(
+        sparkContext.parallelize(Random.shuffle(inputData).map(v => Row(v))),
+        StructType(StructField("a", dataType, nullable = true) :: Nil)
+      )
+//    val p: SparkPlan = null
+//    SparkPlanTest.executePlan(SortExec(sortOrder, global = true, p, testSpillFrequency = 23),
+//      spark.sqlContext).
+      checkThatPlansAgree(
+        inputDf,
+        p => SortExec(sortOrder, global = true, p: SparkPlan, testSpillFrequency = 23),
+        ReferenceSort(sortOrder, global = true, _: SparkPlan),
+        sortAnswers = false
+      )
+    }
 }

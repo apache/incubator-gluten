@@ -96,6 +96,12 @@ class CheckOverflowTransformer(
   extends ExpressionTransformer
     with Logging {
 
+  buildCheck()
+
+  def buildCheck(): Unit = {
+    throw new UnsupportedOperationException("Not support")
+  }
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.doTransform(args)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
