@@ -58,6 +58,12 @@ jobs:
     runs-on: velox-self-hosted 
     steps:
       - uses: actions/checkout@v2
+      - name: rebase with main branch
+        run: |
+          git config --global user.email "gha@example.com"
+          git config --global user.name "github action"
+          git fetch origin
+          git rebase origin/main
       - name: Setup docker container
         run: |
           EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID -m 50GB --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
