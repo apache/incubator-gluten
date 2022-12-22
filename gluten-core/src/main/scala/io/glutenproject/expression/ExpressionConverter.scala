@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.types.StructType
 
 object ExpressionConverter extends Logging {
 
@@ -245,6 +246,17 @@ object ExpressionConverter extends Logging {
             g.child,
             attributeSeq),
           g)
+      case getStructField: GetStructField =>
+        // Different backends may have different result
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance.
+          genGetStructFieldTransformer(substraitExprName.get,
+            replaceWithExpressionTransformer(getStructField.child, attributeSeq),
+            getStructField.ordinal,
+            getStructField)
+        if (transformer == null) {
+          throw new UnsupportedOperationException(s"Unsupported expression: GetStructField")
+        }
+        transformer
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName.get, l)
       case u: UnaryExpression =>

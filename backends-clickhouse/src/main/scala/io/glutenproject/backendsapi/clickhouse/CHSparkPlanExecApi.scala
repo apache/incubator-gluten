@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer, GetStructFieldTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -376,4 +376,12 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+
+  /** Generate an ExpressionTransformer to transform GetStructFiled expression. */
+  override def genGetStructFieldTransformer(
+      substraitExprName: String,
+      childTransformer: ExpressionTransformer,
+      ordinal: Int,
+      original: GetStructField): ExpressionTransformer =
+    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
 }
