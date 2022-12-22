@@ -131,9 +131,10 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
   enableSuite[GlutenSubquerySuite]
-    .include("SPARK-27279: Reuse Subquery", "Subquery reuse across the whole plan")
-    .include("SPARK-15832: Test embedded existential predicate sub-queries")
-    .include("EXISTS predicate subquery within OR")
+    .excludeByPrefix(
+      "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
+      "SPARK-32290" // Need to be removed after picking Velox #3571.
+    )
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
