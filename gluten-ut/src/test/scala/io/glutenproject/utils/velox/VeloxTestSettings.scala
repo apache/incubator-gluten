@@ -147,5 +147,5 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSameResultSuite]
   // spill not supported yet.
   enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
-  
+
 }
