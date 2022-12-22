@@ -22,6 +22,7 @@ import io.glutenproject.execution.HashJoinLikeExecTransformer
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{GlutenArrowUtil, InputPartitionsUtil}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
