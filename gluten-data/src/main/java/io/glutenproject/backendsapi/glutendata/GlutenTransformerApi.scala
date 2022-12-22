@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.types.{ArrayType, BooleanType, MapType, StructType}
 
 abstract class GlutenTransformerApi extends ITransformerApi with Logging {
 
@@ -38,6 +39,15 @@ abstract class GlutenTransformerApi extends ITransformerApi with Logging {
    */
   override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
                                                    outputAttributes: Seq[Attribute]): Boolean = {
+    // Complex type is not supported.
+    for (attr <- outputAttributes) {
+      attr.dataType match {
+        case _: ArrayType => return false
+        case _: MapType => return false
+        case _: StructType => return false
+        case _ =>
+      }
+    }
     // check input datatype
     for (attr <- outputAttributes) {
       try GlutenArrowUtil.createArrowField(attr)
