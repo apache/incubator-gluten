@@ -19,6 +19,30 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
+import scala.util.Random
+
+import org.apache.spark.AccumulatorSuite
+import org.apache.spark.sql.{RandomDataGenerator, Row}
+import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.test.SharedSparkSession
+import org.apache.spark.sql.types._
+
 class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait {
 
+  import testImplicits.newProductEncoder
+  import testImplicits.localSeqToDatasetHolder
+
+
+  test("SPARK-33260: sort order is a Stream - local") {
+    val input = Seq(
+      ("Hello", 4, 2.0),
+      ("Hello", 1, 1.0),
+      ("World", 8, 3.0)
+    )
+    checkAnswer(
+      input.toDF("a", "b", "c"),
+      (child: SparkPlan) => SortExec(Stream('a.asc, 'b.asc, 'c.asc), global = true, child = child),
+      input.sortBy(t => (t._1, t._2, t._3)).map(Row.fromTuple),
+      sortAnswers = false)
+  }
 }

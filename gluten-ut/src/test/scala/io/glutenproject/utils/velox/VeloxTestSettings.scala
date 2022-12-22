@@ -21,7 +21,15 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+<<<<<<< HEAD
 import org.apache.spark.sql.execution._
+=======
+<<<<<<< HEAD
+import org.apache.spark.sql.execution.GlutenBroadcastExchangeSuite
+=======
+import org.apache.spark.sql.execution.GlutenSortSuite
+>>>>>>> Initial commit
+>>>>>>> Initial commit
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -147,5 +155,6 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSameResultSuite]
   // spill not supported yet.
   enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
+  enableSuite[GlutenSortSuite]
 
 }
