@@ -52,7 +52,7 @@ jobs:
       - name: Exit docker container
         if: ${{ always() }}
         run: |
-          docker stop velox-backend-test-$GITHUB_RUN_ID || true
+          docker stop arrow-backend-test-$GITHUB_RUN_ID || true
 
   velox-backend-test:
     runs-on: velox-self-hosted 
