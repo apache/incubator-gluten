@@ -22,13 +22,12 @@ import io.glutenproject.execution.HashJoinLikeExecTransformer
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{GlutenArrowUtil, InputPartitionsUtil}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.types.{ArrayType, BooleanType, MapType, StructType}
+import org.apache.spark.sql.types.{ArrayType, BooleanType, DecimalType, MapType, StructType}
 
 abstract class GlutenTransformerApi extends ITransformerApi with Logging {
 
