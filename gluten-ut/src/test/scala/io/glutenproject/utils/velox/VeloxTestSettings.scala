@@ -18,6 +18,7 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
+
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
@@ -67,13 +68,6 @@ object VeloxTestSettings extends BackendTestSettings {
        // NaN case
       "replace nan with float",
       "replace nan with double"
-    )
-
-  enableSuite[GlutenDataFrameRangeSuite]
-    .exclude(
-      // don't know why, corner case
-      "SPARK-21041 SparkSession.range()'s behavior is inconsistent with SparkContext.range()" +
-        " (whole-stage-codegen on)"
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
@@ -130,6 +124,8 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenComplexTypesSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
+  enableSuite[GlutenDataFrameRangeSuite]
+  enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
       "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.

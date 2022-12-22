@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.rdd
 
-import scala.reflect.ClassTag
-
 import org.apache.spark.{Partition, SparkContext, TaskContext}
+
+import scala.reflect.ClassTag
 
 /**
  * This file is copied from Spark
  *
- * Changed it from a 0-partition RDD to a 1-partition RDD, where the single partition
- * returns empty iterator
+ * Changed it from a 0-partition RDD to a 1-partition RDD, where the single partition returns empty
+ * iterator
  *
  * This can stop mapper stage to be skipped, solving
  * https://github.com/Kyligence/ClickHouse/issues/161
@@ -42,4 +41,3 @@ private[spark] class EmptyRDD[T: ClassTag](sc: SparkContext) extends RDD[T](sc, 
 private[spark] class MyEmptyRDDPartition(idx: Int) extends Partition {
   val index = idx
 }
-
