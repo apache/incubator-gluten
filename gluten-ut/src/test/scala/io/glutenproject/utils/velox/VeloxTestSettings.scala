@@ -125,8 +125,8 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenApproximatePercentileQuerySuite]
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
-      "SPARK-26893", // This test checks Spark's operator after execution.
-      "SPARK-32290" // single column not in subquery -- d = b + 10 joinKey found
+      "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
+      "SPARK-32290" // Need to be removed after picking Velox #3571.
     )
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]
