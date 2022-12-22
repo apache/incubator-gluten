@@ -149,5 +149,6 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
   enableSuite[GlutenSortSuite]
       // Sort spill is not supported.
-      .exclude("sorting does not crash for large inputs")
+      .exclude("sorting does not crash for large inputs").
+  
 }

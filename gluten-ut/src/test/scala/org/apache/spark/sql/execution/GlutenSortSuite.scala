@@ -20,4 +20,5 @@ package org.apache.spark.sql.execution
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait {
+
 }
