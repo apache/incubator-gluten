@@ -21,6 +21,7 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution.GlutenBroadcastExchangeSuite
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -139,5 +140,6 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
+  enableSuite[GlutenBroadcastExchangeSuite]
 
 }
