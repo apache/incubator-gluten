@@ -30,8 +30,7 @@ object VeloxTestSettings extends BackendTestSettings {
       "rollup overlapping columns", // wait velox to fix
       "cube overlapping columns", // wait velox to fix
       // incorrect result, distinct NaN case
-      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
-      "SPARK-32136: NormalizeFloatingNumbers should work on null struct" // integer overflow
+      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate"
     )
 
   enableSuite[GlutenCastSuite]
@@ -67,6 +66,13 @@ object VeloxTestSettings extends BackendTestSettings {
        // NaN case
       "replace nan with float",
       "replace nan with double"
+    )
+
+  enableSuite[GlutenDataFrameRangeSuite]
+    .exclude(
+      // don't know why, corner case
+      "SPARK-21041 SparkSession.range()'s behavior is inconsistent with SparkContext.range()" +
+        " (whole-stage-codegen on)"
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
