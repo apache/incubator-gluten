@@ -10,8 +10,8 @@ BUILD_PROTOBUF=ON
 BUILD_TYPE=release
 VELOX_HOME=
 #for ep cache
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/zhztheplayer/velox.git
+VELOX_BRANCH=wip-split-skip-fix
 TARGET_BUILD_COMMIT=""
 ENABLE_EP_CACHE=OFF
 
@@ -206,7 +206,7 @@ function incremental_build {
 }
 
 cd $VELOX_HOME
-check_commit
+#check_commit
 check_ep_cache
 process_script
 compile
