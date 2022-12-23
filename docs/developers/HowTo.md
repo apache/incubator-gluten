@@ -12,41 +12,90 @@ The Gluten is responsibility for validating whether the operators of the Spark p
 transforms Spark plan to Substrait plan, and then send the Substrait plan to the native engine.
 
 The Gluten codes consist of two parts: the C++ codes and the Java/Scala codes. 
-1. All C++ codes place under the directory of `gluten_home/cpp`, the Java/Scala codes place under several directories, such as `gluten_home/gluten-core`,
-  `gluten_home/gluten-data`, `gluten_home/backends_velox`.
-2. The Java/Scala codes are responsibility for validating and transforming execution plan. Source data should also be provided, the source data may come
-   from files or other forms such as networks.
+1. All C++ codes are placed under the directory of `gluten_home/cpp`, the Java/Scala codes are placed under several directories, such as
+  `gluten_home/gluten-core` `gluten_home/gluten-data` `gluten_home/backends_velox`.
+2. The Java/Scala codes are responsibility for validating and transforming the execution plan. Source data should also be provided, the source data may
+  come from files or other forms such as networks.
 3. The C++ codes take the Substrait plan and the source data as inputs and transform the Substrait plan to the corresponding backend plan. If the backend
-   is Velox, the Substrait plan will be transformed to the Velox plan, and then be executed.
+  is Velox, the Substrait plan will be transformed to the Velox plan, and then be executed.
 
-JNI is a programming technology of invoding C++ from Java. All JNI interfaces are defined in the file `JniWrapper.cc` under directory `jni`.
+JNI is a programming technology of invoking C++ from Java. All JNI interfaces are defined in the file `JniWrapper.cc` under the directory `jni`.
 
 # How to debug in Gluten?
 
 ## 1 How to debug C++
-If you don't concern about the Scala/Java codes and just want to debug the C++ codes, you may debug the Velox bench-mark following the below steps.
+If you don't concern about the Scala/Java codes and just want to debug the C++ codes executed in native engine, you may debug the C++ via benchmarks
+with GDB.
 
-1. First step, compile cpp with `BUILD_TYPE` debug.
-  - `cd gluten_home/cpp`
-  - `./compile.sh --BUILD_TYPE=debug`. 
-  compiling with `BUILD_TYPE=debug` is good for debugging, after the above two operations, the executable file `generic_benchmark` will be generated under
-  the directory of `gluten_home/cpp/velox/benchmarks/`.
+To debug C++, the first step is to generate the example files, The example files consist of:
+- A file contained Substrait plan in JSON format
+- One or more input data files in parqut format
 
-2. Second step, debug benchmarks using GDB
-  - `cd gluten_home/cpp/velox/benchmarks/`
-  Now, debug benchmarks with GDB, execute the below command:
-  - `gdb generic_benchmark`
-  When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with the command `b main`, and then run with the `r` 
-  command of gdb.
-  You can debug `generic_benchmark` using any gdb commands as debugging normal C++ program, because the `generic_benchmark` is a pure C++ executable file.
+You can generate the example files by the following steps:
 
-3. `gdb-tui` is a valuable feature and is worth trying. You can get more help from online docs.
-  [gdb-tui](https://sourceware.org/gdb/current/onlinedocs/gdb/TUI.html#TUI)
+1. get and build Arrow
+```
+cd /gluten_home/ep/build-arrow/src
+./get_arrow.sh
+./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
+```
 
-4. You can start `generic_benchmark` with specific JSON plan and input files.
-  If you omit them, the `example.json, example_lineitem + example_orders` under the directory of `gluten_home/backends-velox/generated-native-benchmark` 
-  will be used as the default inputs.
-  You can edit the `example.json` to custom the Substrait plan or provide the inputs files placed other directory.
+2. get and build Velox
+```
+cd /gluten_home/ep/build-velox/src
+./get_velox.sh
+./build_velox.sh
+```
+
+3. compile the CPP
+```
+cd /gluten_home/cpp
+./compile.sh --build_type=debug --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
+```
+- Compiling with `--build_type=debug` is good for debugging.
+- When `compile.sh` is executed, the executable file `generic_benchmark` will be generated under the directory of `gluten_home/cpp/velox/benchmarks/`.
+
+4. build Gluten and generate the example files
+```
+cd /gluten_home
+mvn clean package -Pspark-3.2 -Pbackends-velox
+mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
+# You can replace `-Pspark-3.2` with `-Pspark-3.3` if the spark's version is 3.3
+```
+- After the above operations, the examples files are generated under `/gluten_home/backends-velox`
+- You can check it by the command `tree /gluten_home/backends-velox/generated-native-benchmark/`
+```shell
+$ tree /gluten_home/backends-velox/generated-native-benchmark/
+/gluten_home/backends-velox/generated-native-benchmark/
+├── example.json
+├── example_lineitem
+│   ├── part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet
+│   └── _SUCCESS
+└── example_orders
+    ├── part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet
+    └── _SUCCESS
+```
+
+4. now, run benchmarks with GDB
+```
+cd gluten_home/cpp/velox/benchmarks/
+gdb generic_benchmark
+```
+- When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run with command `r`,
+  then the process `generic_benchmark` will start and stop at the `main` function.
+- You can check the variables' state with command `p variable_name`, or execute the program line by line with command `n`, or step-in the function been
+  called with command `s`. actually, you can debug `generic_benchmark` with any valid gdb commands as debugging normal C++ program, because the
+  `generic_benchmark` is a pure C++ executable file in fact.
+
+5. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
+[gdb-tui](https://sourceware.org/gdb/current/onlinedocs/gdb/TUI.html#TUI)
+
+6. you can start `generic_benchmark` with specific JSON plan and input files
+- If you omit them, the `example.json, example_lineitem + example_orders` under the directory of `gluten_home/backends-velox/generated-native-benchmark`
+  will be used as default.
+- You can also edit the file `example.json` to custom the Substrait plan or specify the inputs files placed in the other directory.
+
+5. get more detail information about benchmarks from [MicroBenchmarks.md](https://github.com/oap-project/gluten/blob/main/docs/developers/MicroBenchmarks.md)
 
 ## 2 How to debug Java/Scala
 wait to add
