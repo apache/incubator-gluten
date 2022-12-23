@@ -206,7 +206,7 @@ function incremental_build {
 }
 
 cd $VELOX_HOME
-#check_commit
+check_commit
 check_ep_cache
 process_script
 compile
