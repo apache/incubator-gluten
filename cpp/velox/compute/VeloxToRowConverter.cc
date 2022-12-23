@@ -88,6 +88,7 @@ arrow::Status VeloxToRowConverter::Write() {
     int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
     auto col_type_id = schema_->field(col_idx)->type()->id();
     switch (col_type_id) {
+      // We should keep supported types consistent with that in #buildCheck of GlutenColumnarToRowExec.scala.
       case arrow::Int8Type::type_id: {
         auto vec = vecs_[col_idx];
         bool mayHaveNulls = vec->mayHaveNulls();
