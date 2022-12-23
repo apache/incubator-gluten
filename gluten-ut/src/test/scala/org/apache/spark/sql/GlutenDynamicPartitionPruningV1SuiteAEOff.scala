@@ -203,8 +203,12 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV
           case rs: ReusedSubqueryExec => rs.child.id
         }
 
-        assert(subqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
-        assert(reusedSubqueryIds.size == 1, "Whole plan subquery reusing not working correctly")
+        // By default Gluten pushes more filters than vanilla Spark.
+        //
+        // See also io.glutenproject.execution.FilterHandler.applyFilterPushdownToScan
+        // See also DynamicPartitionPruningSuite.scala#1362
+        assert(subqueryIds.size == 3, "Whole plan subquery reusing not working correctly")
+        assert(reusedSubqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
         assert(reusedSubqueryIds.forall(subqueryIds.contains(_)),
           "ReusedSubqueryExec should reuse an existing subquery")
       }
