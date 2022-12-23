@@ -29,29 +29,47 @@ JNI is a programming technology of invoking C++ from Java. All JNI interfaces ar
 If you don't concern about the Scala/Java codes and just want to debug the C++ codes executed in native engine, you may debug the C++ via benchmarks
 with GDB.
 
+<<<<<<< HEAD
 To debug C++, you have to generate the example files, the example files consist of:
 - A file contained Substrait plan in JSON format
 - One or more input data files in Parquet format
+=======
+To debug C++, the first step is to generate the example files, The example files consist of:
+- A file contained Substrait plan in JSON format
+- One or more input data files in parqut format
+>>>>>>> 3d1486d (update howto)
 
 You can generate the example files by the following steps:
 
 1. get and build Arrow
 ```
+<<<<<<< HEAD
 cd gluten_home/ep/build-arrow/src
+=======
+cd /gluten_home/ep/build-arrow/src
+>>>>>>> 3d1486d (update howto)
 ./get_arrow.sh
 ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
 ```
 
 2. get and build Velox
 ```
+<<<<<<< HEAD
 cd gluten_home/ep/build-velox/src
+=======
+cd /gluten_home/ep/build-velox/src
+>>>>>>> 3d1486d (update howto)
 ./get_velox.sh
 ./build_velox.sh
 ```
 
 3. compile the CPP
 ```
+<<<<<<< HEAD
 cd gluten_home/cpp
+=======
+cd /gluten_home/cpp
+>>>>>>> 3d1486d (update howto)
 ./compile.sh --build_type=debug --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
 ```
 - Compiling with `--build_type=debug` is good for debugging.
@@ -59,6 +77,7 @@ cd gluten_home/cpp
 
 4. build Gluten and generate the example files
 ```
+<<<<<<< HEAD
 cd gluten_home
 mvn clean package -Pspark-3.2 -Pbackends-velox
 mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
@@ -69,6 +88,18 @@ mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io
 ```shell
 $ tree gluten_home/backends-velox/generated-native-benchmark/
 gluten_home/backends-velox/generated-native-benchmark/
+=======
+cd /gluten_home
+mvn clean package -Pspark-3.2 -Pbackends-velox
+mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
+# You can replace `-Pspark-3.2` with `-Pspark-3.3` if the spark's version is 3.3
+```
+- After the above operations, the examples files are generated under `/gluten_home/backends-velox`
+- You can check it by the command `tree /gluten_home/backends-velox/generated-native-benchmark/`
+```shell
+$ tree /gluten_home/backends-velox/generated-native-benchmark/
+/gluten_home/backends-velox/generated-native-benchmark/
+>>>>>>> 3d1486d (update howto)
 ├── example.json
 ├── example_lineitem
 │   ├── part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet
@@ -86,9 +117,14 @@ gdb generic_benchmark
 - When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run with command `r`,
   then the process `generic_benchmark` will start and stop at the `main` function.
 - You can check the variables' state with command `p variable_name`, or execute the program line by line with command `n`, or step-in the function been
+<<<<<<< HEAD
   called with command `s`.
 - Actually, you can debug `generic_benchmark` with any gdb commands as debugging normal C++ program, because the `generic_benchmark` is a pure C++
   executable file in fact.
+=======
+  called with command `s`. actually, you can debug `generic_benchmark` with any valid gdb commands as debugging normal C++ program, because the
+  `generic_benchmark` is a pure C++ executable file in fact.
+>>>>>>> 3d1486d (update howto)
 
 5. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
 [gdb-tui](https://sourceware.org/gdb/current/onlinedocs/gdb/TUI.html#TUI)
