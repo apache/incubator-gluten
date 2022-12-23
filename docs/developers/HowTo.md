@@ -4,6 +4,8 @@ to check and learn.
 
 when you encountered a new problem and then resolved it, please add a new item to this document if you think it may be helpful to the other developers.
 
+We use `gluten_home` to represent the home directory of Gluten in this document.
+
 # How to understand the key work of Gluten?
 
 The Gluten worked as the role of bridge, it's a middle layer between the Spark and the native execution library.
@@ -27,29 +29,29 @@ JNI is a programming technology of invoking C++ from Java. All JNI interfaces ar
 If you don't concern about the Scala/Java codes and just want to debug the C++ codes executed in native engine, you may debug the C++ via benchmarks
 with GDB.
 
-To debug C++, the first step is to generate the example files, The example files consist of:
+To debug C++, you have to generate the example files, the example files consist of:
 - A file contained Substrait plan in JSON format
-- One or more input data files in parqut format
+- One or more input data files in Parquet format
 
 You can generate the example files by the following steps:
 
 1. get and build Arrow
 ```
-cd /gluten_home/ep/build-arrow/src
+cd gluten_home/ep/build-arrow/src
 ./get_arrow.sh
 ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON
 ```
 
 2. get and build Velox
 ```
-cd /gluten_home/ep/build-velox/src
+cd gluten_home/ep/build-velox/src
 ./get_velox.sh
 ./build_velox.sh
 ```
 
 3. compile the CPP
 ```
-cd /gluten_home/cpp
+cd gluten_home/cpp
 ./compile.sh --build_type=debug --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
 ```
 - Compiling with `--build_type=debug` is good for debugging.
@@ -57,16 +59,16 @@ cd /gluten_home/cpp
 
 4. build Gluten and generate the example files
 ```
-cd /gluten_home
+cd gluten_home
 mvn clean package -Pspark-3.2 -Pbackends-velox
 mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=10.0.0-SNAPSHOT -Dexec.skip
-# You can replace `-Pspark-3.2` with `-Pspark-3.3` if the spark's version is 3.3
 ```
-- After the above operations, the examples files are generated under `/gluten_home/backends-velox`
-- You can check it by the command `tree /gluten_home/backends-velox/generated-native-benchmark/`
+- After the above operations, the examples files are generated under `gluten_home/backends-velox`
+- You can check it by the command `tree gluten_home/backends-velox/generated-native-benchmark/`
+- You may replace `-Pspark-3.2` with `-Pspark-3.3` if your spark's version is 3.3
 ```shell
-$ tree /gluten_home/backends-velox/generated-native-benchmark/
-/gluten_home/backends-velox/generated-native-benchmark/
+$ tree gluten_home/backends-velox/generated-native-benchmark/
+gluten_home/backends-velox/generated-native-benchmark/
 ├── example.json
 ├── example_lineitem
 │   ├── part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet
@@ -84,8 +86,9 @@ gdb generic_benchmark
 - When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run with command `r`,
   then the process `generic_benchmark` will start and stop at the `main` function.
 - You can check the variables' state with command `p variable_name`, or execute the program line by line with command `n`, or step-in the function been
-  called with command `s`. actually, you can debug `generic_benchmark` with any valid gdb commands as debugging normal C++ program, because the
-  `generic_benchmark` is a pure C++ executable file in fact.
+  called with command `s`.
+- Actually, you can debug `generic_benchmark` with any gdb commands as debugging normal C++ program, because the `generic_benchmark` is a pure C++
+  executable file in fact.
 
 5. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
 [gdb-tui](https://sourceware.org/gdb/current/onlinedocs/gdb/TUI.html#TUI)
@@ -100,29 +103,40 @@ gdb generic_benchmark
 ## 2 How to debug Java/Scala
 wait to add
 
+## 3 How to debug with core-dump
+wait to complete
+```
+cd the_directory_of_core_file_generated
+gdb gluten_home/cpp/build/releases/libspark_columnar_jni.so 'core-Executor task l-2000883-1671542526'
+
+```
+- the `core-Executor task l-2000883-1671542526` represents the core file name.
+
 # How to run TPC-H on Velox backend
 
 Now, both Parquet and DWRF format files are supported, related scripts and files are under the directory of `gluten_home/backends_velox/workload/tpch`.
 The file `README.md` under `gluten_home/backends_velox/workload/tpch` offers some useful help but it's still not enough and exact.
 
+One way of run TPC-H test is to run unit-test by workflow, you can refer to [unitest](https://github.com/oap-project/gluten/blob/main/.github/workflows/unittests.yml#L90)
+
 Here will explain how to run TPC-H on Velox backend with the Parquet file format.
 1. First step, prepare the datasets, you have two choices.
   - One way, generate Parquet datasets using the script under `gluten_home/backends_velox/workload/tpch/gen_data/parquet_dataset`, You can get help from the above
     mentioned `README.md`.
-  - The Other way, using the small dataset under `gluten_home/backends-velox/src/test/resources/tpch-data-parquet-velox` directly, If you just want to make simple
+  - The other way, using the small dataset under `gluten_home/backends-velox/src/test/resources/tpch-data-parquet-velox` directly, If you just want to make simple
     TPC-H testing, this dataset is a good choice.
 2. Second step, run TPC-H on Velox backend testing.
   - Modify `gluten_home/backends-velox/workload/tpch/run_tpch/tpch_parquet.scala`.
-    - set `var parquet_file_path` to correct directory, if using the small dataset directly in the step one, then modify it as below
+    - set `var parquet_file_path` to correct directory. If using the small dataset directly in the step one, then modify it as below
     ```
     var parquet_file_path = "gluten_home/backends-velox/src/test/resources/tpch-data-parquet-velox"
     ```
-    - set `var gluten_root` to correct directory, if `gluten_home` is the directory of `/home/gluten`, then modify it as below
+    - set `var gluten_root` to correct directory. If `gluten_home` is the directory of `/home/gluten`, then modify it as below
     ```
     var gluten_root = "/home/gluten"
     ```
   - Modify `gluten_home/backends-velox/workload/tpch/run_tpch/tpch_parquet.sh`.
-    - Set `GLUTEN_JAR` correctly.
+    - Set `GLUTEN_JAR` correctly. Please refer to the section of `Build Gluten with Velox Backend` [Velox](https://github.com/oap-project/gluten/blob/main/docs/Velox.md)
     - Set `SPARK_HOME` correctly.
     - Set the memory configurations appropriately.
   - Execute `tpch_parquet.sh` using the below command.
