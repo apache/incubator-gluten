@@ -64,6 +64,12 @@ jobs:
       - name: Install Gluten Velox-backend spark3.2 and Run Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'apt-get update && \
+          cd /opt && \
+          if [ -d "/opt/spark" ]
+          then
+            rm -rf /opt/spark
+          fi
+          git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
@@ -73,7 +79,7 @@ jobs:
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON && \
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark"'
       - name: Run Cpp Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
@@ -140,8 +146,15 @@ jobs:
         if: steps.ch_version.outputs.triggered == 'true'
       - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.2
         run: |
+          pushd /tmp
+          if [ -d "/tmp/spark" ]
+          then
+            rm -rf /tmp/spark
+          fi
+          git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git
+          popd
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
-          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so
+          mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so -DargLine="-Dspark.test.home=/tmp/spark"
 
   formatting-check:
     name: Formatting Check
