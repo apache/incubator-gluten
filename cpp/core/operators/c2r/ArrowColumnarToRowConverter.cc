@@ -154,6 +154,7 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
     int64_t field_offset = nullBitsetWidthInBytes + (col_index << 3L);
 
     switch (typevec[col_index]) {
+      // We should keep supported types consistent with that in #buildCheck of GlutenColumnarToRowExec.scala.
       case arrow::BooleanType::type_id: {
         // Boolean type
         auto bool_array = std::static_pointer_cast<arrow::BooleanArray>(array);
