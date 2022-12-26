@@ -65,7 +65,7 @@ class MyMemoryPool : public arrow::MemoryPool {
     if (new_size > capacity_) {
       return Status::OutOfMemory("malloc of size ", new_size, " failed");
     }
-    auto old_ptr = *ptr;
+    // auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
     // std::cout << "Reallocate: old_size = " << old_size << " old_ptr = " <<
@@ -278,7 +278,7 @@ TEST_F(SplitterTest, TestSingleSplitter) {
   ASSERT_EQ(batches.size(), 3);
 
   std::vector<arrow::RecordBatch*> expected = {input_batch_1_.get(), input_batch_2_.get(), input_batch_1_.get()};
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -325,7 +325,7 @@ TEST_F(SplitterTest, TestRoundRobinSplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -346,7 +346,7 @@ TEST_F(SplitterTest, TestRoundRobinSplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -459,7 +459,7 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -480,7 +480,7 @@ TEST_F(SplitterTest, TestFallbackRangeSplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 3);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), schema_->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -569,7 +569,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -589,7 +589,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -639,7 +639,7 @@ TEST_F(SplitterTest, TestRoundRobinNestListArraySplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -659,7 +659,7 @@ TEST_F(SplitterTest, TestRoundRobinNestListArraySplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -709,7 +709,7 @@ TEST_F(SplitterTest, TestRoundRobinNestLargeListArraySplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -729,7 +729,7 @@ TEST_F(SplitterTest, TestRoundRobinNestLargeListArraySplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -779,7 +779,7 @@ TEST_F(SplitterTest, TestRoundRobinListStructArraySplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -799,7 +799,7 @@ TEST_F(SplitterTest, TestRoundRobinListStructArraySplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -849,7 +849,7 @@ TEST_F(SplitterTest, TestRoundRobinListMapArraySplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -869,7 +869,7 @@ TEST_F(SplitterTest, TestRoundRobinListMapArraySplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -919,7 +919,7 @@ TEST_F(SplitterTest, TestRoundRobinStructArraySplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -939,7 +939,7 @@ TEST_F(SplitterTest, TestRoundRobinStructArraySplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -989,7 +989,7 @@ TEST_F(SplitterTest, TestRoundRobinMapArraySplitter) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -1009,7 +1009,7 @@ TEST_F(SplitterTest, TestRoundRobinMapArraySplitter) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -1108,7 +1108,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitterwithCompression) {
   // verify first block
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {
@@ -1128,7 +1128,7 @@ TEST_F(SplitterTest, TestRoundRobinListArraySplitterwithCompression) {
   ASSERT_NOT_OK(file_->Advance(lengths[0]));
   ASSERT_NOT_OK(file_reader->ReadAll(&batches));
   ASSERT_EQ(batches.size(), 1);
-  for (auto i = 0; i < batches.size(); ++i) {
+  for (size_t i = 0; i < batches.size(); ++i) {
     const auto& rb = batches[i];
     ASSERT_EQ(rb->num_columns(), rb_schema->num_fields());
     for (auto j = 0; j < rb->num_columns(); ++j) {

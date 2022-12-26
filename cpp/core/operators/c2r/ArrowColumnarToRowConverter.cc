@@ -66,7 +66,7 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
           // https://github.com/oap-project/gazelle_plugin/issues/927
           offsetarray_1_8x = _mm256_loadu_si256((__m256i*)&offsetarray[j]);
         }
-        for (j; j + 16 < num_rows_; j += 8) {
+        for (; j + 16 < num_rows_; j += 8) {
           __m256i offsetarray_8x = offsetarray_1_8x;
           offsetarray_1_8x = _mm256_loadu_si256((__m256i*)&offsetarray[j + 8]);
 
@@ -86,7 +86,7 @@ arrow::Status ArrowColumnarToRowConverter::Init() {
       }
 #endif
 
-      for (j; j < num_rows_; j++) {
+      for (; j < num_rows_; j++) {
         offset_type length = offsetarray[j + 1] - offsetarray[j];
         *length_data += RoundNumberOfBytesToNearestWord(length);
         length_data++;
@@ -160,7 +160,6 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
         auto bool_array = std::static_pointer_cast<arrow::BooleanArray>(array);
 
         for (auto j = row_start; j < row_start + batch_rows; j++) {
-          bool is_null = array->IsNull(j);
           if (nullvec[col_index] || (!array->IsNull(j))) {
             auto value = bool_array->Value(j);
             memcpy(buffer_address + offsets[j] + field_offset, &value, sizeof(bool));
@@ -173,7 +172,6 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
       case arrow::StringType::type_id:
       case arrow::BinaryType::type_id: {
         // Binary type
-        auto binary_array = (arrow::BinaryArray*)(array.get());
         using offset_type = typename arrow::BinaryType::offset_type;
         offset_type* BinaryOffsets = (offset_type*)(dataptrs[col_index][1]);
         for (auto j = row_start; j < row_start + batch_rows; j++) {
@@ -215,7 +213,6 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
         auto dtype = dynamic_cast<arrow::Decimal128Type*>(out_array->type().get());
 
         int32_t precision = dtype->precision();
-        int32_t scale = dtype->scale();
 
         for (auto j = row_start; j < row_start + batch_rows; j++) {
           const arrow::Decimal128 out_value(out_array->GetValue(j));
@@ -256,6 +253,7 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
         if (typewidth[col_index] > 0) {
           auto dataptr = dataptrs[col_index][1];
           auto mask = (1L << (typewidth[col_index])) - 1;
+          (void)mask; // suppress warning
           auto shift = _tzcnt_u32(typewidth[col_index]);
           auto buffer_address_tmp = buffer_address + field_offset;
           for (auto j = row_start; j < row_start + batch_rows; j++) {
@@ -336,7 +334,7 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
 
   int32_t i = 0;
 #define BATCH_ROW_NUM 16
-  for (i; i + BATCH_ROW_NUM < num_rows_; i += BATCH_ROW_NUM) {
+  for (; i + BATCH_ROW_NUM < num_rows_; i += BATCH_ROW_NUM) {
     FillBuffer(
         i,
         BATCH_ROW_NUM,
@@ -354,7 +352,7 @@ arrow::Status ArrowColumnarToRowConverter::Write() {
         support_avx512_);
   }
 
-  for (i; i < num_rows_; i++) {
+  for (; i < num_rows_; i++) {
     FillBuffer(
         i,
         1,

@@ -190,8 +190,6 @@ std::vector<uint32_t> ColumnarToRowConverter::ConvertMagArray(int64_t new_high, 
  *  This method refer to the BigInterger#toByteArray() method in Java side.
  */
 std::array<uint8_t, 16> ColumnarToRowConverter::ToByteArray(arrow::Decimal128 value, int32_t* length) {
-  int64_t high = value.high_bits();
-  uint64_t low = value.low_bits();
   arrow::Decimal128 new_value;
   int32_t sig;
   if (value > 0) {

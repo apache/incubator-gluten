@@ -136,7 +136,7 @@ class Splitter {
 
  protected:
   Splitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
-      : num_partitions_(num_partitions), schema_(std::move(schema)), options_(std::move(options)) {}
+      : num_partitions_(num_partitions), options_(std::move(options)), schema_(std::move(schema)) {}
 
   virtual arrow::Status Init();
 
@@ -208,6 +208,8 @@ class Splitter {
 
   class PartitionWriter;
 
+  int32_t num_partitions_;
+
   // Check whether support AVX512 instructions
   bool support_avx512_;
   // options
@@ -270,7 +272,6 @@ class Splitter {
   // rownum < 64k
   std::vector<row_offset_type> partition_id_cnt_;
 
-  int32_t num_partitions_;
   std::shared_ptr<arrow::Schema> schema_;
 
   // write options for tiny batches

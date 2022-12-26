@@ -562,7 +562,7 @@ void WholeStageResIter::setConfToQueryContext(const std::shared_ptr<core::QueryC
       // Set the max memory of partial aggregation as 3/4 of offheap size.
       auto maxMemory = (long)(0.75 * std::stol(got->second));
       configs[core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
-    } catch (const std::invalid_argument) {
+    } catch (const std::invalid_argument&) {
       throw std::runtime_error("Invalid offheap size.");
     }
   }
