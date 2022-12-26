@@ -17,5 +17,6 @@
 
 package org.apache.spark.sql
 
-class GlutenDataFrameRangeSuite extends DataFrameRangeSuite with GlutenSQLTestsTrait {
+class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
+
 }

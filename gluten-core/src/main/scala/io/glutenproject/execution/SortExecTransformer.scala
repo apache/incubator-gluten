@@ -152,7 +152,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     projectExpressions.addAll(selectOrigins.asJava)
 
     var colIdx = originalInputAttributes.size
-    sortOrder.map(order => {
+    sortOrder.foreach(order => {
       val builder = SortField.newBuilder();
       val projectExprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, originalInputAttributes).doTransform(args)
@@ -238,7 +238,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
                            validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val sortFieldList = new util.ArrayList[SortField]()
-    sortOrder.map(order => {
+    sortOrder.foreach(order => {
       val builder = SortField.newBuilder();
       val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)

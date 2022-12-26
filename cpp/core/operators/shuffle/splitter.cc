@@ -1150,7 +1150,7 @@ arrow::Status Splitter::SplitBinaryType(
     auto size = reducer_offset_offset_[pid + 1] - r;
 
     auto multiply = 1;
-    for (register uint32_t x = 0; x < size; x++) {
+    for (uint32_t x = 0; x < size; x++) {
       auto src_offset = reducer_offsets_[x + r]; /*128k*/
       auto strlength = src_offset_addr[src_offset + 1] - src_offset_addr[src_offset];
       value_offset = dst_offset_base[x + 1] = value_offset + strlength;

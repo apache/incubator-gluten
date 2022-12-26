@@ -47,23 +47,51 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
 
   override def buildCheck(): Unit = {
     val schema = child.schema
-    for (field <- schema.fields) {
-      field.dataType match {
-        case d: BooleanType =>
-        case d: ByteType =>
-        case d: ShortType =>
-        case d: IntegerType =>
-        case d: LongType =>
-        case d: FloatType =>
-        case d: DoubleType =>
-        case d: StringType =>
-        case d: TimestampType =>
-        case d: DateType =>
-        case d: BinaryType =>
-        case _ =>
-          throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-            s"GlutenColumnarToRowExecBase.")
-      }
+    child match {
+      // Depending on the input type, VeloxToRowConverter or ArrowColumnarToRowConverter will
+      // be used. Only for columnar shuffle, ArrowColumnarToRowConverter will be used. The data
+      // type checking should align with the code in ArrowColumnarToRowConverter.cc.
+      case _: ColumnarShuffleExchangeAdaptor | _: ColumnarShuffleExchangeExec =>
+        for (field <- schema.fields) {
+          field.dataType match {
+            case _: BooleanType =>
+            case _: ByteType =>
+            case _: ShortType =>
+            case _: IntegerType =>
+            case _: LongType =>
+            case _: FloatType =>
+            case _: DoubleType =>
+            case _: StringType =>
+            case _: TimestampType =>
+            case _: DateType =>
+            case _: BinaryType =>
+            case _: DecimalType =>
+            case _ =>
+              throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
+                  s"GlutenColumnarToRowExec/ArrowColumnarToRowConverter.")
+          }
+        }
+      case _ =>
+        // The data type checking in the below should align with the code in VeloxToRowConverter.cc.
+        for (field <- schema.fields) {
+          field.dataType match {
+            case _: BooleanType =>
+            case _: ByteType =>
+            case _: ShortType =>
+            case _: IntegerType =>
+            case _: LongType =>
+            case _: FloatType =>
+            case _: DoubleType =>
+            case _: StringType =>
+            case _: TimestampType =>
+            case _: DateType =>
+            case _: BinaryType =>
+            case _ =>
+              throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
+                  s"GlutenColumnarToRowExec/VeloxToRowConverter")
+
+          }
+        }
     }
   }
 

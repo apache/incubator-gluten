@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+package org.apache.spark.sql.execution.adaptive
 
-class GlutenDataFrameRangeSuite extends DataFrameRangeSuite with GlutenSQLTestsTrait {
+import org.apache.spark.sql.GlutenSQLTestsTrait
+
+class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
+
 }

@@ -24,6 +24,9 @@ include(FindPkgConfig)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_arrow_lib(${ARROW_SUBSTRAIT_LIB_NAME})
 find_arrow_lib(${PARQUET_LIB_NAME})
 find_arrow_lib(${ARROW_DATASET_LIB_NAME})
