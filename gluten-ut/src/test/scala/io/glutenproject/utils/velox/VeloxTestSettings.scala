@@ -22,7 +22,15 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
+<<<<<<< HEAD
 import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
+=======
+<<<<<<< HEAD
+import org.apache.spark.sql.execution.joins.GlutenExistenceJoinSuite
+=======
+import org.apache.spark.sql.execution.joins.GlutenBroadcastJoinSuite
+>>>>>>> enable GlutenBroadcastJoinSuite
+>>>>>>> enable GlutenBroadcastJoinSuite
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -164,6 +172,7 @@ object VeloxTestSettings extends BackendTestSettings {
       // Sort spill is not supported.
       .exclude("sorting does not crash for large inputs")
   enableSuite[GlutenExistenceJoinSuite]
+<<<<<<< HEAD
   enableSuite[GlutenDataFrameJoinSuite]
   enableSuite[GlutenOuterJoinSuite]
   enableSuite[GlutenInnerJoinSuite]
@@ -196,4 +205,7 @@ object VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
+=======
+  enableSuite[GlutenBroadcastJoinSuite]
+>>>>>>> enable GlutenBroadcastJoinSuite
 }
