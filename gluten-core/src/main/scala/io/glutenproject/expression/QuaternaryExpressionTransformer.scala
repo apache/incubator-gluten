@@ -24,6 +24,36 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.RegExpReplace
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.GlutenConfig
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.types.IntegerType
+import io.glutenproject.substrait.expression.IntLiteralNode
+
+class RegExpReplaceTransformer(substraitExprName: String, subject: ExpressionTransformer,
+  regexp: ExpressionTransformer, rep: ExpressionTransformer, pos: ExpressionTransformer,
+  original: RegExpReplace)
+  extends ExpressionTransformer with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    if (BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_VELOX_BACKEND)) {
+      QuaternaryExpressionTransformer(substraitExprName, subject, regexp, rep, pos, original)
+        .doTransform(args)
+    }
+
+    // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent
+    // In Spark: regexp_replace(subject, regexp, rep, pos=1)
+    val posNode = pos.doTransform(args)
+    if (!posNode.isInstanceOf[IntLiteralNode] ||
+      posNode.asInstanceOf[IntLiteralNode].getValue() != 1) {
+      throw new UnsupportedOperationException(s"${original} not supported yet.")
+    }
+
+    TernaryExpressionTransformer(substraitExprName, subject, regexp, rep, original)
+      .doTransform(args)
+  }
+}
 
 /**
  * Transformer for the normal quaternary expression

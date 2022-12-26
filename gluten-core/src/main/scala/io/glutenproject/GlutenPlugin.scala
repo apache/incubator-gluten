@@ -19,9 +19,7 @@ package io.glutenproject
 
 import java.util
 import java.util.{Collections, Objects}
-
 import scala.language.implicitConversions
-
 import com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
@@ -30,12 +28,11 @@ import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.vectorized.NativeExpressionEvaluator
-
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
 class GlutenPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
@@ -187,7 +184,14 @@ private[glutenproject] object GlutenPlugin {
     }
 
     nativeConfMap.put(
-      GlutenConfig.SPARK_BATCH_SIZE, conf.get(GlutenConfig.SPARK_BATCH_SIZE, "32768"))
+      SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key,
+      conf.get(SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "32768"))
+
+    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      nativeConfMap.put(
+        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
+        conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY).toString)
+    }
 
     val stringMapNode = ExpressionBuilder.makeStringMap(nativeConfMap)
     val extensionNode = ExtensionBuilder

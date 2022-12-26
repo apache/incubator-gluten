@@ -44,9 +44,11 @@ namespace gluten {
 namespace {
 const std::string kHiveConnectorId = "test-hive";
 const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
+const std::string kSparkOffHeapSizeKey = "spark.memory.offHeap.size";
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
+const std::string kFlushRowCount = "flushRowCount";
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
@@ -59,7 +61,7 @@ std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* memor
       nullptr,
       std::make_shared<facebook::velox::core::MemConfig>(),
       std::unordered_map<std::string, std::shared_ptr<Config>>(),
-      memory::MappedMemory::getInstance(),
+      memory::MemoryAllocator::getInstance(),
       std::move(ctxRoot),
       nullptr,
       "");
@@ -339,11 +341,6 @@ void VeloxBackend::getInfoAndIds(
   }
 }
 
-std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(MemoryAllocator* allocator) {
-  std::vector<std::shared_ptr<ResultIterator>> inputs = {};
-  return GetResultIterator(allocator, inputs);
-}
-
 std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
     MemoryAllocator* allocator,
     std::vector<std::shared_ptr<ResultIterator>> inputs) {
@@ -456,7 +453,7 @@ void WholeStageResIter::getOrderedNodeIds(
   for (const auto& sourceNode : sourceNodes) {
     // Filter over Project are mapped into FilterProject operator in Velox.
     // Metrics are all applied on Project node, and the metrics for Filter node
-    // does not exist.
+    // do not exist.
     if (isProjectNode && std::dynamic_pointer_cast<const core::FilterNode>(sourceNode)) {
       omittedNodeIds_.insert(sourceNode->id());
     }
@@ -518,23 +515,37 @@ void WholeStageResIter::collectMetrics() {
       metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
       metrics_->numDynamicFiltersProduced[metricsIdx] =
-          sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersProduced);
+          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersProduced);
       metrics_->numDynamicFiltersAccepted[metricsIdx] =
-          sumOfRuntimeMetric(entry.second->customStats, kDynamicFiltersAccepted);
+          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersAccepted);
       metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
-          sumOfRuntimeMetric(entry.second->customStats, kReplacedWithDynamicFilterRows);
+          runtimeMetric("sum", entry.second->customStats, kReplacedWithDynamicFilterRows);
+      metrics_->flushRowCount[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kFlushRowCount);
       metricsIdx += 1;
     }
   }
 }
 
-int64_t WholeStageResIter::sumOfRuntimeMetric(
+int64_t WholeStageResIter::runtimeMetric(
+    const std::string& metricType,
     const std::unordered_map<std::string, RuntimeMetric>& runtimeStats,
     const std::string& metricId) const {
   if (runtimeStats.size() == 0 || runtimeStats.find(metricId) == runtimeStats.end()) {
     return 0;
   }
-  return runtimeStats.at(metricId).sum;
+  if (metricType == "sum") {
+    return runtimeStats.at(metricId).sum;
+  }
+  if (metricType == "count") {
+    return runtimeStats.at(metricId).count;
+  }
+  if (metricType == "min") {
+    return runtimeStats.at(metricId).min;
+  }
+  if (metricType == "max") {
+    return runtimeStats.at(metricId).max;
+  }
+  return 0;
 }
 
 void WholeStageResIter::setConfToQueryContext(const std::shared_ptr<core::QueryCtx>& queryCtx) {
@@ -543,6 +554,17 @@ void WholeStageResIter::setConfToQueryContext(const std::shared_ptr<core::QueryC
   auto got = confMap_.find(kSparkBatchSizeKey);
   if (got != confMap_.end()) {
     configs[core::QueryConfig::kPreferredOutputBatchSize] = got->second;
+  }
+  // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
+  got = confMap_.find(kSparkOffHeapSizeKey);
+  if (got != confMap_.end()) {
+    try {
+      // Set the max memory of partial aggregation as 3/4 of offheap size.
+      auto maxMemory = (long)(0.75 * std::stol(got->second));
+      configs[core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
+    } catch (const std::invalid_argument) {
+      throw std::runtime_error("Invalid offheap size.");
+    }
   }
   // To align with Spark's behavior, set casting to int to be truncating.
   configs[core::QueryConfig::kCastIntByTruncate] = std::to_string(true);

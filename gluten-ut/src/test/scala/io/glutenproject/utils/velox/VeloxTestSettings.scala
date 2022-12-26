@@ -18,9 +18,10 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
-
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution._
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -29,15 +30,8 @@ object VeloxTestSettings extends BackendTestSettings {
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
       "rollup overlapping columns", // wait velox to fix
       "cube overlapping columns", // wait velox to fix
-      // Type YearMonthIntervalType(0,1) not supported
-      "SPARK-34716: Support ANSI SQL intervals by the aggregate function `sum`",
-      "SPARK-34837: Support ANSI SQL intervals by the aggregate function `avg`",
-      // numCols=0, empty intermediate batch
-      "count",
-      "SPARK-38185: Fix data incorrect if aggregate function is empty",
       // incorrect result, distinct NaN case
-      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
-      "SPARK-32136: NormalizeFloatingNumbers should work on null struct" // integer overflow
+      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate"
     )
 
   enableSuite[GlutenCastSuite]
@@ -68,9 +62,44 @@ object VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+  enableSuite[GlutenDataFrameNaFunctionsSuite]
+    .exclude(
+       // NaN case
+      "replace nan with float",
+      "replace nan with double"
+    )
+
+  enableSuite[GlutenDataFrameRangeSuite]
+    .exclude(
+      // don't know why, corner case
+      "SPARK-21041 SparkSession.range()'s behavior is inconsistent with SparkContext.range()" +
+        " (whole-stage-codegen on)"
+    )
+
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
+    // overwritten
+    "DPP should not be rewritten as an existential join",
+    "no partition pruning when the build side is a stream",
+    "Make sure dynamic pruning works on uncorrelated queries",
+    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
+      "canonicalization and exchange reuse",
+    "Subquery reuse across the whole plan",
+    "static scan metrics",
+
+    // to be fixed
+    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
+    "partition pruning in broadcast hash joins with aliases",
+    "broadcast multiple keys in an UnsafeHashedRelation",
+    "different broadcast subqueries with identical children",
+    "avoid reordering broadcast join keys to match input hash partitioning",
+    "dynamic partition pruning ambiguity issue across nested joins",
+    "Plan broadcast pruning only when the broadcast can be reused",
+    GLUTEN_TEST + "Subquery reuse across the whole plan"
+  )
 
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
   enableSuite[GlutenDateExpressionsSuite]
@@ -87,6 +116,9 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNondeterministicSuite]
   enableSuite[GlutenRandomSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
+    .exclude(
+      "% (Remainder)" // Velox will throw exception when right is zero
+    )
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
   enableSuite[GlutenDataFrameSelfJoinSuite]
@@ -94,9 +126,30 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateFunctionsSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
-    .exclude(
-      "primitive data type accesses in persist data",
-      "access cache multiple times",
-      "access only some column of the all of columns")
+  enableSuite[GlutenDataFrameSetOperationsSuite]
+  enableSuite[GlutenDataFrameStatSuite]
+  enableSuite[GlutenComplexTypesSuite]
+  enableSuite[GlutenDataFrameComplexTypeSuite]
+  enableSuite[GlutenApproximatePercentileQuerySuite]
+  enableSuite[GlutenSubquerySuite]
+    .excludeByPrefix(
+      "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
+      "SPARK-32290" // Need to be removed after picking Velox #3571.
+    )
+  enableSuite[GlutenDataFrameWindowFramesSuite]
+  enableSuite[GlutenColumnExpressionSuite]
+  enableSuite[GlutenDataFrameImplicitsSuite]
+  enableSuite[GlutenGeneratorFunctionSuite]
+  enableSuite[GlutenDataFrameTimeWindowingSuite]
+  enableSuite[GlutenDataFrameSessionWindowingSuite]
+  enableSuite[GlutenBroadcastExchangeSuite]
+  enableSuite[GlutenDataFramePivotSuite]
+  enableSuite[GlutenReuseExchangeAndSubquerySuite]
+  enableSuite[GlutenSameResultSuite]
+  // spill not supported yet.
+  enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
+  enableSuite[GlutenSortSuite]
+      // Sort spill is not supported.
+      .exclude("sorting does not crash for large inputs")
 
 }

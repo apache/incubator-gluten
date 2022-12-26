@@ -38,7 +38,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with GlutenTestsBaseTrait {
+trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
   protected override def beforeAll(): Unit = {
     // prepare working paths
@@ -76,20 +76,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
       "; Suite test number: " + TestStats.suiteTestNumber +
       "; OffloadGluten number: " + TestStats.offloadGlutenTestNumber + "\n")
     TestStats.reset()
-  }
-
-  override def runTest(testName: String, args: Args): Status = {
-    TestStats.suiteTestNumber += 1
-    val status = super.runTest(testName, args)
-    if (TestStats.offloadGluten) {
-      TestStats.offloadGlutenTestNumber += 1
-      print("'" + testName + "'" + " offload to gluten\n")
-    } else {
-      // you can find the keyword 'Validation failed for' in function doValidate() in log
-      // to get the fallback reason
-      print("'" + testName + "'" + " NOT use gluten\n")
-    }
-    status
   }
 
   protected def initializeSession(): Unit = {
@@ -134,13 +120,6 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   }
 
   protected var _spark: SparkSession = null
-
-  override protected def test(testName: String,
-                              testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
-    if (shouldRun(testName)) {
-      super.test(testName, testTags: _*)(testFun)
-    }
-  }
 
   override protected def checkEvaluation(expression: => Expression,
                                          expected: Any,
@@ -205,20 +184,22 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
   }
 
   def canConvertToDataFrame(inputRow: InternalRow): Boolean = {
-    if (inputRow == EmptyRow || inputRow == InternalRow.empty) return true
+    if (inputRow == EmptyRow || inputRow == InternalRow.empty) {
+      return true
+    }
     if (!inputRow.isInstanceOf[GenericInternalRow]) {
       return false
     }
     val values = inputRow.asInstanceOf[GenericInternalRow].values
     for (value <- values) {
       value match {
-        case map: MapData => return false
-        case array: ArrayData => return false
-        case struct: InternalRow => return false
-        case _ => None
+        case _: MapData => return false
+        case _: ArrayData => return false
+        case _: InternalRow => return false
+        case _ =>
       }
     }
-    return true
+    true
   }
 
 
@@ -253,7 +234,7 @@ trait GlutenTestsTrait extends SparkFunSuite with ExpressionEvalHelper with Glut
           DecimalType(decimal.precision, decimal.scale), decimal == null))
       case _ =>
         // for null
-        structFileSeq.append(StructField("n", IntegerType, true))
+        structFileSeq.append(StructField("n", IntegerType, nullable = true))
     }
     _spark.internalCreateDataFrame(_spark.sparkContext.parallelize(Seq(inputRow)),
       StructType(structFileSeq))

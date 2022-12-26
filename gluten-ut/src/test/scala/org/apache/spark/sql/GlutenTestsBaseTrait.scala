@@ -33,9 +33,6 @@ trait GlutenTestsBaseTrait {
   def testNameBlackList: Seq[String] = Seq()
 
   def shouldRun(testName: String): Boolean = {
-    if (testName.startsWith(GLUTEN_TEST)) {
-      return true
-    }
     if (testNameBlackList.exists(_.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL))) {
       return false
     }

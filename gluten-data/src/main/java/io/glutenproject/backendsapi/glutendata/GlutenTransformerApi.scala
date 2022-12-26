@@ -18,6 +18,9 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
+import io.glutenproject.execution.HashJoinLikeExecTransformer
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{GlutenArrowUtil, InputPartitionsUtil}
 
 import org.apache.spark.internal.Logging
@@ -25,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.types.{ArrayType, BooleanType, DecimalType, MapType, StructType}
 
 abstract class GlutenTransformerApi extends ITransformerApi with Logging {
 
@@ -35,6 +39,15 @@ abstract class GlutenTransformerApi extends ITransformerApi with Logging {
    */
   override def validateColumnarShuffleExchangeExec(outputPartitioning: Partitioning,
                                                    outputAttributes: Seq[Attribute]): Boolean = {
+    // Complex type is not supported.
+    for (attr <- outputAttributes) {
+      attr.dataType match {
+        case _: ArrayType => return false
+        case _: MapType => return false
+        case _: StructType => return false
+        case _ =>
+      }
+    }
     // check input datatype
     for (attr <- outputAttributes) {
       try GlutenArrowUtil.createArrowField(attr)
@@ -62,5 +75,18 @@ abstract class GlutenTransformerApi extends ITransformerApi with Logging {
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+  }
+
+  override def genExistsColumnProjection(selectionNode: SelectionNode,
+                                         substraitContext: SubstraitContext): ExpressionNode = {
+    // Velox will return "null" for unmatched join keys if:
+    // 1. probe-side join key is null
+    // 2. probe-side join key is not null but build-side contains null keys
+    // For theses cases, Spark will return "false".
+    // Add a projection here to make the conversion { true => true, (false, null) => false }
+    val notNull = HashJoinLikeExecTransformer
+      .makeIsNotNullExpression(selectionNode, substraitContext.registeredFunction)
+    HashJoinLikeExecTransformer
+      .makeAndExpression(selectionNode, notNull, substraitContext.registeredFunction)
   }
 }

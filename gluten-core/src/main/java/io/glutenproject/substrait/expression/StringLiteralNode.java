@@ -28,6 +28,10 @@ public class StringLiteralNode implements ExpressionNode, Serializable {
     this.value = value;
   }
 
+  public String getValue() {
+    return value;
+  }
+
   @Override
   public Expression toProtobuf() {
     Expression.Literal.Builder stringBuilder =

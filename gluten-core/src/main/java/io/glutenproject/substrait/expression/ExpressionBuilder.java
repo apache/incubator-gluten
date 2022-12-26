@@ -192,7 +192,7 @@ public class ExpressionBuilder {
         checkDecimalScale(decimal.scale());
         return makeDecimalLiteral(decimal);
       }
-    }  else if (dataType instanceof ArrayType) {
+    } else if (dataType instanceof ArrayType) {
       if (obj == null) {
         ArrayType arrayType = (ArrayType)dataType;
         return makeNullLiteral(TypeBuilder.makeList(nullable,
@@ -210,10 +210,22 @@ public class ExpressionBuilder {
         }
         return makeStringList(list);
       }
+    } else if (dataType instanceof MapType) {
+      if (obj == null) {
+        MapType mapType = (MapType) dataType;
+        TypeNode keyType = ConverterUtils.getTypeNode(mapType.keyType(), false);
+        TypeNode valType = ConverterUtils.getTypeNode(mapType.valueType(),
+         mapType.valueContainsNull());
+        return makeNullLiteral(TypeBuilder.makeMap(nullable, keyType, valType));
+      } else {
+          throw new UnsupportedOperationException(
+            String.format("Type not supported: %s.", dataType.toString()));
+      }
     } else {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
       throw new UnsupportedOperationException(
-          String.format("Type not supported: %s.", dataType.toString()));
+          String.format("Type not supported: %s, obj: %s, class: %s",
+          dataType.toString(), obj.toString(), obj.getClass().toString()));
     }
   }
 

@@ -32,6 +32,7 @@ object ExpressionMappings {
   final val MIN = "min"
   final val MAX = "max"
   final val STDDEV_SAMP = "stddev_samp"
+  final val COLLECT_LIST = "collect_list"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -79,6 +80,7 @@ object ExpressionMappings {
   final val REVERSE = "reverse"
   final val SPLIT = "split"
   final val SUBSTRING = "substring"
+  final val CONCAT_WS = "concat_ws"
 
   // SparkSQL Math functions
   final val ABS = "abs"
@@ -93,10 +95,10 @@ object ExpressionMappings {
   final val SINH = "sinh"
   final val TAN = "tan"
   final val TANH = "tanh"
-  final val BITWISE_NOT = "BitwiseNot"
-  final val BITWISE_AND = "BitwiseAnd"
-  final val BITWISE_OR = "BitwiseOr"
-  final val BITWISE_XOR = "BitwiseXor"
+  final val BITWISE_NOT = "bitwise_not"
+  final val BITWISE_AND = "bitwise_and"
+  final val BITWISE_OR = "bitwise_or"
+  final val BITWISE_XOR = "bitwise_xor"
   final val SHIFTLEFT = "shiftleft"
   final val SHIFTRIGHT = "shiftright"
   final val SQRT = "sqrt"
@@ -113,6 +115,9 @@ object ExpressionMappings {
   final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"
+  final val REMAINDER = "modulus"
+  final val FACTORIAL = "factorial"
+  final val RAND = "rand"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -135,6 +140,13 @@ object ExpressionMappings {
   final val DAY_OF_YEAR = "day_of_year"
   final val DAY = "day"
   final val SECOND = "second"
+  // Fully supporting wait for https://github.com/ClickHouse/ClickHouse/pull/43818
+  final val FROM_UNIXTIME = "from_unixtime"
+  final val DATE_ADD = "date_add"
+  final val DATE_SUB = "date_sub"
+  final val DATE_DIFF = "datediff"
+  final val TO_UNIX_TIMESTAMP = "to_unix_timestamp"
+  final val UNIX_TIMESTAMP = "unix_timestamp"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -147,6 +159,11 @@ object ExpressionMappings {
   // Array functions
   final val SIZE = "size"
   final val CREATE_ARRAY = "array"
+  final val GET_ARRAY_ITEM = "get_array_item"
+
+  // Map functions
+  final val CREATE_MAP = "map"
+  final val GET_MAP_VALUE = "get_map_value"
 
   // Spark 3.3
   final val SPLIT_PART = "split_part"
@@ -216,6 +233,7 @@ object ExpressionMappings {
     Sig[Reverse](REVERSE),
     Sig[StringSplit](SPLIT),
     Sig[Substring](SUBSTRING),
+    Sig[ConcatWs](CONCAT_WS),
     // SparkSQL Math functions
     Sig[Abs](ABS),
     Sig[Ceil](CEIL),
@@ -249,6 +267,9 @@ object ExpressionMappings {
     Sig[ToRadians](RADIANS),
     Sig[Greatest](GREATEST),
     Sig[Least](LEAST),
+    Sig[Remainder](REMAINDER),
+    Sig[Factorial](FACTORIAL),
+    Sig[Rand](RAND),
     // PrestoSQL Math functions
     Sig[Acos](ACOS),
     Sig[Asin](ASIN),
@@ -268,6 +289,12 @@ object ExpressionMappings {
     Sig[DayOfMonth](EXTRACT),
     Sig[DayOfYear](EXTRACT),
     Sig[Second](EXTRACT),
+    Sig[FromUnixTime](FROM_UNIXTIME),
+    Sig[DateAdd](DATE_ADD),
+    Sig[DateSub](DATE_SUB),
+    Sig[DateDiff](DATE_DIFF),
+    Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),
+    Sig[UnixTimestamp](UNIX_TIMESTAMP),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -278,6 +305,10 @@ object ExpressionMappings {
     Sig[Size](SIZE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[GetArrayItem](GET_ARRAY_ITEM),
+    // Map functions
+    Sig[CreateMap](CREATE_MAP),
+    Sig[GetMapValue](GET_MAP_VALUE),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
@@ -303,7 +334,8 @@ object ExpressionMappings {
     Sig[Count](COUNT),
     Sig[Min](MIN),
     Sig[Max](MAX),
-    Sig[StddevSamp](STDDEV_SAMP)
+    Sig[StddevSamp](STDDEV_SAMP),
+    Sig[CollectList](COLLECT_LIST)
   )
 
   lazy val scalar_functions_map: Map[Class[_], String] =

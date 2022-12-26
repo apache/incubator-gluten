@@ -122,11 +122,6 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 //      Row(new java.math.BigDecimal(2), new java.math.BigDecimal(6)) :: Nil)
   }
 
-  // wait to fix, Arrow col=0
-  ignore("gluten count") {
-    testData2.count()
-  }
-
   ignore("gluten SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate") {
     withTempView("view") {
       Seq(("mithunr", Float.NaN),
@@ -138,14 +133,5 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       val df = spark.sql("select uid, count(distinct score) from view group by 1 order by 1 asc")
       checkAnswer(df, Row("abellina", 2) :: Row("mithunr", 1) :: Nil)
     }
-  }
-
-  ignore("gluten SPARK-32136: NormalizeFloatingNumbers should work on null struct") {
-    val df = Seq(
-      A(None),
-      A(Some(B(None))),
-      A(Some(B(Some(1.0))))).toDF
-    val groupBy = df.groupBy("b").agg(count("*"))
-    checkAnswer(groupBy, Row(null, 1) :: Row(Row(null), 1) :: Row(Row(1.0), 1) :: Nil)
   }
 }

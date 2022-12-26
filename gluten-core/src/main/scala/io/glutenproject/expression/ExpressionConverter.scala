@@ -44,6 +44,24 @@ object ExpressionConverter extends Logging {
         val children = c.children.map(child =>
           replaceWithExpressionTransformer(child, attributeSeq))
         new CreateArrayTransformer(substraitExprName.get, children, true, c)
+      case g: GetArrayItem =>
+        new GetArrayItemTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(g.left, attributeSeq),
+          replaceWithExpressionTransformer(g.right, attributeSeq),
+          g.failOnError,
+          g)
+      case c: CreateMap =>
+        val children = c.children.map(child =>
+          replaceWithExpressionTransformer(child, attributeSeq))
+        new CreateMapTransformer(substraitExprName.get, children, c.useStringTypeWhenEmpty, c)
+      case g: GetMapValue =>
+        new GetMapValueTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(g.child, attributeSeq),
+          replaceWithExpressionTransformer(g.key, attributeSeq),
+          g.failOnError,
+          g)
       case e: Explode =>
         new ExplodeTransformer(substraitExprName.get,
           replaceWithExpressionTransformer(e.child, attributeSeq), e)
@@ -70,6 +88,46 @@ object ExpressionConverter extends Logging {
         new BoundReferenceTransformer(b.ordinal, b.dataType, b.nullable)
       case l: Literal =>
         new LiteralTransformer(l)
+      case f: FromUnixTime =>
+        new FromUnixTimeTransformer(substraitExprName.get,
+          replaceWithExpressionTransformer(
+            f.sec,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            f.format,
+            attributeSeq),
+          f.timeZoneId, f)
+      case d: DateDiff =>
+        new DateDiffTransformer(substraitExprName.get,
+          replaceWithExpressionTransformer(
+            d.endDate,
+            attributeSeq),
+          replaceWithExpressionTransformer(
+            d.startDate,
+            attributeSeq),
+          d)
+      case t: ToUnixTimestamp =>
+        new ToUnixTimestampTransformer(substraitExprName.get,
+          replaceWithExpressionTransformer(t.timeExp, attributeSeq),
+          replaceWithExpressionTransformer(t.format, attributeSeq),
+          t.timeZoneId,
+          t.failOnError,
+          t)
+      case u: UnixTimestamp =>
+        new UnixTimestampTransformer(substraitExprName.get,
+          replaceWithExpressionTransformer(u.timeExp, attributeSeq),
+          replaceWithExpressionTransformer(u.format, attributeSeq),
+          u.timeZoneId,
+          u.failOnError,
+          u)
+      case r: RegExpReplace =>
+        new RegExpReplaceTransformer(substraitExprName.get,
+          replaceWithExpressionTransformer(r.subject, attributeSeq),
+          replaceWithExpressionTransformer(r.regexp, attributeSeq),
+          replaceWithExpressionTransformer(r.rep, attributeSeq),
+          replaceWithExpressionTransformer(r.pos, attributeSeq),
+          r
+        )
       case i: If =>
         new IfTransformer(
           replaceWithExpressionTransformer(

@@ -64,35 +64,39 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
 
-  val inputRows: SQLMetric = longMetric("inputRows")
-  val inputVectors: SQLMetric = longMetric("inputVectors")
-  val inputBytes: SQLMetric = longMetric("inputBytes")
-  val rawInputRows: SQLMetric = longMetric("rawInputRows")
-  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-  val outputRows: SQLMetric = longMetric("outputRows")
-  val outputVectors: SQLMetric = longMetric("outputVectors")
-  val outputBytes: SQLMetric = longMetric("outputBytes")
-  val cpuCount: SQLMetric = longMetric("count")
-  val wallNanos: SQLMetric = longMetric("wallNanos")
-  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val inputRows: SQLMetric = longMetric("inputRows")
+    val inputVectors: SQLMetric = longMetric("inputVectors")
+    val inputBytes: SQLMetric = longMetric("inputBytes")
+    val rawInputRows: SQLMetric = longMetric("rawInputRows")
+    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+    val outputRows: SQLMetric = longMetric("outputRows")
+    val outputVectors: SQLMetric = longMetric("outputVectors")
+    val outputBytes: SQLMetric = longMetric("outputBytes")
+    val cpuCount: SQLMetric = longMetric("count")
+    val wallNanos: SQLMetric = longMetric("wallNanos")
+    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
-  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-    if (operatorMetrics != null) {
-      inputRows += operatorMetrics.inputRows
-      inputVectors += operatorMetrics.inputVectors
-      inputBytes += operatorMetrics.inputBytes
-      rawInputRows += operatorMetrics.rawInputRows
-      rawInputBytes += operatorMetrics.rawInputBytes
-      outputRows += operatorMetrics.outputRows
-      outputVectors += operatorMetrics.outputVectors
-      outputBytes += operatorMetrics.outputBytes
-      cpuCount += operatorMetrics.count
-      wallNanos += operatorMetrics.wallNanos
-      peakMemoryBytes += operatorMetrics.peakMemoryBytes
-      numMemoryAllocations += operatorMetrics.numMemoryAllocations
+    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+      if (operatorMetrics != null) {
+        inputRows += operatorMetrics.inputRows
+        inputVectors += operatorMetrics.inputVectors
+        inputBytes += operatorMetrics.inputBytes
+        rawInputRows += operatorMetrics.rawInputRows
+        rawInputBytes += operatorMetrics.rawInputBytes
+        outputRows += operatorMetrics.outputRows
+        outputVectors += operatorMetrics.outputVectors
+        outputBytes += operatorMetrics.outputBytes
+        cpuCount += operatorMetrics.count
+        wallNanos += operatorMetrics.wallNanos
+        peakMemoryBytes += operatorMetrics.peakMemoryBytes
+        numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      }
     }
   }
+
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
 
   val sparkConf = sparkContext.getConf
 
@@ -131,12 +135,6 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
       this
   }
 
-  override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    // When Sort is the last child of a wholestage transformer, no need to update the output
-    // metrics manually here because updateNativeMetrics can already set the right metrics with
-    // Velox returning correct value in this case.
-  }
-
   def getRelWithProject(context: SubstraitContext,
                         sortOrder: Seq[SortOrder],
                         originalInputAttributes: Seq[Attribute],
@@ -154,7 +152,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     projectExpressions.addAll(selectOrigins.asJava)
 
     var colIdx = originalInputAttributes.size
-    sortOrder.map(order => {
+    sortOrder.foreach(order => {
       val builder = SortField.newBuilder();
       val projectExprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, originalInputAttributes).doTransform(args)
@@ -240,7 +238,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
                            validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val sortFieldList = new util.ArrayList[SortField]()
-    sortOrder.map(order => {
+    sortOrder.foreach(order => {
       val builder = SortField.newBuilder();
       val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)

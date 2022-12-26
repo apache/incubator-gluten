@@ -31,12 +31,18 @@ object VeloxExpressionUtil {
   // The expression with empty type will fall back directly.
   final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
     CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
-    ROUND -> Set(EMPTY_TYPE),
     REGEXP_REPLACE -> Set(EMPTY_TYPE),
     SPLIT -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),
     LENGTH -> Set(DataTypes.BinaryType.typeName),
+    FACTORIAL -> Set(EMPTY_TYPE),
+    CONCAT_WS -> Set(EMPTY_TYPE),
+    RAND -> Set(EMPTY_TYPE),
     // to be removed when Velox support compatible type
-    JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE)
+    JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
+    DATE_DIFF -> Set(EMPTY_TYPE),
+    FROM_UNIXTIME -> Set(EMPTY_TYPE),
+    TO_UNIX_TIMESTAMP -> Set(EMPTY_TYPE),
+    UNIX_TIMESTAMP -> Set(EMPTY_TYPE)
   )
 }

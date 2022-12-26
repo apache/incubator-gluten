@@ -326,6 +326,100 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(20) { df => }
   }
 
+  test("test 'function pmod'") {
+    val df = runQueryAndCompare(
+      "select pmod(-10, id+10) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test 'function ascii'") {
+    val df = runQueryAndCompare(
+      "select ascii(cast(id as String)) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test 'function rand'") {
+    runSql("select rand(), rand(1), rand(null) from range(10)")(
+      checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'function date_add/date_sub/datediff'") {
+    val df = runQueryAndCompare(
+      "select l_shipdate, l_commitdate, " +
+        "date_add(l_shipdate, 1), date_add(l_shipdate, -1), " +
+        "date_sub(l_shipdate, 1), date_sub(l_shipdate, -1), " +
+        "datediff(l_shipdate, l_commitdate), datediff(l_commitdate, l_shipdate) " +
+        "from lineitem order by l_shipdate, l_commitdate limit 1"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'function remainder'") {
+    val df = runQueryAndCompare(
+      "select l_orderkey, l_partkey, l_orderkey % l_partkey, l_partkey % l_orderkey " +
+        "from lineitem order by l_orderkey desc, l_partkey desc limit 1"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("coalesce") {
+    var df = runQueryAndCompare(
+      "select l_orderkey, coalesce(l_comment, 'default_val') " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 5)
+    df = runQueryAndCompare(
+      "select l_orderkey, coalesce(cast(null as string), l_comment, 'default_val') " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 5)
+    df = runQueryAndCompare(
+      "select l_orderkey, coalesce(cast(null as string), cast(null as string), l_comment) " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 5)
+    df = runQueryAndCompare(
+      "select l_orderkey, coalesce(cast(null as string), cast(null as string), 1, 2) " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 5)
+    df = runQueryAndCompare(
+      "select l_orderkey, " +
+        "coalesce(cast(null as string), cast(null as string), cast(null as string)) "
+        + "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 5)
+  }
+
+  test("test 'function from_unixtime'") {
+    val df = runQueryAndCompare(
+      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
+        "from lineitem order by l_orderkey desc limit 10"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test 'aggregate function collect_list'") {
+    val df = runQueryAndCompare(
+      "select l_orderkey, from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
+        "from lineitem order by l_orderkey desc limit 10"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test 'function regexp_replace'") {
+    runQueryAndCompare(
+      "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 1) " +
+        "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test 'function to_unix_timestamp/unix_timestamp'") {
+    runQueryAndCompare(
+      "select to_unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
+        "from lineitem order by l_shipdate limit 10;")(checkOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      "select unix_timestamp(concat(cast(l_shipdate as String), ' 00:00:00')) " +
+        "from lineitem order by l_shipdate limit 10;")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
   ignore("TPCH Q22") {
     runTPCHQuery(22) { df => }
@@ -336,7 +430,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       tpchQueries: String = tpchQueries,
       queriesResults: String = queriesResults,
       compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-//    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
+    // super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
     compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck)
   }
 }

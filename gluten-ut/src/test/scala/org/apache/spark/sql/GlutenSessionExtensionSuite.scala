@@ -17,8 +17,8 @@
 
 package org.apache.spark.sql
 
-import io.glutenproject.extension.{ColumnarOverrideRules, ColumnarQueryStagePrepRule, JoinSelectionOverrides}
-
+import io.glutenproject.extension.columnar.{FallbackMultiCodegens, FallbackOneRowRelation}
+import io.glutenproject.extension.{ColumnarOverrideRules, FallbackBroadcastExchange, JoinSelectionOverrides}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
 
@@ -30,7 +30,9 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
   }
 
   test("test gluten extensions") {
-    assert(spark.sessionState.queryStagePrepRules.contains(ColumnarQueryStagePrepRule(spark)))
+    assert(spark.sessionState.queryStagePrepRules.contains(FallbackOneRowRelation()))
+    assert(spark.sessionState.queryStagePrepRules.contains(FallbackMultiCodegens()))
+    assert(spark.sessionState.queryStagePrepRules.contains(FallbackBroadcastExchange(spark)))
     assert(spark.sessionState.columnarRules.contains(ColumnarOverrideRules(spark)))
     assert(spark.sessionState.planner.strategies.contains(JoinSelectionOverrides))
 

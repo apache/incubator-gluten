@@ -20,7 +20,7 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.vectorized.GeneralOutIterator
+import io.glutenproject.vectorized.Metrics
 import io.substrait.proto.Plan
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
@@ -101,7 +101,7 @@ class GlutenWholeStageColumnarRDD(sc: SparkContext,
                                   var rdds: Seq[RDD[ColumnarBatch]],
                                   pipelineTime: SQLMetric,
                                   updateOutputMetrics: (Long, Long) => Unit,
-                                  updateNativeMetrics: GeneralOutIterator => Unit)
+                                  updateNativeMetrics: Metrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 

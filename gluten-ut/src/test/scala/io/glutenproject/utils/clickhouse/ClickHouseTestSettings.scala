@@ -19,7 +19,7 @@ package io.glutenproject.utils.clickhouse
 
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.GlutenArithmeticExpressionSuite
+import org.apache.spark.sql.catalyst.expressions._
 
 object ClickHouseTestSettings extends BackendTestSettings {
 
@@ -32,7 +32,6 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "multiple column distinct count", // [not urgent, function with multiple params]
       "agg without groups and functions", // [not urgent]
       "zero moments", // [not urgent]
-      "collect functions", // [not urgent]
       "collect functions structs", // [not urgent]
       "SPARK-31500: collect_set() of BinaryType returns duplicate elements", // [not urgent]
       "SPARK-17641: collect functions should not collect null values", // [not urgent]
@@ -76,6 +75,15 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "quarter"
     )
 
+  enableSuite[GlutenDateExpressionsSuite]
+    .include(
+      "Quarter",
+      "date_add",
+      "date_sub",
+      "datediff"
+    )
+
+
   enableSuite[GlutenMathFunctionsSuite]
     .include(
       // "round/bround", // Scale argument of round/bround function currently don't support
@@ -100,23 +108,38 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "cbrt",
       "unhex",
       "hypot",
-      "log10"
+      "log10",
+      "factorial"
     )
 
   enableSuite[GlutenComplexTypesSuite]
-
+  enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
       "- (UnaryMinus)",
       "/ (Divide) basic",
       "/ (Divide) for Long and Decimal type",
-      "% (Remainder)",
+      "% (Remainder)", // CH will throw exception when right is zero
       "SPARK-17617: % (Remainder) double % double on super big double",
       "pmod",
-      "function least",
-      "function greatest",
       "SPARK-28322: IntegralDivide supports decimal type",
       "SPARK-33008: division by zero on divide-like operations returns incorrect result",
       "SPARK-34920: error class"
+    )
+
+  enableSuite[GlutenRegexpExpressionsSuite]
+    .include(
+      "SPLIT",
+      "RLIKE Regular Expression"
+    )
+
+  enableSuite[GlutenStringExpressionsSuite]
+    .include(
+      "concat_ws"
+    )
+
+  enableSuite[GlutenStringFunctionsSuite]
+    .include(
+      "string concat_ws"
     )
 }

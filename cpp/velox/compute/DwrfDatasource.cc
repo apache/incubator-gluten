@@ -99,9 +99,10 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
   reader_options.setFileFormat(format);
 
   if (strncmp(file_path_.c_str(), "file:", 5) == 0) {
+    auto input =
+        std::make_unique<dwio::common::BufferedInput>(std::make_shared<LocalReadFile>(file_path_.substr(5)), *pool_);
     std::unique_ptr<dwio::common::Reader> reader =
-        dwio::common::getReaderFactory(reader_options.getFileFormat())
-            ->createReader(std::make_unique<dwio::common::FileInputStream>(file_path_.substr(5)), reader_options);
+        dwio::common::getReaderFactory(reader_options.getFileFormat())->createReader(std::move(input), reader_options);
     return toArrowSchema(reader->rowType());
   }
 #ifdef VELOX_ENABLE_HDFS
@@ -113,10 +114,13 @@ std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
     hdfsFreeBuilder(builder);
     std::regex hdfsPrefixExp("hdfs://(\\w+)/");
     std::string hdfsFilePath = regex_replace(file_path_.c_str(), hdfsPrefixExp, "/");
-    HdfsReadFile readFile(hdfs, hdfsFilePath);
-    std::unique_ptr<dwio::common::Reader> reader =
-        dwio::common::getReaderFactory(reader_options.getFileFormat())
-            ->createReader(std::make_unique<dwio::common::ReadFileInputStream>(&readFile), reader_options);
+    std::unique_ptr<dwio::common::Reader> reader = dwio::common::getReaderFactory(reader_options.getFileFormat())
+                                                       ->createReader(
+                                                           std::make_unique<dwio::common::BufferedInput>(
+                                                               std::make_shared<dwio::common::ReadFileInputStream>(
+                                                                   std::make_shared<HdfsReadFile>(hdfs, hdfsFilePath)),
+                                                               *pool_),
+                                                           reader_options);
     return toArrowSchema(reader->rowType());
   }
 #endif

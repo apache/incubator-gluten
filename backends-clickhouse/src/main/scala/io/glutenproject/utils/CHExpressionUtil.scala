@@ -28,25 +28,22 @@ object CHExpressionUtil {
   final val ARRAY_TYPE = "array"
   final val MAP_TYPE = "map"
   final val STRUCT_TYPE = "struct"
+  final val DATE_TYPE = "date"
 
   final val CH_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
-    COALESCE -> Set(EMPTY_TYPE),
-    RLIKE -> Set(EMPTY_TYPE),
-    REGEXP_REPLACE -> Set(EMPTY_TYPE),
     REGEXP_EXTRACT -> Set(EMPTY_TYPE),
     REGEXP_EXTRACT_ALL -> Set(EMPTY_TYPE),
-    ASCII -> Set(EMPTY_TYPE),
     LOCATE -> Set(EMPTY_TYPE),
     LPAD -> Set(EMPTY_TYPE),
     RPAD -> Set(EMPTY_TYPE),
     REVERSE -> Set(EMPTY_TYPE),
-    SPLIT -> Set(EMPTY_TYPE),
-    PMOD -> Set(EMPTY_TYPE),
     GET_JSON_OBJECT -> Set(EMPTY_TYPE),
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     MURMUR3HASH -> Set(EMPTY_TYPE),
     MD5 -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),
+    TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
+    UNIX_TIMESTAMP -> Set(DATE_TYPE),
     // CH arrayJoin function doesn't support map type argument yet.
     // Wait for https://github.com/ClickHouse/ClickHouse/pull/43239
     EXPLODE -> Set(MAP_TYPE)

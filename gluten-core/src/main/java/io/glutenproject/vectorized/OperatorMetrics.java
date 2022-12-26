@@ -28,22 +28,35 @@ public class OperatorMetrics {
   public long outputBytes;
   public long count;
   public long wallNanos;
-
   public long peakMemoryBytes;
   public long numMemoryAllocations;
   public long numDynamicFiltersProduced;
   public long numDynamicFiltersAccepted;
   public long numReplacedWithDynamicFilterRows;
+  public long flushRowCount;
+  public long partialAggregationPctSum;
+  public long partialAggregationPctCount;
 
   /**
    * Create an instance for operator metrics.
    */
   public OperatorMetrics(
-      long inputRows, long inputVectors, long inputBytes, long rawInputRows,
-      long rawInputBytes, long outputRows, long outputVectors, long outputBytes,
-      long count, long wallNanos, long peakMemoryBytes, long numMemoryAllocations,
-      long numDynamicFiltersProduced, long numDynamicFiltersAccepted,
-      long numReplacedWithDynamicFilterRows) {
+      long inputRows,
+      long inputVectors,
+      long inputBytes,
+      long rawInputRows,
+      long rawInputBytes,
+      long outputRows,
+      long outputVectors,
+      long outputBytes,
+      long count,
+      long wallNanos,
+      long peakMemoryBytes,
+      long numMemoryAllocations,
+      long numDynamicFiltersProduced,
+      long numDynamicFiltersAccepted,
+      long numReplacedWithDynamicFilterRows,
+      long flushRowCount) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -59,5 +72,6 @@ public class OperatorMetrics {
     this.numDynamicFiltersProduced = numDynamicFiltersProduced;
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
+    this.flushRowCount = flushRowCount;
   }
 }

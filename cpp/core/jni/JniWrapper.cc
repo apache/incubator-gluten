@@ -167,7 +167,7 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
 
 class JavaArrowArrayIterator {
  public:
-  explicit JavaArrowArrayIterator(JNIEnv* env, jobject java_serialized_arrow_array_iterator) {
+  JavaArrowArrayIterator(JNIEnv* env, jobject java_serialized_arrow_array_iterator) {
     // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
     if (env->GetJavaVM(&vm_) != JNI_OK) {
       std::string error_message = "Unable to get JavaVM instance";
@@ -177,8 +177,10 @@ class JavaArrowArrayIterator {
   }
 
   // singleton, avoid stack instantiation
-  JavaArrowArrayIterator(const JavaArrowArrayIterator& itr) = delete;
-  JavaArrowArrayIterator(JavaArrowArrayIterator&& itr) = delete;
+  JavaArrowArrayIterator(const JavaArrowArrayIterator&) = delete;
+  JavaArrowArrayIterator(JavaArrowArrayIterator&&) = delete;
+  JavaArrowArrayIterator& operator=(const JavaArrowArrayIterator&) = delete;
+  JavaArrowArrayIterator& operator=(JavaArrowArrayIterator&&) = delete;
 
   virtual ~JavaArrowArrayIterator() {
     JNIEnv* env;
@@ -272,7 +274,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metrics_builder_class = CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/Metrics;");
 
   metrics_builder_constructor =
-      GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J)V");
+      GetMethodIDOrError(env, metrics_builder_class, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J)V");
 
   serialized_arrow_array_iterator_class =
       CreateGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ArrowInIterator;");
@@ -369,21 +371,14 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
   // Handle the Java iters
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<ResultIterator>> input_iters;
-  if (iters_len > 0) {
-    for (int idx = 0; idx < iters_len; idx++) {
-      jobject iter = env->GetObjectArrayElement(iter_arr, idx);
-      auto array_iter = MakeJavaArrowArrayIterator(env, iter);
-      auto result_iter = std::make_shared<ResultIterator>(std::move(array_iter));
-      input_iters.push_back(std::move(result_iter));
-    }
+  for (int idx = 0; idx < iters_len; idx++) {
+    jobject iter = env->GetObjectArrayElement(iter_arr, idx);
+    auto array_iter = MakeJavaArrowArrayIterator(env, iter);
+    auto result_iter = std::make_shared<ResultIterator>(std::move(array_iter));
+    input_iters.push_back(std::move(result_iter));
   }
 
-  std::shared_ptr<ResultIterator> res_iter;
-  if (input_iters.empty()) {
-    res_iter = backend->GetResultIterator(allocator);
-  } else {
-    res_iter = backend->GetResultIterator(allocator, input_iters);
-  }
+  std::shared_ptr<ResultIterator> res_iter = backend->GetResultIterator(allocator, input_iters);
   return result_iterator_holder_.Insert(std::move(res_iter));
   JNI_METHOD_END(-1)
 }
@@ -441,6 +436,7 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
   auto numDynamicFiltersProduced = env->NewLongArray(numMetrics);
   auto numDynamicFiltersAccepted = env->NewLongArray(numMetrics);
   auto numReplacedWithDynamicFilterRows = env->NewLongArray(numMetrics);
+  auto flushRowCount = env->NewLongArray(numMetrics);
 
   if (metrics) {
     env->SetLongArrayRegion(inputRows, 0, numMetrics, metrics->inputRows);
@@ -455,12 +451,10 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
     env->SetLongArrayRegion(wallNanos, 0, numMetrics, metrics->wallNanos);
     env->SetLongArrayRegion(peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
     env->SetLongArrayRegion(numMemoryAllocations, 0, numMetrics, metrics->numMemoryAllocations);
-
     env->SetLongArrayRegion(numDynamicFiltersProduced, 0, numMetrics, metrics->numDynamicFiltersProduced);
-
     env->SetLongArrayRegion(numDynamicFiltersAccepted, 0, numMetrics, metrics->numDynamicFiltersAccepted);
-
     env->SetLongArrayRegion(numReplacedWithDynamicFilterRows, 0, numMetrics, metrics->numReplacedWithDynamicFilterRows);
+    env->SetLongArrayRegion(flushRowCount, 0, numMetrics, metrics->flushRowCount);
   }
 
   return env->NewObject(
@@ -481,7 +475,8 @@ Java_io_glutenproject_vectorized_ArrowOutIterator_nativeFetchMetrics(JNIEnv* env
       numMemoryAllocations,
       numDynamicFiltersProduced,
       numDynamicFiltersAccepted,
-      numReplacedWithDynamicFilterRows);
+      numReplacedWithDynamicFilterRows,
+      flushRowCount);
   JNI_METHOD_END(nullptr)
 }
 

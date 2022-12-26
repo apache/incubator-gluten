@@ -32,8 +32,8 @@ cd /path_to_gluten
 ./tools/one_step_veloxbackend.sh
 
 ## When you have successfully compiled once and changed some codes then compile again.
-## you may use following command to skip the arrow, velox, folly and protobuf build
-# ./tools/one_step_veloxbackend.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_folly=OFF --build_protobuf=OFF
+## you may use following command to skip the arrow, velox and protobuf build
+# ./tools/one_step_veloxbackend.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
 
 ```
 
@@ -73,7 +73,7 @@ You can also clone the Velox source from [OAP/velox](https://github.com/oap-proj
 ```shell script
 step 1: recompile velox, set velox_home in build_velox.sh
 cd /path_to_gluten/ep/build_velox/src
-./build_velox.sh  --velox_home=/your_specified_velox_path
+./build_velox.sh  --velox_home=/your_specified_velox_path  --build_velox_backend=ON
 
 step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
