@@ -121,6 +121,8 @@ object VeloxTestSettings extends BackendTestSettings {
     )
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
+    // Spill not supported yet.
+    .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]
