@@ -27,9 +27,6 @@
 #include <sstream>
 #include <thread>
 
-#include "arrow/io/file.h"
-#include "arrow/table.h"
-#include "arrow/util/type_fwd.h"
 #include "compute/VeloxBackend.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
@@ -75,39 +72,6 @@ arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
 void InitVeloxBackend() {
   gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(confMap); });
   auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(confMap);
-}
-
-arrow::Status ArrowWriter::initWriter(std::string& path_to_file, arrow::Schema& schema) {
-  using parquet::ArrowWriterProperties;
-  using parquet::WriterProperties;
-  // Choose compression
-  std::shared_ptr<WriterProperties> props =
-      WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
-
-  // Opt to store Arrow schema for easier reads back into Arrow
-  std::shared_ptr<ArrowWriterProperties> arrow_props = ArrowWriterProperties::Builder().store_schema()->build();
-
-  // Create a writer
-  std::shared_ptr<arrow::io::FileOutputStream> outfile;
-  ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_to_file));
-  ARROW_RETURN_NOT_OK(
-      parquet::arrow::FileWriter::Open(schema, arrow::default_memory_pool(), outfile, props, arrow_props, &writer_));
-  return arrow::Status::OK();
-}
-
-arrow::Status ArrowWriter::WriteInBatches(std::shared_ptr<arrow::RecordBatch> batch) {
-  // Write each batch as a row_group
-  ARROW_ASSIGN_OR_RAISE(auto table, arrow::Table::FromRecordBatches(batch->schema(), {batch}));
-  ARROW_RETURN_NOT_OK(writer_->WriteTable(*table.get(), batch->num_rows()));
-  return arrow::Status::OK();
-}
-
-arrow::Status ArrowWriter::closeWriter() {
-  // Write file footer and close
-  if (writer_ != nullptr) {
-    ARROW_RETURN_NOT_OK(writer_->Close());
-  }
-  return arrow::Status::OK();
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {

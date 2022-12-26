@@ -375,4 +375,13 @@ class TestOperator extends WholeStageTransformerSuite {
       }
     }
   }
+
+  test("round") {
+    runQueryAndCompare(
+      """
+        |select round(l_quantity, 2) from lineitem;
+        |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }

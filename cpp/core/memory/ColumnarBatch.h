@@ -22,6 +22,7 @@
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
 #include "include/arrow/c/bridge.h"
+#include "operators/writer/ArrowWriter.h"
 #include "utils/exception.h"
 
 namespace gluten {
@@ -45,6 +46,8 @@ class ColumnarBatch {
   virtual std::shared_ptr<ArrowArray> exportArrowArray() = 0;
 
   virtual std::shared_ptr<ArrowSchema> exportArrowSchema() = 0;
+
+  virtual void saveToFile(std::shared_ptr<ArrowWriter> writer) = 0;
 
   virtual int64_t getExportNanos() const {
     return exportNanos_;
@@ -79,6 +82,11 @@ class ArrowColumnarBatch : public ColumnarBatch {
     return c_array;
   }
 
+  void saveToFile(std::shared_ptr<ArrowWriter> writer) override {
+    writer->initWriter(*(batch_->schema().get()));
+    writer->writeInBatches(batch_);
+  }
+
  private:
   std::shared_ptr<arrow::RecordBatch> batch_;
 };
@@ -106,6 +114,17 @@ class ArrowCStructColumnarBatch : public ColumnarBatch {
 
   std::shared_ptr<ArrowArray> exportArrowArray() override {
     return cArray_;
+  }
+
+  void saveToFile(std::shared_ptr<ArrowWriter> writer) override {
+    GLUTEN_ASSIGN_OR_THROW(auto rb, arrow::ImportRecordBatch(cArray_.get(), cSchema_.get()));
+    writer->initWriter(*(rb->schema().get()));
+    writer->writeInBatches(rb);
+
+    arrow::Status status = arrow::ExportRecordBatch(*rb, cArray_.get(), cSchema_.get());
+    if (!status.ok()) {
+      throw std::runtime_error("Failed to export from Arrow record batch");
+    }
   }
 
  private:

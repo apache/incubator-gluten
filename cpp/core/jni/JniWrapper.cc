@@ -25,6 +25,7 @@
 #include <jni.h>
 #include <malloc.h>
 
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -33,6 +34,7 @@
 #include "compute/Backend.h"
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
+#include "config/GlutenConfig.h"
 #include "jni/ConcurrentMap.h"
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
@@ -40,6 +42,7 @@
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/shuffle/reader.h"
 #include "operators/shuffle/splitter.h"
+#include "operators/writer/ArrowWriter.h"
 #include "utils/exception.h"
 #include "utils/metrics.h"
 
@@ -167,7 +170,11 @@ class JavaInputStreamAdaptor : public arrow::io::InputStream {
 
 class JavaArrowArrayIterator {
  public:
-  JavaArrowArrayIterator(JNIEnv* env, jobject java_serialized_arrow_array_iterator) {
+  explicit JavaArrowArrayIterator(
+      JNIEnv* env,
+      jobject java_serialized_arrow_array_iterator,
+      std::shared_ptr<ArrowWriter> writer)
+      : writer_(writer) {
     // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
     if (env->GetJavaVM(&vm_) != JNI_OK) {
       std::string error_message = "Unable to get JavaVM instance";
@@ -204,12 +211,17 @@ class JavaArrowArrayIterator {
     CheckException(env);
     jlong handle = env->CallLongMethod(java_serialized_arrow_array_iterator_, serialized_arrow_array_iterator_next);
     CheckException(env);
-    return gluten_columnarbatch_holder_.Lookup(handle);
+    auto batch = gluten_columnarbatch_holder_.Lookup(handle);
+    if (writer_ != nullptr) {
+      batch->saveToFile(writer_);
+    }
+    return batch;
   }
 
  private:
   JavaVM* vm_;
   jobject java_serialized_arrow_array_iterator_;
+  std::shared_ptr<ArrowWriter> writer_;
 };
 
 // See Java class
@@ -217,12 +229,13 @@ class JavaArrowArrayIterator {
 //
 std::unique_ptr<JavaArrowArrayIterator> MakeJavaArrowArrayIterator(
     JNIEnv* env,
-    jobject java_serialized_arrow_array_iterator) {
+    jobject java_serialized_arrow_array_iterator,
+    std::shared_ptr<ArrowWriter> writer) {
 #ifdef GLUTEN_PRINT_DEBUG
   std::cout << "CREATING ITERATOR REF " << reinterpret_cast<long>(java_serialized_arrow_array_iterator) << "..."
             << std::endl;
 #endif
-  return std::make_unique<JavaArrowArrayIterator>(env, java_serialized_arrow_array_iterator);
+  return std::make_unique<JavaArrowArrayIterator>(env, java_serialized_arrow_array_iterator, writer);
 }
 
 jmethodID GetMethodIDOrError(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
@@ -351,7 +364,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
     jobject obj,
     jlong allocator_id,
     jbyteArray plan_arr,
-    jobjectArray iter_arr) {
+    jobjectArray iter_arr,
+    jint stage_id,
+    jint partition_id,
+    jlong task_id,
+    jboolean saveInput) {
   JNI_METHOD_START
   arrow::Status msg;
 
@@ -364,7 +381,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
   }
 
   auto backend = gluten::CreateBackend();
-  if (!backend->ParsePlan(plan_data, plan_size)) {
+  if (!backend->ParsePlan(plan_data, plan_size, stage_id, partition_id, task_id)) {
     gluten::JniThrow("Failed to parse plan.");
   }
 
@@ -372,8 +389,19 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniW
   jsize iters_len = env->GetArrayLength(iter_arr);
   std::vector<std::shared_ptr<ResultIterator>> input_iters;
   for (int idx = 0; idx < iters_len; idx++) {
+    std::shared_ptr<ArrowWriter> writer = nullptr;
+    if (saveInput) {
+      auto dir = backend->GetConf()[kGlutenSaveDir];
+      std::filesystem::path f{dir};
+      if (!std::filesystem::exists(f)) {
+        gluten::JniThrow("Save input path " + dir + " does not exists");
+      }
+      auto file = backend->GetConf()[kGlutenSaveDir] + "/input_" + std::to_string(task_id) + "_" + std::to_string(idx) +
+          "_" + std::to_string(partition_id) + ".parquet";
+      writer = std::make_shared<ArrowWriter>(file);
+    }
     jobject iter = env->GetObjectArrayElement(iter_arr, idx);
-    auto array_iter = MakeJavaArrowArrayIterator(env, iter);
+    auto array_iter = MakeJavaArrowArrayIterator(env, iter, writer);
     auto result_iter = std::make_shared<ResultIterator>(std::move(array_iter));
     input_iters.push_back(std::move(result_iter));
   }

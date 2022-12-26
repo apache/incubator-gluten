@@ -93,3 +93,79 @@ Benchmark                                                                   Time
 InputFromBatchVector/iterations:1/process_time/real_time/threads:1   41304520 ns     23740340 ns            1 collect_batch_time=34.7812M elapsed_time=41.3113M
 
 ```
+
+## Generate substrait plan and input for any quey
+
+Build the gluten debug version.
+
+```shell
+cd /path_to_gluten/cpp/compile.sh --build_velox_backend=ON --build_benchmarks=ON --build_type=relWithDebInfo
+```
+Run the query by spark-shell, and get the Stage Id from spark UI.
+Get the substrait plan from console output.
+
+Example:
+```shell
+################################################## received substrait::Plan:
+Task stageId: 2, partitionId: 855, taskId: 857; {"extensions":[{"extensionFunction":{"name":"sum:req_i32"}}],"relations":[{"root":{"input":{"fetch":{"common":{"direct":{}},"input":{"project":{"common":{"direct":{}},"input":{"aggregate":{"common":{"direct":{}},"input":{"read":{"common":{"direct":{}},"baseSchema":{"names":["i_product_name#15","i_brand#16","spark_grouping_id#14","sum#22"],"struct":{"types":[{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"i64":{"nullability":"NULLABILITY_REQUIRED"}},{"i64":{"nullability":"NULLABILITY_NULLABLE"}}]}},"localFiles":{"items":[{"uriFile":"iterator:0"}]}}},"groupings":[{"groupingExpressions":[{"selection":{"directReference":{"structField":{}}}},{"selection":{"directReference":{"structField":{"field":1}}}},{"selection":{"directReference":{"structField":{"field":2}}}}]}],"measures":[{"measure":{"phase":"AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT","outputType":{"i64":{"nullability":"NULLABILITY_NULLABLE"}},"arguments":[{"value":{"selection":{"directReference":{"structField":{"field":3}}}}}]}}]}},"expressions":[{"selection":{"directReference":{"structField":{"field":3}}}}]}},"count":"100"}},"names":["qoh#10"]}}]}
+```
+
+| Parameters | Description | Recommend Setting |
+| ---------- | ----------- | --------------- |
+| spark.gluten.sql.debug | Whether open debug mode | true |
+| spark.gluten.sql.benchmark_task.stageId | Spark task stage id | 2 |
+| spark.gluten.sql.benchmark_task.partitionId | Spark task partition id, default value -1 means all the partition of this stage | -1 |
+| spark.gluten.sql.benchmark_task.taskId | If not specify partition id, use spark task attempt id, default value -1 means all the partition of this stage | -1 |
+| spark.gluten.saveDir | Directory should exist and be empty, save the stage input to this directory, parquet name format is input_${taskId}_${iteratorIndex}_${partitionId}.parquet | /path/to/saveDir |
+
+Save the substrait plan to a json file, suppose the name is "plan.json", and output is /tmp/save/input_34_0_1.parquet and /tmp/save/input_34_0_2.parquet, please use spark to combine the 2 files to 1 file.
+
+```java
+val df = spark.read.format("parquet").load("/tmp/save")
+df.repartition(1).write.format("parquet").save("/tmp/new_save")
+```
+
+The first arg is the json query file path, the following args are file iterators.
+
+```json
+"localFiles": {
+    "items": [{
+            "uriFile": "iterator:0"
+        }
+    ]
+}
+```
+
+Run benchmark.
+
+```shell
+cd /path/to/gluten/cpp/velox/benchmarks
+./generic_benchmark \
+/plan/to/plan.json \
+/tmp/new_save/generate.parquet \
+--threads 1 --noprint-result
+```
+
+For some complex queries, stageId may cannot represent the substrait plan input, please get the taskId from spark UI, and get your target parquet from saveDir.
+
+In this example, only one partition input with partition id 2, taskId is 36, iterator length is 2.
+
+```shell
+cd /path/to/gluten/cpp/velox/benchmarks
+./generic_benchmark \
+/plan/to/complex_plan.json \
+/tmp/save/input_36_0_2.parquet /tmp/save/input_36_1_2.parquet \
+--threads 1 --noprint-result
+```
+
+## Save ouput to parquet to analyze
+
+You can also save the output to a parquet file to analyze.
+
+```shell
+cd /path/to/gluten/cpp/velox/benchmarks
+./generic_benchmark \
+/plan/to/plan.json \
+/tmp/save/input_1.parquet /tmp/save/input_2.parquet \
+--threads 1 --noprint-result --write-file=/path/to/result.parquet
+```

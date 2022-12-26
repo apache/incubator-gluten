@@ -21,6 +21,8 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.joins.GlutenExistenceJoinSuite
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -30,8 +32,7 @@ object VeloxTestSettings extends BackendTestSettings {
       "rollup overlapping columns", // wait velox to fix
       "cube overlapping columns", // wait velox to fix
       // incorrect result, distinct NaN case
-      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
-      "SPARK-32136: NormalizeFloatingNumbers should work on null struct" // integer overflow
+      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate"
     )
 
   enableSuite[GlutenCastSuite]
@@ -67,6 +68,13 @@ object VeloxTestSettings extends BackendTestSettings {
        // NaN case
       "replace nan with float",
       "replace nan with double"
+    )
+
+  enableSuite[GlutenDataFrameRangeSuite]
+    .exclude(
+      // don't know why, corner case
+      "SPARK-21041 SparkSession.range()'s behavior is inconsistent with SparkContext.range()" +
+        " (whole-stage-codegen on)"
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
@@ -124,14 +132,25 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
   enableSuite[GlutenSubquerySuite]
-    .include("SPARK-27279: Reuse Subquery", "Subquery reuse across the whole plan")
-    .include("SPARK-15832: Test embedded existential predicate sub-queries")
-    .include("EXISTS predicate subquery within OR")
+    .excludeByPrefix(
+      "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
+      "SPARK-32290" // Need to be removed after picking Velox #3571.
+    )
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
+  enableSuite[GlutenBroadcastExchangeSuite]
+  enableSuite[GlutenDataFramePivotSuite]
+  enableSuite[GlutenReuseExchangeAndSubquerySuite]
+  enableSuite[GlutenSameResultSuite]
+  // spill not supported yet.
+  enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
+  enableSuite[GlutenSortSuite]
+      // Sort spill is not supported.
+      .exclude("sorting does not crash for large inputs")
+  enableSuite[GlutenExistenceJoinSuite]
 
 }
