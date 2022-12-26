@@ -82,7 +82,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   ) ++ staticMetrics
 
   /** SQL metrics generated only for scans using dynamic partition pruning. */
-  private lazy val staticMetrics = if (partitionFilters.exists(isDynamicPruningFilter)) {
+  private lazy val staticMetrics = if (partitionFilters.exists(FileSourceScanExecTransformer
+    .isDynamicPruningFilter)) {
     Map("staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
       "staticFilesSize" -> SQLMetrics.createSizeMetric(sparkContext, "static size of files read"))
   } else {
@@ -207,15 +208,12 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
       metrics.filter(e => driverMetrics.contains(e._1)).values.toSeq)
   }
 
-  private def isDynamicPruningFilter(e: Expression): Boolean =
-    e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
-
   private def setFilesNumAndSizeMetric(
      partitions: Seq[PartitionDirectory],
      static: Boolean): Unit = {
     val filesNum = partitions.map(_.files.size.toLong).sum
     val filesSize = partitions.map(_.files.map(_.getLen).sum).sum
-    if (!static || !partitionFilters.exists(isDynamicPruningFilter)) {
+    if (!static || !partitionFilters.exists(FileSourceScanExecTransformer.isDynamicPruningFilter)) {
       driverMetrics("numFiles") = filesNum
       driverMetrics("filesSize") = filesSize
     } else {
@@ -232,7 +230,8 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     val startTime = System.nanoTime()
     val ret =
       relation.location.listFiles(
-        partitionFilters.filterNot(isDynamicPruningFilter), dataFilters)
+        partitionFilters.filterNot(FileSourceScanExecTransformer.isDynamicPruningFilter),
+        dataFilters)
     setFilesNumAndSizeMetric(ret, true)
     val timeTakenMs = NANOSECONDS.toMillis(
       (System.nanoTime() - startTime) + optimizerMetadataTimeNs)

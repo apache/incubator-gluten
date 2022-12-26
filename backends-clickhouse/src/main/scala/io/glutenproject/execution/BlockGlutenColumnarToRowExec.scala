@@ -114,16 +114,6 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
     }
   }
 
-  override def equals(other: Any): Boolean = other match {
-    case that: BlockGlutenColumnarToRowExec =>
-      (that.canEqual(this)) && super.equals(that)
-    case _ => false
-  }
-
-  override def hashCode(): Int = super.hashCode()
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[BlockGlutenColumnarToRowExec]
-
   override def inputRDDs(): Seq[RDD[InternalRow]] = {
     // Hack because of type erasure
     Seq(child.executeColumnar().asInstanceOf[RDD[InternalRow]])

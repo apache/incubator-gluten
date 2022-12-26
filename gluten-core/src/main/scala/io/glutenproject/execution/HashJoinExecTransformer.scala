@@ -240,56 +240,6 @@ trait HashJoinLikeExecTransformer
     "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash build memory allocations"),
 
-    "antiDistinctInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti join distinct aggregation input rows"),
-    "antiDistinctInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti join distinct aggregation input vectors"),
-    "antiDistinctInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of anti join distinct aggregation input bytes"),
-    "antiDistinctRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti join distinct aggregation raw input rows"),
-    "antiDistinctRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of anti join distinct aggregation raw input bytes"),
-    "antiDistinctOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti join distinct aggregation output rows"),
-    "antiDistinctOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti join distinct aggregation output vectors"),
-    "antiDistinctOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of anti join distinct aggregation output bytes"),
-    "antiDistinctCount" -> SQLMetrics.createMetric(
-      sparkContext, "anti join distinct aggregation cpu wall time count"),
-    "antiDistinctWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_anti_join_distinct_aggregation"),
-    "antiDistinctPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "anti join distinct aggregation peak memory bytes"),
-    "antiDistinctNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti join distinct aggregation memory allocations"),
-
-    "antiProjectInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti project input rows"),
-    "antiProjectInputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti project input vectors"),
-    "antiProjectInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of anti project input bytes"),
-    "antiProjectRawInputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti project raw input rows"),
-    "antiProjectRawInputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of anti project raw input bytes"),
-    "antiProjectOutputRows" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti project output rows"),
-    "antiProjectOutputVectors" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti project output vectors"),
-    "antiProjectOutputBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "number of anti project output bytes"),
-    "antiProjectCount" -> SQLMetrics.createMetric(
-      sparkContext, "anti project cpu wall time count"),
-    "antiProjectWallNanos" -> SQLMetrics.createNanoTimingMetric(
-      sparkContext, "totaltime_anti_project"),
-    "antiProjectPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
-      sparkContext, "anti project peak memory bytes"),
-    "antiProjectNumMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of anti project memory allocations"),
-
     "hashProbeInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe input rows"),
     "hashProbeInputVectors" -> SQLMetrics.createMetric(
