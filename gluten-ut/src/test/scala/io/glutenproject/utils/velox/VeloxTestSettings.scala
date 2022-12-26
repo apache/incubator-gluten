@@ -179,5 +179,9 @@ object VeloxTestSettings extends BackendTestSettings {
       " (build=right) (whole-stage-codegen on)")
     .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen off)")
     .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen on)")
-
+  enableSuite[GlutenExchangeSuite]
+    // ColumnarShuffleExchangeAdaptor does not support doExecute() method
+    .exclude("shuffling UnsafeRows in exchange")
+    // ColumnarShuffleExchangeAdaptor does not support SORT_BEFORE_REPARTITION
+    .exclude("SPARK-23207: Make repartition() generate consistent output")
 }
