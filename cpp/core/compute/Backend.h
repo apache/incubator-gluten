@@ -41,21 +41,28 @@ class ResultIterator;
 
 class Backend : public std::enable_shared_from_this<Backend> {
  public:
+  Backend() {}
+  Backend(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~Backend() = default;
 
   virtual std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
       std::vector<std::shared_ptr<ResultIterator>> inputs = {}) = 0;
 
+  bool ParsePlan(const uint8_t* data, int32_t size) {
+    return ParsePlan(data, size, -1, -1, -1);
+  }
+
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
-  bool ParsePlan(const uint8_t* data, int32_t size) {
+  bool ParsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
 #ifdef GLUTEN_PRINT_DEBUG
     auto buf = std::make_shared<arrow::Buffer>(data, size);
     auto maybe_plan_json = SubstraitToJSON("Plan", *buf);
     if (maybe_plan_json.status().ok()) {
       std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
-      std::cout << maybe_plan_json.ValueOrDie() << std::endl;
+      std::cout << "Task stageId: " << stageId << ", partitionId: " << partitionId << ", taskId: " << taskId << "; "
+                << maybe_plan_json.ValueOrDie() << std::endl;
     } else {
       std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
     }
@@ -65,6 +72,10 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   const ::substrait::Plan& GetPlan() const {
     return plan_;
+  }
+
+  std::unordered_map<std::string, std::string> GetConf() const {
+    return confMap_;
   }
 
   /// This function is used to create certain converter from the format used by
@@ -93,6 +104,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
  protected:
   ::substrait::Plan plan_;
+  std::unordered_map<std::string, std::string> confMap_;
 };
 
 void SetBackendFactory(std::function<std::shared_ptr<Backend>()> factory);

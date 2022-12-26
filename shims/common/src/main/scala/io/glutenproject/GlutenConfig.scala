@@ -195,6 +195,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   val substraitPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.substrait.plan.logLevel", "DEBUG")
+
+  val debug: Boolean = conf.getConfString("spark.gluten.sql.debug", "false").toBoolean
+  val taskStageId: Int = conf.getConfString("spark.gluten.sql.benchmark_task.stageId", "1").toInt
+  val taskPartitionId: Int =
+    conf.getConfString("spark.gluten.sql.benchmark_task.partitionId", "-1").toInt
+  val taskId: Long = conf.getConfString("spark.gluten.sql.benchmark_task.taskId", "-1").toLong
 }
 
 object GlutenConfig {
@@ -245,6 +251,8 @@ object GlutenConfig {
   // and then prefer to use the orginal target hosts to schedule
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
+
+  val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
 
   var ins: GlutenConfig = _
 
