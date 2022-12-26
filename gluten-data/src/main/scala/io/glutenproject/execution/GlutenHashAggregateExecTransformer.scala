@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
-import com.google.protobuf.Any
+import shaded.com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
