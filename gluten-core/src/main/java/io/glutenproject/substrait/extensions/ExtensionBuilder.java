@@ -17,7 +17,7 @@
 
 package io.glutenproject.substrait.extensions;
 
-import shaded.com.google.protobuf.Any;
+import com.google.protobuf.Any;
 
 public class ExtensionBuilder {
   private ExtensionBuilder() {

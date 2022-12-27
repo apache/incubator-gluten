@@ -41,7 +41,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
 
 import java.util.ArrayList
-import shaded.com.google.protobuf.Any
+import com.google.protobuf.Any
 import com.google.common.collect.Lists
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.

@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import shaded.com.google.protobuf.Any
+import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}

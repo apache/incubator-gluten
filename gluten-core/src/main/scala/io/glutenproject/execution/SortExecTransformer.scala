@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import shaded.com.google.protobuf.Any
+import com.google.protobuf.Any
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}

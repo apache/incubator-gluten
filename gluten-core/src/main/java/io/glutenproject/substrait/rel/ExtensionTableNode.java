@@ -17,7 +17,7 @@
 
 package io.glutenproject.substrait.rel;
 
-import shaded.com.google.protobuf.Any;
+import com.google.protobuf.Any;
 import com.google.protobuf.StringValue;
 import io.substrait.proto.ReadRel;
 
