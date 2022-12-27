@@ -120,6 +120,9 @@ object VeloxTestSettings extends BackendTestSettings {
       "% (Remainder)" // Velox will throw exception when right is zero
     )
   enableSuite[GlutenConditionalExpressionSuite]
+  enableSuite[GlutenDataFrameWindowFunctionsSuite]
+    // Spill not supported yet.
+    .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]
@@ -151,5 +154,6 @@ object VeloxTestSettings extends BackendTestSettings {
       // Sort spill is not supported.
       .exclude("sorting does not crash for large inputs")
   enableSuite[GlutenExistenceJoinSuite]
+  enableSuite[GlutenDataFrameJoinSuite]
   enableSuite[GlutenOuterJoinSuite]
 }

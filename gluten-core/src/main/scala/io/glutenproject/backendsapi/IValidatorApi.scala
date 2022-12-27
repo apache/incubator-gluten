@@ -43,9 +43,18 @@ trait IValidatorApi {
    * If the aggregate function isn't implemented by the backend,
    * it will fall back to Vanilla Spark.
    */
-  def doAggregateFunctionValidate(
-      substraitFuncName: String,
-      func: AggregateFunction): Boolean = true
+  def doAggregateFunctionValidate(substraitFuncName: String,
+    func: AggregateFunction
+  ): Boolean = doAggregateFunctionValidate(Map(), substraitFuncName, func)
+
+  /**
+   * Validate aggregate function for specific backend.
+   * If the aggregate function isn't implemented by the backend,
+   * it will fall back to Vanilla Spark.
+   */
+  def doAggregateFunctionValidate(blacklist: Map[String, Set[String]],
+    substraitFuncName: String,
+    func: AggregateFunction): Boolean = true
 
   def doValidate(plan: PlanNode): Boolean
 
