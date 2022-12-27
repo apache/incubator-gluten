@@ -150,10 +150,6 @@ class GlutenInnerJoinSuite extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
   }
 
   {
-    // This test changed the struct schema from
-    // "struct(id, id) as key" to
-    // "struct(id as id1, id as id2) as key".
-    // The second Struct child will be covered with the same name id.
     def df: DataFrame = spark.range(3).selectExpr(
       "struct(id as id1, id as id2) as key", "id as value")
     lazy val left = df.selectExpr("key", "concat('L', value) as value").alias("left")
