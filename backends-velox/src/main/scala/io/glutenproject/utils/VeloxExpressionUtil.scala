@@ -45,4 +45,8 @@ object VeloxExpressionUtil {
     TO_UNIX_TIMESTAMP -> Set(EMPTY_TYPE),
     UNIX_TIMESTAMP -> Set(EMPTY_TYPE)
   )
+
+  final val VELOX_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
+    COLLECT_LIST -> Set(EMPTY_TYPE)
+  )
 }
