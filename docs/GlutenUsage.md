@@ -29,7 +29,6 @@
 | arrow_home | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
 | build_type | ARROW build type                          | release|
 | build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
-| build_benchmarks | Build arrow with -DWITH_PARQUET=ON  | OFF           |
 
 #### Parameters for build_velox.sh setting via --
 

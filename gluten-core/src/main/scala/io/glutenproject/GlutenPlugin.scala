@@ -193,6 +193,8 @@ private[glutenproject] object GlutenPlugin {
         conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY).toString)
     }
 
+    nativeConfMap.put(GlutenConfig.GLUTEN_SAVE_DIR, conf.get(GlutenConfig.GLUTEN_SAVE_DIR, ""))
+
     val stringMapNode = ExpressionBuilder.makeStringMap(nativeConfMap)
     val extensionNode = ExtensionBuilder
       .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf))

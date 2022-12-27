@@ -3,7 +3,6 @@
 set -exu
 
 BUILD_TESTS=OFF
-BUILD_BENCHMARKS=OFF
 BUILD_TYPE=release
 NPROC=$(nproc --ignore=2)
 TARGET_BUILD_COMMIT=""
@@ -17,10 +16,6 @@ do
     case $arg in
         --build_test=*)
         BUILD_TESTS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_benchmarks=*)
-        BUILD_BENCHMARKS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --build_type=*)
@@ -95,7 +90,6 @@ check_ep_cache
 echo "Building Arrow from Source for Velox..."
 echo "CMAKE Arguments:"
 echo "BUILD_TESTS=${BUILD_TESTS}"
-echo "BUILD_BENCHMARKS=${BUILD_BENCHMARKS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "ARROW_HOME=${ARROW_HOME}"
 
@@ -109,10 +103,6 @@ incremental_build
 WITH_JSON=OFF
 if [ $BUILD_TESTS == ON ]; then
   WITH_JSON=ON
-fi
-WITH_PARQUET=OFF
-if [ $BUILD_BENCHMARKS == ON ]; then
-  WITH_PARQUET=ON
 fi
 pushd $ARROW_SOURCE_DIR
 mkdir -p java/build
@@ -134,7 +124,7 @@ cmake -G Ninja \
         -DARROW_WITH_SNAPPY=ON \
         -DARROW_WITH_ZLIB=ON \
         -DARROW_JSON=$WITH_JSON \
-        -DARROW_PARQUET=$WITH_PARQUET \
+        -DARROW_PARQUET=ON \
         -DARROW_WITH_ZSTD=ON \
         -DARROW_BUILD_SHARED=ON \
         -DARROW_BOOST_USE_SHARED=OFF \

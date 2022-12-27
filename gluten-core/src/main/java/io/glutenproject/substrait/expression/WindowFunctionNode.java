@@ -54,8 +54,8 @@ public class WindowFunctionNode implements Serializable {
 
   private Expression.WindowFunction.Bound.Builder setBound(
       Expression.WindowFunction.Bound.Builder builder,
-      String type) {
-    switch (type) {
+      String boundType, boolean isLowerBound) {
+    switch (boundType) {
       case("CURRENT ROW"):
         Expression.WindowFunction.Bound.CurrentRow.Builder currentRowBuilder =
             Expression.WindowFunction.Bound.CurrentRow.newBuilder();
@@ -72,7 +72,25 @@ public class WindowFunctionNode implements Serializable {
         builder.setUnboundedFollowing(followingBuilder.build());
         break;
       default:
-        throw new UnsupportedOperationException("Unsupported Window Function Frame Type.");
+        try {
+          Long offset = Long.valueOf(boundType);
+          if (isLowerBound) {
+            Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
+                    Expression.WindowFunction.Bound.Preceding.newBuilder();
+            offsetPrecedingBuilder.setOffset(0 - offset);
+            builder.setPreceding(offsetPrecedingBuilder.build());
+          }
+          else {
+            Expression.WindowFunction.Bound.Following.Builder offsetFollowingBuilder =
+                    Expression.WindowFunction.Bound.Following.newBuilder();
+            offsetFollowingBuilder.setOffset(offset);
+            builder.setFollowing(offsetFollowingBuilder.build());
+          }
+        }
+        catch (NumberFormatException e) {
+          throw new UnsupportedOperationException(
+                  "Unsupported Window Function Frame Type:" + boundType);
+        }
     }
     return builder;
   }
@@ -110,8 +128,8 @@ public class WindowFunctionNode implements Serializable {
 
     Expression.WindowFunction.Bound.Builder upperBoundBuilder =
         Expression.WindowFunction.Bound.newBuilder();
-    windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound).build());
-    windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound).build());
+    windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound, true).build());
+    windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound, false).build());
     windowBuilder.setWindowType(getWindowType(windowType));
     return windowBuilder.build();
   }
