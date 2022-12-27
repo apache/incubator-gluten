@@ -20,7 +20,7 @@ package io.glutenproject.execution
 import java.util
 
 import com.google.common.collect.Lists
-import com.google.protobuf.Any
+import shaded.com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils

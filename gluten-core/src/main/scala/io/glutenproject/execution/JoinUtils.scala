@@ -17,7 +17,7 @@
 
 package io.glutenproject.execution
 
-import com.google.protobuf.Any
+import shaded.com.google.protobuf.Any
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}

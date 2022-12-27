@@ -17,7 +17,7 @@
 
 package io.glutenproject.substrait.ddlplan;
 
-import com.google.protobuf.Any;
+import shaded.com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import io.substrait.proto.ReadRel;
 

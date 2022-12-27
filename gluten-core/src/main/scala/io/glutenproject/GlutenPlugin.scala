@@ -20,7 +20,7 @@ package io.glutenproject
 import java.util
 import java.util.{Collections, Objects}
 import scala.language.implicitConversions
-import com.google.protobuf.Any
+import shaded.com.google.protobuf.Any
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
