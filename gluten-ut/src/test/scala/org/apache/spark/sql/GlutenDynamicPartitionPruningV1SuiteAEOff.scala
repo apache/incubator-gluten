@@ -205,8 +205,8 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV
 
         // By default Gluten pushes more filters than vanilla Spark.
         //
-        // See also io.glutenproject.execution.FilterHandler.applyFilterPushdownToScan
-        // See also DynamicPartitionPruningSuite.scala#1362
+        // See also io.glutenproject.execution.FilterHandler#applyFilterPushdownToScan
+        // See also DynamicPartitionPruningSuite.scala:1362
         assert(subqueryIds.size == 3, "Whole plan subquery reusing not working correctly")
         assert(reusedSubqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
         assert(reusedSubqueryIds.forall(subqueryIds.contains(_)),
