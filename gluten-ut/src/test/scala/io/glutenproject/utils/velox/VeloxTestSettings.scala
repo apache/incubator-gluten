@@ -156,7 +156,10 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenExistenceJoinSuite]
   enableSuite[GlutenOuterJoinSuite]
   enableSuite[GlutenInnerJoinSuite]
-    // Re-run those test in GlutenInnerJoinSuite by changing the schema info of struct.
+    // The following tests changed the struct schema from
+    // "struct(id, id) as key" to
+    // "struct(id as id1, id as id2) as key".
+    // Because the second Struct child will be covered with the same name id.
     .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
       " (build=left) (whole-stage-codegen off)")
     .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +

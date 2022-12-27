@@ -30,6 +30,33 @@ import org.apache.spark.sql.internal.SQLConf
 class GlutenInnerJoinSuite extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
   private val EnsureRequirements = new EnsureRequirements()
 
+<<<<<<< HEAD
+=======
+  override def testNameBlackList: Seq[String] = Seq(
+    // Replaced with the below tests.
+    "SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=left) (whole-stage-codegen off)",
+    "SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+    " (build=left) (whole-stage-codegen on)",
+    "SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=right) (whole-stage-codegen off)",
+    "SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=right) (whole-stage-codegen on)",
+    "SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=left) (whole-stage-codegen off)",
+    "SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=left) (whole-stage-codegen on)",
+    "SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=right) (whole-stage-codegen off)",
+    "SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=right) (whole-stage-codegen on)",
+    "SPARK-15822 - test structs as keys using SortMergeJoin" +
+      " (whole-stage-codegen off)",
+    "SPARK-15822 - test structs as keys using SortMergeJoin" +
+      " (whole-stage-codegen on)"
+  )
+
+>>>>>>> code refine
   // Note: the input dataframes and expression must be evaluated lazily because
   // the SQLContext should be used only within a test to keep SQL tests stable
   private def testInnerJoin(
