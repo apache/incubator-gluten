@@ -66,8 +66,25 @@ class CHValidatorApi extends IValidatorApi {
    */
   override def doAggregateFunctionValidate(
       substraitFuncName: String,
-      func: AggregateFunction): Boolean = doAggregateFunctionValidate(
-    CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST,
-    substraitFuncName,
-    func)
+      func: AggregateFunction): Boolean = {
+    if (CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.isEmpty) return true
+    val value = CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.get(substraitFuncName)
+    if (value.isEmpty) {
+      return true
+    }
+    val inputTypeNames = value.get
+    inputTypeNames.foreach {
+      inputTypeName =>
+        if (inputTypeName.equals(CHExpressionUtil.EMPTY_TYPE)) {
+          return false
+        } else {
+          for (input <- func.children) {
+            if (inputTypeName.equals(input.dataType.typeName)) {
+              return false
+            }
+          }
+        }
+    }
+    true
+  }
 }
