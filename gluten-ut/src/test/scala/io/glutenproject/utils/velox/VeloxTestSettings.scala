@@ -22,7 +22,7 @@ import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.joins.GlutenExistenceJoinSuite
+import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenOuterJoinSuite}
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -152,5 +152,5 @@ object VeloxTestSettings extends BackendTestSettings {
       // Sort spill is not supported.
       .exclude("sorting does not crash for large inputs")
   enableSuite[GlutenExistenceJoinSuite]
-
+  enableSuite[GlutenOuterJoinSuite]
 }
