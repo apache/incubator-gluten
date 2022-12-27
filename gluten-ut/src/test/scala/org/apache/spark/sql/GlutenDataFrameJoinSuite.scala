@@ -31,7 +31,6 @@ class GlutenDataFrameJoinSuite extends DataFrameJoinSuite with GlutenSQLTestsTra
     // there is issue when executing this test case with velox backend
     "SPARK-24690 enables star schema detection even if CBO disabled",
     "Supports multi-part names for broadcast hint resolution",
-    "SPARK-32693: Compare two dataframes with same schema except nullable property",
     "SPARK-34527: Resolve common columns from USING JOIN",
     "SPARK-39376: Hide duplicated columns in star expansion of subquery alias from USING JOIN",
     "SPARK-17685: WholeStageCodegenExec throws IndexOutOfBoundsException"

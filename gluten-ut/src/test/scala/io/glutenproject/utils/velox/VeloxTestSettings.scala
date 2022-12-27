@@ -152,5 +152,6 @@ object VeloxTestSettings extends BackendTestSettings {
       // Sort spill is not supported.
       .exclude("sorting does not crash for large inputs")
   enableSuite[GlutenExistenceJoinSuite]
+  enableSuite[GlutenDataFrameJoinSuite]
 
 }
