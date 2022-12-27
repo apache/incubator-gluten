@@ -82,10 +82,10 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
                                  removeHashColumn: Boolean = false): SparkPlan = {
     if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
       ColumnarShuffleExchangeAdaptor(
-        plan.outputPartitioning, child, removeHashColumn = removeHashColumn)
+        plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn)
     } else {
       CoalesceBatchesExec(ColumnarShuffleExchangeExec(
-        plan.outputPartitioning, child, removeHashColumn = removeHashColumn))
+        plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn))
     }
   }
 
@@ -226,7 +226,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             plan.buildSide,
             plan.condition,
             left,
-            right)
+            right,
+            plan.isSkewJoin)
       case plan: SortMergeJoinExec =>
         val left = replaceWithTransformerPlan(plan.left)
         val right = replaceWithTransformerPlan(plan.right)
@@ -326,16 +327,21 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
 // This rule will try to convert the row-to-columnar and columnar-to-row
 // into columnar implementations.
-case class TransformPostOverrides() extends Rule[SparkPlan] {
+case class TransformPostOverrides(session: SparkSession) extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getSessionConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+  lazy val adaptiveExecutionEnabled = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-    case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
+    // The ColumnarShuffleExchangeAdaptor node may be the top node, so we cannot remove it.
+    // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
+    // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE mode
+    // have tested gluten-it TPCH when AQE OFF
+    case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) if adaptiveExecutionEnabled =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>
       replaceWithTransformerPlan(child)
@@ -421,7 +427,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   def postOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List((_: SparkSession) => TransformPostOverrides()) :::
+    List((s: SparkSession) => TransformPostOverrides(s)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
 
