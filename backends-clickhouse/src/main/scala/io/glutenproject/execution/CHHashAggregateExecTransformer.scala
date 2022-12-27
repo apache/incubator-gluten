@@ -31,7 +31,7 @@ import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.exchange.Exchange
 
-import com.google.protobuf.Any
+import shaded.com.google.protobuf.Any
 
 import java.util
 import java.util.Locale
