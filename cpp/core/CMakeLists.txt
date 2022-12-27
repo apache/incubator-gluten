@@ -240,6 +240,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         operators/c2r/ColumnarToRow.cc
         operators/shuffle/reader.cc
         operators/shuffle/splitter.cc
+        operators/writer/ArrowWriter.cc
         )
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
@@ -247,9 +248,7 @@ add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(spark_columnar_jni jni_proto)
 
 find_arrow_lib(${ARROW_LIB_NAME})
-if(BUILD_BENCHMARKS)
-  find_arrow_lib(${PARQUET_LIB_NAME})
-endif()
+find_arrow_lib(${PARQUET_LIB_NAME})
 
 if(ENABLE_HBM)
   find_library(MEMKIND_LIBRARY memkind)
@@ -319,7 +318,7 @@ else()
 endif()
 
 target_link_libraries(spark_columnar_jni
-    PUBLIC Arrow::arrow)
+    PUBLIC Arrow::arrow Arrow::parquet)
 
 install(TARGETS spark_columnar_jni
         DESTINATION ${CMAKE_INSTALL_LIBDIR})

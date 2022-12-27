@@ -50,7 +50,7 @@ set(root_directory ${PROJECT_BINARY_DIR})
 # Compiler flags
 #
 string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
-if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
+if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug" OR ${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
   add_definitions(-DGLUTEN_PRINT_DEBUG)
 endif()
 
