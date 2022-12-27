@@ -59,11 +59,15 @@ class CHValidatorApi extends IValidatorApi {
     }
     true
   }
+
   /**
    * Validate aggregate function for specific backend. If the aggregate function isn't implemented
    * by the backend, it will fall back to Vanilla Spark.
    */
-  override def doAggregateFunctionValidate(substraitFuncName: String,
-    func: AggregateFunction): Boolean = doAggregateFunctionValidate(
-    CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST, substraitFuncName, func)
+  override def doAggregateFunctionValidate(
+      substraitFuncName: String,
+      func: AggregateFunction): Boolean = doAggregateFunctionValidate(
+    CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST,
+    substraitFuncName,
+    func)
 }
