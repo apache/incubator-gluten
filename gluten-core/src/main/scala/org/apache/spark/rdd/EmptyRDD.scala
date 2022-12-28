@@ -14,7 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.rdd
+
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 
@@ -31,7 +35,15 @@ import scala.reflect.ClassTag
  */
 private[spark] class EmptyRDD[T: ClassTag](sc: SparkContext) extends RDD[T](sc, Nil) {
 
-  override def getPartitions: Array[Partition] = Array(new MyEmptyRDDPartition(0))
+  override def getPartitions: Array[Partition] = {
+    if (
+      BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+    ) {
+      Array(new MyEmptyRDDPartition(0))
+    } else {
+      Array.empty
+    }
+  }
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     Iterator.empty
