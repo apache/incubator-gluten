@@ -22,18 +22,8 @@ import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHash
 class GlutenDataFrameJoinSuite extends DataFrameJoinSuite with GlutenSQLTestsTrait {
 
   override def testNameBlackList: Seq[String] = Seq(
-    "join - sorted columns not in join's outputSet",
-    "join - join using multiple columns and specifying join type",
-    "broadcast join hint using broadcast function",
     "broadcast join hint using Dataset.hint",
-    "process outer join results using the non-nullable columns in the join input",
-    "SPARK-16991: Full outer join followed by inner join produces wrong results",
-    // there is issue when executing this test case with velox backend
-    "SPARK-24690 enables star schema detection even if CBO disabled",
     "Supports multi-part names for broadcast hint resolution",
-    "SPARK-34527: Resolve common columns from USING JOIN",
-    "SPARK-39376: Hide duplicated columns in star expansion of subquery alias from USING JOIN",
-    "SPARK-17685: WholeStageCodegenExec throws IndexOutOfBoundsException"
   )
 
   /**
