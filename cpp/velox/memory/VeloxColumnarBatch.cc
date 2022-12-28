@@ -40,6 +40,17 @@ std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   return out;
 }
 
+void VeloxColumnarBatch::saveToFile(std::shared_ptr<ArrowWriter> writer) {
+  auto schema = exportArrowSchema();
+  auto maybeBatch = arrow::ImportRecordBatch(exportArrowArray().get(), schema.get());
+  if (!maybeBatch.ok()) {
+    throw gluten::GlutenException("Get batch failed!");
+    return;
+  }
+  writer->initWriter(*maybeBatch.ValueOrDie()->schema().get());
+  writer->writeInBatches(maybeBatch.ValueOrDie());
+}
+
 RowVectorPtr VeloxColumnarBatch::getRowVector() const {
   return rowVector_;
 }

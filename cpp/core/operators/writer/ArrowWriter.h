@@ -15,9 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+#pragma once
 
-class GlutenDataFrameWindowFunctionsSuite extends DataFrameWindowFunctionsSuite
-  with GlutenSQLTestsTrait {
+#include "parquet/arrow/writer.h"
 
-}
+/**
+ * @brief Used to print RecordBatch to a parquet file
+ *
+ */
+class ArrowWriter {
+ public:
+  explicit ArrowWriter(std::string& path) : path_(path) {}
+
+  arrow::Status initWriter(arrow::Schema& schema);
+
+  arrow::Status writeInBatches(std::shared_ptr<arrow::RecordBatch> batch);
+
+  arrow::Status closeWriter();
+
+ private:
+  std::unique_ptr<parquet::arrow::FileWriter> writer_;
+  std::string path_;
+};

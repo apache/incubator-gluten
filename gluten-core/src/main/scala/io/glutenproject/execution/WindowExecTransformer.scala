@@ -190,6 +190,14 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                       frameSpecification.asInstanceOf[SpecifiedWindowFrame]
             val aggregateFunc = aggExpression.aggregateFunction
 
+            val substraitAggFuncName =
+              ExpressionMappings.aggregate_functions_map.get(aggregateFunc.getClass)
+            // Check whether each backend supports this aggregate function
+            if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
+              substraitAggFuncName.get, aggregateFunc)) {
+              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
+            }
+
             var outputMap: Map[Expression, Int] = Map()
             output.zipWithIndex.foreach { case (attr, index) =>
               outputMap += (attr.canonicalized -> index)

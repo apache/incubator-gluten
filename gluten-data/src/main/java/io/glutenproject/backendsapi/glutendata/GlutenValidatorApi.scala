@@ -23,6 +23,7 @@ import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.GlutenExpressionUtil
 import io.glutenproject.vectorized.GlutenNativeExpressionEvaluator
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
 import org.apache.spark.sql.types.StructType
 
@@ -63,6 +64,34 @@ abstract class GlutenValidatorApi extends IValidatorApi {
 
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
     doExprValidate(Map(), substraitExprName, expr)
+
+  /**
+   * Validate aggregate function for specific backend. If the aggregate function isn't implemented
+   * by the backend, it will fall back to Vanilla Spark.
+   */
+  override def doAggregateFunctionValidate(blacklist: Map[String, Set[String]],
+      substraitFuncName: String,
+      func: AggregateFunction): Boolean = {
+    if (blacklist.isEmpty) return true
+    val value = blacklist.get(substraitFuncName)
+    if (value.isEmpty) {
+      return true
+    }
+    val inputTypeNames = value.get
+    inputTypeNames.foreach {
+      inputTypeName =>
+        if (inputTypeName.equals(GlutenExpressionUtil.EMPTY_TYPE)) {
+          return false
+        } else {
+          for (input <- func.children) {
+            if (inputTypeName.equals(input.dataType.typeName)) {
+              return false
+            }
+          }
+        }
+    }
+    true
+  }
 
   override def doValidate(plan: PlanNode): Boolean = {
     val validator = new GlutenNativeExpressionEvaluator()

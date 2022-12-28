@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+#pragma once
 
-class GlutenDataFrameWindowFunctionsSuite extends DataFrameWindowFunctionsSuite
-  with GlutenSQLTestsTrait {
+#include <string>
 
+namespace gluten {
+const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 }

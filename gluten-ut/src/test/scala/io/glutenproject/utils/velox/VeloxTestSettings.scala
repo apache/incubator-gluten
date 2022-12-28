@@ -23,6 +23,7 @@ import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -87,8 +88,7 @@ object VeloxTestSettings extends BackendTestSettings {
     "different broadcast subqueries with identical children",
     "avoid reordering broadcast join keys to match input hash partitioning",
     "dynamic partition pruning ambiguity issue across nested joins",
-    "Plan broadcast pruning only when the broadcast can be reused",
-    GLUTEN_TEST + "Subquery reuse across the whole plan"
+    "Plan broadcast pruning only when the broadcast can be reused"
   )
 
   enableSuite[GlutenLiteralExpressionSuite]
@@ -114,6 +114,9 @@ object VeloxTestSettings extends BackendTestSettings {
       "% (Remainder)" // Velox will throw exception when right is zero, need fallback
     )
   enableSuite[GlutenConditionalExpressionSuite]
+  enableSuite[GlutenDataFrameWindowFunctionsSuite]
+    // Spill not supported yet.
+    .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]
@@ -146,5 +149,31 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortSuite]
       // Sort spill is not supported.
       .exclude("sorting does not crash for large inputs")
+  enableSuite[GlutenExistenceJoinSuite]
+  enableSuite[GlutenDataFrameJoinSuite]
+  enableSuite[GlutenOuterJoinSuite]
+  enableSuite[GlutenInnerJoinSuite]
+    // The following tests will be re-run in GlutenInnerJoinSuite by
+    // changing the struct schema from "struct(id, id) as key" to
+    // "struct(id as id1, id as id2) as key". Because the first
+    // Struct child will be covered with the second same name id.
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=left) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=left) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=right) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=right) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=left) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=left) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=right) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=right) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen on)")
 
 }
