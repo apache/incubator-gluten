@@ -35,23 +35,23 @@ namespace gluten {
 
 #define EVAL_START(name, thread_id) \
   //  auto eval_start = std::chrono::duration_cast<std::chrono::nanoseconds>(    \
-//                        std::chrono::system_clock::now().time_since_epoch()) \
-//                        .count();
+                        std::chrono::system_clock::now().time_since_epoch()) \
+                        .count();
 
 #define EVAL_END(name, thread_id, task_attempt_id) \
   //  std::cout << "xgbtck " << name << " " << eval_start << " "            \
-//            << std::chrono::duration_cast<std::chrono::nanoseconds>(    \
-//                   std::chrono::system_clock::now().time_since_epoch()) \
-//                       .count() -                                       \
-//                   eval_start                                           \
-//            << " " << thread_id << " " << task_attempt_id << std::endl;
+            << std::chrono::duration_cast<std::chrono::nanoseconds>(    \
+                   std::chrono::system_clock::now().time_since_epoch()) \
+                       .count() -                                       \
+                   eval_start                                           \
+            << " " << thread_id << " " << task_attempt_id << std::endl;
 
-static std::string GenerateUUID() {
+static inline std::string GenerateUUID() {
   boost::uuids::random_generator generator;
   return boost::uuids::to_string(generator());
 }
 
-static std::string GetSpilledShuffleFileDir(const std::string& configured_dir, int32_t sub_dir_id) {
+static inline std::string GetSpilledShuffleFileDir(const std::string& configured_dir, int32_t sub_dir_id) {
   auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(2) << std::hex << sub_dir_id;
@@ -59,7 +59,7 @@ static std::string GetSpilledShuffleFileDir(const std::string& configured_dir, i
   return dir;
 }
 
-static arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
+static inline arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
   auto joined_dirs_c = std::getenv("NATIVESQL_SPARK_LOCAL_DIRS");
   if (joined_dirs_c != nullptr && strcmp(joined_dirs_c, "") > 0) {
     auto joined_dirs = std::string(joined_dirs_c);
@@ -84,7 +84,7 @@ static arrow::Result<std::vector<std::string>> GetConfiguredLocalDirs() {
   }
 }
 
-static arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) {
+static inline arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) {
   if (dir.length() == 0) {
     return arrow::Status::Invalid("Failed to create spilled file, got empty path.");
   }
@@ -109,7 +109,7 @@ static arrow::Result<std::string> CreateTempShuffleFile(const std::string& dir) 
   return file_path;
 }
 
-static arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTypeId(
+static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields) {
   std::vector<std::shared_ptr<arrow::DataType>> splitter_type_id;
   std::pair<std::string, arrow::Type::type> field_type_not_implemented;
@@ -152,7 +152,7 @@ static arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> ToSplitterTy
   return splitter_type_id;
 }
 
-static int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
+static inline int64_t GetBufferSizes(const std::shared_ptr<arrow::Array>& array) {
   const auto& buffers = array->data()->buffers;
   return std::accumulate(
       std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {

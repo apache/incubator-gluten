@@ -90,7 +90,7 @@ class WholeStageResIter {
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       std::shared_ptr<const facebook::velox::core::PlanNode> planNode,
       const std::unordered_map<std::string, std::string>& confMap)
-      : pool_(pool), planNode_(planNode), confMap_(confMap) {
+      : planNode_(planNode), pool_(pool), confMap_(confMap) {
     getOrderedNodeIds(planNode_, orderedNodeIds_);
   }
 

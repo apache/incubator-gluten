@@ -138,7 +138,7 @@ std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& typeName
           }
         }
         // If not reach to end of string, next character must be ','.
-        if (numLeft != numRight || i < innerType.length() && innerType[i] != ',') {
+        if (numLeft != numRight || (i < innerType.length() && innerType[i] != ',')) {
           throw std::runtime_error("Invalid struct type: " + typeName);
         }
         tokenPos = i;

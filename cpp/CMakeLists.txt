@@ -32,6 +32,7 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+
 project(spark_columnar_plugin)
 
 option(BUILD_TESTS "Build Tests" OFF)
@@ -50,9 +51,32 @@ set(root_directory ${PROJECT_BINARY_DIR})
 # Compiler flags
 #
 string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
-if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug" OR ${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
+
+if (${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
+# keep this original logic
   add_definitions(-DGLUTEN_PRINT_DEBUG)
+  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
+elseif (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
+  add_definitions(-DGLUTEN_PRINT_DEBUG)
+  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
+# set CMAKE_BUILD_TYPE to Debug according to the CMake tutorial
+  set(CMAKE_BUILD_TYPE Debug)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
+  message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
+else ()
+  add_definitions(-DNDEBUG)
+  message(STATUS "Add definition NDEBUG")
 endif()
+
+add_compile_options(-Wall)
+add_compile_options(-Wno-sign-compare)
+add_compile_options(-Wno-comment)
+
+add_compile_options(-Werror)
+add_compile_options(-Wno-error=parentheses)
+add_compile_options(-Wno-error=unused-function)
+add_compile_options(-Wno-error=unused-variable)
+add_compile_options(-Wno-error=unused-but-set-variable)
 
 #
 # Dependencies

@@ -69,7 +69,7 @@ class MyMemoryPool : public arrow::MemoryPool {
   }
 
   Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
-    auto old_ptr = *ptr;
+    // auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
     // std::cout << "Reallocate: old_size = " << old_size << " old_ptr = " <<
@@ -120,7 +120,7 @@ class LargePageMemoryPool : public arrow::MemoryPool {
       Status st = pool_->AlignAllocate(size, out, ALIGNMENT);
       madvise(*out, size, /*MADV_HUGEPAGE */ 14);
       //std::cout << "Allocate: size = " << size << " addr = "  \
-     //    << std::hex << (uint64_t)*out  << " end = " << std::hex << (uint64_t)(*out+size) << std::dec << std::endl;
+         << std::hex << (uint64_t)*out  << " end = " << std::hex << (uint64_t)(*out+size) << std::dec << std::endl;
       return st;
     }
 #else
