@@ -17,25 +17,10 @@
 
 #pragma once
 
-#include <arrow/builder.h>
-#include <arrow/io/memory.h>
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
-#include <arrow/pretty_print.h>
-#include <arrow/record_batch.h>
-#include <arrow/status.h>
-#include <arrow/type.h>
 #include <arrow/util/parallel.h>
-#include <google/protobuf/io/coded_stream.h>
 #include <jni.h>
-
-#include <map>
-#include <memory>
-#include <mutex>
-#include <sstream>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "compute/ProtobufUtils.h"
 #include "memory/ArrowMemoryPool.h"

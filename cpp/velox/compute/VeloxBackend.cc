@@ -16,22 +16,21 @@
  */
 #include "VeloxBackend.h"
 
-#include <arrow/type_fwd.h>
-#include <arrow/util/iterator.h>
-
-#include <string>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "ArrowTypeUtils.h"
-#include "RegistrationAllFunctions.cc"
 #include "VeloxBridge.h"
+#include "velox/common/file/FileSystems.h"
+#include "velox/exec/Operator.h"
+#include "velox/exec/Task.h"
+#include "RegistrationAllFunctions.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
 #include "include/arrow/c/bridge.h"
-#include "velox/buffer/Buffer.h"
 #include "velox/exec/PlanNodeStats.h"
-#include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
-#include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/vector/arrow/Bridge.h"
+#include "velox/dwio/dwrf/reader/DwrfReader.h"
+#include "velox/dwio/dwrf/writer/Writer.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;

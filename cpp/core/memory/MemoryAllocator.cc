@@ -16,7 +16,6 @@
  */
 
 #include "MemoryAllocator.h"
-#include <iostream>
 #include "HbwAllocator.h"
 
 namespace gluten {

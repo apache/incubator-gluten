@@ -17,31 +17,11 @@
 
 #pragma once
 
-#include <arrow/array/array_binary.h>
-#include <arrow/array/array_primitive.h>
-#include <arrow/array/data.h>
-#include <arrow/array/util.h>
-#include <arrow/record_batch.h>
-#include <arrow/type_fwd.h>
-#include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "VeloxToRowConverter.h"
-#include "arrow/c/abi.h"
 #include "compute/Backend.h"
-#include "include/arrow/c/bridge.h"
-#include "memory/ColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
-#include "substrait/algebra.pb.h"
-#include "substrait/capabilities.pb.h"
-#include "substrait/extensions/extensions.pb.h"
-#include "substrait/function.pb.h"
-#include "substrait/parameterized_types.pb.h"
 #include "substrait/plan.pb.h"
-#include "substrait/type.pb.h"
-#include "substrait/type_expressions.pb.h"
-#include "utils/metrics.h"
-#include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
@@ -51,24 +31,9 @@
 #ifdef VELOX_ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
-#include "velox/core/Expressions.h"
-#include "velox/core/ITypedExpr.h"
 #include "velox/core/PlanNode.h"
-#include "velox/dwio/common/Options.h"
-#include "velox/dwio/common/ScanSpec.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "velox/exec/Operator.h"
-#include "velox/exec/OperatorUtils.h"
-#include "velox/exec/tests/utils/Cursor.h"
-#include "velox/expression/Expr.h"
-#include "velox/functions/prestosql/aggregates/SumAggregate.h"
-#include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/substrait/SubstraitToVeloxPlan.h"
-#include "velox/substrait/TypeUtils.h"
-#include "velox/type/Filter.h"
-#include "velox/type/Subfield.h"
 
 namespace gluten {
 

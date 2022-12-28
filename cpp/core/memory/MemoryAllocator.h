@@ -24,7 +24,6 @@
 #include <utility>
 
 #include "arrow/memory_pool.h"
-#include "arrow/util/memory.h"
 
 namespace gluten {
 
