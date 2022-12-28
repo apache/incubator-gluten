@@ -22,7 +22,7 @@ import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenOuterJoinSuite}
+import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -156,4 +156,28 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenExistenceJoinSuite]
   enableSuite[GlutenDataFrameJoinSuite]
   enableSuite[GlutenOuterJoinSuite]
+  enableSuite[GlutenInnerJoinSuite]
+    // The following tests will be re-run in GlutenInnerJoinSuite by
+    // changing the struct schema from "struct(id, id) as key" to
+    // "struct(id as id1, id as id2) as key". Because the first
+    // Struct child will be covered with the second same name id.
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=left) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=left) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=right) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
+      " (build=right) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=left) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=left) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=right) (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
+      " (build=right) (whole-stage-codegen on)")
+    .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen off)")
+    .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen on)")
+
 }
