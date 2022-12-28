@@ -25,7 +25,7 @@ class GlutenExchangeSuite extends ExchangeSuite with GlutenSQLTestsBaseTrait {
 
   test("Exchange reuse across the whole plan with shuffle partition 2") {
     // The shuffle exchange will be inserted between Aggregate
-    // when shuffle partition is 2
+    // when shuffle partition is > 1.
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
       SQLConf.SHUFFLE_PARTITIONS.key -> "2") {
       val df = sql(

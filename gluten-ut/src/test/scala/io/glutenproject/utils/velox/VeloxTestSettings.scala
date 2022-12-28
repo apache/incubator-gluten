@@ -184,6 +184,6 @@ object VeloxTestSettings extends BackendTestSettings {
     .exclude("shuffling UnsafeRows in exchange")
     // ColumnarShuffleExchangeAdaptor does not support SORT_BEFORE_REPARTITION
     .exclude("SPARK-23207: Make repartition() generate consistent output")
-    // This test will re-run in GlutenExchangeSuite with shuffle partitions 2
+    // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
 }
