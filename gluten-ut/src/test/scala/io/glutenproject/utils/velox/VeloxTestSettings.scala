@@ -18,6 +18,7 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
+
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
@@ -70,13 +71,6 @@ object VeloxTestSettings extends BackendTestSettings {
       "replace nan with double"
     )
 
-  enableSuite[GlutenDataFrameRangeSuite]
-    .exclude(
-      // don't know why, corner case
-      "SPARK-21041 SparkSession.range()'s behavior is inconsistent with SparkContext.range()" +
-        " (whole-stage-codegen on)"
-    )
-
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
     // overwritten
     "DPP should not be rewritten as an existential join",
@@ -117,7 +111,7 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenRandomSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
-      "% (Remainder)" // Velox will throw exception when right is zero
+      "% (Remainder)" // Velox will throw exception when right is zero, need fallback
     )
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
@@ -133,6 +127,8 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenComplexTypesSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
+  enableSuite[GlutenDataFrameRangeSuite]
+  enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
       "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
