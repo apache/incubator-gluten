@@ -51,12 +51,14 @@ set(root_directory ${PROJECT_BINARY_DIR})
 # Compiler flags
 #
 string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
-if (${LOWERCASE_BUILD_TYPE} STREQUAL "debug" OR ${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
-  set(CMAKE_BUILD_TYPE Debug)
 
+if (${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
+  add_definitions(-DGLUTEN_PRINT_DEBUG) // this is the original logic, right?
+  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
+elseif (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
   add_definitions(-DGLUTEN_PRINT_DEBUG)
   message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
-
+  set(CMAKE_BUILD_TYPE Debug) // is this really needed?
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
   message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
 else ()
