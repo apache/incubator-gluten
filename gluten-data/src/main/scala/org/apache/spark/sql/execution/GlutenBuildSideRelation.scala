@@ -23,7 +23,7 @@ import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, NamedExpression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -66,13 +66,27 @@ case class GlutenBuildSideRelation(mode: BroadcastMode,
         arrowBatch.rowIterator().asScala.map(toUnsafe)
       } else {
         val jniWrapper = new NativeColumnarToRowJniWrapper()
-        var info: NativeColumnarToRowInfo = null
         val offloaded =
           ArrowColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch)
         val batchHandle = GlutenColumnarBatches.getNativeHandle(offloaded)
-        info = jniWrapper.nativeConvertColumnarToRow(
+        val info: NativeColumnarToRowInfo = jniWrapper.nativeConvertColumnarToRow(
           batchHandle,
           NativeMemoryAllocators.contextInstance().getNativeInstanceId)
+
+        val keyInOutput = output.zipWithIndex.filter {
+          p: (Attribute, Int) =>
+            p._1.name == key.asInstanceOf[NamedExpression].name
+        }
+        if (keyInOutput.isEmpty) {
+          throw new IllegalStateException(
+            s"Key $key not found from build side relation output: $output")
+        }
+        if (keyInOutput.size != 1) {
+          throw new IllegalStateException(
+            s"More than one key $key found from build side relation output: $output")
+        }
+        val proj = UnsafeProjection.create(
+          BoundReference(keyInOutput.head._2, key.dataType, key.nullable))
 
         new Iterator[InternalRow] {
           var rowId = 0
@@ -94,9 +108,9 @@ case class GlutenBuildSideRelation(mode: BroadcastMode,
             val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
             row.pointTo(null, info.memoryAddress + offset, length.toInt)
             rowId += 1
-            row.copy()
+            row
           }
-        }
+        }.map(proj).map(_.copy())
       }
     }).toArray
   }
