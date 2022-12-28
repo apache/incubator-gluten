@@ -17,7 +17,6 @@
 
 #pragma once
 
-
 #include "VeloxToRowConverter.h"
 #include "compute/Backend.h"
 #include "memory/VeloxColumnarBatch.h"

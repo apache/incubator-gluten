@@ -19,18 +19,18 @@
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "ArrowTypeUtils.h"
-#include "VeloxBridge.h"
-#include "velox/common/file/FileSystems.h"
-#include "velox/exec/Operator.h"
-#include "velox/exec/Task.h"
 #include "RegistrationAllFunctions.h"
+#include "VeloxBridge.h"
 #include "compute/Backend.h"
 #include "compute/ResultIterator.h"
 #include "include/arrow/c/bridge.h"
-#include "velox/exec/PlanNodeStats.h"
-#include "velox/vector/arrow/Bridge.h"
+#include "velox/common/file/FileSystems.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
+#include "velox/exec/Operator.h"
+#include "velox/exec/PlanNodeStats.h"
+#include "velox/exec/Task.h"
+#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
