@@ -53,13 +53,13 @@ set(root_directory ${PROJECT_BINARY_DIR})
 string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
 
 if (${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
-  # keep this original logic
+# keep this original logic
   add_definitions(-DGLUTEN_PRINT_DEBUG)
   message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
 elseif (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
   add_definitions(-DGLUTEN_PRINT_DEBUG)
   message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
-  # set CMAKE_BUILD_TYPE to Debug according to the CMake tutorial
+# set CMAKE_BUILD_TYPE to Debug according to the CMake tutorial
   set(CMAKE_BUILD_TYPE Debug)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
   message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
