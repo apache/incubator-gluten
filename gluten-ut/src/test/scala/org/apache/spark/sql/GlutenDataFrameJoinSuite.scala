@@ -23,7 +23,7 @@ class GlutenDataFrameJoinSuite extends DataFrameJoinSuite with GlutenSQLTestsTra
 
   override def testNameBlackList: Seq[String] = Seq(
     "broadcast join hint using Dataset.hint",
-    "Supports multi-part names for broadcast hint resolution",
+    "Supports multi-part names for broadcast hint resolution"
   )
 
   /**
