@@ -20,13 +20,7 @@
 #include <arrow/type.h>
 
 #include <google/protobuf/message.h>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <sstream>
 #include <string>
-#include <utility>
-#include <vector>
 
 // Common for both projector and filters.
 bool ParseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* msg);

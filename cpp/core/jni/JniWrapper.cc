@@ -15,36 +15,18 @@
  * limitations under the License.
  */
 
-#include <arrow/buffer.h>
-#include <arrow/c/bridge.h>
-#include <arrow/c/helpers.h>
-#include <arrow/filesystem/filesystem.h>
-#include <arrow/ipc/api.h>
-#include <arrow/record_batch.h>
-#include <arrow/util/compression.h>
 #include <jni.h>
 #include <malloc.h>
-
 #include <filesystem>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <utility>
 
 #include "compute/Backend.h"
 #include "compute/ProtobufUtils.h"
-#include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "jni/ConcurrentMap.h"
 #include "jni/JniCommon.h"
 #include "jni/JniErrors.h"
-#include "memory/ColumnarBatch.h"
-#include "operators/c2r/ColumnarToRow.h"
 #include "operators/shuffle/reader.h"
 #include "operators/shuffle/splitter.h"
-#include "operators/writer/ArrowWriter.h"
-#include "utils/exception.h"
-#include "utils/metrics.h"
 
 namespace types {
 class ExpressionList;

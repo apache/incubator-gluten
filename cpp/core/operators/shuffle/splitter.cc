@@ -25,14 +25,7 @@
 #include <immintrin.h>
 #include <x86intrin.h>
 
-#include <cstring>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <utility>
-
 #include "compute/ProtobufUtils.h"
-#include "operators/shuffle/utils.h"
 #include "utils/macros.h"
 
 namespace gluten {

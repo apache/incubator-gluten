@@ -20,7 +20,6 @@
 #include <arrow/array/array_decimal.h>
 #include <arrow/util/decimal.h>
 #include <immintrin.h>
-#include <iostream>
 
 namespace gluten {
 

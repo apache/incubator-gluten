@@ -25,10 +25,6 @@
 #include "memory/ColumnarBatch.h"
 #include "utils/metrics.h"
 
-#ifdef GLUTEN_PRINT_DEBUG
-#include <iostream>
-#endif
-
 namespace gluten {
 
 class Backend;
