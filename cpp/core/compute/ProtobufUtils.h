@@ -38,4 +38,4 @@ arrow::Result<std::string> SubstraitFromPbToJson(arrow::util::string_view type_n
 // Write a Protobuf message into a specified file with JSON format.
 // void MessageToJSONFile(const google::protobuf::Message& message, const std::string& file_path);
 
-}
+} // namespace gluten
