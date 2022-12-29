@@ -59,7 +59,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   ::substrait::Plan plan;
 #ifdef GLUTEN_PRINT_DEBUG
   auto buf = std::make_shared<arrow::Buffer>(data, size);
-  auto maybe_plan_json = SubstraitToJSON("Plan", *buf);
+  auto maybe_plan_json = gluten::SubstraitFromPbToJson("Plan", *buf);
   if (maybe_plan_json.status().ok()) {
     std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
     std::cout << maybe_plan_json.ValueOrDie() << std::endl;
@@ -67,7 +67,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
     std::cout << "Error parsing substrait plan to json: " << maybe_plan_json.status().ToString() << std::endl;
   }
 #endif
-  ParseProtobuf(data, size, &plan);
+  gluten::ParseProtobuf(data, size, &plan);
   const auto& relation = plan.relations()[0];
   const auto& rel = relation.has_root() ? relation.root().input() : relation.rel();
   switch (rel.rel_type_case()) {

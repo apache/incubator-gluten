@@ -47,7 +47,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   bool ParsePlan(const uint8_t* data, int32_t size, int32_t stageId, int32_t partitionId, int64_t taskId) {
 #ifdef GLUTEN_PRINT_DEBUG
     auto buf = std::make_shared<arrow::Buffer>(data, size);
-    auto maybe_plan_json = SubstraitToJSON("Plan", *buf);
+    auto maybe_plan_json = SubstraitFromPbToJson("Plan", *buf);
     if (maybe_plan_json.status().ok()) {
       std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
       std::cout << "Task stageId: " << stageId << ", partitionId: " << partitionId << ", taskId: " << taskId << "; "
