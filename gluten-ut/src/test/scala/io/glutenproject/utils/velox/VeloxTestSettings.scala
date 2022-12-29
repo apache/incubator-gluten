@@ -83,7 +83,6 @@ object VeloxTestSettings extends BackendTestSettings {
 
     // to be fixed
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-    "partition pruning in broadcast hash joins with aliases",
     "avoid reordering broadcast join keys to match input hash partitioning",
     "dynamic partition pruning ambiguity issue across nested joins"
   )
