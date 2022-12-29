@@ -81,11 +81,11 @@ object VeloxTestSettings extends BackendTestSettings {
     "Subquery reuse across the whole plan",
     "static scan metrics",
 
-    // to be fixed
+    // struct join key not supported, fell-back to Vanilla join
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-    "partition pruning in broadcast hash joins with aliases",
-    "avoid reordering broadcast join keys to match input hash partitioning",
-    "dynamic partition pruning ambiguity issue across nested joins"
+
+    // to be fixed
+    "partition pruning in broadcast hash joins with aliases"
   )
 
   enableSuite[GlutenLiteralExpressionSuite]
