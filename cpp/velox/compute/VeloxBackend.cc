@@ -666,12 +666,20 @@ class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
     while (pos != std::string::npos) {
       // Split the string with delimiter.
       std::string prePart = str.substr(0, pos);
-      std::string latterPart = str.substr(pos + 1, str.size() - 1);
+      std::string latterPart = str.substr(pos + 1);
       // Extract the partition column.
       pos = prePart.find_last_of("/");
-      std::string partitionColumn = prePart.substr(pos + 1, prePart.size() - 1);
+      std::string partitionColumn;
+      if (pos == std::string::npos) {
+        partitionColumn = prePart;
+      } else {
+        partitionColumn = prePart.substr(pos + 1);
+      }
       // Extract the partition value.
       pos = latterPart.find("/");
+      if (pos == std::string::npos) {
+        throw std::runtime_error("No value found for partition key: " + partitionColumn + " in path: " + filePath);
+      }
       std::string partitionValue = latterPart.substr(0, pos);
       if (partitionValue == kHiveDefaultPartition) {
         partitionKeys[partitionColumn] = std::nullopt;
@@ -680,7 +688,7 @@ class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
         partitionKeys[partitionColumn] = partitionValue;
       }
       // For processing the remaining keys.
-      str = latterPart.substr(pos + 1, latterPart.size() - 1);
+      str = latterPart.substr(pos + 1);
       pos = str.find(delimiter);
     }
     return partitionKeys;
