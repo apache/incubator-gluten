@@ -50,8 +50,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
           case e: ColumnarShuffleExchangeAdaptor => true }.size == 1)
       assert(
         collect(join2.queryExecution.executedPlan) {
-          // Gluten reuses operators more than Vanilla Spark
-          case e: ReusedExchangeExec => true }.size == 5)
+          case e: ReusedExchangeExec => true }.size == 4)
     }
   }
 
