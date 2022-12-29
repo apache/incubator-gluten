@@ -64,6 +64,25 @@ object VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+  enableSuite[GlutenDataFrameSuite]
+    // Rewrite these tests because it checks Spark's physical operators.
+    .excludeByPrefix(
+      "SPARK-22520",
+      "reuse exchange"
+    )
+    .exclude(
+      // Mismatch when max NaN and infinite value
+      "NaN is greater than all other non-NaN numeric values",
+      /**
+       * Mismatched, the rdd partition is equal to 1
+       * because the configuration "spark.sql.shuffle.partitions" is always 1.
+       */
+      "repartitionByRange",
+      "distributeBy and localSort",
+      // To be fixed
+      "describe"
+    )
+
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
        // NaN case
