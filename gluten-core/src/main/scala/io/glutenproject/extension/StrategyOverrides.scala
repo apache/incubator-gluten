@@ -68,7 +68,8 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     } else {
       // non equal condition
       // Generate BHJ here, avoid to do match in `JoinSelection` again.
-      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, hintOnly = false, conf)
+      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, true, conf)
+        .orElse(getBroadcastBuildSide(left, right, joinType, hint, false, conf))
       if (buildSide.isDefined) {
         return Seq(
           joins.BroadcastHashJoinExec(

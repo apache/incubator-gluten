@@ -23,9 +23,7 @@
 #include <arrow/record_batch.h>
 #include <arrow/type_traits.h>
 
-#include <numeric>
 #include <random>
-#include <utility>
 
 #include "operators/shuffle/type.h"
 #include "operators/shuffle/utils.h"

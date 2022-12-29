@@ -25,24 +25,4 @@ class GlutenDataFrameJoinSuite extends DataFrameJoinSuite with GlutenSQLTestsTra
     "broadcast join hint using Dataset.hint",
     "Supports multi-part names for broadcast hint resolution"
   )
-
-  /**
-   * re-write the original unit test.
-   */
-  test(GlutenTestConstants.GLUTEN_TEST + "broadcast join hint using Dataset.hint") {
-    // make sure a giant join is not broadcastable
-    val plan1 =
-      spark.range(10e10.toLong)
-        .join(spark.range(10e10.toLong), "id")
-        .queryExecution.executedPlan
-    assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size == 0)
-
-    // now with a hint it should be broadcasted
-    val plan2 =
-      spark.range(10e10.toLong)
-        .join(spark.range(10e10.toLong).hint("broadcast"), "id")
-        .queryExecution.executedPlan
-    // Currently, Gluten can not support join hint
-    assert(collect(plan2) { case p: ShuffledHashJoinExec => p }.size == 1)
-  }
 }

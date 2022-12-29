@@ -21,6 +21,7 @@
 #include <gflags/gflags.h>
 #include <operators/writer/ArrowWriter.h>
 #include <velox/exec/PlanNodeStats.h>
+#include <velox/exec/Task.h>
 
 #include <chrono>
 

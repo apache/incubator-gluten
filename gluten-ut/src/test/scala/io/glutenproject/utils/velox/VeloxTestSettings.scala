@@ -87,8 +87,7 @@ object VeloxTestSettings extends BackendTestSettings {
     "broadcast multiple keys in an UnsafeHashedRelation",
     "different broadcast subqueries with identical children",
     "avoid reordering broadcast join keys to match input hash partitioning",
-    "dynamic partition pruning ambiguity issue across nested joins",
-    "Plan broadcast pruning only when the broadcast can be reused"
+    "dynamic partition pruning ambiguity issue across nested joins"
   )
 
   enableSuite[GlutenLiteralExpressionSuite]

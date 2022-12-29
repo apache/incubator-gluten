@@ -142,4 +142,24 @@ object ClickHouseTestSettings extends BackendTestSettings {
     .include(
       "string concat_ws"
     )
+
+  enableSuite[GlutenSubquerySuite]
+    .excludeByPrefix(
+      "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
+      "SPARK-32290",
+      "SPARK-15832",
+      "SPARK-15370",
+      "SPARK-16804",
+      "SPARK-17337",
+      "SPARK-28441",
+      "SPARK-28379"
+    )
+    .exclude(
+      "Correlated subqueries in LATERAL VIEW",
+      "NOT EXISTS predicate subquery",
+      "NOT IN predicate subquery",
+      "correlated scalar subquery in where",
+      "disjunctive correlated scalar subquery",
+      ""
+    )
 }

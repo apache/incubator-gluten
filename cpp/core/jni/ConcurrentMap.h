@@ -22,8 +22,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "arrow/util/macros.h"
-
 namespace gluten {
 
 /**

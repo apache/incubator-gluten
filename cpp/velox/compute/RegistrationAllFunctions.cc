@@ -17,6 +17,7 @@
 #include "RegistrationAllFunctions.h"
 #include "RowConstructor.cc"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
+#include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/functions/sparksql/Register.h"
 

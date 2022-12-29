@@ -164,6 +164,7 @@ endmacro()
 set(VELOX_SRCS
     jni/JniWrapper.cc
     compute/VeloxBackend.cc
+    compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc
     compute/VeloxToRowConverter.cc
     compute/RowConstructor.cc

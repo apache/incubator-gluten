@@ -17,23 +17,12 @@
 
 #pragma once
 
-#include <arrow/c/abi.h>
-#include <arrow/c/bridge.h>
-#include <arrow/record_batch.h>
-#include <arrow/util/iterator.h>
-
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ArrowColumnarToRowConverter.h"
 #include "substrait/plan.pb.h"
-#include "utils/exception.h"
-#include "utils/metrics.h"
-
-#ifdef GLUTEN_PRINT_DEBUG
-#include <iostream>
-#endif
 
 namespace gluten {
 
