@@ -392,10 +392,10 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
     MemoryAllocator* allocator,
     std::shared_ptr<ColumnarBatch> cb) {
   auto arrowPool = AsWrappedArrowMemoryPool(allocator);
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
-    return std::make_shared<VeloxToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
+    auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+    return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
   }
   // If the child is not Velox output, use Arrow-to-Row conversion instead.
   std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();

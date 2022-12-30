@@ -32,9 +32,10 @@ using namespace facebook::velox;
 
 namespace gluten {
 
-arrow::Status VeloxToRowConverter::Init() {
+arrow::Status VeloxColumnarToRowConverter::Init() {
   num_rows_ = rv_->size();
   num_cols_ = rv_->childrenSize();
+
   ArrowSchema c_schema{};
   facebook::velox::exportToArrow(rv_, c_schema);
   ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::Schema> schema, arrow::ImportSchema(&c_schema));
@@ -42,17 +43,19 @@ arrow::Status VeloxToRowConverter::Init() {
     return arrow::Status::Invalid("Mismatch: num_cols_ != schema->num_fields()");
   }
   schema_ = schema;
+
   // The input is Arrow batch. We need to resume Velox Vector here.
   ResumeVeloxVector();
+
   // Calculate the initial size
   nullBitsetWidthInBytes_ = CalculateBitSetWidthInBytes(num_cols_);
   int64_t fixed_size_per_row = CalculatedFixeSizePerRow(schema_, num_cols_);
+
   // Initialize the offsets_ , lengths_, buffer_cursor_
-  for (auto i = 0; i < num_rows_; i++) {
-    lengths_.push_back(fixed_size_per_row);
-    offsets_.push_back(0);
-    buffer_cursor_.push_back(nullBitsetWidthInBytes_ + 8 * num_cols_);
-  }
+  lengths_.resize(num_rows_, fixed_size_per_row);
+  offsets_.resize(num_rows_, 0);
+  buffer_cursor_.resize(num_rows_, nullBitsetWidthInBytes_ + 8 * num_cols_);
+
   // Calculated the lengths_
   for (int64_t col_idx = 0; col_idx < num_cols_; col_idx++) {
     std::shared_ptr<arrow::Field> field = schema_->field(col_idx);
@@ -65,137 +68,122 @@ arrow::Status VeloxToRowConverter::Init() {
       }
     }
   }
+
   // Calculated the offsets_  and total memory size based on lengths_
   int64_t total_memory_size = lengths_[0];
   for (int64_t rowIdx = 1; rowIdx < num_rows_; rowIdx++) {
     offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
     total_memory_size += lengths_[rowIdx];
   }
+
   ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, arrow_pool_.get()));
+  // does it really need to zero memory here?
   memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = buffer_->mutable_data();
   return arrow::Status::OK();
 }
 
-void VeloxToRowConverter::ResumeVeloxVector() {
+void VeloxColumnarToRowConverter::ResumeVeloxVector() {
+  vecs_.reserve(num_cols_);
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
     vecs_.push_back(rv_->childAt(col_idx));
   }
 }
 
-arrow::Status VeloxToRowConverter::Write() {
+arrow::Status VeloxColumnarToRowConverter::Write() {
   for (int col_idx = 0; col_idx < num_cols_; col_idx++) {
+    auto vec = vecs_[col_idx];
+    bool mayHaveNulls = vec->mayHaveNulls();
+
     int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
+    auto field_address = (char*)(buffer_address_ + field_offset);
+
     auto col_type_id = schema_->field(col_idx)->type()->id();
     switch (col_type_id) {
       // We should keep supported types consistent with that in #buildCheck of GlutenColumnarToRowExec.scala.
       case arrow::Int8Type::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<TinyintType>(vec, write_address, row_idx);
           }
         }
         break;
       }
       case arrow::Int16Type::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<SmallintType>(vec, write_address, row_idx);
           }
         }
         break;
       }
       case arrow::Int32Type::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<IntegerType>(vec, write_address, row_idx);
           }
         }
         break;
       }
       case arrow::Int64Type::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<BigintType>(vec, write_address, row_idx);
           }
         }
         break;
       }
       case arrow::Date32Type::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<DateType>(vec, write_address, row_idx);
           }
         }
         break;
       }
       case arrow::FloatType::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<RealType>(vec, write_address, row_idx);
           }
         }
         break;
       }
       case arrow::DoubleType::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<DoubleType>(vec, write_address, row_idx);
           }
         }
         break;
       }
       case arrow::BooleanType::type_id: {
-        auto vec = vecs_[col_idx];
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
           } else {
-            // Will use Velox's conversion.
-            auto write_address = (char*)(buffer_address_ + offsets_[row_idx] + field_offset);
+            auto write_address = (char*)(field_address + offsets_[row_idx]);
             row::UnsafeRowSerializer::serialize<BooleanType>(vec, write_address, row_idx);
           }
         }
@@ -203,9 +191,7 @@ arrow::Status VeloxToRowConverter::Write() {
       }
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id: {
-        auto vec = vecs_[col_idx];
         auto str_views = vec->asFlatVector<StringView>()->rawValues();
-        bool mayHaveNulls = vec->mayHaveNulls();
         for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
           if (mayHaveNulls && vec->isNullAt(row_idx)) {
             SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
