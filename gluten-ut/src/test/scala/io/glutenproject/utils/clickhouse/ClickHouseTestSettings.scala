@@ -77,7 +77,7 @@ object ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDateExpressionsSuite]
     .include(
-      "Quarter",
+      // "Quarter", // ch backend not support cast 'yyyy-MM-dd HH:mm:ss' as date32
       "date_add",
       "date_sub",
       "datediff"
