@@ -72,7 +72,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
           }
         }
       case _ =>
-        // The data type checking in the below should align with the code in VeloxToRowConverter.cc.
+        // The data type checking in the below should align with the code in VeloxColumnarToRowConverter.cc.
         for (field <- schema.fields) {
           field.dataType match {
             case _: BooleanType =>
