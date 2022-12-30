@@ -48,7 +48,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
   override def buildCheck(): Unit = {
     val schema = child.schema
     child match {
-      // Depending on the input type, VeloxToRowConverter or ArrowColumnarToRowConverter will
+      // Depending on the input type, VeloxColumnarToRowConverter or ArrowColumnarToRowConverter will
       // be used. Only for columnar shuffle, ArrowColumnarToRowConverter will be used. The data
       // type checking should align with the code in ArrowColumnarToRowConverter.cc.
       case _: ColumnarShuffleExchangeAdaptor | _: ColumnarShuffleExchangeExec =>
@@ -88,7 +88,7 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
             case _: BinaryType =>
             case _ =>
               throw new UnsupportedOperationException(s"${field.dataType} is not supported in " +
-                  s"GlutenColumnarToRowExec/VeloxToRowConverter")
+                  s"GlutenColumnarToRowExec/VeloxColumnarToRowConverter")
 
           }
         }
