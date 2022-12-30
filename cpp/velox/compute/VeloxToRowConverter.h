@@ -27,7 +27,7 @@
 
 namespace gluten {
 
-class VeloxToRowConverter : public ColumnarToRowConverter {
+class VeloxToRowConverter final : public ColumnarToRowConverter {
  public:
   VeloxToRowConverter(
       facebook::velox::RowVectorPtr rv,

@@ -81,7 +81,7 @@ class BatchIteratorWrapper {
         fileReader_->GetRecordBatchReader(arrow::internal::Iota(fileReader_->num_row_groups()), &recordBatchReader_));
   }
 
-  int64_t GetCollectBatchTime() {
+  int64_t GetCollectBatchTime() const {
     return collectBatchTime_;
   }
 
@@ -93,7 +93,7 @@ class BatchIteratorWrapper {
   std::shared_ptr<arrow::RecordBatchReader> recordBatchReader_;
 };
 
-class BatchVectorIterator : public BatchIteratorWrapper {
+class BatchVectorIterator final : public BatchIteratorWrapper {
  public:
   explicit BatchVectorIterator(const std::string& path) : BatchIteratorWrapper(path) {
     CreateReader();
@@ -124,7 +124,7 @@ class BatchVectorIterator : public BatchIteratorWrapper {
   std::vector<std::shared_ptr<arrow::RecordBatch>>::const_iterator iter_;
 };
 
-class BatchStreamIterator : public BatchIteratorWrapper {
+class BatchStreamIterator final : public BatchIteratorWrapper {
  public:
   explicit BatchStreamIterator(const std::string& path) : BatchIteratorWrapper(path) {
     CreateReader();

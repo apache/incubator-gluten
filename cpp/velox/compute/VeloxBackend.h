@@ -110,7 +110,7 @@ class WholeStageResIter {
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
-class VeloxBackend : public Backend {
+class VeloxBackend final : public Backend {
  public:
   VeloxBackend(const std::unordered_map<std::string, std::string>& confMap) : Backend(confMap) {}
 
@@ -123,7 +123,7 @@ class VeloxBackend : public Backend {
       MemoryAllocator* allocator,
       const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos);
 
-  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnarConverter(
+  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(
       MemoryAllocator* allocator,
       std::shared_ptr<ColumnarBatch> cb) override;
 

@@ -298,7 +298,7 @@ class Splitter {
   std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
 };
 
-class RoundRobinSplitter : public Splitter {
+class RoundRobinSplitter final : public Splitter {
  public:
   static arrow::Result<std::shared_ptr<RoundRobinSplitter>>
   Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
@@ -312,7 +312,7 @@ class RoundRobinSplitter : public Splitter {
   int32_t pid_selection_ = 0;
 };
 
-class HashSplitter : public Splitter {
+class HashSplitter final : public Splitter {
  public:
   static arrow::Result<std::shared_ptr<HashSplitter>>
   Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
@@ -334,7 +334,7 @@ class HashSplitter : public Splitter {
   std::shared_ptr<arrow::Schema> input_schema_;
 };
 
-class FallbackRangeSplitter : public Splitter {
+class FallbackRangeSplitter final : public Splitter {
  public:
   static arrow::Result<std::shared_ptr<FallbackRangeSplitter>>
   Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);

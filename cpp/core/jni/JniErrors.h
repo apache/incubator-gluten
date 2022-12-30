@@ -35,7 +35,7 @@
 
 namespace gluten {
 
-class JniPendingException : public std::runtime_error {
+class JniPendingException final : public std::runtime_error {
  public:
   explicit JniPendingException(const std::string& arg) : runtime_error(arg) {}
 };

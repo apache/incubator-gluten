@@ -60,7 +60,7 @@ namespace gluten {
 const int batch_buffer_size = 32768;
 const int split_buffer_size = 8192;
 
-class MyMemoryPool : public arrow::MemoryPool {
+class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool() {}
 

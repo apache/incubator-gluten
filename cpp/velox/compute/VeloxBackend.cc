@@ -388,7 +388,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
-arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnarConverter(
+arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar2RowConverter(
     MemoryAllocator* allocator,
     std::shared_ptr<ColumnarBatch> cb) {
   auto arrowPool = AsWrappedArrowMemoryPool(allocator);
@@ -570,7 +570,7 @@ void WholeStageResIter::setConfToQueryContext(const std::shared_ptr<core::QueryC
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
-class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
+class VeloxBackend::WholeStageResIterFirstStage final : public WholeStageResIter {
  public:
   WholeStageResIterFirstStage(
       std::shared_ptr<memory::MemoryPool> pool,
@@ -695,7 +695,7 @@ class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
   }
 };
 
-class VeloxBackend::WholeStageResIterMiddleStage : public WholeStageResIter {
+class VeloxBackend::WholeStageResIterMiddleStage final : public WholeStageResIter {
  public:
   WholeStageResIterMiddleStage(
       std::shared_ptr<memory::MemoryPool> pool,

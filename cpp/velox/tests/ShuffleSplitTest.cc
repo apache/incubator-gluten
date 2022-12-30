@@ -45,7 +45,7 @@ void print_trace(void) {
 namespace gluten {
 namespace shuffle {
 
-class MyMemoryPool : public arrow::MemoryPool {
+class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool(int64_t capacity) : capacity_(capacity) {}
 
@@ -104,7 +104,7 @@ class MyMemoryPool : public arrow::MemoryPool {
   arrow::internal::MemoryPoolStats stats_;
 };
 
-class SplitterTest : public ::testing::Test {
+class SplitterTest final : public ::testing::Test {
  protected:
   void SetUp() {
     auto hash_partition_key = field("hash_partition_key", arrow::int32());

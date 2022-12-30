@@ -83,7 +83,7 @@ std::shared_ptr<ResultIterator> GetArrayIterator(JNIEnv* env, jlong id) {
   return handler;
 }
 
-class JavaInputStreamAdaptor : public arrow::io::InputStream {
+class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
   JavaInputStreamAdaptor(JNIEnv* env, jobject jni_in) {
     // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
@@ -519,7 +519,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_NativeColumnarToRowJn
   }
   auto backend = gluten::CreateBackend();
   std::shared_ptr<ColumnarToRowConverter> columnar_to_row_converter =
-      gluten::JniGetOrThrow(backend->getColumnarConverter(allocator, cb));
+      gluten::JniGetOrThrow(backend->getColumnar2RowConverter(allocator, cb));
   gluten::JniAssertOkOrThrow(
       columnar_to_row_converter->Init(),
       "Native convert columnar to row: Init "

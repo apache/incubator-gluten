@@ -54,7 +54,7 @@ class AllocationListener {
   AllocationListener() = default;
 };
 
-class ListenableMemoryAllocator : public MemoryAllocator {
+class ListenableMemoryAllocator final : public MemoryAllocator {
  public:
   explicit ListenableMemoryAllocator(MemoryAllocator* delegated, std::shared_ptr<AllocationListener> listener)
       : delegated_(delegated), listener_(std::move(listener)) {}
@@ -80,7 +80,7 @@ class ListenableMemoryAllocator : public MemoryAllocator {
   std::atomic_int64_t bytes_{0};
 };
 
-class StdMemoryAllocator : public MemoryAllocator {
+class StdMemoryAllocator final : public MemoryAllocator {
  public:
   bool Allocate(int64_t size, void** out) override;
 
@@ -101,7 +101,7 @@ class StdMemoryAllocator : public MemoryAllocator {
 };
 
 // TODO aligned allocation
-class WrappedArrowMemoryPool : public arrow::MemoryPool {
+class WrappedArrowMemoryPool final : public arrow::MemoryPool {
  public:
   explicit WrappedArrowMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
 

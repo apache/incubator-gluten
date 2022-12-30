@@ -19,6 +19,8 @@
 
 using namespace facebook::velox;
 
+namespace gluten {
+
 std::shared_ptr<arrow::DataType> toArrowTypeFromName(const std::string& typeName) {
   if (typeName == "BOOLEAN") {
     return arrow::boolean();
@@ -179,6 +181,7 @@ std::shared_ptr<arrow::DataType> toArrowType(const TypePtr& type) {
   }
 }
 
+/*
 const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
   switch (typeId) {
     case arrow::Type::type::BOOL:
@@ -196,6 +199,7 @@ const char* arrowTypeIdToFormatStr(arrow::Type::type typeId) {
       throw std::runtime_error("Arrow type id not supported.");
   }
 }
+*/
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const RowType>& rowType) {
   std::vector<std::shared_ptr<arrow::Field>> fields;
@@ -206,3 +210,5 @@ std::shared_ptr<arrow::Schema> toArrowSchema(const std::shared_ptr<const RowType
   }
   return arrow::schema(fields);
 }
+
+} // namespace gluten
