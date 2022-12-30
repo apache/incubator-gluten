@@ -104,7 +104,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
   arrow::internal::MemoryPoolStats stats_;
 };
 
-class SplitterTest : public ::testing::Test {
+class SplitterTest final : public ::testing::Test {
  protected:
   void SetUp() {
     auto hash_partition_key = field("hash_partition_key", arrow::int32());
