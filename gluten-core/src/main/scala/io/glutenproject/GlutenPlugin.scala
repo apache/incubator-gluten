@@ -47,14 +47,14 @@ class GlutenPlugin extends SparkPlugin {
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     val conf = pluginContext.conf()
+    setPredefinedConfigs(sc, conf)
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
-    setPredefinedConfigs(conf)
     Collections.emptyMap()
   }
 
-  def setPredefinedConfigs(conf: SparkConf): Unit = {
+  def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       s"${conf.get(SPARK_SESSION_EXTS_KEY)},${GLUTEN_SESSION_EXTENSION_NAME}"
     } else {
@@ -72,6 +72,8 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
       conf.set("spark.sql.orc.enableVectorizedReader", "false")
       conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
     }
+    val hdfsUri = sc.hadoopConfiguration.get("fs.defaultFS", "hdfs://localhost:9000")
+    conf.set(GlutenConfig.SPARK_HDFS_URI, hdfsUri)
   }
 }
 
@@ -162,6 +164,10 @@ private[glutenproject] object GlutenPlugin {
       nativeConfMap.put(
         GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
     }
+
+    // HDFS config
+    nativeConfMap.put(
+      GlutenConfig.SPARK_HDFS_URI, conf.get(GlutenConfig.SPARK_HDFS_URI, "hdfs://localhost:9000"))
 
     // S3 config
     nativeConfMap.put(
