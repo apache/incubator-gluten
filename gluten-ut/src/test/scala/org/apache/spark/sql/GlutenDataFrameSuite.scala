@@ -18,16 +18,177 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.WholeStageTransformerExec
+import org.apache.spark.SparkException
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.catalyst.dsl.expressions.StringToAttributeConversionHelper
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression}
 import org.apache.spark.sql.execution.ColumnarShuffleExchangeAdaptor
-import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
-import org.apache.spark.sql.functions.{broadcast, lit, when}
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExchangeExec}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.test.SQLTestData.TestData2
 
+import scala.language.implicitConversions
+import scala.util.Random
 
 class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
+
+  test(GlutenTestConstants.GLUTEN_TEST + "repartitionByRange") {
+    val partitionNum = 10
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      SQLConf.SHUFFLE_PARTITIONS.key -> partitionNum.toString) {
+      import testImplicits._
+      val data1d = Random.shuffle(0.to(partitionNum - 1))
+      val data2d = data1d.map(i => (i, data1d.size - i))
+
+      checkAnswer(
+        data1d.toDF("val").repartitionByRange(data1d.size, $"val".asc)
+          .select(spark_partition_id().as("id"), $"val"),
+        data1d.map(i => Row(i, i)))
+
+      checkAnswer(
+        data1d.toDF("val").repartitionByRange(data1d.size, $"val".desc)
+          .select(spark_partition_id().as("id"), $"val"),
+        data1d.map(i => Row(i, data1d.size - 1 - i)))
+
+      checkAnswer(
+        data1d.toDF("val").repartitionByRange(data1d.size, lit(42))
+          .select(spark_partition_id().as("id"), $"val"),
+        data1d.map(i => Row(0, i)))
+
+      checkAnswer(
+        data1d.toDF("val").repartitionByRange(data1d.size, lit(null), $"val".asc, rand())
+          .select(spark_partition_id().as("id"), $"val"),
+        data1d.map(i => Row(i, i)))
+
+      // .repartitionByRange() assumes .asc by default if no explicit sort order is specified
+      checkAnswer(
+        data2d.toDF("a", "b").repartitionByRange(data2d.size, $"a".desc, $"b")
+          .select(spark_partition_id().as("id"), $"a", $"b"),
+        data2d.toDF("a", "b").repartitionByRange(data2d.size, $"a".desc, $"b".asc)
+          .select(spark_partition_id().as("id"), $"a", $"b"))
+
+      // at least one partition-by expression must be specified
+      intercept[IllegalArgumentException] {
+        data1d.toDF("val").repartitionByRange(data1d.size)
+      }
+      intercept[IllegalArgumentException] {
+        data1d.toDF("val").repartitionByRange(data1d.size, Seq.empty: _*)
+      }
+    }
+  }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "distributeBy and localSort") {
+    import testImplicits._
+    val data = spark.sparkContext.parallelize(
+      (1 to 100).map(i => TestData2(i % 10, i))).toDF()
+
+    /**
+     * partitionNum = 1
+     */
+    var partitionNum = 1
+    val original = testData.repartition(partitionNum)
+    assert(original.rdd.partitions.length == partitionNum)
+
+    // Distribute into one partition and order by. This partition should contain all the values.
+    val df6 = data.repartition(partitionNum, $"a").sortWithinPartitions("b")
+    // Walk each partition and verify that it is sorted ascending and not globally sorted.
+    df6.rdd.foreachPartition { p =>
+      var previousValue: Int = -1
+      var allSequential: Boolean = true
+      p.foreach { r =>
+        val v: Int = r.getInt(1)
+        if (previousValue != -1) {
+          if (previousValue > v) throw new SparkException("Partition is not ordered.")
+          if (v - 1 != previousValue) allSequential = false
+        }
+        previousValue = v
+      }
+      if (!allSequential) throw new SparkException("Partition should contain all sequential values")
+    }
+
+    /**
+     * partitionNum = 5
+     */
+    partitionNum = 5
+    withSQLConf(
+    SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+    SQLConf.SHUFFLE_PARTITIONS.key -> partitionNum.toString) {
+      val df = original.repartition(partitionNum, $"key")
+      assert(df.rdd.partitions.length == partitionNum)
+      checkAnswer(original.select(), df.select())
+
+      // Distribute and order by.
+      val df4 = data.repartition(partitionNum, $"a").sortWithinPartitions($"b".desc)
+      // Walk each partition and verify that it is sorted descending and does not contain all
+      // the values.
+      df4.rdd.foreachPartition { p =>
+        // Skip empty partition
+        if (p.hasNext) {
+          var previousValue: Int = -1
+          var allSequential: Boolean = true
+          p.foreach { r =>
+            val v: Int = r.getInt(1)
+            if (previousValue != -1) {
+              if (previousValue < v) throw new SparkException("Partition is not ordered.")
+              if (v + 1 != previousValue) allSequential = false
+            }
+            previousValue = v
+          }
+          if (allSequential) throw new SparkException("Partition should not be globally ordered")
+        }
+      }
+    }
+
+    /**
+     * partitionNum = 10
+     */
+    partitionNum = 10
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      SQLConf.SHUFFLE_PARTITIONS.key -> partitionNum.toString) {
+      val df2 = original.repartition(partitionNum, $"key")
+      assert(df2.rdd.partitions.length == partitionNum)
+      checkAnswer(original.select(), df2.select())
+    }
+
+    // Group by the column we are distributed by. This should generate a plan with no exchange
+    // between the aggregates
+    val df3 = testData.repartition($"key").groupBy("key").count()
+    verifyNonExchangingAgg(df3)
+    verifyNonExchangingAgg(testData.repartition($"key", $"value")
+      .groupBy("key", "value").count())
+
+    // Grouping by just the first distributeBy expr, need to exchange.
+    verifyExchangingAgg(testData.repartition($"key", $"value")
+      .groupBy("key").count())
+
+    /**
+     * partitionNum = 2
+     */
+    partitionNum = 2
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      SQLConf.SHUFFLE_PARTITIONS.key -> partitionNum.toString) {
+      // Distribute and order by with multiple order bys
+      val df5 = data.repartition(partitionNum, $"a").sortWithinPartitions($"b".asc, $"a".asc)
+      // Walk each partition and verify that it is sorted ascending
+      df5.rdd.foreachPartition { p =>
+        var previousValue: Int = -1
+        var allSequential: Boolean = true
+        p.foreach { r =>
+          val v: Int = r.getInt(1)
+          if (previousValue != -1) {
+            if (previousValue > v) throw new SparkException("Partition is not ordered.")
+            if (v - 1 != previousValue) allSequential = false
+          }
+          previousValue = v
+        }
+        if (allSequential) throw new SparkException("Partition should not be all sequential")
+      }
+    }
+  }
 
   test(GLUTEN_TEST + "reuse exchange") {
     withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "2") {
@@ -58,6 +219,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
    * Failed to check WholeStageCodegenExec, so we rewrite the UT.
    */
   test(GLUTEN_TEST + "SPARK-22520: support code generation for large CaseWhen") {
+    import org.apache.spark.sql.catalyst.dsl.expressions.StringToAttributeConversionHelper
     val N = 30
     var expr1 = when(equalizer($"id", lit(0)), 0)
     var expr2 = when(equalizer($"id", lit(0)), 10)
@@ -81,5 +243,30 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
           "Perhaps you need to use aliases.")
     }
     EqualTo(expr, right)
+  }
+
+  private def verifyNonExchangingAgg(df: DataFrame): Unit = {
+    var atFirstAgg: Boolean = false
+    df.queryExecution.executedPlan.foreach {
+      case agg: HashAggregateExec =>
+        atFirstAgg = !atFirstAgg
+      case _ =>
+        if (atFirstAgg) {
+          fail("Should not have operators between the two aggregations")
+        }
+    }
+  }
+
+  private def verifyExchangingAgg(df: DataFrame): Unit = {
+    var atFirstAgg: Boolean = false
+    df.queryExecution.executedPlan.foreach {
+      case _: HashAggregateExec =>
+        if (atFirstAgg) {
+          fail("Should not have back to back Aggregates")
+        }
+        atFirstAgg = true
+      case _: ShuffleExchangeExec => atFirstAgg = false
+      case _ =>
+    }
   }
 }

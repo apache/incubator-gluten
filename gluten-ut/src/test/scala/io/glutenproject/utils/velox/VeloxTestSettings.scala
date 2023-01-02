@@ -19,7 +19,6 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
@@ -71,14 +70,14 @@ object VeloxTestSettings extends BackendTestSettings {
       "reuse exchange"
     )
     .exclude(
-      // Mismatch when max NaN and infinite value
-      "NaN is greater than all other non-NaN numeric values",
       /**
-       * Mismatched, the rdd partition is equal to 1
-       * because the configuration "spark.sql.shuffle.partitions" is always 1.
+       * Rewrite these tests because the rdd partition is equal to
+       * the configuration "spark.sql.shuffle.partitions".
        */
       "repartitionByRange",
       "distributeBy and localSort",
+      // Mismatch when max NaN and infinite value
+      "NaN is greater than all other non-NaN numeric values",
       // To be fixed
       "describe"
     )
