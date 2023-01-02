@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 namespace gluten {
 
 void registerAllFunctions();

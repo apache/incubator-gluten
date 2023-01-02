@@ -21,6 +21,8 @@
 #include <google/protobuf/util/type_resolver_util.h>
 #include <fstream>
 
+namespace gluten {
+
 // Common for both projector and filters.
 
 bool ParseProtobuf(const uint8_t* buf, int bufLen, google::protobuf::Message* msg) {
@@ -41,7 +43,7 @@ inline google::protobuf::util::TypeResolver* GetGeneratedTypeResolver() {
   return type_resolver.get();
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
+arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJsonToPb(
     arrow::util::string_view type_name,
     arrow::util::string_view json) {
   std::string type_url = "/substrait." + type_name.to_string();
@@ -60,7 +62,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> SubstraitFromJSON(
   return arrow::Buffer::FromString(std::move(out));
 }
 
-arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name, const arrow::Buffer& buf) {
+arrow::Result<std::string> SubstraitFromPbToJson(arrow::util::string_view type_name, const arrow::Buffer& buf) {
   std::string type_url = "/substrait." + type_name.to_string();
 
   google::protobuf::io::ArrayInputStream buf_stream{buf.data(), static_cast<int>(buf.size())};
@@ -76,6 +78,7 @@ arrow::Result<std::string> SubstraitToJSON(arrow::util::string_view type_name, c
   return out;
 }
 
+/*
 void MessageToJSONFile(const google::protobuf::Message& message, const std::string& file_path) {
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
@@ -88,3 +91,6 @@ void MessageToJSONFile(const google::protobuf::Message& message, const std::stri
   out << json_string;
   out.close();
 }
+*/
+
+} // namespace gluten
