@@ -19,7 +19,9 @@
 
 #include <arrow/array/array_decimal.h>
 #include <arrow/util/decimal.h>
+#if defined(__x86_64__)
 #include <immintrin.h>
+#endif
 
 namespace gluten {
 
@@ -27,8 +29,10 @@ uint32_t x_7[8] __attribute__((aligned(32))) = {0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x
 uint32_t x_8[8] __attribute__((aligned(32))) = {0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8};
 
 arrow::Status ArrowColumnarToRowConverter::Init() {
+  support_avx512_ = false;
+#if defined(__x86_64__)
   support_avx512_ = __builtin_cpu_supports("avx512bw");
-  // std::cout << "support_avx512_:" << support_avx512_ << std::endl;
+#endif
 
   num_rows_ = rb_->num_rows();
   num_cols_ = rb_->num_columns();
@@ -253,7 +257,11 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
           auto dataptr = dataptrs[col_index][1];
           auto mask = (1L << (typewidth[col_index])) - 1;
           (void)mask; // suppress warning
+#if defined(__x86_64__)
           auto shift = _tzcnt_u32(typewidth[col_index]);
+#else
+	  auto shift = __builtin_ctz((uint32_t)typewidth[col_index]);
+#endif
           auto buffer_address_tmp = buffer_address + field_offset;
           for (auto j = row_start; j < row_start + batch_rows; j++) {
             if (nullvec[col_index] || (!array->IsNull(j))) {
