@@ -18,6 +18,8 @@
 package io.glutenproject.substrait.extensions;
 
 import com.google.protobuf.Any;
+import io.glutenproject.substrait.type.TypeBuilder;
+import io.glutenproject.substrait.type.TypeNode;
 
 public class ExtensionBuilder {
   private ExtensionBuilder() {
@@ -29,6 +31,10 @@ public class ExtensionBuilder {
 
   public static AdvancedExtensionNode makeAdvancedExtension(Any enhancement) {
     return new AdvancedExtensionNode(enhancement);
+  }
+
+  public static AdvancedExtensionNode makeAdvancedExtension(java.util.ArrayList<TypeNode> typeNodes) {
+    return new AdvancedExtensionNode(Any.pack(TypeBuilder.makeStruct(false, typeNodes).toProtobuf()));
   }
 
   public static AdvancedExtensionNode makeAdvancedExtension(Any optimization, Any enhancement) {

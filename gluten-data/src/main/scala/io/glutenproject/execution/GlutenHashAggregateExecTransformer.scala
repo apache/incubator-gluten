@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import scala.collection.JavaConverters._
-import com.google.protobuf.Any
+// import com.google.protobuf.Any
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -121,8 +121,9 @@ case class GlutenHashAggregateExecTransformer(
     if (!validation) {
       RelBuilder.makeProjectRel(aggRel, expressionNodes, context, operatorId)
     } else {
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
+//      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+//        Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(getPartialAggOutTypes)
       RelBuilder.makeProjectRel(aggRel, expressionNodes, extensionNode, context, operatorId)
     }
   }
@@ -342,8 +343,9 @@ case class GlutenHashAggregateExecTransformer(
       for (attr <- originalInputAttributes) {
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+//      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+//        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(inputTypeNodeList)
       RelBuilder.makeProjectRel(inputRel, exprNodes, extensionNode, context, operatorId)
     }
 

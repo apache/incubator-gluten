@@ -31,7 +31,7 @@ import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.exchange.Exchange
 
-import com.google.protobuf.Any
+// import com.google.protobuf.Any
 
 import java.util
 import java.util.Locale
@@ -283,8 +283,9 @@ case class CHHashAggregateExecTransformer(
       for (attr <- originalInputAttributes) {
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+//      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+//        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(inputTypeNodeList)
       RelBuilder.makeAggregateRel(
         input,
         groupingList,
