@@ -139,6 +139,8 @@ object ConverterUtils extends Logging {
         val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue())
         (MapType(keyType, valueType, valueContainsNull),
           isNullable(substraitType.getMap.getNullability))
+      case Type.KindCase.NOTHING =>
+        (NullType, true)
       case unsupported =>
         throw new UnsupportedOperationException(s"Type $unsupported not supported.")
     }
@@ -184,6 +186,8 @@ object ConverterUtils extends Logging {
           fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
         }
         TypeBuilder.makeStruct(nullable, fieldNodes)
+      case n: NullType =>
+        TypeBuilder.makeNothing()
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }
@@ -319,6 +323,8 @@ object ConverterUtils extends Logging {
           typedFuncName.concat("struct")
         case MapType(_, _, _) =>
           typedFuncName.concat("map")
+        case NullType =>
+          typedFuncName.concat("nothing")
         case other =>
           throw new UnsupportedOperationException(s"Type $other not supported.")
       }

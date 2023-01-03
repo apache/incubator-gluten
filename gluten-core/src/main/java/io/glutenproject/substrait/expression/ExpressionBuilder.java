@@ -221,6 +221,8 @@ public class ExpressionBuilder {
           throw new UnsupportedOperationException(
             String.format("Type not supported: %s.", dataType.toString()));
       }
+    } else if (dataType instanceof NullType) {
+        return makeNullLiteral(TypeBuilder.makeNothing());
     } else {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
       throw new UnsupportedOperationException(
