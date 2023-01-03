@@ -81,7 +81,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string&
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  auto maybePlan = SubstraitFromJSON("Plan", msgData);
+  auto maybePlan = gluten::SubstraitFromJsonToPb("Plan", msgData);
   return maybePlan;
 }
 

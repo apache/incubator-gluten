@@ -42,7 +42,7 @@ void setUpConfMap(JNIEnv* env, jobject obj, jbyteArray planArray) {
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
   ::substrait::Plan subPlan;
-  ParseProtobuf(planData, planSize, &subPlan);
+  gluten::ParseProtobuf(planData, planSize, &subPlan);
 
   if (subPlan.has_advanced_extensions()) {
     auto extension = subPlan.advanced_extensions();
@@ -109,7 +109,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
   ::substrait::Plan subPlan;
-  ParseProtobuf(planData, planSize, &subPlan);
+  gluten::ParseProtobuf(planData, planSize, &subPlan);
 
   // A query context used for function validation.
   core::QueryCtx queryCtx;

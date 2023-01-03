@@ -17,10 +17,13 @@
 
 package org.apache.spark.sql.execution
 
+import scala.collection.JavaConverters.asScalaIteratorConverter
+
 import io.glutenproject.columnarbatch.{ArrowColumnarBatches, GlutenColumnarBatches, GlutenIndicatorVector}
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, NamedExpression, UnsafeProjection, UnsafeRow}
@@ -28,9 +31,6 @@ import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import scala.collection.JavaConverters.asScalaIteratorConverter
-
-import io.glutenproject.utils.GlutenArrowUtil
 
 case class GlutenBuildSideRelation(mode: BroadcastMode,
   output: Seq[Attribute],
@@ -73,20 +73,41 @@ case class GlutenBuildSideRelation(mode: BroadcastMode,
           batchHandle,
           NativeMemoryAllocators.contextInstance().getNativeInstanceId)
 
-        val keyInOutput = output.zipWithIndex.filter {
-          p: (Attribute, Int) =>
-            p._1.name == key.asInstanceOf[NamedExpression].name
+        val columnNames = key.flatMap {
+          case expression: AttributeReference =>
+            Some(expression)
+          case _ =>
+            None
         }
-        if (keyInOutput.isEmpty) {
+        if (columnNames.isEmpty) {
+          throw new IllegalArgumentException(s"Key column not found in expression: $key")
+        }
+        if (columnNames.size != 1) {
+          throw new IllegalArgumentException(s"Multiple key column not found in expression: $key")
+        }
+        val columnExpr = columnNames.head
+
+        val columnInOutput = output.zipWithIndex.filter {
+          p: (Attribute, Int) =>
+            p._1.name == columnExpr.name
+        }
+        if (columnInOutput.isEmpty) {
           throw new IllegalStateException(
             s"Key $key not found from build side relation output: $output")
         }
-        if (keyInOutput.size != 1) {
+        if (columnInOutput.size != 1) {
           throw new IllegalStateException(
             s"More than one key $key found from build side relation output: $output")
         }
-        val proj = UnsafeProjection.create(
-          BoundReference(keyInOutput.head._2, key.dataType, key.nullable))
+        val replacement =
+          BoundReference(columnInOutput.head._2, columnExpr.dataType, columnExpr.nullable)
+
+        val projExpr = key.transformDown {
+          case _: AttributeReference =>
+            replacement
+        }
+
+        val proj = UnsafeProjection.create(projExpr)
 
         new Iterator[InternalRow] {
           var rowId = 0

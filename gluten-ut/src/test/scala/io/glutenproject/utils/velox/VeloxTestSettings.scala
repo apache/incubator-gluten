@@ -82,10 +82,7 @@ object VeloxTestSettings extends BackendTestSettings {
     "static scan metrics",
 
     // struct join key not supported, fell-back to Vanilla join
-    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type",
-
-    // to be fixed
-    "partition pruning in broadcast hash joins with aliases"
+    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
   )
 
   enableSuite[GlutenLiteralExpressionSuite]
