@@ -21,7 +21,7 @@
 
 namespace gluten {
 
-class DummyBackend : public Backend {
+class DummyBackend final : public Backend {
  public:
   std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,

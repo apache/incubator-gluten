@@ -21,7 +21,7 @@
 
 namespace gluten {
 
-class ArrowColumnarToRowConverter : public ColumnarToRowConverter {
+class ArrowColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
   ArrowColumnarToRowConverter(std::shared_ptr<arrow::RecordBatch> rb, std::shared_ptr<arrow::MemoryPool> memory_pool)
       : ColumnarToRowConverter(memory_pool), rb_(rb) {}

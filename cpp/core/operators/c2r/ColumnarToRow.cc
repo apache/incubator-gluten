@@ -21,21 +21,6 @@
 
 namespace gluten {
 
-int64_t ColumnarToRowConverter::CalculateBitSetWidthInBytes(int32_t numFields) {
-  return ((numFields + 63) >> 6) << 3;
-}
-
-int32_t ColumnarToRowConverter::RoundNumberOfBytesToNearestWord(int32_t numBytes) {
-  int32_t remainder = numBytes & 0x07; // This is equivalent to `numBytes % 8`
-
-  return numBytes + ((8 - remainder) & 0x7);
-  /*if (remainder == 0) {
-    return numBytes;
-  } else {
-    return numBytes + (8 - remainder);
-  }*/
-}
-
 int64_t ColumnarToRowConverter::CalculatedFixeSizePerRow(std::shared_ptr<arrow::Schema> schema, int64_t num_cols) {
   std::vector<std::shared_ptr<arrow::Field>> fields = schema->fields();
   // Calculate the decimal col num when the precision >18
@@ -55,49 +40,8 @@ int64_t ColumnarToRowConverter::CalculatedFixeSizePerRow(std::shared_ptr<arrow::
   return fixed_size + decimal_cols_size;
 }
 
-int64_t ColumnarToRowConverter::GetFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index) {
-  return nullBitsetWidthInBytes + 8L * index;
-}
-
-void ColumnarToRowConverter::BitSet(uint8_t* buffer_address, int32_t index) {
-  int64_t mask = 1L << (index & 0x3f); // mod 64 and shift
-  int64_t wordOffset = (index >> 6) * 8;
-  int64_t word;
-  word = *(int64_t*)(buffer_address + wordOffset);
-  int64_t value = word | mask;
-  *(int64_t*)(buffer_address + wordOffset) = value;
-}
-
-void ColumnarToRowConverter::SetNullAt(
-    uint8_t* buffer_address,
-    int64_t row_offset,
-    int64_t field_offset,
-    int32_t col_index) {
-  BitSet(buffer_address + row_offset, col_index);
-  // set the value to 0
-  *(int64_t*)(buffer_address + row_offset + field_offset) = 0;
-}
-
-int32_t ColumnarToRowConverter::FirstNonzeroLongNum(const std::vector<int32_t>& mag, int32_t length) const {
-  int32_t fn = 0;
-  int32_t i;
-  for (i = length - 1; i >= 0 && mag[i] == 0; i--)
-    ;
-  fn = length - i - 1;
-  return fn;
-}
-
-int32_t ColumnarToRowConverter::GetInt(int32_t n, int32_t sig, const std::vector<int32_t>& mag, int32_t length) const {
-  if (n < 0)
-    return 0;
-  if (n >= length)
-    return sig < 0 ? -1 : 0;
-
-  int32_t magInt = mag[length - n - 1];
-  return (sig >= 0 ? magInt : (n <= FirstNonzeroLongNum(mag, length) ? -magInt : ~magInt));
-}
-
-int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) const {
+int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) {
+  // TODO: we can get faster implementation by gcc build-in function
   // HD, Figure 5-6
   if (i == 0)
     return 32;
@@ -122,21 +66,7 @@ int32_t ColumnarToRowConverter::GetNumberOfLeadingZeros(uint32_t i) const {
   return n;
 }
 
-int32_t ColumnarToRowConverter::GetBitLengthForInt(uint32_t n) const {
-  return 32 - GetNumberOfLeadingZeros(n);
-}
-
-int32_t ColumnarToRowConverter::GetBitCount(uint32_t i) const {
-  // HD, Figure 5-2
-  i = i - ((i >> 1) & 0x55555555);
-  i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-  i = (i + (i >> 4)) & 0x0f0f0f0f;
-  i = i + (i >> 8);
-  i = i + (i >> 16);
-  return i & 0x3f;
-}
-
-int32_t ColumnarToRowConverter::GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len) const {
+int32_t ColumnarToRowConverter::GetBitLength(int32_t sig, const std::vector<int32_t>& mag, int32_t len) {
   int32_t n = -1;
   if (len == 0) {
     n = 0;

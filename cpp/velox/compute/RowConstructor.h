@@ -25,7 +25,7 @@ using namespace facebook::velox::exec;
 
 namespace gluten {
 
-class RowConstructor : public exec::VectorFunction {
+class RowConstructor final : public exec::VectorFunction {
   void apply(
       const SelectivityVector& rows,
       std::vector<VectorPtr>& args,

@@ -39,7 +39,7 @@
 
 namespace gluten {
 
-class GlutenException : public std::runtime_error {
+class GlutenException final : public std::runtime_error {
  public:
   explicit GlutenException(const std::string& arg) : runtime_error(arg) {}
 };

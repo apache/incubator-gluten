@@ -360,7 +360,7 @@ void CheckException(JNIEnv* env) {
   }
 }
 
-class SparkAllocationListener : public gluten::AllocationListener {
+class SparkAllocationListener final : public gluten::AllocationListener {
  public:
   SparkAllocationListener(
       JavaVM* vm,

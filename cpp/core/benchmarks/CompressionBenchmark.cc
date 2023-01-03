@@ -56,7 +56,7 @@ namespace gluten {
 
 #define ALIGNMENT 2 * 1024 * 1024
 
-class MyMemoryPool : public arrow::MemoryPool {
+class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool() {}
 
@@ -106,7 +106,7 @@ class MyMemoryPool : public arrow::MemoryPool {
 
 // #define ENABLELARGEPAGE
 
-class LargePageMemoryPool : public arrow::MemoryPool {
+class LargePageMemoryPool final : public arrow::MemoryPool {
  public:
   explicit LargePageMemoryPool() {}
 
@@ -278,7 +278,7 @@ class BenchmarkCompression {
   arrow::ipc::IpcWriteOptions ipc_write_options;
 };
 
-class BenchmarkCompression_IterateScan_Benchmark : public BenchmarkCompression {
+class BenchmarkCompression_IterateScan_Benchmark final : public BenchmarkCompression {
  public:
   explicit BenchmarkCompression_IterateScan_Benchmark(const std::string& filename, uint32_t split_buffer_size)
       : BenchmarkCompression(filename, split_buffer_size) {}

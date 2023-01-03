@@ -94,7 +94,7 @@ class VeloxMemoryAllocatorVariant {
 
 //  The code is originated from /velox/common/memory/Memory.h
 //  Removed memory manager.
-class WrappedVeloxMemoryPool : public facebook::velox::memory::MemoryPool {
+class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool {
  public:
   // Should perhaps make this method private so that we only create node through
   // parent.

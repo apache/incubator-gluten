@@ -25,7 +25,7 @@
 
 namespace gluten {
 
-class ArrowBackend : public Backend {
+class ArrowBackend final : public Backend {
  public:
   ArrowBackend();
 
