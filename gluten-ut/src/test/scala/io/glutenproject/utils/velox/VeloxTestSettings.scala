@@ -19,7 +19,6 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
@@ -64,6 +63,25 @@ object VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+  enableSuite[GlutenDataFrameSuite]
+    // Rewrite these tests because it checks Spark's physical operators.
+    .excludeByPrefix(
+      "SPARK-22520",
+      "reuse exchange"
+    )
+    .exclude(
+      /**
+       * Rewrite these tests because the rdd partition is equal to
+       * the configuration "spark.sql.shuffle.partitions".
+       */
+      "repartitionByRange",
+      "distributeBy and localSort",
+      // Mismatch when max NaN and infinite value
+      "NaN is greater than all other non-NaN numeric values",
+      // To be fixed
+      "describe"
+    )
+
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
        // NaN case
