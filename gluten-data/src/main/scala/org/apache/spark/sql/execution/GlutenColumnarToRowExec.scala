@@ -48,8 +48,8 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
   override def buildCheck(): Unit = {
     val schema = child.schema
     child match {
-      // Depending on the input type, VeloxColumnarToRowConverter or ArrowColumnarToRowConverter 
-      // will be used. Only for columnar shuffle, ArrowColumnarToRowConverter will be used. The 
+      // Depending on the input type, VeloxColumnarToRowConverter or ArrowColumnarToRowConverter
+      // will be used. Only for columnar shuffle, ArrowColumnarToRowConverter will be used. The
       // data type checking should align with the code in ArrowColumnarToRowConverter.cc.
       case _: ColumnarShuffleExchangeAdaptor | _: ColumnarShuffleExchangeExec =>
         for (field <- schema.fields) {
@@ -72,7 +72,8 @@ case class GlutenColumnarToRowExec(child: SparkPlan)
           }
         }
       case _ =>
-        // The below data type checking should align with the code in VeloxColumnarToRowConverter.cc.
+        // The below data type checking should align 
+        // with the code in VeloxColumnarToRowConverter.cc.
         for (field <- schema.fields) {
           field.dataType match {
             case _: BooleanType =>
