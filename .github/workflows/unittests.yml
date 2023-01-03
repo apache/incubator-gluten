@@ -71,7 +71,7 @@ jobs:
           fi
           git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git && \
           cd /opt/spark && \
-          ./build/mvn -Pyarn -Dhadoop.version=3.2.0 -DskipTests clean install \
+          ./build/mvn -Pyarn -Dhadoop.version=3.2.0 -DskipTests clean install && \
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
           ./build_arrow_for_velox.sh --build_test=ON --build_benchmarks=ON && \
