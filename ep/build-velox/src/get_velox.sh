@@ -2,8 +2,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_REPO=https://github.com/zhixingheyi-tian/velox.git
+VELOX_BRANCH=fixhashjoin
 
 for arg in "$@"
 do
