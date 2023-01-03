@@ -19,7 +19,7 @@ package io.glutenproject.execution
 
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
+import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
@@ -39,6 +39,7 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
+import scala.util.control.Breaks.{break, breakable}
 
 case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
                                  groupExpression: Seq[NamedExpression],
@@ -147,12 +148,39 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       for (i <- aggSize until (projection.size - 1)) {
         if (!(projection(i).isInstanceOf[Literal] &&
           projection(i).asInstanceOf[Literal].value == null)) {
-          val groupExprNode = ExpressionConverter
+          var groupExprNode = ExpressionConverter
             .replaceWithExpressionTransformer(
               projection(i),
               originalInputAttributes
-            ).doTransform(args)
-          groupExprNodes.add(groupExprNode)
+            )
+
+          if (groupExprNode.isInstanceOf[AttributeReferenceTransformer]) {
+            val attr_ref_transform = groupExprNode.asInstanceOf[AttributeReferenceTransformer]
+            /*
+             * There is a special case, E.g,
+             *  select x, y, count(x) from t group by x, y with rollup.
+             * The input header for this operator is: x_0, x_1, y, but the reference to x in
+             * grouping sets is also 0 (refer to x_0) which may be 1 which would cause some
+             * problems. We fix it here.
+             */
+            if (attr_ref_transform.ordinal < aggSize) {
+              var index = originalInputAttributes.length - 1
+              breakable {
+                while (index >= 0) {
+                  if (originalInputAttributes(index).exprId.equals(attr_ref_transform.exprId)) {
+                    groupExprNode = AttributeReferenceTransformer(attr_ref_transform.name,
+                      index, attr_ref_transform.dataType, attr_ref_transform.nullable,
+                      attr_ref_transform.exprId, attr_ref_transform.qualifier,
+                      attr_ref_transform.metadata)
+                    break
+                  }
+                  index -= 1
+                }
+              }
+            }
+          }
+          val transformedNode = groupExprNode.doTransform(args)
+          groupExprNodes.add(transformedNode)
         }
       }
       groupsetExprNodes.add(groupExprNodes)
@@ -178,37 +206,41 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
         extensionNode, context, operatorId)
     }
 
-    // After ExpandRel in velox, the output is
-    // grouping cols + agg cols + groupingID col,
-    // here we need to add ProjectRel to
-    // convert the ouput to agg cols + grouping cols + groupingID col order.
-    val selectNodes = new java.util.ArrayList[ExpressionNode]()
-    // Add agg cols index
-    for (i <- (groupSize -1) until (aggSize + groupSize - 1) ) {
-      selectNodes.add(ExpressionBuilder.makeSelection(i))
-    }
-    // Add grouping cols index
-    for (i <- 0 until (groupSize - 1)) {
-      selectNodes.add(ExpressionBuilder.makeSelection(i))
-    }
-
-    // Add groupID col index
-    selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
-
-    // Pass the reordered index agg + groupingsets + GID
-    if (!validation) {
-      RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for a validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- output) {
-        inputTypeNodeList.add(
-          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+    if (BackendsApiManager.getSettings.needProjectExpandOutput) {
+      // After ExpandRel in velox, the output is
+      // grouping cols + agg cols + groupingID col,
+      // here we need to add ProjectRel to
+      // convert the ouput to agg cols + grouping cols + groupingID col order.
+      val selectNodes = new java.util.ArrayList[ExpressionNode]()
+      // Add agg cols index
+      for (i <- (groupSize -1) until (aggSize + groupSize - 1) ) {
+        selectNodes.add(ExpressionBuilder.makeSelection(i))
+      }
+      // Add grouping cols index
+      for (i <- 0 until (groupSize - 1)) {
+        selectNodes.add(ExpressionBuilder.makeSelection(i))
       }
 
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(expandRel, selectNodes, extensionNode, context, operatorId)
+      // Add groupID col index
+      selectNodes.add(ExpressionBuilder.makeSelection(projections(0).size - 1))
+
+      // Pass the reordered index agg + groupingsets + GID
+      if (!validation) {
+        RelBuilder.makeProjectRel(expandRel, selectNodes, context, operatorId)
+      } else {
+        // Use a extension node to send the input types through Substrait plan for a validation.
+        val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+        for (attr <- output) {
+          inputTypeNodeList.add(
+            ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        }
+
+        val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+          Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        RelBuilder.makeProjectRel(expandRel, selectNodes, extensionNode, context, operatorId)
+      }
+    } else {
+      expandRel
     }
   }
 
@@ -217,6 +249,14 @@ case class ExpandExecTransformer(projections: Seq[Seq[Expression]],
       return false
     }
     if (projections.isEmpty) {
+      return false
+    }
+
+    // FIXME.
+    // There is a bad case in `Gluten null count` in GlutenDataFrameAggregateSuite, but there may
+    // be also other cases which we don't meet.
+    if (child.output.size + 1 != projections.head.size) {
+      logWarning(s"Not a supported expand node for grouping sets.")
       return false
     }
 
