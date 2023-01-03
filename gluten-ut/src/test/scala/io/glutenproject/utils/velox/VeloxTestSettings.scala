@@ -22,7 +22,7 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
+import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -196,4 +196,5 @@ object VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
+  enableSuite[GlutenBroadcastJoinSuite]
 }
