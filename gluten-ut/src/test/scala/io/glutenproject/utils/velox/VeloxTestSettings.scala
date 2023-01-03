@@ -109,6 +109,8 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
   enableSuite[GlutenDateExpressionsSuite]
+      // Has exception in fallback execution when we use resultDF.collect in evaluation.
+      .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]

@@ -148,7 +148,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
   def glutenCheckExpression(expression: Expression,
                             expected: Any,
-                            inputRow: InternalRow, justEvalExpr: Boolean = false): Unit = {
+                            inputRow: InternalRow): Unit = {
     val df = if (inputRow != EmptyRow && inputRow != InternalRow.empty) {
       convertInternalRowToDataFrame(inputRow)
     } else {
@@ -158,15 +158,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
     val resultDF = df.select(Column(expression))
-    val result = if (justEvalExpr) {
-      try {
-        expression.eval(inputRow)
-      } catch {
-        case e: Exception => fail(s"Exception evaluating $expression", e)
-      }
-    } else {
-      resultDF.collect()
-    }
+    val result = resultDF.collect()
     if (checkDataTypeSupported(expression) &&
         expression.children.forall(checkDataTypeSupported)) {
       val projectTransformer = resultDF.queryExecution.executedPlan.collect {
