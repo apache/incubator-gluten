@@ -90,15 +90,6 @@ object VeloxTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
-    // overwritten
-    "DPP should not be rewritten as an existential join",
-    "no partition pruning when the build side is a stream",
-    "Make sure dynamic pruning works on uncorrelated queries",
-    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
-      "canonicalization and exchange reuse",
-    "Subquery reuse across the whole plan",
-    "static scan metrics",
-
     // struct join key not supported, fell-back to Vanilla join
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
   )

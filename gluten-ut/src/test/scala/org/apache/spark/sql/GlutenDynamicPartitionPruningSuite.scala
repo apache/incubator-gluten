@@ -19,19 +19,20 @@ package org.apache.spark.sql
 
 import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer}
 
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
-import org.apache.spark.sql.catalyst.plans.ExistenceJoin
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, DisableAdaptiveExecution}
+import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.catalyst.plans.ExistenceJoin
+import org.apache.spark.sql.connector.catalog.InMemoryTableCatalog
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.execution.streaming.{MemoryStream, StreamingQueryWrapper}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.internal.SQLConf
 
-class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV1SuiteAEOff
+abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPruningSuiteBase
   with GlutenSQLTestsTrait {
 
   import testImplicits._
@@ -39,8 +40,19 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV
   override def beforeAll(): Unit = {
     prepareWorkDir()
     super.beforeAll()
-    spark.sparkContext.setLogLevel("INFO")
+    spark.sparkContext.setLogLevel("WARN")
   }
+
+  override def testNameBlackList: Seq[String] = Seq(
+    // overwritten
+    "DPP should not be rewritten as an existential join",
+    "no partition pruning when the build side is a stream",
+    "Make sure dynamic pruning works on uncorrelated queries",
+    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
+      "canonicalization and exchange reuse",
+    "Subquery reuse across the whole plan",
+    "static scan metrics"
+  )
 
   // === Following cases override super class's cases ===
 
@@ -321,9 +333,9 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV
   }
 
   override def checkPartitionPruningPredicate(
-                                      df: DataFrame,
-                                      withSubquery: Boolean,
-                                      withBroadcast: Boolean): Unit = {
+                                               df: DataFrame,
+                                               withSubquery: Boolean,
+                                               withBroadcast: Boolean): Unit = {
     df.collect()
 
     val plan = df.queryExecution.executedPlan
@@ -423,3 +435,149 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends DynamicPartitionPruningV
     }
   }
 }
+
+abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartitionPruningSuiteBase {
+
+  import testImplicits._
+
+  /**
+   * Check the static scan metrics with and without DPP
+   */
+  test("static scan metrics",
+    DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
+      SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
+      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
+      withTable("fact", "dim") {
+        val numPartitions = 10
+
+        spark.range(10)
+          .map { x => Tuple3(x, x + 1, 0) }
+          .toDF("did", "d1", "d2")
+          .write
+          .format(tableFormat)
+          .mode("overwrite")
+          .saveAsTable("dim")
+
+        spark.range(100)
+          .map { x => Tuple2(x, x % numPartitions) }
+          .toDF("f1", "fid")
+          .write.partitionBy("fid")
+          .format(tableFormat)
+          .mode("overwrite")
+          .saveAsTable("fact")
+
+        def getFactScan(plan: SparkPlan): SparkPlan = {
+          val scanOption =
+            find(plan) {
+              case s: FileSourceScanExec =>
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("fid")).isDefined)
+              case s: BatchScanExec =>
+                // we use f1 col for v2 tables due to schema pruning
+                s.output.exists(_.find(_.argString(maxFields = 100).contains("f1")).isDefined)
+              case _ => false
+            }
+          assert(scanOption.isDefined)
+          scanOption.get
+        }
+
+        // No dynamic partition pruning, so no static metrics
+        // All files in fact table are scanned
+        val df1 = sql("SELECT sum(f1) FROM fact")
+        df1.collect()
+        val scan1 = getFactScan(df1.queryExecution.executedPlan)
+        assert(!scan1.metrics.contains("staticFilesNum"))
+        assert(!scan1.metrics.contains("staticFilesSize"))
+        val allFilesNum = scan1.metrics("numFiles").value
+        val allFilesSize = scan1.metrics("filesSize").value
+        assert(scan1.metrics("numPartitions").value === numPartitions)
+        assert(scan1.metrics("pruningTime").value === -1)
+
+        // No dynamic partition pruning, so no static metrics
+        // Only files from fid = 5 partition are scanned
+        val df2 = sql("SELECT sum(f1) FROM fact WHERE fid = 5")
+        df2.collect()
+        val scan2 = getFactScan(df2.queryExecution.executedPlan)
+        assert(!scan2.metrics.contains("staticFilesNum"))
+        assert(!scan2.metrics.contains("staticFilesSize"))
+        val partFilesNum = scan2.metrics("numFiles").value
+        val partFilesSize = scan2.metrics("filesSize").value
+        assert(0 < partFilesNum && partFilesNum < allFilesNum)
+        assert(0 < partFilesSize && partFilesSize < allFilesSize)
+        assert(scan2.metrics("numPartitions").value === 1)
+        assert(scan2.metrics("pruningTime").value === -1)
+
+        // Dynamic partition pruning is used
+        // Static metrics are as-if reading the whole fact table
+        // "Regular" metrics are as-if reading only the "fid = 5" partition
+        val df3 = sql("SELECT sum(f1) FROM fact, dim WHERE fid = did AND d1 = 6")
+        df3.collect()
+        val scan3 = getFactScan(df3.queryExecution.executedPlan)
+        assert(scan3.metrics("staticFilesNum").value == allFilesNum)
+        assert(scan3.metrics("staticFilesSize").value == allFilesSize)
+        assert(scan3.metrics("numFiles").value == partFilesNum)
+        assert(scan3.metrics("filesSize").value == partFilesSize)
+        assert(scan3.metrics("numPartitions").value === 1)
+        assert(scan3.metrics("pruningTime").value !== -1)
+      }
+    }
+  }
+}
+
+class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPruningV1Suite
+  with DisableAdaptiveExecutionSuite
+
+class GlutenDynamicPartitionPruningV1SuiteAEOn extends GlutenDynamicPartitionPruningV1Suite
+  with EnableAdaptiveExecutionSuite {
+
+  test("SPARK-39447: Avoid AssertionError in AdaptiveSparkPlanExec.doExecuteBroadcast") {
+    val df = sql(
+      """
+        |WITH empty_result AS (
+        |  SELECT * FROM fact_stats WHERE product_id < 0
+        |)
+        |SELECT *
+        |FROM   (SELECT /*+ SHUFFLE_MERGE(fact_sk) */ empty_result.store_id
+        |        FROM   fact_sk
+        |               JOIN empty_result
+        |                 ON fact_sk.product_id = empty_result.product_id) t2
+        |       JOIN empty_result
+        |         ON t2.store_id = empty_result.store_id
+      """.stripMargin)
+
+    checkPartitionPruningPredicate(df, false, false)
+    checkAnswer(df, Nil)
+  }
+
+  test("SPARK-37995: PlanAdaptiveDynamicPruningFilters should use prepareExecutedPlan " +
+    "rather than createSparkPlan to re-plan subquery") {
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
+      SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
+      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
+      val df = sql(
+        """
+          |SELECT f.date_id, f.store_id FROM fact_sk f
+          |JOIN dim_store s ON f.store_id = s.store_id AND s.country = 'NL'
+          |WHERE s.state_province != (SELECT max(state_province) FROM dim_stats)
+        """.stripMargin)
+
+      checkPartitionPruningPredicate(df, true, false)
+      checkAnswer(df, Row(1000, 1) :: Row(1010, 2) :: Row(1020, 2) :: Nil)
+    }
+  }
+}
+
+abstract class GlutenDynamicPartitionPruningV2Suite extends GlutenDynamicPartitionPruningSuiteBase {
+  override protected def runAnalyzeColumnCommands: Boolean = false
+
+  override protected def initState(): Unit = {
+    spark.conf.set("spark.sql.catalog.testcat", classOf[InMemoryTableCatalog].getName)
+    spark.conf.set("spark.sql.defaultCatalog", "testcat")
+  }
+}
+
+class GlutenDynamicPartitionPruningV2SuiteAEOff extends GlutenDynamicPartitionPruningV2Suite
+  with DisableAdaptiveExecutionSuite
+
+class GlutenDynamicPartitionPruningV2SuiteAEOn extends GlutenDynamicPartitionPruningV2Suite
+  with EnableAdaptiveExecutionSuite
