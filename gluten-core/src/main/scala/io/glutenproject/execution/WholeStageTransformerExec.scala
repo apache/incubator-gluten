@@ -524,7 +524,7 @@ object WholeStageTransformerExec extends Logging {
    * @return
    *   operator index and metrics index
    */
-  def updateTransformerMetrics0(
+  def updateTransformerMetricsInternal(
       mutNode: MetricsUpdaterTree,
       relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
       operatorIdx: java.lang.Long,
@@ -565,17 +565,20 @@ object WholeStageTransformerExec extends Logging {
     var newMetricsIdx: Int = curMetricsIdx
 
     mutNode.children.foreach { child =>
-      val result = updateTransformerMetrics0(
-        child,
-        relMap,
-        newOperatorIdx,
-        metrics,
-        newMetricsIdx,
-        joinParamsMap,
-        aggParamsMap)
-      newOperatorIdx = result._1
-      newMetricsIdx = result._2
+      if (child.updater ne NoopMetricsUpdater) {
+        val result = updateTransformerMetricsInternal(
+          child,
+          relMap,
+          newOperatorIdx,
+          metrics,
+          newMetricsIdx,
+          joinParamsMap,
+          aggParamsMap)
+        newOperatorIdx = result._1
+        newMetricsIdx = result._2
+      }
     }
+
     (newOperatorIdx, newMetricsIdx)
   }
 
@@ -610,8 +613,14 @@ object WholeStageTransformerExec extends Logging {
       } else if (mutNode.updater eq NoopMetricsUpdater) {
         ()
       } else {
-        updateTransformerMetrics0(mutNode, relMap, operatorIdx, metrics,
-          numNativeMetrics - 1, joinParamsMap, aggParamsMap)
+        updateTransformerMetricsInternal(
+          mutNode,
+          relMap,
+          operatorIdx,
+          metrics,
+          numNativeMetrics - 1,
+          joinParamsMap,
+          aggParamsMap)
       }
     } catch {
       case e: Throwable =>
