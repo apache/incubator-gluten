@@ -24,9 +24,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 import org.apache.spark.internal.Logging
 import io.glutenproject.substrait.expression.StringLiteralNode
-import io.glutenproject.substrait.`type`.TypeBuilder
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.GlutenConfig
 
 /**
  * The extract trait for 'GetDateField' from Date
