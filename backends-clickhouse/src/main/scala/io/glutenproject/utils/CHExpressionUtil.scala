@@ -41,9 +41,6 @@ object CHExpressionUtil {
     SPLIT_PART -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
     UNIX_TIMESTAMP -> Set(DATE_TYPE),
-    // CH arrayJoin function doesn't support map type argument yet.
-    // Wait for https://github.com/ClickHouse/ClickHouse/pull/43239
-    EXPLODE -> Set(MAP_TYPE),
     MIGHT_CONTAIN -> Set(EMPTY_TYPE)
   )
 

@@ -200,7 +200,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result.size == 10)
   }
 
-  test("test 'function explode'") {
+  test("test 'function explode(array)'") {
     val df = spark.sql("""
                          |select count(*) from (
                          |  select l_orderkey, explode(array(l_returnflag, l_linestatus)),
@@ -210,12 +210,39 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getLong(0) == 1201144L)
   }
 
-  test("test 'lateral view explode'") {
+  test("test 'lateral view explode(array)'") {
     val df = spark.sql("""
                          |select count(*) from (
                          |  select l_orderkey, l_suppkey, col1, col2 from lineitem
                          |  lateral view explode(array(l_returnflag, l_linestatus)) as col1
                          |  lateral view explode(array(l_shipmode, l_comment)) as col2)
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 2402288L)
+  }
+
+  test("test 'function explode(map)'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey,
+                         |    explode(map('returnflag', l_returnflag, 'linestatus', l_linestatus)),
+                         |    l_suppkey from lineitem);
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
+  test("test 'lateral view explode(map)'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, l_suppkey, k1, v1, k2, v2 from lineitem
+                         |  lateral view
+                         |    explode(map('returnflag', l_returnflag, 'linestatus', l_linestatus))
+                         |    as k1, v1
+                         |  lateral view
+                         |    explode(map('orderkey', l_orderkey, 'partkey', l_partkey))
+                         |    as k2, v2
+                         |)
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 2402288L)
