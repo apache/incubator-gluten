@@ -57,6 +57,7 @@ RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false
 
 RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     then \
+      DEPS_INSTALL_SCRIPT="/opt/gluten/dev/builddeps-veloxbe.sh  --enable_ep_cache=ON" \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
                            -DskipTests \
@@ -64,6 +65,8 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
                            -Dcheckstyle.skip=true"; \
     elif [ "$BUILD_BACKEND_TYPE" == "gazelle-cpp" ]; \
     then \
+      echo "Deprecated backend type: $BUILD_BACKEND_TYPE"; \
+      exit 1; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-gazelle \
                            -DskipTests \
@@ -72,11 +75,15 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     else \
       echo "Unrecognizable backend type: $BUILD_BACKEND_TYPE"; \
       exit 1; \
-    fi && echo $EXTRA_MAVEN_OPTIONS > ~/.gluten-mvn-options;
+    fi \
+    && echo $EXTRA_MAVEN_OPTIONS > ~/.gluten-mvn-options; \
+    && echo $DEPS_INSTALL_SCRIPT >  ~/.gluten-deps-install-script;
 
 # Prebuild Gluten
 RUN EXTRA_MAVEN_OPTIONS=$(cat ~/.gluten-mvn-options) \
+    DEPS_INSTALL_SCRIPT=$(cat ~/.gluten-deps-install-script) \
     && cd /opt/gluten \
+    && bash -c "$DEPS_INSTALL_SCRIPT" \
     && bash -c "mvn clean install $GLUTEN_MAVEN_OPTIONS $EXTRA_MAVEN_OPTIONS"
 
 # Build Gluten
@@ -91,7 +98,9 @@ RUN cd /opt/gluten \
     && git checkout build_$TARGET_GLUTEN_COMMIT
 
 RUN EXTRA_MAVEN_OPTIONS=$(cat ~/.gluten-mvn-options) \
+    DEPS_INSTALL_SCRIPT=$(cat ~/.gluten-deps-install-script) \
     && cd /opt/gluten \
+    && bash -c "$DEPS_INSTALL_SCRIPT" \
     && bash -c "mvn clean install $GLUTEN_MAVEN_OPTIONS $EXTRA_MAVEN_OPTIONS"
 
 # EOF

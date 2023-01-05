@@ -2,7 +2,7 @@
 ####################################################################################################
 #  The main function of this script is to allow developers to build the environment with one click #
 #  Recommended commands for first-time installation:                                               #
-#  ./tools/one_step_veloxbackend.sh                                                                #
+#  ./dev/buildbundle-veloxbe.sh                                                            #
 ####################################################################################################
 set -exu
 
@@ -16,8 +16,6 @@ ENABLE_HBM=OFF
 BUILD_PROTOBUF=ON
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
-BUILD_ARROW_FROM_SOURCE=ON
-BUILD_VELOX_FROM_SOURCE=ON
 ENABLE_EP_CACHE=OFF
 for arg in "$@"
 do
@@ -75,20 +73,22 @@ done
 
 ##install arrow
 cd $GLUTEN_DIR/ep/build-arrow/src
-if [ $BUILD_ARROW_FROM_SOURCE == "ON" ]; then
-  ./get_arrow.sh
-fi
-./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
+./get_arrow.sh --enable_ep_cache=$ENABLE_EP_CACHE
+
+if [ $ENABLE_EP_CACHE == 'OFF' ] || [ ! -f $GLUTEN_DIR/ep/build-arrow/build/arrow-commit.cache ]; then
+  ./build_arrow_for_velox.sh --build_type=$BUILD_TYPE --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
                            --enable_ep_cache=$ENABLE_EP_CACHE
+fi
 
 ##install velox
 cd $GLUTEN_DIR/ep/build-velox/src
-if [ $BUILD_VELOX_FROM_SOURCE == "ON" ]; then
-  ./get_velox.sh
-fi
-./build_velox.sh --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 \
+./get_velox.sh --enable_ep_cache=$ENABLE_EP_CACHE
+
+if [ $ENABLE_EP_CACHE == 'OFF' ] || [ ! -f $GLUTEN_DIR/ep/build-velox/build/velox-commit.cache ]; then
+  ./build_velox.sh --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 \
                  --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS  --build_type=$BUILD_TYPE \
                  --enable_ep_cache=$ENABLE_EP_CACHE
+fi
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
