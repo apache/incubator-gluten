@@ -80,7 +80,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   filesystems::registerHdfsFileSystem();
   // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
   // LIBHDFS3_CONF
-  std::string hdfsUri = conf["spark.fs.defaultFS"];
+  std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
   const char* envHdfsUri = std::getenv("VELOX_HDFS");
   if (envHdfsUri != nullptr) {
     hdfsUri = std::string(envHdfsUri);

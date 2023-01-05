@@ -217,7 +217,7 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = "spark." + HIVE_EXEC_ORC_COMPRESS
 
   // Hadoop config
-  val HDFS_URI = "fs.defaultFS"
+  val HDFS_URI = "hadoop.fs.defaultFS"
   val SPARK_HDFS_URI = "spark." + HDFS_URI
 
   // S3 config
