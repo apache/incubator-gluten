@@ -57,7 +57,7 @@ RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false
 
 RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     then \
-      DEPS_INSTALL_SCRIPT="/opt/gluten/dev/builddeps-veloxbe.sh  --enable_ep_cache=ON" \
+      DEPS_INSTALL_SCRIPT="bash /opt/gluten/dev/builddeps-veloxbe.sh  --enable_ep_cache=ON"; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
                            -DskipTests \
@@ -76,8 +76,8 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
       echo "Unrecognizable backend type: $BUILD_BACKEND_TYPE"; \
       exit 1; \
     fi \
-    && echo $EXTRA_MAVEN_OPTIONS > ~/.gluten-mvn-options; \
-    && echo $DEPS_INSTALL_SCRIPT >  ~/.gluten-deps-install-script;
+    && echo $EXTRA_MAVEN_OPTIONS > ~/.gluten-mvn-options \
+    && echo $DEPS_INSTALL_SCRIPT > ~/.gluten-deps-install-script
 
 # Prebuild Gluten
 RUN EXTRA_MAVEN_OPTIONS=$(cat ~/.gluten-mvn-options) \
