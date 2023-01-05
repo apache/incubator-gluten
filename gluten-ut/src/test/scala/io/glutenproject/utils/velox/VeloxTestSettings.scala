@@ -156,6 +156,7 @@ object VeloxTestSettings extends BackendTestSettings {
       .exclude("sorting does not crash for large inputs")
   enableSuite[GlutenExistenceJoinSuite]
   enableSuite[GlutenDataFrameJoinSuite]
+  enableSuite[GlutenJoinSuite]
   enableSuite[GlutenOuterJoinSuite]
   enableSuite[GlutenInnerJoinSuite]
     // The following tests will be re-run in GlutenInnerJoinSuite by
