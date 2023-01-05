@@ -20,7 +20,6 @@ package org.apache.spark.sql
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
-  import testImplicits._
 
   override def testNameBlackList: Seq[String] = Seq(
     // Below tests are to verify operators, just skip.
@@ -41,5 +40,6 @@ class GlutenJoinSuite extends JoinSuite with GlutenSQLTestsTrait {
     "SPARK-35984: Config to force applying shuffled hash join",
     "test SortMergeJoin (with spill)",
     // NaN is not supported currently, just skip.
-    "NaN and -0.0 in join keys",
+    "NaN and -0.0 in join keys"
   )
+}
