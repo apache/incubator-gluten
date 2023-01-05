@@ -168,7 +168,7 @@ set(VELOX_SRCS
     compute/VeloxBackend.cc
     compute/RegistrationAllFunctions.cc
     compute/ArrowTypeUtils.cc
-    compute/VeloxToRowConverter.cc
+    compute/VeloxColumnarToRowConverter.cc
     compute/DwrfDatasource.cc
     compute/VeloxBridge.cc
     memory/VeloxMemoryPool.cc

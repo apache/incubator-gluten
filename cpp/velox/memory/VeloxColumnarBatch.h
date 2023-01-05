@@ -24,7 +24,7 @@
 
 namespace gluten {
 
-class VeloxColumnarBatch : public ColumnarBatch {
+class VeloxColumnarBatch final : public ColumnarBatch {
  public:
   VeloxColumnarBatch(facebook::velox::RowVectorPtr rowVector)
       : ColumnarBatch(rowVector->childrenSize(), rowVector->size()), rowVector_(rowVector) {}

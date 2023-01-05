@@ -61,7 +61,7 @@ class ColumnarBatch {
   int64_t exportNanos_;
 };
 
-class ArrowColumnarBatch : public ColumnarBatch {
+class ArrowColumnarBatch final : public ColumnarBatch {
  public:
   explicit ArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
       : ColumnarBatch(batch->num_columns(), batch->num_rows()), batch_(std::move(batch)) {}
@@ -91,7 +91,7 @@ class ArrowColumnarBatch : public ColumnarBatch {
   std::shared_ptr<arrow::RecordBatch> batch_;
 };
 
-class ArrowCStructColumnarBatch : public ColumnarBatch {
+class ArrowCStructColumnarBatch final : public ColumnarBatch {
  public:
   ArrowCStructColumnarBatch(std::unique_ptr<ArrowSchema> cSchema, std::unique_ptr<ArrowArray> cArray)
       : ColumnarBatch(cArray->n_children, cArray->length) {

@@ -21,7 +21,7 @@
 
 namespace gluten {
 
-class HbwMemoryAllocator : public MemoryAllocator {
+class HbwMemoryAllocator final : public MemoryAllocator {
  public:
   bool Allocate(int64_t size, void** out) override;
 

@@ -45,7 +45,7 @@ void print_trace(void) {
 namespace gluten {
 namespace shuffle {
 
-class MyMemoryPool : public arrow::MemoryPool {
+class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool(int64_t capacity) : capacity_(capacity) {}
 

@@ -55,7 +55,7 @@ std::atomic<int32_t> taskSerial;
 std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* memoryPool) {
   std::shared_ptr<memory::MemoryPool> ctxRoot = memoryPool->addChild("ctx_root");
   static const auto kUnlimited = std::numeric_limits<int64_t>::max();
-  ctxRoot->setMemoryUsageTracker(memory::MemoryUsageTracker::create(kUnlimited, kUnlimited, kUnlimited));
+  ctxRoot->setMemoryUsageTracker(memory::MemoryUsageTracker::create());
   std::shared_ptr<core::QueryCtx> ctx = std::make_shared<core::QueryCtx>(
       nullptr,
       std::make_shared<facebook::velox::core::MemConfig>(),
@@ -388,14 +388,14 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
-arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnarConverter(
+arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar2RowConverter(
     MemoryAllocator* allocator,
     std::shared_ptr<ColumnarBatch> cb) {
   auto arrowPool = AsWrappedArrowMemoryPool(allocator);
-  auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
-    return std::make_shared<VeloxToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
+    auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
+    return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
   }
   // If the child is not Velox output, use Arrow-to-Row conversion instead.
   std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
@@ -570,7 +570,7 @@ void WholeStageResIter::setConfToQueryContext(const std::shared_ptr<core::QueryC
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
-class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
+class VeloxBackend::WholeStageResIterFirstStage final : public WholeStageResIter {
  public:
   WholeStageResIterFirstStage(
       std::shared_ptr<memory::MemoryPool> pool,
@@ -695,7 +695,7 @@ class VeloxBackend::WholeStageResIterFirstStage : public WholeStageResIter {
   }
 };
 
-class VeloxBackend::WholeStageResIterMiddleStage : public WholeStageResIter {
+class VeloxBackend::WholeStageResIterMiddleStage final : public WholeStageResIter {
  public:
   WholeStageResIterMiddleStage(
       std::shared_ptr<memory::MemoryPool> pool,

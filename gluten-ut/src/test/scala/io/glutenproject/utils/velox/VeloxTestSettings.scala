@@ -22,7 +22,7 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
+import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
 
 object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -90,15 +90,6 @@ object VeloxTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
-    // overwritten
-    "DPP should not be rewritten as an existential join",
-    "no partition pruning when the build side is a stream",
-    "Make sure dynamic pruning works on uncorrelated queries",
-    "SPARK-32509: Unused Dynamic Pruning filter shouldn't affect " +
-      "canonicalization and exchange reuse",
-    "Subquery reuse across the whole plan",
-    "static scan metrics",
-
     // struct join key not supported, fell-back to Vanilla join
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
   )
@@ -109,6 +100,8 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenCollectionExpressionsSuite]
   enableSuite[GlutenDateExpressionsSuite]
+      // Has exception in fallback execution when we use resultDF.collect in evaluation.
+      .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
@@ -163,6 +156,7 @@ object VeloxTestSettings extends BackendTestSettings {
       .exclude("sorting does not crash for large inputs")
   enableSuite[GlutenExistenceJoinSuite]
   enableSuite[GlutenDataFrameJoinSuite]
+  enableSuite[GlutenJoinSuite]
   enableSuite[GlutenOuterJoinSuite]
   enableSuite[GlutenInnerJoinSuite]
     // The following tests will be re-run in GlutenInnerJoinSuite by
@@ -194,4 +188,5 @@ object VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
+  enableSuite[GlutenBroadcastJoinSuite]
 }

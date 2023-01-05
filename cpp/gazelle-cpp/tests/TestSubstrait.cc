@@ -25,7 +25,7 @@
 #include "compute/ProtobufUtils.h"
 #include "compute/SubstraitArrow.h"
 
-class TestSubstrait : public ::testing::Test {
+class TestSubstrait final : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
     GazelleInitialize();
