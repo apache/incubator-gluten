@@ -67,6 +67,8 @@ spark-shell
   --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
   --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
   --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=2g \
   ...
   ```
 
