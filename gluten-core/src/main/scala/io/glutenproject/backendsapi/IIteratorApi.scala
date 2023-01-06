@@ -18,7 +18,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseGlutenPartition, MetricsUpdater, WholestageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
 import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.substrait.plan.PlanNode

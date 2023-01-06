@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import io.glutenproject.extension.columnar.{AddTransformHintRule, FallbackMultiCodegens, FallbackOneRowRelation, RemoveTransformHintRule, StoreExpandGroupExpression, TagBeforeTransformHits, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{AddTransformHintRule, RemoveTransformHintRule, StoreExpandGroupExpression, TagBeforeTransformHits, TransformHint, TransformHints}
 import io.glutenproject.utils.LogLevelUtil
 import org.apache.spark.sql.internal.SQLConf.ADAPTIVE_EXECUTION_ENABLED
 

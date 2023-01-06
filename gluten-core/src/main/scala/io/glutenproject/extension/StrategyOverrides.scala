@@ -19,7 +19,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.{TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.TransformHint
 import io.glutenproject.extension.columnar.TransformHints.TAG
 import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
@@ -27,9 +27,9 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan, Project, SHUFFLE_MERGE}
-import org.apache.spark.sql.execution.{joins, CodegenSupport, JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.execution.{joins, JoinSelectionShim, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
+import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {

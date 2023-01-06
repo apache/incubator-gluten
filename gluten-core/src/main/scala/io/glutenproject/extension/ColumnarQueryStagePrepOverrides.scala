@@ -19,10 +19,10 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.{FallbackMultiCodegens, StoreExpandGroupExpression, TagBeforeTransformHits, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{TagBeforeTransformHits, TransformHint, TransformHints}
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED

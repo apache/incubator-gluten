@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.vectorized.{GeneralOutIterator, Metrics, NativeExpressionEvaluator}

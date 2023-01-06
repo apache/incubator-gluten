@@ -20,7 +20,6 @@ package io.glutenproject.expression
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
-import org.apache.spark.sql.types._
 
 class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId,
                                 query: ScalarSubquery)

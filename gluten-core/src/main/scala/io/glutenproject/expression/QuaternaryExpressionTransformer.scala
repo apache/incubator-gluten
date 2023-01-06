@@ -27,8 +27,6 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.RegExpReplace
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
-import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.types.IntegerType
 import io.glutenproject.substrait.expression.IntLiteralNode
 
 class RegExpReplaceTransformer(substraitExprName: String, subject: ExpressionTransformer,
