@@ -136,8 +136,7 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
-      "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
-      "SPARK-32290" // Need to be removed after picking Velox #3571.
+      "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
     )
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]

@@ -809,18 +809,6 @@ object HashJoinLikeExecTransformer {
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
-
-  def makeIsNotNullExpression(childNode: ExpressionNode,
-                           functionMap: java.util.HashMap[String, java.lang.Long])
-    : ExpressionNode = {
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap, ConverterUtils.makeFuncName(ExpressionMappings.IS_NOT_NULL, Seq(BooleanType)))
-
-    ExpressionBuilder.makeScalarFunction(
-      functionId,
-      Lists.newArrayList(childNode),
-      TypeBuilder.makeBoolean(true))
-  }
 }
 
 abstract class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
