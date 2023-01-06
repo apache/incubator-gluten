@@ -27,12 +27,12 @@ import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExcha
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.TestData2
+import org.apache.spark.sql.types.StringType
 
 import scala.language.implicitConversions
 import scala.util.Random
 
 class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
-
   test(GlutenTestConstants.GLUTEN_TEST + "repartitionByRange") {
     val partitionNum = 10
     withSQLConf(
@@ -231,6 +231,70 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
     checkAnswer(df, Row(0, 10) :: Nil)
     // We check WholeStageTransformerExec instead of WholeStageCodegenExec
     assert(df.queryExecution.executedPlan.find(_.isInstanceOf[WholeStageTransformerExec]).isDefined)
+  }
+
+  import testImplicits._
+
+  private lazy val person2: DataFrame = Seq(
+    ("Bob", 16, 176),
+    ("Alice", 32, 164),
+    ("David", 60, 192),
+    ("Amy", 24, 180)).toDF("name", "age", "height")
+
+  test(GLUTEN_TEST + "describe") {
+    val describeResult = Seq(
+      Row("count", "4", "4", "4"),
+      Row("mean", null, "33.0", "178.0"),
+      Row("stddev", null, "19.148542155126762", "11.547005383792516"),
+      Row("min", "Alice", "16", "164"),
+      Row("max", "David", "60", "192"))
+
+    val emptyDescribeResult = Seq(
+      Row("count", "0", "0", "0"),
+      Row("mean", null, null, null),
+      Row("stddev", null, null, null),
+      Row("min", null, null, null),
+      Row("max", null, null, null))
+
+    val aggResult = Seq(
+      Row("4", "33.0", "19.148542155126762", "16", "60")
+    )
+
+    def getSchemaAsSeq(df: DataFrame): Seq[String] = df.schema.map(_.name)
+
+    Seq("true", "false").foreach { ansiEnabled =>
+      withSQLConf(SQLConf.ANSI_ENABLED.key -> ansiEnabled) {
+        val describeAllCols = person2.describe()
+        assert(getSchemaAsSeq(describeAllCols) === Seq("summary", "name", "age", "height"))
+        checkAnswer(describeAllCols, describeResult)
+        // All aggregate value should have been cast to string
+        describeAllCols.collect().foreach { row =>
+          row.toSeq.foreach { value =>
+            if (value != null) {
+              assert(value.isInstanceOf[String], "expected string but found " + value.getClass)
+            }
+          }
+        }
+
+        val describeOneCol = person2.describe("age")
+        assert(getSchemaAsSeq(describeOneCol) === Seq("summary", "age"))
+        val aggOneCol = person2.agg(
+          count("age").cast(StringType),
+          avg("age").cast(StringType),
+          stddev_samp("age").cast(StringType),
+          min("age").cast(StringType),
+          max("age").cast(StringType))
+        checkAnswer(aggOneCol, aggResult)
+
+        val describeNoCol = person2.select().describe()
+        assert(getSchemaAsSeq(describeNoCol) === Seq("summary"))
+        checkAnswer(describeNoCol, describeResult.map { case Row(s, _, _, _) => Row(s) })
+
+        val emptyDescription = person2.limit(0).describe()
+        assert(getSchemaAsSeq(emptyDescription) === Seq("summary", "name", "age", "height"))
+        checkAnswer(emptyDescription, emptyDescribeResult)
+      }
+    }
   }
 
   private def withExpr(newExpr: Expression): Column = new Column(newExpr)

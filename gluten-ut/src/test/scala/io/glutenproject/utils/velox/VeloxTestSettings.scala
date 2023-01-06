@@ -78,7 +78,7 @@ object VeloxTestSettings extends BackendTestSettings {
       "distributeBy and localSort",
       // Mismatch when max NaN and infinite value
       "NaN is greater than all other non-NaN numeric values",
-      // To be fixed
+      // Rewrite this test because the describe functions creates unmatched plan.
       "describe"
     )
 
