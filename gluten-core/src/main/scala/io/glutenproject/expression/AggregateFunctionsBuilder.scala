@@ -28,20 +28,21 @@ object AggregateFunctionsBuilder {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
     val substraitAggFuncName =
-      ExpressionMappings.aggregate_functions_map.get(aggregateFunc.getClass)
+      ExpressionMappings.aggregate_functions_map.getOrElse(aggregateFunc.getClass,
+        ExpressionMappings.getAggSigOther(aggregateFunc.prettyName))
     // Check whether Gluten supports this aggregate function
     if (substraitAggFuncName.isEmpty) {
       throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
     // Check whether each backend supports this aggregate function
     if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
-      substraitAggFuncName.get, aggregateFunc )) {
+      substraitAggFuncName, aggregateFunc )) {
       throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
     ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(
-        substraitAggFuncName.get,
+        substraitAggFuncName,
         aggregateFunc.children.map(child => child.dataType),
         FunctionConfig.REQ))
   }

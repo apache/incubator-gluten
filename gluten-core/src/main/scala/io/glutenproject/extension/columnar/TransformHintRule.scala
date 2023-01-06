@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
@@ -310,6 +310,21 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: HashAggregateExec =>
+          if (!enableColumnarHashAgg) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              .genHashAggregateExecTransformer(
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
+        case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(plan)
           } else {
