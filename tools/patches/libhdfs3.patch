@@ -1,0 +1,51 @@
+diff --git a/depends/libhdfs3/CMake/Platform.cmake b/depends/libhdfs3/CMake/Platform.cmake
+index ea00fa3f..6538e84d 100644
+--- a/depends/libhdfs3/CMake/Platform.cmake
++++ b/depends/libhdfs3/CMake/Platform.cmake
+@@ -7,7 +7,7 @@ ELSE(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+ ENDIF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+ 
+ IF(CMAKE_COMPILER_IS_GNUCXX)
+-    EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_COMPILER_VERSION)
++    EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpfullversion OUTPUT_VARIABLE GCC_COMPILER_VERSION)
+     
+     IF (NOT GCC_COMPILER_VERSION)
+         MESSAGE(FATAL_ERROR "Cannot get gcc version")
+diff --git a/depends/libhdfs3/CMakeLists.txt b/depends/libhdfs3/CMakeLists.txt
+index f49e68dc..ec5650ec 100644
+--- a/depends/libhdfs3/CMakeLists.txt
++++ b/depends/libhdfs3/CMakeLists.txt
+@@ -22,7 +22,6 @@ FIND_PACKAGE(LibXml2 REQUIRED)
+ FIND_PACKAGE(Protobuf REQUIRED)
+ FIND_PACKAGE(KERBEROS REQUIRED)
+ FIND_PACKAGE(GSasl REQUIRED)
+-FIND_PACKAGE(GoogleTest REQUIRED)
+ INCLUDE_DIRECTORIES(${GoogleTest_INCLUDE_DIR})
+ LINK_LIBRARIES(${GoogleTest_LIBRARIES})
+ 
+diff --git a/depends/libhdfs3/src/client/InputStreamImpl.cpp b/depends/libhdfs3/src/client/InputStreamImpl.cpp
+index 05f27a5a..6ea9ab48 100644
+--- a/depends/libhdfs3/src/client/InputStreamImpl.cpp
++++ b/depends/libhdfs3/src/client/InputStreamImpl.cpp
+@@ -734,7 +734,7 @@ void InputStreamImpl::seekInternal(int64_t pos) {
+     }
+ 
+     try {
+-        if (blockReader && pos > cursor && pos < endOfCurBlock) {
++        if (blockReader && pos > cursor && pos < endOfCurBlock && pos - cursor <= 128 * 1024) {
+             blockReader->skip(pos - cursor);
+             cursor = pos;
+             return;
+diff --git a/depends/libhdfs3/src/common/SessionConfig.cpp b/depends/libhdfs3/src/common/SessionConfig.cpp
+index 632009ec..27e1ad30 100644
+--- a/depends/libhdfs3/src/common/SessionConfig.cpp
++++ b/depends/libhdfs3/src/common/SessionConfig.cpp
+@@ -138,7 +138,7 @@ SessionConfig::SessionConfig(const Config & conf) {
+         {&rpcAuthMethod, "hadoop.security.authentication", "simple" },
+         {&kerberosCachePath, "hadoop.security.kerberos.ticket.cache.path", "" },
+         {&logSeverity, "dfs.client.log.severity", "INFO" },
+-        {&domainSocketPath, "dfs.domain.socket.path", ""}
++        {&domainSocketPath, "dfs.domain.socket.path", "/var/lib/hadoop-hdfs/dn_socket"}
+     };
+ 
+     for (size_t i = 0; i < ARRAYSIZE(boolValues); ++i) {

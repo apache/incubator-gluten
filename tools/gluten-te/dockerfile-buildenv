@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS gluten-buildenv
+FROM ubuntu:22.04 AS gluten-buildenv
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-c"]
