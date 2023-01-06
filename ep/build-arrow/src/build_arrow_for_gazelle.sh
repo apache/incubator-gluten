@@ -4,7 +4,6 @@ set -exu
 
 BUILD_TYPE=release
 NPROC=$(nproc --ignore=2)
-ENABLE_EP_CACHE=OFF
 ARROW_REPO=https://github.com/oap-project/arrow.git
 ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
 ARROW_HOME=
@@ -18,10 +17,6 @@ do
         ;;
         --build_type=*)
         BUILD_TYPE=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_ep_cache=*)
-        ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         *)
@@ -40,48 +35,6 @@ ARROW_SOURCE_DIR="${ARROW_HOME}/arrow_ep"
 ARROW_INSTALL_DIR="${ARROW_HOME}/arrow_install"
 TARGET_BUILD_COMMIT=""
 
-function check_ep_cache {
-  TARGET_BUILD_COMMIT="$(git ls-remote $ARROW_REPO $ARROW_BRANCH | awk '{print $1;}')"
-  echo "Target Arrow commit: $TARGET_BUILD_COMMIT"
-  if [ $ENABLE_EP_CACHE == "ON" ]; then
-    if [ -e ${ARROW_HOME}/arrow-commit.cache ]; then
-      LAST_BUILT_COMMIT="$(cat ${ARROW_HOME}/arrow-commit.cache)"
-      if [ -n $LAST_BUILT_COMMIT ]; then
-        if [ -z "$TARGET_BUILD_COMMIT" ]
-          then
-            echo "Unable to parse Arrow commit: $TARGET_BUILD_COMMIT."
-            exit 1
-            fi
-            if [ "$TARGET_BUILD_COMMIT" = "$LAST_BUILT_COMMIT" ]; then
-                echo "Arrow build of commit $TARGET_BUILD_COMMIT was cached, skipping build..."
-                exit 0
-            else
-                echo "Found cached commit $LAST_BUILT_COMMIT for Arrow which is different with target commit $TARGET_BUILD_COMMIT."
-            fi
-        fi
-    fi
-  fi
-
-  if [ -e ${ARROW_HOME}/arrow-commit.cache ]; then
-      rm -f ${ARROW_HOME}/arrow-commit.cache
-  fi
-}
-
-function incremental_build {
-  if [ $ENABLE_EP_CACHE == "ON" ] && [ -d $ARROW_SOURCE_DIR ]; then
-    echo "Applying incremental build for Arrow..."
-    cd $ARROW_SOURCE_DIR
-    git init .
-    EXISTS=`git show-ref refs/heads/build_$TARGET_BUILD_COMMIT || true`
-    if [ -z "$EXISTS" ]; then
-      git fetch $ARROW_REPO $TARGET_BUILD_COMMIT:build_$TARGET_BUILD_COMMIT
-    fi
-    git reset --hard HEAD
-    git checkout build_$TARGET_BUILD_COMMIT
-  fi
-}
-
-check_ep_cache
 echo "Building Arrow from Source for Gazelle..."
 echo "CMAKE Arguments:"
 echo "ARROW_HOME=${ARROW_HOME}"
@@ -92,9 +45,9 @@ if [ -d $ARROW_INSTALL_DIR ]; then
 fi
 
 mkdir -p $ARROW_INSTALL_DIR
-incremental_build
 
 pushd $ARROW_SOURCE_DIR
+TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
 mkdir -p java/c/build
 pushd java/c/build
 cmake ..

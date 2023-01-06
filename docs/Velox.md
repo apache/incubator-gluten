@@ -22,18 +22,18 @@ git clone https://github.com/oap-project/gluten.git
 ```
 # 2 Build Gluten with Velox Backend
 
-It's recommended to use one_step_veloxbackend.sh and build gluten in one script.
+It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
 ```shell script
 cd /path_to_gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
-./tools/one_step_veloxbackend.sh
+./dev/buildbundle-veloxbe.sh
 
 ## When you have successfully compiled once and changed some codes then compile again.
 ## you may use following command to skip the arrow, velox and protobuf build
-# ./tools/one_step_veloxbackend.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
+# ./dev/buildbundle-veloxbe.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
 
 ```
 
