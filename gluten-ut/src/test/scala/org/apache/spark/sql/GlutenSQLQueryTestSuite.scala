@@ -229,7 +229,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "cte-nested.sql",
     "cte-nonlegacy.sql",
     "cte.sql",
-    "current_database_catalog.sql",
+    "current_database_catalog.sql"
   )
 
   /** List of supported cases to run with Clickhouse backend, in lower case.
