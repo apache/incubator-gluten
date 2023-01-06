@@ -18,5 +18,4 @@
 package org.apache.spark.sql
 
 class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
-
 }

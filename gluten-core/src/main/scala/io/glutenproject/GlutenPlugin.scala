@@ -45,6 +45,9 @@ class GlutenPlugin extends SparkPlugin {
 
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
+    // Set the system properties.
+    // Use appending policy for children with the same name in a arrow struct vector.
+    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = pluginContext.conf()
     // Initialize Backends API
     BackendsApiManager.initialize()
@@ -79,6 +82,9 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    // Set the system properties.
+    // Use appending policy for children with the same name in a arrow struct vector.
+    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = ctx.conf()
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
     if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||
