@@ -165,6 +165,9 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     attempt.isSuccess && attempt.get == 0
   }
 
+  private val isCHBackend = BackendsApiManager.getBackendName
+    .equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
+
   protected override def sparkConf: SparkConf = {
     val conf = super.sparkConf
       // Fewer shuffle partitions to speed up testing.
@@ -181,8 +184,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (isCHBackend) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
@@ -206,10 +208,22 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "ignored.sql" // Do NOT remove this one. It is here to test the ignore functionality.
   ) ++ otherIgnoreList
 
-  /** List of supported cases to run, in lower case.
+  /** List of supported cases to run with Velox backend, in lower case.
    * Please add to the supported list after enabling a sql test.
    */
-  private val supportedList: Set[String] = Set()
+  private val veloxSupportedList: Set[String] = Set()
+
+  /** List of supported cases to run with Clickhouse backend, in lower case.
+   * Please add to the supported list after enabling a sql test.
+   */
+  private val CHSupportedList: Set[String] = Set()
+
+  // List of supported cases to run with a certain backend, in lower case.
+  private val supportedList: Set[String] = if (isCHBackend) {
+    CHSupportedList
+  } else {
+    veloxSupportedList
+  }
 
   // Create all the test cases.
   listTestCases.foreach(createScalaTestCase)
