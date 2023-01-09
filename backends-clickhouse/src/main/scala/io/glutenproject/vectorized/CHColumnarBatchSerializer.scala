@@ -52,7 +52,7 @@ private class CHColumnarBatchSerializerInstance(
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-      private val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShufflemanager
+      private val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShuffleManager
 
       private var reader: CHStreamReader = _
       private var cb: ColumnarBatch = _

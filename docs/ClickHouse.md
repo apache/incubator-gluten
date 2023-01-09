@@ -103,8 +103,8 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
 ### Compile ClickHouse backend
 First need to enter the root directory of the Gluten project.
-run`sudo ./tools/clickhouse/install_ubuntu.sh`,Install the software required for compilation.  
-Create a build directory, such as /tmp/build_clickhouse, run `./tools/clickhouse/build_clickhouse.sh --src = /path /to/clickhouse --build_dir=/tmp/build_clickhouse`.  
+run`sudo ./ep/build-clickhouse/src/install_ubuntu.sh`,Install the software required for compilation.  
+Create a build directory, such as /tmp/build_clickhouse, run `./ep/build-clickhouse/src/build_clickhouse.sh --src = /path /to/clickhouse --build_dir=/tmp/build_clickhouse`.  
 Target file is `/tmp/build_clickhouse/utils/local-engine/libch.so`.   
 
 ### Compile Gluten with ClickHouse backend
@@ -174,7 +174,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.columnartorow=true \
-  --conf spark.gluten.sql.columnar.loadnative=true \
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
@@ -296,7 +295,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.columnartorow=true \
-  --conf spark.gluten.sql.columnar.loadnative=true \
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
@@ -435,7 +433,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.sql.sources.ignoreDataLocality=true \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
   --conf spark.gluten.sql.columnar.columnartorow=true \
-  --conf spark.gluten.sql.columnar.loadnative=true \
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \

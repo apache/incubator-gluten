@@ -19,7 +19,4 @@ package org.apache.spark.sql
 
 class GlutenMathFunctionsSuite extends MathFunctionsSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
 }

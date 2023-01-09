@@ -33,18 +33,30 @@ public class Metrics {
   public long[] numDynamicFiltersProduced;
   public long[] numDynamicFiltersAccepted;
   public long[] numReplacedWithDynamicFilterRows;
+  public long[] flushRowCount;
   public SingleMetric singleMetric = new SingleMetric();
 
   /**
    * Create an instance for native metrics.
    */
   public Metrics(
-      long[] inputRows, long[] inputVectors, long[] inputBytes, long[] rawInputRows,
-      long[] rawInputBytes, long[] outputRows, long[] outputVectors, long[] outputBytes,
-      long[] count, long[] wallNanos, long veloxToArrow, long[] peakMemoryBytes,
+      long[] inputRows,
+      long[] inputVectors,
+      long[] inputBytes,
+      long[] rawInputRows,
+      long[] rawInputBytes,
+      long[] outputRows,
+      long[] outputVectors,
+      long[] outputBytes,
+      long[] count,
+      long[] wallNanos,
+      long veloxToArrow,
+      long[] peakMemoryBytes,
       long[] numMemoryAllocations,
-      long[] numDynamicFiltersProduced, long[] numDynamicFiltersAccepted,
-      long[] numReplacedWithDynamicFilterRows) {
+      long[] numDynamicFiltersProduced,
+      long[] numDynamicFiltersAccepted,
+      long[] numReplacedWithDynamicFilterRows,
+      long[] flushRowCount) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -61,6 +73,7 @@ public class Metrics {
     this.numDynamicFiltersProduced = numDynamicFiltersProduced;
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
+    this.flushRowCount = flushRowCount;
   }
 
   public OperatorMetrics getOperatorMetrics(int index) {
@@ -83,7 +96,8 @@ public class Metrics {
         numMemoryAllocations[index],
         numDynamicFiltersProduced[index],
         numDynamicFiltersAccepted[index],
-        numReplacedWithDynamicFilterRows[index]);
+        numReplacedWithDynamicFilterRows[index],
+        flushRowCount[index]);
   }
 
   public SingleMetric getSingleMetrics() {

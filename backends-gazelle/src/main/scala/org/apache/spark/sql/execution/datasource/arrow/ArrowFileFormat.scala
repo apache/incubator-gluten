@@ -18,8 +18,9 @@
 package org.apache.spark.sql.execution.datasource.arrow
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
+import io.glutenproject.execution.FakeRow
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.GlutenArrowAbiUtil
 import org.apache.arrow.c.{ArrowArray, ArrowSchema}
 import org.apache.arrow.dataset.file.{FileFormat => ParquetFileFormat}
 import org.apache.hadoop.fs.FileStatus
@@ -32,16 +33,14 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, Out
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.VeloxColumnarRules.FakeRow
-import org.apache.spark.sql.utils.GazelleArrowUtils
+import org.apache.spark.sql.utils.{GazelleArrowUtil, SparkArrowUtil}
 
 class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializable {
 
   override def inferSchema(sparkSession: SparkSession,
                            options: Map[String, String],
                            files: Seq[FileStatus]): Option[StructType] = {
-    GazelleArrowUtils.readSchema(files)
+    GazelleArrowUtil.readSchema(files)
   }
 
   override def prepareWrite(sparkSession: SparkSession,
@@ -57,7 +56,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
       override def newInstance(path: String, dataSchema: StructType,
                                context: TaskAttemptContext): OutputWriter = {
         val originPath = path
-        val arrowSchema = ArrowUtils.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
+        val arrowSchema = SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
         val writeQueue = new ArrowWriteQueue(arrowSchema, ParquetFileFormat.PARQUET, originPath)
 
         new OutputWriter {
@@ -67,7 +66,7 @@ class ArrowFileFormat extends FileFormat with DataSourceRegister with Serializab
             val cArray = ArrowArray.allocateNew(allocator)
             val cSchema = ArrowSchema.allocateNew(allocator)
             ArrowColumnarBatches.ensureLoaded(allocator, batch)
-            ArrowAbiUtil.exportFromSparkColumnarBatch(
+            GlutenArrowAbiUtil.exportFromSparkColumnarBatch(
               allocator, batch, cSchema, cArray)
             writeQueue.enqueue(cArray)
           }

@@ -1,55 +1,121 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-set -eu
-set -x
+set -exu
 
-BUILD_CPP=${1:-ON}
-BUILD_TESTS=${2:-OFF}
-BUILD_ARROW=${3:-ON}
-STATIC_ARROW=${4:-OFF}
-BUILD_PROTOBUF=${5:-ON}
-ARROW_ROOT=${6:-/usr/local}
-ARROW_BFS_INSTALL_DIR=${7}
-BUILD_JEMALLOC=${8:-ON}
-BUILD_GAZELLE_CPP=${9:-OFF}
-BUILD_VELOX=${10:-OFF}
-VELOX_HOME=${11:-/root/velox}
-VELOX_BUILD_TYPE=${12:-release}
-DEBUG_BUILD=${13:-OFF}
-BUILD_BENCHMARKS=${14:-OFF}
-BACKEND_TYPE=${15:-velox}
-ENABLE_HBM=${16:-OFF}
+BUILD_TYPE=release
+BUILD_GAZELLE_CPP_BACKEND=OFF
+BUILD_VELOX_BACKEND=OFF
+BUILD_TESTS=OFF
+BUILD_BENCHMARKS=OFF
+BUILD_JEMALLOC=ON
+ENABLE_HBM=OFF
+BUILD_PROTOBUF=OFF
+ENABLE_S3=OFF
+ENABLE_HDFS=OFF
+NPROC=$(nproc --ignore=2)
+ARROW_ROOT=
+VELOX_HOME=
 
-if [ "$BUILD_CPP" == "ON" ]; then
-  NPROC=$(nproc --ignore=2)
+for arg in "$@"
+do
+    case $arg in
+        --arrow_root=*)
+        ARROW_ROOT=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --velox_home=*)
+        VELOX_HOME=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_type=*)
+        BUILD_TYPE=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_gazelle_cpp_backend=*)
+        BUILD_GAZELLE_CPP_BACKEND=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_velox_backend=*)
+        BUILD_VELOX_BACKEND=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_test=*)
+        BUILD_TESTS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_benchmarks=*)
+        BUILD_BENCHMARKS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_jemalloc=*)
+        BUILD_JEMALLOC=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_hbm=*)
+        ENABLE_HBM=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_protobuf=*)
+        BUILD_PROTOBUF=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_s3=*)
+        ENABLE_S3=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_hdfs=*)
+        ENABLE_HDFS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        *)
+        OTHER_ARGUMENTS+=("$1")
+        shift # Remove generic argument from processing
+        ;;
+    esac
+done
 
-  CURRENT_DIR=$(
-    cd "$(dirname "$BASH_SOURCE")"
-    pwd
-  )
-  cd "${CURRENT_DIR}"
-
-  if [ -d build ]; then
-    rm -r build
-  fi
-  mkdir build
-  cd build
-  cmake .. \
-    -DBUILD_TESTS=${BUILD_TESTS} \
-    -DBUILD_ARROW=${BUILD_ARROW} \
-    -DSTATIC_ARROW=${STATIC_ARROW} \
-    -DBUILD_PROTOBUF=${BUILD_PROTOBUF} \
-    -DARROW_ROOT=${ARROW_ROOT} \
-    -DARROW_BFS_INSTALL_DIR=${ARROW_BFS_INSTALL_DIR} \
-    -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
-    -DBUILD_GAZELLE_CPP=${BUILD_GAZELLE_CPP} \
-    -DBUILD_VELOX=${BUILD_VELOX} \
-    -DVELOX_HOME=${VELOX_HOME} \
-    -DVELOX_BUILD_TYPE=${VELOX_BUILD_TYPE} \
-    -DCMAKE_BUILD_TYPE=$(if [ "$DEBUG_BUILD" == 'ON' ]; then echo 'Debug'; else echo 'Release'; fi) \
-    -DDEBUG=${DEBUG_BUILD} \
-    -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS} \
-    -DBACKEND_TYPE=${BACKEND_TYPE} \
-    -DENABLE_HBM=${ENABLE_HBM}
-  make -j$NPROC
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+#gluten cpp will find arrow lib from ARROW_ROOT
+if [ "$ARROW_ROOT" == "" ]; then
+  ARROW_ROOT="$CURRENT_DIR/../ep/build-arrow/build/arrow_install"
 fi
+
+#gluten cpp will find velox lib from VELOX_HOME
+if [ "$VELOX_HOME" == "" ]; then
+  VELOX_HOME="$CURRENT_DIR/../ep/build-velox/build/velox_ep"
+fi
+
+echo "Building gluten cpp part..."
+echo "CMAKE Arguments:"
+echo "ARROW_ROOT=${ARROW_ROOT}"
+echo "VELOX_HOME=${VELOX_HOME}"
+echo "BUILD_TYPE=${BUILD_TYPE}"
+echo "BUILD_GAZELLE_CPP_BACKEND=${BUILD_GAZELLE_CPP_BACKEND}"
+echo "BUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND}"
+echo "BUILD_TESTS=${BUILD_TESTS}"
+echo "BUILD_BENCHMARKS=${BUILD_BENCHMARKS}"
+echo "BUILD_JEMALLOC=${BUILD_JEMALLOC}"
+echo "ENABLE_HBM=${ENABLE_HBM}"
+echo "BUILD_PROTOBUF=${BUILD_PROTOBUF}"
+echo "ENABLE_S3=${ENABLE_S3}"
+echo "ENABLE_HDFS=${ENABLE_HDFS}"
+
+if [ -d build ]; then
+  rm -r build
+fi
+mkdir build
+cd build
+cmake .. \
+  -DBUILD_TESTS=${BUILD_TESTS} \
+  -DARROW_ROOT=${ARROW_ROOT} \
+  -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
+  -DBUILD_GAZELLE_CPP_BACKEND=${BUILD_GAZELLE_CPP_BACKEND} \
+  -DBUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND} \
+  -DVELOX_HOME=${VELOX_HOME} \
+  -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+  -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS} \
+  -DENABLE_HBM=${ENABLE_HBM} \
+  -DBUILD_PROTOBUF=${BUILD_PROTOBUF} \
+  -DVELOX_ENABLE_S3=${ENABLE_S3} \
+  -DVELOX_ENABLE_HDFS=${ENABLE_HDFS}
+make -j$NPROC

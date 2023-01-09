@@ -18,11 +18,22 @@
 package io.glutenproject.memory.alloc;
 
 import io.glutenproject.backendsapi.BackendsApiManager;
-
-import org.apache.spark.util.memory.TaskMemoryResourceManager;
 import org.apache.spark.util.memory.TaskMemoryResources;
 
-public class NativeMemoryAllocators {
+/**
+ * Built-in toolkit for managing native memory allocations. To use the facility, one should
+ * import Gluten's C++ library then create the c++ instance using following example code:
+ *
+ * ```c++
+ * auto* allocator = reinterpret_cast<gluten::memory::MemoryAllocator*>(allocator_id);
+ * ```
+ *
+ * The ID "allocator_id" can be retrieved from Java API
+ * {@link NativeMemoryAllocator#getNativeInstanceId()}.
+ *
+ * FIXME: to export the native APIs in a standard way
+ */
+public abstract class NativeMemoryAllocators {
   private NativeMemoryAllocators() {
   }
 
@@ -35,14 +46,14 @@ public class NativeMemoryAllocators {
 
     final String id = NativeMemoryAllocatorManager.class.toString();
     if (!TaskMemoryResources.isResourceManagerRegistered(id)) {
-      final TaskMemoryResourceManager manager = BackendsApiManager.getIteratorApiInstance()
+      final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
           .genNativeMemoryAllocatorManager(
               TaskMemoryResources.getSparkMemoryManager(),
               Spiller.NO_OP,
               TaskMemoryResources.getSharedMetrics());
       TaskMemoryResources.addResourceManager(id, manager);
     }
-    return TaskMemoryResources.getResourceManager(id).getManaged();
+    return ((NativeMemoryAllocatorManager) TaskMemoryResources.getResourceManager(id)).getManaged();
   }
 
   public static NativeMemoryAllocator createSpillable(Spiller spiller) {
@@ -50,7 +61,7 @@ public class NativeMemoryAllocators {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
 
-    final TaskMemoryResourceManager manager = BackendsApiManager.getIteratorApiInstance()
+    final NativeMemoryAllocatorManager manager = BackendsApiManager.getIteratorApiInstance()
         .genNativeMemoryAllocatorManager(
             TaskMemoryResources.getSparkMemoryManager(),
             spiller,

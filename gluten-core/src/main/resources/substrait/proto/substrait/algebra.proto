@@ -145,6 +145,25 @@ message ReadRel {
   }
 }
 
+message ExpandRel {
+  RelCommon common = 1;
+  Rel input = 2;
+
+  repeated Expression aggregate_expressions = 3;
+
+  // A list of expression grouping that the aggregation measured should be calculated for.
+  repeated GroupSets groupings = 4;
+
+  message GroupSets {
+    repeated Expression groupSets_expressions = 1;
+  }
+
+  string group_name = 5;
+
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+}
+
+
 // This operator allows to represent calculated expressions of fields (e.g., a+b). Direct/Emit are used to represent classical relational projections
 message ProjectRel {
   RelCommon common = 1;
@@ -236,6 +255,19 @@ message SortRel {
   Rel input = 2;
   repeated SortField sorts = 3;
   substrait.extensions.AdvancedExtension advanced_extension = 10;
+}
+
+message WindowRel {
+  RelCommon common = 1;
+  Rel input = 2;
+  repeated Measure measures = 3;
+  repeated Expression partition_expressions = 4;
+  repeated SortField sorts = 5;
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+
+  message Measure {
+    Expression.WindowFunction measure = 1;
+  }
 }
 
 // The relational operator capturing simple FILTERs (as in the WHERE clause of SQL)
@@ -365,6 +397,9 @@ message Rel {
     ExtensionMultiRel extension_multi = 10;
     ExtensionLeafRel extension_leaf = 11;
     CrossRel cross = 12;
+    ExpandRel expand = 13;
+    WindowRel window = 14;
+    GenerateRel generate = 15;
   }
 }
 
@@ -541,6 +576,8 @@ message Expression {
     AggregationPhase phase = 6;
     Type output_type = 7;
     repeated FunctionArgument arguments = 9;
+    string column_name = 10;
+    WindowType window_type = 11;
 
     // deprecated; use args instead
     repeated Expression args = 8 [deprecated = true];
@@ -556,13 +593,16 @@ message Expression {
 
       message CurrentRow {}
 
-      message Unbounded {}
+      message Unbounded_Preceding {}
+
+      message Unbounded_Following {}
 
       oneof kind {
         Preceding preceding = 1;
         Following following = 2;
         CurrentRow current_row = 3;
-        Unbounded unbounded = 4;
+        Unbounded_Preceding unbounded_preceding = 4;
+        Unbounded_Following unbounded_following = 5;
       }
     }
   }
@@ -852,6 +892,17 @@ message Expression {
   }
 }
 
+message GenerateRel {
+  RelCommon common = 1;
+  Rel input = 2;
+  
+  Expression generator = 3;
+  repeated Expression child_output = 4;
+  bool outer = 5;
+
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+}
+
 // The description of a field to sort on (including the direction of sorting and null semantics)
 message SortField {
   Expression expr = 1;
@@ -878,6 +929,10 @@ enum AggregationPhase {
   AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT = 4;
 }
 
+enum WindowType {
+  ROWS = 0;
+  RANGE = 1;
+}
 message AggregateFunction {
   // points to a function_anchor defined in this plan
   uint32 function_reference = 1;

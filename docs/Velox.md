@@ -2,49 +2,114 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # 1 Prerequisite
 
-<b>Currently Gluten+Velox backend is only tested on Ubuntu20.04 and Ubuntu22.04. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually:
+Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04 and Ubuntu22.04</b>. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
+Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
 ```shell script
-apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build uuid-dev
-```
+## run as root
+## install gcc and libraries to build arrow
+apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
 
-Also, we need to set up the JAVA_HOME env. Currently, java 8 is required and the support for java 11/17 is not ready.
-```shell script
-export JAVA_HOME=path/to/java/home
+## make sure jdk8 is used
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
+
+## config maven, like proxy in ~/.m2/settings.xml
+
+## fetch gluten code
+git clone https://github.com/oap-project/gluten.git
+
 ```
+# 2 Build Gluten with Velox Backend
 
-# 2 Build Velox Jar
-
-Since the mvn script calls setup-ubuntu.sh to install dependency libraries, so we need to run it from <b>root</b> group.
-
-The command below clones velox source code from [OAP-project/velox](https://github.com/oap-project/velox) to tools/build/velox_ep. Then it applies some patches to Velox build script and builds the velox library.
+It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
+[Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
 ```shell script
+cd /path_to_gluten
+
+## The script builds two jars for spark 3.2.2 and 3.3.1.
+./dev/buildbundle-veloxbe.sh
+
+## When you have successfully compiled once and changed some codes then compile again.
+## you may use following command to skip the arrow, velox and protobuf build
+# ./dev/buildbundle-veloxbe.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
+
+```
+
+Alternatively you may build gluten step by step as below.
+
+```shell script
+## fetch arrow and compile
+cd /path_to_gluten/ep/build-arrow/src/
+./get_arrow.sh
+./build_arrow_for_velox.sh
+
+## fetch velox
+cd /path_to_gluten/ep/build-velox/src/
+./get_velox.sh
+## compile velox
+./build_velox.sh
+
+## compile gluten cpp
+cd /path_to_gluten/cpp
+./compile.sh --build_velox_backend=ON
+
+### compile gluten jvm and package jar
+cd /path_to_gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2 -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3 -Dbuild_velox_from_source=ON -Dbuild_arrow=ON
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+
 ```
-You may compile spark3.2 and spark3.3 at the same time by -Pspark-3.2 -Pspark-3.3
 
-The command generates the Jar file in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark. So as spark3.3.
+Once building successfully, the Jar file is generated in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark 3.2.2. Jar for spark3.3.1 is package/velox/spark32/target/gluten-spark3.3_1.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
-Refer to [build configurations](GlutenUsage.md) for the list of configurations used by mvn command.
+## 2.1 Specify velox home directory
 
-## 2.1 Velox home directory
-
-You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it by -Dvelox_home as below. With -Dbuild_velox_from_source=ON, the script applies the patches and build the Velox library. With -Dbuild_velox_from_source=OFF, script skips the velox build steps and reuse the existed library. It's useful if Velox isn't changed.
-
+You can also clone the Velox source from [OAP/velox](https://github.com/oap-project/velox) to some other folder then specify it as below.
 
 ```shell script
-mvn clean package -Pspark-3.2 -DskipTests -Dcheckstyle.skip -Pbackends-velox -Dbuild_protobuf=OFF -Dvelox_home=${VELOX_HOME} -Dbuild_arrow=ON -Dcompile_velox=ON
+step 1: recompile velox, set velox_home in build_velox.sh
+cd /path_to_gluten/ep/build_velox/src
+./build_velox.sh  --velox_home=/your_specified_velox_path  --build_velox_backend=ON
+
+step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
+cd /path_to_gluten/cpp
+./compile.sh --velox_home=/your_specified_velox_path
+
+step 3: package jar
+cd /path_to_gluten
+# For spark3.2.x
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+# For spark3.3.x
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+
 ```
 
 ## 2.2 Arrow home directory
 
-Arrow home can be set as the same of Velox. Without -Darrow_home, arrow is cloned to toos/build/arrow_ep. You can specify the arrow home directory by -Darrow_home and then use -Dbuild_arrow to control arrow build or not. Currently Arrow is also clone from [OAP/Arrow](https://github.com/oap-project/arrow). We will soon switch to upstream Arrow. Currently the shuffle still uses Arrow's IPC interface.
+Arrow home can be set as the same of Velox. We will soon switch to upstream Arrow. Currently the shuffle still uses Arrow's IPC interface.
+You can also clone the Arrow source from [OAP/Arrow](https://github.com/oap-project/arrow) to some other folder then specify it as below.
+
+```shell script
+step 1: set ARROW_SOURCE_DIR in build_arrow_for_velox.sh and compile
+cd /path_to_gluten/ep/build-arrow/src/
+./build_arrow_for_velox.sh
+
+step 2: set ARROW_ROOT in compile.sh or run with --arrow_root
+cd /path_to_gluten/cpp
+sh ./compile.sh --arrow_root=/your_arrow_lib
+
+step 3: package jar
+cd /path_to_gluten
+# For spark3.2.x
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+# For spark3.3.x
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+
+```
 
 ## 2.3 HDFS support
 
@@ -53,7 +118,17 @@ On Ubuntu 20.04 the required depedencis are libiberty-dev, libxml2-dev, libkrb5-
 ```
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
+To build Gluten with HDFS support, below command is provided:
+```
+cd /path_to_gluten/ep/build-velox/src
+./build_velox.sh --enable_hdfs=ON
 
+cd /path_to_gluten/cpp
+./compile.sh --enable_hdfs=ON
+
+cd /path_to_gluten
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
+```
 Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
 
 This env should be exported in both Spark driver and worker.
@@ -68,14 +143,14 @@ If running in Spark Yarn cluster mode, the env variable need to be set on each e
 ```
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
-By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/tools/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
+By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
 
 ```
 sudo mkdir -p /var/lib/hadoop-hdfs/
 sudo chown <sparkuser>:<sparkuser> /var/lib/hadoop-hdfs/
 ```
 
-You also need to add configuration to the *hdfs-site.xml* as below:
+You also need to add configuration to the "hdfs-site.xml" as below:
 
 ```
 <property>
@@ -89,25 +164,44 @@ You also need to add configuration to the *hdfs-site.xml* as below:
 </property>
 ```
 
-Here is an example to configure in "*HADOOP_HOME*/etc/hadoop/hdfs-site.xml"
-```
- <property>
-    <name>dfs.client.read.shortcircuit</name>
-    <value>true</value>
-  </property>
-
- <property>
-    <name>dfs.domain.socket.path</name>
-    <value>/var/lib/hadoop-hdfs/dn_socket</value>
-  </property>
-```
-
 ## 2.4 Yarn Cluster mode
 
 Hadoop Yarn mode is supported. Note libhdfs3 is used to read from HDFS, all its depedencies should be installed on each worker node. Users may requried to setup extra LD_LIBRARY_PATH if the depedencies are not on system's default library path. On Ubuntu 20.04 the dependencies can be installed with below command:
 ```
 sudo apt install -y libiberty-dev libxml2-dev libkrb5-dev libgsasl7-dev libuuid1 uuid-dev
 ```
+## 2.5 AWS S3 support
+
+Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) and Gluten uses Velox S3 connector to connect with S3.
+A new build option for S3(velox_enable_s3) is added. Below command is used to enable this feature
+```
+cd /path_to_gluten/ep/build-velox/src/
+./build_velox.sh --enable_s3=ON
+
+cd /path_to_gluten/cpp
+./compile.sh --enable_s3=ON
+
+cd /path_to_gluten
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
+```
+Currently to use S3 connector below configurations are required in spark-defaults.conf
+```
+spark.hadoop.fs.s3a.impl           org.apache.hadoop.fs.s3a.S3AFileSystem
+spark.hadoop.fs.s3a.aws.credentials.provider org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+spark.hadoop.fs.s3a.access.key     xxxx
+spark.hadoop.fs.s3a.secret.key     xxxx
+spark.hadoop.fs.s3a.endpoint https://s3.us-west-1.amazonaws.com
+spark.hadoop.fs.s3a.connection.ssl.enabled true
+spark.hadoop.fs.s3a.path.style.access false
+```
+
+You can also use instance credentials by setting the following config
+```
+spark.hadoop.fs.s3a.use.instance.credentials true
+```
+If you are using instance credentials you do not have to set the access key or secret key.
+
+Note if testing with local S3-like service(Minio/Ceph), users may need to use different configurations for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
 # 3 Coverage
 
@@ -123,9 +217,13 @@ Union operator is implemented in JVM, needn't to offload to native.
 
 Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It requires [Memkind library](http://memkind.github.io/memkind/) to be installed. Please follow memkind's [readme](https://github.com/memkind/memkind#memkind) to build and install all the dependencies and the library. 
 
-To enable this feature in Gluten, users only need to add `-Denable_hbm=ON` to the maven build command. Here's an example:
+To enable this feature in Gluten, users can. Below command is used to enable this feature.
 ```
-mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip -Dbuild_cpp=ON -Dbuild_velox=ON -Dbuild_velox_from_source=ON -Dbuild_arrow=ON -Denable_hbm=ON
+cd /path_to_gluten/cpp
+./compile.sh --enable_hbm
+
+cd /path_to_gluten
+mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
 ```
 
 Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.

@@ -32,13 +32,14 @@
   <modules>
     <module>shims</module>
     <module>gluten-core</module>
+    <module>substrait/substrait-spark</module>
   </modules>
 
   <properties>
     <spark32.version>3.2.2</spark32.version>
     <spark32.scala>2.12.15</spark32.scala>
     <spark32bundle.version>3.2</spark32bundle.version>
-    <spark33.version>3.3.0</spark33.version>
+    <spark33.version>3.3.1</spark33.version>
     <spark33.scala>2.12.15</spark33.scala>
     <spark33bundle.version>3.3</spark33bundle.version>
     <delta2.version>2.0.0</delta2.version>
@@ -52,29 +53,9 @@
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <arrow.script.dir>${session.executionRootDirectory}/tools</arrow.script.dir>
-    <velox.script.dir>${session.executionRootDirectory}/tools</velox.script.dir>
-    <build_cpp>OFF</build_cpp>
-    <cpp_tests>OFF</cpp_tests>
-    <cpp_benchmarks>OFF</cpp_benchmarks>
-    <enable_hbm>OFF</enable_hbm>
-    <build_arrow>OFF</build_arrow>
-    <arrow_root>${session.executionRootDirectory}/tools/build/arrow_install</arrow_root>
-    <arrow.bfs.dir>${session.executionRootDirectory}/tools/build/arrow_install</arrow.bfs.dir>
-    <enable_ep_cache>OFF</enable_ep_cache>
-    <static_arrow>OFF</static_arrow>
-    <build_protobuf>ON</build_protobuf>
-    <build_jemalloc>OFF</build_jemalloc>
-    <build_velox_from_source>OFF</build_velox_from_source>
-    <compile_velox>OFF</compile_velox>
-    <velox_home>${session.executionRootDirectory}/tools/build/velox_ep</velox_home>
-    <velox_build_type>release</velox_build_type>
-    <debug_build>OFF</debug_build>
     <project.prefix>spark-sql-columnar</project.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
     <!-- To build built-in backend c++ codes -->
-    <build_gazelle_cpp>OFF</build_gazelle_cpp>
-    <build_velox>OFF</build_velox>
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
@@ -111,6 +92,7 @@
     </spotless.license.header>
 
     <!-- plugin version-->
+    <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.3.0</scala.compiler.version>
     <maven.compiler.plugin>3.8.0</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
@@ -207,7 +189,6 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
-        <module>ep/build-arrow</module>
         <module>gluten-data</module>
         <module>backends-velox</module>
         <module>package/velox</module>
@@ -215,8 +196,7 @@
       <properties>
         <backend_type>velox</backend_type>
         <arrow.version>10.0.0-SNAPSHOT</arrow.version>
-        <build_cpp>ON</build_cpp>
-        <build_velox>ON</build_velox>
+        <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
     <profile>
@@ -225,17 +205,13 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
-        <module>ep/build-arrow</module>
         <module>gluten-data</module>
-        <module>backends-velox</module>
         <module>backends-gazelle</module>
         <module>package/gazelle</module>
       </modules>
       <properties>
         <backend_type>gazelle_cpp</backend_type>
         <arrow.version>8.0.0-gluten-SNAPSHOT</arrow.version>
-        <build_cpp>ON</build_cpp>
-        <build_gazelle_cpp>ON</build_gazelle_cpp>
       </properties>
     </profile>
     <profile>
@@ -291,6 +267,10 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+          </exclusion>
         </exclusions>
         <scope>provided</scope>
       </dependency>
@@ -307,6 +287,27 @@
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.substrait</groupId>
+        <artifactId>core</artifactId>
+        <version>${substrait.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -500,6 +501,7 @@
           <artifactId>scalatest-maven-plugin</artifactId>
           <version>${scalatest-maven-plugin.version}</version>
           <configuration>
+            <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
           </configuration>
           <executions>
@@ -517,6 +519,9 @@
           <version>${scala.compiler.version}</version>
           <configuration>
             <recompileMode>${scala.recompile.mode}</recompileMode>
+            <args>
+              <arg>-Ywarn-unused:imports</arg>
+            </args>
           </configuration>
           <executions>
             <execution>
@@ -615,6 +620,11 @@
             </execution>
           </executions>
         </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -680,4 +690,18 @@
       </plugin>
     </plugins>
   </reporting>
+  <repositories>
+    <repository>
+      <id>Kyligence</id>
+      <name>Kyligence Repository</name>
+      <url>https://repository.kyligence.io/repository/maven-public/
+      </url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>

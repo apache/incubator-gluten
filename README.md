@@ -1,4 +1,4 @@
-# GLuten: A Spark Plugin to Offload SQL Engine to Native Library
+# Gluten: A Spark Plugin to Offload SQL Engine to Native Library
 *<b>This plugin is still under active development now, and doesn't have a stable release. Welcome to evaluate it. If you encounter any issues or have any suggestions, please submit to our issue list. We'd love to hear your feedback</b>*
 
 # 1 Introduction
@@ -90,6 +90,17 @@ If you would like to build and try Gluten with **Arrow** backend, please follow 
 
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference
 
+## 3.5 Jar conflicts
+
+Several libraries Gluten used is newer than Spark's, including protobuf (Both Velox and CK backend), flatbuffers (Velox backend), and arrow-* (Velox backend). These libraries are compiled from source and packed into Gluten.jars. Jvm should search them from Gluten.jar firstly and load them. But for some reason jvm loads the jars from spark_home/jars which causes conflict. You may use below commands to remove the jars from spark_home/jars. We are still investigating the root cause. Welcome to share if you have good solution.
+
+```
+rm -rf $SPARK_HOME/jars/protobuf-*
+# velox backend only
+rm -rf $SPARK_HOME/jars/flatbuffers-*
+rm -rf $SPARK_HOME/jars/arrow-*
+```
+
 # 4 Contribution
 
 Gluten project welcomes everyone to contribute. 
@@ -105,6 +116,8 @@ Feel free to submit any bugs, issues or enhancement requirements to github issue
 ## 4.3 Documentation
 
 Unfortunately we haven't organized the documentation site for Gluten. Currently all document is hold in [docs](https://github.com/oap-project/gluten/tree/main/docs). Ping us if you would like to know more details about the Gluten design. Gluten is still under development now, and some designs may change. Feel free to talk with us and share other design and ideas.
+
+CppCodingStyle.md is provided for the purpose of helping C++ developers to contribute code, this work is still in progess, so propose a new modification PR without any hesitation if you have good ideas. [CppCodingStyle.md](https://github.com/oap-project/gluten/tree/main/docs/developers/CppCodingStyle.md)
 
 # 5 Performance
 

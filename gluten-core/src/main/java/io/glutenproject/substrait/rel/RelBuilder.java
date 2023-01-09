@@ -21,9 +21,11 @@ import io.glutenproject.expression.ConverterUtils$;
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
+import io.glutenproject.substrait.expression.WindowFunctionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.JoinRel;
 import io.substrait.proto.SortField;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
@@ -168,6 +170,29 @@ public class RelBuilder {
     return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
   }
 
+  public static RelNode makeExpandRel(RelNode input,
+                                      String groupName,
+                                      ArrayList<ArrayList<ExpressionNode>> groupings,
+                                      ArrayList<ExpressionNode> aggExpressions,
+                                      AdvancedExtensionNode extensionNode,
+                                      SubstraitContext context,
+                                      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new ExpandRelNode(input, groupName,
+        groupings, aggExpressions, extensionNode);
+  }
+
+  public static RelNode makeExpandRel(RelNode input,
+                                      String groupName,
+                                      ArrayList<ArrayList<ExpressionNode>> groupings,
+                                      ArrayList<ExpressionNode> aggExpressions,
+                                      SubstraitContext context,
+                                      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new ExpandRelNode(input, groupName,
+        groupings, aggExpressions);
+  }
+
   public static RelNode makeSortRel(RelNode input,
                                     ArrayList<SortField> sorts,
                                     AdvancedExtensionNode extensionNode,
@@ -183,5 +208,63 @@ public class RelBuilder {
                                     Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new SortRelNode(input, sorts);
+  }
+
+  public static RelNode makeFetchRel(RelNode input,
+                                     Long offset,
+                                     Long count,
+                                     SubstraitContext context,
+                                     Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new FetchRelNode(input, offset, count);
+  }
+
+  public static RelNode makeFetchRel(RelNode input,
+                                     Long offset,
+                                     Long count,
+                                     AdvancedExtensionNode extensionNode,
+                                     SubstraitContext context,
+                                     Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new FetchRelNode(input, offset, count, extensionNode);
+  }
+
+  public static RelNode makeWindowRel(RelNode input,
+                                      ArrayList<WindowFunctionNode> windowFunctionNodes,
+                                      ArrayList<ExpressionNode> partitionExpressions,
+                                      ArrayList<SortField> sorts,
+                                      AdvancedExtensionNode extensionNode,
+                                      SubstraitContext context,
+                                      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WindowRelNode(
+        input, windowFunctionNodes,
+        partitionExpressions, sorts, extensionNode);
+  }
+
+  public static RelNode makeWindowRel(RelNode input,
+                                      ArrayList<WindowFunctionNode> windowFunctionNodes,
+                                      ArrayList<ExpressionNode> partitionExpressions,
+                                      ArrayList<SortField> sorts,
+                                      SubstraitContext context,
+                                      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WindowRelNode(
+        input, windowFunctionNodes,
+        partitionExpressions, sorts);
+  }
+
+  public static RelNode makeGenerateRel(RelNode input, ExpressionNode generator,
+      ArrayList<ExpressionNode> childOutput, SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new GenerateRelNode(input, generator, childOutput);
+  }
+
+  public static RelNode makeGenerateRel(RelNode input, ExpressionNode generator,
+      ArrayList<ExpressionNode> childOutput, AdvancedExtensionNode extensionNode,
+      SubstraitContext context, Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new GenerateRelNode(input, generator, childOutput, extensionNode);
   }
 }

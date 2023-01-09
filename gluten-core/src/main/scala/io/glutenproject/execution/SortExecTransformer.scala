@@ -17,18 +17,15 @@
 
 package io.glutenproject.execution
 
-import java.util
-import scala.util.control.Breaks.{break, breakable}
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.vectorized.ExpressionEvaluator
+import io.glutenproject.vectorized.OperatorMetrics
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
@@ -39,32 +36,69 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.util
 import scala.collection.JavaConverters._
+import scala.util.control.Breaks.{break, breakable}
 
-case class SortExecTransformer(
-                                sortOrder: Seq[SortOrder],
-                                global: Boolean,
-                                child: SparkPlan,
-                                testSpillFrequency: Int = 0)
-  extends UnaryExecNode
-    with TransformSupport {
+case class SortExecTransformer(sortOrder: Seq[SortOrder],
+                               global: Boolean,
+                               child: SparkPlan,
+                               testSpillFrequency: Int = 0)
+  extends UnaryExecNode with TransformSupport {
 
   override lazy val metrics = Map(
-    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_sort"),
-    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in cache all data"),
-    "sortTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in sort process"),
-    "shuffleTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in shuffle process"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"))
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_sort"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val inputRows: SQLMetric = longMetric("inputRows")
+    val inputVectors: SQLMetric = longMetric("inputVectors")
+    val inputBytes: SQLMetric = longMetric("inputBytes")
+    val rawInputRows: SQLMetric = longMetric("rawInputRows")
+    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+    val outputRows: SQLMetric = longMetric("outputRows")
+    val outputVectors: SQLMetric = longMetric("outputVectors")
+    val outputBytes: SQLMetric = longMetric("outputBytes")
+    val cpuCount: SQLMetric = longMetric("count")
+    val wallNanos: SQLMetric = longMetric("wallNanos")
+    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
+    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+      if (operatorMetrics != null) {
+        inputRows += operatorMetrics.inputRows
+        inputVectors += operatorMetrics.inputVectors
+        inputBytes += operatorMetrics.inputBytes
+        rawInputRows += operatorMetrics.rawInputRows
+        rawInputBytes += operatorMetrics.rawInputBytes
+        outputRows += operatorMetrics.outputRows
+        outputVectors += operatorMetrics.outputVectors
+        outputBytes += operatorMetrics.outputBytes
+        cpuCount += operatorMetrics.count
+        wallNanos += operatorMetrics.wallNanos
+        peakMemoryBytes += operatorMetrics.peakMemoryBytes
+        numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      }
+    }
+  }
+
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
+
   val sparkConf = sparkContext.getConf
-  val elapse = longMetric("processTime")
-  val sortTime = longMetric("sortTime")
-  val shuffleTime = longMetric("shuffleTime")
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
 
   override def supportsColumnar: Boolean = true
 
@@ -101,25 +135,6 @@ case class SortExecTransformer(
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    numOutputBatches += outNumBatches
-    numOutputRows += outNumRows
-  }
-
-  protected def needsPreProjection(
-                                    sortOrders: Seq[SortOrder]): Boolean = {
-    var needsProjection = false
-    breakable {
-      for (sortOrder <- sortOrders) {
-        if (!sortOrder.child.isInstanceOf[Attribute]) {
-          needsProjection = true
-          break
-        }
-      }
-    }
-    needsProjection
-  }
-
   def getRelWithProject(context: SubstraitContext,
                         sortOrder: Seq[SortOrder],
                         originalInputAttributes: Seq[Attribute],
@@ -137,11 +152,10 @@ case class SortExecTransformer(
     projectExpressions.addAll(selectOrigins.asJava)
 
     var colIdx = originalInputAttributes.size
-    sortOrder.map(order => {
+    sortOrder.foreach(order => {
       val builder = SortField.newBuilder();
-      val expr = ExpressionConverter
-        .replaceWithExpressionTransformer(order.child, originalInputAttributes)
-      val projectExprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+      val projectExprNode = ExpressionConverter
+        .replaceWithExpressionTransformer(order.child, originalInputAttributes).doTransform(args)
       projectExpressions.add(projectExprNode)
 
       val exprNode = ExpressionBuilder.makeSelection(colIdx)
@@ -150,18 +164,8 @@ case class SortExecTransformer(
       colIdx += 1
       builder.setExpr(exprNode.toProtobuf)
 
-      (order.direction.sql, order.nullOrdering.sql) match {
-        case ("ASC", "NULLS FIRST") =>
-          builder.setDirectionValue(1);
-        case ("ASC", "NULLS LAST") =>
-          builder.setDirectionValue(2);
-        case ("DESC", "NULLS FIRST") =>
-          builder.setDirectionValue(3);
-        case ("DESC", "NULLS LAST") =>
-          builder.setDirectionValue(4);
-        case _ =>
-          builder.setDirectionValue(0);
-      }
+      builder.setDirectionValue(SortExecTransformer.transformSortDirection(order.direction.sql,
+        order.nullOrdering.sql))
       sortFieldList.add(builder.build())
     })
 
@@ -234,25 +238,15 @@ case class SortExecTransformer(
                            validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val sortFieldList = new util.ArrayList[SortField]()
-    sortOrder.map(order => {
+    sortOrder.foreach(order => {
       val builder = SortField.newBuilder();
-      val expr = ExpressionConverter
+      val exprNode = ExpressionConverter
         .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-      val exprNode = expr.asInstanceOf[ExpressionTransformer].doTransform(args)
+        .doTransform(args)
       builder.setExpr(exprNode.toProtobuf)
 
-      (order.direction.sql, order.nullOrdering.sql) match {
-        case ("ASC", "NULLS FIRST") =>
-          builder.setDirectionValue(1);
-        case ("ASC", "NULLS LAST") =>
-          builder.setDirectionValue(2);
-        case ("DESC", "NULLS FIRST") =>
-          builder.setDirectionValue(3);
-        case ("DESC", "NULLS LAST") =>
-          builder.setDirectionValue(4);
-        case _ =>
-          builder.setDirectionValue(0);
-      }
+      builder.setDirectionValue(SortExecTransformer.transformSortDirection(order.direction.sql,
+        order.nullOrdering.sql))
       sortFieldList.add(builder.build())
     })
     if (!validation) {
@@ -278,10 +272,11 @@ case class SortExecTransformer(
                  operatorId: Long,
                  input: RelNode,
                  validation: Boolean): RelNode = {
-    val needsProjection = needsPreProjection(sortOrder: Seq[SortOrder])
+    val needsProjection = SortExecTransformer.needProjection(sortOrder: Seq[SortOrder])
 
     if (needsProjection) {
-      getRelWithProject(context, sortOrder, originalInputAttributes, operatorId, input, validation)
+      getRelWithProject(context, sortOrder,
+        originalInputAttributes, operatorId, input, validation)
     } else {
       getRelWithoutProject(
         context, sortOrder, originalInputAttributes, operatorId, input, validation)
@@ -289,7 +284,9 @@ case class SortExecTransformer(
   }
 
   override def doValidate(): Boolean = {
-    if (!GlutenConfig.getConf.isVeloxBackend) return false
+    if (!BackendsApiManager.getSettings.supportSortExec()) {
+      return false
+    }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId
 
@@ -304,8 +301,7 @@ case class SortExecTransformer(
 
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }
@@ -357,4 +353,29 @@ case class SortExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): SortExecTransformer =
     copy(child = newChild)
+}
+
+object SortExecTransformer {
+  def transformSortDirection(direction: String, nullOrdering: String): Int = {
+    (direction, nullOrdering) match {
+      case ("ASC", "NULLS FIRST") => 1
+      case ("ASC", "NULLS LAST") => 2
+      case ("DESC", "NULLS FIRST") => 3
+      case ("DESC", "NULLS LAST") => 4
+      case _ => 0
+    }
+  }
+
+  def needProjection(sortOrders: Seq[SortOrder]): Boolean = {
+    var needsProjection = false
+    breakable {
+      for (sortOrder <- sortOrders) {
+        if (!sortOrder.child.isInstanceOf[Attribute]) {
+          needsProjection = true
+          break
+        }
+      }
+    }
+    needsProjection
+  }
 }

@@ -19,6 +19,6 @@ package io.glutenproject.backendsapi
 
 import org.apache.spark.SparkConf
 
-trait IInitializerApi extends IBackendsApi {
+trait IInitializerApi {
   def initialize(conf: SparkConf): Unit = {}
 }

@@ -52,7 +52,8 @@ public class DecimalLiteralNode implements ExpressionNode, Serializable {
   private static final byte minus_one = -1;
 
   public static byte[] encodeDecimalIntoBytes(BigDecimal decimal, int scale, int byteWidth) {
-    BigDecimal scaledDecimal = decimal.multiply(powerOfTen(scale));
+    BigDecimal scaledDecimal = BigDecimal.valueOf(decimal.unscaledValue().longValue(),
+      scale);
     byte[] bytes = scaledDecimal.toBigInteger().toByteArray();
     if (bytes.length > byteWidth) {
       throw new UnsupportedOperationException(
@@ -77,38 +78,4 @@ public class DecimalLiteralNode implements ExpressionNode, Serializable {
     return encodedBytes;
   }
 
-  private static final long[] POWER_OF_10 = {
-    1L,
-    10L,
-    100L,
-    1000L,
-    10_000L,
-    100_000L,
-    1_000_000L,
-    10_000_000L,
-    100_000_000L,
-    1_000_000_000L,
-    10_000_000_000L,
-    100_000_000_000L,
-    1_000_000_000_000L,
-    10_000_000_000_000L,
-    100_000_000_000_000L,
-    1_000_000_000_000_000L,
-    10_000_000_000_000_000L,
-    100_000_000_000_000_000L // long max = 9,223,372,036,854,775,807
-  };
-
-  private static BigDecimal powerOfTen(int scale) {
-    if (scale < POWER_OF_10.length) {
-      return new BigDecimal(POWER_OF_10[scale]);
-    } else {
-      int length = POWER_OF_10.length;
-      BigDecimal bd = new BigDecimal(POWER_OF_10[length - 1]);
-
-      for (int i = length - 1; i < scale; i++) {
-        bd = bd.multiply(new BigDecimal(10));
-      }
-      return bd;
-    }
-  }
 }

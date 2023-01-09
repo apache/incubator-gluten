@@ -17,27 +17,28 @@
 
 package io.glutenproject.backendsapi
 
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, FilterExecBaseTransformer, HashAggregateExecBaseTransformer, NativeColumnarToRowExec, RowToArrowColumnarExec, ShuffledHashJoinExecTransformer}
-import io.glutenproject.expression.AliasBaseTransformer
+import io.glutenproject.execution._
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer}
+
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, ExprId, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{Metadata, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait ISparkPlanExecApi extends IBackendsApi {
+trait ISparkPlanExecApi {
 
   /**
    * Whether support gluten for current SparkPlan
@@ -46,12 +47,12 @@ trait ISparkPlanExecApi extends IBackendsApi {
   def supportedGluten(nativeEngineEnabled: Boolean, plan: SparkPlan): Boolean
 
   /**
-   * Generate NativeColumnarToRowExec.
+   * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec
+  def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
 
   /**
    * Generate RowToColumnarExec.
@@ -59,7 +60,7 @@ trait ISparkPlanExecApi extends IBackendsApi {
    * @param child
    * @return
    */
-  def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec
+  def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec
 
   /**
    * Generate FilterExecTransformer.
@@ -117,8 +118,10 @@ trait ISparkPlanExecApi extends IBackendsApi {
    * @param explicitMetadata
    * @return a transformer for alias
    */
-  def genAliasTransformer(child: Expression, name: String, exprId: ExprId,
-                          qualifier: Seq[String], explicitMetadata: Option[Metadata])
+  def genAliasTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Expression)
   : AliasBaseTransformer
 
   /**
@@ -132,7 +135,8 @@ trait ISparkPlanExecApi extends IBackendsApi {
                            writeMetrics: Map[String, SQLMetric], dataSize: SQLMetric,
                            bytesSpilled: SQLMetric, numInputRows: SQLMetric,
                            computePidTime: SQLMetric, splitTime: SQLMetric,
-                           spillTime: SQLMetric, compressTime: SQLMetric, prepareTime: SQLMetric
+                           spillTime: SQLMetric, compressTime: SQLMetric, prepareTime: SQLMetric,
+                           inputBatches: SQLMetric
                           ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
   // scalastyle:on argcount
 

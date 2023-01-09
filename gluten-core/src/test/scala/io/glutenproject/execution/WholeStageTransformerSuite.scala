@@ -17,13 +17,12 @@
 
 package io.glutenproject.execution
 
-import java.io.File
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
 
+import java.io.File
 import scala.io.Source
 import scala.reflect.ClassTag
 
@@ -115,6 +114,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
     val df = spark.sql(sqlStr)
+    df.explain(false)
     val result = df.collect()
     if (compareResult) {
       val schema = df.schema
@@ -157,12 +157,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     var expected: Seq[Row] = null;
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
-      df.show(false)
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)
-    df.show(false)
-    df.explain()
     if (compareResult) {
       checkAnswer(df, expected)
     }

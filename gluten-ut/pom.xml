@@ -21,6 +21,14 @@
     </properties>
 
     <dependencies>
+        <!-- put gluten-core at first so that overwritten spark classes (such as BatchScanExec,
+             EmptyRDD, etc.) can be loaded first -->
+        <dependency>
+            <groupId>io.glutenproject</groupId>
+            <artifactId>gluten-core</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -67,19 +75,7 @@
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>gluten-core</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.glutenproject</groupId>
-            <artifactId>gluten-core</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
+
         <dependency>
             <groupId>org.scalacheck</groupId>
             <artifactId>scalacheck_${scala.binary.version}</artifactId>
@@ -335,6 +331,7 @@
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <configuration>
+                    <testFailureIgnore>false</testFailureIgnore>
                     <junitxml>.</junitxml>
                 </configuration>
                 <executions>
@@ -349,6 +346,19 @@
                                 <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
                             </systemProperties>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-test-jar</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

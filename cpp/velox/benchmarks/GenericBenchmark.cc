@@ -19,13 +19,14 @@
 #include <arrow/util/range.h>
 #include <benchmark/benchmark.h>
 #include <gflags/gflags.h>
+#include <operators/writer/ArrowWriter.h>
 #include <velox/exec/PlanNodeStats.h>
+#include <velox/exec/Task.h>
 
 #include <chrono>
 
 #include "BenchmarkUtils.h"
-#include "compute/VeloxPlanConverter.h"
-#include "compute/exec_backend.h"
+#include "compute/VeloxBackend.h"
 #include "utils/exception.h"
 
 #include <thread>
@@ -47,96 +48,72 @@ auto BM_Generic = [](::benchmark::State& state,
   }
   auto plan = std::move(maybePlan).ValueOrDie();
 
-  auto backend = gluten::CreateBackend();
-  std::vector<std::shared_ptr<gluten::GlutenResultIterator>> inputIters;
-  std::transform(
-      input_files.cbegin(),
-      input_files.cend(),
-      std::back_inserter(inputIters),
-      getInputIterator);
-  std::vector<BatchIteratorWrapper*> inputItersRaw;
-  std::transform(
-      inputIters.begin(),
-      inputIters.end(),
-      std::back_inserter(inputItersRaw),
-      [](std::shared_ptr<gluten::GlutenResultIterator> iter) {
-        return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
-      });
-
   auto startTime = std::chrono::steady_clock::now();
-  backend->ParsePlan(plan->data(), plan->size());
-  auto resultIter = backend->GetResultIterator(
-      gluten::memory::DefaultMemoryAllocator().get(), std::move(inputIters));
-  auto outputSchema = backend->GetOutputSchema();
+  int64_t collectBatchTime = 0;
 
   for (auto _ : state) {
+    auto backend = gluten::CreateBackend();
+    std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
+    std::transform(input_files.cbegin(), input_files.cend(), std::back_inserter(inputIters), getInputIterator);
+    std::vector<BatchIteratorWrapper*> inputItersRaw;
+    std::transform(
+        inputIters.begin(),
+        inputIters.end(),
+        std::back_inserter(inputItersRaw),
+        [](std::shared_ptr<gluten::ResultIterator> iter) {
+          return static_cast<BatchIteratorWrapper*>(iter->GetRaw());
+        });
+
+    backend->ParsePlan(plan->data(), plan->size());
+    auto resultIter = backend->GetResultIterator(gluten::DefaultMemoryAllocator().get(), std::move(inputIters));
+    auto outputSchema = backend->GetOutputSchema();
+    ArrowWriter writer{FLAGS_write_file};
+    state.PauseTiming();
+    if (!FLAGS_write_file.empty()) {
+      writer.initWriter(*(outputSchema.get()));
+    }
+    state.ResumeTiming();
     while (resultIter->HasNext()) {
       auto array = resultIter->Next()->exportArrowArray();
-      if (FLAGS_print_result) {
-        state.PauseTiming();
-        auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-        if (!maybeBatch.ok()) {
-          state.SkipWithError(maybeBatch.status().message().c_str());
-          return;
-        }
-        std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
-        state.ResumeTiming();
+      state.PauseTiming();
+      auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+      if (!maybeBatch.ok()) {
+        state.SkipWithError(maybeBatch.status().message().c_str());
+        return;
       }
+      if (FLAGS_print_result) {
+        std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
+      }
+      if (!FLAGS_write_file.empty()) {
+        writer.writeInBatches(maybeBatch.ValueOrDie());
+      }
+      state.ResumeTiming();
     }
+    state.PauseTiming();
+    if (!FLAGS_write_file.empty()) {
+      writer.closeWriter();
+    }
+    state.ResumeTiming();
+
+    collectBatchTime +=
+        std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIteratorWrapper* iter) {
+          return sum + iter->GetCollectBatchTime();
+        });
+
+    auto* rawIter = static_cast<gluten::WholeStageResIter*>(resultIter->GetRaw());
+    const auto& task = rawIter->task_;
+    const auto& planNode = rawIter->planNode_;
+    auto statsStr = ::facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
+    std::cout << statsStr << std::endl;
   }
 
   auto endTime = std::chrono::steady_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime)
-          .count();
-  auto collectBatchTime = std::accumulate(
-      inputItersRaw.begin(),
-      inputItersRaw.end(),
-      0,
-      [](int64_t sum, BatchIteratorWrapper* iter) {
-        return sum + iter->GetCollectBatchTime();
-      });
-  duration -= collectBatchTime;
+  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
 
-  state.counters["collect_batch_time"] = benchmark::Counter(
-      collectBatchTime,
-      benchmark::Counter::kAvgIterations,
-      benchmark::Counter::OneK::kIs1000);
-  state.counters["elapsed_time"] = benchmark::Counter(
-      duration,
-      benchmark::Counter::kAvgIterations,
-      benchmark::Counter::OneK::kIs1000);
-
-  auto* rawIter =
-      static_cast<velox::compute::WholeStageResIter*>(resultIter->GetRaw());
-  const auto& task = rawIter->task_;
-  const auto& planNode = rawIter->planNode_;
-  auto statsStr = ::facebook::velox::exec::printPlanWithStats(
-      *planNode, task->taskStats(), true);
-  std::cout << statsStr << std::endl;
-
-  auto taskStats = task->taskStats();
-  for (const auto& pStat : taskStats.pipelineStats) {
-    for (const auto& opStat : pStat.operatorStats) {
-      if (opStat.operatorType != "N/A") {
-        // ${pipelineId}_${operatorId}_${planNodeId}_${operatorType}_${metric}
-        // Different operators may have same planNodeId, e.g. HashBuild and
-        // HashProbe from same HashNode.
-        const auto& opId = std::to_string(opStat.pipelineId) + "_" +
-            std::to_string(opStat.operatorId) + "_" + opStat.planNodeId + "_" +
-            opStat.operatorType;
-        state.counters[opId + "_addInputTiming"] = benchmark::Counter(
-            opStat.addInputTiming.cpuNanos,
-            benchmark::Counter::Flags::kAvgIterations);
-        state.counters[opId + "_getOutputTiming"] = benchmark::Counter(
-            opStat.getOutputTiming.cpuNanos,
-            benchmark::Counter::Flags::kAvgIterations);
-        state.counters[opId + "_finishTiming"] = benchmark::Counter(
-            opStat.finishTiming.cpuNanos,
-            benchmark::Counter::Flags::kAvgIterations);
-      }
-    }
-  }
+  state.counters["collect_batch_time"] =
+      benchmark::Counter(collectBatchTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  state.counters["elapsed_time"] =
+      benchmark::Counter(duration, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 };
 
 int main(int argc, char** argv) {
@@ -144,23 +121,48 @@ int main(int argc, char** argv) {
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  std::string substraitJsonFile = argv[1];
+  std::string substraitJsonFile;
   std::vector<std::string> inputFiles;
-  for (auto i = 2; i < argc; ++i) {
-    inputFiles.emplace_back(argv[i]);
+  try {
+    if (argc < 2) {
+      std::cout << "No input args. Usage: " << std::endl
+                << "./generic_benchmark /path/to/substrait_json_file /path/to/data_file_1 /path/to/data_file_2 ..."
+                << std::endl;
+      std::cout << "Running example..." << std::endl;
+      inputFiles.resize(2);
+      GLUTEN_ASSIGN_OR_THROW(substraitJsonFile, getGeneratedFilePath("example.json"));
+      GLUTEN_ASSIGN_OR_THROW(inputFiles[0], getGeneratedFilePath("example_orders"));
+      GLUTEN_ASSIGN_OR_THROW(inputFiles[1], getGeneratedFilePath("example_lineitem"));
+    } else {
+      substraitJsonFile = argv[1];
+      AbortIfFileNotExists(substraitJsonFile);
+      std::cout << "Using substrait json file: " << std::endl << substraitJsonFile << std::endl;
+      std::cout << "Using " << argc - 2 << " input data file(s): " << std::endl;
+      for (auto i = 2; i < argc; ++i) {
+        inputFiles.emplace_back(argv[i]);
+        AbortIfFileNotExists(inputFiles.back());
+        std::cout << inputFiles.back() << std::endl;
+      }
+    }
+  } catch (const std::exception& e) {
+    std::cout << "Failed to run benchmark: " << e.what() << std::endl;
+    ::benchmark::Shutdown();
+    std::exit(EXIT_FAILURE);
   }
 
-#define GENERIC_BENCHMARK(NAME, FUNC)                                     \
-  do {                                                                    \
-    auto* bm = ::benchmark::RegisterBenchmark(                            \
-                   NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
-                   ->MeasureProcessCPUTime()                              \
-                   ->UseRealTime();                                       \
-    if (FLAGS_threads > 0) {                                              \
-      bm->Threads(FLAGS_threads);                                         \
-    } else {                                                              \
-      bm->ThreadRange(1, std::thread::hardware_concurrency());            \
-    }                                                                     \
+#define GENERIC_BENCHMARK(NAME, FUNC)                                                                \
+  do {                                                                                               \
+    auto* bm = ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, FUNC) \
+                   ->MeasureProcessCPUTime()                                                         \
+                   ->UseRealTime();                                                                  \
+    if (FLAGS_threads > 0) {                                                                         \
+      bm->Threads(FLAGS_threads);                                                                    \
+    } else {                                                                                         \
+      bm->ThreadRange(1, std::thread::hardware_concurrency());                                       \
+    }                                                                                                \
+    if (FLAGS_iterations > 0) {                                                                      \
+      bm->Iterations(FLAGS_iterations);                                                              \
+    }                                                                                                \
   } while (0)
 
   GENERIC_BENCHMARK("InputFromBatchVector", getInputFromBatchVector);

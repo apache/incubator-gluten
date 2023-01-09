@@ -17,16 +17,31 @@
 
 package io.glutenproject.execution
 
+import com.google.common.collect.Lists
+import com.google.protobuf.Any
 import io.glutenproject.substrait.SubstraitContext
-
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression._
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
+import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.vectorized.OperatorMetrics
+import io.glutenproject.utils.BindReferencesUtil
+import io.substrait.proto.SortField
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Expression, NamedExpression, Rank, RowNumber, SortOrder, SpecifiedWindowFrame, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util
 
 case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                                  partitionSpec: Seq[Expression],
@@ -34,16 +49,53 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
                                  child: SparkPlan) extends WindowExecBase with TransformSupport {
 
   override lazy val metrics = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
-    "totalTime" -> SQLMetrics
-      .createTimingMetric(sparkContext, "totaltime_window"))
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
-  val numInputBatches = longMetric("numInputBatches")
-  val totalTime = longMetric("totalTime")
-  val sparkConf = sparkContext.getConf
+    "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
+    "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
+    "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "count" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_window"),
+    "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+    "numMemoryAllocations" -> SQLMetrics.createMetric(
+      sparkContext, "number of memory allocations"))
+
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val inputRows: SQLMetric = longMetric("inputRows")
+    val inputVectors: SQLMetric = longMetric("inputVectors")
+    val inputBytes: SQLMetric = longMetric("inputBytes")
+    val rawInputRows: SQLMetric = longMetric("rawInputRows")
+    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+    val outputRows: SQLMetric = longMetric("outputRows")
+    val outputVectors: SQLMetric = longMetric("outputVectors")
+    val outputBytes: SQLMetric = longMetric("outputBytes")
+    val cpuCount: SQLMetric = longMetric("count")
+    val wallNanos: SQLMetric = longMetric("wallNanos")
+    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
+    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+      if (operatorMetrics != null) {
+        inputRows += operatorMetrics.inputRows
+        inputVectors += operatorMetrics.inputVectors
+        inputBytes += operatorMetrics.inputBytes
+        rawInputRows += operatorMetrics.rawInputRows
+        rawInputBytes += operatorMetrics.rawInputBytes
+        outputRows += operatorMetrics.outputRows
+        outputVectors += operatorMetrics.outputVectors
+        outputBytes += operatorMetrics.outputBytes
+        cpuCount += operatorMetrics.count
+        wallNanos += operatorMetrics.wallNanos
+        peakMemoryBytes += operatorMetrics.peakMemoryBytes
+        numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      }
+    }
+  }
+
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
 
   override def supportsColumnar: Boolean = true
 
@@ -65,18 +117,11 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  override def equals(other: Any): Boolean = other match {
-    case that: WindowExecTransformer =>
-      (that canEqual this) && (that eq this)
-    case _ => false
-  }
-
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[WindowExecTransformer]
-
-  override def hashCode(): Int = System.identityHashCode(this)
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
+    case c: TransformSupport =>
+      c.columnarInputRDDs
+    case _ =>
+      Seq(child.executeColumnar())
   }
 
   /* private object NoneType {
@@ -111,14 +156,212 @@ case class WindowExecTransformer(windowExpression: Seq[NamedExpression],
     throw new UnsupportedOperationException(s"This operator doesn't support getStreamedLeafPlan.")
   }
 
-  override def getChild: SparkPlan = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getChild.")
+  override def getChild: SparkPlan = child
+
+  def getRelNode(context: SubstraitContext,
+                 windowExpression: Seq[NamedExpression],
+                 partitionSpec: Seq[Expression],
+                 sortOrder: Seq[SortOrder],
+                 originalInputAttributes: Seq[Attribute],
+                 operatorId: Long,
+                 input: RelNode,
+                 validation: Boolean): RelNode = {
+    val args = context.registeredFunction
+    // WindowFunction Expressions
+    val windowExpressions = new util.ArrayList[WindowFunctionNode]()
+    windowExpression.map { windowExpr =>
+        val aliasExpr = windowExpr.asInstanceOf[Alias]
+        val columnName = aliasExpr.name
+        val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
+        wExpression.windowFunction match {
+          case rowNumber: RowNumber =>
+            val frame = rowNumber.frame.asInstanceOf[SpecifiedWindowFrame]
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, rowNumber).toInt,
+              new util.ArrayList[ExpressionNode](),
+              columnName,
+              ConverterUtils.getTypeNode(rowNumber.dataType, rowNumber.nullable),
+              frame.upper.sql,
+              frame.lower.sql,
+              frame.frameType.sql)
+            windowExpressions.add(windowFunctionNode)
+          case aggExpression: AggregateExpression =>
+            val frame = wExpression.windowSpec.
+                      frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            val aggregateFunc = aggExpression.aggregateFunction
+
+            val substraitAggFuncName =
+              ExpressionMappings.aggregate_functions_map.get(aggregateFunc.getClass)
+            // Check whether each backend supports this aggregate function
+            if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
+              substraitAggFuncName.get, aggregateFunc)) {
+              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
+            }
+
+            var outputMap: Map[Expression, Int] = Map()
+            output.zipWithIndex.foreach { case (attr, index) =>
+              outputMap += (attr.canonicalized -> index)
+            }
+
+            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            val childrenNodes = aggregateFunc.children.toList.map(expr => {
+              ExpressionBuilder.makeSelection(outputMap(expr.canonicalized))
+            })
+            for (node <- childrenNodes) {
+              childrenNodeList.add(node)
+            }
+
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
+              frame.upper.sql,
+              frame.lower.sql,
+              frame.frameType.sql)
+            windowExpressions.add(windowFunctionNode)
+          case rank: Rank =>
+            val frame = rank.frame.asInstanceOf[SpecifiedWindowFrame]
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, rank).toInt,
+              new util.ArrayList[ExpressionNode](),
+              columnName,
+              ConverterUtils.getTypeNode(rank.dataType, rank.nullable),
+              frame.upper.sql,
+              frame.lower.sql,
+              frame.frameType.sql)
+            windowExpressions.add(windowFunctionNode)
+          case _ =>
+            throw new UnsupportedOperationException("unsupported window function type: " +
+              wExpression.windowFunction)
+        }
+      }
+
+    // Partition By Expressions
+    val partitionsExpressions = new util.ArrayList[ExpressionNode]()
+    partitionSpec.map { partitionExpr =>
+      val exprNode = ExpressionConverter
+        .replaceWithExpressionTransformer(partitionExpr, attributeSeq = child.output)
+        .doTransform(args)
+      partitionsExpressions.add(exprNode)
+    }
+
+    // Sort By Expressions
+    val sortFieldList = new util.ArrayList[SortField]()
+    sortOrder.map(order => {
+      val builder = SortField.newBuilder();
+      val exprNode = ExpressionConverter
+        .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
+        .doTransform(args)
+      builder.setExpr(exprNode.toProtobuf)
+
+      (order.direction.sql, order.nullOrdering.sql) match {
+        case ("ASC", "NULLS FIRST") =>
+          builder.setDirectionValue(1);
+        case ("ASC", "NULLS LAST") =>
+          builder.setDirectionValue(2);
+        case ("DESC", "NULLS FIRST") =>
+          builder.setDirectionValue(3);
+        case ("DESC", "NULLS LAST") =>
+          builder.setDirectionValue(4);
+        case _ =>
+          builder.setDirectionValue(0);
+      }
+      sortFieldList.add(builder.build())
+    })
+    if (!validation) {
+      RelBuilder.makeWindowRel(
+        input,
+        windowExpressions,
+        partitionsExpressions,
+        sortFieldList,
+        context,
+        operatorId)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      for (attr <- originalInputAttributes) {
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      }
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+
+      RelBuilder.makeWindowRel(
+        input,
+        windowExpressions,
+        partitionsExpressions,
+        sortFieldList,
+        extensionNode,
+        context,
+        operatorId)
+    }
   }
 
-  override def doValidate(): Boolean = false
+  override def doValidate(): Boolean = {
+    if (!BackendsApiManager.getSettings.supportWindowExec()) {
+      return false
+    }
+    val substraitContext = new SubstraitContext
+    val operatorId = substraitContext.nextOperatorId
+
+    val relNode = try {
+      getRelNode(
+        substraitContext,
+        windowExpression, partitionSpec,
+        orderSpec, child.output, operatorId, null, validation = true)
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+
+    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
+      val planNode = PlanBuilder.makePlan(substraitContext,
+        Lists.newArrayList(relNode))
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+    } else {
+      true
+    }
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+    val childCtx = child match {
+      case c: TransformSupport =>
+        c.doTransform(context)
+      case _ =>
+        null
+    }
+
+    val operatorId = context.nextOperatorId
+    if (windowExpression == null || windowExpression.isEmpty) {
+      // The computing for this project is not needed.
+      context.registerEmptyRelToOperator(operatorId)
+      return childCtx
+    }
+
+    val (currRel, inputAttributes) = if (childCtx != null) {
+      (getRelNode(
+        context, windowExpression,
+        partitionSpec, orderSpec, child.output,
+        operatorId, childCtx.root, validation = false),
+        childCtx.outputAttributes)
+    } else {
+      // This means the input is just an iterator, so an ReadRel will be created as child.
+      // Prepare the input schema.
+      val attrList = new util.ArrayList[Attribute]()
+      for (attr <- child.output) {
+        attrList.add(attr)
+      }
+      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      (getRelNode(
+        context, windowExpression,
+        partitionSpec, orderSpec,
+        child.output, operatorId, readRel, validation = false),
+        child.output)
+    }
+    assert(currRel != null, "Window Rel should be valid")
+    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
+    TransformContext(inputAttributes, outputAttrs, currRel)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

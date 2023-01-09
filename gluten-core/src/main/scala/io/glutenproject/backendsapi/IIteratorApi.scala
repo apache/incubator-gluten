@@ -18,13 +18,12 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseNativeFilePartition, WholestageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
-import io.glutenproject.memory.alloc.Spiller
+import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.vectorized.{ExpressionEvaluator, ExpressionEvaluatorJniWrapper, GeneralInIterator, GeneralOutIterator}
-
+import io.glutenproject.vectorized.{GeneralOutIterator, Metrics, NativeExpressionEvaluator}
 import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
@@ -32,18 +31,17 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskMemoryResourceManager
 
-trait IIteratorApi extends IBackendsApi {
+trait IIteratorApi {
 
   /**
    * Generate native row partition.
    *
    * @return
    */
-  def genNativeFilePartition(index: Int,
-                             partitions: Seq[InputPartition],
-                             wsCxt: WholestageTransformContext): BaseNativeFilePartition
+  def genFilePartition(index: Int,
+                       partitions: Seq[InputPartition],
+                       wsCxt: WholestageTransformContext): BaseGlutenPartition
 
   /**
    * Generate Iterator[ColumnarBatch] for CoalesceBatchesExec.
@@ -68,44 +66,38 @@ trait IIteratorApi extends IBackendsApi {
 
   /**
    * Generate Iterator[ColumnarBatch] for first stage.
+   * ("first" means it does not depend on other SCAN inputs)
    *
    * @return
    */
-  def genFirstStageIterator(inputPartition: BaseNativeFilePartition, loadNative: Boolean,
+  def genFirstStageIterator(inputPartition: BaseGlutenPartition,
                             outputAttributes: Seq[Attribute], context: TaskContext,
                             pipelineTime: SQLMetric,
-                            updateMetrics: (Long, Long) => Unit,
-                            updateNativeMetrics: GeneralOutIterator => Unit,
+                            updateOutputMetrics: (Long, Long) => Unit,
+                            updateNativeMetrics: Metrics => Unit,
                             inputIterators: Seq[Iterator[ColumnarBatch]] = Seq())
   : Iterator[ColumnarBatch]
 
   /**
    * Generate Iterator[ColumnarBatch] for final stage.
+   * ("Final" means it depends on other SCAN inputs, maybe it was a mistake to use the word "final")
    *
    * @return
    */
   // scalastyle:off argcount
   def genFinalStageIterator(inputIterators: Seq[Iterator[ColumnarBatch]],
                             numaBindingInfo: GlutenNumaBindingInfo,
-                            listJars: Seq[String],
-                            signature: String,
                             sparkConf: SparkConf,
                             outputAttributes: Seq[Attribute],
                             rootNode: PlanNode,
                             pipelineTime: SQLMetric,
-                            updateMetrics: (Long, Long) => Unit,
-                            updateNativeMetrics: GeneralOutIterator => Unit,
+                            updateOutputMetrics: (Long, Long) => Unit,
+                            updateNativeMetrics: Metrics => Unit,
                             buildRelationBatchHolder: Seq[ColumnarBatch],
-                            dependentKernels: Seq[ExpressionEvaluator],
+                            dependentKernels: Seq[NativeExpressionEvaluator],
                             dependentKernelIterators: Seq[GeneralOutIterator])
   : Iterator[ColumnarBatch]
   // scalastyle:on argcount
-  /**
-   * Generate columnar native iterator.
-   *
-   * @return
-   */
-  def genColumnarNativeIterator(delegated: Iterator[ColumnarBatch]): GeneralInIterator
 
   /**
    * Generate Native FileScanRDD, currently only for ClickHouse Backend.
@@ -126,15 +118,5 @@ trait IIteratorApi extends IBackendsApi {
   def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
                                       spiller: Spiller,
                                       taskMemoryMetrics: TaskMemoryMetrics
-                                     ): TaskMemoryResourceManager
-
-  /**
-   * Generate BatchIterator for ExpressionEvaluator.
-   *
-   * @return
-   */
-  def genBatchIterator(allocId: java.lang.Long, wsPlan: Array[Byte],
-                       iterList: Seq[GeneralInIterator],
-                       jniWrapper: ExpressionEvaluatorJniWrapper,
-                       outAttrs: Seq[Attribute]): GeneralOutIterator
+                                     ): NativeMemoryAllocatorManager
 }

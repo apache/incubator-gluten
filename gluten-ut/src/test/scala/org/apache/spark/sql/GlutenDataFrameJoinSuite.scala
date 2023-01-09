@@ -21,39 +21,7 @@ import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHash
 
 class GlutenDataFrameJoinSuite extends DataFrameJoinSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
-    "join - sorted columns not in join's outputSet",
-    "join - join using multiple columns and specifying join type",
-    "broadcast join hint using broadcast function",
-    "broadcast join hint using Dataset.hint",
-    "process outer join results using the non-nullable columns in the join input",
-    "SPARK-16991: Full outer join followed by inner join produces wrong results",
-    // there is issue when executing this test case with velox backend
-    "SPARK-24690 enables star schema detection even if CBO disabled",
-    "Supports multi-part names for broadcast hint resolution",
-    "SPARK-32693: Compare two dataframes with same schema except nullable property",
-    "SPARK-34527: Resolve common columns from USING JOIN",
-    "SPARK-39376: Hide duplicated columns in star expansion of subquery alias from USING JOIN",
-    "SPARK-17685: WholeStageCodegenExec throws IndexOutOfBoundsException"
+  override def testNameBlackList: Seq[String] = Seq(
+    "Supports multi-part names for broadcast hint resolution"
   )
-
-  /**
-   * re-write the original unit test.
-   */
-  test(GlutenTestConstants.GLUTEN_TEST + "broadcast join hint using Dataset.hint") {
-    // make sure a giant join is not broadcastable
-    val plan1 =
-      spark.range(10e10.toLong)
-        .join(spark.range(10e10.toLong), "id")
-        .queryExecution.executedPlan
-    assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size == 0)
-
-    // now with a hint it should be broadcasted
-    val plan2 =
-      spark.range(10e10.toLong)
-        .join(spark.range(10e10.toLong).hint("broadcast"), "id")
-        .queryExecution.executedPlan
-    // Currently, Gluten can not support join hint
-    assert(collect(plan2) { case p: ShuffledHashJoinExec => p }.size == 1)
-  }
 }

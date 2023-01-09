@@ -17,35 +17,32 @@
 
 package io.glutenproject.expression
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
-
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 
 object AggregateFunctionsBuilder {
 
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = aggregateFunc match {
-      case sum: Sum =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.SUM, Seq(sum.child.dataType), FunctionConfig.OPT)
-      case avg: Average =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.AVG, Seq(avg.child.dataType), FunctionConfig.OPT)
-      case count: Count =>
-        val childrenTypes = count.children.map(child => child.dataType)
-        ConverterUtils.makeFuncName(
-          ConverterUtils.COUNT, childrenTypes, FunctionConfig.OPT)
-      case min: Min =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.MIN, Seq(min.child.dataType), FunctionConfig.OPT)
-      case max: Max =>
-        ConverterUtils.makeFuncName(
-          ConverterUtils.MAX, Seq(max.child.dataType), FunctionConfig.OPT)
-      case other =>
-        throw new UnsupportedOperationException(s"not currently supported: $other.")
+
+    val substraitAggFuncName =
+      ExpressionMappings.aggregate_functions_map.get(aggregateFunc.getClass)
+    // Check whether Gluten supports this aggregate function
+    if (substraitAggFuncName.isEmpty) {
+      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
     }
-    ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    // Check whether each backend supports this aggregate function
+    if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
+      substraitAggFuncName.get, aggregateFunc )) {
+      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
+    }
+    ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitAggFuncName.get,
+        aggregateFunc.children.map(child => child.dataType),
+        FunctionConfig.REQ))
   }
 }

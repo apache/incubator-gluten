@@ -16,10 +16,9 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -38,13 +37,15 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
+import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, V2CommandExec}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseScan
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
-import org.apache.spark.sql.types.{Metadata, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable.ArrayBuffer
@@ -83,13 +84,13 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
   }
 
   /**
-   * Generate NativeColumnarToRowExec.
+   * Generate GlutenColumnarToRowExecBase.
    *
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): NativeColumnarToRowExec = {
-    BlockNativeColumnarToRowExec(child);
+  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
+    BlockGlutenColumnarToRowExec(child);
   }
 
   /**
@@ -98,7 +99,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @param child
    * @return
    */
-  override def genRowToColumnarExec(child: SparkPlan): RowToArrowColumnarExec = {
+  override def genRowToColumnarExec(child: SparkPlan): GlutenRowToColumnarExec = {
     new RowToCHNativeColumnarExec(child)
   }
 
@@ -114,7 +115,16 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    */
   override def genFilterExecTransformer(
       condition: Expression,
-      child: SparkPlan): FilterExecBaseTransformer = FilterExecTransformer(condition, child)
+      child: SparkPlan): FilterExecBaseTransformer = {
+    child match {
+      case scan: FileSourceScanExec if scan.relation.location.isInstanceOf[ClickHouseFileIndex] =>
+        CHFilterExecTransformer(condition, child)
+      case scan: BatchScanExec if scan.batch.isInstanceOf[ClickHouseScan] =>
+        CHFilterExecTransformer(condition, child)
+      case _ =>
+        FilterExecTransformer(condition, child)
+    }
+  }
 
   /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(
@@ -186,12 +196,10 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    *   a transformer for alias
    */
   def genAliasTransformer(
-      child: Expression,
-      name: String,
-      exprId: ExprId,
-      qualifier: Seq[String],
-      explicitMetadata: Option[Metadata]): AliasBaseTransformer =
-    new AliasTransformer(child, name)(exprId, qualifier, explicitMetadata)
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Expression): AliasBaseTransformer =
+    new AliasTransformer(substraitExprName, child, original)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -212,7 +220,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      prepareTime: SQLMetric,
+      inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
       outputAttributes,
@@ -226,7 +235,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       splitTime,
       spillTime,
       compressTime,
-      prepareTime
+      prepareTime,
+      inputBatches
     )
   }
   // scalastyle:on argcount
@@ -366,11 +376,4 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

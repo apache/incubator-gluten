@@ -25,12 +25,15 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <thread>
 
-#include "compute/VeloxPlanConverter.h"
+#include "compute/VeloxBackend.h"
 
 DEFINE_bool(print_result, true, "Print result for execution");
+DEFINE_string(write_file, "", "Write the output to parquet file, file absolute path");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 0, "The number of threads to run this benchmark");
+DEFINE_int32(iterations, 0, "The number of iterations to run this benchmark");
 
 using namespace boost::filesystem;
 namespace fs = std::filesystem;
@@ -42,27 +45,43 @@ std::string getExampleFilePath(const std::string& fileName) {
   if (path.is_absolute()) {
     return fileName;
   }
-  return ::facebook::velox::test::getDataFilePath(
-      "cpp/velox/benchmarks", "data/" + fileName);
+  return ::facebook::velox::test::getDataFilePath("cpp/velox/benchmarks", "data/" + fileName);
+}
+
+arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
+  std::string currentPath = fs::current_path().c_str();
+  auto generatedFilePath = currentPath + "/../../../backends-velox/generated-native-benchmark/";
+  fs::directory_entry filePath{generatedFilePath + fileName};
+  if (filePath.exists()) {
+    if (filePath.is_regular_file() && filePath.path().extension().native() == ".json") {
+      // If fileName points to a regular file, it should be substrait json plan.
+      return filePath.path().c_str();
+    } else if (filePath.is_directory()) {
+      // If fileName points to a directory, get the generated parquet data.
+      auto dirItr = fs::directory_iterator(fs::path(filePath));
+      for (auto& itr : dirItr) {
+        if (itr.is_regular_file() && itr.path().extension().native() == ".parquet") {
+          return itr.path().c_str();
+        }
+      }
+    }
+  }
+  return arrow::Status::Invalid("Could not get generated file from given path: " + fileName);
 }
 
 void InitVeloxBackend() {
-  gluten::SetBackendFactory([] {
-    return std::make_shared<::velox::compute::VeloxPlanConverter>(confMap);
-  });
-  auto veloxInitializer =
-      std::make_shared<::velox::compute::VeloxInitializer>();
+  gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(confMap); });
+  auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(confMap);
 }
 
-arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(
-    const std::string& filePath) {
+arrow::Result<std::shared_ptr<arrow::Buffer>> getPlanFromFile(const std::string& filePath) {
   // Read json file and resume the binary data.
   std::ifstream msgJson(filePath);
   std::stringstream buffer;
   buffer << msgJson.rdbuf();
   std::string msgData = buffer.str();
 
-  auto maybePlan = SubstraitFromJSON("Plan", msgData);
+  auto maybePlan = gluten::SubstraitFromJsonToPb("Plan", msgData);
   return maybePlan;
 }
 
@@ -98,41 +117,46 @@ std::shared_ptr<facebook::velox::substrait::SplitInfo> getFileInfos(
   return scanInfo;
 }
 
+bool CheckPathExists(const std::string& filepath) {
+  std::filesystem::path f{filepath};
+  return std::filesystem::exists(f);
+}
+
+void AbortIfFileNotExists(const std::string& filepath) {
+  if (!CheckPathExists(filepath)) {
+    std::cerr << "File path does not exist: " << filepath << std::endl;
+    ::benchmark::Shutdown();
+    std::exit(EXIT_FAILURE);
+  }
+}
+
 bool EndsWith(const std::string& data, const std::string& suffix) {
   return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
 }
 
-std::shared_ptr<arrow::RecordBatchReader> createReader(
-    const std::string& path) {
+std::shared_ptr<arrow::RecordBatchReader> createReader(const std::string& path) {
   std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
   std::shared_ptr<arrow::RecordBatchReader> recordBatchReader;
-  ::parquet::ArrowReaderProperties properties =
-      ::parquet::default_arrow_reader_properties();
+  ::parquet::ArrowReaderProperties properties = ::parquet::default_arrow_reader_properties();
 
   GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-      arrow::default_memory_pool(),
-      ::parquet::ParquetFileReader::OpenFile(path),
-      properties,
-      &parquetReader));
-  GLUTEN_THROW_NOT_OK(parquetReader->GetRecordBatchReader(
-      arrow::internal::Iota(parquetReader->num_row_groups()),
-      &recordBatchReader));
+      arrow::default_memory_pool(), ::parquet::ParquetFileReader::OpenFile(path), properties, &parquetReader));
+  GLUTEN_THROW_NOT_OK(
+      parquetReader->GetRecordBatchReader(arrow::internal::Iota(parquetReader->num_row_groups()), &recordBatchReader));
   return recordBatchReader;
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchVector(
-    const std::string& path) {
-  return std::make_shared<gluten::GlutenResultIterator>(
-      std::make_shared<BatchVectorIterator>(path));
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchVector(const std::string& path) {
+  return std::make_shared<gluten::ResultIterator>(std::make_unique<BatchVectorIterator>(path));
 }
 
-std::shared_ptr<gluten::GlutenResultIterator> getInputFromBatchStream(
-    const std::string& path) {
-  return std::make_shared<gluten::GlutenResultIterator>(
-      std::make_shared<BatchStreamIterator>(path));
+std::shared_ptr<gluten::ResultIterator> getInputFromBatchStream(const std::string& path) {
+  return std::make_shared<gluten::ResultIterator>(std::make_unique<BatchStreamIterator>(path));
 }
 
 void setCpu(uint32_t cpuindex) {
+  static const auto total_cores = std::thread::hardware_concurrency();
+  cpuindex = cpuindex % total_cores;
   cpu_set_t cs;
   CPU_ZERO(&cs);
   CPU_SET(cpuindex, &cs);

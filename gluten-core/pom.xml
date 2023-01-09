@@ -13,7 +13,6 @@
     <name>Gluten Core</name>
 
     <properties>
-        <cpp.dir>../cpp/</cpp.dir>
         <cpp.build.dir>../cpp/build/releases/</cpp.build.dir>
         <resource.dir>${project.basedir}/src/main/resources</resource.dir>
         <build.testJarPhase>none</build.testJarPhase>
@@ -27,7 +26,6 @@
         <!-- protobuf paths -->
         <protobuf.input.directory>${resource.dir}/substrait/proto</protobuf.input.directory>
         <!-- library versions -->
-        <build-helper-maven-plugin.version>3.0.0</build-helper-maven-plugin.version>
         <maven-antrun-plugin.version>1.8</maven-antrun-plugin.version>
         <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
         <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
@@ -187,36 +185,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mariadb.jdbc</groupId>
-            <artifactId>mariadb-java-client</artifactId>
-            <version>2.7.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.3.7</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.ibm.db2.jcc</groupId>
-            <artifactId>db2jcc</artifactId>
-            <version>db2jcc4</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.microsoft.sqlserver</groupId>
-            <artifactId>mssql-jdbc</artifactId>
-            <version>9.2.1.jre8</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>io.glutenproject</groupId>
             <artifactId>spark-sql-columnar-shims-common</artifactId>
             <version>${project.version}</version>
@@ -225,6 +193,11 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
             <version>${protobuf.version}</version>
         </dependency>
         <dependency>

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v2
 
-import io.glutenproject.execution.{FirstZippedPartitionsPartition, NativeFilePartition}
+import io.glutenproject.execution.{FirstZippedPartitionsPartition, GlutenFilePartition}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.ddlplan.{DllNode, DllTransformContext, InsertOutputBuilder, InsertPlanNode}
@@ -213,7 +213,7 @@ case class ClickHouseAppendDataExec(
     val substraitPlanPartition = partitions.map(
       p => {
         p match {
-          case FirstZippedPartitionsPartition(index: Int, inputPartition: NativeFilePartition, _) =>
+          case FirstZippedPartitionsPartition(index: Int, inputPartition: GlutenFilePartition, _) =>
             val files = inputPartition.files
             if (files.length > 1) {
               throw new SparkException(

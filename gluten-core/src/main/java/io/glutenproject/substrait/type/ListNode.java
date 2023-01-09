@@ -12,6 +12,11 @@ public class ListNode implements TypeNode, Serializable {
     this.nestedType = nestedType;
   }
 
+  // It's used in ExplodeTransformer to determine output datatype from children.
+  public TypeNode getNestedType() {
+    return nestedType;
+  }
+
   @Override
   public Type toProtobuf() {
     Type.List.Builder listBuilder = Type.List.newBuilder();

@@ -17,18 +17,18 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.ITransformerApi
-import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
-import io.glutenproject.utils.InputPartitionsUtil
+import io.glutenproject.utils.CHInputPartitionsUtil
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 
 class CHTransformerApi extends ITransformerApi with Logging {
@@ -53,7 +53,6 @@ class CHTransformerApi extends ITransformerApi with Logging {
             expr => {
               val node = ExpressionConverter
                 .replaceWithExpressionTransformer(expr, outputAttributes)
-                .asInstanceOf[ExpressionTransformer]
                 .doTransform(substraitContext.registeredFunction)
               if (!node.isInstanceOf[SelectionNode]) {
                 logDebug("Expressions are not supported in HashPartitioning.")
@@ -63,7 +62,9 @@ class CHTransformerApi extends ITransformerApi with Logging {
               }
             })
           .exists(_ == false))
-      case RangePartitioning(_, _) => false
+      case RangePartitioning(orderings, _) =>
+        GlutenConfig.getSessionConf.enableColumnarSort &&
+        RangePartitionerBoundsGenerator.supportedOrderings(orderings)
       case _ => true
     }
   }
@@ -75,7 +76,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
    *   true if backend supports reading the file format.
    */
   def supportsReadFileFormat(fileFormat: FileFormat): Boolean =
-    GlutenConfig.getConf.isClickHouseBackend && fileFormat.isInstanceOf[ParquetFileFormat]
+    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
@@ -86,14 +87,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
       relation.location.asInstanceOf[ClickHouseFileIndex].partsPartitions
     } else {
       // Generate FilePartition for Parquet
-      InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+      CHInputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
     }
   }
-
-  /**
-   * Get the backend api name.
-   *
-   * @return
-   */
-  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 }

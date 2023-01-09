@@ -18,9 +18,4 @@
 package org.apache.spark.sql
 
 class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTrait {
-
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL,
-    "function current_timestamp and now"
-  )
 }

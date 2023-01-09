@@ -32,26 +32,51 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+
 project(spark_columnar_plugin)
 
-option(DEBUG "Enable Debug Info" OFF)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
-option(BUILD_GAZELLE_CPP "Build the gazelle-cpp libraries" OFF)
+option(BUILD_GAZELLE_CPP_BACKEND "Build the gazelle-cpp libraries" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
+option(VELOX_ENABLE_S3 "Enable S3" OFF)
+option(VELOX_ENABLE_HDFS "Enable HDFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 
 #
 # Compiler flags
 #
+string(TOLOWER ${CMAKE_BUILD_TYPE} LOWERCASE_BUILD_TYPE)
 
-if(DEBUG)
+if (${LOWERCASE_BUILD_TYPE} STREQUAL "relwithdebinfo")
+# keep this original logic
   add_definitions(-DGLUTEN_PRINT_DEBUG)
+  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
+elseif (${LOWERCASE_BUILD_TYPE} STREQUAL "debug")
+  add_definitions(-DGLUTEN_PRINT_DEBUG)
+  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
+# set CMAKE_BUILD_TYPE to Debug according to the CMake tutorial
+  set(CMAKE_BUILD_TYPE Debug)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
+  message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
+else ()
+  add_definitions(-DNDEBUG)
+  message(STATUS "Add definition NDEBUG")
 endif()
+
+add_compile_options(-Wall)
+add_compile_options(-Wno-sign-compare)
+add_compile_options(-Wno-comment)
+
+add_compile_options(-Werror)
+add_compile_options(-Wno-error=parentheses)
+add_compile_options(-Wno-error=unused-function)
+add_compile_options(-Wno-error=unused-variable)
+add_compile_options(-Wno-error=unused-but-set-variable)
 
 #
 # Dependencies
@@ -61,6 +86,8 @@ option(BUILD_ARROW "Build Arrow from Source" ON)
 option(STATIC_ARROW "Build Arrow with Static Libraries" OFF)
 
 include(ConfigArrow)
+
+include_directories(build/releases)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -95,7 +122,7 @@ function(ADD_TEST_CASE TEST_NAME)
 
   add_executable(${TEST_NAME} ${SOURCES})
   target_link_libraries(${TEST_NAME} spark_columnar_jni gtest gtest_main Threads::Threads)
-  target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)
     target_link_libraries(${TEST_NAME} ${ARG_EXTRA_LINK_LIBS})
@@ -124,12 +151,12 @@ endif()
 # Subdirectories
 #
 
-add_subdirectory(src)
+add_subdirectory(core)
 
-if(BUILD_GAZELLE_CPP)
+if(BUILD_GAZELLE_CPP_BACKEND)
   add_subdirectory(gazelle-cpp)
 endif()
 
-if(BUILD_VELOX)
+if(BUILD_VELOX_BACKEND)
   add_subdirectory(velox)
 endif()

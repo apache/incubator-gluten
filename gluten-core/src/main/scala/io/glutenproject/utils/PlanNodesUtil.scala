@@ -55,13 +55,13 @@ object PlanNodesUtil {
     // project
     operatorId = context.nextOperatorId
     val args = context.registeredFunction
-    val columnarProjExprs: Seq[Expression] = keys.map(expr => {
+    val columnarProjExprs: Seq[ExpressionTransformer] = keys.map(expr => {
       ExpressionConverter
         .replaceWithExpressionTransformer(expr, attributeSeq = output)
     })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
-      projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      projExprNodeList.add(expr.doTransform(args))
     }
     val projectNode = RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId)
 

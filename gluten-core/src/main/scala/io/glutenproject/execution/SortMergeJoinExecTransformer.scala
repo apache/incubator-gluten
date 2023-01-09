@@ -17,9 +17,15 @@
 
 package io.glutenproject.execution
 
+import com.google.common.collect.Lists
+import com.google.protobuf.StringValue
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.substrait.SubstraitContext
-
+import io.glutenproject.substrait.{JoinParams, SubstraitContext}
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.GlutenConfig
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.substrait.proto.JoinRel
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -28,6 +34,10 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.JavaConverters._
+
+import java.{lang, util}
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
@@ -53,35 +63,23 @@ case class SortMergeJoinExecTransformer(
     "totaltime_sortmergejoin" -> SQLMetrics
       .createTimingMetric(sparkContext, "totaltime_sortmergejoin"))
   val sparkConf = sparkContext.getConf
-  val numOutputRows = longMetric("numOutputRows")
-  val numOutputBatches = longMetric("numOutputBatches")
-  val joinTime = longMetric("joinTime")
-  val prepareTime = longMetric("prepareTime")
-  val totaltime_sortmegejoin = longMetric("totaltime_sortmergejoin")
-  val resultSchema = this.schema
-  val (buildKeys, streamedKeys, buildPlan, streamedPlan) = joinType match {
-    case LeftSemi =>
-      (rightKeys, leftKeys, right, left)
-    case LeftOuter =>
-      (rightKeys, leftKeys, right, left)
-    case LeftAnti =>
-      (rightKeys, leftKeys, right, left)
-    case j: ExistenceJoin =>
-      (rightKeys, leftKeys, right, left)
-    case LeftExistence(_) =>
-      (rightKeys, leftKeys, right, left)
-    case _ =>
-      left match {
-        case p: SortMergeJoinExecTransformer =>
-          (rightKeys, leftKeys, right, left)
-        case FilterExecTransformer(_, child: SortMergeJoinExecTransformer) =>
-          (rightKeys, leftKeys, right, left)
-        case ProjectExecTransformer(_, child: SortMergeJoinExecTransformer) =>
-          (rightKeys, leftKeys, right, left)
-        case other =>
-          (leftKeys, rightKeys, left, right)
-      }
+
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val numOutputRows = longMetric("numOutputRows")
+    val numOutputBatches = longMetric("numOutputBatches")
+    val joinTime = longMetric("joinTime")
+    val prepareTime = longMetric("prepareTime")
+    val totaltime_sortmegejoin = longMetric("totaltime_sortmergejoin")
+
+    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+      numOutputBatches += outNumBatches
+      numOutputRows += outNumRows
+    }
   }
+
+  val resultSchema = this.schema
+  val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
+    (rightKeys, leftKeys, right, left)
 
   override def supportsColumnar: Boolean = true
 
@@ -197,16 +195,13 @@ case class SortMergeJoinExecTransformer(
     keys.map(SortOrder(_, Ascending))
   }
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = streamedPlan match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(streamedPlan.executeColumnar())
+  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(bufferedPlan)
   }
 
   override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
 
-    val curBuildPlan: Seq[(SparkPlan, SparkPlan)] = buildPlan match {
+    val curbufferedPlan: Seq[(SparkPlan, SparkPlan)] = bufferedPlan match {
       case s: SortExecTransformer =>
         Seq((s, this))
       case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
@@ -217,11 +212,11 @@ case class SortMergeJoinExecTransformer(
     }
     streamedPlan match {
       case c: TransformSupport if c.isInstanceOf[SortExecTransformer] =>
-        curBuildPlan ++ Seq((c, this))
+        curbufferedPlan ++ Seq((c, this))
       case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
-        c.getBuildPlans ++ curBuildPlan
+        c.getBuildPlans ++ curbufferedPlan
       case _ =>
-        curBuildPlan
+        curbufferedPlan
     }
   }
 
@@ -232,17 +227,146 @@ case class SortMergeJoinExecTransformer(
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    numOutputBatches += outNumBatches
-    numOutputRows += outNumRows
-  }
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
 
   override def getChild: SparkPlan = streamedPlan
 
-  override def doValidate(): Boolean = false
+  def genJoinParametersBuilder(): com.google.protobuf.Any.Builder = {
+    val (isSMJ, isNullAwareAntiJoin) = (0, 0)
+    // Start with "JoinParameters:"
+    val joinParametersStr = new StringBuffer("JoinParameters:")
+    // isSMJ: 0 for SMJ, 1 for SHJ
+    // isNullAwareAntiJoin: 0 for false, 1 for true
+    // buildHashTableId: the unique id for the hash table of build plan
+    joinParametersStr.append("isSMJ=").append(isSMJ).append("\n")
+      .append("isNullAwareAntiJoin=").append(isNullAwareAntiJoin).append("\n")
+      .append("isExistenceJoin=").append(
+      if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0).append("\n")
+    val message = StringValue
+      .newBuilder()
+      .setValue(joinParametersStr.toString)
+      .build()
+    com.google.protobuf.Any.newBuilder
+      .setValue(message.toByteString)
+      .setTypeUrl("/google.protobuf.StringValue")
+  }
+
+  // Direct output order of substrait join operation
+  protected  val substraitJoinType = joinType match {
+    case Inner =>
+      JoinRel.JoinType.JOIN_TYPE_INNER
+    case FullOuter =>
+      JoinRel.JoinType.JOIN_TYPE_OUTER
+    case LeftOuter =>
+      JoinRel.JoinType.JOIN_TYPE_LEFT
+    case RightOuter =>
+      JoinRel.JoinType.JOIN_TYPE_RIGHT
+    case LeftSemi =>
+      JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+    case LeftAnti =>
+      JoinRel.JoinType.JOIN_TYPE_ANTI
+    case _ =>
+      // TODO: Support cross join with Cross Rel
+      // TODO: Support existence join
+      JoinRel.JoinType.UNRECOGNIZED
+  }
+
+  override def doValidate(): Boolean = {
+    val substraitContext = new SubstraitContext
+    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
+    if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
+      return false
+    }
+    val relNode = try {
+      JoinUtils.createJoinRel(
+        streamedKeys,
+        bufferedKeys,
+        condition,
+        substraitJoinType,
+        false,
+        joinType,
+        genJoinParametersBuilder(),
+        null, null, streamedPlan.output,
+        bufferedPlan.output, substraitContext, substraitContext.nextOperatorId, validation = true)
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
+    // Then, validate the generated plan in native engine.
+    if (GlutenConfig.getConf.enableNativeValidation) {
+      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
+    } else {
+      true
+    }
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
+    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute], Boolean) = {
+      plan match {
+        case p: TransformSupport =>
+          val transformContext = p.doTransform(context)
+          (transformContext.root, transformContext.outputAttributes, false)
+        case _ =>
+          val readRel = RelBuilder.makeReadRel(
+            new util.ArrayList[Attribute](plan.output.asJava),
+            context,
+            new lang.Long(-1)) /* A special handling in Join to delay the rel registration. */
+          (readRel, plan.output, true)
+      }
+    }
+
+    val joinParams = new JoinParams
+    val (inputStreamedRelNode, inputStreamedOutput, isStreamedReadRel) =
+      transformAndGetOutput(streamedPlan)
+    joinParams.isStreamedReadRel = isStreamedReadRel
+
+    val (inputBuildRelNode, inputBuildOutput, isBuildReadRel) =
+      transformAndGetOutput(bufferedPlan)
+    joinParams.isBuildReadRel = isBuildReadRel
+
+    // Get the operator id of this Join.
+    val operatorId = context.nextOperatorId
+
+    // Register the ReadRel to correct operator Id.
+    if (joinParams.isStreamedReadRel) {
+      context.registerRelToOperator(operatorId)
+    }
+    if (joinParams.isBuildReadRel) {
+      context.registerRelToOperator(operatorId)
+    }
+
+    if (JoinUtils.preProjectionNeeded(leftKeys)) {
+      joinParams.streamPreProjectionNeeded = true
+    }
+    if (JoinUtils.preProjectionNeeded(rightKeys)) {
+      joinParams.buildPreProjectionNeeded = true
+    }
+
+    val joinRel = JoinUtils.createJoinRel(
+      streamedKeys,
+      bufferedKeys,
+      condition,
+      substraitJoinType,
+      false,
+      joinType,
+      genJoinParametersBuilder(),
+      inputStreamedRelNode,
+      inputBuildRelNode,
+      inputStreamedOutput,
+      inputBuildOutput,
+      context,
+      operatorId)
+
+    context.registerJoinParam(operatorId, joinParams)
+
+    JoinUtils.createTransformContext(
+      false,
+      output,
+      joinRel,
+      inputStreamedOutput,
+      inputBuildOutput)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

@@ -25,7 +25,7 @@ object GlutenTestConstants {
 
   val IGNORE_ALL: String = "IGNORE_ALL"
 
-  val SUPPORTED_DATA_TYPE = Seq(
+  val SUPPORTED_DATA_TYPE = TypeCollection(
     BooleanType,
     ByteType,
     ShortType,

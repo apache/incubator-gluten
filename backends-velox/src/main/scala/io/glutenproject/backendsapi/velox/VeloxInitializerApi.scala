@@ -16,22 +16,22 @@
  */
 package io.glutenproject.backendsapi.velox
 
-import org.apache.spark.SparkConf
-
-import io.glutenproject.backendsapi.IInitializerApi
 import io.glutenproject.GlutenConfig
-import io.glutenproject.vectorized.JniLibLoader
-import io.glutenproject.vectorized.JniWorkspace
+import io.glutenproject.backendsapi.IInitializerApi
+import io.glutenproject.vectorized.{GlutenNativeExpressionEvaluator, JniLibLoader, JniWorkspace}
+import io.glutenproject.GlutenPlugin.buildNativeConfNode
 import org.apache.commons.lang3.StringUtils
 
+import org.apache.spark.SparkConf
+
 class VeloxInitializerApi extends IInitializerApi {
-  override def getBackendName: String = GlutenConfig.GLUTEN_VELOX_BACKEND
 
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
     loader.newTransaction()
       .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000", false)
+      .loadAndCreateLink("libparquet.so.1000.0.0", "libparquet.so.1000", false)
       .commit()
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
@@ -40,9 +40,8 @@ class VeloxInitializerApi extends IInitializerApi {
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "spark_columnar_jni")
     loader.mapAndLoad(baseLibName, true)
-    val backendLibName = conf.get(GlutenConfig.GLUTEN_BACKEND_LIB, "")
-    if (StringUtils.isNotBlank(backendLibName)) {
-      loader.mapAndLoad(backendLibName, true)
-    }
+    loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
+    val initKernel = new GlutenNativeExpressionEvaluator()
+    initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
   }
 }

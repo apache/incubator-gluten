@@ -22,8 +22,6 @@ import io.glutenproject.backendsapi.BackendsApiManager
 
 object SystemParameters {
 
-  lazy val GLUTEN_BACKEND = BackendsApiManager.initialize()
-
   val CLICKHOUSE_LIB_PATH_KEY = "clickhouse.lib.path"
   val CLICKHOUSE_LIB_PATH_DEFAULT_VALUE = "/usr/local/clickhouse/lib/libch.so"
 
@@ -40,10 +38,5 @@ object SystemParameters {
     System.getProperty(
       SystemParameters.TPCDS_DATA_PATH_KEY,
       SystemParameters.TPCDS_DATA_PATH_DEFAULT_VALUE)
-  }
-
-  def getGlutenBackend: String = {
-    System.getProperty(
-      GlutenConfig.GLUTEN_BACKEND_LIB, GLUTEN_BACKEND)
   }
 }

@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec, ColumnarAQEShuffleReadExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
 
 class GlutenClickHouseColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -43,21 +43,17 @@ class GlutenClickHouseColumnarShuffleAQESuite
     runTPCHQuery(1) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-        val customShuffleReaderExecs = collect(df.queryExecution.executedPlan) {
-          case csr: AQEShuffleReadExec => csr
-        }
-        assert(customShuffleReaderExecs.size == 1)
-        val coalescedPartitionSpec = customShuffleReaderExecs(0)
-          .partitionSpecs(0)
-          .asInstanceOf[CoalescedPartitionSpec]
-        assert(coalescedPartitionSpec.startReducerIndex == 0)
-        assert(coalescedPartitionSpec.endReducerIndex == 4)
 
         val colCustomShuffleReaderExecs = collect(df.queryExecution.executedPlan) {
           case csr: ColumnarAQEShuffleReadExec => csr
         }
-        assert(colCustomShuffleReaderExecs.size == 1)
-        val coalescedPartitionSpec1 = colCustomShuffleReaderExecs(0)
+        assert(colCustomShuffleReaderExecs.size == 2)
+        val coalescedPartitionSpec0 = colCustomShuffleReaderExecs(0)
+          .partitionSpecs(0)
+          .asInstanceOf[CoalescedPartitionSpec]
+        assert(coalescedPartitionSpec0.startReducerIndex == 0)
+        assert(coalescedPartitionSpec0.endReducerIndex == 5)
+        val coalescedPartitionSpec1 = colCustomShuffleReaderExecs(1)
           .partitionSpecs(0)
           .asInstanceOf[CoalescedPartitionSpec]
         assert(coalescedPartitionSpec1.startReducerIndex == 0)

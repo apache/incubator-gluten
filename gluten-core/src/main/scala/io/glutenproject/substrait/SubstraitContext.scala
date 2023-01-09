@@ -74,12 +74,12 @@ class SubstraitContext extends Serializable {
 
   private var localFilesNodesIndex: java.lang.Integer = new java.lang.Integer(0)
   private var localFilesNodes: Seq[java.io.Serializable] = _
-  private var iteratorIndex: java.lang.Long = new java.lang.Long(0)
+  private var iteratorIndex: java.lang.Long = new java.lang.Long(0L)
   private var fileFormat: java.util.List[ReadFileFormat] =
     new java.util.ArrayList[ReadFileFormat]()
   private var insertOutputNode: InsertOutputNode = _
-  private var operatorId: java.lang.Long = new java.lang.Long(0)
-  private var relId: java.lang.Long = new java.lang.Long(0)
+  private var operatorId: java.lang.Long = new java.lang.Long(0L)
+  private var relId: java.lang.Long = new java.lang.Long(0L)
 
   def getFileFormat: java.util.List[ReadFileFormat] = this.fileFormat
 
@@ -100,6 +100,9 @@ class SubstraitContext extends Serializable {
 
   def getLocalFilesNodes: Seq[java.io.Serializable] = this.localFilesNodes
 
+  // FIXME Hongze 22/11/28
+  // This makes calls to ReadRelNode#toProtobuf non-idempotent which doesn't seem to be
+  // optimal in regard to the method name "toProtobuf".
   def getCurrentLocalFileNode: java.io.Serializable = {
     if (getLocalFilesNodes != null && getLocalFilesNodes.size > localFilesNodesIndex) {
       val res = getLocalFilesNodes(localFilesNodesIndex)

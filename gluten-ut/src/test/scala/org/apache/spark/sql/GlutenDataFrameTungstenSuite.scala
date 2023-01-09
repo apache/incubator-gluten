@@ -17,11 +17,19 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.sql.types._
+
 class GlutenDataFrameTungstenSuite extends DataFrameTungstenSuite with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL,
-    "access cache multiple times",
-    "access only some column of the all of columns"
-  )
+  test("Map type with struct type as key") {
+    val kv = Map(Row(1, 2L) -> Seq("v"))
+    val data = sparkContext.parallelize(Seq(Row(1, kv)))
+    val schema = new StructType()
+      .add("a", IntegerType)
+      .add(
+        "b",
+        MapType(new StructType().add("k1", IntegerType).add("k2", LongType), ArrayType(StringType)))
+    val df = spark.createDataFrame(data, schema)
+    assert(df.select("b").first() === Row(kv))
+  }
 }

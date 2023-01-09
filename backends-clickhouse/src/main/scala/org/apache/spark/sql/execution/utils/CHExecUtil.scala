@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.vectorized.{BlockNativeConverter, BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
 import io.glutenproject.vectorized.{BlockSplitIterator, CHNativeBlock, CloseablePartitionedBlockIterator, NativePartitioning}
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
@@ -25,7 +26,10 @@ import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.PartitionIdPassthrough
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
@@ -33,16 +37,70 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.MutablePair
 
 import io.substrait.proto.Type
 
-import scala.collection.JavaConverters._;
+import java.util
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object CHExecUtil {
 
   def inferSparkDataType(substraitType: Array[Byte]): DataType = {
-    val (datatype, nullable) = ConverterUtils.parseFromSubstraitType(Type.parseFrom(substraitType))
+    val (datatype, nullable) =
+      ConverterUtils.parseFromSubstraitType(Type.parseFrom(substraitType))
     datatype
+  }
+
+  def buildRangePartitionSampleRDD(
+      rdd: RDD[ColumnarBatch],
+      rangePartitioning: RangePartitioning,
+      outputAttributes: Seq[Attribute]): RDD[MutablePair[InternalRow, Null]] = {
+    rangePartitioning match {
+      case RangePartitioning(sortingExpressions, _) =>
+        val sampleRDD = rdd.mapPartitionsInternal {
+          iter =>
+            iter.flatMap(
+              batch => {
+                val jniWrapper = new BlockNativeConverter()
+                val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
+                val blockAddress = nativeBlock.get().blockAddress()
+                val rowInfo = jniWrapper.convertColumnarToRow(blockAddress)
+
+                // generate rows from a columnar batch
+                val rows = new Iterator[InternalRow] {
+                  var rowId = 0
+                  val row = new UnsafeRow(batch.numCols())
+                  var closed = false
+
+                  override def hasNext: Boolean = {
+                    val result = rowId < batch.numRows()
+                    if (!result && !closed) {
+                      jniWrapper.freeMemory(rowInfo.memoryAddress, rowInfo.totalSize)
+                      closed = true
+                    }
+                    return result
+                  }
+
+                  override def next: UnsafeRow = {
+                    if (rowId >= batch.numRows()) throw new NoSuchElementException
+
+                    val (offset, length) = (rowInfo.offsets(rowId), rowInfo.lengths(rowId))
+                    row.pointTo(null, rowInfo.memoryAddress + offset, length.toInt)
+                    rowId += 1
+                    row
+                  }
+                }
+                val projection =
+                  UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
+                val mutablePair = new MutablePair[InternalRow, Null]()
+                rows.map(row => mutablePair.update(projection(row).copy(), null))
+              })
+        }
+        sampleRDD
+    }
   }
 
   // scalastyle:off argcount
@@ -59,7 +117,8 @@ object CHExecUtil {
       splitTime: SQLMetric,
       spillTime: SQLMetric,
       compressTime: SQLMetric,
-      prepareTime: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      prepareTime: SQLMetric,
+      inputBatches: SQLMetric): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     val nativePartitioning: NativePartitioning = newPartitioning match {
       case SinglePartition => new NativePartitioning("single", 1, Array.empty[Byte])
@@ -72,6 +131,27 @@ object CHExecUtil {
             ConverterUtils.genColumnNameWithExprId(attr)
         }
         new NativePartitioning("hash", n, null, fields.mkString(",").getBytes)
+      case RangePartitioning(sortingExpressions, numPartitions) =>
+        val rddForSampling = buildRangePartitionSampleRDD(
+          rdd,
+          RangePartitioning(sortingExpressions, numPartitions),
+          outputAttributes)
+
+        // we let spark compute the range bounds here, and then pass to CH.
+        val orderingAttributes = sortingExpressions.zipWithIndex.map {
+          case (ord, i) =>
+            ord.copy(child = BoundReference(i, ord.dataType, ord.nullable))
+        }
+        implicit val ordering = new LazilyGeneratedOrdering(orderingAttributes)
+        val generator = new RangePartitionerBoundsGenerator(
+          numPartitions,
+          rddForSampling,
+          sortingExpressions,
+          outputAttributes)
+        val orderingAndRangeBounds = generator.getRangeBoundsJsonString()
+        new NativePartitioning("range", numPartitions, null, orderingAndRangeBounds.getBytes())
+      case p =>
+        throw new IllegalStateException(s"Unknow partition type: ${p.getClass.toString}")
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
@@ -84,7 +164,7 @@ object CHExecUtil {
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
     val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
-      if (GlutenConfig.getConf.isUseColumnarShufflemanager) {
+      if (GlutenConfig.getConf.isUseColumnarShuffleManager) {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(
@@ -195,6 +275,39 @@ object CHExecUtil {
               },
               isOrderSensitive = isOrderSensitive
             )
+          case RangePartitioning(exprs, n) =>
+            rdd.mapPartitionsWithIndexInternal(
+              (_, cbIter) => {
+                options.setPartitionNum(n)
+                options.setName("range")
+                val expr_str = new String(nativePartitioning.getExprList)
+                options.setExpr(expr_str)
+                val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
+                  val splitIterator = new BlockSplitIterator(
+                    cbIter
+                      .map(
+                        cb =>
+                          CHNativeBlock
+                            .fromColumnarBatch(cb)
+                            .orElseThrow(
+                              () => new IllegalStateException("unsupported columnar batch"))
+                            .blockAddress()
+                            .asInstanceOf[java.lang.Long])
+                      .asJava,
+                    options
+                  )
+
+                  override def hasNext: Boolean = splitIterator.hasNext
+
+                  override def next(): Product2[Int, ColumnarBatch] =
+                    (splitIterator.nextPartitionId(), splitIterator.next());
+
+                  override def close(): Unit = splitIterator.close()
+                }
+                new CloseablePartitionedBlockIterator(iter)
+              },
+              isOrderSensitive = isOrderSensitive
+            )
           case _ =>
             throw new UnsupportedOperationException(s"Unsupport operators.")
         }
@@ -214,7 +327,8 @@ object CHExecUtil {
         splitTime = splitTime,
         spillTime = spillTime,
         compressTime = compressTime,
-        prepareTime = prepareTime
+        prepareTime = prepareTime,
+        inputBatches = inputBatches
       )
 
     dependency

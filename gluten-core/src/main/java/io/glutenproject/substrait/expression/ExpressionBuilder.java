@@ -17,20 +17,12 @@
 
 package io.glutenproject.substrait.expression;
 
+import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.substrait.type.TypeBuilder;
 import io.glutenproject.substrait.type.TypeNode;
-import org.apache.spark.sql.types.BooleanType;
-import org.apache.spark.sql.types.BinaryType;
-import org.apache.spark.sql.types.ByteType;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DateType;
-import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.types.DecimalType;
-import org.apache.spark.sql.types.DoubleType;
-import org.apache.spark.sql.types.IntegerType;
-import org.apache.spark.sql.types.LongType;
-import org.apache.spark.sql.types.ShortType;
-import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
+import org.apache.spark.sql.types.*;
+import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -123,11 +115,11 @@ public class ExpressionBuilder {
   }
 
   public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
-    if (dataType instanceof IntegerType) {
+    if (dataType instanceof BooleanType) {
       if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeI32(nullable));
+        return makeNullLiteral(TypeBuilder.makeBoolean(nullable));
       } else {
-        return makeIntLiteral((Integer) obj);
+        return makeBooleanLiteral((Boolean) obj);
       }
     } else if (dataType instanceof ByteType) {
       if (obj == null) {
@@ -141,11 +133,23 @@ public class ExpressionBuilder {
       } else {
         return makeShortLiteral((Short) obj);
       }
+    } else if (dataType instanceof IntegerType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeI32(nullable));
+      } else {
+        return makeIntLiteral((Integer) obj);
+      }
     } else if (dataType instanceof LongType) {
       if (obj == null) {
         return makeNullLiteral(TypeBuilder.makeI64(nullable));
       } else {
         return makeLongLiteral((Long) obj);
+      }
+    } else if (dataType instanceof FloatType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeFP32(nullable));
+      } else {
+        return makeFloatLiteral((Float) obj);
       }
     } else if (dataType instanceof DoubleType) {
       if (obj == null) {
@@ -153,17 +157,17 @@ public class ExpressionBuilder {
       } else {
         return makeDoubleLiteral((Double) obj);
       }
-    }  else if (dataType instanceof BooleanType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeBoolean(nullable));
-      } else {
-        return makeBooleanLiteral((Boolean) obj);
-      }
     } else if (dataType instanceof DateType) {
       if (obj == null) {
         return makeNullLiteral(TypeBuilder.makeDate(nullable));
       } else {
         return makeDateLiteral((Integer) obj);
+      }
+    } else if (dataType instanceof TimestampType) {
+      if (obj == null) {
+        return makeNullLiteral(TypeBuilder.makeTimestamp(nullable));
+      } else {
+        return makeTimestampLiteral((Long) obj);
       }
     } else if (dataType instanceof StringType) {
       if (obj == null) {
@@ -180,15 +184,56 @@ public class ExpressionBuilder {
     } else if (dataType instanceof DecimalType) {
       if (obj == null) {
         DecimalType decimal = (DecimalType)dataType;
+        checkDecimalScale(decimal.scale());
         return makeNullLiteral(TypeBuilder.makeDecimal(nullable, decimal.precision(),
           decimal.scale()));
       } else {
-        return makeDecimalLiteral((Decimal) obj);
+        Decimal decimal = (Decimal) obj;
+        checkDecimalScale(decimal.scale());
+        return makeDecimalLiteral(decimal);
+      }
+    } else if (dataType instanceof ArrayType) {
+      if (obj == null) {
+        ArrayType arrayType = (ArrayType)dataType;
+        return makeNullLiteral(TypeBuilder.makeList(nullable,
+                ConverterUtils.getTypeNode(arrayType.elementType(), nullable)));
+      } else {
+        Object[] elements = ((GenericArrayData) obj).array();
+        ArrayList<String> list = new ArrayList<>();
+        for (Object element : elements) {
+          if (element instanceof UTF8String) {
+            list.add(element.toString());
+          } else {
+            throw new UnsupportedOperationException(
+                    String.format("Type not supported: %s.", dataType.toString()));
+          }
+        }
+        return makeStringList(list);
+      }
+    } else if (dataType instanceof MapType) {
+      if (obj == null) {
+        MapType mapType = (MapType) dataType;
+        TypeNode keyType = ConverterUtils.getTypeNode(mapType.keyType(), false);
+        TypeNode valType = ConverterUtils.getTypeNode(mapType.valueType(),
+         mapType.valueContainsNull());
+        return makeNullLiteral(TypeBuilder.makeMap(nullable, keyType, valType));
+      } else {
+          throw new UnsupportedOperationException(
+            String.format("Type not supported: %s.", dataType.toString()));
       }
     } else {
       /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
       throw new UnsupportedOperationException(
-          String.format("Type not supported: %s.", dataType.toString()));
+          String.format("Type not supported: %s, obj: %s, class: %s",
+          dataType.toString(), obj.toString(), obj.getClass().toString()));
+    }
+  }
+
+  public static void checkDecimalScale(int scale) {
+    if (scale < 0) {
+      // Substrait don't support decimal type with negative scale.
+      throw new UnsupportedOperationException(String.format(
+        "DecimalType with negative scale not supported: %s.", scale));
     }
   }
 
@@ -213,8 +258,9 @@ public class ExpressionBuilder {
     return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
   }
 
-  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode) {
-    return new CastNode(typeNode, expressionNode);
+  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode,
+                                  boolean ansiEnabled) {
+    return new CastNode(typeNode, expressionNode, ansiEnabled);
   }
 
   public static StringMapNode makeStringMap(Map<String, String> values) {
@@ -224,5 +270,17 @@ public class ExpressionBuilder {
   public static SingularOrListNode makeSingularOrListNode(ExpressionNode value,
                                                           List<ExpressionNode> expressionNodes) {
     return new SingularOrListNode(value, expressionNodes);
+  }
+
+  public static WindowFunctionNode makeWindowFunction(
+      Integer functionId,
+      ArrayList<ExpressionNode> expressionNodes,
+      String columnName,
+      TypeNode outputTypeNode,
+      String upperBound,
+      String lowerBound,
+      String windowType) {
+    return new WindowFunctionNode(functionId, expressionNodes, columnName,
+        outputTypeNode, upperBound, lowerBound, windowType);
   }
 }

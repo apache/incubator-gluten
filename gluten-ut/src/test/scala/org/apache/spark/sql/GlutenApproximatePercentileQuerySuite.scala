@@ -20,7 +20,8 @@ package org.apache.spark.sql
 class GlutenApproximatePercentileQuerySuite extends ApproximatePercentileQuerySuite
   with GlutenSQLTestsTrait {
 
-  override def blackTestNameList: Seq[String] = Seq(
-    GlutenTestConstants.IGNORE_ALL
-  )
+  override def testFile(fileName: String): String = {
+    Thread.currentThread().getContextClassLoader.getResource(fileName)
+      .toString
+  }
 }

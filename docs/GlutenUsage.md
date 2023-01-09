@@ -1,27 +1,69 @@
 ### Build parameters
 
-Based on the different environment, there are some parameters can be set via -D with mvn.
+#### Parameters for buildbundle-veloxbe.sh setting via --
 
-| Parameters                                            | Description                                                                                                                                                                        | Default Value |
-|-------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------- |
-| build_cpp                                             | Enable or Disable building CPP library                                                                                                                                             | OFF |
-| cpp_tests                                             | Enable or Disable CPP Tests                                                                                                                                                        | OFF |
-| build_arrow                                           | Build Arrow from Source                                                                                                                                                            | OFF |
-| arrow_root                                            | When build_arrow set to False, arrow_root will be enabled to find the location of your existing arrow library.                                                                     | /PATH_TO_GLUTEN/tools/build/arrow_install |
-| build_protobuf                                        | Build Protobuf from Source. If set to False, default library path will be used to find protobuf library.                                                                           |ON |
-| build_velox_from_source                               | Enable or Disable building Velox from a specific velox github repository. A default installed path will be in velox_home                                                           | OFF |
-| backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend                                                                                                     | false |
-| backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend                                                                                           | false |
-| build_velox                                           | Enable or Disable building the CPP part of Velox backend                                                                                                                           | OFF |
-| velox_home (only valid when build_velox is ON)        | The path to the compiled Velox project. When building Gluten with Velox, if you have an existing Velox, please set it.                                                             | /PATH_TO_GLUTEN/tools/build/velox_ep |
-| compile_velox(only valid when velox_home is assigned) | recompile exising Velox use custom compile parameters                                                                                                                              | OFF |
-| velox_build_type                                      | The build type Velox was built with from source code. Gluten uses this value to locate the binary path of Velox's binary libraries.                                                | release |
-| debug_build                                           | Whether to generate debug binary library from Gluten's C++ codes.                                                                                                                  | OFF |
-| enable_ep_cache                                       | Whether to cache the source folder for some critical external projects (e.g. Arrow, Velox) to spped-up build process. Note, this will not be invalidated even you use 'mvn clean'. | OFF |
-| enable_hbm                                            | Whether to enable hbm allocation.                                                                                                                                                  | OFF |
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| build_type | Gluten build type(for arrow/velox/cpp)  | release |
+| build_test | build test code in cpp folder and arrow | OFF |
+| build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
+| build_jemalloc   | build with jemalloc | ON |
+| enable_hbm | enable HBM allocator      | OFF|
+| build_protobuf | build protobuf lib    | ON|
+| enable_s3   | build with s3 lib        | OFF|
+| enable_hdfs | build with hdfs lib      | OFF|
+| build_arrow_from_source   | pull the source code and build arrow lib| ON|
+| build_velox_from_source   | pull the source code and build velox lib| ON|
 
-When build_arrow set to True, the build_arrow.sh will be launched and compile a custom arrow library from [OAP Arrow](https://github.com/oap-project/arrow/tree/arrow-8.0.0-gluten)
-If you wish to change any parameters from Arrow, you can change it from the [build_arrow.sh](../tools/build_arrow.sh) script.
+#### Parameters for build_arrow_for_gazelle.sh setting via --
+
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| arrow_home | Arrow build path            | GLUTEN_DIR/ep/build-arrow/build|
+| build_type | ARROW build type            | release|   
+
+#### Parameters for build_arrow_for_velox.sh setting via --
+
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| arrow_home | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
+| build_type | ARROW build type                          | release|
+| build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
+
+#### Parameters for build_velox.sh setting via --
+
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| velox_home | Velox build path                          | GLUTEN_DIR/ep/build-velox/build/velox_ep|
+| build_type | Velox build type                          | release|
+| enable_s3  | Build Velox with -DENABLE_S3              | OFF           |
+| enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
+| build_protobuf | build protobuf from source            | ON           |
+
+#### Parameters for compile.sh setting via --
+
+| Parameters | Description | Default value |
+| ---------- | ----------- | ------------- |
+| arrow_root | path of arrow lib           | /path_to_gluten/ep/build-arrow/build/arrow_install |
+| velox_home | path of velox lib           | /path_to_gluten/ep/build-velox/build/velox_ep |
+| build_type | Gluten cpp part build type  | release |
+| build_gazelle_cpp_backend | build gazelle-cpp in cpp folder | OFF |
+| build_velox_backend | build velox in cpp folder | OFF |
+| build_test | build test code in cpp folder      | OFF |
+| build_benchmarks | build benchmark code in cpp folder | OFF |
+| build_jemalloc   | build with jemalloc | ON |
+| enable_hbm | enable HBM allocator      | OFF|
+| build_protobuf | build protobuf lib    | OFF|
+| enable_s3   | build with s3 lib        | OFF|
+| enable_hdfs | build with hdfs lib      | OFF|
+
+#### To build different backends, there are 3 parameters can be set via -D with mvn 
+
+| Parameters                                            | Description                                                                                                                                                                         | Default Value                                       |
+|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
+| backends-velox                                        | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                                                                                                     | false                                              |
+| backends-gazelle                                        | Add -Pbackends-gazelle in maven command to compile the JVM part of Gazelle backend.                                                                                                     | false                                              |
+| backends-clickhouse                                   | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.                                                                                           | false                                              |
 
 ### Build jar
 
@@ -29,7 +71,7 @@ The gluten jar name pattern is gluten-spark<sparkbundle.version>_<scala.binary.v
 
 | Spark Version | sparkbundle.version | scala.binary.version |
 | ---------- | ----------- | ------------- |
-| 3.2.x | 3.2 | 2.12 |
-| 3.3.x | 3.3 | 2.12 |
+| 3.2.2 | 3.2 | 2.12 |
+| 3.3.1 | 3.3 | 2.12 |
 
-Backend velox support both spar3.2 and spark3.3 while backend clickhouse support spark3.2
+Backend velox support both spark3.2.2 and spark3.3.1 while backend clickhouse support spark3.2.2

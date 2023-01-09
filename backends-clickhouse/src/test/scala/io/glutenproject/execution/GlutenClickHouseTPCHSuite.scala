@@ -17,7 +17,9 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.types.Decimal
 
 class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -42,6 +44,11 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
           case scanExec: BasicScanExecTransformer => scanExec
         }
         assert(scanExec.size == 1)
+
+        val sortExec = df.queryExecution.executedPlan.collect {
+          case sortExec: SortExecTransformer => sortExec
+        }
+        assert(sortExec.size == 1)
     }
   }
 
@@ -166,7 +173,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     runTPCHQuery(22) { df => }
   }
 
-  ignore("test 'select count(*) from table'") {
+  test("test 'select count(*) from table'") {
     // currently, it can't support 'select count(*)' for non-partitioned tables.
     val df = spark.sql("""
                          |select count(*) from lineitem
@@ -181,6 +188,37 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                          |""".stripMargin)
     val result = df.collect()
     assert(result(0).getLong(0) == 275436L)
+  }
+
+  test("test 'select global/local limit'") {
+    val df = spark.sql("""
+                         |select * from (
+                         | select * from lineitem limit 10
+                         |) where l_suppkey != 0 limit 100;
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result.size == 10)
+  }
+
+  test("test 'function explode'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, explode(array(l_returnflag, l_linestatus)),
+                         |  l_suppkey from lineitem);
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 1201144L)
+  }
+
+  test("test 'lateral view explode'") {
+    val df = spark.sql("""
+                         |select count(*) from (
+                         |  select l_orderkey, l_suppkey, col1, col2 from lineitem
+                         |  lateral view explode(array(l_returnflag, l_linestatus)) as col1
+                         |  lateral view explode(array(l_shipmode, l_comment)) as col2)
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result(0).getLong(0) == 2402288L)
   }
 
   test("test 'select count(1)'") {
@@ -223,6 +261,65 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val result = df.collect()
     assert(result.size == 2)
     assert(result(0).getInt(0) == 1 && result(1).getInt(0) == 1)
+  }
+
+  test("test 'order by'") {
+    val df = spark.sql("""
+                         |select l_suppkey from lineitem
+                         |where l_orderkey < 3 order by l_partkey / 2
+                         |""".stripMargin)
+    val result = df.collect()
+    assert(result.size == 7)
+    val expected =
+      Seq(Row(465.0), Row(67.0), Row(160.0), Row(371.0), Row(732.0), Row(138.0), Row(785.0))
+    TestUtils.compareAnswers(result, expected)
+  }
+
+  test("test 'order by' two keys") {
+    val df = spark.sql(
+      """
+        |select n_nationkey, n_name, n_regionkey from nation
+        |order by n_name, n_regionkey + 1
+        |""".stripMargin
+    )
+    val sortExec = df.queryExecution.executedPlan.collect {
+      case sortExec: SortExecTransformer => sortExec
+    }
+    assert(sortExec.size == 1)
+
+    val result = df.take(3)
+    val expected =
+      Seq(Row(0, "ALGERIA", 0), Row(1, "ARGENTINA", 1), Row(2, "BRAZIL", 1))
+    TestUtils.compareAnswers(result, expected)
+  }
+
+  test("test 'order by limit'") {
+    val df = spark.sql(
+      """
+        |select n_nationkey from nation order by n_nationkey limit 5
+        |""".stripMargin
+    )
+    val sortExec = df.queryExecution.executedPlan.collect {
+      case sortExec: TakeOrderedAndProjectExecTransformer => sortExec
+    }
+    assert(sortExec.size == 1)
+    val result = df.collect()
+    val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
+    TestUtils.compareAnswers(result, expectedResult)
+  }
+
+  ignore("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
+    val df = spark.sql(
+      """
+        |SELECT cast(1.11 as decimal(20, 3)) FROM lineitem
+        |WHERE l_shipdate <= date'1998-09-02' - interval 1 day limit 1
+        |""".stripMargin
+    )
+
+    val result = df.collect()
+    assert(result.size == 1)
+    val expectedResult = Seq(Row(new java.math.BigDecimal("1.110")))
+    TestUtils.compareAnswers(result, expectedResult)
   }
 
   ignore("TPCH Q21") {

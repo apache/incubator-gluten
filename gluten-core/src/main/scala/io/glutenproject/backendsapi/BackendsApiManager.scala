@@ -17,139 +17,79 @@
 
 package io.glutenproject.backendsapi
 
-import org.apache.commons.lang3.StringUtils
-
 import java.util.ServiceLoader
 
 import scala.collection.JavaConverters
 
 object BackendsApiManager {
 
-  protected var glutenBackenName: String = ""
+  private case class Wrapper(
+      glutenBackendName: String,
+      initializerApiInstance: IInitializerApi,
+      iteratorApiInstance: IIteratorApi,
+      sparkPlanExecApiInstance: ISparkPlanExecApi,
+      transformerApiInstance: ITransformerApi,
+      validatorApiInstance: IValidatorApi,
+      settings: BackendSettings)
 
-  protected var initializerApiInstance: IInitializerApi = null
+  private lazy val manager: Wrapper = initializeInternal()
 
-  protected var iteratorApiInstance: IIteratorApi = null
-
-  protected var sparkPlanExecApiInstance: ISparkPlanExecApi = null
-
-  protected var transformerApiInstance: ITransformerApi = null
+  /** Initialize all backends api. */
+  private def initializeInternal(): Wrapper = {
+    val discoveredBackends =
+      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toSeq
+    if (discoveredBackends.isEmpty) {
+      throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
+    }
+    if (discoveredBackends.size != 1) {
+      throw new IllegalStateException(
+        s"More than one Backend implementation discovered from JVM classpath: " +
+          s"${discoveredBackends.map(_.name()).toList}")
+    }
+    val backend = discoveredBackends.head
+    Wrapper(
+      backend.name(),
+      backend.initializerApi(),
+      backend.iteratorApi(),
+      backend.sparkPlanExecApi(),
+      backend.transformerApi(),
+      backend.validatorApi(),
+      backend.settings())
+  }
 
   /**
    * Automatically detect the backend api.
    * @return
    */
-  def initialize(): String = synchronized {
-    initializeInternal(null)
+  def initialize(): String = {
+    getBackendName
   }
 
-  /**
-   * Initialize all backends api by the specified lib name.
-   *
-   * For test.
-   * @return
-   */
-  def initialize(glutenBackenLibName: String): String = synchronized {
-    initializeInternal(glutenBackenLibName)
-  }
-
-  /**
-   * Initialize all backends api.
-   *
-   * FIXME too many service types. Only a single factory API is enough for instantiating
-   * all API types.
-   */
-  private def initializeInternal(glutenBackenLibName: String): String = {
-    glutenBackenName = if (StringUtils.isEmpty(glutenBackenLibName)) {
-      val serviceBaseLoader = JavaConverters.iterableAsScalaIterable(
-        ServiceLoader.load(classOf[IBackendsApi]))
-      assert((serviceBaseLoader != null) && (serviceBaseLoader.size == 1),
-        "Can not load IBackendsApi.")
-      serviceBaseLoader.head.getBackendName
-    } else {
-      glutenBackenLibName
-    }
-
-    // initialize IInitializerApi instance
-    if (initializerApiInstance == null) {
-      val serviceLoader = JavaConverters.iterableAsScalaIterable(
-        ServiceLoader.load(classOf[IInitializerApi]))
-      assert(serviceLoader != null, "Can not initialize IInitializerApi instance.")
-      for (ele <- serviceLoader) {
-        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
-          initializerApiInstance = ele
-        }
-      }
-    }
-    assert(initializerApiInstance != null, "Can not initialize IInitializerApi instance.")
-
-    // initialize IIteratorApi instance
-    if (iteratorApiInstance == null) {
-      val serviceLoader = JavaConverters.iterableAsScalaIterable(
-        ServiceLoader.load(classOf[IIteratorApi]))
-      assert(serviceLoader != null, "Can not initialize IIteratorApi instance.")
-      for (ele <- serviceLoader) {
-        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
-          iteratorApiInstance = ele
-        }
-      }
-    }
-    assert(iteratorApiInstance != null, "Can not initialize IIteratorApi instance.")
-
-    // initialize ISparkPlanExecApi instance
-    if (sparkPlanExecApiInstance == null) {
-      val serviceLoader = JavaConverters.iterableAsScalaIterable(
-        ServiceLoader.load(classOf[ISparkPlanExecApi]))
-      assert(serviceLoader != null, "Can not initialize ISparkPlanExecApi instance.")
-      for (ele <- serviceLoader) {
-        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
-          sparkPlanExecApiInstance = ele
-        }
-      }
-    }
-    assert(sparkPlanExecApiInstance != null, "Can not initialize ISparkPlanExecApi instance.")
-
-    // initialize ITransformerApi instance
-    if (transformerApiInstance == null) {
-      val serviceLoader = JavaConverters.iterableAsScalaIterable(
-        ServiceLoader.load(classOf[ITransformerApi]))
-      assert(serviceLoader != null, "Can not initialize ITransformerApi instance.")
-      for (ele <- serviceLoader) {
-        if (ele.getBackendName.equalsIgnoreCase(glutenBackenName)) {
-          transformerApiInstance = ele
-        }
-      }
-    }
-    assert(transformerApiInstance != null, "Can not initialize ITransformerApi instance.")
-
-    glutenBackenName
+  def getBackendName: String = {
+    manager.glutenBackendName
   }
 
   def getInitializerApiInstance: IInitializerApi = {
-    if (initializerApiInstance == null) {
-      throw new RuntimeException("IInitializer instance is null.")
-    }
-    initializerApiInstance
+    manager.initializerApiInstance
   }
 
   def getIteratorApiInstance: IIteratorApi = {
-    if (iteratorApiInstance == null) {
-      throw new RuntimeException("IIteratorApi instance is null.")
-    }
-    iteratorApiInstance
+    manager.iteratorApiInstance
   }
 
   def getSparkPlanExecApiInstance: ISparkPlanExecApi = {
-    if (sparkPlanExecApiInstance == null) {
-      throw new RuntimeException("ISparkPlanExecApi instance is null.")
-    }
-    sparkPlanExecApiInstance
+    manager.sparkPlanExecApiInstance
   }
 
   def getTransformerApiInstance: ITransformerApi = {
-    if (transformerApiInstance == null) {
-      throw new RuntimeException("ITransformerApi instance is null.")
-    }
-    transformerApiInstance
+    manager.transformerApiInstance
+  }
+
+  def getValidatorApiInstance: IValidatorApi = {
+    manager.validatorApiInstance
+  }
+
+  def getSettings: BackendSettings = {
+    manager.settings
   }
 }

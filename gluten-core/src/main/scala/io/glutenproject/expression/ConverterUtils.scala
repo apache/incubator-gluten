@@ -86,44 +86,6 @@ object ConverterUtils extends Logging {
     ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id
   }
 
-  def getResultAttrFromExpr(fieldExpr: Expression,
-                            name: String = "None",
-                            dataType: Option[DataType] = None): AttributeReference = {
-    fieldExpr match {
-      case a: Cast =>
-        val c = getResultAttrFromExpr(a.child, name, Some(a.dataType))
-        AttributeReference(c.name, a.dataType, c.nullable, c.metadata)(c.exprId, c.qualifier)
-      case a: AttributeReference =>
-        if (name != "None") {
-          new AttributeReference(name, a.dataType, a.nullable)()
-        } else {
-          a
-        }
-      case a: Alias =>
-        if (name != "None") {
-          a.toAttribute.asInstanceOf[AttributeReference].withName(name)
-        } else {
-          a.toAttribute.asInstanceOf[AttributeReference]
-        }
-      case d: DivideTransformer =>
-        new AttributeReference(name, DoubleType, d.nullable)()
-      case m: MultiplyTransformer =>
-        new AttributeReference(name, m.dataType, m.nullable)()
-      case other =>
-        val a = if (name != "None") {
-          new Alias(other, name)()
-        } else {
-          new Alias(other, "res")()
-        }
-        val tmpAttr = a.toAttribute.asInstanceOf[AttributeReference]
-        if (dataType.isDefined) {
-          new AttributeReference(tmpAttr.name, dataType.getOrElse(null), tmpAttr.nullable)()
-        } else {
-          tmpAttr
-        }
-    }
-  }
-
   def isNullable(nullability: Type.Nullability): Boolean = {
     return nullability == Type.Nullability.NULLABILITY_NULLABLE
   }
@@ -407,63 +369,8 @@ object ConverterUtils extends Logging {
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
 
-  // Function names used by Substrait plan.
-  final val SUM = "sum"
-  final val AVG = "avg"
-  final val COUNT = "count"
-  final val MIN = "min"
-  final val MAX = "max"
-  final val ADD = "add"
-  final val SUBTRACT = "subtract"
-  final val MULTIPLY = "multiply"
-  final val DIVIDE = "divide"
-  final val AND = "and"
-  final val OR = "or"
-  final val COALESCE = "coalesce"
-  final val LIKE = "like"
-  final val RLIKE = "rlike"
-  final val REGEXP_EXTRACT = "regexp_extract"
-  final val EQUAL = "equal"
-  final val LESS_THAN = "lt"
-  final val LESS_THAN_OR_EQUAL = "lte"
-  final val GREATER_THAN = "gt"
-  final val GREATER_THAN_OR_EQUAL = "gte"
-  final val ALIAS = "alias"
-  final val IS_NOT_NULL = "is_not_null"
-  final val IS_NULL = "is_null"
-  final val NOT = "not"
-
-  // SparkSQL String fucctions of Velox
-  final val ASCII = "ascii"
-  final val CHR = "chr"
-  final val EXTRACT = "extract"
-  final val ENDS_WITH = "ends_with"
-  final val CONCAT = "concat"
-  final val CONTAINS = "contains"
-  final val INSTR = "strpos" // instr
-  final val LENGTH = "char_length" // length
-  final val LOWER = "lower"
-  final val UPPER = "upper"
-  final val LTRIM = "ltrim"
-  final val RTRIM = "rtrim"
-  final val REPLACE = "replace"
-  final val SPLIT = "split"
-  final val STARTS_WITH = "starts_with"
-  final val SUBSTRING = "substring"
-
-  // SparkSQL Math fucctions of Velox
-  final val ABS = "abs"
-  final val CEIL = "ceil"
-  final val FLOOR = "floor"
-  final val EXP = "exp"
-  final val POWER = "power"
-  final val PMOD = "pmod"
-  final val ROUND = "round"
-  final val GREATEST = "greatest"
-  final val LEAST = "least"
-
-  final val MURMUR3HASH = "murmur3hash"
   // Other
   final val ROW_CONSTRUCTOR = "row_constructor"
-
+  final val ROW_NUMBER = "row_number"
+  final val RANK = "rank"
 }

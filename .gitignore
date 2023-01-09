@@ -60,6 +60,9 @@ cmake-build-release/
 *.swp
 scalastyle-output.xml
 
+# Generated C++ benchmark data
+backends-velox/generated-native-benchmark/
+
 # Generated C++ benchmark executables
 cpp/**/benchmarks/**/*
 !cpp/**/benchmarks/**/

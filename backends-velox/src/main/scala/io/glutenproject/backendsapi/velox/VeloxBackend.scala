@@ -17,13 +17,80 @@
 
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.backendsapi.IBackendsApi
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi._
 
-class VeloxBackend extends IBackendsApi {
+import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
+
+class VeloxBackend extends Backend {
+  override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
+  override def initializerApi(): IInitializerApi = new VeloxInitializerApi
+  override def iteratorApi(): IIteratorApi = new VeloxIteratorApi
+  override def sparkPlanExecApi(): ISparkPlanExecApi = new VeloxSparkPlanExecApi
+  override def transformerApi(): ITransformerApi = new VeloxTransformerApi
+  override def validatorApi(): IValidatorApi = new VeloxValidatorApi
+  override def settings(): BackendSettings = VeloxBackendSettings
+}
+
+object VeloxBackendSettings extends BackendSettings {
+  override def supportFileFormatRead(): FileFormat => Boolean = {
+    case _ : ParquetFileFormat | _ : OrcFileFormat | _ : DwrfFileFormat => true
+    case _ => false
+  }
+  override def supportExpandExec(): Boolean = true
+  override def supportSortExec(): Boolean = true
+  override def supportWindowExec(): Boolean = true
+  override def supportColumnarShuffleExec(): Boolean = {
+    GlutenConfig.getSessionConf.isUseColumnarShuffleManager
+  }
+  override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
+    t =>
+      if (super.supportHashBuildJoinTypeOnLeft(t)) {
+        true
+      } else {
+        t match {
+          // OPPRO-266: For Velox backend, build right and left are both supported for
+          // LeftOuter and LeftSemi.
+          // FIXME Hongze 22/12/06
+          //  HashJoin.scala in shim was not always loaded by class loader.
+          //  The file should be removed and we temporarily disable the improvement
+          //  introduced by OPPRO-266 by commenting out the following prerequisite
+          //  condition.
+//          case LeftOuter | LeftSemi => true
+          case _ => false
+        }
+      }
+  }
+  override def supportHashBuildJoinTypeOnRight: JoinType => Boolean = {
+    t =>
+      if (super.supportHashBuildJoinTypeOnRight(t)) {
+        true
+      } else {
+        t match {
+          // OPPRO-266: For Velox backend, build right and left are both supported for RightOuter.
+          // FIXME Hongze 22/12/06
+          //  HashJoin.scala in shim was not always loaded by class loader.
+          //  The file should be removed and we temporarily disable the improvement
+          //  introduced by OPPRO-266 by commenting out the following prerequisite
+          //  condition.
+//          case RightOuter => true
+          case _ => false
+        }
+      }
+  }
+
+  override def disableVanillaColumnarReaders(): Boolean = true
+  override def fallbackOnEmptySchema(): Boolean = true
+  override def recreateJoinExecOnFallback(): Boolean = true
+  override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
 
   /**
-   * Get the backend api name.
+   * Get the config prefix for each backend
    */
-  override def getBackendName: String = GlutenConfig.GLUTEN_VELOX_BACKEND
+  override def getBackendConfigPrefix(): String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
 }

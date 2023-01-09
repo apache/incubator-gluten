@@ -17,14 +17,10 @@
 
 package io.glutenproject.execution
 
-import java.util
-
-import scala.collection.JavaConverters._
-
 import com.google.common.collect.Lists
 import com.google.protobuf.Any
-
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -33,8 +29,7 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.BindReferencesUtil
-import io.glutenproject.vectorized.{ExpressionEvaluator, OperatorMetrics}
-
+import io.glutenproject.vectorized.OperatorMetrics
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -42,12 +37,14 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase, FileScan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.util.StructTypeFWD
+import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 
-abstract class FilterExecBaseTransformer(condition: Expression,
-                                         child: SparkPlan) extends UnaryExecNode
+import java.util
+import scala.collection.JavaConverters._
+
+abstract class FilterExecBaseTransformer(val cond: Expression,
+                                         val input: SparkPlan) extends UnaryExecNode
   with TransformSupport
   with PredicateHelper
   with AliasAwareOutputPartitioning
@@ -68,22 +65,46 @@ abstract class FilterExecBaseTransformer(condition: Expression,
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
 
-  val inputRows: SQLMetric = longMetric("inputRows")
-  val inputVectors: SQLMetric = longMetric("inputVectors")
-  val inputBytes: SQLMetric = longMetric("inputBytes")
-  val rawInputRows: SQLMetric = longMetric("rawInputRows")
-  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-  val outputRows: SQLMetric = longMetric("outputRows")
-  val outputVectors: SQLMetric = longMetric("outputVectors")
-  val outputBytes: SQLMetric = longMetric("outputBytes")
-  val count: SQLMetric = longMetric("count")
-  val wallNanos: SQLMetric = longMetric("wallNanos")
-  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val inputRows: SQLMetric = longMetric("inputRows")
+    val inputVectors: SQLMetric = longMetric("inputVectors")
+    val inputBytes: SQLMetric = longMetric("inputBytes")
+    val rawInputRows: SQLMetric = longMetric("rawInputRows")
+    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+    val outputRows: SQLMetric = longMetric("outputRows")
+    val outputVectors: SQLMetric = longMetric("outputVectors")
+    val outputBytes: SQLMetric = longMetric("outputBytes")
+    val count: SQLMetric = longMetric("count")
+    val wallNanos: SQLMetric = longMetric("wallNanos")
+    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+
+    override def updateOutputMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
+      outputVectors += outNumBatches
+      outputRows += outNumRows
+    }
+
+    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+      if (operatorMetrics != null) {
+        inputRows += operatorMetrics.inputRows
+        inputVectors += operatorMetrics.inputVectors
+        inputBytes += operatorMetrics.inputBytes
+        rawInputRows += operatorMetrics.rawInputRows
+        rawInputBytes += operatorMetrics.rawInputBytes
+        outputRows += operatorMetrics.outputRows
+        outputVectors += operatorMetrics.outputVectors
+        outputBytes += operatorMetrics.outputBytes
+        count += operatorMetrics.count
+        wallNanos += operatorMetrics.wallNanos
+        peakMemoryBytes += operatorMetrics.peakMemoryBytes
+        numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      }
+    }
+  }
 
   val sparkConf: SparkConf = sparkContext.getConf
   // Split out all the IsNotNulls from condition.
-  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
+  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
@@ -120,27 +141,7 @@ abstract class FilterExecBaseTransformer(condition: Expression,
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    outputVectors += outNumBatches
-    outputRows += outNumRows
-  }
-
-  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-    if (operatorMetrics != null) {
-      inputRows += operatorMetrics.inputRows
-      inputVectors += operatorMetrics.inputVectors
-      inputBytes += operatorMetrics.inputBytes
-      rawInputRows += operatorMetrics.rawInputRows
-      rawInputBytes += operatorMetrics.rawInputBytes
-      outputRows += operatorMetrics.outputRows
-      outputVectors += operatorMetrics.outputVectors
-      outputBytes += operatorMetrics.outputBytes
-      count += operatorMetrics.count
-      wallNanos += operatorMetrics.wallNanos
-      peakMemoryBytes += operatorMetrics.peakMemoryBytes
-      numMemoryAllocations += operatorMetrics.numMemoryAllocations
-    }
-  }
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
 
   override def getChild: SparkPlan = child
 
@@ -162,10 +163,9 @@ abstract class FilterExecBaseTransformer(condition: Expression,
     if (condExpr == null) {
       return input
     }
-    val columnarCondExpr: Expression = ExpressionConverter
-      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-    val condExprNode =
-      columnarCondExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val condExprNode = ExpressionConverter.replaceWithExpressionTransformer(
+      condExpr, attributeSeq = originalInputAttributes)
+      .doTransform(args)
 
     if (!validation) {
       RelBuilder.makeFilterRel(input, condExprNode, context, operatorId)
@@ -220,7 +220,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     }
 
     // For now arrow backend only support scan + filter pattern
-    if (GlutenConfig.getConf.isGazelleBackend) {
+    if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
       if (!(child.isInstanceOf[DataSourceScanExec] ||
         child.isInstanceOf[DataSourceV2ScanExecBase])) {
         return false
@@ -230,8 +230,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     // Then, validate the generated plan in native engine.
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }
@@ -301,19 +300,37 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
 
-  val inputRows: SQLMetric = longMetric("inputRows")
-  val inputVectors: SQLMetric = longMetric("inputVectors")
-  val inputBytes: SQLMetric = longMetric("inputBytes")
-  val rawInputRows: SQLMetric = longMetric("rawInputRows")
-  val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
-  val outputRows: SQLMetric = longMetric("outputRows")
-  val outputVectors: SQLMetric = longMetric("outputVectors")
-  val outputBytes: SQLMetric = longMetric("outputBytes")
-  val count: SQLMetric = longMetric("count")
-  val wallNanos: SQLMetric = longMetric("wallNanos")
-  val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
-  val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+  object MetricsUpdaterImpl extends MetricsUpdater {
+    val inputRows: SQLMetric = longMetric("inputRows")
+    val inputVectors: SQLMetric = longMetric("inputVectors")
+    val inputBytes: SQLMetric = longMetric("inputBytes")
+    val rawInputRows: SQLMetric = longMetric("rawInputRows")
+    val rawInputBytes: SQLMetric = longMetric("rawInputBytes")
+    val outputRows: SQLMetric = longMetric("outputRows")
+    val outputVectors: SQLMetric = longMetric("outputVectors")
+    val outputBytes: SQLMetric = longMetric("outputBytes")
+    val count: SQLMetric = longMetric("count")
+    val wallNanos: SQLMetric = longMetric("wallNanos")
+    val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
+    val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
 
+    override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
+      if (operatorMetrics != null) {
+        inputRows += operatorMetrics.inputRows
+        inputVectors += operatorMetrics.inputVectors
+        inputBytes += operatorMetrics.inputBytes
+        rawInputRows += operatorMetrics.rawInputRows
+        rawInputBytes += operatorMetrics.rawInputBytes
+        outputRows += operatorMetrics.outputRows
+        outputVectors += operatorMetrics.outputVectors
+        outputBytes += operatorMetrics.outputBytes
+        count += operatorMetrics.count
+        wallNanos += operatorMetrics.wallNanos
+        peakMemoryBytes += operatorMetrics.peakMemoryBytes
+        numMemoryAllocations += operatorMetrics.numMemoryAllocations
+      }
+    }
+  }
   val sparkConf: SparkConf = sparkContext.getConf
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
@@ -333,8 +350,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     // Then, validate the generated plan in native engine.
     if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validator = new ExpressionEvaluator()
-      validator.doValidate(planNode.toProtobuf.toByteArray)
+      BackendsApiManager.getValidatorApiInstance.doValidate(planNode)
     } else {
       true
     }
@@ -366,27 +382,7 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       this
   }
 
-  override def updateMetrics(outNumBatches: Long, outNumRows: Long): Unit = {
-    outputVectors += outNumBatches
-    outputRows += outNumRows
-  }
-
-  override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
-    if (operatorMetrics != null) {
-      inputRows += operatorMetrics.inputRows
-      inputVectors += operatorMetrics.inputVectors
-      inputBytes += operatorMetrics.inputBytes
-      rawInputRows += operatorMetrics.rawInputRows
-      rawInputBytes += operatorMetrics.rawInputBytes
-      outputRows += operatorMetrics.outputRows
-      outputVectors += operatorMetrics.outputVectors
-      outputBytes += operatorMetrics.outputBytes
-      count += operatorMetrics.count
-      wallNanos += operatorMetrics.wallNanos
-      peakMemoryBytes += operatorMetrics.peakMemoryBytes
-      numMemoryAllocations += operatorMetrics.numMemoryAllocations
-    }
-  }
+  override def metricsUpdater(): MetricsUpdater = MetricsUpdaterImpl
 
   override def getChild: SparkPlan = child
 
@@ -439,13 +435,13 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
                  input: RelNode,
                  validation: Boolean): RelNode = {
     val args = context.registeredFunction
-    val columnarProjExprs: Seq[Expression] = projectList.map(expr => {
+    val columnarProjExprs: Seq[ExpressionTransformer] = projectList.map(expr => {
       ExpressionConverter
         .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
     })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
-      projExprNodeList.add(expr.asInstanceOf[ExpressionTransformer].doTransform(args))
+      projExprNodeList.add(expr.doTransform(args))
     }
     if (!validation) {
       RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId)
@@ -484,7 +480,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
     children.map(_.output).transpose.map { attrs =>
       val firstAttr = attrs.head
       val nullable = attrs.exists(_.nullable)
-      val newDt = attrs.map(_.dataType).reduce(StructTypeFWD.merge)
+      val newDt = attrs.map(_.dataType).reduce(StructTypeFWD.unionLikeMerge)
       if (firstAttr.dataType == newDt) {
         firstAttr.withNullability(nullable)
       } else {
@@ -519,7 +515,9 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan {
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  def doValidate(): Boolean = true
+  def doValidate(): Boolean = {
+    BackendsApiManager.getValidatorApiInstance.doValidateSchema(schema)
+  }
 }
 
 /** Contains functions for the comparision and separation of the filter conditions

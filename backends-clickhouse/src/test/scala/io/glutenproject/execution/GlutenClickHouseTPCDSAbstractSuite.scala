@@ -70,7 +70,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", resourcePath, "", "")
 
     for (sql <- parquetTables) {
-      spark.sql(sql).show(10, false)
+      spark.sql(sql)
     }
     spark.sql("use tpcdsdb;")
     val result = spark
@@ -97,7 +97,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-      .set(GlutenConfig.GLUTEN_LOAD_NATIVE, "true")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")

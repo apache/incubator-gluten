@@ -17,15 +17,15 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.GlutenPlugin.buildNativeConfNode
 import io.glutenproject.backendsapi.IInitializerApi
-import io.glutenproject.vectorized.JniLibLoader
+import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.SparkConf
 
 import org.apache.commons.lang3.StringUtils
 
 class CHInitializerApi extends IInitializerApi {
-  override def getBackendName: String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 
   override def initialize(conf: SparkConf): Unit = {
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
@@ -35,5 +35,7 @@ class CHInitializerApi extends IInitializerApi {
     }
     // Path based load. Ignore all other loadees.
     JniLibLoader.loadFromPath(libPath, true)
+    val initKernel = new CHNativeExpressionEvaluator()
+    initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
   }
 }

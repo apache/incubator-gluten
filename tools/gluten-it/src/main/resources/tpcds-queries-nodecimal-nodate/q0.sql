@@ -1,0 +1,1 @@
+select cr_returned_date_sk, cr_returned_time_sk from catalog_returns order by cr_returned_date_sk, cr_returned_time_sk
