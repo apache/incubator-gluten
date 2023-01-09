@@ -33,8 +33,10 @@ public class ExtensionBuilder {
     return new AdvancedExtensionNode(enhancement);
   }
 
-  public static AdvancedExtensionNode makeAdvancedExtension(java.util.ArrayList<TypeNode> typeNodes) {
-    return new AdvancedExtensionNode(Any.pack(TypeBuilder.makeStruct(false, typeNodes).toProtobuf()));
+  public static AdvancedExtensionNode makeAdvancedExtension(
+      java.util.ArrayList<TypeNode> typeNodes) {
+    return new AdvancedExtensionNode(
+        Any.pack(TypeBuilder.makeStruct(false, typeNodes).toProtobuf()));
   }
 
   public static AdvancedExtensionNode makeAdvancedExtension(Any optimization, Any enhancement) {
