@@ -211,7 +211,26 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
   /** List of supported cases to run with Velox backend, in lower case.
    * Please add to the supported list after enabling a sql test.
    */
-  private val veloxSupportedList: Set[String] = Set()
+  private val veloxSupportedList: Set[String] = Set(
+    "array.sql",
+    "bitwise.sql",
+    "cast.sql",
+    "change-column.sql",
+    "charvarchar.sql",
+    "columnresolution-negative.sql",
+    "columnresolution-views.sql",
+    "columnresolution.sql",
+    "comments.sql",
+    "comparator.sql",
+    "count.sql",
+    "cross-join.sql",
+    "csv-functions.sql",
+    "cte-legacy.sql",
+    "cte-nested.sql",
+    "cte-nonlegacy.sql",
+    "cte.sql",
+    "current_database_catalog.sql"
+  )
 
   /** List of supported cases to run with Clickhouse backend, in lower case.
    * Please add to the supported list after enabling a sql test.
