@@ -156,38 +156,29 @@ python3 /path_to_clickhouse_backend_src/utils/local-engine/tool/parquet_to_merge
 #### Run Spark Thriftserver on local
 ```
 cd spark-3.2.2-bin-hadoop2.7
-./sbin/start-thriftserver.sh \
-  --master local[3] \
-  --driver-memory 10g \
-  --conf spark.serializer=org.apache.spark.serializer.JavaSerializer \
-  --conf spark.sql.sources.ignoreDataLocality=true \
-  --conf spark.default.parallelism=1 \
-  --conf spark.sql.shuffle.partitions=1 \
-  --conf spark.sql.files.minPartitionNum=1 \
-  --conf spark.sql.files.maxPartitionBytes=1073741824 \
-  --conf spark.sql.adaptive.enabled=false \
-  --conf spark.locality.wait=0 \
-  --conf spark.locality.wait.node=0 \
-  --conf spark.locality.wait.process=0 \
-  --conf spark.sql.columnVector.offheap.enabled=true \
-  --conf spark.memory.offHeap.enabled=true \
-  --conf spark.memory.offHeap.size=6442450944 \
-  --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnartorow=true \
-  --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
-  --conf spark.gluten.sql.columnar.iterator=true \
-  --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
-  --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
-  --conf spark.gluten.sql.enable.native.validation=false \
-  --conf spark.io.compression.codec=snappy \
-  --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
-  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
-  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
-  --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
-  --conf spark.databricks.delta.snapshotPartitions=1 \
-  --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
-  --conf spark.databricks.delta.stalenessLimit=3600000
+./bin/spark-sql --master "local[15]" \
+ --driver-memory 50g \
+ --conf spark.default.parallelism=15 \
+ --conf spark.sql.shuffle.partitions=30 \
+ --conf spark.sql.files.minPartitionNum=1 \
+ --conf spark.sql.files.maxPartitionBytes=1G \
+ --conf spark.sql.files.openCostInBytes=1073741824 \
+ --conf spark.memory.offHeap.enabled=true \
+ --conf spark.memory.offHeap.size=50g \
+ --conf spark.memory.fraction=0.6 \
+ --conf spark.memory.storageFraction=0.3 \
+ --conf spark.plugins=io.glutenproject.GlutenPlugin \
+ --conf spark.gluten.sql.columnar.libpath=/usr/local/clickhouse/lib/libch.so \
+ --conf spark.gluten.sql.columnar.loadarrow=false \
+ --conf spark.gluten.sql.enable.native.validation=false \
+ --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
+ --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
+ --conf spark.databricks.delta.snapshotPartitions=1 \
+ --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
+ --conf spark.databricks.delta.stalenessLimit=3600000 \
+ --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+ --conf spark.gluten.sql.columnar.backend.ch.runtime_conf.logger.level=error \
+ --conf spark.io.compression.codec=LZ4
 
 #connect to Spark Thriftserver by beeline
 bin/beeline -u jdbc:hive2://localhost:10000/ -n root
