@@ -17,7 +17,6 @@
 
 package io.glutenproject.substrait
 
-import java.io.{IOException, ObjectInputStream}
 import java.security.InvalidParameterException
 import java.util
 

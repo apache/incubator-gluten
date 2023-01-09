@@ -27,7 +27,6 @@ import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOver
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.vectorized.NativeExpressionEvaluator
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.network.util.JavaUtils

@@ -1,6 +1,6 @@
 ### Build parameters
 
-#### Parameters for one_step_veloxbackend.sh setting via --
+#### Parameters for buildbundle-veloxbe.sh setting via --
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |

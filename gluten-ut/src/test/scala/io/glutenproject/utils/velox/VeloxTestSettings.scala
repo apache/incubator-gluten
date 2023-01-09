@@ -78,7 +78,7 @@ object VeloxTestSettings extends BackendTestSettings {
       "distributeBy and localSort",
       // Mismatch when max NaN and infinite value
       "NaN is greater than all other non-NaN numeric values",
-      // To be fixed
+      // Rewrite this test because the describe functions creates unmatched plan.
       "describe"
     )
 
@@ -136,8 +136,7 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
-      "SPARK-26893", // Rewrite this test because it checks Spark's physical operators.
-      "SPARK-32290" // Need to be removed after picking Velox #3571.
+      "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
     )
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenColumnExpressionSuite]
