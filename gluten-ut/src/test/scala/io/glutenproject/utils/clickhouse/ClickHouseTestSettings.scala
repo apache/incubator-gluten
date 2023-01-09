@@ -67,7 +67,9 @@ object ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameFunctionsSuite]
     .include(
       "conditional function: least",
-      "conditional function: greatest"
+      "conditional function: greatest",
+      "array size function",
+      "map size function"
     )
 
   enableSuite[GlutenDateFunctionsSuite]
@@ -161,5 +163,12 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "correlated scalar subquery in where",
       "disjunctive correlated scalar subquery",
       ""
+    )
+
+  enableSuite[GlutenDataFramePivotSuite]
+    .include(
+      "pivot with datatype not supported by PivotFirst",
+      "pivot with datatype not supported by PivotFirst 2",
+      "pivot with null and aggregate type not supported by PivotFirst returns correct result"
     )
 }

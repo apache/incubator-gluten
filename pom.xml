@@ -519,6 +519,9 @@
           <version>${scala.compiler.version}</version>
           <configuration>
             <recompileMode>${scala.recompile.mode}</recompileMode>
+            <args>
+              <arg>-Ywarn-unused:imports</arg>
+            </args>
           </configuration>
           <executions>
             <execution>

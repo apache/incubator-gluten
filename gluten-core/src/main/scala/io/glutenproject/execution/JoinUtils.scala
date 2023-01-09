@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import com.google.protobuf.Any
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
@@ -27,7 +26,7 @@ import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.substrait.proto.JoinRel
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
-import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, LeftSemiOrAnti, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
 import org.apache.spark.sql.types.DataType
 
 import java.util
@@ -230,9 +229,8 @@ object JoinUtils {
       joinType match {
         case _: ExistenceJoin =>
           inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
-            BackendsApiManager.getTransformerApiInstance.genExistsColumnProjection(
-              ExpressionBuilder.makeSelection(buildOutput.size), substraitContext)
-        case LeftSemiOrAnti(_) =>
+            ExpressionBuilder.makeSelection(buildOutput.size)
+        case LeftExistence(_) =>
           leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
         case _ =>
           // Exchange the order of build and streamed.
@@ -246,8 +244,7 @@ object JoinUtils {
         getDirectJoinOutput(joinType, inputStreamedOutput, inputBuildOutput)
       if (joinType.isInstanceOf[ExistenceJoin]) {
         inputStreamedOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
-          BackendsApiManager.getTransformerApiInstance.genExistsColumnProjection(
-            ExpressionBuilder.makeSelection(streamedOutput.size), substraitContext)
+          ExpressionBuilder.makeSelection(streamedOutput.size)
       } else {
         leftOutput.indices.map(ExpressionBuilder.makeSelection(_)) ++
           rightOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
