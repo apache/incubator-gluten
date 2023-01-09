@@ -80,13 +80,14 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   filesystems::registerHdfsFileSystem();
   // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
   // LIBHDFS3_CONF
-  std::string hdfsUri = "localhost:9000";
+  std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
   const char* envHdfsUri = std::getenv("VELOX_HDFS");
   if (envHdfsUri != nullptr) {
     hdfsUri = std::string(envHdfsUri);
   }
-  auto hdfsPort = hdfsUri.substr(hdfsUri.find(":") + 1);
-  auto hdfsHost = hdfsUri.substr(0, hdfsUri.find(":"));
+  auto hdfsHostWithPort = hdfsUri.substr(hdfsUri.find(":") + 3);
+  auto hdfsPort = hdfsHostWithPort.substr(hdfsHostWithPort.find(":") + 1);
+  auto hdfsHost = hdfsHostWithPort.substr(0, hdfsHostWithPort.find(":"));
   std::unordered_map<std::string, std::string> hdfsConfig({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
   configurationValues.merge(hdfsConfig);
 #endif
