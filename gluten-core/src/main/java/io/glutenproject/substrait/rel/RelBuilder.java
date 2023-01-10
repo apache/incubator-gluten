@@ -76,20 +76,22 @@ public class RelBuilder {
   public static RelNode makeAggregateRel(RelNode input,
                                          ArrayList<ExpressionNode> groupings,
                                          ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+                                         ArrayList<ExpressionNode> filters,
                                          SubstraitContext context,
                                          Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new AggregateRelNode(input, groupings, aggregateFunctionNodes);
+    return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters);
   }
 
   public static RelNode makeAggregateRel(RelNode input,
                                          ArrayList<ExpressionNode> groupings,
                                          ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+                                         ArrayList<ExpressionNode> filters,
                                          AdvancedExtensionNode extensionNode,
                                          SubstraitContext context,
                                          Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new AggregateRelNode(input, groupings, aggregateFunctionNodes, extensionNode);
+    return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters, extensionNode);
   }
 
   public static RelNode makeReadRel(ArrayList<TypeNode> types,

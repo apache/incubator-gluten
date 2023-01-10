@@ -634,8 +634,15 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     // Create Aggregation functions.
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(aggExpr.filter.get,
+            child.output).doTransform(context.registeredFunction)
+        aggFilterList.add(exprNode)
+      }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggregateFunc.children.toList.map(_ => {
@@ -651,7 +658,8 @@ abstract class HashAggregateExecBaseTransformer(
     })
 
     RelBuilder.makeAggregateRel(
-      inputRel, groupingList, aggregateFunctionList, context, operatorId)
+      inputRel, groupingList, aggregateFunctionList,
+      aggFilterList, context, operatorId)
   }
 
   protected def addFunctionNode(args: java.lang.Object,
@@ -845,8 +853,14 @@ abstract class HashAggregateExecBaseTransformer(
       groupingList.add(exprNode)
     })
     // Get the aggregate function nodes.
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
+        aggFilterList.add(exprNode)
+      }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggExpr.mode match {
@@ -872,7 +886,7 @@ abstract class HashAggregateExecBaseTransformer(
     })
     if (!validation) {
       RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, context, operatorId)
+        input, groupingList, aggregateFunctionList, aggFilterList, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -882,7 +896,8 @@ abstract class HashAggregateExecBaseTransformer(
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, extensionNode, context, operatorId)
+        input, groupingList, aggregateFunctionList, aggFilterList,
+        extensionNode, context, operatorId)
     }
   }
 

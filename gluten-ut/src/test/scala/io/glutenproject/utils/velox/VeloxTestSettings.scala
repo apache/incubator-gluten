@@ -158,28 +158,6 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite]
   enableSuite[GlutenOuterJoinSuite]
   enableSuite[GlutenInnerJoinSuite]
-    // The following tests will be re-run in GlutenInnerJoinSuite by
-    // changing the struct schema from "struct(id, id) as key" to
-    // "struct(id as id1, id as id2) as key". Because the first
-    // Struct child will be covered with the second same name id.
-    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
-      " (build=left) (whole-stage-codegen off)")
-    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
-      " (build=left) (whole-stage-codegen on)")
-    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
-      " (build=right) (whole-stage-codegen off)")
-    .exclude("SPARK-15822 - test structs as keys using BroadcastHashJoin" +
-      " (build=right) (whole-stage-codegen on)")
-    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
-      " (build=left) (whole-stage-codegen off)")
-    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
-      " (build=left) (whole-stage-codegen on)")
-    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
-      " (build=right) (whole-stage-codegen off)")
-    .exclude("SPARK-15822 - test structs as keys using ShuffledHashJoin" +
-      " (build=right) (whole-stage-codegen on)")
-    .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen off)")
-    .exclude("SPARK-15822 - test structs as keys using SortMergeJoin (whole-stage-codegen on)")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeAdaptor does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
@@ -188,4 +166,7 @@ object VeloxTestSettings extends BackendTestSettings {
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenBroadcastJoinSuite]
+  enableSuite[GlutenSQLQuerySuite]
+    .include("Struct Star Expansion")
+    .include("SPARK-16674: field names containing dots for both fields and partitioned fields")
 }
