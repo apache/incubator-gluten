@@ -53,7 +53,6 @@ class DwrfDatasource {
  private:
   std::string file_path_;
   std::string final_path_;
-  int32_t count_ = 0;
   int64_t num_rbs_ = 0;
   std::shared_ptr<arrow::Schema> schema_;
   std::vector<facebook::velox::RowVectorPtr> row_vecs_;

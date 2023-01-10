@@ -97,7 +97,6 @@ class WholeStageResIter {
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 
   std::shared_ptr<Metrics> metrics_ = nullptr;
-  int64_t metricVeloxToArrowNanos_ = 0;
 
   /// All the children plan node ids with postorder traversal.
   std::vector<facebook::velox::core::PlanNodeId> orderedNodeIds_;

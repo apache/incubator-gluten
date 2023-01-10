@@ -77,6 +77,11 @@ add_compile_options(-Wno-error=parentheses)
 add_compile_options(-Wno-error=unused-function)
 add_compile_options(-Wno-error=unused-variable)
 add_compile_options(-Wno-error=unused-but-set-variable)
+add_compile_options(-Wno-error=unused-result)
+add_compile_options(-Wno-error=nullability-completeness)
+add_compile_options(-Wno-error=potentially-evaluated-expression)
+add_compile_options(-Wno-error=mismatched-tags)
+add_compile_options(-Wno-error=string-plus-int)
 
 #
 # Dependencies
@@ -95,8 +100,7 @@ find_package(Threads REQUIRED)
 find_package(JNI REQUIRED)
 
 if(BUILD_TESTS)
-  include(GoogleTest)
-  enable_testing()
+  find_package(GTest REQUIRED)
 endif()
 
 function(ADD_TEST_CASE TEST_NAME)
@@ -120,8 +124,9 @@ function(ADD_TEST_CASE TEST_NAME)
     message(FATAL_ERROR "No sources specified for test ${TEST_NAME}")
   endif()
 
+  enable_testing()
   add_executable(${TEST_NAME} ${SOURCES})
-  target_link_libraries(${TEST_NAME} spark_columnar_jni gtest gtest_main Threads::Threads)
+  target_link_libraries(${TEST_NAME} spark_columnar_jni GTest::gtest GTest::gtest_main Threads::Threads)
   target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)
@@ -136,6 +141,7 @@ function(ADD_TEST_CASE TEST_NAME)
     add_dependencies(${TEST_NAME} ${ARG_EXTRA_DEPENDENCIES})
   endif()
 
+  include(GoogleTest)
   gtest_discover_tests(${TEST_NAME})
 endfunction()
 

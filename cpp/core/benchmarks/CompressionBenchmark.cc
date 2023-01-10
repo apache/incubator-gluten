@@ -24,7 +24,9 @@
 #include <execinfo.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
+#if !defined(__APPLE__)
 #include <sched.h>
+#endif
 #include <sys/mman.h>
 
 #include <chrono>
@@ -256,10 +258,14 @@ class BenchmarkCompression {
 
  protected:
   long SetCPU(uint32_t cpuindex) {
+#if !defined(__APPLE__)
     cpu_set_t cs;
     CPU_ZERO(&cs);
     CPU_SET(cpuindex, &cs);
     return sched_setaffinity(0, sizeof(cs), &cs);
+#else
+    return 0;
+#endif
   }
 
   virtual void DoCompress(

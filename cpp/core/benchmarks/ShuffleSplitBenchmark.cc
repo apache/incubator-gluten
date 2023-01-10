@@ -25,7 +25,9 @@
 #include <execinfo.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
+#if !defined(__APPLE__)
 #include <sched.h>
+#endif
 #include <sys/mman.h>
 
 #include <chrono>
@@ -290,10 +292,14 @@ class BenchmarkShuffleSplit {
 
  protected:
   long SetCPU(uint32_t cpuindex) {
+#if !defined(__APPLE__)
     cpu_set_t cs;
     CPU_ZERO(&cs);
     CPU_SET(cpuindex, &cs);
     return sched_setaffinity(0, sizeof(cs), &cs);
+#else
+    return 0;
+#endif
   }
 
   virtual void Do_Split(
@@ -383,9 +389,7 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
 
     for (auto _ : state) {
       for_each(
-          batches.begin(),
-          batches.end(),
-          [&splitter, &split_time, &options](std::shared_ptr<arrow::RecordBatch>& record_batch) {
+          batches.begin(), batches.end(), [&splitter, &split_time](std::shared_ptr<arrow::RecordBatch>& record_batch) {
             TIME_NANO_OR_THROW(split_time, splitter->Split(*record_batch));
           });
       // std::cout << " split done memory allocated = " <<

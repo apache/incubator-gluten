@@ -25,6 +25,9 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#if !defined(__APPLE__)
+#include <sched.h>
+#endif
 #include <thread>
 
 #include "compute/VeloxBackend.h"
@@ -157,6 +160,7 @@ std::shared_ptr<gluten::ResultIterator> getInputFromBatchStream(const std::strin
 void setCpu(uint32_t cpuindex) {
   static const auto total_cores = std::thread::hardware_concurrency();
   cpuindex = cpuindex % total_cores;
+#if !defined(__APPLE__)
   cpu_set_t cs;
   CPU_ZERO(&cs);
   CPU_SET(cpuindex, &cs);
@@ -164,4 +168,5 @@ void setCpu(uint32_t cpuindex) {
     std::cerr << "Error binding CPU " << std::to_string(cpuindex) << std::endl;
     exit(EXIT_FAILURE);
   }
+#endif
 }
