@@ -19,10 +19,8 @@ package io.glutenproject.backendsapi.glutendata
 
 import java.util
 import java.util.concurrent.TimeUnit
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IIteratorApi
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
@@ -36,7 +34,6 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.GlutenImplicitClass.{coalesce, ArrowColumnarBatchRetainer}
 import io.glutenproject.vectorized._
 import org.apache.arrow.vector.types.pojo.Schema
-
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
@@ -51,6 +48,8 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.ExecutorManager
 import org.apache.spark.util.memory.TaskMemoryResources
+
+import java.net.URLDecoder
 
 abstract class GlutenIteratorApi extends IIteratorApi with Logging {
 
@@ -71,7 +70,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
           val lengths = new java.util.ArrayList[java.lang.Long]()
           val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
           f.files.foreach { file =>
-            paths.add(file.filePath)
+            paths.add(URLDecoder.decode(file.filePath))
             starts.add(new java.lang.Long(file.start))
             lengths.add(new java.lang.Long(file.length))
           }
