@@ -300,7 +300,6 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
   } else {
     veloxSupportedList
   }
-  
   // Create all the test cases.
   listTestCases.foreach(createScalaTestCase)
 
