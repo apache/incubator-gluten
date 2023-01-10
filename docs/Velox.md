@@ -131,7 +131,7 @@ mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests
 ```
 Gluten HDFS support requires Hdfs URI, you can define this config in three ways:
 
-1. spark-defaults.xml
+1. spark-defaults.conf
 
 ```
 spark.hadoop.fs.defaultFS hdfs://hdfshost:9000
