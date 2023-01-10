@@ -129,18 +129,32 @@ cd /path_to_gluten/cpp
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
 ```
-Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
+Gluten HDFS support requires Hdfs URI, you can define this config in three ways:
 
-This env should be exported in both Spark driver and worker.
-e.g., in Spark local mode:
+1. spark-defaults.xml
+
 ```
-export VELOX_HDFS="hdfshost:9000"
+spark.hadoop.fs.defaultFS hdfs://hdfshost:9000
 ```
 
-If running in Spark Yarn cluster mode, the env variable need to be set on each executor:
+2. envrionment variable `VELOX_HDFS`
 ```
---conf spark.executorEnv.VELOX_HDFS="hdfshost:9000"
+// Spark local mode
+export VELOX_HDFS="hdfs://hdfshost:9000"
+
+// Spark Yarn cluster mode
+--conf spark.executorEnv.VELOX_HDFS="hdfs://hdfshost:9000"
 ```
+
+3. Hadoop's `core-site.xml` (recomended)
+```
+<property>
+   <name>fs.defaultFS</name>
+   <value>hdfs://hdfshost:9000</value>
+</property>
+```
+If Gluten is used in a fully-prepared Hadoop cluster, we recommend to use Hadoop's config.
+
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
 By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
