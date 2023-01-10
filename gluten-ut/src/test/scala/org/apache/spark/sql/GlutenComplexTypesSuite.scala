@@ -32,7 +32,7 @@ class GlutenComplexTypesSuite extends ComplexTypesSuite with GlutenSQLTestsTrait
       "cast(cast(id as BYTE) as BINARY) as vbin",
       "map_from_arrays(array(id),array(id+2)) as map",
       "array(id, id+1, id+2) as list",
-      "struct(cast(id as LONG), cast(id+1 as STRING)) as struct"
+      "struct(cast(id as LONG) as a, cast(id+1 as STRING) as b) as struct"
     ).write.saveAsTable("tab_types")
   }
 
@@ -55,6 +55,7 @@ class GlutenComplexTypesSuite extends ComplexTypesSuite with GlutenSQLTestsTrait
       "dec",
       "vbin",
       "struct",
+      "struct.a",
       "list",
       "map"
     ).sort("i8").limit(1)
@@ -69,6 +70,7 @@ class GlutenComplexTypesSuite extends ComplexTypesSuite with GlutenSQLTestsTrait
         BigDecimal(0),
         Array[Byte](0.toByte),
         Row(0.toLong, "1"),
+        0.toLong,
         Array(0, 1, 2),
         Map(0 -> 2)
       )))

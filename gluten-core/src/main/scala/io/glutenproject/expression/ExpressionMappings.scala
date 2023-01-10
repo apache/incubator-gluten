@@ -155,6 +155,9 @@ object ExpressionMappings {
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
 
+  // struct functions
+  final val GET_STRUCT_FIELD = "get_struct_field"
+
   // Spark 3.3
   final val SPLIT_PART = "split_part"
 
@@ -302,6 +305,8 @@ object ExpressionMappings {
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
+    // Struct functions
+    Sig[GetStructField](GET_STRUCT_FIELD),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),

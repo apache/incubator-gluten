@@ -60,6 +60,8 @@ object CHBackendSettings extends BackendSettings {
 
   override def supportWindowExec(): Boolean = true
 
+  override def supportStructType(): Boolean = true
+
   override def excludeScanExecFromCollapsedStage(): Boolean =
     SQLConf.get
       .getConfString(GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT)
