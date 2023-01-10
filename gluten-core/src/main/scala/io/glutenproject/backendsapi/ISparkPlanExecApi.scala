@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
 import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer}
-import io.glutenproject.substrait.expression.ExpressionNode
+
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
