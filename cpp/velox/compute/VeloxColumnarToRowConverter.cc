@@ -77,8 +77,6 @@ arrow::Status VeloxColumnarToRowConverter::Init() {
   }
 
   ARROW_ASSIGN_OR_RAISE(buffer_, arrow::AllocateBuffer(total_memory_size, arrow_pool_.get()));
-  // does it really need to zero memory here?
-  memset(buffer_->mutable_data(), 0, sizeof(int8_t) * total_memory_size);
   buffer_address_ = buffer_->mutable_data();
   return arrow::Status::OK();
 }
@@ -98,95 +96,58 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
     int64_t field_offset = GetFieldOffset(nullBitsetWidthInBytes_, col_idx);
     auto field_address = (char*)(buffer_address_ + field_offset);
 
+#define SERIALIZE_COLUMN(DataType)                                                              \
+do {                                                                                            \
+    if (mayHaveNulls) {                                                                         \
+        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                                 \
+          if (vec->isNullAt(row_idx)) {                                                         \
+            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);               \
+          } else {                                                                              \
+            auto write_address = (char*)(field_address + offsets_[row_idx]);                    \
+            row::UnsafeRowSerializer::serialize<DataType>(vec, write_address, row_idx);         \
+          }                                                                                     \
+        }                                                                                       \
+    } else {                                                                                    \
+        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {                                 \
+          auto write_address = (char*)(field_address + offsets_[row_idx]);                      \
+          row::UnsafeRowSerializer::serialize<DataType>(vec, write_address, row_idx);           \
+        }                                                                                       \
+    }                                                                                           \
+} while (0)
+
     auto col_type_id = schema_->field(col_idx)->type()->id();
     switch (col_type_id) {
       // We should keep supported types consistent with that in #buildCheck of GlutenColumnarToRowExec.scala.
       case arrow::Int8Type::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<TinyintType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(TinyintType);
         break;
       }
       case arrow::Int16Type::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<SmallintType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(SmallintType);
         break;
       }
       case arrow::Int32Type::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<IntegerType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(IntegerType);
         break;
       }
       case arrow::Int64Type::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<BigintType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(BigintType);
         break;
       }
       case arrow::Date32Type::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<DateType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(DateType);
         break;
       }
       case arrow::FloatType::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<RealType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(RealType);
         break;
       }
       case arrow::DoubleType::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<DoubleType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(DoubleType);
         break;
       }
       case arrow::BooleanType::type_id: {
-        for (int row_idx = 0; row_idx < num_rows_; row_idx++) {
-          if (mayHaveNulls && vec->isNullAt(row_idx)) {
-            SetNullAt(buffer_address_, offsets_[row_idx], field_offset, col_idx);
-          } else {
-            auto write_address = (char*)(field_address + offsets_[row_idx]);
-            row::UnsafeRowSerializer::serialize<BooleanType>(vec, write_address, row_idx);
-          }
-        }
+        SERIALIZE_COLUMN(BooleanType);
         break;
       }
       case arrow::BinaryType::type_id:
@@ -212,6 +173,8 @@ arrow::Status VeloxColumnarToRowConverter::Write() {
         return arrow::Status::Invalid(
             "Type " + schema_->field(col_idx)->type()->name() + " is not supported in VeloxToRow conversion.");
     }
+
+#undef SERIALIZE_COLUMN
   }
   return arrow::Status::OK();
 }

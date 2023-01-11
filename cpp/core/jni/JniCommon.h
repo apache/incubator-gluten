@@ -28,6 +28,7 @@
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
+static inline
 jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
   jclass local_class = env->FindClass(class_name);
   jclass global_class = (jclass)env->NewGlobalRef(local_class);
@@ -35,16 +36,19 @@ jclass CreateGlobalClassReference(JNIEnv* env, const char* class_name) {
   return global_class;
 }
 
+static inline
 jmethodID GetMethodID(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
   jmethodID ret = env->GetMethodID(this_class, name, sig);
   return ret;
 }
 
+static inline
 jmethodID GetStaticMethodID(JNIEnv* env, jclass this_class, const char* name, const char* sig) {
   jmethodID ret = env->GetStaticMethodID(this_class, name, sig);
   return ret;
 }
 
+static inline
 std::shared_ptr<arrow::DataType> GetOffsetDataType(std::shared_ptr<arrow::DataType> parent_type) {
   switch (parent_type->id()) {
     case arrow::BinaryType::type_id:
@@ -60,11 +64,12 @@ std::shared_ptr<arrow::DataType> GetOffsetDataType(std::shared_ptr<arrow::DataTy
   }
 }
 
-template <typename T>
+template <typename T> inline
 bool is_fixed_width_type(T _) {
   return std::is_base_of<arrow::FixedWidthType, T>::value;
 }
 
+static inline
 arrow::Status AppendNodes(std::shared_ptr<arrow::Array> column, std::vector<std::pair<int64_t, int64_t>>* nodes) {
   auto type = column->type();
   (*nodes).push_back(std::make_pair(column->length(), column->null_count()));
@@ -80,6 +85,7 @@ arrow::Status AppendNodes(std::shared_ptr<arrow::Array> column, std::vector<std:
   return arrow::Status::OK();
 }
 
+static inline
 arrow::Status AppendBuffers(
     std::shared_ptr<arrow::Array> column,
     std::vector<std::shared_ptr<arrow::Buffer>>* buffers) {
@@ -101,6 +107,7 @@ arrow::Status AppendBuffers(
   return arrow::Status::OK();
 }
 
+static inline
 arrow::Status FIXOffsetBuffer(std::shared_ptr<arrow::Buffer>* in_buf, int fix_row) {
   if ((*in_buf) == nullptr || (*in_buf)->size() == 0)
     return arrow::Status::OK();
@@ -113,6 +120,7 @@ arrow::Status FIXOffsetBuffer(std::shared_ptr<arrow::Buffer>* in_buf, int fix_ro
   return arrow::Status::OK();
 }
 
+static inline
 arrow::Status MakeArrayData(
     std::shared_ptr<arrow::DataType> type,
     int num_rows,
@@ -187,6 +195,7 @@ arrow::Status MakeArrayData(
   return arrow::Status::OK();
 }
 
+static inline
 arrow::Status MakeRecordBatch(
     const std::shared_ptr<arrow::Schema>& schema,
     int num_rows,
@@ -208,6 +217,7 @@ arrow::Status MakeRecordBatch(
   return arrow::Status::OK();
 }
 
+static inline
 arrow::Status MakeRecordBatch(
     const std::shared_ptr<arrow::Schema>& schema,
     int num_rows,
@@ -229,6 +239,7 @@ arrow::Status MakeRecordBatch(
   return MakeRecordBatch(schema, num_rows, buffers, in_bufs_len, batch);
 }
 
+static inline
 std::string JStringToCString(JNIEnv* env, jstring string) {
   int32_t jlen, clen;
   clen = env->GetStringUTFLength(string);
@@ -238,6 +249,7 @@ std::string JStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer.data(), clen);
 }
 
+static inline
 jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
   arrow::Status status;
   // std::shared_ptr<arrow::Buffer> buffer;
@@ -254,6 +266,7 @@ jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema)
   return out;
 }
 
+static inline
 arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv* env, jstring codec_jstr) {
   auto codec_l = env->GetStringUTFChars(codec_jstr, JNI_FALSE);
 
@@ -269,6 +282,7 @@ arrow::Result<arrow::Compression::type> GetCompressionType(JNIEnv* env, jstring 
   return compression_type;
 }
 
+static inline
 arrow::Status DecompressBuffer(
     const arrow::Buffer& buffer,
     arrow::util::Codec* codec,
@@ -294,6 +308,7 @@ arrow::Status DecompressBuffer(
   return arrow::Status::OK();
 }
 
+static inline
 arrow::Status DecompressBuffers(
     arrow::Compression::type compression,
     const arrow::ipc::IpcReadOptions& options,
@@ -326,6 +341,7 @@ arrow::Status DecompressBuffers(
   return ::arrow::internal::OptionalParallelFor(options.use_threads, static_cast<int>(buffers.size()), DecompressOne);
 }
 
+static inline
 void AttachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
   int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), JNI_VERSION);
   if (getEnvStat == JNI_EDETACHED) {
@@ -347,6 +363,7 @@ void AttachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
   }
 }
 
+static inline
 void CheckException(JNIEnv* env) {
   if (env->ExceptionCheck()) {
     jthrowable t = env->ExceptionOccurred();
