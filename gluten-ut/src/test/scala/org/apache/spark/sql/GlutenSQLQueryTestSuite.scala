@@ -19,12 +19,13 @@ package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.SystemParameters
-
+import io.glutenproject.utils.{BackendTestSettings, SystemParameters}
 import java.io.File
 import java.net.URI
 import java.util.Locale
+
 import scala.collection.mutable.ArrayBuffer
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
 import org.apache.spark.sql.catalyst.plans.SQLHelper
@@ -36,7 +37,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.TimestampTypes
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.util.Utils
-
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
 
@@ -177,7 +177,6 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
       .setAppName("Gluten-UT")
       .set("spark.driver.memory", "1G")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
@@ -205,7 +204,11 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     if (testCommandAvailable("/bin/bash")) Nil else Set("transform.sql")
   /** List of test cases to ignore, in lower cases. */
   protected def ignoreList: Set[String] = Set(
-    "ignored.sql" // Do NOT remove this one. It is here to test the ignore functionality.
+    "ignored.sql", // Do NOT remove this one. It is here to test the ignore functionality.
+    "explain-aqe.sql", // explain plan is different
+    "explain-cbo.sql", // explain
+    "explain.sql", // explain
+    "group-analytics.sql" // wait velox to fix issue 3357
   ) ++ otherIgnoreList
 
   /** List of supported cases to run with Velox backend, in lower case.
@@ -229,7 +232,61 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "cte-nested.sql",
     "cte-nonlegacy.sql",
     "cte.sql",
-    "current_database_catalog.sql"
+    "current_database_catalog.sql",
+    "date.sql",
+    "datetime-formatting-invalid.sql",
+    "datetime-formatting-legacy.sql",
+    "datetime-formatting.sql",
+    "datetime-legacy.sql",
+    "datetime-parsing-invalid.sql",
+    "datetime-parsing-legacy.sql",
+    "datetime-parsing.sql",
+    "datetime-special.sql",
+    "decimalArithmeticOperations.sql",
+    "describe-part-after-analyze.sql",
+    "describe-query.sql",
+    "describe-table-after-alter-table.sql",
+    "describe-table-column.sql",
+    "describe.sql",
+    "except-all.sql",
+    "except.sql",
+    "extract.sql",
+    "group-by-filter.sql",
+    "group-by-ordinal.sql",
+    "group-by.sql",
+    "grouping_set.sql",
+    "like-all.sql",
+    "like-any.sql",
+    "limit.sql",
+    "literals.sql",
+    "map.sql",
+    "misc-functions.sql",
+    "natural-join.sql",
+    "null-handling.sql",
+    "null-propagation.sql",
+    "operators.sql",
+    "order-by-nulls-ordering.sql",
+    "order-by-ordinal.sql",
+    "outer-join.sql",
+    "parse-schema-string.sql",
+    "pivot.sql",
+    "pred-pushdown.sql",
+    "predicate-functions.sql",
+    "query_regex_column.sql",
+    "random.sql",
+    "regexp-functions.sql",
+    "show-create-table.sql",
+    "show-tables.sql",
+    "show-tblproperties.sql",
+    "show-views.sql",
+    "show_columns.sql",
+    "sql-compatibility-functions.sql",
+    "string-functions.sql",
+    "struct.sql",
+    "subexp-elimination.sql",
+    "table-aliases.sql",
+    "table-valued-functions.sql",
+    "tablesample-negative.sql"
   )
 
   /** List of supported cases to run with Clickhouse backend, in lower case.
@@ -243,7 +300,6 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
   } else {
     veloxSupportedList
   }
-
   // Create all the test cases.
   listTestCases.foreach(createScalaTestCase)
 
