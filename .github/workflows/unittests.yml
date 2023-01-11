@@ -94,7 +94,7 @@ jobs:
       - name: Install Gluten Velox-backend spark3.3 and Run Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox'
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Pspark-ut'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
