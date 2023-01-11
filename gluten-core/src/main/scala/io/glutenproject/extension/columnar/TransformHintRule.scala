@@ -346,7 +346,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                 plan.buildSide,
                 plan.condition,
                 plan.left,
-                plan.right)
+                plan.right,
+                plan.isSkewJoin)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: BroadcastExchangeExec =>

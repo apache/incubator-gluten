@@ -20,11 +20,11 @@ package org.apache.spark.sql
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.SystemParameters
-
 import org.scalactic.source.Position
 import org.scalatest.Tag
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
 /**
@@ -47,7 +47,8 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
       .setAppName("Gluten-UT")
       .set("spark.driver.memory", "1G")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.sql.shuffle.partitions", "1")
+      // wait to change to spark 5 after fix ch and velox backend issue
+      .set(SQLConf.SHUFFLE_PARTITIONS.key, "1")
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
