@@ -93,7 +93,8 @@ trait ISparkPlanExecApi {
                                          buildSide: BuildSide,
                                          condition: Option[Expression],
                                          left: SparkPlan,
-                                         right: SparkPlan): ShuffledHashJoinExecTransformer
+                                         right: SparkPlan,
+                                         isSkewJoin: Boolean): ShuffledHashJoinExecTransformer
 
   /**
    * Generate BroadcastHashJoinExecTransformer.

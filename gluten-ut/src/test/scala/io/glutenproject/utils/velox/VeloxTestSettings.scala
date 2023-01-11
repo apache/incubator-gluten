@@ -22,6 +22,7 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
 
 object VeloxTestSettings extends BackendTestSettings {
@@ -94,6 +95,22 @@ object VeloxTestSettings extends BackendTestSettings {
     "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
   )
 
+  enableSuite[GlutenAdaptiveQueryExecSuite]
+    .includeByPrefix(
+    "gluten", "SPARK-29906", "SPARK-30291", "SPARK-30403", "SPARK-30719", "SPARK-31384",
+      "SPARK-30953", "SPARK-31658", "SPARK-32717", "SPARK-32649", "SPARK-34533",
+      "SPARK-34781", "SPARK-35585", "SPARK-32932", "SPARK-33494", "SPARK-33933", "SPARK-31220",
+    "SPARK-35874", "SPARK-39551")
+    .include("Union/Except/Intersect queries",
+      "Subquery de-correlation in Union queries",
+      "force apply AQE",
+      "test log level",
+      "tree string output",
+    "control a plan explain mode in listener vis SQLConf",
+    "AQE should set active session during execution",
+    "No deadlock in UI update",
+    "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join")
+
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenIntervalFunctionsSuite]
@@ -122,6 +139,7 @@ object VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
     // Spill not supported yet.
     .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
+    .exclude("NaN and -0.0 in window partition keys") // NaN case
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenDateFunctionsSuite]

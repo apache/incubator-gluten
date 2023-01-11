@@ -26,12 +26,13 @@ import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 
 case class GlutenShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                                rightKeys: Seq[Expression],
-                                                joinType: JoinType,
-                                                buildSide: BuildSide,
-                                                condition: Option[Expression],
-                                                left: SparkPlan,
-                                                right: SparkPlan)
+                                                 rightKeys: Seq[Expression],
+                                                 joinType: JoinType,
+                                                 buildSide: BuildSide,
+                                                 condition: Option[Expression],
+                                                 left: SparkPlan,
+                                                 right: SparkPlan,
+                                                 isSkewJoin: Boolean)
   extends ShuffledHashJoinExecTransformer(
     leftKeys,
     rightKeys,
@@ -39,7 +40,8 @@ case class GlutenShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
     buildSide,
     condition,
     left,
-    right) {
+    right,
+    isSkewJoin) {
 
   // Used to specify the preferred build side in backend's real execution.
   object PreferredBuildSide extends Serializable {
