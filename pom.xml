@@ -585,7 +585,7 @@
           <artifactId>maven-shade-plugin</artifactId>
           <version>3.4.1</version>
           <configuration>
-            <finalName>${jar.assembly.name.prefix}-spark${spark32bundle.version}_${scala.binary.version}-${project.version}-jar-with-dependencies</finalName>
+            <finalName>${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}-jar-with-dependencies</finalName>
             <createDependencyReducedPom>false</createDependencyReducedPom>
           </configuration>
         </plugin>
