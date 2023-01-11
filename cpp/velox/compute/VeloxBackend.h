@@ -20,12 +20,6 @@
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "memory/VeloxColumnarBatch.h"
-#include "substrait/plan.pb.h"
-
-#include "velox/core/PlanNode.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "velox/substrait/SubstraitToVeloxPlan.h"
 
 namespace gluten {
 

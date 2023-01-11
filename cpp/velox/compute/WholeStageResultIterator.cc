@@ -15,7 +15,6 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-const std::string kHiveConnectorId = "test-hive";
 const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
 const std::string kSparkOffHeapSizeKey = "spark.memory.offHeap.size";
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";

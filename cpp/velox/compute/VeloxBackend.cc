@@ -27,6 +27,7 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
+#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/exec/Operator.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -37,10 +38,6 @@ using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
 
 namespace gluten {
-
-namespace {
-const std::string kHiveConnectorId = "test-hive";
-} // namespace
 
 // The Init will be called per executor.
 void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {

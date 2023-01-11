@@ -9,6 +9,8 @@
 
 namespace gluten {
 
+static const std::string kHiveConnectorId = "test-hive";
+
 class WholeStageResultIterator {
  public:
   WholeStageResultIterator(
