@@ -40,43 +40,39 @@ class JniPendingException final : public std::runtime_error {
   explicit JniPendingException(const std::string& arg) : runtime_error(arg) {}
 };
 
-static inline
-void ThrowPendingException(const std::string& message) {
+static inline void ThrowPendingException(const std::string& message) {
   throw JniPendingException(message);
 }
 
-template <typename T> inline
-T JniGetOrThrow(arrow::Result<T> result) {
+template <typename T>
+inline T JniGetOrThrow(arrow::Result<T> result) {
   if (!result.status().ok()) {
     ThrowPendingException(result.status().message());
   }
   return std::move(result).ValueOrDie();
 }
 
-template <typename T> inline
-T JniGetOrThrow(arrow::Result<T> result, const std::string& message) {
+template <typename T>
+inline T JniGetOrThrow(arrow::Result<T> result, const std::string& message) {
   if (!result.status().ok()) {
     ThrowPendingException(message + " - " + result.status().message());
   }
   return std::move(result).ValueOrDie();
 }
 
-static inline
-void JniAssertOkOrThrow(arrow::Status status) {
+static inline void JniAssertOkOrThrow(arrow::Status status) {
   if (!status.ok()) {
     ThrowPendingException(status.message());
   }
 }
 
-static inline
-void JniAssertOkOrThrow(arrow::Status status, const std::string& message) {
+static inline void JniAssertOkOrThrow(arrow::Status status, const std::string& message) {
   if (!status.ok()) {
     ThrowPendingException(message + " - " + status.message());
   }
 }
 
-static inline
-void JniThrow(const std::string& message) {
+static inline void JniThrow(const std::string& message) {
   ThrowPendingException(message);
 }
 
@@ -120,8 +116,7 @@ static struct JniErrorsGlobalState {
 
 } jni_errors_state;
 
-static inline
-JniErrorsGlobalState* GetJniErrorsState() {
+static inline JniErrorsGlobalState* GetJniErrorsState() {
   return &jni_errors_state;
 }
 
