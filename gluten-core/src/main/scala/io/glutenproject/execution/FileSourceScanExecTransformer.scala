@@ -180,6 +180,7 @@ class FileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
   }
 
   override def doValidate(): Boolean = {
+    // Bucketing table has `bucketId` in filename, should apply this in backends
     if (BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(relation.fileFormat) &&
     !bucketedScan) {
       super.doValidate()
