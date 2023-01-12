@@ -21,6 +21,3 @@ spark.executor.extraClassPath
 For example:
 spark.driver.extraClassPath        /home/ubuntu/spark/jars/jars_ext/aws-java-sdk-bundle-1.11.271.jar:/home/ubuntu/gluten_jars/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 spark.driver.extraClassPath        /home/ubuntu/spark/jars/jars_ext/aws-java-sdk-bundle-1.11.271.jar:/home/ubuntu/gluten_jars/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
-
-
-Running spark in local mode/YARN mode
