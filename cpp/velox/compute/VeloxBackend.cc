@@ -25,6 +25,12 @@
 #include "compute/ResultIterator.h"
 #include "include/arrow/c/bridge.h"
 #include "velox/common/file/FileSystems.h"
+#ifdef VELOX_ENABLE_HDFS
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#endif
+#ifdef VELOX_ENABLE_S3
+#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
+#endif
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"

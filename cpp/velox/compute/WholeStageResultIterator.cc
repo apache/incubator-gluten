@@ -3,12 +3,6 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
-#ifdef VELOX_ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
-#endif
-#ifdef VELOX_ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
-#endif
 
 using namespace facebook;
 
@@ -27,7 +21,6 @@ std::atomic<int32_t> taskSerial;
 
 std::shared_ptr<velox::core::QueryCtx> createNewVeloxQueryCtx(velox::memory::MemoryPool* memoryPool) {
   std::shared_ptr<velox::memory::MemoryPool> ctxRoot = memoryPool->addChild("ctx_root");
-  static const auto kUnlimited = std::numeric_limits<int64_t>::max();
   ctxRoot->setMemoryUsageTracker(velox::memory::MemoryUsageTracker::create());
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
