@@ -69,10 +69,11 @@ object TransformHints {
 
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
     if (isAlreadyTagged(plan)) {
-      // FIXME for tag change:
-      //  Allow TRANSFORM_SUPPORTED -> TRANSFORM_UNSUPPORTED
-      //  Disallow TRANSFORM_UNSUPPORTED -> TRANSFORM_SUPPORTED
-      //  Or just remove the tag value TRANSFORM_SUPPORTED
+      if (isNotTransformable(plan) && hint.isInstanceOf[TRANSFORM_SUPPORTED]) {
+        throw new UnsupportedOperationException(
+          s"Plan was already tagged as non-transformable, " +
+            s"cannot mark it as transformable after that: ${plan.toString()}")
+      }
       untag(plan)
     }
     plan.setTagValue(TAG, hint)
