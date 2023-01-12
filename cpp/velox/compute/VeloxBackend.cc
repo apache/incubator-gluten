@@ -371,7 +371,6 @@ arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar
     auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
     return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
   } else {
-    // If the child is not Velox output, use Arrow-to-Row conversion instead.
     return Backend::getColumnar2RowConverter(allocator, cb);
   }
 }
