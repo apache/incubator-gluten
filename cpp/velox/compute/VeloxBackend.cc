@@ -27,9 +27,8 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
+#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/exec/Operator.h"
-#include "velox/exec/PlanNodeStats.h"
-#include "velox/exec/Task.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook::velox;
@@ -39,33 +38,6 @@ using namespace facebook::velox::dwio::common;
 using namespace facebook::velox::parquet;
 
 namespace gluten {
-
-namespace {
-const std::string kHiveConnectorId = "test-hive";
-const std::string kSparkBatchSizeKey = "spark.sql.execution.arrow.maxRecordsPerBatch";
-const std::string kSparkOffHeapSizeKey = "spark.memory.offHeap.size";
-const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
-const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
-const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
-const std::string kFlushRowCount = "flushRowCount";
-const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
-std::atomic<int32_t> taskSerial;
-} // namespace
-
-std::shared_ptr<core::QueryCtx> createNewVeloxQueryCtx(memory::MemoryPool* memoryPool) {
-  std::shared_ptr<memory::MemoryPool> ctxRoot = memoryPool->addChild("ctx_root");
-  static const auto kUnlimited = std::numeric_limits<int64_t>::max();
-  ctxRoot->setMemoryUsageTracker(memory::MemoryUsageTracker::create());
-  std::shared_ptr<core::QueryCtx> ctx = std::make_shared<core::QueryCtx>(
-      nullptr,
-      std::make_shared<facebook::velox::core::MemConfig>(),
-      std::unordered_map<std::string, std::shared_ptr<Config>>(),
-      memory::MemoryAllocator::getInstance(),
-      std::move(ctxRoot),
-      nullptr,
-      "");
-  return ctx;
-}
 
 // The Init will be called per executor.
 void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
@@ -360,11 +332,12 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
   if (scanInfos.size() == 0) {
     // Source node is not required.
-    auto wholestageIter = std::make_unique<WholeStageResIterMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
+    auto wholestageIter =
+        std::make_unique<WholeStageResultIteratorMiddleStage>(veloxPool, planNode_, streamIds, confMap_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
-    auto wholestageIter =
-        std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
+    auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
+        veloxPool, planNode_, scanIds, scanInfos, streamIds, confMap_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
@@ -384,8 +357,8 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
 
   auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
 
-  auto wholestageIter =
-      std::make_unique<WholeStageResIterFirstStage>(veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
+  auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
+      veloxPool, planNode_, scanIds, setScanInfos, streamIds, confMap_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
 }
 
@@ -420,315 +393,5 @@ void VeloxBackend::cacheOutputSchema(const std::shared_ptr<const core::PlanNode>
   exportToArrow(BaseVector::create(planNode->outputType(), 0, GetDefaultWrappedVeloxMemoryPool()), arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(output_schema_, arrow::ImportSchema(&arrowSchema));
 }
-
-arrow::Result<std::shared_ptr<VeloxColumnarBatch>> WholeStageResIter::Next() {
-  addSplits_(task_.get());
-  if (task_->isFinished()) {
-    return nullptr;
-  }
-  RowVectorPtr vector = task_->next();
-  if (vector == nullptr) {
-    return nullptr;
-  }
-  uint64_t numRows = vector->size();
-  if (numRows == 0) {
-    return nullptr;
-  }
-  return std::make_shared<VeloxColumnarBatch>(vector);
-}
-
-memory::MemoryPool* WholeStageResIter::getPool() const {
-  return pool_.get();
-}
-
-void WholeStageResIter::getOrderedNodeIds(
-    const std::shared_ptr<const core::PlanNode>& planNode,
-    std::vector<core::PlanNodeId>& nodeIds) {
-  bool isProjectNode = false;
-  if (std::dynamic_pointer_cast<const core::ProjectNode>(planNode)) {
-    isProjectNode = true;
-  }
-
-  const auto& sourceNodes = planNode->sources();
-  for (const auto& sourceNode : sourceNodes) {
-    // Filter over Project are mapped into FilterProject operator in Velox.
-    // Metrics are all applied on Project node, and the metrics for Filter node
-    // do not exist.
-    if (isProjectNode && std::dynamic_pointer_cast<const core::FilterNode>(sourceNode)) {
-      omittedNodeIds_.insert(sourceNode->id());
-    }
-    getOrderedNodeIds(sourceNode, nodeIds);
-  }
-  nodeIds.emplace_back(planNode->id());
-}
-
-void WholeStageResIter::collectMetrics() {
-  if (metrics_) {
-    // The metrics has already been created.
-    return;
-  }
-
-  auto planStats = toPlanStats(task_->taskStats());
-  // Calculate the total number of metrics.
-  int numOfStats = 0;
-  for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
-    const auto& nodeId = orderedNodeIds_[idx];
-    if (planStats.find(nodeId) == planStats.end()) {
-      if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
-#ifdef DEBUG
-        std::cout << "Not found node id: " << nodeId << std::endl;
-        std::cout << "Plan Node: " << std::endl << planNode_->toString(true, true) << std::endl;
-#endif
-        throw std::runtime_error("Node id cannot be found in plan status.");
-      }
-      // Special handing for Filter over Project case. Filter metrics are
-      // omitted.
-      numOfStats += 1;
-      continue;
-    }
-    numOfStats += planStats.at(nodeId).operatorStats.size();
-  }
-
-  metrics_ = std::make_shared<Metrics>(numOfStats);
-  int metricsIdx = 0;
-  for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
-    const auto& nodeId = orderedNodeIds_[idx];
-    if (planStats.find(nodeId) == planStats.end()) {
-      // Special handing for Filter over Project case. Filter metrics are
-      // omitted.
-      metricsIdx += 1;
-      continue;
-    }
-    const auto& status = planStats.at(nodeId);
-    // Add each operator status into metrics.
-    for (const auto& entry : status.operatorStats) {
-      metrics_->inputRows[metricsIdx] = entry.second->inputRows;
-      metrics_->inputVectors[metricsIdx] = entry.second->inputVectors;
-      metrics_->inputBytes[metricsIdx] = entry.second->inputBytes;
-      metrics_->rawInputRows[metricsIdx] = entry.second->rawInputRows;
-      metrics_->rawInputBytes[metricsIdx] = entry.second->rawInputBytes;
-      metrics_->outputRows[metricsIdx] = entry.second->outputRows;
-      metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
-      metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
-      metrics_->count[metricsIdx] = entry.second->cpuWallTiming.count;
-      metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
-      metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
-      metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
-      metrics_->numDynamicFiltersProduced[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersProduced);
-      metrics_->numDynamicFiltersAccepted[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersAccepted);
-      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kReplacedWithDynamicFilterRows);
-      metrics_->flushRowCount[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kFlushRowCount);
-      metricsIdx += 1;
-    }
-  }
-}
-
-int64_t WholeStageResIter::runtimeMetric(
-    const std::string& metricType,
-    const std::unordered_map<std::string, RuntimeMetric>& runtimeStats,
-    const std::string& metricId) const {
-  if (runtimeStats.size() == 0 || runtimeStats.find(metricId) == runtimeStats.end()) {
-    return 0;
-  }
-  if (metricType == "sum") {
-    return runtimeStats.at(metricId).sum;
-  }
-  if (metricType == "count") {
-    return runtimeStats.at(metricId).count;
-  }
-  if (metricType == "min") {
-    return runtimeStats.at(metricId).min;
-  }
-  if (metricType == "max") {
-    return runtimeStats.at(metricId).max;
-  }
-  return 0;
-}
-
-void WholeStageResIter::setConfToQueryContext(const std::shared_ptr<core::QueryCtx>& queryCtx) {
-  std::unordered_map<std::string, std::string> configs = {};
-  // Find batch size from Spark confs. If found, set it to Velox query context.
-  auto got = confMap_.find(kSparkBatchSizeKey);
-  if (got != confMap_.end()) {
-    configs[core::QueryConfig::kPreferredOutputBatchSize] = got->second;
-  }
-  // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
-  got = confMap_.find(kSparkOffHeapSizeKey);
-  if (got != confMap_.end()) {
-    try {
-      // Set the max memory of partial aggregation as 3/4 of offheap size.
-      auto maxMemory = (long)(0.75 * std::stol(got->second));
-      configs[core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
-    } catch (const std::invalid_argument&) {
-      throw std::runtime_error("Invalid offheap size.");
-    }
-  }
-  // To align with Spark's behavior, set casting to int to be truncating.
-  configs[core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
-  queryCtx->setConfigOverridesUnsafe(std::move(configs));
-}
-
-class VeloxBackend::WholeStageResIterFirstStage final : public WholeStageResIter {
- public:
-  WholeStageResIterFirstStage(
-      std::shared_ptr<memory::MemoryPool> pool,
-      const std::shared_ptr<const core::PlanNode>& planNode,
-      const std::vector<core::PlanNodeId>& scanNodeIds,
-      const std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>>& scanInfos,
-      const std::vector<core::PlanNodeId>& streamIds,
-      const std::unordered_map<std::string, std::string>& confMap)
-      : WholeStageResIter(pool, planNode, confMap),
-        scanNodeIds_(scanNodeIds),
-        scanInfos_(scanInfos),
-        streamIds_(streamIds) {
-    // Generate splits for all scan nodes.
-    splits_.reserve(scanInfos.size());
-    if (scanNodeIds.size() != scanInfos.size()) {
-      throw std::runtime_error("Invalid scan information.");
-    }
-
-    for (const auto& scanInfo : scanInfos) {
-      // Get the information for TableScan.
-      // Partition index in scan info is not used.
-      const auto& paths = scanInfo->paths;
-      const auto& starts = scanInfo->starts;
-      const auto& lengths = scanInfo->lengths;
-      const auto& format = scanInfo->format;
-
-      std::vector<std::shared_ptr<ConnectorSplit>> connectorSplits;
-      connectorSplits.reserve(paths.size());
-      for (int idx = 0; idx < paths.size(); idx++) {
-        auto partitionKeys = extractPartitionColumnAndValue(paths[idx]);
-        auto split = std::make_shared<hive::HiveConnectorSplit>(
-            kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys);
-        connectorSplits.emplace_back(split);
-      }
-
-      std::vector<exec::Split> scanSplits;
-      scanSplits.reserve(connectorSplits.size());
-      for (const auto& connectorSplit : connectorSplits) {
-        // Bucketed group id (-1 means 'none').
-        int32_t groupId = -1;
-        scanSplits.emplace_back(exec::Split(folly::copy(connectorSplit), groupId));
-      }
-      splits_.emplace_back(scanSplits);
-    }
-
-    // Set task parameters.
-    core::PlanFragment planFragment{planNode, core::ExecutionStrategy::kUngrouped, 1};
-    std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getPool());
-
-    // Set customized confs to query context.
-    setConfToQueryContext(queryCtx);
-    task_ = std::make_shared<exec::Task>(
-        fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
-
-    if (!task_->supportsSingleThreadedExecution()) {
-      throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
-    }
-    addSplits_ = [&](Task* task) {
-      if (noMoreSplits_) {
-        return;
-      }
-      for (int idx = 0; idx < scanNodeIds_.size(); idx++) {
-        for (auto& split : splits_[idx]) {
-          task->addSplit(scanNodeIds_[idx], std::move(split));
-        }
-        task->noMoreSplits(scanNodeIds_[idx]);
-      }
-      for (const auto& streamId : streamIds_) {
-        task->noMoreSplits(streamId);
-      }
-      noMoreSplits_ = true;
-    };
-  }
-
- private:
-  std::vector<core::PlanNodeId> scanNodeIds_;
-  std::vector<std::shared_ptr<facebook::velox::substrait::SplitInfo>> scanInfos_;
-  std::vector<core::PlanNodeId> streamIds_;
-  std::vector<std::vector<exec::Split>> splits_;
-  bool noMoreSplits_ = false;
-
-  // Extract the partition column and value from a path of split.
-  // The split path is like .../my_dataset/year=2022/month=July/split_file.
-  std::unordered_map<std::string, std::optional<std::string>> extractPartitionColumnAndValue(
-      const std::string& filePath) {
-    std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
-
-    // Column name with '=' is not supported now.
-    std::string delimiter = "=";
-    std::string str = filePath;
-    std::size_t pos = str.find(delimiter);
-
-    while (pos != std::string::npos) {
-      // Split the string with delimiter.
-      std::string prePart = str.substr(0, pos);
-      std::string latterPart = str.substr(pos + 1);
-      // Extract the partition column.
-      pos = prePart.find_last_of("/");
-      std::string partitionColumn;
-      if (pos == std::string::npos) {
-        partitionColumn = prePart;
-      } else {
-        partitionColumn = prePart.substr(pos + 1);
-      }
-      // Extract the partition value.
-      pos = latterPart.find("/");
-      if (pos == std::string::npos) {
-        throw std::runtime_error("No value found for partition key: " + partitionColumn + " in path: " + filePath);
-      }
-      std::string partitionValue = latterPart.substr(0, pos);
-      if (partitionValue == kHiveDefaultPartition) {
-        partitionKeys[partitionColumn] = std::nullopt;
-      } else {
-        // Set to the map of partition keys.
-        partitionKeys[partitionColumn] = partitionValue;
-      }
-      // For processing the remaining keys.
-      str = latterPart.substr(pos + 1);
-      pos = str.find(delimiter);
-    }
-    return partitionKeys;
-  }
-};
-
-class VeloxBackend::WholeStageResIterMiddleStage final : public WholeStageResIter {
- public:
-  WholeStageResIterMiddleStage(
-      std::shared_ptr<memory::MemoryPool> pool,
-      const std::shared_ptr<const core::PlanNode>& planNode,
-      const std::vector<core::PlanNodeId>& streamIds,
-      const std::unordered_map<std::string, std::string>& confMap)
-      : WholeStageResIter(pool, planNode, confMap), streamIds_(streamIds) {
-    core::PlanFragment planFragment{planNode, core::ExecutionStrategy::kUngrouped, 1};
-    std::shared_ptr<core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getPool());
-    // Set customized confs to query context.
-    setConfToQueryContext(queryCtx);
-
-    task_ = std::make_shared<exec::Task>(
-        fmt::format("gluten task {}", ++taskSerial), std::move(planFragment), 0, std::move(queryCtx));
-
-    if (!task_->supportsSingleThreadedExecution()) {
-      throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
-    }
-    addSplits_ = [&](Task* task) {
-      if (noMoreSplits_) {
-        return;
-      }
-      for (const auto& streamId : streamIds_) {
-        task->noMoreSplits(streamId);
-      }
-      noMoreSplits_ = true;
-    };
-  }
-
- private:
-  bool noMoreSplits_ = false;
-  std::vector<core::PlanNodeId> streamIds_;
-};
 
 } // namespace gluten

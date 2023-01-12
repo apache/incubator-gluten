@@ -22,6 +22,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
@@ -37,8 +38,9 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import io.glutenproject.extension.columnar.{AddTransformHintRule, RemoveTransformHintRule, StoreExpandGroupExpression, TagBeforeTransformHits, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{AddTransformHintRule, RemoveTransformHintRule, StoreExpandGroupExpression, TagBeforeTransformHits, TRANSFORM_SUPPORTED, TRANSFORM_UNSUPPORTED, TransformHints}
 import io.glutenproject.utils.LogLevelUtil
+
 import org.apache.spark.sql.internal.SQLConf.ADAPTIVE_EXECUTION_ENABLED
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -91,9 +93,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
-      case TransformHint.TRANSFORM_SUPPORTED =>
+      case TRANSFORM_SUPPORTED() =>
       // supported, break
-      case TransformHint.TRANSFORM_UNSUPPORTED =>
+      case TRANSFORM_UNSUPPORTED() =>
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {
           case shj: ShuffledHashJoinExec =>
@@ -152,7 +154,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
           if (plan.child.isInstanceOf[FileSourceScanExec] ||
             plan.child.isInstanceOf[BatchScanExec]) {
             TransformHints.getHint(plan.child) match {
-              case TransformHint.TRANSFORM_SUPPORTED =>
+              case TRANSFORM_SUPPORTED() =>
                 FilterHandler.applyFilterPushdownToScan(plan)
               case _ =>
                 replaceWithTransformerPlan(plan.child)

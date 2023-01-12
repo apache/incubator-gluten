@@ -26,8 +26,8 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   // blackTestNameList is defined in ClickHouseNotSupport
 
   test(GlutenTestConstants.GLUTEN_TEST + "count") {
-    // [wishlist] fix agg with no input col (should have been fixed by BIGO)
-    //    assert(testData2.count() === testData2.rdd.map(_ => 1).count())
+    // agg with no input col
+    assert(testData2.count() === testData2.rdd.map(_ => 1).count())
 
     checkAnswer(
       testData2.agg(count($"a"), sum_distinct($"a")), // non-partial

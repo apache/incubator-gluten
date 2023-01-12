@@ -491,3 +491,52 @@ The performance of Gluten + ClickHouse backend increases by **about 1/3**.
 | Spark + Parquet | 590ms | 592ms  | 597ms | 609ms | 588ms |
 | Spark + Gluten + ClickHouse backend | 402ms | 405ms  | 409ms | 425ms | 399ms |
 
+### Run on a yarn cluster
+
+We can to run a Spark SQL task by gluten on a yarn cluster as following
+```bash
+#!/bin/bash
+
+# The file contains the sql you want to run
+sql_file=$YOUR_SQL_FILE
+
+# Your need to setup the env varibale SPARK_HOME
+# export SPARK_HOME=xxx
+my_spark_sql=$SPARK_HOME/bin/spark-sql
+
+# The location of libch.so on local
+ch_lib=$LOCAL_PATH_OF_LIBCH
+
+# The location of gluten jar package on local
+gluten_jar=$LOCAL_PATH_OF_GLUTEN/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+
+# spark.gluten.sql.columnar.libpath is set to a relative path ./libch.so, since it is dispatched
+# to every worker node's working directory by conf --files.
+# Other configurations are almost the same as setup Spark Thriftserver.
+$my_spark_sql \
+  --master yarn \
+  --files $ch_lib \
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
+  --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
+  --conf spark.databricks.delta.snapshotPartitions=1 \
+  --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
+  --conf spark.databricks.delta.stalenessLimit=3600000 \
+  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.gluten.sql.columnar.backend.ch.worker.id=1 \
+  --conf spark.gluten.sql.columnar.loadnative=true \
+  --conf spark.gluten.sql.columnar.loadarrow=false \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
+  --conf spark.gluten.sql.columnar.libpath=./libch.so \
+  --conf spark.gluten.sql.columnar.iterator=true \
+  --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
+  --conf spark.gluten.sql.enable.native.validation=false \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.union=true \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=5G \
+  -f $sql_file
+```
+
+We also can use `spark-submit` to run a task.
