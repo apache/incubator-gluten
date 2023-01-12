@@ -45,6 +45,13 @@ class VeloxInitializer {
   std::shared_ptr<facebook::velox::memory::MemoryAllocator> mappedMemory_;
   std::unique_ptr<folly::IOThreadPoolExecutor> cacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+  const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
+  const std::string kVeloxCachePath = "spark.gluten.sql.columnar.backend.velox.cachePath";
+  const std::string kVeloxCachePathDefault = "/tmp/";
+  const std::string kVeloxCacheSize = "spark.gluten.sql.columnar.backend.velox.cacheSize";
+  const std::string kVeloxCacheSizeDefault = "1073741824";
+  const std::string kVeloxCacheShards = "spark.gluten.sql.columnar.backend.velox.cacheShards";
+  const std::string kVeloxCacheShardsDefault = "1";
 };
 
 // This class is used to convert the Substrait plan into Velox plan.

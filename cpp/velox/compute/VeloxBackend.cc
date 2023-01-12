@@ -31,6 +31,7 @@
 #ifdef VELOX_ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
+#include "velox/common/memory/MmapAllocator.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
@@ -53,14 +54,14 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   // TODO(yuan): move to seperate func initcache()
   auto key = conf.find(kVeloxCacheEnabled);
   if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
-    uint64_t cacheSize = stol(kVeloxCacheSizeDefault);
-    int32_t cacheShards = stoi(kVeloxCacheShardsDefault);
+    uint64_t cacheSize = std::stol(kVeloxCacheSizeDefault);
+    int32_t cacheShards = std::stoi(kVeloxCacheShardsDefault);
     std::string cachePathPrefix = kVeloxCachePathDefault;
     for (auto& [k, v] : conf) {
       if (k == kVeloxCacheSize)
-        cacheSize = stol(v);
+        cacheSize = std::stol(v);
       if (k == kVeloxCacheShards)
-        cacheShards = stoi(v);
+        cacheShards = std::stoi(v);
       if (k == kVeloxCachePath)
         cachePathPrefix = v;
     }
@@ -69,7 +70,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
     auto ssd = std::make_unique<cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
 
-    memory::MmapAllocatorOptions options;
+    memory::MmapAllocator::Options options;
     uint64_t memoryBytes = 20L << 30;
     options.capacity = memoryBytes;
 
