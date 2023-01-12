@@ -131,6 +131,9 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
 
   private val regenerateGoldenFiles: Boolean = System.getenv("SPARK_GENERATE_GOLDEN_FILES") == "1"
 
+  // FIXME it's not needed to install Spark in testing since the following code only fetchs
+  //  some resource files from source folder
+
   protected val baseResourcePath = {
     // We use a path based on Spark home for 2 reasons:
     //   1. Maven can't get correct resource directory when resources in other jars.
@@ -286,7 +289,36 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "subexp-elimination.sql",
     "table-aliases.sql",
     "table-valued-functions.sql",
-    "tablesample-negative.sql"
+    "tablesample-negative.sql",
+    "subquery/exists-subquery/exists-aggregate.sql",
+    "subquery/exists-subquery/exists-basic.sql",
+    "subquery/exists-subquery/exists-cte.sql",
+    "subquery/exists-subquery/exists-having.sql",
+    "subquery/exists-subquery/exists-joins-and-set-ops.sql",
+    "subquery/exists-subquery/exists-orderby-limit.sql",
+    "subquery/exists-subquery/exists-within-and-or.sql",
+    "subquery/in-subquery/in-basic.sql",
+    "subquery/in-subquery/in-group-by.sql",
+    "subquery/in-subquery/in-having.sql",
+    "subquery/in-subquery/in-joins.sql",
+    "subquery/in-subquery/in-limit.sql",
+    "subquery/in-subquery/in-multiple-columns.sql",
+    "subquery/in-subquery/in-order-by.sql",
+    "subquery/in-subquery/in-set-operations.sql",
+    "subquery/in-subquery/in-with-cte.sql",
+    "subquery/in-subquery/nested-not-in.sql",
+    "subquery/in-subquery/not-in-group-by.sql",
+    "subquery/in-subquery/not-in-joins.sql",
+    "subquery/in-subquery/not-in-unit-tests-multi-column.sql",
+    "subquery/in-subquery/not-in-unit-tests-multi-column-literal.sql",
+    "subquery/in-subquery/not-in-unit-tests-single-column.sql",
+    "subquery/in-subquery/not-in-unit-tests-single-column-literal.sql",
+    "subquery/in-subquery/simple-in.sql",
+    "subquery/negative-cases/invalid-correlation.sql",
+    "subquery/negative-cases/subq-input-typecheck.sql",
+    "subquery/scalar-subquery/scalar-subquery-predicate.sql",
+    "subquery/scalar-subquery/scalar-subquery-select.sql",
+    "subquery/subquery-in-from.sql"
   )
 
   /** List of supported cases to run with Clickhouse backend, in lower case.
