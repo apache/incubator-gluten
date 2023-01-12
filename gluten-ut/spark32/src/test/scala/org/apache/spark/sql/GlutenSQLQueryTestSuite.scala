@@ -318,7 +318,15 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "subquery/negative-cases/subq-input-typecheck.sql",
     "subquery/scalar-subquery/scalar-subquery-predicate.sql",
     "subquery/scalar-subquery/scalar-subquery-select.sql",
-    "subquery/subquery-in-from.sql"
+    "subquery/subquery-in-from.sql",
+    "postgreSQL/aggregates_part1.sql",
+    "postgreSQL/aggregates_part2.sql",
+    "postgreSQL/aggregates_part3.sql",
+    "postgreSQL/aggregates_part4.sql",
+    "postgreSQL/boolean.sql",
+    "postgreSQL/case.sql",
+    "postgreSQL/comments.sql",
+    "postgreSQL/create_view.sql"
   )
 
   /** List of supported cases to run with Clickhouse backend, in lower case.
