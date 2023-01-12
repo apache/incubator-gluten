@@ -19,10 +19,8 @@ package io.glutenproject.utils
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.clickhouse.ClickHouseTestSettings
-import io.glutenproject.utils.velox.VeloxTestSettings
-
 import java.util
+
 import scala.reflect.ClassTag
 import scala.collection.JavaConverters._
 
@@ -137,12 +135,17 @@ abstract class BackendTestSettings {
 object BackendTestSettings {
   val instance: BackendTestSettings = BackendsApiManager.getBackendName match {
     case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
-      ClickHouseTestSettings
+      // scalastyle:off classforname
+      Class.forName("io.glutenproject.utils.clickhouse.ClickHouseTestSettings").newInstance()
+        .asInstanceOf[BackendTestSettings]
     case GlutenConfig.GLUTEN_VELOX_BACKEND =>
-      VeloxTestSettings
+      Class.forName("io.glutenproject.utils.velox.VeloxTestSettings").newInstance()
+        .asInstanceOf[BackendTestSettings]
     case GlutenConfig.GLUTEN_GAZELLE_BACKEND =>
       // FIXME here we reuse Velox backend's code
-      VeloxTestSettings
+      Class.forName("io.glutenproject.utils.VeloxTestSettings").newInstance()
+        .asInstanceOf[BackendTestSettings]
+     // scalastyle:on classforname
     case other =>
       throw new IllegalStateException(other)
   }

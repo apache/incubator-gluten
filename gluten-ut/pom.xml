@@ -160,6 +160,7 @@
             </activation>
             <modules>
                 <module>spark32</module>
+                <module>common</module>
             </modules>
         </profile>
         <profile>
@@ -168,12 +169,14 @@
             </properties>
             <modules>
                 <module>spark32</module>
+                <module>common</module>
             </modules>
         </profile>
         <profile>
             <id>spark-3.3</id>
             <modules>
                 <module>spark33</module>
+                <module>common</module>
             </modules>
         </profile>
     </profiles>

@@ -21,5 +21,5 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 
-object ClickHouseTestSettings extends BackendTestSettings {
+class ClickHouseTestSettings extends BackendTestSettings {
 }
