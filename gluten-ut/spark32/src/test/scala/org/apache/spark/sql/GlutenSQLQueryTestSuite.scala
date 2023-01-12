@@ -131,9 +131,6 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
 
   private val regenerateGoldenFiles: Boolean = System.getenv("SPARK_GENERATE_GOLDEN_FILES") == "1"
 
-  // FIXME it's not needed to install Spark in testing since the following code only fetchs
-  //  some resource files from source folder
-
   protected val baseResourcePath = {
     // We use a path based on Spark home for 2 reasons:
     //   1. Maven can't get correct resource directory when resources in other jars.
