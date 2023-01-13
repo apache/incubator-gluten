@@ -27,7 +27,7 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 | spark.gluten.sql.columnar.broadcastexchange | Enable or Disable Columnar Broadcast Exchange, default is true | true |
 | spark.gluten.sql.columnar.broadcastJoin | Enable or Disable Columnar BradcastHashJoin, default is true | true |
 | spark.sql.execution.arrow.maxRecordsPerBatch | Set up the Max Records per Batch | 10000 |
-| spark.gluten.sql.columnar.wholestagetransform | Enable or Disable metrics in Columnar wholestage transform | false |
+| spark.gluten.sql.columnar.wholestagetransform | Enable or Disable metrics in Columnar wholestage transform | true |
 | spark.gluten.sql.columnar.wholestagecodegen.breakdownTime | Enable or Disable metrics in Columnar WholeStageCodeGen | false |
 | spark.gluten.sql.columnar.shuffle.customizedCompression.codec | Set up the codec to be used for Columnar Shuffle, default is lz4| lz4 |
 | spark.gluten.sql.columnar.numaBinding | Set up NUMABinding, default is false| true |
