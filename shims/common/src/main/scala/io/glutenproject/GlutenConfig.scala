@@ -19,6 +19,8 @@ package io.glutenproject
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
+import java.util.Locale
+
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
     totalCoreRange: Array[String] = null,
@@ -155,7 +157,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // The supported customized compression codec is lz4.
   val columnarShuffleUseCustomizedCompressionCodec: String =
-    conf.getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
+    conf
+      .getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
+      .toUpperCase(Locale.ROOT)
 
   val columnarShuffleBatchCompressThreshold: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt

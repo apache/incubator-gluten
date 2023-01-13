@@ -19,8 +19,9 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.TransformHint
+import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHint}
 import io.glutenproject.extension.columnar.TransformHints.TAG
+
 import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -159,7 +160,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
   }
 
   def tagNotTransformable(plan: LogicalPlan): LogicalPlan = {
-    plan.setTagValue(TAG, TransformHint.TRANSFORM_UNSUPPORTED)
+    plan.setTagValue(TAG, TRANSFORM_UNSUPPORTED())
     plan
   }
 

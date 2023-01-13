@@ -22,6 +22,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
@@ -37,8 +38,9 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import io.glutenproject.extension.columnar.{AddTransformHintRule, RemoveTransformHintRule, StoreExpandGroupExpression, TagBeforeTransformHits, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{AddTransformHintRule, RemoveTransformHintRule, StoreExpandGroupExpression, TagBeforeTransformHits, TRANSFORM_SUPPORTED, TRANSFORM_UNSUPPORTED, TransformHints}
 import io.glutenproject.utils.LogLevelUtil
+
 import org.apache.spark.sql.internal.SQLConf.ADAPTIVE_EXECUTION_ENABLED
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
@@ -82,18 +84,18 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
                                  removeHashColumn: Boolean = false): SparkPlan = {
     if (SparkShimLoader.getSparkShims.supportAdaptiveWithExchangeConsidered(plan)) {
       ColumnarShuffleExchangeAdaptor(
-        plan.outputPartitioning, child, removeHashColumn = removeHashColumn)
+        plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn)
     } else {
       CoalesceBatchesExec(ColumnarShuffleExchangeExec(
-        plan.outputPartitioning, child, removeHashColumn = removeHashColumn))
+        plan.outputPartitioning, child, plan.shuffleOrigin, removeHashColumn))
     }
   }
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
-      case TransformHint.TRANSFORM_SUPPORTED =>
+      case TRANSFORM_SUPPORTED() =>
       // supported, break
-      case TransformHint.TRANSFORM_UNSUPPORTED =>
+      case TRANSFORM_UNSUPPORTED() =>
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {
           case shj: ShuffledHashJoinExec =>
@@ -152,7 +154,7 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
           if (plan.child.isInstanceOf[FileSourceScanExec] ||
             plan.child.isInstanceOf[BatchScanExec]) {
             TransformHints.getHint(plan.child) match {
-              case TransformHint.TRANSFORM_SUPPORTED =>
+              case TRANSFORM_SUPPORTED() =>
                 FilterHandler.applyFilterPushdownToScan(plan)
               case _ =>
                 replaceWithTransformerPlan(plan.child)
@@ -226,7 +228,8 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
             plan.buildSide,
             plan.condition,
             left,
-            right)
+            right,
+            plan.isSkewJoin)
       case plan: SortMergeJoinExec =>
         val left = replaceWithTransformerPlan(plan.left)
         val right = replaceWithTransformerPlan(plan.right)
@@ -326,16 +329,21 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
 
 // This rule will try to convert the row-to-columnar and columnar-to-row
 // into columnar implementations.
-case class TransformPostOverrides() extends Rule[SparkPlan] {
+case class TransformPostOverrides(session: SparkSession) extends Rule[SparkPlan] {
   val columnarConf = GlutenConfig.getSessionConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
+  lazy val adaptiveExecutionEnabled = session.conf.get(ADAPTIVE_EXECUTION_ENABLED.key).toBoolean
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
       val child = replaceWithTransformerPlan(plan.child)
       logDebug(s"ColumnarPostOverrides RowToArrowColumnarExec(${child.getClass})")
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-    case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) =>
+    // The ColumnarShuffleExchangeAdaptor node may be the top node, so we cannot remove it.
+    // e.g. select /* REPARTITION */ from testData, and the AQE create shuffle stage will check
+    // if the transformed is instance of ShuffleExchangeLike, so we need to remove it in AQE mode
+    // have tested gluten-it TPCH when AQE OFF
+    case ColumnarToRowExec(child: ColumnarShuffleExchangeAdaptor) if adaptiveExecutionEnabled =>
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>
       replaceWithTransformerPlan(child)
@@ -421,7 +429,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   def postOverrides: List[SparkSession => Rule[SparkPlan]] =
-    List((_: SparkSession) => TransformPostOverrides()) :::
+    List((s: SparkSession) => TransformPostOverrides(s)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
 

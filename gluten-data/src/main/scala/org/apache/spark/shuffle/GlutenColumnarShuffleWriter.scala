@@ -195,10 +195,14 @@ class GlutenColumnarShuffleWriter[K, V](
     }
 
     // fixme workaround: to store uncompressed sizes on the rhs of (maybe) compressed sizes
-    val unionPartitionLengths = ArrayBuffer[Long]()
-    unionPartitionLengths ++= partitionLengths
-    unionPartitionLengths ++= rawPartitionLengths
-    mapStatus = MapStatus(blockManager.shuffleServerId, unionPartitionLengths.toArray, mapId)
+    val unionPartitionLengths = partitionLengths.zip(rawPartitionLengths).map {
+      case (partition, rawPartition) => partition + rawPartition
+    }
+    // The partitionLength is much more than vanilla spark partitionLengths,
+    // almost 3 times than vanilla spark partitionLengths
+    // This value is sensitive in rules such as AQE rule OptimizeSkewedJoin DynamicJoinSelection
+    // May affect the final plan
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
   }
 
   @throws[IOException]
