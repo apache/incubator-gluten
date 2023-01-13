@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <filesystem>
+
 #include "VeloxBackend.h"
 
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -73,8 +75,17 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioTHreads);
     auto ssd = std::make_unique<cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
 
+    std::error_code ec;
+    const std::filesystem::space_info si = std::filesystem::space(cachePathPrefix, ec);
+    if (si.available < cacheSize) {
+      VELOX_FAIL(
+          "not enough space for cache in " + cachePath + " cacha size: " + std::to_string(cacheSize) +
+          "free space: " + std::to_string(si.available));
+    }
+
     memory::MmapAllocator::Options options;
-    uint64_t memoryBytes = 20L << 30;
+    // TODO(yuan): should try to parse the offheap memory size here:
+    uint64_t memoryBytes = 200L << 30;
     options.capacity = memoryBytes;
 
     auto allocator = std::make_shared<memory::MmapAllocator>(options);
