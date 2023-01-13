@@ -171,4 +171,9 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "pivot with datatype not supported by PivotFirst 2",
       "pivot with null and aggregate type not supported by PivotFirst returns correct result"
     )
+
+  enableSuite[GlutenPredicateSuite]
+    .includeByPrefix(
+      "SPARK-29100"
+    )
 }
