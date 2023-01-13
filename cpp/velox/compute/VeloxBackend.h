@@ -52,8 +52,8 @@ class VeloxInitializer {
   const std::string kVeloxCacheSizeDefault = "1073741824";
   const std::string kVeloxCacheShards = "spark.gluten.sql.columnar.backend.velox.cacheShards";
   const std::string kVeloxCacheShardsDefault = "1";
-  const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.ioTHreads";
-  const std::string kVeloxIOThreadsDefault = "1";
+  const std::string kVeloxCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.ioTHreads";
+  const std::string kVeloxCacheIOThreadsDefault = "1";
 };
 
 // This class is used to convert the Substrait plan into Velox plan.

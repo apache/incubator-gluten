@@ -213,7 +213,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // The IO threads for cache promoting
   val veloxIOThreads: Integer =
-    conf.getConfString("spark.gluten.sql.columnar.backend.velox.ioThreads", "1").toInt
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheIOThreads", "1").toInt
 
   val transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")

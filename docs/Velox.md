@@ -224,7 +224,7 @@ spark.gluten.sql.columnar.backend.velox.cacheEnabled // enable or disable velox 
 spark.gluten.sql.columnar.backend.velox.cachePath  // the folder to store the cache files, default to /tmp
 spark.gluten.sql.columnar.backend.velox.cacheSize  // the total size of the cache, default to 128MB
 spark.gluten.sql.columnar.backend.velox.cacheShards // the shards of the cache, default to 1
-spark.gluten.sql.columnar.backend.velox.ioThreads // the IO threads for cache promoting, default to 1
+spark.gluten.sql.columnar.backend.velox.cacheIOThreads // the IO threads for cache promoting, default to 1
 ```
 It's recommened to mount SSDs to the cache path to get the best performance of local caching. 
 On the start up of Saprk contenxt, the cache files will be allocated under "spark.gluten.sql.columnar.backend.velox.cachePath", with UUID based suffix, e.g. "/tmp/cache.13e8ab65-3af4-46ac-8d28-ff99b2a9ec9b0". Currently Gluten is not able to reuse the cache from last run, and the old cache files are left there after Spark context shutdown.

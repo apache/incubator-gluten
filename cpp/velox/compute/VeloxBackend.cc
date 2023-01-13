@@ -56,7 +56,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
     uint64_t cacheSize = std::stol(kVeloxCacheSizeDefault);
     int32_t cacheShards = std::stoi(kVeloxCacheShardsDefault);
-    int32_t ioTHreads = std::stoi(kVeloxIOThreadsDefault);
+    int32_t ioTHreads = std::stoi(kVeloxCacheIOThreadsDefault);
     std::string cachePathPrefix = kVeloxCachePathDefault;
     for (auto& [k, v] : conf) {
       if (k == kVeloxCacheSize)
@@ -65,7 +65,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
         cacheShards = std::stoi(v);
       if (k == kVeloxCachePath)
         cachePathPrefix = v;
-      if (k == kVeloxIOThreads)
+      if (k == kVeloxCacheIOThreads)
         ioTHreads = std::stoi(v);
     }
     std::string cachePath = cachePathPrefix + "/cache." + genUuid();
@@ -84,9 +84,8 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     memory::MemoryAllocator::setDefaultInstance(mappedMemory_.get());
     VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
     LOG(INFO) << "STARTUP: Using AsyncDataCache"
-              << ", cache size: " << cacheSize
-              << ", cache shards: " << cacheShards
-              << ", IO threads: " << ioTHreads;
+              << ", cache size: " << cacheSize << ", cache shards: " << cacheShards << ", IO threads: " << ioTHreads
+              << ", cache path: " << cachePath;
   }
 
   std::unordered_map<std::string, std::string> configurationValues;
