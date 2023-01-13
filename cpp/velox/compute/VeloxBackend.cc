@@ -83,7 +83,10 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     // register as default instance, will be used in parquet reader
     memory::MemoryAllocator::setDefaultInstance(mappedMemory_.get());
     VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
-    LOG(INFO) << "STARTUP: Using AsyncDataCache";
+    LOG(INFO) << "STARTUP: Using AsyncDataCache"
+              << ", cache size: " << cacheSize
+              << ", cache shards: " << cacheShards
+              << ", IO threads: " << ioTHreads;
   }
 
   std::unordered_map<std::string, std::string> configurationValues;
