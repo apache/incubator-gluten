@@ -25,6 +25,12 @@
 #include "compute/ResultIterator.h"
 #include "include/arrow/c/bridge.h"
 #include "velox/common/file/FileSystems.h"
+#ifdef VELOX_ENABLE_HDFS
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#endif
+#ifdef VELOX_ENABLE_S3
+#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
+#endif
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
@@ -365,20 +371,14 @@ std::shared_ptr<ResultIterator> VeloxBackend::GetResultIterator(
 arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar2RowConverter(
     MemoryAllocator* allocator,
     std::shared_ptr<ColumnarBatch> cb) {
-  auto arrowPool = AsWrappedArrowMemoryPool(allocator);
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   if (veloxBatch != nullptr) {
+    auto arrowPool = AsWrappedArrowMemoryPool(allocator);
     auto veloxPool = AsWrappedVeloxMemoryPool(allocator);
     return std::make_shared<VeloxColumnarToRowConverter>(veloxBatch->getFlattenedRowVector(), arrowPool, veloxPool);
+  } else {
+    return Backend::getColumnar2RowConverter(allocator, cb);
   }
-  // If the child is not Velox output, use Arrow-to-Row conversion instead.
-  std::shared_ptr<ArrowSchema> c_schema = cb->exportArrowSchema();
-  std::shared_ptr<ArrowArray> c_array = cb->exportArrowArray();
-  ARROW_ASSIGN_OR_RAISE(
-      std::shared_ptr<arrow::RecordBatch> rb, arrow::ImportRecordBatch(c_array.get(), c_schema.get()));
-  ArrowSchemaRelease(c_schema.get());
-  ArrowArrayRelease(c_array.get());
-  return std::make_shared<ArrowColumnarToRowConverter>(rb, arrowPool);
 }
 
 std::shared_ptr<arrow::Schema> VeloxBackend::GetOutputSchema() {
