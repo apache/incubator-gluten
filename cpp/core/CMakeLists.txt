@@ -247,6 +247,20 @@ file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(spark_columnar_jni jni_proto)
 
+if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+  execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libstdc++fs.a
+    RESULT_VARIABLE LIBSTDCXXFS_STATIC_RESULT
+    OUTPUT_VARIABLE LIBSTDCXXFS_STATIC_PATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if (LIBSTDCXXFS_STATIC_RESULT EQUAL 0 AND EXISTS "${LIBSTDCXXFS_STATIC_PATH}")
+	  message(STATUS "libstdc++fs.a found at: ${LIBSTDCXXFS_STATIC_PATH}")
+    target_link_libraries(spark_columnar_jni PRIVATE ${LIBSTDCXXFS_STATIC_PATH})
+  else()
+	  find_library(LIBSTDCXXFS stdc++fs REQUIRED)
+    target_link_libraries(spark_columnar_jni PUBLIC ${LIBSTDCXXFS})
+  endif()
+endif()
+
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${PARQUET_LIB_NAME})
 
@@ -319,6 +333,7 @@ endif()
 
 target_link_libraries(spark_columnar_jni
     PUBLIC Arrow::arrow Arrow::parquet)
+
 
 install(TARGETS spark_columnar_jni
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
