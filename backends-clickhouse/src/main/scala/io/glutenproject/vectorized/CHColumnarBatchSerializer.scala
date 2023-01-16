@@ -17,7 +17,9 @@
 package io.glutenproject.vectorized
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -50,9 +52,20 @@ private class CHColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
+  private lazy val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShuffleManager
+  private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
+  )
+  private lazy val isCustomizedShuffleCodec = SparkEnv.get.conf.getBoolean(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT.toBoolean
+  )
+  private lazy val compressionCodec =
+    GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-      private val isUseColumnarShufflemanager = GlutenConfig.getConf.isUseColumnarShuffleManager
 
       private var reader: CHStreamReader = _
       private var cb: ColumnarBatch = _
@@ -97,7 +110,11 @@ private class CHColumnarBatchSerializerInstance(
           cb = nativeBlock.toColumnarBatch
           cb.asInstanceOf[T]
         } else {
-          reader = new CHStreamReader(in, isUseColumnarShufflemanager)
+          reader = new CHStreamReader(
+            in,
+            isUseColumnarShufflemanager,
+            isCustomizedShuffleCodec,
+            customizeBufferSize)
           readValue()
         }
       }
@@ -125,12 +142,16 @@ private class CHColumnarBatchSerializerInstance(
   }
 
   override def serializeStream(out: OutputStream): SerializationStream = new SerializationStream {
-    private[this] var writeBuffer: Array[Byte] = new Array[Byte](4096)
+    private[this] var writeBuffer: Array[Byte] = new Array[Byte](customizeBufferSize)
     private[this] var dOut: BlockOutputStream =
       new BlockOutputStream(
-        new DataOutputStream(new BufferedOutputStream(out)),
+        out,
         writeBuffer,
-        dataSize)
+        dataSize,
+        isCustomizedShuffleCodec,
+        compressionCodec,
+        customizeBufferSize
+      )
 
     override def writeKey[T: ClassTag](key: T): SerializationStream = {
       // The key is only needed on the map side when computing partition ids. It does not need to

@@ -23,22 +23,57 @@ import java.io.OutputStream;
 
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.apache.spark.storage.CHShuffleWriteStreamFactory;
 
 public class BlockOutputStream implements Closeable {
   private final long instance;
   private final OutputStream outputStream;
 
+  private final byte[] buffer;
+
+  private final int bufferSize;
+
+  private final String defaultCompressionCodec;
+
   private SQLMetric dataSize;
 
   private boolean isClosed = false;
 
-  public BlockOutputStream(OutputStream outputStream, byte[] buffer, SQLMetric dataSize) {
-    this.outputStream = outputStream;
-    this.instance = nativeCreate(outputStream, buffer);
+  public BlockOutputStream(
+      OutputStream outputStream,
+      byte[] buffer,
+      SQLMetric dataSize,
+      boolean compressionEnable,
+      String defaultCompressionCodec,
+      int bufferSize
+      ) {
+    OutputStream unwrapOutputStream =
+        CHShuffleWriteStreamFactory
+            .unwrapSparkCompressionOutputStream(outputStream, compressionEnable);
+    if (unwrapOutputStream != null) {
+      this.outputStream = unwrapOutputStream;
+    } else {
+      this.outputStream = outputStream;
+      compressionEnable = false;
+    }
+    this.defaultCompressionCodec = defaultCompressionCodec;
+    this.buffer = buffer;
+    this.bufferSize = bufferSize;
+    this.instance =
+        nativeCreate(this.outputStream,
+            this.buffer,
+            this.defaultCompressionCodec,
+            compressionEnable,
+            this.bufferSize);
     this.dataSize = dataSize;
   }
 
-  private native long nativeCreate(OutputStream outputStream, byte[] buffer);
+  private native long nativeCreate(
+      OutputStream outputStream,
+      byte[] buffer,
+      String defaultCompressionCodec,
+      boolean compressionEnable,
+      int bufferSize);
 
   private native long nativeClose(long instance);
 

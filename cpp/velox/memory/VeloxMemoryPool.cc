@@ -311,35 +311,13 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     return alignment_;
   }
 
-  void capMemoryAllocation() {
-    capped_.store(true);
-    for (const auto& child : children_) {
-      child->capMemoryAllocation();
-    }
-  }
-
-  void uncapMemoryAllocation() {
-    // This means if we try to post-order traverse the tree like we do
-    // in MemoryManager, only parent has the right to lift the cap.
-    // This suffices because parent will then recursively lift the cap on the
-    // entire tree.
-    if (getAggregateBytes() > cap()) {
-      return;
-    }
-    if (parent_ != nullptr && parent_->isMemoryCapped()) {
-      return;
-    }
-    capped_.store(false);
-    visitChildren([](MemoryPool* child) { child->uncapMemoryAllocation(); });
-  }
-
   bool isMemoryCapped() const {
     return capped_.load();
   }
 
-  std::shared_ptr<MemoryPool> genChild(std::shared_ptr<MemoryPool> parent, const std::string& name, int64_t cap) {
+  std::shared_ptr<MemoryPool> genChild(std::shared_ptr<MemoryPool> parent, const std::string& name) {
     return std::make_shared<WrappedVeloxMemoryPool>(
-        memoryManager_, name, parent, glutenAllocator_, Options{alignment_, cap});
+        memoryManager_, name, parent, glutenAllocator_, Options{.alignment = alignment_});
   }
 
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the

@@ -112,6 +112,39 @@ trait BasicScanExecTransformer extends TransformSupport {
       true
     }
   }
+  def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
+    val nameList = new java.util.ArrayList[String]()
+    attributes.foreach(
+      attr => {
+        nameList.add(attr.name)
+        if (BackendsApiManager.getSettings.supportStructType()) {
+          attr.dataType match {
+            case struct: StructType =>
+              val nestedNames = collectDataTypeNamesDFS(struct)
+              nameList.addAll(nestedNames)
+            case _ =>
+          }
+        }
+      }
+    )
+    nameList
+  }
+
+  def collectDataTypeNamesDFS(dataType: DataType): java.util.ArrayList[String] = {
+    val nameList = new java.util.ArrayList[String]()
+    dataType match {
+      case structType: StructType =>
+        structType.fields.foreach(
+          field => {
+            nameList.add(field.name)
+            val nestedNames = collectDataTypeNamesDFS(field.dataType)
+            nameList.addAll(nestedNames);
+          }
+        )
+      case _ =>
+    }
+    nameList
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val output = outputAttributes()
@@ -119,8 +152,8 @@ trait BasicScanExecTransformer extends TransformSupport {
     val partitionSchemas = getPartitionSchemas
     val nameList = new java.util.ArrayList[String]()
     val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
+    nameList.addAll(collectAttributesNamesDFS(output))
     for (attr <- output) {
-      nameList.add(attr.name)
       if (partitionSchemas.exists(_.name.equals(attr.name))) {
         columnTypeNodes.add(new ColumnTypeNode(1))
       } else {
