@@ -70,7 +70,7 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
       if (k == kVeloxCacheIOThreads)
         ioTHreads = std::stoi(v);
     }
-    std::string cachePath = cachePathPrefix + "/cache." + genUuid();
+    std::string cachePath = cachePathPrefix + "/cache." + genUuid() + ".";
     cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioTHreads);
     auto ssd = std::make_unique<cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
@@ -95,8 +95,8 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
     memory::MemoryAllocator::setDefaultInstance(mappedMemory_.get());
     VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
     LOG(INFO) << "STARTUP: Using AsyncDataCache"
-              << ", cache size: " << cacheSize << ", cache shards: " << cacheShards << ", IO threads: " << ioTHreads
-              << ", cache path: " << cachePath;
+              << ", cache prefix: " << cachePath << ", cache size: " << cacheSize << ", cache shards: " << cacheShards
+              << ", cache IO threads: " << ioTHreads;
   }
 
   std::unordered_map<std::string, std::string> configurationValues;
