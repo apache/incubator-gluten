@@ -235,9 +235,9 @@ static inline std::string JStringToCString(JNIEnv* env, jstring string) {
   int32_t jlen, clen;
   clen = env->GetStringUTFLength(string);
   jlen = env->GetStringLength(string);
-  std::vector<char> buffer(clen);
-  env->GetStringUTFRegion(string, 0, jlen, buffer.data());
-  return std::string(buffer.data(), clen);
+  char buffer[clen];
+  env->GetStringUTFRegion(string, 0, jlen, buffer);
+  return std::string(buffer, clen);
 }
 
 static inline jbyteArray ToSchemaByteArray(JNIEnv* env, std::shared_ptr<arrow::Schema> schema) {
