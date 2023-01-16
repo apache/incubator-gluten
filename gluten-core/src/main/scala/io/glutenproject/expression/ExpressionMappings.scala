@@ -143,6 +143,8 @@ object ExpressionMappings {
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
   final val JSON_ARRAY_LENGTH = "json_array_length"
+  final val TO_JSON = "to_json"
+  final val FROM_JSON = "from_json"
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
@@ -298,6 +300,8 @@ object ExpressionMappings {
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
+    Sig[StructsToJson](TO_JSON),
+    Sig[JsonToStructs](FROM_JSON),
     // Hash functions
     Sig[Murmur3Hash](MURMUR3HASH),
     Sig[XxHash64](XXHASH64),

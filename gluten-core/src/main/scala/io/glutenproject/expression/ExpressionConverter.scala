@@ -34,7 +34,7 @@ object ExpressionConverter extends Logging {
     val substraitExprName = ExpressionMappings.scalar_functions_map.getOrElse(expr.getClass,
       ExpressionMappings.getScalarSigOther(expr.prettyName))
     if (substraitExprName.isEmpty) {
-      throw new UnsupportedOperationException(s"Not supported: $expr.")
+      throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
     // Check whether each backend supports this expression
     if (GlutenConfig.getSessionConf.enableAnsiMode ||
@@ -240,16 +240,13 @@ object ExpressionConverter extends Logging {
           complex.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
           complex)
       case getStructField: GetStructField =>
-        // Different backends may have different result
-        val transformer = BackendsApiManager.getSparkPlanExecApiInstance.
+        // Different backends may have different result.
+        BackendsApiManager.getSparkPlanExecApiInstance.
           genGetStructFieldTransformer(substraitExprName,
             replaceWithExpressionTransformer(getStructField.child, attributeSeq),
             getStructField.ordinal,
             getStructField)
-        if (transformer == null) {
-          throw new UnsupportedOperationException(s"Unsupported expression: GetStructField")
-        }
-        transformer
+
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName, l)
       case u: UnaryExpression =>
