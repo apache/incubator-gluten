@@ -38,7 +38,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * Use **UPPER_SNAKE_CASE** for macro.
 * Use **kPascalCase** for static constant and enumerator.
 
-## Design
+## Designs
 * No over design.
 * No negation of negation, `isValid` is better than `isNotInvalid`.
 * Avoid corner case, and common case first.
@@ -126,7 +126,7 @@ line width, indentation and ordering (for includes, using directives and etc). 
 * Use handles and RAII to manage resources automatically.
 * Immediately give the result of an explicit resource allocation to a manager 
 	object.
-* Prefer scoped objects and prefer stack objects.
+* Prefer scoped objects and stack objects.
 * Use raw pointers to denote individual objects.
 * Use `pointer + size_t` to denote array objects if you don't want to use containers.
 * A raw pointer (a `T*`) is non-owning.

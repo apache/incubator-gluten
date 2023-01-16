@@ -35,7 +35,7 @@ Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 | build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
 
 #### Parameters for build_velox.sh
-Please setting via `--`, e.g., `--velox_home=/YOUR/PATH`.
+Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
