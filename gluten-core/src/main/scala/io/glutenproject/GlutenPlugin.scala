@@ -27,7 +27,6 @@ import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOver
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.vectorized.NativeExpressionEvaluator
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.network.util.JavaUtils
@@ -46,15 +45,18 @@ class GlutenPlugin extends SparkPlugin {
 
 private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
+    // Set the system properties.
+    // Use appending policy for children with the same name in a arrow struct vector.
+    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = pluginContext.conf()
+    setPredefinedConfigs(sc, conf)
     // Initialize Backends API
     BackendsApiManager.initialize()
     BackendsApiManager.getInitializerApiInstance.initialize(conf)
-    setPredefinedConfigs(conf)
     Collections.emptyMap()
   }
 
-  def setPredefinedConfigs(conf: SparkConf): Unit = {
+  def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       s"${conf.get(SPARK_SESSION_EXTS_KEY)},${GLUTEN_SESSION_EXTENSION_NAME}"
     } else {
@@ -72,6 +74,10 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin {
       conf.set("spark.sql.orc.enableVectorizedReader", "false")
       conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
     }
+    val hdfsUri = sc.hadoopConfiguration.get("fs.defaultFS", "hdfs://localhost:9000")
+    if (!conf.contains(GlutenConfig.SPARK_HDFS_URI)) {
+      conf.set(GlutenConfig.SPARK_HDFS_URI, hdfsUri)
+    }
   }
 }
 
@@ -80,6 +86,9 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
    * Initialize the executor plugin.
    */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    // Set the system properties.
+    // Use appending policy for children with the same name in a arrow struct vector.
+    System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
     val conf = ctx.conf()
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
     if (!conf.getBoolean("spark.memory.offHeap.enabled", false) ||
@@ -162,6 +171,10 @@ private[glutenproject] object GlutenPlugin {
       nativeConfMap.put(
         GlutenConfig.HIVE_EXEC_ORC_COMPRESS, conf.get(GlutenConfig.SPARK_HIVE_EXEC_ORC_COMPRESS))
     }
+
+    // HDFS config
+    nativeConfMap.put(
+      GlutenConfig.SPARK_HDFS_URI, conf.get(GlutenConfig.SPARK_HDFS_URI, "hdfs://localhost:9000"))
 
     // S3 config
     nativeConfMap.put(

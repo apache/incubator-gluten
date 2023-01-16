@@ -37,6 +37,7 @@ trait BackendSettings {
     case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
     case _ => false
   }
+  def supportStructType(): Boolean = false
   def fallbackOnEmptySchema(): Boolean = false
   def disableVanillaColumnarReaders(): Boolean = false
   def recreateJoinExecOnFallback(): Boolean = false

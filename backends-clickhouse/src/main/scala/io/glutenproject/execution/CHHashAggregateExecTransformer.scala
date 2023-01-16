@@ -227,8 +227,16 @@ case class CHHashAggregateExecTransformer(
       }
     }
 
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
+        if (aggExpr.filter.isDefined) {
+          val exprNode = ExpressionConverter
+            .replaceWithExpressionTransformer(aggExpr.filter.get, child.output)
+            .doTransform(args)
+          aggFilterList.add(exprNode)
+        }
+
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodeList = new util.ArrayList[ExpressionNode]()
         val childrenNodes = aggExpr.mode match {
@@ -276,7 +284,13 @@ case class CHHashAggregateExecTransformer(
         aggregateFunctionList.add(aggFunctionNode)
       })
     if (!validation) {
-      RelBuilder.makeAggregateRel(input, groupingList, aggregateFunctionList, context, operatorId)
+      RelBuilder.makeAggregateRel(
+        input,
+        groupingList,
+        aggregateFunctionList,
+        aggFilterList,
+        context,
+        operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -289,6 +303,7 @@ case class CHHashAggregateExecTransformer(
         input,
         groupingList,
         aggregateFunctionList,
+        aggFilterList,
         extensionNode,
         context,
         operatorId)

@@ -24,9 +24,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 import org.apache.spark.internal.Logging
 import io.glutenproject.substrait.expression.StringLiteralNode
-import io.glutenproject.substrait.`type`.TypeBuilder
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.GlutenConfig
 
 /**
  * The extract trait for 'GetDateField' from Date
@@ -176,6 +173,7 @@ object DateTimeExpressionsTransformer {
 
   val EXTRACT_DATE_FIELD_MAPPING: Map[Class[_], String] = Map(
     scala.reflect.classTag[Year].runtimeClass -> "YEAR",
+    scala.reflect.classTag[YearOfWeek].runtimeClass -> "YEAR_OF_WEEK",
     scala.reflect.classTag[Quarter].runtimeClass -> "QUARTER",
     scala.reflect.classTag[Month].runtimeClass -> "MONTH",
     scala.reflect.classTag[WeekOfYear].runtimeClass -> "WEEK_OF_YEAR",
@@ -183,6 +181,8 @@ object DateTimeExpressionsTransformer {
     scala.reflect.classTag[DayOfWeek].runtimeClass -> "DAY_OF_WEEK",
     scala.reflect.classTag[DayOfMonth].runtimeClass -> "DAY",
     scala.reflect.classTag[DayOfYear].runtimeClass -> "DAY_OF_YEAR",
+    scala.reflect.classTag[Hour].runtimeClass -> "HOUR",
+    scala.reflect.classTag[Minute].runtimeClass -> "MINUTE",
     scala.reflect.classTag[Second].runtimeClass -> "SECOND"
   )
 }

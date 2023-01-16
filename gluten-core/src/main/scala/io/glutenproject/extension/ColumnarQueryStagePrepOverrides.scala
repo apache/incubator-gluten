@@ -19,15 +19,14 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.{FallbackMultiCodegens, StoreExpandGroupExpression, TagBeforeTransformHits, TransformHint, TransformHints}
+import io.glutenproject.extension.columnar._
+
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
-import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_SUPPORTED
-import io.glutenproject.extension.columnar.TransformHint.TRANSFORM_UNSUPPORTED
-import io.glutenproject.extension.columnar.TransformHint.TransformHint
 
 // BroadcastHashJoinExec and it's child BroadcastExec will be cut into different QueryStages,
 // so the columnar rules will be applied to the two QueryStages separately, and they cannot
@@ -37,52 +36,52 @@ import io.glutenproject.extension.columnar.TransformHint.TransformHint
 case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
-    plan.transformDown {
+    plan.foreach {
       case bhj: BroadcastHashJoinExec =>
-        if (TransformHints.isAlreadyTagged(bhj) &&
-          TransformHints.getHint(bhj) == TransformHint.TRANSFORM_UNSUPPORTED) {
-          bhj.children.foreach {
-            // ResuedExchange is not created yet, so we don't need to handle that case.
-            case be: BroadcastExchangeExec =>
-              TransformHints.tagNotTransformable(be)
-            case _ =>
-          }
-        } else if (columnarConf.enableColumnarBroadcastExchange &&
-          columnarConf.enableColumnarBroadcastJoin) {
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-            .genBroadcastHashJoinExecTransformer(
-              bhj.leftKeys,
-              bhj.rightKeys,
-              bhj.joinType,
-              bhj.buildSide,
-              bhj.condition,
-              bhj.left,
-              bhj.right,
-              bhj.isNullAwareAntiJoin)
-
-          val isTransformable = transformer.doValidate()
-          TransformHints.tag(bhj, isTransformable.toTransformHint)
-          if (!isTransformable) {
-            bhj.children.foreach {
-              // ResuedExchange is not created yet, so we don't need to handle that case.
-              case be: BroadcastExchangeExec =>
-                TransformHints.tagNotTransformable(be)
-              case _ =>
-            }
-          }
+        val buildSidePlan = bhj.buildSide match {
+          case BuildLeft => bhj.left
+          case BuildRight => bhj.right
         }
-        bhj
-      case plan => plan
+        val maybeExchange = buildSidePlan.find {
+          case BroadcastExchangeExec(_, _) => true
+          case _ => false
+        }
+        maybeExchange match {
+          case Some(exchange@BroadcastExchangeExec(mode, child)) =>
+            val isTransformable = if (!columnarConf.enableColumnarBroadcastExchange ||
+              !columnarConf.enableColumnarBroadcastJoin) {
+              false
+            } else {
+              if (TransformHints.isAlreadyTagged(bhj) && TransformHints.isNotTransformable(bhj)) {
+                false
+              } else {
+                val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
+                  .genBroadcastHashJoinExecTransformer(
+                    bhj.leftKeys,
+                    bhj.rightKeys,
+                    bhj.joinType,
+                    bhj.buildSide,
+                    bhj.condition,
+                    bhj.left,
+                    bhj.right,
+                    bhj.isNullAwareAntiJoin)
+                val isBhjTransformable = bhjTransformer.doValidate()
+                val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
+                val isExchangeTransformable = exchangeTransformer.doValidate()
+                isBhjTransformable && isExchangeTransformable
+              }
+            }
+            if (!isTransformable) {
+              TransformHints.tagNotTransformable(bhj)
+              TransformHints.tagNotTransformable(exchange)
+            }
+          case _ =>
+          // Skip. This might be the case that the exchange was already
+          // executed in earlier stage
+        }
+      case _ =>
     }
-  }
-
-  implicit class EncodeTransformableTagImplicits(transformable: Boolean) {
-    def toTransformHint: TransformHint = {
-      transformable match {
-        case true => TRANSFORM_SUPPORTED
-        case false => TRANSFORM_UNSUPPORTED
-      }
-    }
+    plan
   }
 }
 
@@ -92,4 +91,3 @@ object ColumnarQueryStagePrepOverrides extends GlutenSparkExtensionsInjector {
     builders.foreach(extensions.injectQueryStagePrepRule)
   }
 }
-

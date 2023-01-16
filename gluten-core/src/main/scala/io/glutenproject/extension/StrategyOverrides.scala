@@ -19,17 +19,18 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.{TransformHint, TransformHints}
+import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHint}
 import io.glutenproject.extension.columnar.TransformHints.TAG
+
 import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan, Project, SHUFFLE_MERGE}
-import org.apache.spark.sql.execution.{joins, CodegenSupport, JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.execution.{joins, JoinSelectionShim, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
+import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
@@ -68,8 +69,8 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     } else {
       // non equal condition
       // Generate BHJ here, avoid to do match in `JoinSelection` again.
-      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, true, conf)
-        .orElse(getBroadcastBuildSide(left, right, joinType, hint, false, conf))
+      val isHintEmpty = hint.leftHint.isEmpty && hint.rightHint.isEmpty
+      val buildSide = getBroadcastBuildSide(left, right, joinType, hint, !isHintEmpty, conf)
       if (buildSide.isDefined) {
         return Seq(
           joins.BroadcastHashJoinExec(
@@ -159,7 +160,7 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
   }
 
   def tagNotTransformable(plan: LogicalPlan): LogicalPlan = {
-    plan.setTagValue(TAG, TransformHint.TRANSFORM_UNSUPPORTED)
+    plan.setTagValue(TAG, TRANSFORM_UNSUPPORTED())
     plan
   }
 

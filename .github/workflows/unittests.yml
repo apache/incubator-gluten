@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup docker container
         run: |
-          EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID -m 50GB --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
+          EXTRA_DOCKER_OPTIONS="--name velox-backend-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" NON_INTERACTIVE=ON MOUNT_MAVEN_CACHE=OFF tools/gluten-te/cbash.sh sleep 14400
       - name: Install Gluten Velox-backend spark3.2 and Run Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'apt-get update && \
@@ -94,7 +94,7 @@ jobs:
       - name: Install Gluten Velox-backend spark3.3 and Run Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox'
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Pspark-ut'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \

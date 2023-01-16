@@ -22,12 +22,12 @@ import org.apache.spark.{broadcast, SparkException}
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike, Exchange}
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkFatalException
 
@@ -67,6 +67,10 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
           s"broadcast exchange (runId $runId)",
           interruptOnCancel = true)
 
+        // this created relation ignore HashedRelationBroadcastMode isNullAware, because we cannot
+        // get child output rows, then compare the hash key is null, if not null, compare the
+        // isNullAware, so gluten will not generate HashedRelationWithAllNullKeys or
+        // EmptyHashedRelation, this difference will cause performance regression in some cases
         val relation = BackendsApiManager.getSparkPlanExecApiInstance.createBroadcastRelation(
           mode,
           child,
@@ -74,6 +78,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
           longMetric("dataSize"))
         val beforeCollect = System.nanoTime()
         val beforeBroadcast = System.nanoTime()
+
         longMetric("collectTime") += NANOSECONDS.toMillis(beforeBroadcast - beforeCollect)
 
         // Broadcast the relation

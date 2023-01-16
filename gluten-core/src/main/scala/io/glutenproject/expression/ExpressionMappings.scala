@@ -130,16 +130,6 @@ object ExpressionMappings {
   final val LOG10 = "log10"
 
   // SparkSQL DateTime functions
-  final val YEAR = "year"
-  final val QUARTER = "quarter"
-  final val MONTH = "month"
-  final val WEEK_OF_YEAR = "week_of_year"
-  final val WEEK_DAY = "week_day"
-  final val DAY_OF_WEEK = "day_of_week"
-  final val DAY_OF_MONTH = "day_of_month"
-  final val DAY_OF_YEAR = "day_of_year"
-  final val DAY = "day"
-  final val SECOND = "second"
   // Fully supporting wait for https://github.com/ClickHouse/ClickHouse/pull/43818
   final val FROM_UNIXTIME = "from_unixtime"
   final val DATE_ADD = "date_add"
@@ -164,6 +154,9 @@ object ExpressionMappings {
   // Map functions
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
+
+  // struct functions
+  final val GET_STRUCT_FIELD = "get_struct_field"
 
   // Spark 3.3
   final val SPLIT_PART = "split_part"
@@ -281,6 +274,7 @@ object ExpressionMappings {
     Sig[ToDegrees](DEGREES),
     // SparkSQL DateTime functions
     Sig[Year](EXTRACT),
+    Sig[YearOfWeek](EXTRACT),
     Sig[Quarter](EXTRACT),
     Sig[Month](EXTRACT),
     Sig[WeekOfYear](EXTRACT),
@@ -288,6 +282,8 @@ object ExpressionMappings {
     Sig[DayOfWeek](EXTRACT),
     Sig[DayOfMonth](EXTRACT),
     Sig[DayOfYear](EXTRACT),
+    Sig[Hour](EXTRACT),
+    Sig[Minute](EXTRACT),
     Sig[Second](EXTRACT),
     Sig[FromUnixTime](FROM_UNIXTIME),
     Sig[DateAdd](DATE_ADD),
@@ -309,6 +305,8 @@ object ExpressionMappings {
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
+    // Struct functions
+    Sig[GetStructField](GET_STRUCT_FIELD),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),

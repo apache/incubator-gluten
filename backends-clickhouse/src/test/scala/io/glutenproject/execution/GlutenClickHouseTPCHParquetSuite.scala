@@ -508,7 +508,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |  sum(n_nationkey) over (partition by n_regionkey order by n_nationkey range
         |  between unbounded preceding and current row) as n_sum
         |from nation
-        |order by n_regionkey,n_nationkey
+        |order by n_regionkey,n_nationkey,n_name,n_sum
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
@@ -520,7 +520,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         | rank() over (partition by n_regionkey order by n_nationkey) as n_rank,
         | sum(n_nationkey) over (partition by n_regionkey order by n_nationkey) as n_sum
         |from nation
-        |order by n_regionkey,n_nationkey
+        |order by n_regionkey,n_nationkey,n_name,n_rank
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
@@ -531,7 +531,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |select n_nationkey, n_name, n_regionkey,
         | rank() over (partition by n_regionkey order by n_nationkey) as n_rank
         |from nation
-        |order by n_regionkey,n_nationkey
+        |order by n_regionkey,n_nationkey,n_name,n_rank
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }

@@ -101,7 +101,12 @@ class BatchVectorIterator final : public BatchIteratorWrapper {
 
     iter_ = batches_.begin();
 #ifdef GLUTEN_PRINT_DEBUG
+    std::cout << "file: " << path << std::endl;
     std::cout << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
+    if (iter_ != batches_.cend()) {
+      std::cout << "columns: " << (*iter_)->num_columns() << std::endl;
+      std::cout << "rows: " << (*iter_)->num_rows() << std::endl;
+    }
 #endif
   }
 

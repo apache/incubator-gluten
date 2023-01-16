@@ -123,9 +123,10 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
     buildSide: BuildSide,
     condition: Option[Expression],
     left: SparkPlan,
-    right: SparkPlan): ShuffledHashJoinExecTransformer =
+    right: SparkPlan,
+    isSkewJoin: Boolean): ShuffledHashJoinExecTransformer =
     GlutenShuffledHashJoinExecTransformer(
-      leftKeys, rightKeys, joinType, buildSide, condition, left, right)
+      leftKeys, rightKeys, joinType, buildSide, condition, left, right, isSkewJoin)
 
   /**
    * Generate BroadcastHashJoinExecTransformer.
