@@ -17,6 +17,12 @@
 
 #pragma once
 
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <folly/executors/IOThreadPoolExecutor.h>
+
 #include "VeloxColumnarToRowConverter.h"
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
@@ -25,11 +31,29 @@ namespace gluten {
 
 class VeloxInitializer {
  public:
-  VeloxInitializer(std::unordered_map<std::string, std::string> conf) {
+  VeloxInitializer(const std::unordered_map<std::string, std::string>& conf) {
     Init(conf);
   }
-
   void Init(std::unordered_map<std::string, std::string> conf);
+
+  void InitCache();
+
+  std::string genUuid() {
+    return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+  }
+  // Instance of AsyncDataCache used for all large allocations.
+  std::shared_ptr<facebook::velox::memory::MemoryAllocator> mappedMemory_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> cacheExecutor_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+  const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
+  const std::string kVeloxCachePath = "spark.gluten.sql.columnar.backend.velox.cachePath";
+  const std::string kVeloxCachePathDefault = "/tmp/";
+  const std::string kVeloxCacheSize = "spark.gluten.sql.columnar.backend.velox.cacheSize";
+  const std::string kVeloxCacheSizeDefault = "1073741824";
+  const std::string kVeloxCacheShards = "spark.gluten.sql.columnar.backend.velox.cacheShards";
+  const std::string kVeloxCacheShardsDefault = "1";
+  const std::string kVeloxCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.ioTHreads";
+  const std::string kVeloxCacheIOThreadsDefault = "1";
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
