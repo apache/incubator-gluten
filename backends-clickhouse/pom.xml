@@ -13,34 +13,6 @@
     <packaging>jar</packaging>
     <name>Gluten Backends ClickHouse</name>
 
-    <profiles>
-        <profile>
-            <id>spark-3.2</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>io.glutenproject</groupId>
-                    <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-                    <version>${project.version}</version>
-                    <scope>compile</scope>
-                </dependency>
-            </dependencies>
-        </profile>
-        <profile>
-            <id>spark-3.3</id>
-            <dependencies>
-                <dependency>
-                    <groupId>io.glutenproject</groupId>
-                    <artifactId>spark-sql-columnar-shims-spark33</artifactId>
-                    <version>${project.version}</version>
-                    <scope>compile</scope>
-                </dependency>
-            </dependencies>
-        </profile>
-    </profiles>
-
     <dependencies>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -224,6 +196,7 @@
             </plugin>
             <plugin>
                 <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>test</id>
