@@ -334,7 +334,6 @@ endif()
 target_link_libraries(spark_columnar_jni
     PUBLIC Arrow::arrow Arrow::parquet)
 
-
 install(TARGETS spark_columnar_jni
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${source_root_directory}/resources/libhdfs.so
