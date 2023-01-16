@@ -3,7 +3,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/zhixingheyi-tian/velox.git
-VELOX_BRANCH=fixhashjoin
+VELOX_BRANCH=fixsort
 
 for arg in "$@"
 do
