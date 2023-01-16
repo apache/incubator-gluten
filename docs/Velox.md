@@ -155,6 +155,41 @@ export VELOX_HDFS="hdfs://hdfshost:9000"
 ```
 If Gluten is used in a fully-prepared Hadoop cluster, we recommend to use Hadoop's config.
 
+If your HDFS is in HA mode, you need to set the LIBHDFS3_CONF environment variable to specify the hdfs client configuration file.
+
+```
+// Spark local mode
+export LIBHDFS3_CONF="/path/to/hdfs-client.xml"
+
+// Spark Yarn cluster mode
+--conf spark.executorEnv.LIBHDFS3_CONF="/path/to/hdfs-client.xml"
+```
+If Gluten is used in a fully-prepared Hadoop cluster, you can directly use the hdfs-site.xml of the cluster.
+
+In the configuration file, you need to set the HDFS HA-related configuration.
+
+```
+<property>
+   <name>dfs.nameservices</name>
+   <value>EXAMPLENAMESERVICE</value>
+</property>
+
+<property>
+    <name>dfs.ha.namenodes.EXAMPLENAMESERVICE</name>
+    <value>ns1,ns2</value>
+</property>
+
+<property>
+    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns1</name>
+    <value>hdfs://ns1:8020</value>
+</property>
+
+<property>
+    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns2</name>
+    <value>hdfs://ns2:8020</value>
+</property>
+```
+
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
 By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
