@@ -2,8 +2,10 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # 1 Prerequisite
 
-Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04 and Ubuntu22.04</b>. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
+Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
+common OS and conda env deployment.
+Velox uses the script `setup-ubuntu.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
+So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
 ```shell script
 ## run as root
