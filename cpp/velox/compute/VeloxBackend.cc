@@ -116,18 +116,12 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   if (pos != std::string::npos) {
     auto hdfsPort = hdfsHostWithPort.substr(pos + 1);
     auto hdfsHost = hdfsHostWithPort.substr(0, pos);
-    hdfsConfig.insert({
-      {"hive.hdfs.host", hdfsHost},
-      {"hive.hdfs.port", hdfsPort}
-    });
+    hdfsConfig.insert({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
   } else {
-    // For HA HDFS. In this case, hive.hdfs.host should be dfs.nameservices,
-    // hive.hdfs.port should be an empty string, and the HA HDFS configuration
-    // should be taken from the LIBHDFS3_CONF file.
-    hdfsConfig.insert({
-      {"hive.hdfs.host", hdfsHostWithPort},
-      {"hive.hdfs.port", ""}
-    });
+    // For HDFS HA mode. In this case, hive.hdfs.host should be the nameservice, we can
+    // get it from HDFS uri, and hive.hdfs.port should be an empty string, and the HDFS HA
+    // configurations should be taken from the LIBHDFS3_CONF file.
+    hdfsConfig.insert({{"hive.hdfs.host", hdfsHostWithPort}, {"hive.hdfs.port", ""}});
   }
   configurationValues.merge(hdfsConfig);
 #endif
