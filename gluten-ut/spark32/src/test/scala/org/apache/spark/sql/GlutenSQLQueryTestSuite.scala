@@ -326,7 +326,28 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "postgreSQL/boolean.sql",
     "postgreSQL/case.sql",
     "postgreSQL/comments.sql",
-    "postgreSQL/create_view.sql"
+    "postgreSQL/create_view.sql",
+    "datetime-special.sql",
+    "timestamp-ansi.sql",
+    "timestamp.sql",
+    "arrayJoin.sql",
+    "binaryComparison.sql",
+    "booleanEquality.sql",
+    "caseWhenCoercion.sql",
+    "concat.sql",
+    "dateTimeOperations.sql",
+    "decimalPrecision.sql",
+    "division.sql",
+    "elt.sql",
+    "ifCoercion.sql",
+    "implicitTypeCasts.sql",
+    "inConversion.sql",
+    "mapZipWith.sql",
+    "mapconcat.sql",
+    "promoteStrings.sql",
+    "stringCastAndExpressions.sql",
+    "widenSetOperationTypes.sql",
+    "windowFrameCoercion.sql"
   )
 
   /** List of supported cases to run with Clickhouse backend, in lower case.
