@@ -356,7 +356,7 @@ case class TransformPostOverrides(session: SparkSession) extends Rule[SparkPlan]
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"ColumnarPostOverrides GlutenColumnarToRowExecBase(${child.getClass})")
         val nativeConversion =
-          BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
+          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
         if (nativeConversion.doValidate()) {
           nativeConversion
         } else {
@@ -377,7 +377,7 @@ case class TransformPostOverrides(session: SparkSession) extends Rule[SparkPlan]
           if (columnarConf.enableNativeColumnarToRow) {
             val child = replaceWithTransformerPlan(c.child)
             val nativeConversion =
-              BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(child)
+              BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
             if (nativeConversion.doValidate()) {
               nativeConversion
             } else {

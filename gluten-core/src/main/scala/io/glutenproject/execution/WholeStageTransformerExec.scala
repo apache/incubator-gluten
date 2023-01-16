@@ -260,10 +260,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
-    // we should zip all dependent RDDs to current main RDD
-    // TODO: Does it still need these parameters?
-    val dependentKernels: mutable.ListBuffer[NativeExpressionEvaluator] = mutable.ListBuffer()
-    val dependentKernelIterators: mutable.ListBuffer[GeneralOutIterator] = mutable.ListBuffer()
     val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
 
     val inputRDDs = columnarInputRDDs
@@ -349,8 +345,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         resCtx,
         pipelineTime,
         buildRelationBatchHolder,
-        dependentKernels,
-        dependentKernelIterators,
         metricsUpdater().updateOutputMetrics,
         metricsUpdatingFunction)
     }

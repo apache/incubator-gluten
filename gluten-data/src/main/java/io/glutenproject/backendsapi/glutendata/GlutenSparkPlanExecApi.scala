@@ -64,7 +64,7 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase =
+  override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase =
     new GlutenColumnarToRowExec(child)
 
   /**
