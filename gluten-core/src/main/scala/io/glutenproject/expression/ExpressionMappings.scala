@@ -160,13 +160,20 @@ object ExpressionMappings {
   final val SIZE = "size"
   final val CREATE_ARRAY = "array"
   final val GET_ARRAY_ITEM = "get_array_item"
+  final val ELEMENT_AT = "element_at"
+  final val ARRAY_CONTAINS = "array_contains"
+  final val ARRAY_MAX = "array_max"
+  final val ARRAY_MIN = "array_min"
 
   // Map functions
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
+  final val MAP_KEYS = "map_keys"
+  final val MAP_VALUES = "map_values"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"
+  final val NAMED_STRUCT = "named_struct"
 
   // Spark 3.3
   final val SPLIT_PART = "split_part"
@@ -326,11 +333,18 @@ object ExpressionMappings {
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
     Sig[GetArrayItem](GET_ARRAY_ITEM),
+    Sig[ElementAt](ELEMENT_AT),
+    Sig[ArrayContains](ARRAY_CONTAINS),
+    Sig[ArrayMax](ARRAY_MAX),
+    Sig[ArrayMin](ARRAY_MIN),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
+    Sig[MapKeys](MAP_KEYS),
+    Sig[MapValues](MAP_VALUES),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
+    Sig[CreateNamedStruct](NAMED_STRUCT),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
