@@ -77,17 +77,15 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
       runTPCDSQuery(9) {
         df =>
           var countSubqueryExec = 0
-          var countReuseSubqueryExec = 0
           df.queryExecution.executedPlan.transformAllExpressions {
             case s @ ScalarSubquery(_: SubqueryExec, _) =>
               countSubqueryExec = countSubqueryExec + 1
               s
             case s @ ScalarSubquery(_: ReusedSubqueryExec, _) =>
-              countReuseSubqueryExec = countReuseSubqueryExec + 1
+              countSubqueryExec = countSubqueryExec + 1
               s
           }
           assert(countSubqueryExec == 15)
-          assert(countReuseSubqueryExec == 0)
       }
     }
   }

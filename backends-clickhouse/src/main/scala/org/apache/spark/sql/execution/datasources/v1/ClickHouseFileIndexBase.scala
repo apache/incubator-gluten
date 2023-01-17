@@ -31,7 +31,7 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 
 import java.util.Objects
 
-case class ClickHouseFileIndex(
+abstract class ClickHouseFileIndexBase(
     override val spark: SparkSession,
     override val deltaLog: DeltaLog,
     override val path: Path,
@@ -42,10 +42,6 @@ case class ClickHouseFileIndex(
   extends TahoeFileIndex(spark, deltaLog, path) {
 
   override val sizeInBytes: Long = table.listFiles().map(_.bytesOnDisk).sum
-
-  override def tableVersion: Long = {
-    if (isTimeTravelQuery) snapshotAtAnalysis.version else deltaLog.snapshot.version
-  }
 
   def getSnapshot: Snapshot = {
     getSnapshotToScan

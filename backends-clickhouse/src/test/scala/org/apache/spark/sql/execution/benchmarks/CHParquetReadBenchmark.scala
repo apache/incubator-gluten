@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{FileSourceScanExecTransformer, WholestageTransformContext}
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.utils.UTSystemParameters
@@ -33,7 +34,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -244,8 +245,10 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
           hadoopConf = relation.sparkSession.sessionState.newHadoopConfWithOptions(relation.options)
         )
 
-      val newFileScanRDD = new FileScanRDD(spark, readFile, filePartitions)
-        .asInstanceOf[RDD[ColumnarBatch]]
+      val newFileScanRDD =
+        SparkShimLoader.getSparkShims
+          .generateFileScanRDD(spark, readFile, filePartitions, fileScan)
+          .asInstanceOf[RDD[ColumnarBatch]]
 
       val rowCnt = newFileScanRDD
         .mapPartitionsInternal(batches => batches.map(batch => batch.numRows().toLong))
