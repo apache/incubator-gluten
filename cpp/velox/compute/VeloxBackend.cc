@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <filesystem>
+
 #include "VeloxBackend.h"
 
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -31,6 +33,7 @@
 #ifdef VELOX_ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #endif
+#include "velox/common/memory/MmapAllocator.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
@@ -50,7 +53,51 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
   // Setup and register.
   filesystems::registerLocalFileSystem();
 
-  std::unique_ptr<folly::IOThreadPoolExecutor> executor = std::make_unique<folly::IOThreadPoolExecutor>(1);
+  // TODO(yuan): move to seperate func initcache()
+  auto key = conf.find(kVeloxCacheEnabled);
+  if (key != conf.end() && boost::algorithm::to_lower_copy(conf[kVeloxCacheEnabled]) == "true") {
+    uint64_t cacheSize = std::stol(kVeloxCacheSizeDefault);
+    int32_t cacheShards = std::stoi(kVeloxCacheShardsDefault);
+    int32_t ioTHreads = std::stoi(kVeloxCacheIOThreadsDefault);
+    std::string cachePathPrefix = kVeloxCachePathDefault;
+    for (auto& [k, v] : conf) {
+      if (k == kVeloxCacheSize)
+        cacheSize = std::stol(v);
+      if (k == kVeloxCacheShards)
+        cacheShards = std::stoi(v);
+      if (k == kVeloxCachePath)
+        cachePathPrefix = v;
+      if (k == kVeloxCacheIOThreads)
+        ioTHreads = std::stoi(v);
+    }
+    std::string cachePath = cachePathPrefix + "/cache." + genUuid() + ".";
+    cacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(cacheShards);
+    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioTHreads);
+    auto ssd = std::make_unique<cache::SsdCache>(cachePath, cacheSize, cacheShards, cacheExecutor_.get());
+
+    std::error_code ec;
+    const std::filesystem::space_info si = std::filesystem::space(cachePathPrefix, ec);
+    if (si.available < cacheSize) {
+      VELOX_FAIL(
+          "not enough space for cache in " + cachePath + " cacha size: " + std::to_string(cacheSize) +
+          "free space: " + std::to_string(si.available));
+    }
+
+    memory::MmapAllocator::Options options;
+    // TODO(yuan): should try to parse the offheap memory size here:
+    uint64_t memoryBytes = 200L << 30;
+    options.capacity = memoryBytes;
+
+    auto allocator = std::make_shared<memory::MmapAllocator>(options);
+    mappedMemory_ = std::make_shared<cache::AsyncDataCache>(allocator, memoryBytes, std::move(ssd));
+
+    // register as default instance, will be used in parquet reader
+    memory::MemoryAllocator::setDefaultInstance(mappedMemory_.get());
+    VELOX_CHECK_NOT_NULL(dynamic_cast<cache::AsyncDataCache*>(mappedMemory_.get()));
+    LOG(INFO) << "STARTUP: Using AsyncDataCache"
+              << ", cache prefix: " << cachePath << ", cache size: " << cacheSize << ", cache shards: " << cacheShards
+              << ", cache IO threads: " << ioTHreads;
+  }
 
   std::unordered_map<std::string, std::string> configurationValues;
 
@@ -112,7 +159,8 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 
   auto properties = std::make_shared<const core::MemConfig>(configurationValues);
   auto hiveConnector = getConnectorFactory(connector::hive::HiveConnectorFactory::kHiveConnectorName)
-                           ->newConnector(kHiveConnectorId, properties, nullptr);
+                           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
+
   registerConnector(hiveConnector);
   facebook::velox::parquet::registerParquetReaderFactory(ParquetReaderType::NATIVE);
   dwrf::registerDwrfReaderFactory();

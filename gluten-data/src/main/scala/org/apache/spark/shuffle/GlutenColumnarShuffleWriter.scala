@@ -20,7 +20,6 @@ package org.apache.spark.shuffle
 import java.io.IOException
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 import io.glutenproject.memory.alloc.{NativeMemoryAllocators, Spiller}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -35,7 +34,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Utils;
+import org.apache.spark.util.Utils
 
 class GlutenColumnarShuffleWriter[K, V](
   shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -62,14 +61,14 @@ class GlutenColumnarShuffleWriter[K, V](
 
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
-  private val offheapPerTask = offheapSize / executorNum;
+  private val offheapPerTask = offheapSize / executorNum
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
   private val customizedCompressionCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
   private val batchCompressThreshold =
-    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
+    GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
 
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
 
@@ -89,9 +88,6 @@ class GlutenColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
-    val splitterJniWrapper: ShuffleSplitterJniWrapper =
-      jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper]
-
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
       shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId,
@@ -102,7 +98,7 @@ class GlutenColumnarShuffleWriter[K, V](
 
     val dataTmp = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
     if (nativeSplitter == 0) {
-      nativeSplitter = splitterJniWrapper.make(
+      nativeSplitter = jniWrapper.make(
         dep.nativePartitioning,
         offheapPerTask,
         nativeBufferSize,
@@ -121,7 +117,7 @@ class GlutenColumnarShuffleWriter[K, V](
                   "allocations from make() to split()")
               }
               // fixme pass true when being called by self
-              return splitterJniWrapper.nativeSpill(nativeSplitter, size, false)
+              jniWrapper.nativeSpill(nativeSplitter, size, false)
             }
           }).getNativeInstanceId,
         writeSchema)
@@ -156,7 +152,7 @@ class GlutenColumnarShuffleWriter[K, V](
 
         dep.prepareTime.add(System.nanoTime() - startTimeForPrepare)
 
-        splitterJniWrapper
+        jniWrapper
           .split(nativeSplitter, cb.numRows, cArray.memoryAddress())
         dep.splitTime.add(System.nanoTime() - startTime)
         dep.numInputRows.add(cb.numRows)
@@ -168,7 +164,7 @@ class GlutenColumnarShuffleWriter[K, V](
     }
 
     val startTime = System.nanoTime()
-    splitResult = splitterJniWrapper.stop(nativeSplitter)
+    splitResult = jniWrapper.stop(nativeSplitter)
 
     dep.splitTime.add(System.nanoTime() - startTime - splitResult.getTotalSpillTime -
       splitResult.getTotalWriteTime -
@@ -194,10 +190,6 @@ class GlutenColumnarShuffleWriter[K, V](
       }
     }
 
-    // fixme workaround: to store uncompressed sizes on the rhs of (maybe) compressed sizes
-    val unionPartitionLengths = partitionLengths.zip(rawPartitionLengths).map {
-      case (partition, rawPartition) => partition + rawPartition
-    }
     // The partitionLength is much more than vanilla spark partitionLengths,
     // almost 3 times than vanilla spark partitionLengths
     // This value is sensitive in rules such as AQE rule OptimizeSkewedJoin DynamicJoinSelection
@@ -211,7 +203,7 @@ class GlutenColumnarShuffleWriter[K, V](
   }
 
   def closeSplitter(): Unit = {
-    jniWrapper.asInstanceOf[ShuffleSplitterJniWrapper].close(nativeSplitter)
+    jniWrapper.close(nativeSplitter)
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {

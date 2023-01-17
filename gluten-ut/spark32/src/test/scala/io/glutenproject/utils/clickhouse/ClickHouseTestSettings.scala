@@ -21,7 +21,7 @@ import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 
-object ClickHouseTestSettings extends BackendTestSettings {
+class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(
@@ -170,5 +170,10 @@ object ClickHouseTestSettings extends BackendTestSettings {
       "pivot with datatype not supported by PivotFirst",
       "pivot with datatype not supported by PivotFirst 2",
       "pivot with null and aggregate type not supported by PivotFirst returns correct result"
+    )
+
+  enableSuite[GlutenPredicateSuite]
+    .includeByPrefix(
+      "SPARK-29100"
     )
 }

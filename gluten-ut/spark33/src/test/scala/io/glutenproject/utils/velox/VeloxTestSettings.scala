@@ -21,6 +21,6 @@ import io.glutenproject.utils.BackendTestSettings
 
 import org.apache.spark.sql.GlutenStringFunctionsSuite
 
-object VeloxTestSettings extends BackendTestSettings {
+class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringFunctionsSuite]
 }
