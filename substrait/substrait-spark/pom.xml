@@ -13,12 +13,6 @@
     <artifactId>substrait-spark</artifactId>
     <packaging>jar</packaging>
     <name>Gluten Substrait Spark</name>
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -79,18 +73,12 @@
         </dependency>
     </dependencies>
     <build>
-        <resources>
-            <resource>
-                <directory>${resource.dir}</directory>
-            </resource>
-        </resources>
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
         <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
         <plugins>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>${scala.compiler.version}</version>
             </plugin>
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
@@ -104,24 +92,16 @@
                             <include>src/main/spark-${sparkbundle.version}/**/*.scala</include>
                             <include>src/test/spark-${sparkbundle.version}/**/*.scala</include>
                         </includes>
-                        <scalafmt>
-                            <file>${project.basedir}/../../.scalafmt.conf</file>
-                        </scalafmt>
                     </scala>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
-                <version>${scalatest-maven-plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.scalastyle</groupId>
                 <artifactId>scalastyle-maven-plugin</artifactId>
-                <version>${scalastyle.version}</version>
-                <configuration>
-                    <configLocation>${project.basedir}/../../scalastyle-config.xml</configLocation>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
