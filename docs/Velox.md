@@ -2,18 +2,30 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # 1 Prerequisite
 
-Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04 and Ubuntu22.04</b>. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
+Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
+common OS and conda env deployment.
+Velox uses the script `setup-ubuntu.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
+So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
 ```shell script
 ## run as root
 ## install gcc and libraries to build arrow
 apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
-
+```
+<b>For x86_64</b>
+```shell script
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
-
+```
+<b>For aarch64</b>
+```shell script
+## make sure jdk8 is used
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-arm64
+export PATH=$JAVA_HOME/bin:$PATH
+```
+<b>Get gluten</b>
+```shell script
 ## config maven, like proxy in ~/.m2/settings.xml
 
 ## fetch gluten code
@@ -25,6 +37,7 @@ git clone https://github.com/oap-project/gluten.git
 It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
+<b>For x86_64 build:</b>
 ```shell script
 cd /path_to_gluten
 
@@ -37,9 +50,21 @@ cd /path_to_gluten
 
 ```
 
+<b>For aarch64 build, set the CPU_TARGET to "aarch64":</b>
+```shell script
+export CPU_TARGET="aarch64"
+
+cd /path_to_gluten
+
+./tools/one_step_veloxbackend.sh
+```
+
 Alternatively you may build gluten step by step as below.
 
 ```shell script
+## Set for aarch64 build
+export CPU_TARGET="aarch64"
+
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./get_arrow.sh
