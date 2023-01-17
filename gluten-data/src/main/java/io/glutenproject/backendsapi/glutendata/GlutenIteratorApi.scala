@@ -288,9 +288,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
                                      pipelineTime: SQLMetric,
                                      updateOutputMetrics: (Long, Long) => Unit,
                                      updateNativeMetrics: Metrics => Unit,
-                                     buildRelationBatchHolder: Seq[ColumnarBatch],
-                                     dependentKernels: Seq[NativeExpressionEvaluator],
-                                     dependentKernelIterators: Seq[GeneralOutIterator])
+                                     buildRelationBatchHolder: Seq[ColumnarBatch])
   : Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)

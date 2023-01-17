@@ -89,7 +89,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
+  override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
     BlockGlutenColumnarToRowExec(child);
   }
 
