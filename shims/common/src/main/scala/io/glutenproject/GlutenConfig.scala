@@ -194,6 +194,27 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  // velox caching options
+  // enable Velox cache, default off
+  val enableVeloxCache: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "false").toBoolean
+
+  // The folder to store the cache files, better on SSD
+  val veloxCachePath: String =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cachePath", "/tmp")
+
+  // The total cache size
+  val veloxCacheSize: Long =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheSize", "1073741824").toLong
+
+  // The cache shards
+  val veloxCacheShards: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheShards", "1").toInt
+
+  // The IO threads for cache promoting
+  val veloxIOThreads: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheIOThreads", "1").toInt
+
   val transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
 

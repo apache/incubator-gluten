@@ -14,6 +14,16 @@
     <packaging>jar</packaging>
     <name>Gluten Unit Test Spark32</name>
 
+    <dependencies>
+        <dependency>
+            <groupId>io.glutenproject</groupId>
+            <artifactId>gluten-ut-common</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+            <type>test-jar</type>
+        </dependency>
+    </dependencies>
+
     <profiles>
         <profile>
             <id>backends-clickhouse</id>

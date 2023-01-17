@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
 
-object VeloxTestSettings extends BackendTestSettings {
+class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(
       "zero moments", // [velox does not return NaN]
