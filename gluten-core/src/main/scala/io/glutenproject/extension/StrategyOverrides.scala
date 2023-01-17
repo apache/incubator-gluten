@@ -19,7 +19,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHint}
+import io.glutenproject.extension.columnar.TRANSFORM_UNSUPPORTED
 import io.glutenproject.extension.columnar.TransformHints.TAG
 
 import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
