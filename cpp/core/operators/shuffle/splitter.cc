@@ -44,19 +44,19 @@ using arrow::internal::checked_cast;
 // macro to rotate left an 8-bit value 'x' given the shift 's' is a 32-bit integer
 // (x is left shifted by 's' modulo 8) OR (x right shifted by (8 - 's' modulo 8))
 #if !defined(__x86_64__)
-#define rotateLeft(x, s) (x << (s - ((s>>3)<<3)) | x >> (8 - (s - ((s>>3)<<3))))
+#define rotateLeft(x, s) (x << (s - ((s >> 3) << 3)) | x >> (8 - (s - ((s >> 3) << 3))))
 #endif
 
 // on x86 machines, _MM_HINT_T0,T1,T2 are defined as 1, 2, 3
 // equivalent mapping to __builtin_prefetch hints is 3, 2, 1
 #if defined(__x86_64__)
-#define PREFETCHT0(ptr)    _mm_prefetch(ptr, _MM_HINT_T0)
-#define PREFETCHT1(ptr)    _mm_prefetch(ptr, _MM_HINT_T1)
-#define PREFETCHT2(ptr)    _mm_prefetch(ptr, _MM_HINT_T2)
+#define PREFETCHT0(ptr) _mm_prefetch(ptr, _MM_HINT_T0)
+#define PREFETCHT1(ptr) _mm_prefetch(ptr, _MM_HINT_T1)
+#define PREFETCHT2(ptr) _mm_prefetch(ptr, _MM_HINT_T2)
 #else
-#define PREFETCHT0(ptr)    __builtin_prefetch(ptr, 0, 3)
-#define PREFETCHT1(ptr)    __builtin_prefetch(ptr, 0, 2)
-#define PREFETCHT2(ptr)    __builtin_prefetch(ptr, 0, 1)
+#define PREFETCHT0(ptr) __builtin_prefetch(ptr, 0, 3)
+#define PREFETCHT1(ptr) __builtin_prefetch(ptr, 0, 2)
+#define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
 #endif
 // #define SKIPWRITE
 
@@ -1058,7 +1058,7 @@ arrow::Status Splitter::SplitBoolType(const uint8_t* src_addr, const std::vector
 #if defined(__x86_64__)
         src = __rolb(src, 8 - dst_idx_byte);
 #else
-	src = rotateLeft(src, (8 - dst_idx_byte));
+        src = rotateLeft(src, (8 - dst_idx_byte));
 #endif
         dst = dst & src; // only take the useful bit.
       }
@@ -1117,7 +1117,7 @@ arrow::Status Splitter::SplitBoolType(const uint8_t* src_addr, const std::vector
 #if defined(__x86_64__)
         src = __rolb(src, dst_idx_byte);
 #else
-	src = rotateLeft(src, dst_idx_byte);
+        src = rotateLeft(src, dst_idx_byte);
 #endif
         dst = dst & src; // only take the useful bit.
       }
@@ -1162,8 +1162,7 @@ arrow::Status Splitter::SplitBinaryType(
   for (auto pid = 0; pid < num_partitions_; pid++) {
     auto dst_offset_base = reinterpret_cast<T*>(dst_addrs[pid].offsetptr) + partition_buffer_idx_base_[pid];
     if (pid + 1 < num_partitions_) {
-      PREFETCHT1((
-          reinterpret_cast<T*>(dst_addrs[pid + 1].offsetptr) + partition_buffer_idx_base_[pid + 1]));
+      PREFETCHT1((reinterpret_cast<T*>(dst_addrs[pid + 1].offsetptr) + partition_buffer_idx_base_[pid + 1]));
       PREFETCHT1((dst_addrs[pid + 1].valueptr + dst_addrs[pid + 1].value_offset));
     }
     auto value_offset = dst_addrs[pid].value_offset;
@@ -1368,7 +1367,7 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
         : [ pid ] "+r"(pid)
         : [ num_partitions ] "r"(num_partitions_), [ tmp ] "r"(0));
 #else
-    if(pid < 0)
+    if (pid < 0)
       pid += num_partitions_;
 #endif
     partition_id_[i] = pid;
