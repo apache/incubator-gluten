@@ -6,12 +6,6 @@
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 #include "velox/substrait/SubstraitToVeloxPlan.h"
-#ifdef VELOX_ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
-#endif
-#ifdef VELOX_ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
-#endif
 
 namespace gluten {
 
