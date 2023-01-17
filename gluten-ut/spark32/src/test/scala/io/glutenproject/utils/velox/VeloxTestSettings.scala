@@ -185,6 +185,23 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenBroadcastJoinSuite]
   enableSuite[GlutenSQLQuerySuite]
-    .include("Struct Star Expansion")
-    .include("SPARK-16674: field names containing dots for both fields and partitioned fields")
+    // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
+    .exclude("SPARK-28156: self-join should not miss cached view")
+    .exclude("SPARK-33338: GROUP BY using literal map should not fail")
+    // Rewrite from ORC scan to Parquet scan because ORC is not well supported. Also disabled
+    // Spark vectorized reading because Spark's columnar output is not compatible with Velox's.
+    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
+    // Rewrite to disable plan check for SMJ because SHJ is preferred in Gluten.
+    .exclude("SPARK-11111 null-safe join should not use cartesian product")
+    // Rewrite to change the information of a caught exception.
+    .exclude(
+      "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
+    // Different exception.
+    .exclude("run sql directly on files")
+    // Columnar shuffle cannot generate the expected number of partitions if the row of a input
+    // batch is less than the expected number of partitions.
+    .exclude("SPARK-24940: coalesce and repartition hint")
+    // Not useful and time consuming.
+    .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
+    .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
 }
