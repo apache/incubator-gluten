@@ -137,7 +137,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenStringExpressionsSuite]
     .include(
-      "concat_ws"
+      "concat_ws",
+      "base64/unbase64 for string"
     )
 
   enableSuite[GlutenStringFunctionsSuite]

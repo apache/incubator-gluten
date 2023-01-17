@@ -81,6 +81,8 @@ object ExpressionMappings {
   final val SPLIT = "split"
   final val SUBSTRING = "substring"
   final val CONCAT_WS = "concat_ws"
+  final val BASE64 = "base64"
+  final val UNBASE64 = "unbase64"
 
   // SparkSQL Math functions
   final val ABS = "abs"
@@ -227,6 +229,8 @@ object ExpressionMappings {
     Sig[StringSplit](SPLIT),
     Sig[Substring](SUBSTRING),
     Sig[ConcatWs](CONCAT_WS),
+    Sig[Base64](BASE64),
+    Sig[UnBase64](UNBASE64),
     // SparkSQL Math functions
     Sig[Abs](ABS),
     Sig[Ceil](CEIL),
