@@ -20,6 +20,11 @@ import org.apache.spark.sql.TPCHBase
 
 class TPCHPlan extends TPCHBase with SubstraitPlanTestBase {
 
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    sparkContext.setLogLevel("WARN")
+  }
+
   tpchQueries.foreach {
     q =>
       test(s"check simplified (tpch/$q)") {
