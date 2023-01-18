@@ -80,7 +80,11 @@ cd /path_to_gluten/ep/build-velox/src/
 cd /path_to_gluten/cpp
 ./compile.sh --build_velox_backend=ON
 
-### compile gluten jvm and package jar
+# You can also use CMAKE command to compile
+# cd /path_to_gluten/cpp
+# mkdir build && cd build && cmake .. && make -j
+
+## compile gluten jvm and package jar
 cd /path_to_gluten
 # For spark3.2.x
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
