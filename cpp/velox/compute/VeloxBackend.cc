@@ -103,17 +103,26 @@ void VeloxInitializer::Init(std::unordered_map<std::string, std::string> conf) {
 
 #ifdef VELOX_ENABLE_HDFS
   filesystems::registerHdfsFileSystem();
-  // TODO(yuan): should read hdfs client conf from hdfs-client.xml from
-  // LIBHDFS3_CONF
+  std::unordered_map<std::string, std::string> hdfsConfig({});
+
   std::string hdfsUri = conf["spark.hadoop.fs.defaultFS"];
   const char* envHdfsUri = std::getenv("VELOX_HDFS");
   if (envHdfsUri != nullptr) {
     hdfsUri = std::string(envHdfsUri);
   }
-  auto hdfsHostWithPort = hdfsUri.substr(hdfsUri.find(":") + 3);
-  auto hdfsPort = hdfsHostWithPort.substr(hdfsHostWithPort.find(":") + 1);
-  auto hdfsHost = hdfsHostWithPort.substr(0, hdfsHostWithPort.find(":"));
-  std::unordered_map<std::string, std::string> hdfsConfig({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
+
+  auto hdfsHostWithPort = hdfsUri.substr(hdfsUri.find(':') + 3);
+  std::size_t pos = hdfsHostWithPort.find(':');
+  if (pos != std::string::npos) {
+    auto hdfsPort = hdfsHostWithPort.substr(pos + 1);
+    auto hdfsHost = hdfsHostWithPort.substr(0, pos);
+    hdfsConfig.insert({{"hive.hdfs.host", hdfsHost}, {"hive.hdfs.port", hdfsPort}});
+  } else {
+    // For HDFS HA mode. In this case, hive.hdfs.host should be the nameservice, we can
+    // get it from HDFS uri, and hive.hdfs.port should be an empty string, and the HDFS HA
+    // configurations should be taken from the LIBHDFS3_CONF file.
+    hdfsConfig.insert({{"hive.hdfs.host", hdfsHostWithPort}, {"hive.hdfs.port", ""}});
+  }
   configurationValues.merge(hdfsConfig);
 #endif
 
