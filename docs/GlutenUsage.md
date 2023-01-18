@@ -1,6 +1,5 @@
 ### Build parameters
 
-<<<<<<< HEAD
 #### Parameters for buildbundle-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=release`.
 
@@ -14,8 +13,7 @@ Please set them via `--`, e.g. `--build_type=release`.
 | build_protobuf | build protobuf lib    | ON|
 | enable_s3   | build with s3 lib        | OFF|
 | enable_hdfs | build with hdfs lib      | OFF|
-| build_arrow_from_source   | pull the source code and build arrow lib| ON|
-| build_velox_from_source   | pull the source code and build velox lib| ON|
+| enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
 
 #### Parameters for build_arrow_for_gazelle.sh
 Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
