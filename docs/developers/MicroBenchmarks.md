@@ -52,7 +52,7 @@ gluten/backends-velox/generated-native-benchmark/
 
 Run micro benchmark with the generated files as input. You need to specify the **absolute** path to the input files:
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example.json \
 /home/sparkuser/github/oap-project/gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet \
@@ -99,7 +99,7 @@ InputFromBatchVector/iterations:1/process_time/real_time/threads:1   41304520 ns
 Build the gluten debug version.
 
 ```shell
-cd /path_to_gluten/cpp/compile.sh --build_velox_backend=ON --build_benchmarks=ON --build_type=relWithDebInfo
+cd /path_to_gluten/cpp/compile.sh --build_velox_backend=ON --build_benchmarks=ON --build_type=RelWithDebInfo
 ```
 Run the query by spark-shell, and get the Stage Id from spark UI.
 Get the substrait plan from console output.
@@ -139,7 +139,7 @@ The first arg is the json query file path, the following args are file iterators
 Run benchmark.
 
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /plan/to/plan.json \
 /tmp/new_save/generate.parquet \
@@ -151,7 +151,7 @@ For some complex queries, stageId may cannot represent the substrait plan input,
 In this example, only one partition input with partition id 2, taskId is 36, iterator length is 2.
 
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /plan/to/complex_plan.json \
 /tmp/save/input_36_0_2.parquet /tmp/save/input_36_1_2.parquet \
@@ -163,7 +163,7 @@ cd /path/to/gluten/cpp/velox/benchmarks
 You can also save the output to a parquet file to analyze.
 
 ```shell
-cd /path/to/gluten/cpp/velox/benchmarks
+cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 /plan/to/plan.json \
 /tmp/save/input_1.parquet /tmp/save/input_2.parquet \

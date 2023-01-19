@@ -140,7 +140,7 @@ arrow::Status ArrowColumnarToRowConverter::FillBuffer(
     bool support_avx512) {
 #ifdef __AVX512BW__
   if (ARROW_PREDICT_TRUE(support_avx512)) {
-    __m256i fill_0_8x;
+    __m256i fill_0_8x = {0LL};
     fill_0_8x = _mm256_xor_si256(fill_0_8x, fill_0_8x);
     for (auto j = row_start; j < row_start + batch_rows; j++) {
       auto rowlength = offsets[j + 1] - offsets[j];

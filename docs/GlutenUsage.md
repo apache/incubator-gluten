@@ -1,11 +1,11 @@
 ### Build parameters
 
 #### Parameters for buildbundle-veloxbe.sh
-Please set them via `--`, e.g. `--build_type=release`.
+Please set them via `--`, e.g. `--build_type=Release`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
-| build_type | Gluten build type(for arrow/velox/cpp)  | release |
+| build_type | Gluten build type(for arrow/velox/cpp), CMAKE_BUILD_TYPE  | Release |
 | build_test | build test code in cpp folder and arrow | OFF |
 | build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
 | build_jemalloc   | build with jemalloc | ON |
@@ -20,8 +20,8 @@ Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
-| arrow_home | Arrow build path            | GLUTEN_DIR/ep/build-arrow/build|
-| build_type | ARROW build type            | release|   
+| arrow_home | Arrow build path                   | GLUTEN_DIR/ep/build-arrow/build|
+| build_type | ARROW build type, CMAKE_BUILD_TYPE | Release|
 
 #### Parameters for build_arrow_for_velox.sh
 Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
@@ -29,7 +29,7 @@ Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | arrow_home | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
-| build_type | ARROW build type                          | release|
+| build_type | ARROW build type, CMAKE_BUILD_TYPE        | Release|
 | build_test | Build arrow with -DARROW_JSON=ON          | OFF           |
 
 #### Parameters for build_velox.sh
@@ -38,7 +38,7 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | Parameters | Description | Default value |
 | ---------- | ----------- | ------------- |
 | velox_home | Velox build path                          | GLUTEN_DIR/ep/build-velox/build/velox_ep|
-| build_type | Velox build type                          | release|
+| build_type | Velox build type, CMAKE_BUILD_TYPE        | Release|
 | enable_s3  | Build Velox with -DENABLE_S3              | OFF           |
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
@@ -50,7 +50,7 @@ Please set them via `--`, e.g., `--arrow_root=/YOUR/PATH`.
 | ---------- | ----------- | ------------- |
 | arrow_root | path of arrow lib           | /path_to_gluten/ep/build-arrow/build/arrow_install |
 | velox_home | path of velox lib           | /path_to_gluten/ep/build-velox/build/velox_ep |
-| build_type | Gluten cpp part build type  | release |
+| build_type | Gluten cpp build type, CMAKE_BUILD_TYPE  | Release |
 | build_gazelle_cpp_backend | build gazelle-cpp in cpp folder | OFF |
 | build_velox_backend | build velox in cpp folder | OFF |
 | build_test | build test code in cpp folder      | OFF |

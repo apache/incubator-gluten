@@ -85,7 +85,7 @@ jobs:
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON && \
+          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j && \
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DskipTests'
       - name: Run Unit Test for Spark3.2
@@ -100,7 +100,7 @@ jobs:
       # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
       - name: Run micro benchmarks
         run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/velox/benchmarks && \
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build/velox/benchmarks && \
           ./generic_benchmark --threads 1 --iterations 1'
       - name: Run Unit Test for Spark3.3
         run: |
