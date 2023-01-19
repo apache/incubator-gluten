@@ -22,8 +22,12 @@
 #include <arrow/type.h>
 #include <arrow/util/bit_util.h>
 #include <arrow/util/checked_cast.h>
+#if defined(__x86_64__)
 #include <immintrin.h>
 #include <x86intrin.h>
+#elif defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 
 #include "compute/ProtobufUtils.h"
 #include "utils/macros.h"
@@ -37,6 +41,23 @@ using arrow::internal::checked_cast;
 #define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
 #endif
 
+// macro to rotate left an 8-bit value 'x' given the shift 's' is a 32-bit integer
+// (x is left shifted by 's' modulo 8) OR (x right shifted by (8 - 's' modulo 8))
+#if !defined(__x86_64__)
+#define rotateLeft(x, s) (x << (s - ((s >> 3) << 3)) | x >> (8 - (s - ((s >> 3) << 3))))
+#endif
+
+// on x86 machines, _MM_HINT_T0,T1,T2 are defined as 1, 2, 3
+// equivalent mapping to __builtin_prefetch hints is 3, 2, 1
+#if defined(__x86_64__)
+#define PREFETCHT0(ptr) _mm_prefetch(ptr, _MM_HINT_T0)
+#define PREFETCHT1(ptr) _mm_prefetch(ptr, _MM_HINT_T1)
+#define PREFETCHT2(ptr) _mm_prefetch(ptr, _MM_HINT_T2)
+#else
+#define PREFETCHT0(ptr) __builtin_prefetch(ptr, 0, 3)
+#define PREFETCHT1(ptr) __builtin_prefetch(ptr, 0, 2)
+#define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
+#endif
 // #define SKIPWRITE
 
 static const std::vector<arrow::Compression::type> supported_codec = {
@@ -44,6 +65,7 @@ static const std::vector<arrow::Compression::type> supported_codec = {
     arrow::Compression::ZSTD,
     arrow::Compression::GZIP};
 
+#if defined(__x86_64__)
 template <typename T>
 std::string __m128i_toString(const __m128i var) {
   std::stringstream sstr;
@@ -60,6 +82,7 @@ std::string __m128i_toString(const __m128i var) {
   }
   return sstr.str();
 }
+#endif
 
 SplitOptions SplitOptions::Defaults() {
   return SplitOptions();
@@ -196,7 +219,10 @@ arrow::Result<std::shared_ptr<Splitter>> Splitter::Make(
 }
 
 arrow::Status Splitter::Init() {
+  support_avx512_ = false;
+#if defined(__x86_64__)
   support_avx512_ = __builtin_cpu_supports("avx512bw");
+#endif
   // partition number should be less than 64k
   ARROW_CHECK_LE(num_partitions_, 64 * 1024);
   // split record batch size should be less than 32k
@@ -792,7 +818,7 @@ arrow::Status Splitter::DoSplit(const arrow::RecordBatch& rb) {
   for (auto row = 0; row < rb.num_rows(); row++) {
     auto pid = partition_id_[row];
     reducer_offsets_[reducer_offset_offset_[pid]] = row;
-    _mm_prefetch(reducer_offsets_.data() + reducer_offset_offset_[pid] + 32, _MM_HINT_T0);
+    PREFETCHT0((reducer_offsets_.data() + reducer_offset_offset_[pid] + 32));
     reducer_offset_offset_[pid]++;
   }
   std::transform(
@@ -882,7 +908,7 @@ arrow::Status Splitter::SplitFixedType(const uint8_t* src_addr, const std::vecto
     for (; r < size; r++) {
       auto src_offset = reducer_offsets_[r]; /*16k*/
       *dst_pid_base = reinterpret_cast<const T*>(src_addr)[src_offset]; /*64k*/
-      _mm_prefetch(src_addr + src_offset * sizeof(T) + 64, _MM_HINT_T2);
+      PREFETCHT2((src_addr + src_offset * sizeof(T) + 64));
       dst_pid_base += 1;
     }
   }
@@ -969,6 +995,7 @@ arrow::Status Splitter::SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb)
         SplitFixedType<uint64_t>(src_addr, dst_addrs);
 #endif
         break;
+#if defined(__x86_64__)
       case 128: // arrow::Decimal128Type::type_id
         // too bad gcc generates movdqa even we use __m128i_u data type.
         // SplitFixedType<__m128i_u>(src_addr, dst_addrs);
@@ -993,6 +1020,10 @@ arrow::Status Splitter::SplitFixedWidthValueBuffer(const arrow::RecordBatch& rb)
             }
           }
         }
+#elif defined(__aarch64__)
+      case 128:
+        SplitFixedType<uint32x4_t>(src_addr, dst_addrs);
+#endif
         break;
       case 1: // arrow::BooleanType::type_id:
         RETURN_NOT_OK(SplitBoolType(src_addr, dst_addrs));
@@ -1018,13 +1049,17 @@ arrow::Status Splitter::SplitBoolType(const uint8_t* src_addr, const std::vector
       row_offset_type dst_idx_byte = dst_offset_in_byte;
       uint8_t dst = dstaddr[dst_offset >> 3];
       if (pid + 1 < num_partitions_) {
-        _mm_prefetch(&dstaddr[partition_buffer_idx_base_[pid + 1] >> 3], _MM_HINT_T1);
+        PREFETCHT1((&dstaddr[partition_buffer_idx_base_[pid + 1] >> 3]));
       }
       for (; r < size && dst_idx_byte > 0; r++, dst_idx_byte--) {
         auto src_offset = reducer_offsets_[r]; /*16k*/
         uint8_t src = src_addr[src_offset >> 3];
         src = src >> (src_offset & 7) | 0xfe; // get the bit in bit 0, other bits set to 1
+#if defined(__x86_64__)
         src = __rolb(src, 8 - dst_idx_byte);
+#else
+        src = rotateLeft(src, (8 - dst_idx_byte));
+#endif
         dst = dst & src; // only take the useful bit.
       }
       dstaddr[dst_offset >> 3] = dst;
@@ -1037,7 +1072,7 @@ arrow::Status Splitter::SplitBoolType(const uint8_t* src_addr, const std::vector
         uint8_t src = 0;
         auto src_offset = reducer_offsets_[r]; /*16k*/
         src = src_addr[src_offset >> 3];
-        _mm_prefetch(&(src_addr)[(src_offset >> 3) + 64], _MM_HINT_T0);
+        PREFETCHT0((&(src_addr)[(src_offset >> 3) + 64]));
         dst = src >> (src_offset & 7) | 0xfe; // get the bit in bit 0, other bits set to 1
 
         src_offset = reducer_offsets_[r + 1]; /*16k*/
@@ -1079,7 +1114,11 @@ arrow::Status Splitter::SplitBoolType(const uint8_t* src_addr, const std::vector
         auto src_offset = reducer_offsets_[r]; /*16k*/
         uint8_t src = src_addr[src_offset >> 3];
         src = src >> (src_offset & 7) | 0xfe; // get the bit in bit 0, other bits set to 1
+#if defined(__x86_64__)
         src = __rolb(src, dst_idx_byte);
+#else
+        src = rotateLeft(src, dst_idx_byte);
+#endif
         dst = dst & src; // only take the useful bit.
       }
       dstaddr[dst_offset >> 3] = dst;
@@ -1123,9 +1162,8 @@ arrow::Status Splitter::SplitBinaryType(
   for (auto pid = 0; pid < num_partitions_; pid++) {
     auto dst_offset_base = reinterpret_cast<T*>(dst_addrs[pid].offsetptr) + partition_buffer_idx_base_[pid];
     if (pid + 1 < num_partitions_) {
-      _mm_prefetch(
-          reinterpret_cast<T*>(dst_addrs[pid + 1].offsetptr) + partition_buffer_idx_base_[pid + 1], _MM_HINT_T1);
-      _mm_prefetch(dst_addrs[pid + 1].valueptr + dst_addrs[pid + 1].value_offset, _MM_HINT_T1);
+      PREFETCHT1((reinterpret_cast<T*>(dst_addrs[pid + 1].offsetptr) + partition_buffer_idx_base_[pid + 1]));
+      PREFETCHT1((dst_addrs[pid + 1].valueptr + dst_addrs[pid + 1].value_offset));
     }
     auto value_offset = dst_addrs[pid].value_offset;
     auto dst_value_base = dst_addrs[pid].valueptr + value_offset;
@@ -1175,8 +1213,8 @@ arrow::Status Splitter::SplitBinaryType(
         memcpy(dst_value_base, value_src_ptr, strlength);
       }
       dst_value_base += strlength;
-      _mm_prefetch(value_src_ptr + 64, _MM_HINT_T1);
-      _mm_prefetch(src_offset_addr + src_offset + 64 / sizeof(T), _MM_HINT_T1);
+      PREFETCHT1((value_src_ptr + 64));
+      PREFETCHT1((src_offset_addr + src_offset + 64 / sizeof(T)));
     }
     dst_addrs[pid].value_offset = value_offset;
   }
@@ -1320,6 +1358,7 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
   for (auto i = 0; i < num_rows; ++i) {
     // positive mod
     auto pid = pid_arr->Value(i) % num_partitions_;
+#if defined(__x86_64__)
     // force to generate ASM
     __asm__(
         "lea (%[num_partitions],%[pid],1),%[tmp]\n"
@@ -1327,6 +1366,10 @@ arrow::Status HashSplitter::ComputeAndCountPartitionId(const arrow::RecordBatch&
         "cmovs %[tmp],%[pid]\n"
         : [ pid ] "+r"(pid)
         : [ num_partitions ] "r"(num_partitions_), [ tmp ] "r"(0));
+#else
+    if (pid < 0)
+      pid += num_partitions_;
+#endif
     partition_id_[i] = pid;
     partition_id_cnt_[pid]++;
   }

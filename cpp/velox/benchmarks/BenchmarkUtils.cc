@@ -50,7 +50,7 @@ std::string getExampleFilePath(const std::string& fileName) {
 
 arrow::Result<std::string> getGeneratedFilePath(const std::string& fileName) {
   std::string currentPath = fs::current_path().c_str();
-  auto generatedFilePath = currentPath + "/../../../backends-velox/generated-native-benchmark/";
+  auto generatedFilePath = currentPath + "/../../../../backends-velox/generated-native-benchmark/";
   fs::directory_entry filePath{generatedFilePath + fileName};
   if (filePath.exists()) {
     if (filePath.is_regular_file() && filePath.path().extension().native() == ".json") {

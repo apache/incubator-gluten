@@ -18,15 +18,12 @@
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.DataType
 import io.glutenproject.backendsapi.BackendsApiManager
 
-import scala.collection.mutable.ArrayBuffer
 import com.google.common.collect.Lists
 import io.glutenproject.GlutenConfig
 

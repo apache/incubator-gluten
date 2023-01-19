@@ -245,6 +245,17 @@ object ExpressionConverter extends Logging {
             g.child,
             attributeSeq),
           g)
+      case getStructField: GetStructField =>
+        // Different backends may have different result
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance.
+          genGetStructFieldTransformer(substraitExprName.get,
+            replaceWithExpressionTransformer(getStructField.child, attributeSeq),
+            getStructField.ordinal,
+            getStructField)
+        if (transformer == null) {
+          throw new UnsupportedOperationException(s"Unsupported expression: GetStructField")
+        }
+        transformer
       case l: LeafExpression =>
         LeafExpressionTransformer(substraitExprName.get, l)
       case u: UnaryExpression =>

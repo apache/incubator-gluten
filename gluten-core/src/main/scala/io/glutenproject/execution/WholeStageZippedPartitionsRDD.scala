@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.vectorized.{GeneralOutIterator, Metrics, NativeExpressionEvaluator}
@@ -46,8 +45,6 @@ class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
     resCtx: WholestageTransformContext,
     pipelineTime: SQLMetric,
     buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch],
-    dependentKernels: mutable.ListBuffer[NativeExpressionEvaluator],
-    dependentKernelIterators: mutable.ListBuffer[GeneralOutIterator],
     updateOutputMetrics: (Long, Long) => Unit,
     updateNativeMetrics: Metrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
@@ -63,9 +60,7 @@ class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
         pipelineTime,
         updateOutputMetrics,
         updateNativeMetrics,
-        buildRelationBatchHolder,
-        dependentKernels,
-        dependentKernelIterators
+        buildRelationBatchHolder
       )
   }
 

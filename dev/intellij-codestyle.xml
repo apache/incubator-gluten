@@ -9,22 +9,8 @@
     <option name="CODE_STYLE_DEFAULTS" value="KOTLIN_OFFICIAL" />
   </JetCodeStyleSettings>
   <ScalaCodeStyleSettings>
-    <option name="importLayout">
-      <array>
-        <option value="base package imports" />
-        <option value="_______ blank line _______" />
-        <option value="java" />
-        <option value="javax" />
-        <option value="_______ blank line _______" />
-        <option value="scala" />
-        <option value="_______ blank line _______" />
-        <option value="all other imports" />
-        <option value="_______ blank line _______" />
-        <option value="org.apache.spark" />
-      </array>
-    </option>
-    <option name="sortAsScalastyle" value="true" />
-    <option name="MULTILINE_STRING_CLOSING_QUOTES_ON_NEW_LINE" value="true" />
+    <option name="SCALAFMT_CONFIG_PATH" value="./.scalafmt.conf" />
+    <option name="FORMATTER" value="1" />
   </ScalaCodeStyleSettings>
   <codeStyleSettings language="JAVA">
     <indentOptions>

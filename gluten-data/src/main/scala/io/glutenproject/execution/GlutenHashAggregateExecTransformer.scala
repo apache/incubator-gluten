@@ -355,8 +355,15 @@ case class GlutenHashAggregateExecTransformer(
       colIdx += 1
     })
 
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
+        aggFilterList.add(exprNode)
+      }
+
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodes = new util.ArrayList[ExpressionNode]()
       aggregateFunc match {
@@ -375,7 +382,8 @@ case class GlutenHashAggregateExecTransformer(
       addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
     })
     RelBuilder.makeAggregateRel(
-      projectRel, groupingList, aggregateFunctionList, context, operatorId)
+      projectRel, groupingList, aggregateFunctionList, aggFilterList,
+      context, operatorId)
   }
 
   /**

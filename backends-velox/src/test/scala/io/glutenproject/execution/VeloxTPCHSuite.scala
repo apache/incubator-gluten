@@ -17,17 +17,8 @@
 
 package io.glutenproject.execution
 
-import io.glutenproject.execution.TakeOrderedAndProjectExecTransformer
-
-import java.io.File
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.{Row, TestUtils}
-import org.apache.spark.sql.execution.ColumnarInputAdapter
-import org.apache.spark.sql.types.DoubleType
-
-import scala.collection.Seq
-import scala.io.Source
 
 abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath

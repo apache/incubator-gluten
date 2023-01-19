@@ -519,6 +519,9 @@
           <version>${scala.compiler.version}</version>
           <configuration>
             <recompileMode>${scala.recompile.mode}</recompileMode>
+            <args>
+              <arg>-Ywarn-unused:imports</arg>
+            </args>
           </configuration>
           <executions>
             <execution>
@@ -543,8 +546,35 @@
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.1.1</version>
             <configuration>
+              <failOnViolation>true</failOnViolation>
+              <includeTestSourceDirectory>true</includeTestSourceDirectory>
+              <sourceDirectories>
+                  <directory>${project.basedir}/src/main/java</directory>
+                  <directory>${project.basedir}/src/main/scala</directory>
+              </sourceDirectories>
+              <testSourceDirectories>
+                  <directory>${project.basedir}/src/test/java</directory>
+              </testSourceDirectories>
               <configLocation>dev/checkstyle.xml</configLocation>
-            </configuration>
+              <outputFile>${project.basedir}/target/checkstyle-output.xml</outputFile>
+              <inputEncoding>UTF-8</inputEncoding>
+              <outputEncoding>UTF-8</outputEncoding>
+          </configuration>
+          <dependencies>
+            <dependency>
+                <groupId>com.puppycrawl.tools</groupId>
+                <artifactId>checkstyle</artifactId>
+                <version>8.29</version>
+            </dependency>
+          </dependencies>
+          <executions>
+              <execution>
+                  <phase>validate</phase>
+                  <goals>
+                      <goal>check</goal>
+                  </goals>
+              </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.scalastyle</groupId>
@@ -579,6 +609,11 @@
           </configuration>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.0.1</version>
+        </plugin>
+        <plugin>
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
@@ -600,6 +635,7 @@
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
+                <file>.scalafmt.conf</file>
               </scalafmt>
               <licenseHeader>
                 <content>${spotless.license.header}</content>
@@ -625,11 +661,6 @@
       </plugins>
     </pluginManagement>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>${maven.jar.plugin}</version>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
@@ -667,26 +698,6 @@
     </plugins>
   </build>
 
-  <reporting>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.1.1</version>
-        <configuration>
-          <configLocation>${project.basedir}/dev/checkstyle.xml</configLocation>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-        <version>1.0.0</version>
-        <configuration>
-          <configLocation>${project.basedir}/scalastyle-config.xml</configLocation>
-        </configuration>
-      </plugin>
-    </plugins>
-  </reporting>
   <repositories>
     <repository>
       <id>Kyligence</id>

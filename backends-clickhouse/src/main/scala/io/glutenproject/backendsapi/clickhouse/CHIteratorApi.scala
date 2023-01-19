@@ -203,9 +203,7 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
       pipelineTime: SQLMetric,
       updateOutputMetrics: (Long, Long) => Unit,
       updateNativeMetrics: Metrics => Unit,
-      buildRelationBatchHolder: Seq[ColumnarBatch],
-      dependentKernels: Seq[NativeExpressionEvaluator],
-      dependentKernelIterators: Seq[GeneralOutIterator]): Iterator[ColumnarBatch] = {
+      buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
     val beforeBuild = System.nanoTime()
@@ -236,8 +234,6 @@ class CHIteratorApi extends IIteratorApi with Logging with LogLevelUtil {
     def close = {
       closed = true
       buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
-      dependentKernels.foreach(_.close)
-      dependentKernelIterators.foreach(_.close)
       nativeIterator.close()
       // relationHolder.clear()
     }

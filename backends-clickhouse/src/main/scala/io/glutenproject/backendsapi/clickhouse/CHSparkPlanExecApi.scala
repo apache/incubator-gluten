@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer, GetStructFieldTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -89,7 +89,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
+  override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
     BlockGlutenColumnarToRowExec(child);
   }
 
@@ -152,7 +152,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       buildSide: BuildSide,
       condition: Option[Expression],
       left: SparkPlan,
-      right: SparkPlan): ShuffledHashJoinExecTransformer =
+      right: SparkPlan,
+      isSkewJoin: Boolean): ShuffledHashJoinExecTransformer =
     CHShuffledHashJoinExecTransformer(
       leftKeys,
       rightKeys,
@@ -160,7 +161,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       buildSide,
       condition,
       left,
-      right)
+      right,
+      isSkewJoin)
 
   /** Generate BroadcastHashJoinExecTransformer. */
   def genBroadcastHashJoinExecTransformer(
@@ -376,4 +378,12 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+
+  /** Generate an ExpressionTransformer to transform GetStructFiled expression. */
+  override def genGetStructFieldTransformer(
+      substraitExprName: String,
+      childTransformer: ExpressionTransformer,
+      ordinal: Int,
+      original: GetStructField): ExpressionTransformer =
+    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
 }

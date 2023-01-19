@@ -24,7 +24,6 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
@@ -34,7 +33,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * This is similar to some of the code in ArrowConverters.scala and
  * [[org.apache.spark.sql.execution.arrow.ArrowWriter]]. That code is more specialized
  * to convert [[InternalRow]] to Arrow formatted data, but in the future if we make
- * [[OffHeapColumnVector]] internally Arrow formatted we may be able to replace much of that code.
+ * [[org.apache.spark.sql.execution.vectorized.OffHeapColumnVector]] internally Arrow formatted
+ * we may be able to replace much of that code.
  *
  * This is also similar to
  * [[org.apache.spark.sql.execution.vectorized.ColumnVectorUtils.populate()]] and
