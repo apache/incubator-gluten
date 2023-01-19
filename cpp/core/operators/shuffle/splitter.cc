@@ -31,7 +31,6 @@
 
 #include "compute/ProtobufUtils.h"
 #include "utils/macros.h"
-#include <glog/logging.h>
 namespace gluten {
 
 using arrow::internal::checked_cast;
@@ -470,7 +469,6 @@ arrow::Status Splitter::CacheRecordBatch(int32_t partition_id, const arrow::Reco
 
   partition_cached_recordbatch_size_[partition_id] += payload->body_length;
   partition_cached_recordbatch_[partition_id].push_back(std::move(payload));
-  LOG(INFO) << "partition_cached_recordbatch_ size " << partition_cached_recordbatch_[partition_id].size();
   partition_buffer_idx_base_[partition_id] = 0;
   return arrow::Status::OK();
 }
