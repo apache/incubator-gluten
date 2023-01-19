@@ -176,6 +176,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableColumnarGenerate: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.generate", "true").toBoolean
 
+  val enableNativeBloomFilter: Boolean =
+    conf.getConfString("spark.gluten.sql.native.bloomFilter", "true").toBoolean
+
   val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getConfString("spark.gluten.sql.columnar.numaBinding", "false").toBoolean

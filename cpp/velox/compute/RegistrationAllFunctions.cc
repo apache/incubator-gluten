@@ -20,6 +20,7 @@
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
 #include "velox/functions/sparksql/Register.h"
+#include "velox/functions/sparksql/aggregates/Register.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::exec;
@@ -40,6 +41,7 @@ void registerAllFunctions() {
   functions::sparksql::registerFunctions("");
   registerCustomFunctions();
   registerAllAggregateFunctions();
+  functions::sparksql::aggregates::registerAggregateFunctions("");
   window::prestosql::registerAllWindowFunctions();
 }
 
