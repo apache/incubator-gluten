@@ -241,6 +241,7 @@ endif()
 
 if(BUILD_TESTS)
   add_test_case(exec_backend_test SOURCES compute/BackendTest.cc)
+  add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
 endif()
 
 if(BUILD_BENCHMARKS)

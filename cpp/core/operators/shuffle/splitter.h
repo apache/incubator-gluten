@@ -75,7 +75,7 @@ class Splitter {
    * cached record batch to shuffle data file. Close all resources and collect
    * metrics.
    */
-  arrow::Status Stop();
+  virtual arrow::Status Stop();
 
   /**
    * Spill specified partition
@@ -190,7 +190,9 @@ class Splitter {
   // buffer can hold all data according to partition id. If not, call this
   // method and allocate new buffers. Spill will happen if OOM.
   // 2. Stop the splitter. The record batch will be written to disk immediately.
-  arrow::Status CacheRecordBatch(int32_t partition_id, bool reset_buffers);
+  arrow::Status CreateRecordBatchFromBuffer(int32_t partition_id, bool reset_buffers);
+
+  arrow::Status CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch);
 
   // Allocate new partition buffer/builder.
   // If successful, will point partition buffer/builder to new ones, otherwise
@@ -310,6 +312,24 @@ class RoundRobinSplitter final : public Splitter {
   arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
 
   int32_t pid_selection_ = 0;
+};
+
+class SinglePartSplitter final : public Splitter {
+ public:
+  static arrow::Result<std::shared_ptr<SinglePartSplitter>>
+  Create(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options);
+
+ private:
+  SinglePartSplitter(int32_t num_partitions, std::shared_ptr<arrow::Schema> schema, SplitOptions options)
+      : Splitter(num_partitions, std::move(schema), std::move(options)) {}
+
+  arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) override;
+
+  arrow::Status Split(const arrow::RecordBatch& rb) override;
+
+  arrow::Status Init() override;
+
+  arrow::Status Stop() override;
 };
 
 class HashSplitter final : public Splitter {
