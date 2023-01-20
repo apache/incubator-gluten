@@ -209,10 +209,6 @@ if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
 
-if(BUILD_TESTS)
-  add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
-endif()
-
 if(VELOX_ENABLE_S3)
   add_definitions(-DVELOX_ENABLE_S3)
   find_awssdk()
