@@ -801,8 +801,8 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(const arrow::RecordB
   }
 
   int64_t prealloc_row_cnt = options_.offheap_per_task > 0 && size_per_row > 0
-             ? options_.offheap_per_task / size_per_row / num_partitions_ >> 2
-             : options_.buffer_size;
+      ? options_.offheap_per_task / size_per_row / num_partitions_ >> 2
+      : options_.buffer_size;
   prealloc_row_cnt = std::min(prealloc_row_cnt, (int64_t)options_.buffer_size);
 
   return (row_offset_type)prealloc_row_cnt;
