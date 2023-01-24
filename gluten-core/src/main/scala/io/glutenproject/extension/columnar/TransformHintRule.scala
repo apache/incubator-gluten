@@ -126,7 +126,8 @@ case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   }
 }
 
-case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
+case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan]
+with SelectiveExecution.Maybe[SparkPlan]{
   lazy val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   lazy val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
   lazy val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
@@ -192,7 +193,7 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
+  override def doApply(plan: SparkPlan): SparkPlan = {
     if (physicalJoinOptimize) {
       insertRowGuardOrNot(plan)
     } else plan
@@ -201,8 +202,9 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
 
 // This rule will fall back the whole plan if it contains OneRowRelation scan.
 // This should only affect some light-weight cases in some basic UTs.
-case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
+case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan]
+with SelectiveExecution.Maybe[SparkPlan]{
+  override def doApply(plan: SparkPlan): SparkPlan = {
     val hasOneRowRelation =
       plan.find(_.isInstanceOf[RDDScanExec]) match {
         case Some(scan: RDDScanExec) => scan.name.equals("OneRowRelation")

@@ -34,8 +34,9 @@ import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 // see each other during transformation. In order to prevent BroadcastExec being transformed
 // to columnar while BHJ fallbacks, BroadcastExec need to be tagged not transformable when applying
 // queryStagePrepRules.
-case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
+case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPlan]
+with SelectiveExecution.Maybe[SparkPlan] {
+  override def doApply(plan: SparkPlan): SparkPlan = {
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>

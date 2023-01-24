@@ -81,14 +81,14 @@ class FakeRow(val batch: ColumnarBatch) extends InternalRow {
     throw new UnsupportedOperationException()
 }
 
-case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy {
-  override def apply(plan: LogicalPlan): Seq[SparkPlan] = SelectiveExecution.maybeNil(session,
-    plan) {plan match {
+case class ColumnarToFakeRowStrategy(session: SparkSession) extends Strategy
+with SelectiveExecution.MaybeNil[LogicalPlan, SparkPlan]{
+  override def doApply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
     case ColumnarToFakeRowLogicAdaptor(child: LogicalPlan) =>
       Seq(ColumnarToFakeRowAdaptor(planLater(child)))
     case other =>
       Nil
-  }}
+  }
 }
 
 private case class ColumnarToFakeRowLogicAdaptor(child: LogicalPlan)

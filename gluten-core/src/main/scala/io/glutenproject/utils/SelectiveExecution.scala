@@ -55,4 +55,15 @@ object SelectiveExecution extends Logging{
       if (shouldUseGluten(session, plan)) func else Nil
     }
 
+    trait Maybe[T <: QueryPlan[_]] {
+      val session: SparkSession
+      def doApply(plan: T): T
+      final def apply(plan: T): T = SelectiveExecution.maybe(session, plan)(doApply(plan))
+    }
+
+    trait MaybeNil[T <: QueryPlan[_], U <: QueryPlan[_]] {
+      val session: SparkSession
+      def doApply(plan: T): Seq[U]
+      final def apply(plan: T): Seq[U] = SelectiveExecution.maybeNil(session, plan)(doApply(plan))
+    }
 }
