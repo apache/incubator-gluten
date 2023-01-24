@@ -22,6 +22,8 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.sql.shims.SparkShimLoader
+import io.glutenproject.utils.SelectiveExecution
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
@@ -491,7 +493,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
 
-  override def preColumnarTransitions: Rule[SparkPlan] = plan => {
+  override def preColumnarTransitions: Rule[SparkPlan] = plan => SelectiveExecution.
+    maybe(session, plan) {
     val supportedGluten = BackendsApiManager.getSparkPlanExecApiInstance.supportedGluten(
       nativeEngineEnabled,
       plan)
@@ -518,7 +521,8 @@ case class ColumnarOverrideRules(session: SparkSession)
     }
   }
 
-  override def postColumnarTransitions: Rule[SparkPlan] = plan => {
+  override def postColumnarTransitions: Rule[SparkPlan] = plan => SelectiveExecution.
+    maybe(session, plan) {
     val supportedGluten = BackendsApiManager.getSparkPlanExecApiInstance.supportedGluten(
       nativeEngineEnabled,
       plan)

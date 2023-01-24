@@ -22,6 +22,7 @@ import scala.util.control.Breaks.{break, breakable}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+import io.glutenproject.utils.SelectiveExecution
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import org.apache.spark.sql.catalyst.plans.FullOuter
@@ -102,13 +103,11 @@ object TransformHints {
 // Holds rules which have higher privilege to tag (not) transformable before AddTransformHintRule.
 object TagBeforeTransformHits {
   val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
-    List((_: SparkSession) => FallbackOneRowRelation(),
-      (_: SparkSession) => FallbackOnANSIMode(),
-      (_: SparkSession) => FallbackMultiCodegens())
+    List(FallbackOneRowRelation, FallbackOnANSIMode, FallbackMultiCodegens)
   }
 }
 
-case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
+case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case agg: HashAggregateExec if agg.child.isInstanceOf[ExpandExec] =>
       val childExpandExec = agg.child.asInstanceOf[ExpandExec]
@@ -118,8 +117,8 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
   }
 }
 
-case class FallbackOnANSIMode() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = {
+case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
     if (GlutenConfig.getSessionConf.enableAnsiMode) {
       plan.foreach(TransformHints.tagNotTransformable)
     }
@@ -127,7 +126,7 @@ case class FallbackOnANSIMode() extends Rule[SparkPlan] {
   }
 }
 
-case class FallbackMultiCodegens() extends Rule[SparkPlan] {
+case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
   lazy val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   lazy val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
   lazy val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
@@ -193,7 +192,7 @@ case class FallbackMultiCodegens() extends Rule[SparkPlan] {
     }
   }
 
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
     if (physicalJoinOptimize) {
       insertRowGuardOrNot(plan)
     } else plan
@@ -202,8 +201,8 @@ case class FallbackMultiCodegens() extends Rule[SparkPlan] {
 
 // This rule will fall back the whole plan if it contains OneRowRelation scan.
 // This should only affect some light-weight cases in some basic UTs.
-case class FallbackOneRowRelation() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = {
+case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
     val hasOneRowRelation =
       plan.find(_.isInstanceOf[RDDScanExec]) match {
         case Some(scan: RDDScanExec) => scan.name.equals("OneRowRelation")

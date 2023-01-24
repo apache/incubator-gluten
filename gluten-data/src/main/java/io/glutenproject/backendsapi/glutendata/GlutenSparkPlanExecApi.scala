@@ -300,6 +300,6 @@ abstract class GlutenSparkPlanExecApi extends ISparkPlanExecApi {
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = {
-    List(_ => ColumnarToFakeRowStrategy())
+    List(ColumnarToFakeRowStrategy)
   }
 }

@@ -21,8 +21,9 @@ import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.columnar.TRANSFORM_UNSUPPORTED
 import io.glutenproject.extension.columnar.TransformHints.TAG
+import io.glutenproject.utils.SelectiveExecution
 
-import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions, Strategy}
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
@@ -34,11 +35,12 @@ import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
-    extensions.injectPlannerStrategy(_ => JoinSelectionOverrides)
+    extensions.injectPlannerStrategy(JoinSelectionOverrides)
   }
 }
 
-object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQLConfHelper {
+case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
+  JoinSelectionHelper with SQLConfHelper {
 
   private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
     case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
@@ -175,7 +177,8 @@ object JoinSelectionOverrides extends Strategy with JoinSelectionHelper with SQL
     }.size > 0
   }
 
-  override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+  override def apply(plan: LogicalPlan): Seq[SparkPlan] = SelectiveExecution.maybeNil(
+    session, plan) {
     // Ignore forceShuffledHashJoin if exist multi continuous joins
     if (GlutenConfig.getSessionConf.enableLogicalJoinOptimize &&
       existsMultiJoins(plan) && existLeftOuterJoin(plan)) {

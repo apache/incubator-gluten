@@ -20,6 +20,7 @@ package io.glutenproject.extension
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.columnar._
+import io.glutenproject.utils.SelectiveExecution
 
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
@@ -34,7 +35,7 @@ import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 // to columnar while BHJ fallbacks, BroadcastExec need to be tagged not transformable when applying
 // queryStagePrepRules.
 case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = {
+  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>
