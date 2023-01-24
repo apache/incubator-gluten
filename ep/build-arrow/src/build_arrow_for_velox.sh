@@ -89,6 +89,7 @@ cmake -G Ninja \
         -Dre2_SOURCE=AUTO \
         -DCMAKE_INSTALL_PREFIX=$ARROW_INSTALL_DIR \
         -DCMAKE_INSTALL_LIBDIR=lib \
+	-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         ..
 cmake --build . --target install

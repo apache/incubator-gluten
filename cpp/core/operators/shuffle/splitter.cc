@@ -774,11 +774,13 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(const arrow::RecordB
           case arrow::StringType::type_id:
             length = reinterpret_cast<const arrow::StringType::offset_type*>(offsetbuf)[num_rows] -
                 reinterpret_cast<const arrow::StringType::offset_type*>(offsetbuf)[0];
+            size_per_row += sizeof(arrow::StringType::offset_type);
             break;
           case arrow::LargeBinaryType::type_id:
           case arrow::LargeStringType::type_id:
             length = reinterpret_cast<const arrow::LargeStringType::offset_type*>(offsetbuf)[num_rows] -
                 reinterpret_cast<const arrow::LargeStringType::offset_type*>(offsetbuf)[0];
+            size_per_row += sizeof(arrow::LargeStringType::offset_type);
             break;
           default:
             break;
@@ -792,13 +794,15 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(const arrow::RecordB
       }
     }
   }
-  size_per_row = std::accumulate(binary_array_empirical_size_.begin(), binary_array_empirical_size_.end(), 0);
+  size_per_row += std::accumulate(binary_array_empirical_size_.begin(), binary_array_empirical_size_.end(), 0);
 
-  for (size_t col = 0; col < array_idx_.size(); ++col) {
+  for (size_t col = 0; col < fixed_width_col_cnt_; ++col) {
     auto col_idx = array_idx_[col];
-    if (col_idx < fixed_width_col_cnt_)
-      size_per_row += arrow::bit_width(column_type_id_[col_idx]->id()) >> 3;
+    size_per_row += arrow::bit_width(column_type_id_[col_idx]->id()) >> 3;
   }
+  
+  // add validity buffer
+  size_per_row += (array_idx_.size() >> 3) + 1;
 
   int64_t prealloc_row_cnt = options_.offheap_per_task > 0 && size_per_row > 0
       ? options_.offheap_per_task / size_per_row / num_partitions_ >> 2
