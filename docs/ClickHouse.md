@@ -62,7 +62,6 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 - Java 8
 - Maven 3.6.3 or higher version
 - Spark 3.2.2
-- Intel Optimized Arrow 8.0.0 ( Please refer to [Intel-Optimized-Arrow-Installation](./ArrowInstallation.md) )
 
 
 #### Setup Gluten development environment
@@ -92,7 +91,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
         And then add these options into CMake options:
 ```
-            -G "Unix Makefiles" -D WERROR=OFF -D ENABLE_PROTOBUF=1 -D ENABLE_JEMALLOC=0
+            -G "Unix Makefiles" -D WERROR=OFF -D ENABLE_PROTOBUF=1 -D ENABLE_JEMALLOC=1 -D ENABLE_BUILD_PATH_MAPPING=OFF
 ```
 - Build 'ch' target with Debug mode or Release mode:
 
