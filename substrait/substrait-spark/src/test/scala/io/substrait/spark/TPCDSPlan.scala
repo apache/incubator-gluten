@@ -24,6 +24,7 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
   private val runAllQueriesIncludeFailed = false
   override def beforeAll(): Unit = {
     super.beforeAll()
+    sparkContext.setLogLevel("WARN")
 
     conf.setConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED, false)
   }

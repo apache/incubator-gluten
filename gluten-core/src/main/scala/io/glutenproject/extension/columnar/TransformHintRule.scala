@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec}
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
@@ -205,6 +205,23 @@ case class FallbackOneRowRelation() extends Rule[SparkPlan] {
   }
 }
 
+case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
+    case p =>
+      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
+        if (p.output.isEmpty) {
+          // Some backends are not eligible to offload zero-column plan so far
+          TransformHints.tagNotTransformable(p)
+        }
+        if (p.children.exists(_.output.isEmpty)) {
+          // Some backends are also not eligible to offload plan within zero-column input so far
+          TransformHints.tagNotTransformable(p)
+        }
+      }
+      p
+  }
+}
+
 // This rule will try to convert a plan into plan transformer.
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
@@ -254,18 +271,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       return
     }
     try {
-      if (BackendsApiManager.getSettings.fallbackOnEmptySchema()) {
-        if (plan.output.isEmpty) {
-          // Some backends are not eligible to offload zero-column plan so far
-          TransformHints.tagNotTransformable(plan)
-          return
-        }
-        if (plan.children.exists(_.output.isEmpty)) {
-          // Some backends are also not eligible to offload plan within zero-column input so far
-          TransformHints.tagNotTransformable(plan)
-          return
-        }
-      }
       plan match {
         case plan: BatchScanExec =>
           if (!enableColumnarBatchScan) {
@@ -310,6 +315,21 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: HashAggregateExec =>
+          if (!enableColumnarHashAgg) {
+            TransformHints.tagNotTransformable(plan)
+          } else {
+            val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              .genHashAggregateExecTransformer(
+                plan.requiredChildDistributionExpressions,
+                plan.groupingExpressions,
+                plan.aggregateExpressions,
+                plan.aggregateAttributes,
+                plan.initialInputBufferOffset,
+                plan.resultExpressions,
+                plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
+        case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(plan)
           } else {

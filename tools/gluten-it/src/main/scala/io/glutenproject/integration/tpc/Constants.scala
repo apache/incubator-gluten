@@ -15,6 +15,8 @@ object Constants {
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "io.glutenproject.GlutenPlugin")
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+    .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
+    .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
 
   val GAZELLE_CPP_BACKEND_CONF: SparkConf = new SparkConf()
     .set("spark.gluten.sql.columnar.backend.lib", "gazelle_cpp")

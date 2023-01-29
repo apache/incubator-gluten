@@ -121,7 +121,7 @@ fi
 function process_script {
     sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
     sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
-    if [[ "$LINUX_DISTRIBUTION" == "ubuntu" ]]; then
+    if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
       process_setup_ubuntu
     else # Assume CentOS
       process_setup_centos8
@@ -130,7 +130,7 @@ function process_script {
 
 function compile {
     TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
-    if [[ "$LINUX_DISTRIBUTION" == "ubuntu" ]]; then
+    if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" ]]; then
       scripts/setup-ubuntu.sh
     else # Assume CentOS
       scripts/setup-centos8.sh

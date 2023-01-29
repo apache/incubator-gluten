@@ -52,7 +52,7 @@ trait ISparkPlanExecApi {
    * @param child
    * @return
    */
-  def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
+  def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
 
   /**
    * Generate RowToColumnarExec.
