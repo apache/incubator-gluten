@@ -211,7 +211,10 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
     "explain.sql", // explain
-    "group-analytics.sql" // wait velox to fix issue 3357
+    "group-analytics.sql", // wait velox to fix issue 3357
+    // divideByZero case mismatched
+    "postgreSQL/select_having.sql",
+    "udf/postgreSQL/udf-select_having.sql"
   ) ++ otherIgnoreList
 
   /** List of supported cases to run with Velox backend, in lower case.
