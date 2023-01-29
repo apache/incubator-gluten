@@ -17,5 +17,5 @@
 
 package org.apache.spark.sql
 
-class GlutenIntervalFunctionsSuite extends IntervalFunctionsSuite with GlutenSQLTestsTrait {
+class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTrait {
 }
