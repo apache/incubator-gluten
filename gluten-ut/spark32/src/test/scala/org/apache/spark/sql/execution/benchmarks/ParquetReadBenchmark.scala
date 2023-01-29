@@ -131,7 +131,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
 
     // generate ColumnarToRow
     val columnarToRowPlan =
-      BackendsApiManager.getSparkPlanExecApiInstance.genNativeColumnarToRowExec(newWholeStage)
+      BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(newWholeStage)
 
     val newWholeStageRDD = newWholeStage.executeColumnar()
     val newColumnarToRowRDD = columnarToRowPlan.execute()

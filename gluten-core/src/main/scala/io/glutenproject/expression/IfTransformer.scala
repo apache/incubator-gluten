@@ -19,21 +19,20 @@ package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.expression.IfThenNode
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
-import java.util.ArrayList
+import java.util
 
 class IfTransformer(predicate: ExpressionTransformer, trueValue: ExpressionTransformer,
                     falseValue: ExpressionTransformer, original: Expression)
   extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val ifNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
+    val ifNodes: util.ArrayList[ExpressionNode] = new util.ArrayList[ExpressionNode]
     ifNodes.add(predicate.doTransform(args))
 
-    val thenNodes: ArrayList[ExpressionNode] = new ArrayList[ExpressionNode]
+    val thenNodes: util.ArrayList[ExpressionNode] = new util.ArrayList[ExpressionNode]
     thenNodes.add(trueValue.doTransform(args))
 
     val elseValueNode = falseValue.doTransform(args)
@@ -41,7 +40,7 @@ class IfTransformer(predicate: ExpressionTransformer, trueValue: ExpressionTrans
   }
 }
 
-object IfOperatorTransformer {
+object IfTransformer {
 
   def create(predicate: ExpressionTransformer, trueValue: ExpressionTransformer,
              falseValue: ExpressionTransformer, original: Expression

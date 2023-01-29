@@ -39,11 +39,12 @@ abstract class GlutenValidatorApi extends IValidatorApi {
                   expr: Expression): Boolean = {
     // To handle cast(struct as string) AS col_name expression
     val key = if (substraitExprName.toLowerCase().equals(ExpressionMappings.ALIAS)) {
-      ExpressionMappings.scalar_functions_map.get(expr.asInstanceOf[Alias].child.getClass)
-    } else Some(substraitExprName)
+      ExpressionMappings.scalar_functions_map.getOrElse(expr.asInstanceOf[Alias].child.getClass,
+        ExpressionMappings.getScalarSigOther(expr.asInstanceOf[Alias].child.prettyName))
+    } else substraitExprName
     if (key.isEmpty) return false
     if (blacklist.isEmpty) return true
-    val value = blacklist.get(key.get)
+    val value = blacklist.get(key)
     if (value.isEmpty) {
       return true
     }

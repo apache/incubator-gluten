@@ -8,7 +8,7 @@ set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
-BUILD_TYPE=release
+BUILD_TYPE=Release
 BUILD_TESTS=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=ON
@@ -50,14 +50,6 @@ do
         ;;
         --enable_hdfs=*)
         ENABLE_HDFS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_arrow_from_source=*)
-        BUILD_ARROW_FROM_SOURCE=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_velox_from_source=*)
-        BUILD_VELOX_FROM_SOURCE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_ep_cache=*)

@@ -46,16 +46,16 @@ cd gluten_home/ep/build-arrow/src
 ```
 cd gluten_home/ep/build-velox/src
 ./get_velox.sh
-./build_velox.sh
+./build_velox.sh --build_type=Debug
 ```
 
 3. compile the CPP
 ```
 cd gluten_home/cpp
-./compile.sh --build_type=debug --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
+./compile.sh --build_type=Debug --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
 ```
-- Compiling with `--build_type=debug` is good for debugging.
-- When `compile.sh` is executed, the executable file `generic_benchmark` will be generated under the directory of `gluten_home/cpp/velox/benchmarks/`.
+- Compiling with `--build_type=Debug` is good for debugging.
+- When `compile.sh` is executed, the executable file `generic_benchmark` will be generated under the directory of `gluten_home/cpp/build/velox/benchmarks/`.
 
 4. build Gluten and generate the example files
 ```
@@ -80,7 +80,7 @@ gluten_home/backends-velox/generated-native-benchmark/
 
 4. now, run benchmarks with GDB
 ```
-cd gluten_home/cpp/velox/benchmarks/
+cd gluten_home/cpp/build/velox/benchmarks/
 gdb generic_benchmark
 ```
 - When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run with command `r`,

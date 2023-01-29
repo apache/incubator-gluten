@@ -36,6 +36,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    sparkContext.setLogLevel("WARN")
   }
 
   protected def createTPCHNotNullTables(): Unit = {
@@ -114,7 +115,6 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
     val df = spark.sql(sqlStr)
-    df.explain(false)
     val result = df.collect()
     if (compareResult) {
       val schema = df.schema

@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.sql.shims.SparkShimLoader
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -33,6 +34,7 @@ object ExpressionMappings {
   final val MAX = "max"
   final val STDDEV_SAMP = "stddev_samp"
   final val COLLECT_LIST = "collect_list"
+  final val BLOOM_FILTER_AGG = "bloom_filter_agg"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -144,6 +146,7 @@ object ExpressionMappings {
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
+  final val XXHASH64 = "xxhash64"
   final val MD5 = "md5"
 
   // Array functions
@@ -160,6 +163,7 @@ object ExpressionMappings {
 
   // Spark 3.3
   final val SPLIT_PART = "split_part"
+  final val MIGHT_CONTAIN = "might_contain"
 
   // Specific expression
   final val IF = "if"
@@ -296,6 +300,7 @@ object ExpressionMappings {
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
     // Hash functions
     Sig[Murmur3Hash](MURMUR3HASH),
+    Sig[XxHash64](XXHASH64),
     Sig[Md5](MD5),
     // Array functions
     Sig[Size](SIZE),
@@ -336,8 +341,20 @@ object ExpressionMappings {
     Sig[CollectList](COLLECT_LIST)
   )
 
+  // some spark new version class
+  def getScalarSigOther: Map[String, String] =
+    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+      Map((MIGHT_CONTAIN, MIGHT_CONTAIN))
+    } else Map()
+
+  def getAggSigOther: Map[String, String] =
+    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+      Map((BLOOM_FILTER_AGG, BLOOM_FILTER_AGG))
+    } else Map()
+
   lazy val scalar_functions_map: Map[Class[_], String] =
     SCALAR_SIGS.map(s => (s.expClass, s.name)).toMap
-  lazy val aggregate_functions_map: Map[Class[_], String] =
+  lazy val aggregate_functions_map: Map[Class[_], String] = {
     AGGREGATE_SIGS.map(s => (s.expClass, s.name)).toMap
+  }
 }

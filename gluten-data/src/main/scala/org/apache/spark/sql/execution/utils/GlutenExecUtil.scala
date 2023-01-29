@@ -20,13 +20,10 @@ package org.apache.spark.sql.execution.utils
 import scala.collection.JavaConverters._
 
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.rel.RelBuilder
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativePartitioning}
+
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}

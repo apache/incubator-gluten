@@ -80,7 +80,11 @@ cd /path_to_gluten/ep/build-velox/src/
 cd /path_to_gluten/cpp
 ./compile.sh --build_velox_backend=ON
 
-### compile gluten jvm and package jar
+# You can also use CMAKE command to compile
+# cd /path_to_gluten/cpp
+# mkdir build && cd build && cmake .. && make -j
+
+## compile gluten jvm and package jar
 cd /path_to_gluten
 # For spark3.2.x
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
@@ -180,6 +184,41 @@ export VELOX_HDFS="hdfs://hdfshost:9000"
 ```
 If Gluten is used in a fully-prepared Hadoop cluster, we recommend to use Hadoop's config.
 
+If your HDFS is in HA mode, you need to set the LIBHDFS3_CONF environment variable to specify the hdfs client configuration file.
+
+```
+// Spark local mode
+export LIBHDFS3_CONF="/path/to/hdfs-client.xml"
+
+// Spark Yarn cluster mode
+--conf spark.executorEnv.LIBHDFS3_CONF="/path/to/hdfs-client.xml"
+```
+If Gluten is used in a fully-prepared Hadoop cluster, you can directly use the hdfs-site.xml of the cluster.
+
+In the configuration file, you need to set the HDFS HA-related configuration.
+
+```
+<property>
+   <name>dfs.nameservices</name>
+   <value>EXAMPLENAMESERVICE</value>
+</property>
+
+<property>
+    <name>dfs.ha.namenodes.EXAMPLENAMESERVICE</name>
+    <value>ns1,ns2</value>
+</property>
+
+<property>
+    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns1</name>
+    <value>hdfs://ns1:8020</value>
+</property>
+
+<property>
+    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns2</name>
+    <value>hdfs://ns2:8020</value>
+</property>
+```
+
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
 By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
@@ -241,18 +280,6 @@ spark.hadoop.fs.s3a.use.instance.credentials true
 If you are using instance credentials you do not have to set the access key or secret key.
 
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
-
-## 2.6 Local Cache support
-Velox supports local cache when reading data from HDFS/S3. The feature is very useful if remote storage is slow, e.g., reading from a public S3 bucket. With this feature, Velox can asynchronously cache the data on local disk when reading from remote storage, and the future reading requests on already cached blocks will be serviced from local cache files. To enable the local caching feature, below configurations are required:
-```
-spark.gluten.sql.columnar.backend.velox.cacheEnabled // enable or disable velox cache, default off
-spark.gluten.sql.columnar.backend.velox.cachePath  // the folder to store the cache files, default to /tmp
-spark.gluten.sql.columnar.backend.velox.cacheSize  // the total size of the cache, default to 128MB
-spark.gluten.sql.columnar.backend.velox.cacheShards // the shards of the cache, default to 1
-spark.gluten.sql.columnar.backend.velox.cacheIOThreads // the IO threads for cache promoting, default to 1
-```
-It's recommened to mount SSDs to the cache path to get the best performance of local caching. 
-On the start up of Saprk contenxt, the cache files will be allocated under "spark.gluten.sql.columnar.backend.velox.cachePath", with UUID based suffix, e.g. "/tmp/cache.13e8ab65-3af4-46ac-8d28-ff99b2a9ec9b0". Currently Gluten is not able to reuse the cache from last run, and the old cache files are left there after Spark context shutdown.
 
 # 3 Coverage
 
