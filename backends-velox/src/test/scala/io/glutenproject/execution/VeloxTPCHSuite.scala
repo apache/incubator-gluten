@@ -252,8 +252,7 @@ abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
     runTPCHQuery(21, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
   }
 
-  // TODO: fix q21 with partitions size == 1 when bhj enabled.
-  ignore("TPC-H q21 - bhj enable") {
+  test("TPC-H q21 - bhj enable") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "30M")) {
       runTPCHQuery(21, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
     }

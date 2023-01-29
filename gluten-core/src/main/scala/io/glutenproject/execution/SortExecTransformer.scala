@@ -43,6 +43,10 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
+trait SortMetricsUpdater extends MetricsUpdater {
+  def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit
+}
+
 case class SortExecTransformer(sortOrder: Seq[SortOrder],
                                global: Boolean,
                                child: SparkPlan,
@@ -64,7 +68,7 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
 
-  object MetricsUpdaterImpl extends MetricsUpdater {
+  object MetricsUpdaterImpl extends SortMetricsUpdater {
     val inputRows: SQLMetric = longMetric("inputRows")
     val inputVectors: SQLMetric = longMetric("inputVectors")
     val inputBytes: SQLMetric = longMetric("inputBytes")
