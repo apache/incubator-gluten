@@ -125,8 +125,8 @@ object CHExecUtil {
       case RoundRobinPartitioning(n) =>
         new NativePartitioning("rr", n, Array.empty[Byte])
       case HashPartitioning(exprs, n) =>
-        val outputsIndex = outputAttributes.map(attr =>
-          ConverterUtils.genColumnNameWithExprId(attr))
+        val outputsIndex =
+          outputAttributes.map(attr => ConverterUtils.genColumnNameWithExprId(attr))
         val fieldsIndex = new Array[String](exprs.length)
         val fields = exprs.zipWithIndex.map {
           case (expr, i) =>
@@ -136,7 +136,10 @@ object CHExecUtil {
             field
         }
 
-        new NativePartitioning("hash", n, fieldsIndex.mkString(",").getBytes,
+        new NativePartitioning(
+          "hash",
+          n,
+          fieldsIndex.mkString(",").getBytes,
           fields.mkString(",").getBytes)
       case RangePartitioning(sortingExpressions, numPartitions) =>
         val rddForSampling = buildRangePartitionSampleRDD(
