@@ -29,55 +29,45 @@
   <packaging>pom</packaging>
 
   <dependencies>
-      <dependency>
-          <groupId>org.scalatest</groupId>
-          <artifactId>scalatest_${scala.binary.version}</artifactId>
-          <version>3.2.3</version>
-          <scope>test</scope>
-      </dependency>
-      <!--The parent POM excluded these jars. Add back for testing-->
-      <dependency>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-          <version>1.7.30</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client</artifactId>
-        <version>${hadoop.version}</version>
-        <scope>test</scope>
-      </dependency>
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_${scala.binary.version}</artifactId>
+      <version>3.2.3</version>
+      <scope>test</scope>
+    </dependency>
+    <!--The parent POM excluded these jars. Add back for testing-->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.7.30</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-client</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <profiles>
     <profile>
-        <id>spark</id>
-        <activation>
-            <activeByDefault>true</activeByDefault>
-        </activation>
-        <modules>
-          <module>common</module>
-          <module>spark32</module>
-        </modules>
-    </profile>
-    <profile>
-        <id>spark-3.2</id>
-        <activation>
-            <activeByDefault>true</activeByDefault>
-        </activation>
-        <properties>
-        </properties>
-        <modules>
-          <module>common</module>
-          <module>spark32</module>
-        </modules>
+      <id>spark-3.2</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+      </properties>
+      <modules>
+        <module>common</module>
+        <module>spark32</module>
+      </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <modules>
-          <module>common</module>
-          <module>spark33</module>
+        <module>common</module>
+        <module>spark33</module>
       </modules>
     </profile>
   </profiles>

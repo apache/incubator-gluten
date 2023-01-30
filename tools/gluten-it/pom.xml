@@ -29,12 +29,6 @@
       </properties>
       <dependencies>
         <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-          <version>${gluten.version}</version>
-          <scope>compile</scope>
-        </dependency>
-        <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-sql_${scala.binary.version}</artifactId>
           <version>${spark.version}</version>
@@ -60,12 +54,6 @@
       </properties>
       <dependencies>
         <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark33</artifactId>
-          <version>${gluten.version}</version>
-          <scope>compile</scope>
-        </dependency>
-        <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-sql_${scala.binary.version}</artifactId>
           <version>${spark.version}</version>
@@ -84,36 +72,15 @@
         </dependency>
       </dependencies>
     </profile>
-    <profile>
-      <id>gluten-velox</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>backends-velox</artifactId>
-          <version>${gluten.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
-      <id>gluten-gazellecpp</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>backends-gazelle</artifactId>
-          <version>${gluten.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
   </profiles>
 
   <dependencies>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>gluten-package</artifactId>
+      <version>${gluten.version}</version>
+      <classifier>jar-with-dependencies</classifier>
+    </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>

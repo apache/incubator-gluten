@@ -24,6 +24,15 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <dependencies>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>gluten-core</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+
   <artifactId>gluten-package</artifactId>
   <name>Gluten Package</name>
   <packaging>pom</packaging>
@@ -49,31 +58,6 @@
         </dependency>
       </dependencies>
     </profile>
-    <profile>
-      <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>spark-3.3</id>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark33</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-        </dependency>
-      </dependencies>
-    </profile>
   </profiles>
 
   <build>
@@ -81,7 +65,9 @@
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
-          <finalName>${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}</finalName>
+          <finalName>
+            ${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}
+          </finalName>
         </configuration>
         <executions>
           <execution>
