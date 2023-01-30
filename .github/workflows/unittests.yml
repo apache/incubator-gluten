@@ -70,7 +70,7 @@ jobs:
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
           ./build_velox.sh'
-      - name: Build Gluten CPP library
+      - name: Build Gluten Cpp library
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
