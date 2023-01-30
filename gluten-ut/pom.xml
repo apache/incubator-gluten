@@ -77,12 +77,6 @@
       <artifactId>delta-core_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>spark-sql-columnar-shims-common</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
 
     <dependency>
       <groupId>org.scalacheck</groupId>

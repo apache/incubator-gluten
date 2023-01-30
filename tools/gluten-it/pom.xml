@@ -29,12 +29,6 @@
       </properties>
       <dependencies>
         <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark32</artifactId>
-          <version>${gluten.version}</version>
-          <scope>compile</scope>
-        </dependency>
-        <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-sql_${scala.binary.version}</artifactId>
           <version>${spark.version}</version>
@@ -59,12 +53,6 @@
         <spark.version>${spark33.version}</spark.version>
       </properties>
       <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>spark-sql-columnar-shims-spark33</artifactId>
-          <version>${gluten.version}</version>
-          <scope>compile</scope>
-        </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-sql_${scala.binary.version}</artifactId>
