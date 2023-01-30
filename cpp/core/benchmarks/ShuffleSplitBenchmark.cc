@@ -249,7 +249,7 @@ class BenchmarkShuffleSplit {
     std::shared_ptr<arrow::MemoryPool> pool;
     if(state.range(2)==0)
     {
-      pool.reset(arrow::default_memory_pool());
+      pool = GetDefaultWrappedArrowMemoryPool();
     }else if (state.range(2)==1)
     {
       pool = std::make_shared<LargeMemoryPool>();
@@ -267,7 +267,7 @@ class BenchmarkShuffleSplit {
     options.buffer_size = split_buffer_size;
     options.buffered_write = true;
     options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
-    options.prefer_spill = true;
+    options.prefer_spill = state.range(3);
     options.write_schema = false;
     options.large_memory_pool = pool;
 
@@ -327,7 +327,11 @@ class BenchmarkShuffleSplit {
 
     state.counters["total_time"] =
         benchmark::Counter(total_time, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    std::cout << "release splitter " << std::endl;
     splitter.reset();
+    std::cout << "release splitter done" << std::endl;
+
+
   }
 
  protected:
@@ -466,7 +470,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     local_column_indices.push_back(13);
     local_column_indices.push_back(14);
 */
-    local_column_indices.push_back(15);
+    local_column_indices.push_back(1);
 
     std::shared_ptr<arrow::Schema> local_schema;
     arrow::FieldVector fields;
@@ -474,7 +478,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     fields.push_back(schema->field(9));
     fields.push_back(schema->field(13));
     fields.push_back(schema->field(14));*/
-    fields.push_back(schema->field(15));
+    fields.push_back(schema->field(1));
     local_schema = std::make_shared<arrow::Schema>(fields);
 
 
@@ -514,6 +518,7 @@ int main(int argc, char** argv) {
   uint32_t threads = 1;
   std::string datafile;
   uint32_t memory_pool=0;
+  uint32_t prefer_spill=1;
 
   auto compression_codec = arrow::Compression::LZ4_FRAME;
 
@@ -530,6 +535,8 @@ int main(int argc, char** argv) {
       compression_codec = arrow::Compression::GZIP;
     } else if (strcmp(argv[i], "--pool") == 0) {
       memory_pool = atol(argv[i + 1]);
+    } else if (strcmp(argv[i], "--spill") == 0) {
+      prefer_spill = atol(argv[i + 1]);
     }
   }
   std::cout << "iterations = " << iterations << std::endl;
@@ -537,6 +544,7 @@ int main(int argc, char** argv) {
   std::cout << "threads = " << threads << std::endl;
   std::cout << "datafile = " << datafile << std::endl;
   std::cout << "memory pool = " << memory_pool << std::endl;
+  std::cout << "prefer_spill = " << prefer_spill << std::endl;
 
   /*
     sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_CacheScan_Benchmark
@@ -560,6 +568,7 @@ int main(int argc, char** argv) {
           partitions,
           compression_codec,
           memory_pool,
+          prefer_spill,
       })
       ->Threads(threads)
       ->ReportAggregatesOnly(false)

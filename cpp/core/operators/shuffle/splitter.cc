@@ -160,7 +160,6 @@ class Splitter::PartitionWriter {
 
  private:
 
-
   arrow::Status MergeSpilled() {
     for(SpillFile& sf : spilled_file_)
     {
