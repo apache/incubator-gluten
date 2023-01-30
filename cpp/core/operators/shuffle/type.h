@@ -60,6 +60,8 @@ struct SplitOptions {
 
   std::shared_ptr<arrow::MemoryPool> memory_pool = GetDefaultWrappedArrowMemoryPool();
 
+  std::shared_ptr<arrow::MemoryPool> large_memory_pool = GetDefaultWrappedArrowMemoryPool();
+
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
   static SplitOptions Defaults();

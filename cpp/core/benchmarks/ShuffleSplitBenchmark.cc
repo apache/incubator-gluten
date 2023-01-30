@@ -56,43 +56,72 @@ using gluten::Splitter;
 namespace gluten {
 
 #define ALIGNMENT 2 * 1024 * 1024
+#define LARGE_BUFFER_SIZE 16 * 1024 * 1024
 
 const int batch_buffer_size = 32768;
-const int split_buffer_size = 8192;
+const int split_buffer_size = 32768;
 
-class MyMemoryPool final : public arrow::MemoryPool {
+class LargeMemoryPool : public arrow::MemoryPool {
  public:
-  explicit MyMemoryPool() {}
+  constexpr static uint64_t huge_page_size = 1 << 21;
+
+  explicit LargeMemoryPool() {}
+
+  ~LargeMemoryPool() override = default;
 
   Status Allocate(int64_t size, uint8_t** out) override {
-    RETURN_NOT_OK(pool_->Allocate(size, out));
-    stats_.UpdateAllocatedBytes(size);
-    // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)*out << std::dec << std::endl; print_trace();
+    
+    uint64_t alloc_size = size>LARGE_BUFFER_SIZE?size:LARGE_BUFFER_SIZE;
+    alloc_size=round_to_huge_page_size(alloc_size);
+
+    auto its = std::find_if(buffers_.begin(),buffers_.end(),[size](BufferAllocated& buf){
+      return buf.allocated+size<buf.alloc_size;
+    });
+
+    BufferAllocated lastalloc;
+
+    if(its==buffers_.end())
+    {
+      uint8_t* alloc_addr;
+      RETURN_NOT_OK(do_alloc(alloc_size,&alloc_addr));
+      lastalloc={alloc_addr,0,0,alloc_size};
+      buffers_.push_back(lastalloc);
+      std::cout << "alloc " << std::hex << alloc_addr << std::dec << " buffer size = " << buffers_.size() << std::endl;
+    }else
+    {
+      lastalloc=*its;
+    }
+
+    *out=lastalloc.start_addr+lastalloc.allocated;
+    lastalloc.allocated+=size;
     return arrow::Status::OK();
   }
 
   Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
-    // auto old_ptr = *ptr;
-    RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
-    stats_.UpdateAllocatedBytes(new_size - old_size);
-    // std::cout << "Reallocate: old_size = " << old_size << " old_ptr = " <<
-    // std::hex << (uint64_t)old_ptr << std::dec << " new_size = " << new_size
-    // << " addr = " << std::hex << (uint64_t)*ptr << std::dec << std::endl;
-    // print_trace();
-    return arrow::Status::OK();
+    return arrow::Status::Invalid("Realloc in large page memory pool is not allowed");
   }
 
   void Free(uint8_t* buffer, int64_t size) override {
-    pool_->Free(buffer, size);
-    stats_.UpdateAllocatedBytes(-size);
-    // std::cout << "Free: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)buffer
-    // << std::dec << std::endl; print_trace();
+
+    auto its = std::find_if(buffers_.begin(),buffers_.end(),[buffer](BufferAllocated& buf){
+      return buffer>=buf.start_addr && buffer <buf.start_addr+buf.alloc_size;
+    });
+    ARROW_CHECK_NE(its, buffers_.end());
+    BufferAllocated &to_free = *its;
+
+    to_free.freed+=size;
+    if(to_free.freed && to_free.freed==to_free.allocated)
+    {
+      do_free(to_free.start_addr, to_free.alloc_size);
+      buffers_.erase(its);
+      std::cout << "free " << std::hex << to_free.start_addr << std::dec << " buffer size = " << buffers_.size() << std::endl;
+    }
   }
 
   int64_t bytes_allocated() const override {
-    return stats_.bytes_allocated();
+    return std::accumulate(buffers_.begin(),buffers_.end(), 0LL, [](uint64_t a, const BufferAllocated& buf){
+      return a+buf.alloc_size;
+    });
   }
 
   int64_t max_memory() const override {
@@ -100,80 +129,81 @@ class MyMemoryPool final : public arrow::MemoryPool {
   }
 
   std::string backend_name() const override {
-    return pool_->backend_name();
+    return "LargeMemoryPool";
   }
 
- private:
-  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
-  arrow::internal::MemoryPoolStats stats_;
-};
+ protected:
 
-// #define ENABLELARGEPAGE
-
-class LargePageMemoryPool : public arrow::MemoryPool {
- public:
-  explicit LargePageMemoryPool() {}
-
-  ~LargePageMemoryPool() override = default;
-
-  Status Allocate(int64_t size, uint8_t** out) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      return pool_->Allocate(size, out);
-    } else {
-      Status st = pool_->AlignAllocate(size, out, ALIGNMENT);
-      madvise(*out, size, /*MADV_HUGEPAGE */ 14);
-      //std::cout << "Allocate: size = " << size << " addr = "  \
-          << std::hex << (uint64_t)*out  << " end = " << std::hex << (uint64_t)(*out+size) << std::dec << std::endl;
-      return st;
-    }
-#else
+  virtual Status do_alloc(int64_t size, uint8_t** out)
+  {
     return pool_->Allocate(size, out);
-#endif
   }
-
-  Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
-    return pool_->Reallocate(old_size, new_size, ptr);
-#ifdef ENABLELARGEPAGE
-    if (new_size < 2 * 1024 * 1024) {
-      return pool_->Reallocate(old_size, new_size, ptr);
-    } else {
-      Status st = pool_->AlignReallocate(old_size, new_size, ptr, ALIGNMENT);
-      madvise(*ptr, new_size, /*MADV_HUGEPAGE */ 14);
-      return st;
-    }
-#else
-    return pool_->Reallocate(old_size, new_size, ptr);
-#endif
-  }
-
-  void Free(uint8_t* buffer, int64_t size) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      pool_->Free(buffer, size);
-    } else {
-      pool_->Free(buffer, size, ALIGNMENT);
-    }
-#else
+  virtual void do_free(uint8_t* buffer, int64_t size)
+  {
     pool_->Free(buffer, size);
-#endif
   }
 
-  int64_t bytes_allocated() const override {
-    return pool_->bytes_allocated();
+  uint64_t round_to_huge_page_size(uint64_t n) {
+    return n+= huge_page_size - (n & (huge_page_size-1));    
   }
 
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
 
-  std::string backend_name() const override {
-    return "LargePageMemoryPool";
-  }
+  struct BufferAllocated{
+    uint8_t* start_addr;
+    uint64_t allocated;
+    uint64_t freed;
+    uint64_t alloc_size;
+  };
 
- private:
+  std::vector<BufferAllocated> buffers_;
   MemoryPool* pool_ = arrow::default_memory_pool();
 };
+
+class LargePageMemoryPool : public LargeMemoryPool
+{
+ protected:
+
+  virtual Status do_alloc(int64_t size, uint8_t** out)
+  {
+    int rst = posix_memalign((void**)out, 1 << 21, size);
+    madvise(*out, size, MADV_HUGEPAGE);
+    madvise(*out, size, MADV_WILLNEED);
+    if (rst!=0 || *out == nullptr) {
+      return arrow::Status::OutOfMemory(" posix_memalign error ");
+    }else
+    {
+      return arrow::Status::OK();
+    }
+  }
+  virtual void do_free(uint8_t* buffer, int64_t size)
+  {
+    std::free((void*)(buffer));
+  }
+};
+
+class MMapMemoryPool : public LargeMemoryPool
+{
+ protected:
+  virtual Status do_alloc(int64_t size, uint8_t** out)
+  {
+    *out = static_cast<uint8_t *>(mmap(
+        nullptr, size, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE, -1, 0));
+    if (*out == MAP_FAILED) {
+      return arrow::Status::OutOfMemory(" posix_memalign error ");
+    }
+    else
+    {
+      //madvise(*out, size, MADV_WILLNEED);
+      return arrow::Status::OK();
+    }
+  }
+  virtual void do_free(uint8_t* buffer, int64_t size)
+  {
+    munmap((void*)(buffer),size);
+  }
+};
+
 
 class BenchmarkShuffleSplit {
  public:
@@ -216,8 +246,20 @@ class BenchmarkShuffleSplit {
     // SetCPU(state.thread_index());
     arrow::Compression::type compression_type = (arrow::Compression::type)state.range(1);
 
-    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
-
+    std::shared_ptr<arrow::MemoryPool> pool;
+    if(state.range(2)==0)
+    {
+      pool.reset(arrow::default_memory_pool());
+    }else if (state.range(2)==1)
+    {
+      pool = std::make_shared<LargeMemoryPool>();
+    }else if (state.range(2)==1)
+    {
+      pool = std::make_shared<LargePageMemoryPool>();
+    }else if (state.range(2)==1)
+    {
+      pool = std::make_shared<MMapMemoryPool>();
+    }
     const int num_partitions = state.range(0);
 
     auto options = SplitOptions::Defaults();
@@ -227,7 +269,7 @@ class BenchmarkShuffleSplit {
     options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
     options.prefer_spill = true;
     options.write_schema = false;
-    options.memory_pool = pool;
+    options.large_memory_pool = pool;
 
     std::shared_ptr<Splitter> splitter;
     int64_t elapse_read = 0;
@@ -410,10 +452,36 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
       const int num_partitions,
       SplitOptions options,
       benchmark::State& state) {
-    if (state.thread_index() == 0)
-      std::cout << schema->ToString() << std::endl;
+    std::vector<int> local_column_indices;
+    // local_column_indices.push_back(0);
+    /*    local_column_indices.push_back(0);
+        local_column_indices.push_back(1);
+        local_column_indices.push_back(2);
+        local_column_indices.push_back(4);
+        local_column_indices.push_back(5);
+        local_column_indices.push_back(6);
+        local_column_indices.push_back(7);
+    local_column_indices.push_back(8);
+    local_column_indices.push_back(9);
+    local_column_indices.push_back(13);
+    local_column_indices.push_back(14);
+*/
+    local_column_indices.push_back(15);
 
-    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", schema, num_partitions, std::move(options)));
+    std::shared_ptr<arrow::Schema> local_schema;
+    arrow::FieldVector fields;
+/*    fields.push_back(schema->field(8));
+    fields.push_back(schema->field(9));
+    fields.push_back(schema->field(13));
+    fields.push_back(schema->field(14));*/
+    fields.push_back(schema->field(15));
+    local_schema = std::make_shared<arrow::Schema>(fields);
+
+
+    if (state.thread_index() == 0)
+      std::cout << local_schema->ToString() << std::endl;
+
+    GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", local_schema, num_partitions, std::move(options)));
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
@@ -425,7 +493,7 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
     for (auto _ : state) {
       std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
       GLUTEN_THROW_NOT_OK(
-          parquet_reader->GetRecordBatchReader(row_group_indices, column_indices, &record_batch_reader));
+          parquet_reader->GetRecordBatchReader(row_group_indices, local_column_indices, &record_batch_reader));
       TIME_NANO_OR_THROW(elapse_read, record_batch_reader->ReadNext(&record_batch));
       while (record_batch) {
         num_batches += 1;
@@ -445,6 +513,8 @@ int main(int argc, char** argv) {
   uint32_t partitions = 192;
   uint32_t threads = 1;
   std::string datafile;
+  uint32_t memory_pool=0;
+
   auto compression_codec = arrow::Compression::LZ4_FRAME;
 
   for (int i = 0; i < argc; i++) {
@@ -458,12 +528,15 @@ int main(int argc, char** argv) {
       datafile = argv[i + 1];
     } else if (strcmp(argv[i], "--qat") == 0) {
       compression_codec = arrow::Compression::GZIP;
+    } else if (strcmp(argv[i], "--pool") == 0) {
+      memory_pool = atol(argv[i + 1]);
     }
   }
   std::cout << "iterations = " << iterations << std::endl;
   std::cout << "partitions = " << partitions << std::endl;
   std::cout << "threads = " << threads << std::endl;
   std::cout << "datafile = " << datafile << std::endl;
+  std::cout << "memory pool = " << memory_pool << std::endl;
 
   /*
     sparkcolumnarplugin::shuffle::BenchmarkShuffleSplit_CacheScan_Benchmark
@@ -486,6 +559,7 @@ int main(int argc, char** argv) {
       ->Args({
           partitions,
           compression_codec,
+          memory_pool,
       })
       ->Threads(threads)
       ->ReportAggregatesOnly(false)

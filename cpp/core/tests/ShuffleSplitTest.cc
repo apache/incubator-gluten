@@ -49,9 +49,19 @@ class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool(int64_t capacity) : capacity_(capacity) {}
 
+  void SetSpillFunc(std::function<arrow::Status (int64_t, int64_t*)> f_spill) {
+    f_spill_ = f_spill;
+  }
+
   Status Allocate(int64_t size, uint8_t** out) override {
     if (bytes_allocated() + size > capacity_) {
-      return Status::OutOfMemory("malloc of size ", size, " failed");
+      if(f_spill_)
+      {
+        int64_t act_free=0;
+        f_spill_(size,&act_free);
+      }
+      if(bytes_allocated() + size > capacity_)
+        return Status::OutOfMemory("malloc of size ", size, " failed");
     }
     RETURN_NOT_OK(pool_->Allocate(size, out));
     stats_.UpdateAllocatedBytes(size);
@@ -102,6 +112,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
   MemoryPool* pool_ = arrow::default_memory_pool();
   int64_t capacity_;
   arrow::internal::MemoryPoolStats stats_;
+  std::function<arrow::Status (int64_t, int64_t*)> f_spill_=nullptr;
 };
 
 class SplitterTest : public ::testing::Test {
@@ -185,11 +196,12 @@ class SplitterTest : public ::testing::Test {
   }
 
   arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchReader>> GetRecordBatchStreamReader(
-      const std::string& file_name) {
+      const std::string& file_name, uint64_t start_pos=0) {
     if (file_ != nullptr && !file_->closed()) {
       RETURN_NOT_OK(file_->Close());
     }
     ARROW_ASSIGN_OR_RAISE(file_, arrow::io::ReadableFile::Open(file_name))
+    file_->Seek(start_pos);
     ARROW_ASSIGN_OR_RAISE(auto file_reader, arrow::ipc::RecordBatchStreamReader::Open(file_))
     return file_reader;
   }
@@ -505,21 +517,50 @@ TEST_F(SplitterTest, TestSpillFailWithOutOfMemory) {
 }
 
 TEST_F(SplitterTest, TestSpillLargestPartition) {
-  std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(9 * 1024 * 1024);
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
+  std::shared_ptr<MyMemoryPool> pool = std::make_shared<MyMemoryPool>(32 * 1024 * 1024);
 
-  int32_t num_partitions = 2;
+  int32_t num_partitions = 4;
   split_options_.buffer_size = 4;
-  // split_options_.memory_pool = pool.get();
+  split_options_.memory_pool = pool;
   split_options_.compression_type = arrow::Compression::UNCOMPRESSED;
+  split_options_.prefer_spill=false;
   ARROW_ASSIGN_OR_THROW(splitter_, Splitter::Make("rr", schema_, num_partitions, split_options_));
 
-  for (int i = 0; i < 100; ++i) {
+  pool->SetSpillFunc(std::bind(&Splitter::SpillFixedSize,splitter_.get(),std::placeholders::_1,std::placeholders::_2));
+  uint64_t total_row_split=0;
+  for (int i = 0; i < 5500; ++i) {
     ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
     ASSERT_NOT_OK(splitter_->Split(*input_batch_2_));
     ASSERT_NOT_OK(splitter_->Split(*input_batch_1_));
+    total_row_split+=input_batch_1_->num_rows()*2+input_batch_2_->num_rows();
   }
   ASSERT_NOT_OK(splitter_->Stop());
+
+  // verify data file
+  CheckFileExsists(splitter_->DataFile());
+
+  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
+
+  uint64_t start_pos=0;
+  auto& part_lens = splitter_->PartitionLengths();
+  for(auto t=0;t<num_partitions;t++)
+  {
+    ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile(),start_pos));
+    // verify schema
+    ASSERT_EQ(*file_reader->schema(), *schema_);
+
+    std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
+    ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+
+    uint64_t total_row=0;
+    for (const auto& rb : batches) {
+      total_row+=rb->num_rows();
+    }
+    ASSERT_EQ(total_row_split/num_partitions,total_row);
+
+    start_pos+=part_lens[t];
+  }
 }
 
 TEST_F(SplitterTest, TestRoundRobinListArraySplitter) {

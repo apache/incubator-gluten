@@ -138,6 +138,8 @@ class Splitter {
 
   virtual arrow::Status Init();
 
+  arrow::Status InitCommon();
+
   virtual arrow::Status ComputeAndCountPartitionId(const arrow::RecordBatch& rb) = 0;
 
   arrow::Status DoSplit(const arrow::RecordBatch& rb);
@@ -190,7 +192,7 @@ class Splitter {
   // buffer can hold all data according to partition id. If not, call this
   // method and allocate new buffers. Spill will happen if OOM.
   // 2. Stop the splitter. The record batch will be written to disk immediately.
-  arrow::Status CreateRecordBatchFromBuffer(int32_t partition_id, bool reset_buffers);
+  arrow::Status CacheRecordBatchFromBuffer(int32_t partition_id, bool reset_buffers);
 
   arrow::Status CacheRecordBatch(int32_t partition_id, const arrow::RecordBatch& batch);
 
@@ -298,6 +300,9 @@ class Splitter {
 
   // shared by all partition writers
   std::shared_ptr<arrow::ipc::IpcPayload> schema_payload_;
+
+  // save spilled file names
+  std::vector<std::string> spill_file_names_;
 };
 
 class RoundRobinSplitter final : public Splitter {
