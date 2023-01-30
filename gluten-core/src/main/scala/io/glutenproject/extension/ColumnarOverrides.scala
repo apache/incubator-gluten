@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -120,21 +120,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     plan match {
       case plan: BatchScanExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        val newPartitionFilters =
-          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
-        new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
+        applyScanTransformer(plan)
       case plan: FileSourceScanExec =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        new FileSourceScanExecTransformer(
-          plan.relation,
-          plan.output,
-          plan.requiredSchema,
-          ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters),
-          plan.optionalBucketSet,
-          plan.optionalNumCoalescedBuckets,
-          plan.dataFilters,
-          plan.tableIdentifier,
-          plan.disableBucketedScan)
+        applyScanTransformer(plan)
       case plan: CoalesceExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         CoalesceExecTransformer(
@@ -328,6 +316,92 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case RightOuter => BuildLeft
       case _ => plan.buildSide
     }
+  }
+
+  // 1. create new filter and new transformer; 2. validate failed, tag new scan; 3. return batch
+  def applyScanTransformer(plan: SparkPlan): SparkPlan = plan match {
+    case plan: FileSourceScanExec =>
+      val newPartitionFilters = {
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters)
+      }
+      val transformer = new FileSourceScanExecTransformer(
+        plan.relation,
+        plan.output,
+        plan.requiredSchema,
+        newPartitionFilters,
+        plan.optionalBucketSet,
+        plan.optionalNumCoalescedBuckets,
+        plan.dataFilters,
+        plan.tableIdentifier,
+        plan.disableBucketedScan)
+      if (transformer.doValidate()) {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        transformer
+      } else {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+        if (newPartitionFilters.equals(plan.partitionFilters)) {
+          TransformHints.tagNotTransformable(plan)
+          plan
+        } else {
+          val newSource = FileSourceScanExec(
+            plan.relation,
+            plan.output,
+            plan.requiredSchema,
+            newPartitionFilters,
+            plan.optionalBucketSet,
+            plan.optionalNumCoalescedBuckets,
+            plan.dataFilters,
+            plan.tableIdentifier,
+            plan.disableBucketedScan)
+          TransformHints.tagNotTransformable(newSource)
+          newSource
+        }
+      }
+    case plan: BatchScanExec =>
+      plan.scan match {
+        case scan: FileScan =>
+          val newPartitionFilters = {
+            ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters)
+          }
+          val transformer = new BatchScanExecTransformer(plan.output, scan,
+            newPartitionFilters)
+          if (transformer.doValidate()) {
+            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+            transformer
+          } else {
+            logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+            if (newPartitionFilters.equals(scan.partitionFilters)) {
+              TransformHints.tagNotTransformable(plan)
+              plan
+            } else {
+              val newSource = BatchScanExec(plan.output, plan.scan, newPartitionFilters)
+              TransformHints.tagNotTransformable(newSource)
+              newSource
+            }
+          }
+        case _ =>
+          val newPartitionFilters = {
+            ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
+          }
+          val transformer = new BatchScanExecTransformer(plan.output,
+            plan.scan, newPartitionFilters)
+          if (transformer.doValidate()) {
+            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+            transformer
+          } else {
+            logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+            if (newPartitionFilters.equals(plan.runtimeFilters)) {
+              TransformHints.tagNotTransformable(plan)
+              plan
+            } else {
+              val newSource = BatchScanExec(plan.output, plan.scan, newPartitionFilters)
+              TransformHints.tagNotTransformable(newSource)
+              newSource
+            }
+          }
+      }
+    case other =>
+      throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
   }
 
   def apply(plan: SparkPlan): SparkPlan = {

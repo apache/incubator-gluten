@@ -18,7 +18,6 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
-
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
@@ -110,6 +109,12 @@ class VeloxTestSettings extends BackendTestSettings {
     "AQE should set active session during execution",
     "No deadlock in UI update",
     "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join")
+
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+    .excludeByPrefix("SPARK-32659")// overwrite
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+    // .include("Gluten - partition pruning in broadcast hash joins with aliases")
+    .excludeByPrefix("SPARK-32659") // overwrite
 
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]

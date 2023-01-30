@@ -611,8 +611,19 @@ object FilterHandler {
           new BatchScanExecTransformer(batchScan.output, scan,
             leftFilters ++ newPartitionFilters)
         case _ =>
-          throw new UnsupportedOperationException(
-            s"${batchScan.scan.getClass.toString} is not supported.")
+          if (batchScan.runtimeFilters.isEmpty) {
+            throw new UnsupportedOperationException(
+              s"${batchScan.scan.getClass.toString} is not supported.")
+          } else {
+            val newPartitionFilters = {
+              ExpressionConverter.transformDynamicPruningExpr(batchScan.runtimeFilters)
+            }
+            if (!batchScan.runtimeFilters.equals(newPartitionFilters)) {
+              BatchScanExec(batchScan.output, batchScan.scan, newPartitionFilters)
+            } else {
+              batchScan
+            }
+          }
       }
     case other =>
       throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")

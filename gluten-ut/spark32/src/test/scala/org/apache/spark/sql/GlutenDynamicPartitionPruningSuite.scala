@@ -18,13 +18,13 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecBaseTransformer, FilterExecTransformer}
-
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
 import org.apache.spark.sql.catalyst.plans.ExistenceJoin
 import org.apache.spark.sql.connector.catalog.InMemoryTableCatalog
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
@@ -76,6 +76,28 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
       }
 
       assert(found.isEmpty)
+    }
+  }
+
+  test(GLUTEN_TEST + "partition pruning in broadcast hash joins with aliases") {
+    Given("alias with simple join condition, using attribute names only")
+    withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true") {
+      val df = sql(
+        """
+          |SELECT f.date_id, f.pid, f.sid FROM
+          |(select date_id, product_id as pid, store_id as sid from fact_stats) as f
+          |JOIN dim_stats s
+          |ON f.sid = s.store_id WHERE s.country = 'DE'
+        """.stripMargin)
+
+      checkPartitionPruningPredicate(df, false, true)
+
+      checkAnswer(df,
+        Row(1030, 2, 3) ::
+          Row(1040, 2, 3) ::
+          Row(1050, 2, 3) ::
+          Row(1060, 2, 3) :: Nil
+      )
     }
   }
 
@@ -311,6 +333,93 @@ abstract class GlutenDynamicPartitionPruningSuiteBase extends DynamicPartitionPr
       }
     }
   }
+
+  test(GLUTEN_TEST + "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type") {
+    Seq(NO_CODEGEN, CODEGEN_ONLY).foreach { mode =>
+      Seq(true, false).foreach { pruning =>
+        withSQLConf(
+          SQLConf.CODEGEN_FACTORY_MODE.key -> mode.toString,
+          SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> s"$pruning") {
+          Seq("struct", "array").foreach { dataType =>
+            val df = sql(
+              s"""
+                 |SELECT f.date_id, f.product_id, f.units_sold, f.store_id FROM fact_stats f
+                 |JOIN dim_stats s
+                 |ON $dataType(f.store_id) = $dataType(s.store_id) WHERE s.country = 'DE'
+              """.stripMargin)
+
+            if (pruning) {
+              df.collect()
+
+              val plan = df.queryExecution.executedPlan
+              val dpExprs = collectDynamicPruningExpressions(plan)
+              val hasSubquery = dpExprs.exists {
+                case InSubqueryExec(_, _: SubqueryExec, _, _) => true
+                case _ => false
+              }
+              val subqueryBroadcast = dpExprs.collect {
+                case InSubqueryExec(_, b: SubqueryBroadcastExec, _, _) => b
+                case InSubqueryExec(_, b: ColumnarSubqueryBroadcastExec, _, _) => b
+              }
+
+              val hasFilter = if (false) "Should" else "Shouldn't"
+              assert(!hasSubquery,
+                s"$hasFilter trigger DPP with a subquery duplicate:\n${df.queryExecution}")
+              val hasBroadcast = if (true) "Should" else "Shouldn't"
+              assert(subqueryBroadcast.nonEmpty, s"$hasBroadcast trigger DPP " +
+                s"with a reused broadcast exchange:\n${df.queryExecution}")
+
+              subqueryBroadcast.foreach { s =>
+                s.child match {
+                  case _: ReusedExchangeExec => // reuse check ok.
+                  case BroadcastQueryStageExec(_, _: ReusedExchangeExec, _) => // reuse check ok.
+                  case b: BroadcastExchangeLike =>
+                    val hasReuse = plan.find {
+                      case ReusedExchangeExec(_, e) => e eq b
+                      case _ => false
+                    }.isDefined
+                    assert(hasReuse, s"$s\nshould have been reused in\n$plan")
+                  case a: AdaptiveSparkPlanExec =>
+                    val broadcastQueryStage = collectFirst(a) {
+                      case b: BroadcastQueryStageExec => b
+                    }
+                    val broadcastPlan = broadcastQueryStage.get.broadcast
+                    val hasReuse = find(plan) {
+                      case ReusedExchangeExec(_, e) => e eq broadcastPlan
+                      case b: BroadcastExchangeLike => b eq broadcastPlan
+                      case _ => false
+                    }.isDefined
+                    // assert(hasReuse, s"$s\nshould have been reused in\n$plan")
+                  case _ =>
+                    fail(s"Invalid child node found in\n$s")
+                }
+              }
+
+              val isMainQueryAdaptive = plan.isInstanceOf[AdaptiveSparkPlanExec]
+              subqueriesAll(plan).filterNot(subqueryBroadcast.contains).foreach { s =>
+                val subquery = s match {
+                  case r: ReusedSubqueryExec => r.child
+                  case o => o
+                }
+                assert(subquery.find(_.isInstanceOf[AdaptiveSparkPlanExec])
+                  .isDefined == isMainQueryAdaptive)
+              }
+            } else {
+              checkPartitionPruningPredicate(df, false, false)
+            }
+
+            checkAnswer(df,
+              Row(1030, 2, 10, 3) ::
+                Row(1040, 2, 50, 3) ::
+                Row(1050, 2, 50, 3) ::
+                Row(1060, 2, 50, 3) :: Nil
+            )
+          }
+        }
+      }
+    }
+  }
+
 
   // === Following methods override super class's methods ===
 
