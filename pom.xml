@@ -76,22 +76,22 @@
     <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
     <spotless.license.header>
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+      /*
+      * Licensed to the Apache Software Foundation (ASF) under one or more
+      * contributor license agreements. See the NOTICE file distributed with
+      * this work for additional information regarding copyright ownership.
+      * The ASF licenses this file to You under the Apache License, Version 2.0
+      * (the "License"); you may not use this file except in compliance with
+      * the License. You may obtain a copy of the License at
+      *
+      * http://www.apache.org/licenses/LICENSE-2.0
+      *
+      * Unless required by applicable law or agreed to in writing, software
+      * distributed under the License is distributed on an "AS IS" BASIS,
+      * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+      * See the License for the specific language governing permissions and
+      * limitations under the License.
+      */
     </spotless.license.header>
 
     <!-- plugin version-->
@@ -104,19 +104,6 @@
   </properties>
 
   <profiles>
-    <profile>
-      <id>spark</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-        <scala.version>${spark32.scala}</scala.version>
-        <spark.version>${spark32.version}</spark.version>
-        <delta.version>${delta20.version}</delta.version>
-        <delta.binary.version>20</delta.binary.version>
-        <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-      </properties>
-    </profile>
     <profile>
       <id>spark-3.2</id>
       <activation>
@@ -552,35 +539,35 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.1.1</version>
-            <configuration>
-              <failOnViolation>true</failOnViolation>
-              <includeTestSourceDirectory>true</includeTestSourceDirectory>
-              <sourceDirectories>
-                  <directory>${project.basedir}/src/main/java</directory>
-                  <directory>${project.basedir}/src/main/scala</directory>
-              </sourceDirectories>
-              <testSourceDirectories>
-                  <directory>${project.basedir}/src/test/java</directory>
-              </testSourceDirectories>
-              <configLocation>dev/checkstyle.xml</configLocation>
-              <outputFile>${project.basedir}/target/checkstyle-output.xml</outputFile>
-              <inputEncoding>UTF-8</inputEncoding>
-              <outputEncoding>UTF-8</outputEncoding>
+          <configuration>
+            <failOnViolation>true</failOnViolation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <sourceDirectories>
+              <directory>${project.basedir}/src/main/java</directory>
+              <directory>${project.basedir}/src/main/scala</directory>
+            </sourceDirectories>
+            <testSourceDirectories>
+              <directory>${project.basedir}/src/test/java</directory>
+            </testSourceDirectories>
+            <configLocation>dev/checkstyle.xml</configLocation>
+            <outputFile>${project.basedir}/target/checkstyle-output.xml</outputFile>
+            <inputEncoding>UTF-8</inputEncoding>
+            <outputEncoding>UTF-8</outputEncoding>
           </configuration>
           <dependencies>
             <dependency>
-                <groupId>com.puppycrawl.tools</groupId>
-                <artifactId>checkstyle</artifactId>
-                <version>8.29</version>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>8.29</version>
             </dependency>
           </dependencies>
           <executions>
-              <execution>
-                  <phase>validate</phase>
-                  <goals>
-                      <goal>check</goal>
-                  </goals>
-              </execution>
+            <execution>
+              <phase>validate</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
           </executions>
         </plugin>
         <plugin>
@@ -625,19 +612,19 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
           <configuration>
-<!--            <java>-->
-<!--              <googleJavaFormat>-->
-<!--                <version>1.7</version>-->
-<!--                <style>AOSP</style>-->
-<!--              </googleJavaFormat>-->
+            <!--            <java>-->
+            <!--              <googleJavaFormat>-->
+            <!--                <version>1.7</version>-->
+            <!--                <style>AOSP</style>-->
+            <!--              </googleJavaFormat>-->
 
-<!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
-<!--              <importOrder>-->
-<!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
-<!--              </importOrder>-->
+            <!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
+            <!--              <importOrder>-->
+            <!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
+            <!--              </importOrder>-->
 
-<!--              <removeUnusedImports />-->
-<!--            </java>-->
+            <!--              <removeUnusedImports />-->
+            <!--            </java>-->
             <scala>
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>

@@ -81,7 +81,9 @@
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
-          <finalName>${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}</finalName>
+          <finalName>
+            ${jar.assembly.name.prefix}-spark${sparkbundle.version}_${scala.binary.version}-${project.version}
+          </finalName>
         </configuration>
         <executions>
           <execution>
