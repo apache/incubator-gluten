@@ -70,13 +70,11 @@ jobs:
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
           ./build_velox.sh'
-      - name: Build Gluten for Spark3.2
+      - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j && \
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DskipTests'
+          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
       - name: Run Unit Test for Spark3.2
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
