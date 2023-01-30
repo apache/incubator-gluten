@@ -70,7 +70,7 @@ jobs:
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
           ./build_velox.sh'
-      - name: Build Gluten Cpp library
+      - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
@@ -80,7 +80,7 @@ jobs:
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark322"'
-      - name: Run Cpp Unit test
+      - name: Run CPP Unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
           ctest -V'
