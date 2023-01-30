@@ -24,6 +24,15 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <dependencies>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>gluten-core</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+
   <artifactId>gluten-package</artifactId>
   <name>Gluten Package</name>
   <packaging>pom</packaging>
