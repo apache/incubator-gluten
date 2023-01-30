@@ -23,7 +23,7 @@ import java.nio.ByteOrder;
 
 public class SparkRowIterator implements Iterator<byte[]> {
     private final scala.collection.Iterator<byte[]> delegated;
-    private final int maxBufSize = 4096;
+    private final int defaultBufSize = 4096;
     private byte[] lastRowBuf;
 
     public SparkRowIterator(scala.collection.Iterator<byte[]> delegated) {
@@ -41,31 +41,44 @@ public class SparkRowIterator implements Iterator<byte[]> {
         return delegated.next();
     }
 
-    public ByteBuffer nextBatch() {
-        ByteBuffer buf = ByteBuffer.allocateDirect(maxBufSize);
+    protected ByteBuffer createByteBuffer(int bufSize) {
+        ByteBuffer buf;
+        // 8: one length and one end flag
+        if (bufSize + 8 > defaultBufSize) {
+            buf = ByteBuffer.allocateDirect(bufSize + 8);
+        } else {
+            buf = ByteBuffer.allocateDirect(defaultBufSize);
+        }
         buf.order(ByteOrder.LITTLE_ENDIAN);
+        return buf;
+    }
+
+    public ByteBuffer nextBatch() {
+        ByteBuffer buf = null;
         if (lastRowBuf != null) {
+            buf = createByteBuffer(lastRowBuf.length);
             buf.putInt(lastRowBuf.length);
             buf.put(lastRowBuf);
+            // make the end flag
+            buf.putInt(-1);
             lastRowBuf = null;
+            return buf;
+        } else {
+            while (delegated.hasNext()) {
+                lastRowBuf = delegated.next();
+                if (buf == null) {
+                    buf = createByteBuffer(lastRowBuf.length);
+                }
+                if (buf.remaining() < lastRowBuf.length + 8) {
+                    break;
+                } else {
+                    buf.putInt(lastRowBuf.length);
+                    buf.put(lastRowBuf);
+                    lastRowBuf = null;
+                }
+            }
+            buf.putInt(-1);
+            return buf;
         }
-        while (buf.remaining() > 4) {
-            if (!delegated.hasNext()) {
-                lastRowBuf = null;
-                break;
-            }
-            lastRowBuf = delegated.next();
-            if (buf.remaining() < lastRowBuf.length + 8) {
-                break;
-            }
-            else {
-                buf.putInt(lastRowBuf.length);
-                buf.put(lastRowBuf);
-                lastRowBuf = null;
-            }
-        }
-        // make the end flag
-        buf.putInt(-1);
-        return buf;
     }
 }

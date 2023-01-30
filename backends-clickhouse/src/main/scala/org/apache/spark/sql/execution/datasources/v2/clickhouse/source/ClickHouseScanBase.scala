@@ -32,7 +32,7 @@ import org.apache.hadoop.fs.Path
 
 import java.util.OptionalLong
 
-case class ClickHouseScan(
+abstract class ClickHouseScanBase(
     sparkSession: SparkSession,
     @transient table: ClickHouseTableV2,
     dataSchema: StructType,
@@ -48,11 +48,6 @@ case class ClickHouseScan(
   override def readPartitionSchema: StructType = new StructType()
 
   override def fileIndex: PartitioningAwareFileIndex = null
-
-  override def withFilters(
-      partitionFilters: Seq[Expression],
-      dataFilters: Seq[Expression]): FileScan =
-    this.copy(partitionFilters = partitionFilters, dataFilters = dataFilters)
 
   override def toBatch: Batch = this
 
@@ -80,15 +75,6 @@ case class ClickHouseScan(
   override def getMetaData(): Map[String, String] = {
     Map.empty[String, String]
   }
-
-  override def equals(obj: Any): Boolean = obj match {
-    case p: ClickHouseScan =>
-      super.equals(p) && dataSchema == p.dataSchema && options == p.options &&
-      equivalentFilters(pushedFilters, p.pushedFilters)
-    case _ => false
-  }
-
-  override def hashCode(): Int = getClass.hashCode()
 
   protected def getSnapshot(): Snapshot = table.updateSnapshot()
 }

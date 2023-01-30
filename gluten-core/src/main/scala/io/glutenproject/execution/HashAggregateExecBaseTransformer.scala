@@ -937,7 +937,7 @@ abstract class HashAggregateExecBaseTransformer(
     if (!needsPostProjection(allAggregateResultAttributes)) {
       aggRel
     } else {
-    applyPostProjection(context, aggRel, operatorId, validation)
+      applyPostProjection(context, aggRel, operatorId, validation)
     }
   }
 }

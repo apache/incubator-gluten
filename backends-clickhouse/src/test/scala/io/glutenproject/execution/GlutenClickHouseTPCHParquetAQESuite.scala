@@ -103,9 +103,23 @@ class GlutenClickHouseTPCHParquetAQESuite
     runTPCHQuery(6) { df => }
   }
 
-  test("TPCH Q7") {
+  /**
+   * TODO: With Spark 3.3, it can not support to use Spark Shuffle Manager and set
+   * shuffle.partitions=1 at the same time, because OptimizeOneRowPlan rule will remove Sort
+   * operator.
+   */
+  ignore("TPCH Q7 - with shuffle.partitions=1") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      runTPCHQuery(7) { df => }
+    }
+  }
+
+  test("TPCH Q7") {
+    withSQLConf(
+      ("spark.sql.shuffle.partitions", "2"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
       runTPCHQuery(7) { df => }
