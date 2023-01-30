@@ -89,10 +89,10 @@ class VeloxTestSettings extends BackendTestSettings {
       "replace nan with double"
     )
 
-  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
-    // struct join key not supported, fell-back to Vanilla join
-    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
-  )
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
@@ -109,12 +109,6 @@ class VeloxTestSettings extends BackendTestSettings {
     "AQE should set active session during execution",
     "No deadlock in UI update",
     "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join")
-
-  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
-    .excludeByPrefix("SPARK-32659")// overwrite
-  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
-    // .include("Gluten - partition pruning in broadcast hash joins with aliases")
-    .excludeByPrefix("SPARK-32659") // overwrite
 
   enableSuite[GlutenLiteralExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
