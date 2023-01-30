@@ -197,6 +197,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
         .set("spark.unsafe.exceptionOnMemoryLeak", "true")
     } else {
       conf.set("spark.unsafe.exceptionOnMemoryLeak", "false")
+        .set("spark.sql.ansi.enabled", "true")
     }
     conf
   }

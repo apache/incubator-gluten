@@ -27,6 +27,10 @@ import org.apache.spark.SparkConf
 class VeloxInitializerApi extends IInitializerApi {
 
   override def initialize(conf: SparkConf): Unit = {
+    if (conf.getBoolean("spark.sql.ansi.enabled", defaultValue = false)) {
+      conf.set("spark.gluten.sql.enable.native.engine", "false")
+      return
+    }
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
     loader.newTransaction()
