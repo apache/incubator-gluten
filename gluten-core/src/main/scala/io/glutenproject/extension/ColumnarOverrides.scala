@@ -119,7 +119,6 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     }
     plan match {
       case plan: BatchScanExec =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         applyScanTransformer(plan)
       case plan: FileSourceScanExec =>
         applyScanTransformer(plan)
@@ -318,7 +317,12 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     }
   }
 
-  // 1. create new filter and new transformer; 2. validate failed, tag new scan; 3. return batch
+  /**
+   * Apply scan transformer for file source and batch source,
+   * 1. create new filter and scan transformer,
+   * 2. validate, tag new scan as unsupported if failed,
+   * 3. return new source.
+   */
   def applyScanTransformer(plan: SparkPlan): SparkPlan = plan match {
     case plan: FileSourceScanExec =>
       val newPartitionFilters = {
@@ -339,66 +343,27 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
         transformer
       } else {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        if (newPartitionFilters.equals(plan.partitionFilters)) {
-          TransformHints.tagNotTransformable(plan)
-          plan
-        } else {
-          val newSource = FileSourceScanExec(
-            plan.relation,
-            plan.output,
-            plan.requiredSchema,
-            newPartitionFilters,
-            plan.optionalBucketSet,
-            plan.optionalNumCoalescedBuckets,
-            plan.dataFilters,
-            plan.tableIdentifier,
-            plan.disableBucketedScan)
-          TransformHints.tagNotTransformable(newSource)
-          newSource
-        }
+        val newSource = plan.copy(partitionFilters = newPartitionFilters)
+        TransformHints.tagNotTransformable(newSource)
+        newSource
       }
     case plan: BatchScanExec =>
-      plan.scan match {
-        case scan: FileScan =>
-          val newPartitionFilters = {
-            ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters)
-          }
-          val transformer = new BatchScanExecTransformer(plan.output, scan,
-            newPartitionFilters)
-          if (transformer.doValidate()) {
-            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            transformer
-          } else {
-            logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-            if (newPartitionFilters.equals(scan.partitionFilters)) {
-              TransformHints.tagNotTransformable(plan)
-              plan
-            } else {
-              val newSource = BatchScanExec(plan.output, plan.scan, newPartitionFilters)
-              TransformHints.tagNotTransformable(newSource)
-              newSource
-            }
-          }
-        case _ =>
-          val newPartitionFilters = {
-            ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
-          }
-          val transformer = new BatchScanExecTransformer(plan.output,
-            plan.scan, newPartitionFilters)
-          if (transformer.doValidate()) {
-            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            transformer
-          } else {
-            logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-            if (newPartitionFilters.equals(plan.runtimeFilters)) {
-              TransformHints.tagNotTransformable(plan)
-              plan
-            } else {
-              val newSource = BatchScanExec(plan.output, plan.scan, newPartitionFilters)
-              TransformHints.tagNotTransformable(newSource)
-              newSource
-            }
-          }
+      val newPartitionFilters: Seq[Expression] = plan.scan match {
+        case scan: FileScan => ExpressionConverter
+            .transformDynamicPruningExpr(scan.partitionFilters)
+        case _ => ExpressionConverter
+            .transformDynamicPruningExpr(plan.runtimeFilters)
+      }
+      val transformer = new BatchScanExecTransformer(plan.output,
+        plan.scan, newPartitionFilters)
+      if (transformer.doValidate()) {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        transformer
+      } else {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+        val newSource = plan.copy(runtimeFilters = newPartitionFilters)
+        TransformHints.tagNotTransformable(newSource)
+        newSource
       }
     case other =>
       throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
