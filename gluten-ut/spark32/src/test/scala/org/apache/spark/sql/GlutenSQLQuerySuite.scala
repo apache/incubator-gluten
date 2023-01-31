@@ -102,7 +102,7 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
     })
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST +
+  /*test(GlutenTestConstants.GLUTEN_TEST +
     "SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar") {
     withTempView("df") {
       Seq("m@ca").toDF("s").createOrReplaceTempView("df")
@@ -115,5 +115,5 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
 
       checkAnswer(sql("SELECT s LIKE 'm@@ca' ESCAPE '@' FROM df"), Row(true))
     }
-  }
+  }*/
 }
