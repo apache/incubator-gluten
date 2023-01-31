@@ -406,8 +406,8 @@ arrow::Status Splitter::Init() {
 arrow::Status Splitter::AllocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
   // if size is already larger than buffer pool size, allocate it directly
   // make size 64byte aligned
-  auto reminder = size & 0x3f;
-  size += (64 - reminder) & ((reminder == 0) - 1);
+  size = round_to_line(size,64);
+
   if (size > SPLIT_BUFFER_SIZE) {
     ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, options_.large_memory_pool.get()));
     return arrow::Status::OK();
@@ -835,10 +835,10 @@ arrow::Status Splitter::SpillFixedSize(int64_t size, int64_t* actual) {
     }
   }else
   {
-    // std::cout << " spill all partitions " << std::endl;
     //spill all partitions into the same file
     ARROW_ASSIGN_OR_RAISE(std::string spilled_file_name, CreateTempShuffleFile(NextSpilledFileDir()));
     spill_file_names_.push_back(spilled_file_name);
+    std::cout << " spill all partitions to " << spilled_file_name << std::endl;
     ARROW_ASSIGN_OR_RAISE(std::shared_ptr<arrow::io::FileOutputStream> spilled_file_os, arrow::io::FileOutputStream::Open(spilled_file_name, true));
     for(int32_t pid=0;pid<num_partitions_;pid++)
     {

@@ -65,32 +65,44 @@ class LargeMemoryPool : public arrow::MemoryPool {
  public:
   constexpr static uint64_t huge_page_size = 1 << 21;
 
-  explicit LargeMemoryPool() {}
+  explicit LargeMemoryPool(int64_t capacity) : capacity_(capacity){}
 
   ~LargeMemoryPool() override = default;
+
+  void SetSpillFunc(std::function<arrow::Status (int64_t, int64_t*)> f_spill) {
+    f_spill_ = f_spill;
+  }
 
   Status Allocate(int64_t size, uint8_t** out) override {
     
     uint64_t alloc_size = size>LARGE_BUFFER_SIZE?size:LARGE_BUFFER_SIZE;
-    alloc_size=round_to_huge_page_size(alloc_size);
+    alloc_size=round_to_line(alloc_size, huge_page_size);
 
+    if (bytes_allocated() + alloc_size > capacity_) {
+      if(f_spill_)
+      {
+        int64_t act_free=0;
+        f_spill_(size,&act_free);
+      }
+      if(bytes_allocated() + alloc_size > capacity_)
+        return Status::OutOfMemory("malloc of size ", size, " failed");
+    }
+
+    
     auto its = std::find_if(buffers_.begin(),buffers_.end(),[size](BufferAllocated& buf){
       return buf.allocated+size<buf.alloc_size;
     });
 
-    BufferAllocated lastalloc;
-
     if(its==buffers_.end())
     {
       uint8_t* alloc_addr;
-      RETURN_NOT_OK(do_alloc(alloc_size,&alloc_addr));
-      lastalloc={alloc_addr,0,0,alloc_size};
-      buffers_.push_back(lastalloc);
-      std::cout << "alloc " << std::hex << alloc_addr << std::dec << " buffer size = " << buffers_.size() << std::endl;
-    }else
-    {
-      lastalloc=*its;
+      RETURN_NOT_OK(do_alloc(alloc_size,&alloc_addr));;
+      buffers_.push_back({alloc_addr,0,0,alloc_size});
+      //std::cout << "alloc " << std::hex << (uint64_t)alloc_addr << std::dec << " buffer size = " << buffers_.size() << std::endl;
+      its=std::prev(buffers_.end());
     }
+
+    BufferAllocated& lastalloc=*its;
 
     *out=lastalloc.start_addr+lastalloc.allocated;
     lastalloc.allocated+=size;
@@ -114,7 +126,7 @@ class LargeMemoryPool : public arrow::MemoryPool {
     {
       do_free(to_free.start_addr, to_free.alloc_size);
       buffers_.erase(its);
-      std::cout << "free " << std::hex << to_free.start_addr << std::dec << " buffer size = " << buffers_.size() << std::endl;
+      //std::cout << "free " << std::hex << (uint64_t)to_free.start_addr << std::dec << " buffer size = " << buffers_.size() << std::endl;
     }
   }
 
@@ -143,9 +155,7 @@ class LargeMemoryPool : public arrow::MemoryPool {
     pool_->Free(buffer, size);
   }
 
-  uint64_t round_to_huge_page_size(uint64_t n) {
-    return n+= huge_page_size - (n & (huge_page_size-1));    
-  }
+
 
 
   struct BufferAllocated{
@@ -157,10 +167,14 @@ class LargeMemoryPool : public arrow::MemoryPool {
 
   std::vector<BufferAllocated> buffers_;
   MemoryPool* pool_ = arrow::default_memory_pool();
+  std::function<arrow::Status (int64_t, int64_t*)> f_spill_=nullptr;
+  uint64_t capacity_;
 };
 
 class LargePageMemoryPool : public LargeMemoryPool
 {
+ public:
+   explicit LargePageMemoryPool(int64_t capacity) : LargeMemoryPool(capacity){}
  protected:
 
   virtual Status do_alloc(int64_t size, uint8_t** out)
@@ -183,18 +197,21 @@ class LargePageMemoryPool : public LargeMemoryPool
 
 class MMapMemoryPool : public LargeMemoryPool
 {
+ public:
+   explicit MMapMemoryPool(int64_t capacity) : LargeMemoryPool(capacity){}
  protected:
   virtual Status do_alloc(int64_t size, uint8_t** out)
   {
     *out = static_cast<uint8_t *>(mmap(
         nullptr, size, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE, -1, 0));
+        MAP_PRIVATE | MAP_ANONYMOUS , -1, 0));
     if (*out == MAP_FAILED) {
-      return arrow::Status::OutOfMemory(" posix_memalign error ");
+      return arrow::Status::OutOfMemory(" mmap error ", size);
     }
     else
     {
-      //madvise(*out, size, MADV_WILLNEED);
+      madvise(*out, size, MADV_HUGEPAGE);
+      madvise(*out, size, MADV_WILLNEED);
       return arrow::Status::OK();
     }
   }
@@ -247,18 +264,22 @@ class BenchmarkShuffleSplit {
     arrow::Compression::type compression_type = (arrow::Compression::type)state.range(1);
 
     std::shared_ptr<arrow::MemoryPool> pool;
+    std::shared_ptr<LargeMemoryPool> lpool;
     if(state.range(2)==0)
     {
       pool = GetDefaultWrappedArrowMemoryPool();
     }else if (state.range(2)==1)
     {
-      pool = std::make_shared<LargeMemoryPool>();
-    }else if (state.range(2)==1)
+      lpool = std::make_shared<LargeMemoryPool>(1LL<<30);
+      pool = lpool;
+    }else if (state.range(2)==2)
     {
-      pool = std::make_shared<LargePageMemoryPool>();
-    }else if (state.range(2)==1)
+      lpool = std::make_shared<LargePageMemoryPool>(1LL<<30);
+      pool = lpool;
+    }else if (state.range(2)==3)
     {
-      pool = std::make_shared<MMapMemoryPool>();
+      lpool = std::make_shared<MMapMemoryPool>(1LL<<30);
+      pool = lpool;
     }
     const int num_partitions = state.range(0);
 
@@ -278,7 +299,7 @@ class BenchmarkShuffleSplit {
     int64_t split_time = 0;
     auto start_time = std::chrono::steady_clock::now();
 
-    Do_Split(splitter, elapse_read, num_batches, num_rows, split_time, num_partitions, options, state);
+    Do_Split(splitter, elapse_read, num_batches, num_rows, split_time, num_partitions, options, state, lpool);
     auto end_time = std::chrono::steady_clock::now();
     auto total_time = (end_time - start_time).count();
 
@@ -350,7 +371,8 @@ class BenchmarkShuffleSplit {
       int64_t& split_time,
       const int num_partitions,
       SplitOptions options,
-      benchmark::State& state) {}
+      benchmark::State& state,
+      std::shared_ptr<LargeMemoryPool>& lpool) {}
 
  protected:
   std::string file_name;
@@ -374,7 +396,8 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
       int64_t& split_time,
       const int num_partitions,
       SplitOptions options,
-      benchmark::State& state) {
+      benchmark::State& state,
+      std::shared_ptr<LargeMemoryPool>& lpool) {
     std::vector<int> local_column_indices;
     // local_column_indices.push_back(0);
     /*    local_column_indices.push_back(0);
@@ -404,7 +427,10 @@ class BenchmarkShuffleSplit_CacheScan_Benchmark : public BenchmarkShuffleSplit {
       std::cout << local_schema->ToString() << std::endl;
 
     GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", local_schema, num_partitions, options));
-
+    if(lpool)
+    {
+      lpool->SetSpillFunc(std::bind(&Splitter::SpillFixedSize,splitter.get(),std::placeholders::_1,std::placeholders::_2));
+    }
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
     std::unique_ptr<::parquet::arrow::FileReader> parquet_reader;
@@ -455,30 +481,23 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
       int64_t& split_time,
       const int num_partitions,
       SplitOptions options,
-      benchmark::State& state) {
+      benchmark::State& state,
+      std::shared_ptr<LargeMemoryPool>& lpool) {
     std::vector<int> local_column_indices;
-    // local_column_indices.push_back(0);
-    /*    local_column_indices.push_back(0);
-        local_column_indices.push_back(1);
-        local_column_indices.push_back(2);
-        local_column_indices.push_back(4);
-        local_column_indices.push_back(5);
-        local_column_indices.push_back(6);
-        local_column_indices.push_back(7);
-    local_column_indices.push_back(8);
-    local_column_indices.push_back(9);
-    local_column_indices.push_back(13);
-    local_column_indices.push_back(14);
-*/
+
     local_column_indices.push_back(1);
+    local_column_indices.push_back(2);
+    local_column_indices.push_back(3);
+    local_column_indices.push_back(4);
+    local_column_indices.push_back(5);
 
     std::shared_ptr<arrow::Schema> local_schema;
     arrow::FieldVector fields;
-/*    fields.push_back(schema->field(8));
-    fields.push_back(schema->field(9));
-    fields.push_back(schema->field(13));
-    fields.push_back(schema->field(14));*/
     fields.push_back(schema->field(1));
+    fields.push_back(schema->field(2));
+    fields.push_back(schema->field(3));
+    fields.push_back(schema->field(4));
+    fields.push_back(schema->field(5));
     local_schema = std::make_shared<arrow::Schema>(fields);
 
 
@@ -486,6 +505,10 @@ class BenchmarkShuffleSplit_IterateScan_Benchmark : public BenchmarkShuffleSplit
       std::cout << local_schema->ToString() << std::endl;
 
     GLUTEN_ASSIGN_OR_THROW(splitter, Splitter::Make("rr", local_schema, num_partitions, std::move(options)));
+    if(lpool)
+    {
+      lpool->SetSpillFunc(std::bind(&Splitter::SpillFixedSize,splitter.get(),std::placeholders::_1,std::placeholders::_2));
+    }
 
     std::shared_ptr<arrow::RecordBatch> record_batch;
 
