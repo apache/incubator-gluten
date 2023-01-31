@@ -9,7 +9,7 @@ ARG BUILD_BACKEND_TYPE
 
 RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false)
 
-RUN GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2"; \
+RUN GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2" \
     && echo $GLUTEN_IT_MAVEN_OPTIONS > ~/.gluten-it-mvn-options;
 
 RUN GLUTEN_IT_MAVEN_OPTIONS=$(cat ~/.gluten-it-mvn-options) \
