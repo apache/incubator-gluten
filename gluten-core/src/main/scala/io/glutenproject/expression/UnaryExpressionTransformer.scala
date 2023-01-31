@@ -146,6 +146,8 @@ object UnaryExpressionTransformer {
         new CheckOverflowTransformer(substraitExprName, child, c)
       case p: PromotePrecision =>
         new PromotePrecisionTransformer(child, p)
+      case extract if extract.isInstanceOf[GetDateField] || extract.isInstanceOf[GetTimeField] =>
+        new ExtractDateTransformer(substraitExprName, child, extract)
       case _ =>
         new UnaryExpressionTransformer(substraitExprName, child, original)
     }
