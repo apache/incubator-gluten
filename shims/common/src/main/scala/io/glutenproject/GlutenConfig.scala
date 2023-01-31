@@ -31,6 +31,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean
 
+  val enableAnsiMode: Boolean =
+    conf.getConfString("spark.sql.ansi.enabled", "false").toBoolean
+
   // This is tmp config to specify whether to enable the native validation based on
   // Substrait plan. After the validations in all backends are correctly implemented,
   // this config should be removed.
