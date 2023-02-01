@@ -276,6 +276,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarBatchScan) {
             TransformHints.tagNotTransformable(plan)
           } else {
+            // IF filter expressions aren't empty, we need to transform the inner operators.
             if (plan.runtimeFilters.nonEmpty) {
               TransformHints.tagTransformable(plan)
             } else {
@@ -288,6 +289,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarFileScan) {
             TransformHints.tagNotTransformable(plan)
           } else {
+            // IF filter expressions aren't empty, we need to transform the inner operators.
             if (plan.partitionFilters.nonEmpty) {
               TransformHints.tagTransformable(plan)
             } else {
