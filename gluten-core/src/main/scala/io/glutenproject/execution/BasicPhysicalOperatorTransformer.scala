@@ -616,6 +616,7 @@ object FilterHandler {
             throw new UnsupportedOperationException(
               s"${batchScan.scan.getClass.toString} is not supported.")
           } else {
+            // IF filter expressions aren't empty, we need to transform the inner operators.
             val newSource = batchScan.copy(runtimeFilters = ExpressionConverter
               .transformDynamicPruningExpr(batchScan.runtimeFilters))
             TransformHints.tagNotTransformable(newSource)
