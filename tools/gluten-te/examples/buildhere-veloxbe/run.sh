@@ -10,4 +10,4 @@ EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                      -Dscalastyle.skip=true \
                      -Dcheckstyle.skip=true"
 
-$BASEDIR/../cbash.sh "cd /opt/gluten && dev/builddeps-veloxbe.sh && mvn clean install $EXTRA_MAVEN_OPTIONS"
+$BASEDIR/../../cbash.sh "cd /opt/gluten && dev/builddeps-veloxbe.sh && mvn clean install $EXTRA_MAVEN_OPTIONS"

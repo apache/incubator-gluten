@@ -1,4 +1,4 @@
-FROM hongzezhang/gluten-buildenv:latest AS gluten-build
+FROM gluten-te/gluten-buildenv:latest AS gluten-build
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 # Whether debug build is enabled
