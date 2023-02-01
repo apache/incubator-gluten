@@ -182,10 +182,12 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
   }
 
   // FIXME: This function should call glutenAllocator_.
-  bool allocateNonContiguous(
+  void allocateNonContiguous(
       MachinePageCount numPages,
-      facebook::velox::memory::MemoryAllocator::Allocation& out,
+      facebook::velox::memory::Allocation& out,
       MachinePageCount minSizeClass) {
+    VELOX_CHECK_GT(numPages, 0);
+
     if (!allocator_.allocateNonContiguous(
             numPages,
             out,
@@ -196,15 +198,14 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
             },
             minSizeClass)) {
       VELOX_CHECK(out.empty());
-      return false;
+      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} pages from {}", __FUNCTION__, numPages, toString()));
     }
     VELOX_CHECK(!out.empty());
     VELOX_CHECK_NULL(out.pool());
     out.setPool(this);
-    return true;
   }
 
-  void freeNonContiguous(facebook::velox::memory::MemoryAllocator::Allocation& allocation) {
+  void freeNonContiguous(facebook::velox::memory::Allocation& allocation) {
     const int64_t freedBytes = allocator_.freeNonContiguous(allocation);
     VELOX_CHECK(allocation.empty());
     if (memoryUsageTracker_ != nullptr) {
@@ -220,24 +221,23 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     return allocator_.sizeClasses();
   }
 
-  bool allocateContiguous(
-      MachinePageCount numPages,
-      facebook::velox::memory::MemoryAllocator::ContiguousAllocation& out) {
+  void allocateContiguous(MachinePageCount numPages, facebook::velox::memory::ContiguousAllocation& out) {
+    VELOX_CHECK_GT(numPages, 0);
+
     if (!allocator_.allocateContiguous(numPages, nullptr, out, [this](int64_t allocBytes, bool preAlloc) {
           if (memoryUsageTracker_) {
             memoryUsageTracker_->update(preAlloc ? allocBytes : -allocBytes);
           }
         })) {
       VELOX_CHECK(out.empty());
-      return false;
+      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} pages from {}", __FUNCTION__, numPages, toString()));
     }
     VELOX_CHECK(!out.empty());
     VELOX_CHECK_NULL(out.pool());
     out.setPool(this);
-    return true;
   }
 
-  void freeContiguous(facebook::velox::memory::MemoryAllocator::ContiguousAllocation& allocation) {
+  void freeContiguous(facebook::velox::memory::ContiguousAllocation& allocation) {
     const int64_t bytesToFree = allocation.size();
     allocator_.freeContiguous(allocation);
     VELOX_CHECK(allocation.empty());
@@ -374,6 +374,11 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     if (memoryUsageTracker_) {
       memoryUsageTracker_->update(-size);
     }
+  }
+
+  std::string toString() const {
+    return fmt::format(
+        "Memory Pool[{} {}]", name_, facebook::velox::memory::MemoryAllocator::kindString(allocator_.kind()));
   }
 
  private:
