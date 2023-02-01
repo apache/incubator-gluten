@@ -238,14 +238,6 @@ object ExpressionConverter extends Logging {
           substraitExprName,
           complex.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
           complex)
-      // Extract date
-      case g: GetDateField =>
-        new ExtractDateTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformer(
-            g.child,
-            attributeSeq),
-          g)
       case getStructField: GetStructField =>
         // Different backends may have different result
         val transformer = BackendsApiManager.getSparkPlanExecApiInstance.

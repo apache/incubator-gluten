@@ -9,16 +9,8 @@ ARG BUILD_BACKEND_TYPE
 
 RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false)
 
-RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
-    then \
-      GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT"; \
-    elif [ "$BUILD_BACKEND_TYPE" == "gazelle-cpp" ]; \
-    then \
-      GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2 -Pgluten-gazellecpp -Darrow.version=8.0.0-gluten-SNAPSHOT"; \
-    else \
-      echo "Unrecognizable backend type: $BUILD_BACKEND_TYPE"; \
-      exit 1; \
-    fi && echo $GLUTEN_IT_MAVEN_OPTIONS > ~/.gluten-it-mvn-options;
+RUN GLUTEN_IT_MAVEN_OPTIONS="-Pspark-3.2" \
+    && echo $GLUTEN_IT_MAVEN_OPTIONS > ~/.gluten-it-mvn-options;
 
 RUN GLUTEN_IT_MAVEN_OPTIONS=$(cat ~/.gluten-it-mvn-options) \
     && cd /opt/gluten/tools/gluten-it \

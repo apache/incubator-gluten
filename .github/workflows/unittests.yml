@@ -70,19 +70,17 @@ jobs:
           cd /opt/gluten/ep/build-velox/src
           ./get_velox.sh && \
           ./build_velox.sh'
-      - name: Build Gluten for Spark3.2
+      - name: Build Gluten CPP library
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j && \
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DskipTests'
-      - name: Run Unit Test for Spark3.2
+          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
+      - name: Run unit test for Spark3.2
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/opt/spark322"'
-      - name: Run Cpp Unit test
+      - name: Run CPP unit test
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
           ctest -V'
@@ -91,22 +89,22 @@ jobs:
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build/velox/benchmarks && \
           ./generic_benchmark --threads 1 --iterations 1'
-      - name: Run Unit Test for Spark3.3
-        run: |
-          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Pspark-ut'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.2
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.2 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
+          mvn clean package -Pspark-3.2 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
+      - name: Run unit test for Spark3.3
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Pspark-ut'
       - name: TPC-H SF1.0 && TPC-DS SF0.1 Parquet local spark3.3
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean package -Pspark-3.3 -Pgluten-velox -Darrow.version=10.0.0-SNAPSHOT \
+          mvn clean package -Pspark-3.3 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 --use-existing-data \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
@@ -157,6 +155,17 @@ jobs:
           popd
           export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
           mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so -DargLine="-Dspark.test.home=/tmp/spark"
+      - name: Run Gluten + ClickHouse Backend unit tests with Spark 3.3
+        run: |
+          pushd /tmp
+          if [ -d "/tmp/spark" ]
+          then
+            rm -rf /tmp/spark
+          fi
+          git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git
+          popd
+          export MAVEN_OPTS="-Xmx5g -XX:ReservedCodeCacheSize=1g"
+          mvn clean install -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut -Dtpcds.data.path=/home/changchen/tpcds-sf1-data -Dclickhouse.lib.path=/tmp/libch.so -DargLine="-Dspark.test.home=/tmp/spark"
 
   formatting-check:
     name: Formatting Check

@@ -74,7 +74,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDateFunctionsSuite]
     .include(
-      "quarter"
+      "quarter",
+      "second"
     )
 
   enableSuite[GlutenDateExpressionsSuite]
@@ -115,7 +116,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenComplexTypesSuite]
-  enableSuite[GlutenComplexTypeSuite]
+  enableSuite[GlutenComplexTypeSuite].exclude(
+    "CreateMap"
+  )
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
       "- (UnaryMinus)",

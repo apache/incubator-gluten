@@ -25,7 +25,7 @@ object ClickHouseConfig {
   // MergeTree DataSource name
   val NAME = "clickhouse"
   val ALT_NAME = "clickhouse"
-  val METADATA_DIR = "_metadata_log"
+  val METADATA_DIR = "_delta_log"
   val DEFAULT_ENGINE = "MergeTree"
 
   // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
