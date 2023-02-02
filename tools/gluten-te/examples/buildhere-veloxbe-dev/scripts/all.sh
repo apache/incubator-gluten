@@ -25,6 +25,8 @@ service ssh restart
 echo -e "123\n123" | passwd
 
 # Install IDEs
+apt-get update
+apt-get -y -q --no-install-recommends install libgbm-dev libxkbcommon-dev
 mkdir -p /opt/ide
 cd /opt/ide
 wget https://download.jetbrains.com/idea/ideaIC-2022.3.2.tar.gz

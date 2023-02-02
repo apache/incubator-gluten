@@ -15,7 +15,7 @@ export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
 export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
 
 cd gluten/
-tools/gluten-te/examples/buildhere-veloxbe.sh
+tools/gluten-te/examples/buildhere-veloxbe/run.sh
 ```
 
 # Getting Started (TPC, Velox backend)
@@ -40,7 +40,7 @@ See the [config file](https://github.com/oap-project/gluten/blob/main/tools/glut
 
 ```
 cd gluten/
-{PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe.sh
+{PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe/run.sh
 ```
 
 ## Example: Build local Gluten code behind a http proxy (Velox backend)
@@ -49,7 +49,7 @@ cd gluten/
 cd gluten/
 HTTP_PROXY_HOST=myproxy.example.com \
 HTTP_PROXY_PORT=55555 \
-{PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe.sh
+{PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe/run.sh
 ```
 
 ## Example: Run specific maven commands
