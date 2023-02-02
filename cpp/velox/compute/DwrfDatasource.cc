@@ -94,7 +94,7 @@ void DwrfDatasource::Init(const std::unordered_map<std::string, std::string>& sp
 }
 
 std::shared_ptr<arrow::Schema> DwrfDatasource::InspectSchema() {
-  dwio::common::ReaderOptions reader_options;
+  dwio::common::ReaderOptions reader_options{pool_};
   auto format = dwio::common::FileFormat::DWRF; // DWRF
   reader_options.setFileFormat(format);
 

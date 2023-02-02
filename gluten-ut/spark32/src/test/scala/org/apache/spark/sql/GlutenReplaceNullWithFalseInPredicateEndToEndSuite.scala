@@ -17,5 +17,6 @@
 
 package org.apache.spark.sql
 
-class GlutenIntervalFunctionsSuite extends IntervalFunctionsSuite with GlutenSQLTestsTrait {
+class GlutenReplaceNullWithFalseInPredicateEndToEndSuite
+  extends ReplaceNullWithFalseInPredicateEndToEndSuite with GlutenSQLTestsTrait {
 }

@@ -179,4 +179,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeByPrefix(
       "SPARK-29100"
     )
+
+  enableSuite[GlutenColumnExpressionSuite]
+    .include(
+      "IN/INSET with bytes, shorts, ints, dates"
+    )
 }

@@ -276,24 +276,34 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           if (!enableColumnarBatchScan) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = new BatchScanExecTransformer(plan.output, plan.scan,
-              plan.runtimeFilters)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            // IF filter expressions aren't empty, we need to transform the inner operators.
+            if (plan.runtimeFilters.nonEmpty) {
+              TransformHints.tagTransformable(plan)
+            } else {
+              val transformer = new BatchScanExecTransformer(plan.output, plan.scan,
+                plan.runtimeFilters)
+              TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            }
           }
         case plan: FileSourceScanExec =>
           if (!enableColumnarFileScan) {
             TransformHints.tagNotTransformable(plan)
           } else {
-            val transformer = new FileSourceScanExecTransformer(plan.relation,
-              plan.output,
-              plan.requiredSchema,
-              plan.partitionFilters,
-              plan.optionalBucketSet,
-              plan.optionalNumCoalescedBuckets,
-              plan.dataFilters,
-              plan.tableIdentifier,
-              plan.disableBucketedScan)
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            // IF filter expressions aren't empty, we need to transform the inner operators.
+            if (plan.partitionFilters.nonEmpty) {
+              TransformHints.tagTransformable(plan)
+            } else {
+              val transformer = new FileSourceScanExecTransformer(plan.relation,
+                plan.output,
+                plan.requiredSchema,
+                plan.partitionFilters,
+                plan.optionalBucketSet,
+                plan.optionalNumCoalescedBuckets,
+                plan.dataFilters,
+                plan.tableIdentifier,
+                plan.disableBucketedScan)
+              TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            }
           }
         case plan: InMemoryTableScanExec =>
           // ColumnarInMemoryTableScanExec.scala appears to be out-of-date

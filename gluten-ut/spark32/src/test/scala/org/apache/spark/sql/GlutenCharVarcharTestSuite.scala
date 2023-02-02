@@ -17,5 +17,10 @@
 
 package org.apache.spark.sql
 
-class GlutenIntervalFunctionsSuite extends IntervalFunctionsSuite with GlutenSQLTestsTrait {
+class GlutenFileSourceCharVarcharTestSuite extends FileSourceCharVarcharTestSuite
+  with GlutenSQLTestsTrait {
+}
+
+class GlutenDSV2CharVarcharTestSuite extends DSV2CharVarcharTestSuite
+  with GlutenSQLTestsTrait {
 }
