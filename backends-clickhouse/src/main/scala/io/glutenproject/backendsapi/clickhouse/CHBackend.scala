@@ -18,11 +18,17 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
+import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, ParquetReadFormat}
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Expression, Lag, Lead, NamedExpression, Rank, RowNumber, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, StructField}
+import org.apache.spark.sql.types.StructField
+
+import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
@@ -34,7 +40,7 @@ class CHBackend extends Backend {
   override def settings(): BackendSettings = CHBackendSettings
 }
 
-object CHBackendSettings extends BackendSettings {
+object CHBackendSettings extends BackendSettings with Logging {
 
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
@@ -73,7 +79,25 @@ object CHBackendSettings extends BackendSettings {
     GlutenConfig.getSessionConf.enableColumnarSort
   }
 
-  override def supportWindowExec(): Boolean = true
+  override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
+    var allSupported = true
+    breakable {
+      windowFunctions.foreach(
+        func => {
+          val aliasExpr = func.asInstanceOf[Alias]
+          val wExpression = WindowFunctionsBuilder.extractWindowExpression(aliasExpr.child)
+          wExpression.windowFunction match {
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: Lead | _: Lag |
+                _: DenseRank =>
+              allSupported = allSupported && true
+            case _ =>
+              allSupported = false
+              break
+          }
+        })
+    }
+    allSupported
+  }
 
   override def supportStructType(): Boolean = true
 
