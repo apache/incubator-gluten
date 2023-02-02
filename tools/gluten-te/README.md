@@ -38,44 +38,61 @@ See the [config file](https://github.com/oap-project/gluten/blob/main/tools/glut
 
 ## Example: Build local Gluten code (Velox backend)
 
-```
+```sh
 cd gluten/
 {PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe/run.sh
 ```
 
 ## Example: Build local Gluten code behind a http proxy (Velox backend)
 
-```
+```sh
+export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
+export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
+
 cd gluten/
-HTTP_PROXY_HOST=myproxy.example.com \
-HTTP_PROXY_PORT=55555 \
 {PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe/run.sh
 ```
 
 ## Example: Run specific maven commands
 
-```
+```sh
 cd gluten/
+{PATH_TO_GLUTEN_TE}/cbash.sh mvn clean dependency:tree
+```
 
-# To use cmvn.sh as the containerized "mvn" alias
-# For example, here we display the maven dependency tree
-{PATH_TO_GLUTEN_TE}/cmvn.sh clean dependency:tree
+## Example: Run GUI-based IDEs
+
+```sh
+export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
+export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
+
+cd gluten/
+{PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe-dev/run.sh
+
+# In a new shell, run below commands to setup a X11-enabled ssh connection (default password: 123). 
+# {DOCKER_CONTAINER_IP} can be found via "docker ps" and "docker inspect",
+# or by checking "ifconfig" results inside the container's shell 
+ssh -X root@{DOCKER_CONTAINER_IP}
 ```
 
 ## Example: Build and run TPC benchmark on non-default remote branches of Gluten (Velox backend)
 
 ```sh
-TARGET_GLUTEN_REPO=my_repoh \
+export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
+export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
+
+TARGET_GLUTEN_REPO=my_repo \
 TARGET_GLUTEN_BRANCH=my_branch \
-./tpc.sh
+{PATH_TO_GLUTEN_TE}/tpc.sh
 ```
 
 ## Example: Build and run TPC benchmark on official latest code behind a http proxy (Velox backend)
 
 ```sh
-HTTP_PROXY_HOST=myproxy.example.com \
-HTTP_PROXY_PORT=55555 \
-./tpc.sh
+export HTTP_PROXY_HOST=myproxy.example.com # in case you are behind http proxy
+export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
+
+{PATH_TO_GLUTEN_TE}/tpc.sh
 ```
 
 ## Example: Create debug build for all codes, and open a GDB debugger interface during running gluten-it (Velox backend)
@@ -83,5 +100,5 @@ HTTP_PROXY_PORT=55555 \
 ```sh
 DEBUG_BUILD=ON \
 RUN_GDB=ON \
-./tpc.sh
+{PATH_TO_GLUTEN_TE}/tpc.sh
 ```
