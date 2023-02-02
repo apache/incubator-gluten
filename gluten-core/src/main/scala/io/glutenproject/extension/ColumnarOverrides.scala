@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -119,22 +119,9 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
     }
     plan match {
       case plan: BatchScanExec =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        val newPartitionFilters =
-          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters)
-        new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
+        applyScanTransformer(plan)
       case plan: FileSourceScanExec =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        new FileSourceScanExecTransformer(
-          plan.relation,
-          plan.output,
-          plan.requiredSchema,
-          ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters),
-          plan.optionalBucketSet,
-          plan.optionalNumCoalescedBuckets,
-          plan.dataFilters,
-          plan.tableIdentifier,
-          plan.disableBucketedScan)
+        applyScanTransformer(plan)
       case plan: CoalesceExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         CoalesceExecTransformer(
@@ -328,6 +315,58 @@ case class TransformPreOverrides() extends Rule[SparkPlan] {
       case RightOuter => BuildLeft
       case _ => plan.buildSide
     }
+  }
+
+  /**
+   * Apply scan transformer for file source and batch source,
+   * 1. create new filter and scan transformer,
+   * 2. validate, tag new scan as unsupported if failed,
+   * 3. return new source.
+   */
+  def applyScanTransformer(plan: SparkPlan): SparkPlan = plan match {
+    case plan: FileSourceScanExec =>
+      val newPartitionFilters = {
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters)
+      }
+      val transformer = new FileSourceScanExecTransformer(
+        plan.relation,
+        plan.output,
+        plan.requiredSchema,
+        newPartitionFilters,
+        plan.optionalBucketSet,
+        plan.optionalNumCoalescedBuckets,
+        plan.dataFilters,
+        plan.tableIdentifier,
+        plan.disableBucketedScan)
+      if (transformer.doValidate()) {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        transformer
+      } else {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+        val newSource = plan.copy(partitionFilters = newPartitionFilters)
+        TransformHints.tagNotTransformable(newSource)
+        newSource
+      }
+    case plan: BatchScanExec =>
+      val newPartitionFilters: Seq[Expression] = plan.scan match {
+        case scan: FileScan => ExpressionConverter
+            .transformDynamicPruningExpr(scan.partitionFilters)
+        case _ => ExpressionConverter
+            .transformDynamicPruningExpr(plan.runtimeFilters)
+      }
+      val transformer = new BatchScanExecTransformer(plan.output,
+        plan.scan, newPartitionFilters)
+      if (transformer.doValidate()) {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        transformer
+      } else {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+        val newSource = plan.copy(runtimeFilters = newPartitionFilters)
+        TransformHints.tagNotTransformable(newSource)
+        newSource
+      }
+    case other =>
+      throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
   }
 
   def apply(plan: SparkPlan): SparkPlan = {

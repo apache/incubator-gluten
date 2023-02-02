@@ -18,7 +18,6 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
-
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
@@ -90,10 +89,10 @@ class VeloxTestSettings extends BackendTestSettings {
       "replace nan with double"
     )
 
-  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
-    // struct join key not supported, fell-back to Vanilla join
-    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
-  )
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
