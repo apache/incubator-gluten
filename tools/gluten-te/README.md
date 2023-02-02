@@ -69,7 +69,9 @@ export HTTP_PROXY_PORT=55555 # in case you are behind http proxy
 cd gluten/
 {PATH_TO_GLUTEN_TE}/examples/buildhere-veloxbe-dev/run.sh
 
-# In a new shell, run below commands to setup a X11-enabled ssh connection (default password: 123). 
+# In a new host shell, run below command to setup a X11-enabled ssh
+# connection (default password: 123). 
+#
 # {DOCKER_CONTAINER_IP} can be found via "docker ps" and "docker inspect",
 # or by checking "ifconfig" results inside the container's shell 
 ssh -X root@{DOCKER_CONTAINER_IP}
