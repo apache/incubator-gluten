@@ -43,24 +43,6 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
 
-#### Parameters for compile.sh.
-Please set them via `--`, e.g., `--arrow_root=/YOUR/PATH`.
-
-| Parameters | Description | Default value |
-| ---------- | ----------- | ------------- |
-| arrow_root | path of arrow lib           | /path_to_gluten/ep/build-arrow/build/arrow_install |
-| velox_home | path of velox lib           | /path_to_gluten/ep/build-velox/build/velox_ep |
-| build_type | Gluten cpp build type, CMAKE_BUILD_TYPE  | Release |
-| build_gazelle_cpp_backend | build gazelle-cpp in cpp folder | OFF |
-| build_velox_backend | build velox in cpp folder | OFF |
-| build_test | build test code in cpp folder      | OFF |
-| build_benchmarks | build benchmark code in cpp folder | OFF |
-| build_jemalloc   | build with jemalloc | ON |
-| enable_hbm | enable HBM allocator      | OFF|
-| build_protobuf | build protobuf lib    | OFF|
-| enable_s3   | build with s3 lib        | OFF|
-| enable_hdfs | build with hdfs lib      | OFF|
-
 #### Maven building parameters
 To build different backends, there are 3 parameters can be set via `-P` for mvn.
 

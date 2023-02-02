@@ -78,7 +78,10 @@ cd /path_to_gluten/ep/build-velox/src/
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
-./compile.sh --build_velox_backend=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON ..
+make -j
 
 # You can also use CMAKE command to compile
 # cd /path_to_gluten/cpp
@@ -106,7 +109,10 @@ cd /path_to_gluten/ep/build_velox/src
 
 step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
-./compile.sh --velox_home=/your_specified_velox_path
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DVELOX_HOME=/your_specified_velox_path ..
+make -j
 
 step 3: package jar
 cd /path_to_gluten
@@ -127,9 +133,12 @@ step 1: set ARROW_SOURCE_DIR in build_arrow_for_velox.sh and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./build_arrow_for_velox.sh
 
-step 2: set ARROW_ROOT in compile.sh or run with --arrow_root
+step 2: set ARROW_ROOT
 cd /path_to_gluten/cpp
-sh ./compile.sh --arrow_root=/your_arrow_lib
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DARROW_ROOT=/your_arrow_lib ..
+make -j
 
 step 3: package jar
 cd /path_to_gluten
@@ -153,7 +162,10 @@ cd /path_to_gluten/ep/build-velox/src
 ./build_velox.sh --enable_hdfs=ON
 
 cd /path_to_gluten/cpp
-./compile.sh --enable_hdfs=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HDFS=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
@@ -257,7 +269,10 @@ cd /path_to_gluten/ep/build-velox/src/
 ./build_velox.sh --enable_s3=ON
 
 cd /path_to_gluten/cpp
-./compile.sh --enable_s3=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
@@ -298,7 +313,10 @@ Gluten supports allocating memory on HBM. This feature is optional and is disabl
 To enable this feature in Gluten, users can. Below command is used to enable this feature.
 ```
 cd /path_to_gluten/cpp
-./compile.sh --enable_hbm
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HBM=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
