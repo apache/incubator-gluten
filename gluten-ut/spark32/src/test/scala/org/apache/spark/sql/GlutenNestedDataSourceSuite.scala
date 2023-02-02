@@ -17,5 +17,8 @@
 
 package org.apache.spark.sql
 
-class GlutenIntervalFunctionsSuite extends IntervalFunctionsSuite with GlutenSQLTestsTrait {
+class GlutenNestedDataSourceV1Suite extends NestedDataSourceV1Suite with GlutenSQLTestsTrait {
+}
+
+class GlutenNestedDataSourceV2Suite extends NestedDataSourceV2Suite with GlutenSQLTestsTrait {
 }

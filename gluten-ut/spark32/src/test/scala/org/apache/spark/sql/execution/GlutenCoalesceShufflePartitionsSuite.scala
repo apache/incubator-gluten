@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql
+package org.apache.spark.sql.execution
 
-class GlutenIntervalFunctionsSuite extends IntervalFunctionsSuite with GlutenSQLTestsTrait {
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+
+class GlutenCoalesceShufflePartitionsSuite extends CoalesceShufflePartitionsSuite
+  with GlutenSQLTestsBaseTrait {
 }
