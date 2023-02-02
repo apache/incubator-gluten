@@ -1,4 +1,4 @@
-FROM hongzezhang/gluten-build:latest AS gluten-tpc
+FROM gluten-te/gluten-build:latest AS gluten-tpc
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-c"]
