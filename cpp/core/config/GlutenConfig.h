@@ -17,10 +17,13 @@
 
 #pragma once
 
+#include <jni.h>
 #include <string>
 
 namespace gluten {
 const std::string kGlutenSaveDir = "spark.gluten.saveDir";
+
+const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
 std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
 } // namespace gluten

@@ -230,12 +230,16 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]
-    .include("Do not use cache on append")
-    .includeByPrefix("SPARK-23072")
-   // To Fix
-  // SPARK-22790
-  // SPARK-25237
-  // Return correct results when data columns overlap with partition columns
+    // test data path is jar path, rewrite
+    .exclude("Option recursiveFileLookup: disable partition inferring")
+    // gluten executor exception cannot get in driver, rewrite
+    .exclude("Spark native readers should respect spark.sql.caseSensitive - parquet")
+    // shuffle_partitions config is different, rewrite
+    .excludeByPrefix("SPARK-22790")
+    // plan is different cause metric is different, rewrite
+    .excludeByPrefix("SPARK-25237")
+    // ignoreMissingFiles mode, wait to fix
+    .exclude("Enabling/disabling ignoreMissingFiles using parquet")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")

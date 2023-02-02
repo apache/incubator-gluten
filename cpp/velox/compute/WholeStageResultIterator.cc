@@ -1,10 +1,13 @@
 #include "WholeStageResultIterator.h"
+#include "config/GlutenConfig.h"
 #include "velox/connectors/hive/FileHandle.h"
+#include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 
 using namespace facebook;
+using namespace facebook::velox;
 
 namespace gluten {
 
@@ -19,13 +22,17 @@ const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 std::atomic<int32_t> taskSerial;
 } // namespace
 
-std::shared_ptr<velox::core::QueryCtx> createNewVeloxQueryCtx(velox::memory::MemoryPool* memoryPool) {
+std::shared_ptr<velox::core::QueryCtx> createNewVeloxQueryCtx(
+    std::shared_ptr<velox::Config> connectorConfig,
+    velox::memory::MemoryPool* memoryPool) {
   std::shared_ptr<velox::memory::MemoryPool> ctxRoot = memoryPool->addChild("ctx_root");
   ctxRoot->setMemoryUsageTracker(velox::memory::MemoryUsageTracker::create());
+  std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
+  connectorConfigs[kHiveConnectorId] = connectorConfig;
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
       std::make_shared<velox::core::MemConfig>(),
-      std::unordered_map<std::string, std::shared_ptr<velox::Config>>(),
+      connectorConfigs,
       velox::memory::MemoryAllocator::getInstance(),
       std::move(ctxRoot),
       nullptr,
@@ -179,6 +186,15 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
+std::shared_ptr<velox::Config> WholeStageResultIterator::getConnectorConfig() {
+  std::unordered_map<std::string, std::string> configs = {};
+  auto got = confMap_.find(kCaseSensitive);
+  if (got != confMap_.end()) {
+    configs[velox::connector::hive::HiveConfig::kCaseSensitive] = got->second;
+  }
+  return std::make_shared<velox::core::MemConfig>(configs);
+}
+
 WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
@@ -225,7 +241,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
 
   // Set task parameters.
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1};
-  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getPool());
+  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getConnectorConfig(), getPool());
 
   // Set customized confs to query context.
   setConfToQueryContext(queryCtx);
@@ -279,6 +295,9 @@ WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::st
       throw std::runtime_error("No value found for partition key: " + partitionColumn + " in path: " + filePath);
     }
     std::string partitionValue = latterPart.substr(0, pos);
+    if (!folly::to<bool>(confMap_[kCaseSensitive])) {
+      folly::toLowerAscii(partitionColumn);
+    }
     if (partitionValue == kHiveDefaultPartition) {
       partitionKeys[partitionColumn] = std::nullopt;
     } else {
@@ -299,7 +318,7 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
     const std::unordered_map<std::string, std::string>& confMap)
     : WholeStageResultIterator(pool, planNode, confMap), streamIds_(streamIds) {
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1};
-  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getPool());
+  std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx(getConnectorConfig(), getPool());
   // Set customized confs to query context.
   setConfToQueryContext(queryCtx);
 
