@@ -223,7 +223,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenXPathFunctionsSuite]
-  // enableSuite[GlutenFileBasedDataSourceSuite]
+  enableSuite[GlutenFileBasedDataSourceSuite]
+    .include("Do not use cache on append")
   enableSuite[GlutenEnsureRequirementsSuite]
     .exclude("SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection")
   // enableSuite[GlutenCoalesceShufflePartitionsSuite]

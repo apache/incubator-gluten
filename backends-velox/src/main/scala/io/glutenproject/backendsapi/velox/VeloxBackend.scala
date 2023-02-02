@@ -38,7 +38,7 @@ class VeloxBackend extends Backend {
 
 object VeloxBackendSettings extends BackendSettings {
   override def supportFileFormatRead(): FileFormat => Boolean = {
-    case _ : ParquetFileFormat | _ : OrcFileFormat | _ : DwrfFileFormat => true
+    case _ : ParquetFileFormat  | _ : DwrfFileFormat => true
     case _ => false
   }
   override def supportExpandExec(): Boolean = true
