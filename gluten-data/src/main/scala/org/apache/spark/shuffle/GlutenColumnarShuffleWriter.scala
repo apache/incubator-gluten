@@ -116,10 +116,10 @@ class GlutenColumnarShuffleWriter[K, V](
                   "evaluator is created. This behavior should be optimized by moving memory " +
                   "allocations from make() to split()")
               }
-              logDebug(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+              logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
               // fixme pass true when being called by self
               val spilled = jniWrapper.nativeSpill(nativeSplitter, size, false)
-              logDebug(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+              logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
               spilled
             }
           }).getNativeInstanceId,
