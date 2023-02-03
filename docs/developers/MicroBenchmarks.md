@@ -27,7 +27,10 @@ cd /path_to_gluten/ep/build-velox/src
 
 # set BUILD_TESTS and BUILD_BENCHMARKS = ON in gluten cpp compile shell
 cd /path_to_gluten/cpp
-./compile.sh --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON ..
+make -j
 
 # Build gluten. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3
 cd /path_to_gluten
@@ -99,7 +102,11 @@ InputFromBatchVector/iterations:1/process_time/real_time/threads:1   41304520 ns
 Build the gluten debug version.
 
 ```shell
-cd /path_to_gluten/cpp/compile.sh --build_velox_backend=ON --build_benchmarks=ON --build_type=RelWithDebInfo
+cd /path_to_gluten/cpp/
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+make -j
 ```
 Run the query by spark-shell, and get the Stage Id from spark UI.
 Get the substrait plan from console output.
