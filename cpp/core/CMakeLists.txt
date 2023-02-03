@@ -168,6 +168,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         jni/JniWrapper.cc
         compute/Backend.cc
         compute/ResultIterator.cc
+        config/GlutenConfig.cc
         memory/MemoryAllocator.cc
         memory/ArrowMemoryPool.cc
         ${PROTO_SRCS}

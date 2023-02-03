@@ -16,9 +16,14 @@
  */
 package io.glutenproject
 
+import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.internal.SQLConf
 
+import com.google.common.collect.ImmutableList
+
+import java.util
 import java.util.Locale
 
 case class GlutenNumaBindingInfo(
@@ -310,5 +315,76 @@ object GlutenConfig {
     } else {
       System.getProperty("java.io.tmpdir")
     }
+  }
+
+  def getNativeSessionConf(): util.Map[String, String] = {
+    val nativeConfMap = new util.HashMap[String, String]()
+    val conf = SQLConf.get
+    val keys = ImmutableList.of(
+      GLUTEN_SAVE_DIR
+    )
+    keys.forEach(
+      k => {
+        if (conf.contains(k)) {
+          nativeConfMap.put(k, conf.getConfString(k))
+        }
+      })
+
+    val keyWithDefault = ImmutableList.of(
+      (SQLConf.ARROW_EXECUTION_MAX_RECORDS_PER_BATCH.key, "32768")
+    )
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getConfString(e._1, e._2)))
+
+    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      nativeConfMap.put(
+        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
+        JavaUtils
+          .byteStringAsBytes(conf.getConfString(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY))
+          .toString)
+    }
+    nativeConfMap
+  }
+
+  def getNativeStaticConf(conf: SparkConf, backendsPrefix: String): util.Map[String, String] = {
+    val nativeConfMap = new util.HashMap[String, String]()
+    val keys = ImmutableList.of(
+      // DWRF datasource config
+      SPARK_HIVE_EXEC_ORC_STRIPE_SIZE,
+      SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE,
+      SPARK_HIVE_EXEC_ORC_COMPRESS
+      // DWRF datasource config end
+    )
+    keys.forEach(
+      k => {
+        if (conf.contains(k)) {
+          nativeConfMap.put(k, conf.get(k))
+        }
+      })
+
+    val keyWithDefault = ImmutableList.of(
+      (SPARK_HDFS_URI, "hdfs://localhost:9000"),
+      (SPARK_S3_ACCESS_KEY, "minio"),
+      (SPARK_S3_SECRET_KEY, "miniopass"),
+      (SPARK_S3_ENDPOINT, "localhost:9000"),
+      (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
+      (SPARK_S3_PATH_STYLE_ACCESS, "true"),
+      (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false")
+    )
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.get(e._1, e._2)))
+    // velox cache and HiveConnector config
+    conf.getAll
+      .filter(_._1.startsWith(backendsPrefix))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // for further use
+    if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      nativeConfMap.put(
+        GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY,
+        JavaUtils
+          .byteStringAsBytes(conf.get(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY))
+          .toString)
+    }
+
+    nativeConfMap
   }
 }

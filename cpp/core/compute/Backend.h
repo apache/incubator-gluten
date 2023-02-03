@@ -36,7 +36,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual std::shared_ptr<ResultIterator> GetResultIterator(
       MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<ResultIterator>> inputs = {}) = 0;
+      std::vector<std::shared_ptr<ResultIterator>> inputs = {},
+      std::unordered_map<std::string, std::string> sessionConf = {}) = 0;
 
   bool ParsePlan(const uint8_t* data, int32_t size) {
     return ParsePlan(data, size, -1, -1, -1);
@@ -61,10 +62,6 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   const ::substrait::Plan& GetPlan() const {
     return plan_;
-  }
-
-  std::unordered_map<std::string, std::string> GetConf() const {
-    return confMap_;
   }
 
   /// This function is used to create certain converter from the format used by
@@ -93,6 +90,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
  protected:
   ::substrait::Plan plan_;
+  // static conf map
   std::unordered_map<std::string, std::string> confMap_;
 };
 

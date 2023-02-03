@@ -33,7 +33,8 @@ class ArrowBackend final : public Backend {
 
   std::shared_ptr<gluten::ResultIterator> GetResultIterator(
       gluten::MemoryAllocator* allocator,
-      std::vector<std::shared_ptr<gluten::ResultIterator>> inputs = {}) override;
+      std::vector<std::shared_ptr<gluten::ResultIterator>> inputs = {},
+      std::unordered_map<std::string, std::string> sessionConf = {}) override;
 
   std::shared_ptr<arrow::Schema> GetOutputSchema() override;
 

@@ -17,7 +17,6 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.GlutenPlugin.buildNativeConfNode
 import io.glutenproject.backendsapi.IInitializerApi
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
@@ -36,6 +35,6 @@ class CHInitializerApi extends IInitializerApi {
     // Path based load. Ignore all other loadees.
     JniLibLoader.loadFromPath(libPath, true)
     val initKernel = new CHNativeExpressionEvaluator()
-    initKernel.initNative(buildNativeConfNode(conf).toProtobuf.toByteArray)
+    initKernel.initNative(conf)
   }
 }
