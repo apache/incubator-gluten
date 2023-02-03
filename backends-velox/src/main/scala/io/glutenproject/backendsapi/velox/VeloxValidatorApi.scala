@@ -16,17 +16,16 @@
  */
 
 package io.glutenproject.backendsapi.velox
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.glutendata.GlutenValidatorApi
 import io.glutenproject.utils.VeloxExpressionUtil
+
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 
 class VeloxValidatorApi extends GlutenValidatorApi {
 
-  override def doExprValidate(substraitExprName: String, expr: Expression): Boolean = {
+  override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
     doExprValidate(VeloxExpressionUtil.VELOX_EXPR_BLACKLIST, substraitExprName, expr)
-  }
 
   override def doAggregateFunctionValidate(substraitFuncName: String,
     func: AggregateFunction): Boolean = doAggregateFunctionValidate(

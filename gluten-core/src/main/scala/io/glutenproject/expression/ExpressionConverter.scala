@@ -37,7 +37,7 @@ object ExpressionConverter extends Logging {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     // Check whether each backend supports this expression
-    if (GlutenConfig.getSessionConf.enableAnsiMode &&
+    if (GlutenConfig.getSessionConf.enableAnsiMode ||
         !BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
