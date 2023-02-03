@@ -207,7 +207,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
-    .exclude("special floating point values")
   enableSuite[GlutenDatasetSuite]
     .exclude("typed aggregation: expr, expr, expr, expr, expr")
     .exclude("typed aggregation: expr, expr, expr, expr, expr, expr")
