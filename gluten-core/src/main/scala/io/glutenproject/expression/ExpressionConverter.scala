@@ -17,9 +17,9 @@
 
 package io.glutenproject.expression
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{GlutenColumnarToRowExecBase, WholeStageTransformerExec}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
@@ -37,7 +37,8 @@ object ExpressionConverter extends Logging {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     // Check whether each backend supports this expression
-    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
+    if (GlutenConfig.getSessionConf.enableAnsiMode &&
+        !BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     expr match {

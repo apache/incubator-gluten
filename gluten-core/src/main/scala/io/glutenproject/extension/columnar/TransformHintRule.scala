@@ -119,9 +119,7 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
 
 case class FallbackOnANSIMode() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    val ansiMode = GlutenConfig.getSessionConf.enableAnsiMode
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-        GlutenConfig.GLUTEN_VELOX_BACKEND) && ansiMode) {
+    if (GlutenConfig.getSessionConf.enableAnsiMode) {
       plan.foreach(TransformHints.tagNotTransformable)
     }
     plan

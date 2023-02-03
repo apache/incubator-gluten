@@ -25,9 +25,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 class VeloxValidatorApi extends GlutenValidatorApi {
 
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean = {
-    if (GlutenConfig.getSessionConf.enableAnsiMode) {
-      return false
-    }
     doExprValidate(VeloxExpressionUtil.VELOX_EXPR_BLACKLIST, substraitExprName, expr)
   }
 
