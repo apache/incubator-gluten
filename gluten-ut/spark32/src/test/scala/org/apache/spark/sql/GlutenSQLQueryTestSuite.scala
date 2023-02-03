@@ -341,7 +341,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "postgreSQL/float4.sql",
     "postgreSQL/insert.sql",
     "postgreSQL/int2.sql",
-//    "postgreSQL/int4.sql",
+    "postgreSQL/int4.sql",
     "postgreSQL/int8.sql",
     "postgreSQL/interval.sql",
     "postgreSQL/join.sql",
