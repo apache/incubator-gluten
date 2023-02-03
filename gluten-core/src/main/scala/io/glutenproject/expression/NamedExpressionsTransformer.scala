@@ -51,7 +51,7 @@ class AliasTransformer(substraitExprName: String,
   extends AliasBaseTransformer(substraitExprName, child, original) {
 }
 
-class AttributeReferenceTransformer(name: String,
+case class AttributeReferenceTransformer(name: String,
                                     ordinal: Int,
                                     dataType: DataType,
                                     nullable: Boolean = true,

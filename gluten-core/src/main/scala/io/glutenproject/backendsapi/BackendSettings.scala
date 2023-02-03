@@ -24,6 +24,7 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 trait BackendSettings {
   def supportFileFormatRead: FileFormat => Boolean = _ => false
   def supportExpandExec(): Boolean = false
+  def needProjectExpandOutput: Boolean = false
   def supportSortExec(): Boolean = false
   def supportWindowExec(): Boolean = false
   def supportColumnarShuffleExec(): Boolean = {

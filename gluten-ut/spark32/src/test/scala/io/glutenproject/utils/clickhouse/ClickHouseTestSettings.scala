@@ -163,9 +163,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Correlated subqueries in LATERAL VIEW",
       "NOT EXISTS predicate subquery",
       "NOT IN predicate subquery",
-      "correlated scalar subquery in where",
-      "disjunctive correlated scalar subquery",
-      ""
+      "disjunctive correlated scalar subquery"
     )
 
   enableSuite[GlutenDataFramePivotSuite]

@@ -306,6 +306,11 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
               ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+          case r2c: RowToCHNativeColumnarExec =>
+            WholeStageTransformerExec(
+              ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
+              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet()
+            )
         }
         (
           newChild,
