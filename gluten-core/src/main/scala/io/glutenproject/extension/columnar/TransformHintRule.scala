@@ -103,6 +103,7 @@ object TransformHints {
 object TagBeforeTransformHits {
   val ruleBuilders: List[SparkSession => Rule[SparkPlan]] = {
     List((_: SparkSession) => FallbackOneRowRelation(),
+      (_: SparkSession) => FallbackOnANSIMode(),
       (_: SparkSession) => FallbackMultiCodegens())
   }
 }
@@ -113,6 +114,15 @@ case class StoreExpandGroupExpression() extends  Rule[SparkPlan] {
       agg.copy(child = CustomExpandExec(
         child.projections, agg.groupingExpressions,
         child.output, child.child))
+  }
+}
+
+case class FallbackOnANSIMode() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    if (GlutenConfig.getSessionConf.enableAnsiMode) {
+      plan.foreach(TransformHints.tagNotTransformable)
+    }
+    plan
   }
 }
 
