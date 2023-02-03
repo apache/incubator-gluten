@@ -59,7 +59,7 @@ export CPU_TARGET="aarch64"
 
 cd /path_to_gluten
 
-./tools/one_step_veloxbackend.sh
+./dev/builddeps-veloxbe.sh
 ```
 
 <b>Alternatively you may build gluten step by step as below.</b>

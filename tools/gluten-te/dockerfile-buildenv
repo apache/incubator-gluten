@@ -1,4 +1,5 @@
-FROM ubuntu:20.04 AS gluten-buildenv
+ARG OS_IMAGE=ubuntu:20.04
+FROM $OS_IMAGE AS gluten-buildenv
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-c"]
