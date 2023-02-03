@@ -29,6 +29,7 @@ abstract class TpcSuite(
   private val disableAqe: Boolean,
   private val disableBhj: Boolean,
   private val disableWscg: Boolean,
+  private val shufflePartitions: Int,
   private val useExistingData: Boolean) {
 
   System.setProperty("spark.testing", "true")
@@ -39,6 +40,7 @@ abstract class TpcSuite(
 
   // define initial configs
   sessionSwitcher.defaultConf().set("spark.sql.sources.useV1SourceList", "")
+  sessionSwitcher.defaultConf().set("spark.sql.shuffle.partitions", s"$shufflePartitions")
   sessionSwitcher.defaultConf().set("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
   sessionSwitcher.defaultConf().set("spark.executor.heartbeatInterval", "3600000")
   sessionSwitcher.defaultConf().set("spark.network.timeout", "3601s")

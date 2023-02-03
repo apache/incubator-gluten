@@ -23,9 +23,10 @@ class TpchSuite(
   val disableAqe: Boolean,
   val disableBhj: Boolean,
   val disableWscg: Boolean,
+  val shufflePartitions: Int,
   val useExistingData: Boolean) extends TpcSuite(testConf, baselineConf, scale, fixedWidthAsDouble,
   queryIds, logLevel, explain, errorOnMemLeak, enableHsUi, hsUiPort, cpus,
-  offHeapSize, iterations, disableAqe, disableBhj, disableWscg, useExistingData) {
+  offHeapSize, iterations, disableAqe, disableBhj, disableWscg, shufflePartitions, useExistingData) {
 
   override protected def dataWritePath(): String = TPCH_WRITE_PATH
 

@@ -6,7 +6,6 @@ import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -67,8 +66,11 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--disable-wscg"}, description = "Disable Spark SQL whole stage code generation", defaultValue = "false")
   private boolean disableWscg;
 
-  @CommandLine.Option(names = {"--partition"}, description = "Data has partition", defaultValue = "false")
-  private boolean partition;
+  @CommandLine.Option(names = {"--shuffle-partitions"}, description = "Generate data with partitions", defaultValue = "100")
+  private int shufflePartitions;
+
+  @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
+  private boolean genPartitionedData;
 
   @CommandLine.Option(names = {"--file-format"}, description = "Option: parquet, dwrf", defaultValue = "parquet")
   private String fileFormat;
@@ -128,13 +130,13 @@ public class Tpc implements Callable<Integer> {
         suite = new TpchSuite(testConf, baselineConf, scale,
                 fixedWidthAsDouble, queries, level, explain, errorOnMemLeak,
                 enableHsUi, hsUiPort, cpus, offHeapSize, iterations, disableAqe, disableBhj,
-            disableWscg, useExistingData);
+            disableWscg, shufflePartitions, useExistingData);
         break;
       case "ds":
         suite = new TpcdsSuite(testConf, baselineConf, scale,
             fixedWidthAsDouble, queries, level, explain, errorOnMemLeak,
             enableHsUi, hsUiPort, cpus, offHeapSize, iterations, disableAqe, disableBhj,
-            disableWscg, partition, fileFormat, useExistingData);
+            disableWscg, shufflePartitions, genPartitionedData, fileFormat, useExistingData);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);

@@ -22,18 +22,19 @@ class TpcdsSuite(
   val disableAqe: Boolean,
   val disableBhj: Boolean,
   val disableWscg: Boolean,
-  val partition: Boolean,
+  val shufflePartitions: Int,
+  val genPartitionedData: Boolean,
   val fileFormat: String,
   val useExistingData: Boolean) extends TpcSuite(testConf, baselineConf, scale, fixedWidthAsDouble,
   queryIds, logLevel, explain, errorOnMemLeak, enableHsUi, hsUiPort, cpus,
-  offHeapSize, iterations, disableAqe, disableBhj, disableWscg, useExistingData) {
+  offHeapSize, iterations, disableAqe, disableBhj, disableWscg, shufflePartitions, useExistingData) {
 
   override protected def dataWritePath(): String = TPCDS_WRITE_PATH
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
   override protected def createDataGen(): DataGen = new TpcdsDataGen(sessionSwitcher.spark(),
-    scale, cpus, TPCDS_WRITE_PATH, typeModifiers(), partition, fileFormat)
+    scale, cpus, TPCDS_WRITE_PATH, typeModifiers(), genPartitionedData, fileFormat)
 
   override protected def allQueryIds(): Array[String] = ALL_QUERY_IDS
 

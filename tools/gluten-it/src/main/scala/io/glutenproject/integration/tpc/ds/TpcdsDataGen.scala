@@ -11,7 +11,7 @@ import java.nio.file.{Files, Paths, StandardCopyOption}
 import scala.collection.JavaConverters._
 
 class TpcdsDataGen(val spark: SparkSession, scale: Double, partitions: Int, dir: String,
-  typeModifiers: List[TypeModifier] = List(), val partition: Boolean, val fileFormat: String)
+  typeModifiers: List[TypeModifier] = List(), val genPartitionedData: Boolean, val fileFormat: String)
   extends Serializable with DataGen {
 
   def writeParquetTable(t: Table): Unit = {
@@ -45,7 +45,7 @@ class TpcdsDataGen(val spark: SparkSession, scale: Double, partitions: Int, dir:
       case "web_page" => TpcdsDataGen.webPageSchema
       case "web_site" => TpcdsDataGen.webSiteSchema
     }
-    val partitionBy: List[String] = if (!partition) List[String]() else name match {
+    val partitionBy: List[String] = if (!genPartitionedData) List[String]() else name match {
       case "catalog_sales" => List("cs_sold_date_sk")
       case "web_sales" => List("ws_sold_date_sk")
       case _ => List[String]()
