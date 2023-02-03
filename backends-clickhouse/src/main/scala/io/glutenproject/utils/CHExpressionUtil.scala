@@ -41,15 +41,19 @@ object CHExpressionUtil {
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     MURMUR3HASH -> Set(EMPTY_TYPE),
     MD5 -> Set(EMPTY_TYPE),
+    XXHASH64 -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),
     TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
     UNIX_TIMESTAMP -> Set(DATE_TYPE),
     // CH arrayJoin function doesn't support map type argument yet.
     // Wait for https://github.com/ClickHouse/ClickHouse/pull/43239
-    EXPLODE -> Set(MAP_TYPE)
+    EXPLODE -> Set(MAP_TYPE),
+    MIGHT_CONTAIN -> Set(EMPTY_TYPE)
   )
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
-    STDDEV_SAMP -> Set(EMPTY_TYPE)
+    STDDEV_SAMP -> Set(EMPTY_TYPE),
+    COLLECT_LIST -> Set(EMPTY_TYPE),
+    BLOOM_FILTER_AGG -> Set(EMPTY_TYPE)
   )
 }

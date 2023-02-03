@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.backendsapi.ISparkPlanExecApi
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer}
+import io.glutenproject.expression.{AliasBaseTransformer, AliasTransformer, ExpressionTransformer, GetStructFieldTransformer}
 import io.glutenproject.vectorized.{BlockNativeWriter, CHColumnarBatchSerializer}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -44,7 +44,7 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
-import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
+import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -89,7 +89,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @param child
    * @return
    */
-  override def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
+  override def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase = {
     BlockGlutenColumnarToRowExec(child);
   }
 
@@ -152,7 +152,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       buildSide: BuildSide,
       condition: Option[Expression],
       left: SparkPlan,
-      right: SparkPlan): ShuffledHashJoinExecTransformer =
+      right: SparkPlan,
+      isSkewJoin: Boolean): ShuffledHashJoinExecTransformer =
     CHShuffledHashJoinExecTransformer(
       leftKeys,
       rightKeys,
@@ -160,7 +161,8 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
       buildSide,
       condition,
       left,
-      right)
+      right,
+      isSkewJoin)
 
   /** Generate BroadcastHashJoinExecTransformer. */
   def genBroadcastHashJoinExecTransformer(
@@ -304,6 +306,11 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
               ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+          case r2c: RowToCHNativeColumnarExec =>
+            WholeStageTransformerExec(
+              ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
+              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet()
+            )
         }
         (
           newChild,
@@ -344,7 +351,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @return
    */
   override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = {
-    List(spark => CHDataSourceV2Strategy(spark))
+    List.empty
   }
 
   /**
@@ -376,4 +383,12 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
+
+  /** Generate an ExpressionTransformer to transform GetStructFiled expression. */
+  override def genGetStructFieldTransformer(
+      substraitExprName: String,
+      childTransformer: ExpressionTransformer,
+      ordinal: Int,
+      original: GetStructField): ExpressionTransformer =
+    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
 }

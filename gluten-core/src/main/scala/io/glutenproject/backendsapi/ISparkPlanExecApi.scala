@@ -25,7 +25,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GetStructField, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -52,7 +52,7 @@ trait ISparkPlanExecApi {
    * @param child
    * @return
    */
-  def genNativeColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
+  def genColumnarToRowExec(child: SparkPlan): GlutenColumnarToRowExecBase
 
   /**
    * Generate RowToColumnarExec.
@@ -93,7 +93,8 @@ trait ISparkPlanExecApi {
                                          buildSide: BuildSide,
                                          condition: Option[Expression],
                                          left: SparkPlan,
-                                         right: SparkPlan): ShuffledHashJoinExecTransformer
+                                         right: SparkPlan,
+                                         isSkewJoin: Boolean): ShuffledHashJoinExecTransformer
 
   /**
    * Generate BroadcastHashJoinExecTransformer.
@@ -205,4 +206,11 @@ trait ISparkPlanExecApi {
    * @return
    */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
+
+  /**
+   * Generate an ExpressionTransformer to transform GetStructFiled expression.
+   */
+  def genGetStructFieldTransformer(substraitExprName: String,
+                                 childTransformer: ExpressionTransformer, ordinal: Int,
+                                 original: GetStructField): ExpressionTransformer = null
 }

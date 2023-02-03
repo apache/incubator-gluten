@@ -17,10 +17,12 @@
 
 #include "VeloxMemoryPool.h"
 
+using facebook::velox::memory::kMaxMemory;
 using facebook::velox::memory::MachinePageCount;
+using facebook::velox::memory::MemoryAllocator;
 using facebook::velox::memory::MemoryManager;
-namespace gluten {
 
+namespace gluten {
 namespace {
 #define VELOX_MEM_MANUAL_CAP()                                      \
   _VELOX_THROW(                                                     \
@@ -30,6 +32,7 @@ namespace {
       /* isRetriable */ true,                                       \
       "Memory allocation manually capped");
 } // namespace
+
 class VeloxMemoryAllocatorVariant {
  public:
   VeloxMemoryAllocatorVariant(MemoryAllocator* gluten_alloc) : gluten_alloc_(gluten_alloc) {}
@@ -104,13 +107,28 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
       std::shared_ptr<MemoryPool> parent,
       std::shared_ptr<VeloxMemoryAllocatorVariant> glutenAllocator,
       const Options& options = Options{})
-      : MemoryPool{name, parent, options.alignment},
+      : MemoryPool{name, parent, options},
         cap_{options.capacity},
         memoryManager_{memoryManager},
         localMemoryUsage_{},
         allocator_{memoryManager_.getAllocator()},
         glutenAllocator_{glutenAllocator} {
     VELOX_USER_CHECK_GT(cap_, 0);
+  }
+
+  ~WrappedVeloxMemoryPool() {
+    if (const auto& tracker = getMemoryUsageTracker()) {
+      // TODO: change to check reserved bytes which including the unused
+      // reservation.
+      auto remainingBytes = tracker->currentBytes();
+      VELOX_CHECK_EQ(
+          0,
+          remainingBytes,
+          "Memory pool should be destroyed only after all allocated memory has been freed. Remaining bytes allocated: {}, cumulative bytes allocated: {}, number of allocations: {}",
+          remainingBytes,
+          tracker->cumulativeBytes(),
+          tracker->numAllocs());
+    }
   }
 
   // Actual memory allocation operations. Can be delegated.
@@ -122,9 +140,9 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     if (this->isMemoryCapped()) {
       VELOX_MEM_MANUAL_CAP();
     }
-    auto alignedSize = sizeAlign(size);
+    const auto alignedSize = sizeAlign(size);
     reserve(alignedSize);
-    return allocAligned(alignedSize);
+    return glutenAllocator_->alloc(alignedSize);
   }
 
   void* FOLLY_NULLABLE allocateZeroFilled(int64_t numMembers, int64_t sizeEach) {
@@ -164,10 +182,12 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
   }
 
   // FIXME: This function should call glutenAllocator_.
-  bool allocateNonContiguous(
+  void allocateNonContiguous(
       MachinePageCount numPages,
-      facebook::velox::memory::MemoryAllocator::Allocation& out,
+      facebook::velox::memory::Allocation& out,
       MachinePageCount minSizeClass) {
+    VELOX_CHECK_GT(numPages, 0);
+
     if (!allocator_.allocateNonContiguous(
             numPages,
             out,
@@ -178,15 +198,14 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
             },
             minSizeClass)) {
       VELOX_CHECK(out.empty());
-      return false;
+      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} pages from {}", __FUNCTION__, numPages, toString()));
     }
     VELOX_CHECK(!out.empty());
     VELOX_CHECK_NULL(out.pool());
     out.setPool(this);
-    return true;
   }
 
-  void freeNonContiguous(facebook::velox::memory::MemoryAllocator::Allocation& allocation) {
+  void freeNonContiguous(facebook::velox::memory::Allocation& allocation) {
     const int64_t freedBytes = allocator_.freeNonContiguous(allocation);
     VELOX_CHECK(allocation.empty());
     if (memoryUsageTracker_ != nullptr) {
@@ -194,32 +213,31 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     }
   }
 
-  MachinePageCount largestSizeClass() const override {
+  MachinePageCount largestSizeClass() const {
     return allocator_.largestSizeClass();
   }
 
-  const std::vector<MachinePageCount>& sizeClasses() const override {
+  const std::vector<MachinePageCount>& sizeClasses() const {
     return allocator_.sizeClasses();
   }
 
-  bool allocateContiguous(
-      MachinePageCount numPages,
-      facebook::velox::memory::MemoryAllocator::ContiguousAllocation& out) {
+  void allocateContiguous(MachinePageCount numPages, facebook::velox::memory::ContiguousAllocation& out) {
+    VELOX_CHECK_GT(numPages, 0);
+
     if (!allocator_.allocateContiguous(numPages, nullptr, out, [this](int64_t allocBytes, bool preAlloc) {
           if (memoryUsageTracker_) {
             memoryUsageTracker_->update(preAlloc ? allocBytes : -allocBytes);
           }
         })) {
       VELOX_CHECK(out.empty());
-      return false;
+      VELOX_MEM_ALLOC_ERROR(fmt::format("{} failed with {} pages from {}", __FUNCTION__, numPages, toString()));
     }
     VELOX_CHECK(!out.empty());
     VELOX_CHECK_NULL(out.pool());
     out.setPool(this);
-    return true;
   }
 
-  void freeContiguous(facebook::velox::memory::MemoryAllocator::ContiguousAllocation& allocation) {
+  void freeContiguous(facebook::velox::memory::ContiguousAllocation& allocation) {
     const int64_t bytesToFree = allocation.size();
     allocator_.freeContiguous(allocation);
     VELOX_CHECK(allocation.empty());
@@ -289,39 +307,17 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     return cap_;
   }
 
-  uint16_t alignment() const {
+  uint16_t getAlignment() const {
     return alignment_;
-  }
-
-  void capMemoryAllocation() {
-    capped_.store(true);
-    for (const auto& child : children_) {
-      child->capMemoryAllocation();
-    }
-  }
-
-  void uncapMemoryAllocation() {
-    // This means if we try to post-order traverse the tree like we do
-    // in MemoryManager, only parent has the right to lift the cap.
-    // This suffices because parent will then recursively lift the cap on the
-    // entire tree.
-    if (getAggregateBytes() > cap()) {
-      return;
-    }
-    if (parent_ != nullptr && parent_->isMemoryCapped()) {
-      return;
-    }
-    capped_.store(false);
-    visitChildren([](MemoryPool* child) { child->uncapMemoryAllocation(); });
   }
 
   bool isMemoryCapped() const {
     return capped_.load();
   }
 
-  std::shared_ptr<MemoryPool> genChild(std::shared_ptr<MemoryPool> parent, const std::string& name, int64_t cap) {
+  std::shared_ptr<MemoryPool> genChild(std::shared_ptr<MemoryPool> parent, const std::string& name) {
     return std::make_shared<WrappedVeloxMemoryPool>(
-        memoryManager_, name, parent, glutenAllocator_, Options{alignment_, cap});
+        memoryManager_, name, parent, glutenAllocator_, Options{.alignment = alignment_});
   }
 
   // Gets the memory allocation stats of the MemoryPoolImpl attached to the
@@ -340,6 +336,7 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     });
     return aggregateBytes;
   }
+
   int64_t getSubtreeMaxBytes() const {
     int64_t maxBytes;
     accessSubtreeMemoryUsage([&maxBytes](const facebook::velox::memory::MemoryUsage& subtreeUsage) {
@@ -348,40 +345,17 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
     return maxBytes;
   }
 
- private:
-  VELOX_FRIEND_TEST(MemoryPoolTest, Ctor);
-
-  int64_t sizeAlign(int64_t size) {
-    auto remainder = size % alignment_;
-    return (remainder == 0) ? size : (size + alignment_ - remainder);
-  }
-
-  void* FOLLY_NULLABLE allocAligned(int64_t size) {
-    return glutenAllocator_->alloc(size);
-  }
-
-  void* FOLLY_NULLABLE reallocAligned(void* FOLLY_NULLABLE p, int64_t size, int64_t newSize) {
-    return glutenAllocator_->realloc(p, size, newSize);
-  }
-
-  void accessSubtreeMemoryUsage(std::function<void(const facebook::velox::memory::MemoryUsage&)> visitor) const {
-    folly::SharedMutex::ReadHolder readLock{subtreeUsageMutex_};
-    visitor(subtreeMemoryUsage_);
-  }
-  void updateSubtreeMemoryUsage(std::function<void(facebook::velox::memory::MemoryUsage&)> visitor) {
-    folly::SharedMutex::WriteHolder writeLock{subtreeUsageMutex_};
-    visitor(subtreeMemoryUsage_);
-  }
-
   // TODO: consider returning bool instead.
   void reserve(int64_t size) {
     if (memoryUsageTracker_) {
       memoryUsageTracker_->update(size);
     }
     localMemoryUsage_.incrementCurrentBytes(size);
+
+    bool success = memoryManager_.reserve(size);
     bool manualCap = isMemoryCapped();
     int64_t aggregateBytes = getAggregateBytes();
-    if (UNLIKELY(manualCap || aggregateBytes > cap_)) {
+    if (UNLIKELY(!success || manualCap || aggregateBytes > cap_)) {
       // NOTE: If we can make the reserve and release a single transaction we
       // would have more accurate aggregates in intermediate states. However,
       // this is low-pri because we can only have inflated aggregates, and be on
@@ -395,13 +369,41 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
   }
 
   void release(int64_t size) {
+    memoryManager_.release(size);
     localMemoryUsage_.incrementCurrentBytes(-size);
     if (memoryUsageTracker_) {
       memoryUsageTracker_->update(-size);
     }
   }
 
-  const int64_t cap_;
+  std::string toString() const {
+    return fmt::format(
+        "Memory Pool[{} {}]", name_, facebook::velox::memory::MemoryAllocator::kindString(allocator_.kind()));
+  }
+
+ private:
+  VELOX_FRIEND_TEST(MemoryPoolTest, Ctor);
+
+  int64_t sizeAlign(int64_t size) {
+    const auto remainder = size % alignment_;
+    return (remainder == 0) ? size : (size + alignment_ - remainder);
+  }
+
+  void* FOLLY_NULLABLE reallocAligned(void* FOLLY_NULLABLE p, int64_t size, int64_t newSize) {
+    return glutenAllocator_->realloc(p, size, newSize);
+  }
+
+  void accessSubtreeMemoryUsage(std::function<void(const facebook::velox::memory::MemoryUsage&)> visitor) const {
+    folly::SharedMutex::ReadHolder readLock{subtreeUsageMutex_};
+    visitor(subtreeMemoryUsage_);
+  }
+
+  void updateSubtreeMemoryUsage(std::function<void(facebook::velox::memory::MemoryUsage&)> visitor) {
+    folly::SharedMutex::WriteHolder writeLock{subtreeUsageMutex_};
+    visitor(subtreeMemoryUsage_);
+  }
+
+  int64_t cap_;
   MemoryManager& memoryManager_;
 
   // Memory allocated attributed to the memory node.
@@ -410,7 +412,6 @@ class WrappedVeloxMemoryPool final : public facebook::velox::memory::MemoryPool 
   mutable folly::SharedMutex subtreeUsageMutex_;
   facebook::velox::memory::MemoryUsage subtreeMemoryUsage_;
   std::atomic_bool capped_{false};
-
   facebook::velox::memory::MemoryAllocator& allocator_;
   std::shared_ptr<VeloxMemoryAllocatorVariant> glutenAllocator_;
 };

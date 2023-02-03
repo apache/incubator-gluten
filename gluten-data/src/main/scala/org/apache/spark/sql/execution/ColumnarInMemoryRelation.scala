@@ -26,7 +26,6 @@ import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.columnarbatch.ArrowColumnarBatches
-import io.glutenproject.expression._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.ArrowWritableColumnVector

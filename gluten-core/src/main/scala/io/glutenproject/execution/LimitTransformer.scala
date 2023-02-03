@@ -38,6 +38,10 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+trait LimitMetricsUpdater extends MetricsUpdater {
+  def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit
+}
+
 case class LimitTransformer(child: SparkPlan,
                             offset: Long,
                             count: Long) extends UnaryExecNode with TransformSupport {
@@ -57,7 +61,7 @@ case class LimitTransformer(child: SparkPlan,
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"))
 
-  object MetricsUpdaterImpl extends MetricsUpdater {
+  object MetricsUpdaterImpl extends LimitMetricsUpdater {
     val inputRows: SQLMetric = longMetric("inputRows")
     val inputVectors: SQLMetric = longMetric("inputVectors")
     val inputBytes: SQLMetric = longMetric("inputBytes")

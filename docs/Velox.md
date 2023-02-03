@@ -2,18 +2,30 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 # 1 Prerequisite
 
-Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04 and Ubuntu22.04</b>. Other OS support are still in progress </b>. The final goal is to support several common OS and conda env deployment. 
-Velox uses the script setup-ubuntu.sh to install all dependency libraries, but Arrow's dependency libraries isn't installed. Velox also requires ninja for compilation. So we need to install all of them manually. Also, we need to set up the JAVA_HOME env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
+Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
+common OS and conda env deployment.
+Velox uses the script `setup-ubuntu.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
+So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
 ```shell script
 ## run as root
 ## install gcc and libraries to build arrow
 apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
-
+```
+<b>For x86_64</b>
+```shell script
 ## make sure jdk8 is used
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH=$JAVA_HOME/bin:$PATH
-
+```
+<b>For aarch64</b>
+```shell script
+## make sure jdk8 is used
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-arm64
+export PATH=$JAVA_HOME/bin:$PATH
+```
+<b>Get gluten</b>
+```shell script
 ## config maven, like proxy in ~/.m2/settings.xml
 
 ## fetch gluten code
@@ -22,24 +34,37 @@ git clone https://github.com/oap-project/gluten.git
 ```
 # 2 Build Gluten with Velox Backend
 
-It's recommended to use one_step_veloxbackend.sh and build gluten in one script.
+It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
 [Gluten Usage](./docs/GlutenUsage.md) listed the parameters and their default value of build command for your reference.
 
+<b>For x86_64 build:</b>
 ```shell script
 cd /path_to_gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
-./tools/one_step_veloxbackend.sh
+./dev/buildbundle-veloxbe.sh
 
 ## When you have successfully compiled once and changed some codes then compile again.
 ## you may use following command to skip the arrow, velox and protobuf build
-# ./tools/one_step_veloxbackend.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
+# ./dev/buildbundle-veloxbe.sh --build_arrow_from_source=OFF --build_velox_from_source=OFF --build_protobuf=OFF
 
+```
+
+<b>For aarch64 build, set the CPU_TARGET to "aarch64":</b>
+```shell script
+export CPU_TARGET="aarch64"
+
+cd /path_to_gluten
+
+./tools/one_step_veloxbackend.sh
 ```
 
 Alternatively you may build gluten step by step as below.
 
 ```shell script
+## Set for aarch64 build
+export CPU_TARGET="aarch64"
+
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./get_arrow.sh
@@ -53,9 +78,16 @@ cd /path_to_gluten/ep/build-velox/src/
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
-./compile.sh --build_velox_backend=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON ..
+make -j
 
-### compile gluten jvm and package jar
+# You can also use CMAKE command to compile
+# cd /path_to_gluten/cpp
+# mkdir build && cd build && cmake .. && make -j
+
+## compile gluten jvm and package jar
 cd /path_to_gluten
 # For spark3.2.x
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
@@ -64,7 +96,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 ```
 
-Once building successfully, the Jar file is generated in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark 3.2.2. Jar for spark3.3.1 is package/velox/spark32/target/gluten-spark3.3_1.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+Once building successfully, the Jar file will be generated in the directory: package/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.2.2, and package/target/gluten-spark3.3_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.3.1.
 
 ## 2.1 Specify velox home directory
 
@@ -77,7 +109,10 @@ cd /path_to_gluten/ep/build_velox/src
 
 step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
-./compile.sh --velox_home=/your_specified_velox_path
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DVELOX_HOME=/your_specified_velox_path ..
+make -j
 
 step 3: package jar
 cd /path_to_gluten
@@ -98,9 +133,12 @@ step 1: set ARROW_SOURCE_DIR in build_arrow_for_velox.sh and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./build_arrow_for_velox.sh
 
-step 2: set ARROW_ROOT in compile.sh or run with --arrow_root
+step 2: set ARROW_ROOT
 cd /path_to_gluten/cpp
-sh ./compile.sh --arrow_root=/your_arrow_lib
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DARROW_ROOT=/your_arrow_lib ..
+make -j
 
 step 3: package jar
 cd /path_to_gluten
@@ -124,23 +162,75 @@ cd /path_to_gluten/ep/build-velox/src
 ./build_velox.sh --enable_hdfs=ON
 
 cd /path_to_gluten/cpp
-./compile.sh --enable_hdfs=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HDFS=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
 ```
-Gluten HDFS support requires an extra environment variable "VELOX_HDFS" to indicate the Hdfs URI. e.g. VELOX_HDFS="host:port". If the env variable is missing, Gluten will try to connect with hdfs://localhost:9000
+Gluten HDFS support requires Hdfs URI, you can define this config in three ways:
 
-This env should be exported in both Spark driver and worker.
-e.g., in Spark local mode:
+1. spark-defaults.conf
+
 ```
-export VELOX_HDFS="hdfshost:9000"
+spark.hadoop.fs.defaultFS hdfs://hdfshost:9000
 ```
 
-If running in Spark Yarn cluster mode, the env variable need to be set on each executor:
+2. envrionment variable `VELOX_HDFS`
 ```
---conf spark.executorEnv.VELOX_HDFS="hdfshost:9000"
+// Spark local mode
+export VELOX_HDFS="hdfs://hdfshost:9000"
+
+// Spark Yarn cluster mode
+--conf spark.executorEnv.VELOX_HDFS="hdfs://hdfshost:9000"
 ```
+
+3. Hadoop's `core-site.xml` (recomended)
+```
+<property>
+   <name>fs.defaultFS</name>
+   <value>hdfs://hdfshost:9000</value>
+</property>
+```
+If Gluten is used in a fully-prepared Hadoop cluster, we recommend to use Hadoop's config.
+
+If your HDFS is in HA mode, you need to set the LIBHDFS3_CONF environment variable to specify the hdfs client configuration file.
+
+```
+// Spark local mode
+export LIBHDFS3_CONF="/path/to/hdfs-client.xml"
+
+// Spark Yarn cluster mode
+--conf spark.executorEnv.LIBHDFS3_CONF="/path/to/hdfs-client.xml"
+```
+If Gluten is used in a fully-prepared Hadoop cluster, you can directly use the hdfs-site.xml of the cluster.
+
+In the configuration file, you need to set the HDFS HA-related configuration.
+
+```
+<property>
+   <name>dfs.nameservices</name>
+   <value>EXAMPLENAMESERVICE</value>
+</property>
+
+<property>
+    <name>dfs.ha.namenodes.EXAMPLENAMESERVICE</name>
+    <value>ns1,ns2</value>
+</property>
+
+<property>
+    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns1</name>
+    <value>hdfs://ns1:8020</value>
+</property>
+
+<property>
+    <name>dfs.namenode.rpc-address.EXAMPLENAMESERVICE.ns2</name>
+    <value>hdfs://ns2:8020</value>
+</property>
+```
+
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
 By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/oap-project/gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
@@ -179,7 +269,10 @@ cd /path_to_gluten/ep/build-velox/src/
 ./build_velox.sh --enable_s3=ON
 
 cd /path_to_gluten/cpp
-./compile.sh --enable_s3=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
@@ -201,7 +294,7 @@ spark.hadoop.fs.s3a.use.instance.credentials true
 ```
 If you are using instance credentials you do not have to set the access key or secret key.
 
-Note if testing with local S3-like service(Minio/Ceph), users may need to use different configurations for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
+Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
 # 3 Coverage
 
@@ -220,7 +313,10 @@ Gluten supports allocating memory on HBM. This feature is optional and is disabl
 To enable this feature in Gluten, users can. Below command is used to enable this feature.
 ```
 cd /path_to_gluten/cpp
-./compile.sh --enable_hbm
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HBM=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip

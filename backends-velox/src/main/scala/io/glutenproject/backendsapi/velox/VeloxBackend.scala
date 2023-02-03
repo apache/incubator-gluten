@@ -20,7 +20,7 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
 
-import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -42,6 +42,7 @@ object VeloxBackendSettings extends BackendSettings {
     case _ => false
   }
   override def supportExpandExec(): Boolean = true
+  override def needProjectExpandOutput: Boolean = true
   override def supportSortExec(): Boolean = true
   override def supportWindowExec(): Boolean = true
   override def supportColumnarShuffleExec(): Boolean = {

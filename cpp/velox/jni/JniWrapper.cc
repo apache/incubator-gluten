@@ -19,7 +19,9 @@
 #include <jni.h>
 #include "include/arrow/c/bridge.h"
 
+#include <glog/logging.h>
 #include <jni/JniCommon.h>
+#include <exception>
 #include "compute/DwrfDatasource.h"
 #include "compute/RegistrationAllFunctions.h"
 #include "compute/VeloxBackend.h"
@@ -120,7 +122,12 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJ
   core::ExecCtx execCtx(pool, &queryCtx);
 
   facebook::velox::substrait::SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
-  return planValidator.validate(subPlan);
+  try {
+    return planValidator.validate(subPlan);
+  } catch (std::invalid_argument& e) {
+    LOG(INFO) << "Faled to validate substrait plan because " << e.what();
+    return false;
+  }
   JNI_METHOD_END(false)
 }
 

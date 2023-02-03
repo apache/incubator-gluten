@@ -21,7 +21,6 @@ import java.io._
 import java.net._
 import java.util.concurrent.atomic.AtomicBoolean
 
-import io.glutenproject.expression._
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized._

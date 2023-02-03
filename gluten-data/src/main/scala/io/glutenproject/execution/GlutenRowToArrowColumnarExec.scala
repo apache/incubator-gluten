@@ -21,17 +21,15 @@ import java.util.concurrent.TimeUnit._
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
-import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtil.UnsafeItr
-import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.{TaskContext, broadcast}
+import org.apache.spark.broadcast
 
 import io.glutenproject.vectorized._
 
@@ -136,7 +134,7 @@ object RowToColumnConverter {
     override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit = {
       cv.appendStruct(false)
       val data = row.getStruct(column, childConverters.length)
-      for (i <- 0 until childConverters.length) {
+      for (i <- childConverters.indices) {
         childConverters(i).append(data, i, cv.getChild(i))
       }
     }

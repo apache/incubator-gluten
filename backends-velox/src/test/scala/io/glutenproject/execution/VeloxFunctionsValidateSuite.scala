@@ -18,11 +18,11 @@
 package io.glutenproject.execution
 
 import java.nio.file.Files
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.functions.{col, expr}
 
 import scala.collection.JavaConverters._
 

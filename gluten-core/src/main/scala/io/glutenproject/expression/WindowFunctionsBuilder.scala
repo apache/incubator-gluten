@@ -20,7 +20,6 @@ package io.glutenproject.expression
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import org.apache.spark.sql.catalyst.expressions.{Rank, RowNumber, WindowFunction}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{Max, Sum}
 
 object WindowFunctionsBuilder {
   def create(args: java.lang.Object, windowFunc: WindowFunction): Long = {

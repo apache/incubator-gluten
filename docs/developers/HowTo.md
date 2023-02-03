@@ -46,16 +46,19 @@ cd gluten_home/ep/build-arrow/src
 ```
 cd gluten_home/ep/build-velox/src
 ./get_velox.sh
-./build_velox.sh
+./build_velox.sh --build_type=Debug
 ```
 
 3. compile the CPP
 ```
 cd gluten_home/cpp
-./compile.sh --build_type=debug --build_velox_backend=ON --build_test=ON --build_benchmarks=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Debug ..
+make -j
 ```
-- Compiling with `--build_type=debug` is good for debugging.
-- When `compile.sh` is executed, the executable file `generic_benchmark` will be generated under the directory of `gluten_home/cpp/velox/benchmarks/`.
+- Compiling with `--build_type=Debug` is good for debugging.
+- The executable file `generic_benchmark` will be generated under the directory of `gluten_home/cpp/build/velox/benchmarks/`.
 
 4. build Gluten and generate the example files
 ```
@@ -78,9 +81,9 @@ gluten_home/backends-velox/generated-native-benchmark/
     └── _SUCCESS
 ```
 
-4. now, run benchmarks with GDB
+5. now, run benchmarks with GDB
 ```
-cd gluten_home/cpp/velox/benchmarks/
+cd gluten_home/cpp/build/velox/benchmarks/
 gdb generic_benchmark
 ```
 - When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run with command `r`,
@@ -90,15 +93,15 @@ gdb generic_benchmark
 - Actually, you can debug `generic_benchmark` with any gdb commands as debugging normal C++ program, because the `generic_benchmark` is a pure C++
   executable file in fact.
 
-5. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
+6. `gdb-tui` is a valuable feature and is worth trying. You can get more help from the online docs.
 [gdb-tui](https://sourceware.org/gdb/current/onlinedocs/gdb/TUI.html#TUI)
 
-6. you can start `generic_benchmark` with specific JSON plan and input files
+7. you can start `generic_benchmark` with specific JSON plan and input files
 - If you omit them, the `example.json, example_lineitem + example_orders` under the directory of `gluten_home/backends-velox/generated-native-benchmark`
   will be used as default.
 - You can also edit the file `example.json` to custom the Substrait plan or specify the inputs files placed in the other directory.
 
-5. get more detail information about benchmarks from [MicroBenchmarks.md](https://github.com/oap-project/gluten/blob/main/docs/developers/MicroBenchmarks.md)
+8. get more detail information about benchmarks from [MicroBenchmarks.md](https://github.com/oap-project/gluten/blob/main/docs/developers/MicroBenchmarks.md)
 
 ## 2 How to debug Java/Scala
 wait to add

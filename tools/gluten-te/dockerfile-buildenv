@@ -65,3 +65,7 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
 ENV LANG en_US.UTF-8  
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8
+
+# Install Spark 3.2.2
+RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
+RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install

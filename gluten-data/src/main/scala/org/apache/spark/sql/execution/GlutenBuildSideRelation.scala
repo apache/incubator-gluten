@@ -26,7 +26,7 @@ import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.GlutenArrowUtil
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, NamedExpression, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.joins.BuildSideRelation

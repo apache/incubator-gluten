@@ -543,7 +543,6 @@ trait HashJoinLikeExecTransformer
       }
     }
   }
-  def isSkewJoin: Boolean = false
 
   // Whether the left and right side should be exchanged.
   protected lazy val exchangeTable: Boolean = joinBuildSide match {
@@ -809,18 +808,6 @@ object HashJoinLikeExecTransformer {
 
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
-
-  def makeIsNotNullExpression(childNode: ExpressionNode,
-                           functionMap: java.util.HashMap[String, java.lang.Long])
-    : ExpressionNode = {
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap, ConverterUtils.makeFuncName(ExpressionMappings.IS_NOT_NULL, Seq(BooleanType)))
-
-    ExpressionBuilder.makeScalarFunction(
-      functionId,
-      Lists.newArrayList(childNode),
-      TypeBuilder.makeBoolean(true))
-  }
 }
 
 abstract class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
@@ -829,7 +816,8 @@ abstract class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
                                                buildSide: BuildSide,
                                                condition: Option[Expression],
                                                left: SparkPlan,
-                                               right: SparkPlan)
+                                               right: SparkPlan,
+                                               isSkewJoin: Boolean)
   extends HashJoinLikeExecTransformer {
 
   override def joinBuildSide: BuildSide = buildSide
@@ -857,6 +845,7 @@ abstract class BroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
 
   override def joinBuildSide: BuildSide = buildSide
   override def hashJoinType: JoinType = joinType
+  override def isSkewJoin: Boolean = false
 
   // Unique ID for builded hash table
   lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id

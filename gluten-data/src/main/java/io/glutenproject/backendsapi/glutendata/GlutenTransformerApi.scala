@@ -18,9 +18,6 @@
 package io.glutenproject.backendsapi.glutendata
 
 import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
-import io.glutenproject.execution.HashJoinLikeExecTransformer
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{GlutenArrowUtil, InputPartitionsUtil}
 
 import org.apache.spark.internal.Logging
@@ -28,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.types.{ArrayType, BooleanType, DecimalType, MapType, StructType}
+import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
 
 abstract class GlutenTransformerApi extends ITransformerApi with Logging {
 
@@ -75,18 +72,5 @@ abstract class GlutenTransformerApi extends ITransformerApi with Logging {
   def genInputPartitionSeq(relation: HadoopFsRelation,
                            selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
     InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
-  }
-
-  override def genExistsColumnProjection(selectionNode: SelectionNode,
-                                         substraitContext: SubstraitContext): ExpressionNode = {
-    // Velox will return "null" for unmatched join keys if:
-    // 1. probe-side join key is null
-    // 2. probe-side join key is not null but build-side contains null keys
-    // For theses cases, Spark will return "false".
-    // Add a projection here to make the conversion { true => true, (false, null) => false }
-    val notNull = HashJoinLikeExecTransformer
-      .makeIsNotNullExpression(selectionNode, substraitContext.registeredFunction)
-    HashJoinLikeExecTransformer
-      .makeAndExpression(selectionNode, notNull, substraitContext.registeredFunction)
   }
 }

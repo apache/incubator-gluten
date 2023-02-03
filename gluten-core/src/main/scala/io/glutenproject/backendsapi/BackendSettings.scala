@@ -24,6 +24,7 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 trait BackendSettings {
   def supportFileFormatRead: FileFormat => Boolean = _ => false
   def supportExpandExec(): Boolean = false
+  def needProjectExpandOutput: Boolean = false
   def supportSortExec(): Boolean = false
   def supportWindowExec(): Boolean = false
   def supportColumnarShuffleExec(): Boolean = {
@@ -37,6 +38,7 @@ trait BackendSettings {
     case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
     case _ => false
   }
+  def supportStructType(): Boolean = false
   def fallbackOnEmptySchema(): Boolean = false
   def disableVanillaColumnarReaders(): Boolean = false
   def recreateJoinExecOnFallback(): Boolean = false

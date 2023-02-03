@@ -18,7 +18,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenNumaBindingInfo
-import io.glutenproject.execution.{BaseGlutenPartition, MetricsUpdater, WholestageTransformContext}
+import io.glutenproject.execution.{BaseGlutenPartition, WholestageTransformContext}
 import io.glutenproject.memory.TaskMemoryMetrics
 import io.glutenproject.memory.alloc.{NativeMemoryAllocatorManager, Spiller}
 import io.glutenproject.substrait.plan.PlanNode
@@ -93,9 +93,7 @@ trait IIteratorApi {
                             pipelineTime: SQLMetric,
                             updateOutputMetrics: (Long, Long) => Unit,
                             updateNativeMetrics: Metrics => Unit,
-                            buildRelationBatchHolder: Seq[ColumnarBatch],
-                            dependentKernels: Seq[NativeExpressionEvaluator],
-                            dependentKernelIterators: Seq[GeneralOutIterator])
+                            buildRelationBatchHolder: Seq[ColumnarBatch])
   : Iterator[ColumnarBatch]
   // scalastyle:on argcount
 
@@ -112,8 +110,8 @@ trait IIteratorApi {
                           ): RDD[ColumnarBatch]
 
   /**
-   * Generate NativeMemoryAllocatorManager.
-   * @return
+   * Generate NativeMemoryAllocatorManager. If the backend contains no native
+   * components, then just throwing from this method is a recommended way.
    */
   def genNativeMemoryAllocatorManager(taskMemoryManager: TaskMemoryManager,
                                       spiller: Spiller,

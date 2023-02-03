@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
+import org.apache.spark.sql.execution.ReusedSubqueryExec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
@@ -80,9 +81,13 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
       runTPCDSQuery(9) {
         df =>
           val subqueryAdaptiveSparkPlan = collectWithSubqueries(df.queryExecution.executedPlan) {
-            case a: AdaptiveSparkPlanExec if a.isSubquery => a
+            case a: AdaptiveSparkPlanExec if a.isSubquery => true
+            case r: ReusedSubqueryExec => true
+            case _ => false
           }
-          assert(subqueryAdaptiveSparkPlan.size == 15)
+          // On Spark 3.2, there are 15 AdaptiveSparkPlanExec,
+          // and on Spark 3.3, there are 5 AdaptiveSparkPlanExec and 10 ReusedSubqueryExec
+          assert(subqueryAdaptiveSparkPlan.filter(_ == true).size == 15)
       }
     }
   }

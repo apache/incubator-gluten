@@ -28,7 +28,8 @@ case class CHShuffledHashJoinExecTransformer(
     buildSide: BuildSide,
     condition: Option[Expression],
     left: SparkPlan,
-    right: SparkPlan)
+    right: SparkPlan,
+    isSkewJoin: Boolean)
   extends ShuffledHashJoinExecTransformer(
     leftKeys,
     rightKeys,
@@ -36,7 +37,8 @@ case class CHShuffledHashJoinExecTransformer(
     buildSide,
     condition,
     left,
-    right) {
+    right,
+    isSkewJoin) {
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
