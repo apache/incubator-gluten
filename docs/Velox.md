@@ -59,11 +59,9 @@ cd /path_to_gluten
 ./tools/one_step_veloxbackend.sh
 ```
 
-Alternatively you may build gluten step by step as below.
+<b>Alternatively you may build gluten step by step as below.</b>
 
 ```shell script
-## Set for aarch64 build
-export CPU_TARGET="aarch64"
 
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
