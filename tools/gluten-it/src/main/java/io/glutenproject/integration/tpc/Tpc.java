@@ -2,6 +2,8 @@ package io.glutenproject.integration.tpc;
 
 import io.glutenproject.integration.tpc.ds.TpcdsSuite;
 import io.glutenproject.integration.tpc.h.TpchSuite;
+import io.glutenproject.integration.tpc.action.Action;
+import io.glutenproject.integration.tpc.action.Actions;
 import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
@@ -15,10 +17,16 @@ import java.util.concurrent.Callable;
     description = "Gluten integration test using TPC benchmark's data and queries")
 public class Tpc implements Callable<Integer> {
 
-  @CommandLine.Option(required = true, names = {"--benchmark-type"}, description = "TPC benchmark type: h, ds")
+  @CommandLine.Option(required = true, names = {"--benchmark-type"}, description = "TPC benchmark type: h, ds", defaultValue = "h")
   private String benchmarkType;
 
-  @CommandLine.Option(required = true, names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, gazelle-cpp, ...")
+  @CommandLine.Option(names = {"--skip-datagen"}, description = "Skip data generation", defaultValue = "false")
+  private boolean skipDataGen;
+
+  @CommandLine.Option(names = {"--mode"}, description = "Mode: data-gen-only, tpc-queries, tpc-queries-compare", defaultValue = "tpc-queries-compare")
+  private String mode;
+
+  @CommandLine.Option(names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, gazelle-cpp, ...", defaultValue = "velox")
   private String backendType;
 
   @CommandLine.Option(names = {"--baseline-backend-type"}, description = "Baseline backend used: vanilla, velox, gazelle-cpp, ...", defaultValue = "vanilla")
@@ -75,14 +83,8 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
   private boolean genPartitionedData;
 
-  @CommandLine.Option(names = {"--file-format"}, description = "Option: parquet, dwrf", defaultValue = "parquet")
-  private String fileFormat;
-
   @CommandLine.Option(names = {"--conf"}, description = "Test line Spark conf, --conf=k1=v1 --conf=k2=v2")
   private Map<String, String> sparkConf;
-
-  @CommandLine.Option(names = {"--use-existing-data"}, description = "Use the generated data from its default location, when it is true, then value of --scale will be ignored", defaultValue = "false")
-  private boolean useExistingData;
 
   public Tpc() {
   }
@@ -127,24 +129,33 @@ public class Tpc implements Callable<Integer> {
       default:
         throw new IllegalArgumentException("Log level not found: " + logLevel);
     }
+
+    final Action[] actions =
+        Actions.createActions(mode, skipDataGen, scale, genPartitionedData, queries, explain, iterations);
+
     final TpcSuite suite;
     switch (benchmarkType) {
       case "h":
-        suite = new TpchSuite(testConf, baselineConf, scale,
-                fixedWidthAsDouble, queries, level, explain, errorOnMemLeak,
-                enableHsUi, hsUiPort, cpus, offHeapSize, iterations, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, minimumScanPartitions, useExistingData);
+        suite = new TpchSuite(actions, testConf, baselineConf,
+                fixedWidthAsDouble, level, errorOnMemLeak,
+                enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
+            disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       case "ds":
-        suite = new TpcdsSuite(testConf, baselineConf, scale,
-            fixedWidthAsDouble, queries, level, explain, errorOnMemLeak,
-            enableHsUi, hsUiPort, cpus, offHeapSize, iterations, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, minimumScanPartitions, genPartitionedData, fileFormat, useExistingData);
+        suite = new TpcdsSuite(actions, testConf, baselineConf,
+            fixedWidthAsDouble, level, errorOnMemLeak,
+            enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
+            disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);
     }
-    boolean succeed = suite.run();
+    final boolean succeed;
+    try {
+      succeed = suite.run();
+    } finally {
+      suite.close();
+    }
     if (!succeed) {
       return -1;
     }
