@@ -20,7 +20,7 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(required = true, names = {"--benchmark-type"}, description = "TPC benchmark type: h, ds", defaultValue = "h")
   private String benchmarkType;
 
-  @CommandLine.Option(names = {"--skip-datagen"}, description = "Skip data generation", defaultValue = "false")
+  @CommandLine.Option(names = {"--skip-data-gen"}, description = "Skip data generation", defaultValue = "false")
   private boolean skipDataGen;
 
   @CommandLine.Option(names = {"--mode"}, description = "Mode: data-gen-only, queries, queries-compare, cli", defaultValue = "tpc-queries-compare")
