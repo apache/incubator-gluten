@@ -13,6 +13,7 @@ class TpcdsSuite(
   val fixedWidthAsDouble: Boolean,
   val logLevel: Level,
   val errorOnMemLeak: Boolean,
+  val enableUi: Boolean,
   val enableHsUi: Boolean,
   val hsUiPort: Int,
   val cpus: Int,

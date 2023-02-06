@@ -17,6 +17,7 @@ abstract class TpcSuite(
   private val fixedWidthAsDouble: Boolean,
   private val logLevel: Level,
   private val errorOnMemLeak: Boolean,
+  private val enableUi: Boolean,
   private val enableHsUi: Boolean,
   private val hsUiPort: Int,
   private val cpus: Int,
@@ -41,9 +42,12 @@ abstract class TpcSuite(
   sessionSwitcher.defaultConf().set("spark.sql.broadcastTimeout", "1800")
   sessionSwitcher.defaultConf().set("spark.network.io.preferDirectBufs", "false")
   sessionSwitcher.defaultConf().set("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
-  sessionSwitcher.defaultConf().set("spark.ui.enabled", "false")
   sessionSwitcher.defaultConf().set("spark.memory.offHeap.enabled", "true")
   sessionSwitcher.defaultConf().set("spark.memory.offHeap.size", offHeapSize)
+
+  if (!enableUi) {
+    sessionSwitcher.defaultConf().set("spark.ui.enabled", "false")
+  }
 
   if (enableHsUi) {
     if (!new File(historyWritePath()).exists() && !new File(historyWritePath()).mkdirs()) {
@@ -94,18 +98,17 @@ abstract class TpcSuite(
       resetLogLevel() // to prevent log level from being set by unknown external codes
       action.execute(this)
     }
+    succeed
+  }
 
+  def close(): Unit = {
+    sessionSwitcher.close()
     // wait for input, if history server was started
     if (enableHsUi) {
       printf("History server was running at port %d. Press enter to exit... \n", hsUiPort)
       print("> ")
       new Scanner(System.in).nextLine
     }
-    succeed
-  }
-
-  def close(): Unit = {
-    sessionSwitcher.close()
   }
 
   private def resetLogLevel(): Unit = {

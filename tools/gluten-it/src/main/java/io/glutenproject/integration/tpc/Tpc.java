@@ -50,6 +50,9 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--error-on-memleak"}, description = "Fail the test when memory leak is detected by Spark's memory manager", defaultValue = "false")
   private boolean errorOnMemLeak;
 
+  @CommandLine.Option(names = {"--enable-ui"}, description = "Enable Spark UI", defaultValue = "false")
+  private boolean enableUi;
+
   @CommandLine.Option(names = {"--enable-history"}, description = "Start a Spark history server during running", defaultValue = "false")
   private boolean enableHsUi;
 
@@ -137,13 +140,13 @@ public class Tpc implements Callable<Integer> {
     switch (benchmarkType) {
       case "h":
         suite = new TpchSuite(actions, testConf, baselineConf,
-                fixedWidthAsDouble, level, errorOnMemLeak,
+                fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
                 enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
       case "ds":
         suite = new TpcdsSuite(actions, testConf, baselineConf,
-            fixedWidthAsDouble, level, errorOnMemLeak,
+            fixedWidthAsDouble, level, errorOnMemLeak, enableUi,
             enableHsUi, hsUiPort, cpus, offHeapSize, disableAqe, disableBhj,
             disableWscg, shufflePartitions, minimumScanPartitions);
         break;
