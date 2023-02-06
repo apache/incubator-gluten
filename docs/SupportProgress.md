@@ -8,10 +8,24 @@ Gluten supported frequently used 94, in which offloaded 62 is implemented in vel
 Generally speaking, there are lots of work to do, but all 22 TPC-H queries can be offloaded to the native backend. The information
 is presented separately according to the type of backend. The detail information is as follows:
 
-## Backend-Velox
+| Value         | Description                                                  |
+| ------------- | ------------------------------------------------------------ |
+| S             | (Supported)  Gluten or Velox support fully.                  |
+| <Blanck Cell> | (Not  Applicable) Neither Gluten not Velox support this type in  this situation. |
+| PS            | (Partial  Support) Apache Spark supports this type, but Velox only  partially supports it. |
+| NS            | (Not Supported) Apache Spark supports this  type but Velox backend does not. |
 
-### Operator support
-Support List
+
+| Value      | Description                                                  |
+| ---------- | ------------------------------------------------------------ |
+| Mismatched | Some functions implimented by Velox, which return results mismatched with Apache Spark. So we marked then as "Mismatched" |
+| Ansi OFF   | We find Velox's SparkSQL functions don't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)). So we just offload Spark legacy functions to native engine, which marked these functions as "Ansi Off". That is to mean, Gluten will take the fallback strategy when Spark enables ANSI mode, and Vanilla Spark will execute the origin plan and expressions |
+
+## Velox Backend
+
+### Operator Support
+Gluten supported frequently used 14 operators, listed as below detail table.
+
 | Executor                    | Description                                                  | Gluten Name                      | Velox Name            | BOOLEAN | BYTE | SHORT | INT  | LONG | FLOAT | DOUBLE | STRING | NULL | BINARY | ARRAY | MAP  | STRUCT(ROW) | DATE | TIMESTAMP | DECIMAL | CALENDAR | UDT  |
 | --------------------------- | ------------------------------------------------------------ | -------------------------------- | --------------------- | ------- | ---- | ----- | ---- | ---- | ----- | ------ | ------ | ---- | ------ | ----- | ---- | ----------- | ---- | --------- | ------- | -------- | ---- |
 | FileSourceScanExec          | Reading  data from files, often from Hive tables             | FileSourceScanExecTransformer    | TableScanNode         | S       | S    | S     | S    | S    | S     | S      | S      | S    | S      | NS    | NS   | NS          | NS   | NS        | NS      | NS       | NS   |
@@ -62,6 +76,7 @@ Support List
 
 ### Function support
 Gluten supported frequently used 94 functions, listed as below detail table.
+
 | Spark Functions                 | Velox/Presto Functions | Velox/Spark functions | Gluten     | Restrictions | BOOLEAN | BSTE | SHORT | INT  | LONG | FLOAT | DOUBLE | DATE | TIMESTAMP | STRING | DECIMAL | NULL | BINARS | CALENDAR | ARRAS | MAP  | STRUCT | UDT  |
 | ------------------------------- | ---------------------- | --------------------- | ---------- | ------------ | ------- | ---- | ----- | ---- | ---- | ----- | ------ | ---- | --------- | ------ | ------- | ---- | ------ | -------- | ----- | ---- | ------ | ---- |
 | !                               |                        | not                   | S          |              | S       | S    | S     | S    | S    | S     | S      |      |           | S      |         |      |        |          |       |      |        |      |
@@ -305,7 +320,7 @@ Gluten supported frequently used 94 functions, listed as below detail table.
 | when                            |                        |                       |            |              |         |      |       |      |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 | xxhash64                        | xxhash64               |                       |            |              |         |      |       |      |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 
-## Backed-Clickhouse
+## Clickhouse Backed
 Wait to add
 
 please keep this document updated when we make new progress.
