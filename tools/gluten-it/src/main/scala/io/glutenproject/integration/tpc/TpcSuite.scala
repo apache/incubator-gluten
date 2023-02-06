@@ -76,6 +76,7 @@ abstract class TpcSuite(
   if (singleScanPartition) {
     sessionSwitcher.defaultConf().set("spark.sql.files.maxPartitionBytes", "512TB")
     sessionSwitcher.defaultConf().set("spark.sql.files.openCostInBytes", "512TB")
+    sessionSwitcher.defaultConf().set("spark.default.parallelism", "1")
   }
 
   // register sessions
