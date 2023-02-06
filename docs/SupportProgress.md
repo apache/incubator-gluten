@@ -1,12 +1,12 @@
 # The Operators and Functions Support Progress
-Although the Gluten project is still in active development, we still have made big progress on Operators and Functions support.
+Gluten is still in active development. Here is a list of supported operators and functions.
+
+## Velox backend
+Since the same function may have different semantics between Presto and Spark, Velox implement the functions in Presto category, if we note a different sematics from Spark, then the function is implemented in Spark category. So Gluten firstly will use Velox's spark category, if a function isn't imlemented there then refer to Presto category.
 
 The total supported functions' number for [Spark3.3 is 387](https://spark.apache.org/docs/latest/api/sql/) and for [Velox is 204](https://facebookincubator.github.io/velox/functions/coverage.html). 
 Gluten supported frequently used 94, in which offloaded 62 is implemented in velox/spark and 32 in velox/presto, shown as below picture.
 ![support](./docs/image/support.png)
-
-Generally speaking, there are lots of work to do, but all 22 TPC-H queries can be offloaded to the native backend. The information
-is presented separately according to the type of backend. The detail information is as follows:
 
 | Value         | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
@@ -19,13 +19,12 @@ is presented separately according to the type of backend. The detail information
 | Value      | Description                                                  |
 | ---------- | ------------------------------------------------------------ |
 | Mismatched | Some functions implimented by Velox, which return results mismatched with Apache Spark. So we marked then as "Mismatched" |
-| Ansi OFF   | We find Velox's SparkSQL functions don't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)). So we just offload Spark legacy functions to native engine, which marked these functions as "Ansi Off". That is to mean, Gluten will take the fallback strategy when Spark enables ANSI mode, and Vanilla Spark will execute the origin plan and expressions |
+| Ansi OFF   | Velox's doesn't fully support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)). Once Ansi is enabled, Gluten will fallback to Vanilla Spark. |
 
-## Velox Backend
+### Operator Map
+Gluten supports 14 operators (Draw to right to see all data types)
 
-### Operator Support
-Gluten supported frequently used 14 operators, listed as below detail table.
-
+  
 | Executor                    | Description                                                  | Gluten Name                      | Velox Name            | BOOLEAN | BYTE | SHORT | INT  | LONG | FLOAT | DOUBLE | STRING | NULL | BINARY | ARRAY | MAP  | STRUCT(ROW) | DATE | TIMESTAMP | DECIMAL | CALENDAR | UDT  |
 | --------------------------- | ------------------------------------------------------------ | -------------------------------- | --------------------- | ------- | ---- | ----- | ---- | ---- | ----- | ------ | ------ | ---- | ------ | ----- | ---- | ----------- | ---- | --------- | ------- | -------- | ---- |
 | FileSourceScanExec          | Reading  data from files, often from Hive tables             | FileSourceScanExecTransformer    | TableScanNode         | S       | S    | S     | S    | S    | S     | S      | S      | S    | S      | NS    | NS   | NS          | NS   | NS        | NS      | NS       | NS   |
@@ -75,9 +74,10 @@ Gluten supported frequently used 14 operators, listed as below detail table.
 
 
 ### Function support
-Gluten supported frequently used 94 functions, listed as below detail table.
+Gluten supports 94 functions. (Draw to right to see all data types)
 
-| Spark Functions                 | Velox/Presto Functions | Velox/Spark functions | Gluten     | Restrictions | BOOLEAN | BSTE | SHORT | INT  | LONG | FLOAT | DOUBLE | DATE | TIMESTAMP | STRING | DECIMAL | NULL | BINARS | CALENDAR | ARRAS | MAP  | STRUCT | UDT  |
+
+| Spark Functions                 | Velox/Presto Functions | Velox/Spark functions | Gluten     | Restrictions | BOOLEAN | BYTE | SHORT | INT  | LONG | FLOAT | DOUBLE | DATE | TIMESTAMP | STRING | DECIMAL | NULL | BINARS | CALENDAR | ARRAS | MAP  | STRUCT | UDT  |
 | ------------------------------- | ---------------------- | --------------------- | ---------- | ------------ | ------- | ---- | ----- | ---- | ---- | ----- | ------ | ---- | --------- | ------ | ------- | ---- | ------ | -------- | ----- | ---- | ------ | ---- |
 | !                               |                        | not                   | S          |              | S       | S    | S     | S    | S    | S     | S      |      |           | S      |         |      |        |          |       |      |        |      |
 | &                               |                        |                       |            |              |         |      |       |      |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
@@ -321,6 +321,4 @@ Gluten supported frequently used 94 functions, listed as below detail table.
 | xxhash64                        | xxhash64               |                       |            |              |         |      |       |      |      |       |        |      |           |        |         |      |        |          |       |      |        |      |
 
 ## Clickhouse Backed
-Wait to add
-
-please keep this document updated when we make new progress.
+To be added
