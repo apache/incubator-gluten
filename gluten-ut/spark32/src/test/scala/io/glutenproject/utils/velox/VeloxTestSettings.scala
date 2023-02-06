@@ -208,10 +208,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSuite]
-    .exclude("typed aggregation: expr, expr, expr, expr, expr")
-    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr")
-    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr, expr")
-    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr, expr, expr")
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
   enableSuite[GlutenJsonFunctionsSuite]
