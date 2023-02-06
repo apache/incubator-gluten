@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
@@ -85,18 +85,19 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   override def doValidate(): Boolean = {
-    // TODO need also check orc file format and also move this check in native.
-    ConverterUtils.getFileFormat(this) match {
+    val fileFormat = ConverterUtils.getFileFormat(this)
+    if (!BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(fileFormat)) {
+      logDebug(
+        s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
+      return false
+    }
+    fileFormat match {
       case ParquetReadFormat =>
         if (BackendsApiManager.getBackendName.equals("velox") &&
           unsupportedDataType()) {
           return false
         }
-      case DwrfReadFormat =>
       case _ =>
-        if (BackendsApiManager.getBackendName.equals("velox")) {
-          return false
-      }
     }
 
     val substraitContext = new SubstraitContext

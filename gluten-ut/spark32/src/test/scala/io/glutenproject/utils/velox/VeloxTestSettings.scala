@@ -243,17 +243,15 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
   enableSuite[GlutenBinaryFileFormatSuite]
-    .exclude("column pruning - non-readable file")
-  // enableSuite[GlutenCSVv1Suite]
-  // enableSuite[GlutenCSVv2Suite]
-  // enableSuite[GlutenCSVLegacyTimeParserSuite]
+  enableSuite[GlutenCSVv1Suite]
+  enableSuite[GlutenCSVv2Suite]
+  enableSuite[GlutenCSVLegacyTimeParserSuite]
   enableSuite[GlutenJsonV1Suite]
-    .exclude("SPARK-35047: Write Non-ASCII character as codepoint")
-    .exclude("SPARK-35104: Fix wrong indentation for multiple JSON even if `pretty` option is true")
-  // enableSuite[GlutenJsonV2Suite]
+  enableSuite[GlutenJsonV2Suite]
+    .exclude("SPARK-23772 ignore column of all null values or empty array during schema inference")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
   enableSuite[GlutenTextV1Suite]
-  // enableSuite[GlutenTextV2Suite]
+  enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")

@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, ITransformerApi}
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.SelectionNode
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.CHInputPartitionsUtil
 
 import org.apache.spark.internal.Logging
@@ -75,7 +76,7 @@ class CHTransformerApi extends ITransformerApi with Logging {
    * @return
    *   true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(fileFormat: FileFormat): Boolean =
+  def supportsReadFileFormat(fileFormat: ReadFileFormat): Boolean =
     BackendsApiManager.getSettings.supportFileFormatRead(fileFormat)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */

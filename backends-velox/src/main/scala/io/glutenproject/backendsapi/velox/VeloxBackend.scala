@@ -19,12 +19,9 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
-
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.velox.DwrfFileFormat
 
 class VeloxBackend extends Backend {
   override def name: String = GlutenConfig.GLUTEN_VELOX_BACKEND
@@ -37,8 +34,9 @@ class VeloxBackend extends Backend {
 }
 
 object VeloxBackendSettings extends BackendSettings {
-  override def supportFileFormatRead(): FileFormat => Boolean = {
-    case _ : ParquetFileFormat  | _ : DwrfFileFormat => true
+  override def supportFileFormatRead: ReadFileFormat => Boolean = {
+    case ParquetReadFormat => true
+    case DwrfReadFormat => true
     case _ => false
   }
   override def supportExpandExec(): Boolean = true

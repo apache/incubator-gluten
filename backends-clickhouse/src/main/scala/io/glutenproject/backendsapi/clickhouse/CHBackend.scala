@@ -18,10 +18,9 @@ package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi._
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, ParquetReadFormat}
 
-import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 
 class CHBackend extends Backend {
@@ -56,10 +55,10 @@ object CHBackendSettings extends BackendSettings {
       ".customized.buffer.size"
   val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = "4096"
 
-  override def supportFileFormatRead(): FileFormat => Boolean = {
-    case _: ParquetFileFormat => true
-    case _: OrcFileFormat => true
-    case _ => false
+  override def supportFileFormatRead: ReadFileFormat => Boolean = {
+    case ParquetReadFormat => true
+    case OrcReadFormat => true
+    case _ => true
   }
 
   override def utilizeShuffledHashJoinHint(): Boolean = true
