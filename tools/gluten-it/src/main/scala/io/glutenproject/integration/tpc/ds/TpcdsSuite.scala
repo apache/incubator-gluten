@@ -23,6 +23,7 @@ class TpcdsSuite(
   val disableBhj: Boolean,
   val disableWscg: Boolean,
   val shufflePartitions: Int,
+  val singleScanPartition: Boolean,
   val genPartitionedData: Boolean,
   val fileFormat: String,
   val useExistingData: Boolean) extends TpcSuite(testConf, baselineConf, scale, fixedWidthAsDouble,

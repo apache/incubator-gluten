@@ -30,6 +30,7 @@ abstract class TpcSuite(
   private val disableBhj: Boolean,
   private val disableWscg: Boolean,
   private val shufflePartitions: Int,
+  private val singleScanPartition: Boolean,
   private val useExistingData: Boolean) {
 
   System.setProperty("spark.testing", "true")
@@ -70,6 +71,11 @@ abstract class TpcSuite(
 
   if (disableWscg) {
     sessionSwitcher.defaultConf().set("spark.sql.codegen.wholeStage", "false")
+  }
+
+  if (singleScanPartition) {
+    sessionSwitcher.defaultConf().set("spark.sql.files.maxPartitionBytes", "512TB")
+    sessionSwitcher.defaultConf().set("spark.sql.files.openCostInBytes", "512TB")
   }
 
   // register sessions
