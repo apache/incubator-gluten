@@ -24,7 +24,7 @@ import org.apache.spark.sql.internal.SQLConf
 import com.google.common.collect.ImmutableList
 
 import java.util
-import java.util.Locale
+import java.util.{Locale, TimeZone}
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -296,6 +296,7 @@ object GlutenConfig {
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
+  val GLUTEN_TIMEZONE = "spark.gluten.timezone"
 
   var ins: GlutenConfig = _
 
@@ -390,6 +391,9 @@ object GlutenConfig {
           .byteStringAsBytes(conf.get(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY))
           .toString)
     }
+
+    nativeConfMap.put(GlutenConfig.GLUTEN_TIMEZONE,
+      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
 
     nativeConfMap
   }
