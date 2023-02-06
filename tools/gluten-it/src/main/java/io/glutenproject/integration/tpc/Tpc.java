@@ -69,8 +69,8 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--shuffle-partitions"}, description = "Generate data with partitions", defaultValue = "100")
   private int shufflePartitions;
 
-  @CommandLine.Option(names = {"--single-scan-partition"}, description = "Limit scan partition number to 1", defaultValue = "false")
-  private boolean singleScanPartition;
+  @CommandLine.Option(names = {"--min-scan-partitions"}, description = "Use minimum number of partitions to read data", defaultValue = "false")
+  private boolean minimumScanPartitions;
 
   @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
   private boolean genPartitionedData;
@@ -133,13 +133,13 @@ public class Tpc implements Callable<Integer> {
         suite = new TpchSuite(testConf, baselineConf, scale,
                 fixedWidthAsDouble, queries, level, explain, errorOnMemLeak,
                 enableHsUi, hsUiPort, cpus, offHeapSize, iterations, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, singleScanPartition, useExistingData);
+            disableWscg, shufflePartitions, minimumScanPartitions, useExistingData);
         break;
       case "ds":
         suite = new TpcdsSuite(testConf, baselineConf, scale,
             fixedWidthAsDouble, queries, level, explain, errorOnMemLeak,
             enableHsUi, hsUiPort, cpus, offHeapSize, iterations, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, singleScanPartition, genPartitionedData, fileFormat, useExistingData);
+            disableWscg, shufflePartitions, minimumScanPartitions, genPartitionedData, fileFormat, useExistingData);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);

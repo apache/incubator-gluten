@@ -29,7 +29,7 @@ abstract class TpcSuite(
   private val disableBhj: Boolean,
   private val disableWscg: Boolean,
   private val shufflePartitions: Int,
-  private val singleScanPartition: Boolean,
+  private val minimumScanPartitions: Boolean,
   private val useExistingData: Boolean) {
 
   System.setProperty("spark.testing", "true")
@@ -72,7 +72,7 @@ abstract class TpcSuite(
     sessionSwitcher.defaultConf().set("spark.sql.codegen.wholeStage", "false")
   }
 
-  if (singleScanPartition) {
+  if (minimumScanPartitions) {
     sessionSwitcher.defaultConf().set("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().set("spark.sql.files.openCostInBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().set("spark.default.parallelism", "1")

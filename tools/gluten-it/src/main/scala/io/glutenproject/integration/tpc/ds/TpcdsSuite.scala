@@ -23,13 +23,13 @@ class TpcdsSuite(
   val disableBhj: Boolean,
   val disableWscg: Boolean,
   val shufflePartitions: Int,
-  val singleScanPartition: Boolean,
+  val minimumScanPartitions: Boolean,
   val genPartitionedData: Boolean,
   val fileFormat: String,
   val useExistingData: Boolean) extends TpcSuite(testConf, baselineConf, scale, fixedWidthAsDouble,
   queryIds, logLevel, explain, errorOnMemLeak, enableHsUi, hsUiPort, cpus,
   offHeapSize, iterations, disableAqe, disableBhj, disableWscg, shufflePartitions,
-  singleScanPartition, useExistingData) {
+  minimumScanPartitions, useExistingData) {
 
   override protected def dataWritePath(): String = TPCDS_WRITE_PATH
 
