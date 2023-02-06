@@ -87,7 +87,7 @@ abstract class TpcSuite(
     conf.set("spark.history.fs.logDirectory", historyWritePath())
     HistoryServerHelper.startHistoryServer(conf)
   }
-  
+
   // boot up history server
   if (enableHsUi) {
     startHistoryServer()

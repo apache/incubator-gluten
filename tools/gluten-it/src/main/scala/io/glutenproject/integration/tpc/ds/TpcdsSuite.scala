@@ -24,7 +24,7 @@ class TpcdsSuite(
   val shufflePartitions: Int,
   val minimumScanPartitions: Boolean) extends TpcSuite(
   actions, testConf, baselineConf, fixedWidthAsDouble,
-  logLevel, errorOnMemLeak, enableHsUi, hsUiPort, cpus,
+  logLevel, errorOnMemLeak, enableUi, enableHsUi, hsUiPort, cpus,
   offHeapSize, disableAqe, disableBhj, disableWscg, shufflePartitions,
   minimumScanPartitions) {
 
