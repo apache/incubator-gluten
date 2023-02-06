@@ -373,7 +373,7 @@ case class GlutenHashAggregateExecTransformer(
           childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
           colIdx += 1
         case _ =>
-          aggregateFunc.children.toList.map(_ => {
+          aggregateFunc.inputAggBufferAttributes.toList.map(_ => {
             childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
             colIdx += 1
             aggExpr
