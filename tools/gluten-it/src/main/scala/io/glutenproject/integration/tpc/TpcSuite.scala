@@ -2,14 +2,13 @@ package io.glutenproject.integration.tpc
 
 import java.io.File
 import java.util.Scanner
-
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.TpcSuite.TestResultLine
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.log4j.{Level, LogManager}
-
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
+import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.{GlutenSparkSessionSwitcher, GlutenTestUtils}
 
 abstract class TpcSuite(
@@ -74,8 +73,8 @@ abstract class TpcSuite(
   }
 
   if (singleScanPartition) {
-    sessionSwitcher.defaultConf().set("spark.sql.files.maxPartitionBytes", s"${512L * 1024 * 1024 * 1024 * 1024}")
-    sessionSwitcher.defaultConf().set("spark.sql.files.openCostInBytes", s"${512L * 1024 * 1024 * 1024 * 1024}")
+    sessionSwitcher.defaultConf().set("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
+    sessionSwitcher.defaultConf().set("spark.sql.files.openCostInBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().set("spark.default.parallelism", "1")
   }
 
