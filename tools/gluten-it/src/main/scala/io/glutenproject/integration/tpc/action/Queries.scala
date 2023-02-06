@@ -5,7 +5,7 @@ import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.sql.GlutenSparkSessionSwitcher
 
-case class TpcQueries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
+case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
@@ -26,7 +26,7 @@ case class TpcQueries(scale: Double, queryIds: Array[String], explain: Boolean, 
             if (!allQueriesSet.contains(queryId)) {
               throw new IllegalArgumentException(s"Query ID doesn't exist: $queryId")
             }
-            TpcQueries.runTpcQuery(
+            Queries.runTpcQuery(
               queryId,
               explain,
               tpcSuite.desc(),
@@ -55,7 +55,7 @@ case class TpcQueries(scale: Double, queryIds: Array[String], explain: Boolean, 
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
     val succeed = results.filter(_.testPassed)
-    TpcQueries.printResults(succeed)
+    Queries.printResults(succeed)
     println("")
 
     if (passedCount == count) {
@@ -64,19 +64,19 @@ case class TpcQueries(scale: Double, queryIds: Array[String], explain: Boolean, 
     } else {
       println("Failed queries: ")
       println("")
-      TpcQueries.printResults(results.filter(!_.testPassed))
+      Queries.printResults(results.filter(!_.testPassed))
       println("")
     }
 
-    var all = TpcQueries.aggregate(results, "all")
+    var all = Queries.aggregate(results, "all")
 
     if (passedCount != count) {
-      all = TpcQueries.aggregate(succeed, "all succeed") ::: all
+      all = Queries.aggregate(succeed, "all succeed") ::: all
     }
 
     println("Overall: ")
     println("")
-    TpcQueries.printResults(all)
+    Queries.printResults(all)
     println("")
 
     if (passedCount != count) {
@@ -86,7 +86,7 @@ case class TpcQueries(scale: Double, queryIds: Array[String], explain: Boolean, 
   }
 }
 
-object TpcQueries {
+object Queries {
   case class TestResultLine(
       queryId: String,
       testPassed: Boolean,

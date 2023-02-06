@@ -21,10 +21,12 @@ object Actions {
     }
     mode match {
       case "data-gen-only" =>
-      case "tpc-queries-compare" =>
-        actions.add(TpcQueriesCompare(scale, queryIds, explain, iterations))
-      case "tpc-queries" =>
-        actions.add(TpcQueries(scale, queryIds, explain, iterations))
+      case "queries-compare" =>
+        actions.add(QueriesCompare(scale, queryIds, explain, iterations))
+      case "queries" =>
+        actions.add(Queries(scale, queryIds, explain, iterations))
+      case "cli" =>
+        actions.add(Cli(scale))
       case _ =>
         throw new IllegalArgumentException("Unexpected mode: " + mode)
     }

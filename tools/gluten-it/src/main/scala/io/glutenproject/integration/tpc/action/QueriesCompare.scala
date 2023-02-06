@@ -7,7 +7,7 @@ import org.apache.spark.sql.{GlutenSparkSessionSwitcher, GlutenTestUtils}
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-case class TpcQueriesCompare(
+case class QueriesCompare(
     scale: Double,
     queryIds: Array[String],
     explain: Boolean,
@@ -32,7 +32,7 @@ case class TpcQueriesCompare(
             if (!allQueriesSet.contains(queryId)) {
               throw new IllegalArgumentException(s"Query ID doesn't exist: $queryId")
             }
-            TpcQueriesCompare.runTpcQuery(
+            QueriesCompare.runTpcQuery(
               queryId,
               explain,
               tpcSuite.desc(),
@@ -61,7 +61,7 @@ case class TpcQueriesCompare(
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
     val succeed = results.filter(_.testPassed)
-    TpcQueriesCompare.printResults(succeed)
+    QueriesCompare.printResults(succeed)
     println("")
 
     if (passedCount == count) {
@@ -70,19 +70,19 @@ case class TpcQueriesCompare(
     } else {
       println("Failed queries (a failed query with correct row count indicates value mismatches): ")
       println("")
-      TpcQueriesCompare.printResults(results.filter(!_.testPassed))
+      QueriesCompare.printResults(results.filter(!_.testPassed))
       println("")
     }
 
-    var all = TpcQueriesCompare.aggregate(results, "all")
+    var all = QueriesCompare.aggregate(results, "all")
 
     if (passedCount != count) {
-      all = TpcQueriesCompare.aggregate(succeed, "all succeed") ::: all
+      all = QueriesCompare.aggregate(succeed, "all succeed") ::: all
     }
 
     println("Overall: ")
     println("")
-    TpcQueriesCompare.printResults(all)
+    QueriesCompare.printResults(all)
     println("")
 
     if (passedCount != count) {
@@ -92,7 +92,7 @@ case class TpcQueriesCompare(
   }
 }
 
-object TpcQueriesCompare {
+object QueriesCompare {
   case class TestResultLine(
       queryId: String,
       testPassed: Boolean,
