@@ -141,7 +141,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenStringExpressionsSuite]
     .include(
-      "concat_ws"
+      "concat_ws",
+      "LPAD/RPAD",
+      "REVERSE"
     )
 
   enableSuite[GlutenStringFunctionsSuite]
@@ -187,5 +189,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite]
     .include(
       "big inner join, 4 matches per row"
+    )
+
+  enableSuite[GlutenHashExpressionsSuite]
+    .include(
+      "md5"
     )
 }
