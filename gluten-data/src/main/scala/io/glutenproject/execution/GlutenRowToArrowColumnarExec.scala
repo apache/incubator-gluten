@@ -64,7 +64,7 @@ object RowToColumnConverter {
       case st: StructType => new StructConverter(st.fields.map(
         (f) => getConverterForType(f.dataType, f.nullable)))
       case dt: DecimalType => new DecimalConverter(dt)
-      case mt: MapType => new MapConverter(getConverterForType(mt.keyType, nullable),
+      case mt: MapType => new MapConverter(getConverterForType(mt.keyType, nullable = false),
         getConverterForType(mt.valueType, mt.valueContainsNull))
       case NullType => NullConverter
       case unknown => throw new UnsupportedOperationException(
