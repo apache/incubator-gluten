@@ -87,13 +87,13 @@ abstract class TpcSuite(
     conf.set("spark.history.fs.logDirectory", historyWritePath())
     HistoryServerHelper.startHistoryServer(conf)
   }
+  
+  // boot up history server
+  if (enableHsUi) {
+    startHistoryServer()
+  }
 
   def run(): Boolean = {
-    // boot up history server
-    if (enableHsUi) {
-      startHistoryServer()
-    }
-
     val succeed = actions.forall { action =>
       resetLogLevel() // to prevent log level from being set by unknown external codes
       action.execute(this)
