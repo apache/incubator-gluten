@@ -52,6 +52,7 @@ case class BlockGlutenColumnarToRowExec(child: SparkPlan)
         case d: ArrayType =>
         case d: StructType =>
         case d: MapType =>
+        case d: NullType =>
         case _ =>
           throw new UnsupportedOperationException(
             s"${field.dataType} is not supported in GlutenColumnarToRowExecBase.")

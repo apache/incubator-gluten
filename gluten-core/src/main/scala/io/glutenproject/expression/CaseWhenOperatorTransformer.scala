@@ -19,7 +19,7 @@ package io.glutenproject.expression
 
 import java.util.ArrayList
 
-import io.glutenproject.substrait.expression.{ExpressionNode, IfThenNode}
+import io.glutenproject.substrait.expression.{ExpressionNode, ExpressionBuilder, IfThenNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,9 +41,11 @@ class CaseWhenTransformer(
       ifNodes.add(branch._1.doTransform(args))
       thenNodes.add(branch._2.doTransform(args))
     })
+    val branchDataType = original.asInstanceOf[CaseWhen].inputTypesForMerging(0)
     // generate else value node, maybe null
     val elseValueNode = elseValue.map(_.doTransform(args))
-    new IfThenNode(ifNodes, thenNodes, elseValueNode.getOrElse(null))
+      .getOrElse(ExpressionBuilder.makeLiteral(null, branchDataType, true))
+    new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
 }
 

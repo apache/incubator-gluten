@@ -18,5 +18,4 @@
 package org.apache.spark.sql
 
 class GlutenIntervalFunctionsSuite extends IntervalFunctionsSuite with GlutenSQLTestsTrait {
-
 }

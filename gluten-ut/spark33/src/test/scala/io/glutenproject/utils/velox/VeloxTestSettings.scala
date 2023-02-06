@@ -19,8 +19,11 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
 
-import org.apache.spark.sql.GlutenStringFunctionsSuite
+import org.apache.spark.sql.{GlutenBloomFilterAggregateQuerySuite, GlutenStringFunctionsSuite}
 
 class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringFunctionsSuite]
+  enableSuite[GlutenBloomFilterAggregateQuerySuite]
+    // fallback might_contain, the input argument binary is not same with vanilla spark
+    .exclude("Test NULL inputs for might_contain")
 }

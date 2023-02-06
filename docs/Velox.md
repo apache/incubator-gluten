@@ -59,11 +59,9 @@ cd /path_to_gluten
 ./tools/one_step_veloxbackend.sh
 ```
 
-Alternatively you may build gluten step by step as below.
+<b>Alternatively you may build gluten step by step as below.</b>
 
 ```shell script
-## Set for aarch64 build
-export CPU_TARGET="aarch64"
 
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
@@ -78,7 +76,10 @@ cd /path_to_gluten/ep/build-velox/src/
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
-./compile.sh --build_velox_backend=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON ..
+make -j
 
 # You can also use CMAKE command to compile
 # cd /path_to_gluten/cpp
@@ -93,7 +94,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 
 ```
 
-Once building successfully, the Jar file is generated in the directory: package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar. It's the only jar we need to config to Spark 3.2.2. Jar for spark3.3.1 is package/velox/spark32/target/gluten-spark3.3_1.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+Once building successfully, the Jar file will be generated in the directory: package/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.2.2, and package/target/gluten-spark3.3_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar for Spark 3.3.1.
 
 ## 2.1 Specify velox home directory
 
@@ -106,7 +107,10 @@ cd /path_to_gluten/ep/build_velox/src
 
 step 2: recompile gluten cpp folder, set velox_home in build_velox.sh
 cd /path_to_gluten/cpp
-./compile.sh --velox_home=/your_specified_velox_path
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DVELOX_HOME=/your_specified_velox_path ..
+make -j
 
 step 3: package jar
 cd /path_to_gluten
@@ -127,9 +131,12 @@ step 1: set ARROW_SOURCE_DIR in build_arrow_for_velox.sh and compile
 cd /path_to_gluten/ep/build-arrow/src/
 ./build_arrow_for_velox.sh
 
-step 2: set ARROW_ROOT in compile.sh or run with --arrow_root
+step 2: set ARROW_ROOT
 cd /path_to_gluten/cpp
-sh ./compile.sh --arrow_root=/your_arrow_lib
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DARROW_ROOT=/your_arrow_lib ..
+make -j
 
 step 3: package jar
 cd /path_to_gluten
@@ -153,7 +160,10 @@ cd /path_to_gluten/ep/build-velox/src
 ./build_velox.sh --enable_hdfs=ON
 
 cd /path_to_gluten/cpp
-./compile.sh --enable_hdfs=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HDFS=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
@@ -257,7 +267,10 @@ cd /path_to_gluten/ep/build-velox/src/
 ./build_velox.sh --enable_s3=ON
 
 cd /path_to_gluten/cpp
-./compile.sh --enable_s3=ON
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_S3=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip
@@ -281,18 +294,6 @@ If you are using instance credentials you do not have to set the access key or s
 
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
-## 2.6 Local Cache support
-Velox supports local cache when reading data from HDFS/S3. The feature is very useful if remote storage is slow, e.g., reading from a public S3 bucket. With this feature, Velox can asynchronously cache the data on local disk when reading from remote storage, and the future reading requests on already cached blocks will be serviced from local cache files. To enable the local caching feature, below configurations are required:
-```
-spark.gluten.sql.columnar.backend.velox.cacheEnabled // enable or disable velox cache, default off
-spark.gluten.sql.columnar.backend.velox.cachePath  // the folder to store the cache files, default to /tmp
-spark.gluten.sql.columnar.backend.velox.cacheSize  // the total size of the cache, default to 128MB
-spark.gluten.sql.columnar.backend.velox.cacheShards // the shards of the cache, default to 1
-spark.gluten.sql.columnar.backend.velox.cacheIOThreads // the IO threads for cache promoting, default to 1
-```
-It's recommened to mount SSDs to the cache path to get the best performance of local caching. 
-On the start up of Saprk contenxt, the cache files will be allocated under "spark.gluten.sql.columnar.backend.velox.cachePath", with UUID based suffix, e.g. "/tmp/cache.13e8ab65-3af4-46ac-8d28-ff99b2a9ec9b0". Currently Gluten is not able to reuse the cache from last run, and the old cache files are left there after Spark context shutdown.
-
 # 3 Coverage
 
 Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 53 functions.
@@ -310,7 +311,10 @@ Gluten supports allocating memory on HBM. This feature is optional and is disabl
 To enable this feature in Gluten, users can. Below command is used to enable this feature.
 ```
 cd /path_to_gluten/cpp
-./compile.sh --enable_hbm
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DENABLE_HBM=ON ..
+make -j
 
 cd /path_to_gluten
 mvn clean package -Pbackends-velox -Pspark-3.2 -Pfull-scala-compiler -DskipTests -Dcheckstyle.skip

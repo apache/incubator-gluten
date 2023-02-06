@@ -42,6 +42,7 @@ object VeloxBackendSettings extends BackendSettings {
     case _ => false
   }
   override def supportExpandExec(): Boolean = true
+  override def needProjectExpandOutput: Boolean = true
   override def supportSortExec(): Boolean = true
   override def supportWindowExec(): Boolean = true
   override def supportColumnarShuffleExec(): Boolean = {

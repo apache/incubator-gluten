@@ -46,12 +46,18 @@ message Type {
     // encountered, treat it as being non-nullable and having the default
     // variation.
     uint32 user_defined_type_reference = 31 [deprecated = true];
+
+    Nothing nothing = 33;
   }
 
   enum Nullability {
     NULLABILITY_UNSPECIFIED = 0;
     NULLABILITY_NULLABLE = 1;
     NULLABILITY_REQUIRED = 2;
+  }
+
+  message Nothing {
+    uint32 type_variation_reference = 1;
   }
 
   message Boolean {

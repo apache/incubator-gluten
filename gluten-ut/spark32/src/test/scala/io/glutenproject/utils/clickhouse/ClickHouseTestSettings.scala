@@ -74,7 +74,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDateFunctionsSuite]
     .include(
-      "quarter"
+      "quarter",
+      "second"
     )
 
   enableSuite[GlutenDateExpressionsSuite]
@@ -115,7 +116,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenComplexTypesSuite]
-  enableSuite[GlutenComplexTypeSuite]
+  enableSuite[GlutenComplexTypeSuite].exclude(
+    "CreateMap"
+  )
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude(
       "- (UnaryMinus)",
@@ -160,9 +163,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Correlated subqueries in LATERAL VIEW",
       "NOT EXISTS predicate subquery",
       "NOT IN predicate subquery",
-      "correlated scalar subquery in where",
-      "disjunctive correlated scalar subquery",
-      ""
+      "disjunctive correlated scalar subquery"
     )
 
   enableSuite[GlutenDataFramePivotSuite]
@@ -175,5 +176,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenPredicateSuite]
     .includeByPrefix(
       "SPARK-29100"
+    )
+
+  enableSuite[GlutenColumnExpressionSuite]
+    .include(
+      "IN/INSET with bytes, shorts, ints, dates"
     )
 }

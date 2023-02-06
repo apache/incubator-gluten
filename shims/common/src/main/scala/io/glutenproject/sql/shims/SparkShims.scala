@@ -18,9 +18,14 @@ package io.glutenproject.sql.shims
 
 import io.glutenproject.expression.Sig
 
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
 
 sealed abstract class ShimDescriptor
 
@@ -40,4 +45,12 @@ trait SparkShims {
   def supportAdaptiveWithExchangeConsidered(plan: SparkPlan): Boolean
 
   def expressionMappings: Seq[Sig]
+
+  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec])
+
+  def generateFileScanRDD(
+      sparkSession: SparkSession,
+      readFunction: (PartitionedFile) => Iterator[InternalRow],
+      filePartitions: Seq[FilePartition],
+      fileSourceScanExec: FileSourceScanExec): FileScanRDD
 }

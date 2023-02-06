@@ -1,4 +1,4 @@
-GLUTEN_JAR=/PATH_TO_GLUTEN_HOME/package/velox/spark32/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+GLUTEN_JAR=/PATH_TO_GLUTEN_HOME/package/target/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 SPARK_HOME=/PATH_TO_SPARK_HOME/
 cat tpch_parquet.scala | ${SPARK_HOME}/bin/spark-shell \
   --master yarn --deploy-mode client \

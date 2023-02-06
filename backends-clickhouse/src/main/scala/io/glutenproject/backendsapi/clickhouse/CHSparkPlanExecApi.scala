@@ -44,7 +44,7 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
-import org.apache.spark.sql.extension.{CHDataSourceV2Strategy, ClickHouseAnalysis}
+import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -306,6 +306,11 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
             WholeStageTransformerExec(
               ProjectExecTransformer(child.output ++ appendedProjections.toSeq, c))(
               ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet())
+          case r2c: RowToCHNativeColumnarExec =>
+            WholeStageTransformerExec(
+              ProjectExecTransformer(child.output ++ appendedProjections.toSeq, r2c))(
+              ColumnarCollapseCodegenStages.codegenStageCounter.incrementAndGet()
+            )
         }
         (
           newChild,
@@ -346,7 +351,7 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @return
    */
   override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = {
-    List(spark => CHDataSourceV2Strategy(spark))
+    List.empty
   }
 
   /**

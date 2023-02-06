@@ -18,12 +18,12 @@
 package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
-
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
-import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenOuterJoinSuite, GlutenInnerJoinSuite}
+import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
+import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
 
 class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -90,10 +90,10 @@ class VeloxTestSettings extends BackendTestSettings {
       "replace nan with double"
     )
 
-  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].exclude(
-    // struct join key not supported, fell-back to Vanilla join
-    "SPARK-32659: Fix the data issue when pruning DPP on non-atomic type"
-  )
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
@@ -204,4 +204,33 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
+  enableSuite[GlutenDatasetAggregatorSuite]
+  enableSuite[GlutenDatasetOptimizationSuite]
+  enableSuite[GlutenDatasetPrimitiveSuite]
+  enableSuite[GlutenDatasetSuite]
+    .exclude("typed aggregation: expr, expr, expr, expr, expr")
+    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr")
+    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr, expr")
+    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr, expr, expr")
+    .exclude("dropDuplicates: columns with same column name")
+    .exclude("groupBy.as")
+  enableSuite[GlutenJsonFunctionsSuite]
+    .exclude("function get_json_object - support single quotes")
+    .exclude("roundtrip in to_json and from_json - struct")
+  enableSuite[GlutenProductAggSuite]
+  enableSuite[GlutenReplaceNullWithFalseInPredicateEndToEndSuite]
+  enableSuite[GlutenFileSourceSQLInsertTestSuite]
+  enableSuite[GlutenDSV2SQLInsertTestSuite]
+  enableSuite[GlutenXPathFunctionsSuite]
+  // enableSuite[GlutenFileBasedDataSourceSuite]
+  enableSuite[GlutenEnsureRequirementsSuite]
+    .exclude("SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection")
+  // enableSuite[GlutenCoalesceShufflePartitionsSuite]
+  enableSuite[GlutenFileSourceCharVarcharTestSuite]
+  enableSuite[GlutenDSV2CharVarcharTestSuite]
+    .exclude("char type values should be padded: nested in struct")
+    .exclude("char type values should be padded: nested in struct of array")
+  enableSuite[GlutenFileScanSuite]
+  enableSuite[GlutenNestedDataSourceV1Suite]
+  enableSuite[GlutenNestedDataSourceV2Suite]
 }

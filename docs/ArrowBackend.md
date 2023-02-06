@@ -43,7 +43,7 @@ cd /path_to_gluten/ep/build-arrow/src
 
 ## compile gluten cpp
 cd /path_to_gluten/cpp
-./compile.sh --build_gazelle_cpp_backend=ON --build_protobuf=ON
+mkdir build && cd build && cmake -DBUILD_GAZELLE_CPP_BACKEND=ON .. && make -j
 
 ## compile gluten jvm and package. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark3.3
 cd /path_to_gluten

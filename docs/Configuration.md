@@ -32,6 +32,7 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 | spark.gluten.sql.columnar.shuffle.customizedCompression.codec | Set up the codec to be used for Columnar Shuffle, default is lz4| lz4 |
 | spark.gluten.sql.columnar.numaBinding | Set up NUMABinding, default is false| true |
 | spark.gluten.sql.columnar.coreRange | Set up the core range for NUMABinding, only works when numaBinding set to true. <br /> The setting is based on the number of cores in your system. Use 72 cores as an example. | 0-17,36-53 &#124;18-35,54-71 |
+| spark.gluten.sql.native.bloomFilter | Enable of Disable native runtime bloomfilter | true |
 
 Below is an example for spark-default.conf, if you are using conda to install OAP project.
 
@@ -42,8 +43,7 @@ spark.sql.sources.useV1SourceList avro
 spark.plugins io.glutenproject.GlutenPlugin
 spark.shuffle.manager org.apache.spark.shuffle.sort.ColumnarShuffleManager
 spark.gluten.sql.columnar.backend.lib=velox # Valid options: velox, clickhouse, gazelle-cpp
-# Options: ${GLUTEN_HOME}/package/velox/spark33/target/gluten-<>-jar-with-dependencies.jar
-spark.driver.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
-spark.executor.extraClassPath ${GLUTEN_HOME}/package/velox/spark32/target/gluten-<>-jar-with-dependencies.jar
+spark.driver.extraClassPath ${GLUTEN_HOME}/package/target/gluten-<>-jar-with-dependencies.jar
+spark.executor.extraClassPath ${GLUTEN_HOME}/package/target/gluten-<>-jar-with-dependencies.jar
 ######
 ```

@@ -84,9 +84,13 @@ fi
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
-./compile.sh --build_velox_backend=ON --build_type=$BUILD_TYPE --build_velox_backend=ON \
-             --build_test=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS --build_jemalloc=$BUILD_JEMALLOC \
-             --enable_hbm=$ENABLE_HBM --enable_s3=$ENABLE_S3 --enable_hdfs=$ENABLE_HDFS
+rm -rf build
+mkdir build
+cd build
+cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+      -DBUILD_TESTS=$BUILD_TESTS -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
+      -DENABLE_HBM=$ENABLE_HBM -DVELOX_ENABLE_S3=$ENABLE_S3 -DVELOX_ENABLE_HDFS=$ENABLE_HDFS ..
+make -j
 
 cd $GLUTEN_DIR
 mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
