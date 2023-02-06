@@ -67,7 +67,7 @@
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
     <junit.version>4.13.1</junit.version>
 
-    <substrait.version>gluten-0.1</substrait.version>
+    <substrait.version>0.5.0</substrait.version>
     <guava.version>31.1-jre</guava.version>
     <protobuf.version>3.16.3</protobuf.version>
     <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
@@ -691,19 +691,4 @@
       </plugin>
     </plugins>
   </build>
-
-  <repositories>
-    <repository>
-      <id>Kyligence</id>
-      <name>Kyligence Repository</name>
-      <url>https://repository.kyligence.io/repository/maven-public/
-      </url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
 </project>
