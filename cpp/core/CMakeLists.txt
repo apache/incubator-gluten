@@ -30,19 +30,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
-option(BUILD_PROTOBUF "Build Protobuf from Source" ON)
-option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
-option(TESTS "Build the tests" OFF)
-option(BENCHMARKS "Build the benchmarks" OFF)
-option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
-
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
 set(JEMALLOC_BUILD_VERSION "5.2.1")
-
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
+
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
+
 set(proto_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../gluten-core/src/main/resources/substrait/proto)
 set(substrait_proto_directory ${proto_directory}/substrait)
 message(STATUS "Set Proto Directory in ${proto_directory}")
@@ -131,70 +131,6 @@ if(USE_AVX512)
   endif ()
 endif()
 
-# Building Jemalloc
-macro(build_jemalloc)
-  message(STATUS "Building Jemalloc from Source")
-  set (JEMALLOC_SOURCE_URL
-       "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_BUILD_VERSION}/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
-       "https://github.com/ursa-labs/thirdparty/releases/download/latest/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
-  )
-  set(JEMALLOC_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-install")
-  set(JEMALLOC_LIB_DIR "${JEMALLOC_PREFIX}/lib")
-  set(JEMALLOC_INCLUDE_DIR "${JEMALLOC_PREFIX}/include")
-  set(
-    JEMALLOC_STATIC_LIB
-    "${JEMALLOC_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}jemalloc_pic${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    )
-  set(
-    JEMALLOC_INCLUDE
-    "${JEMALLOC_PREFIX}/include"
-    )
-  set(JEMALLOC_CONFIGURE_ARGS
-      "AR=${CMAKE_AR}"
-      "CC=${CMAKE_C_COMPILER}"
-      "--prefix=${JEMALLOC_PREFIX}"
-      "--libdir=${JEMALLOC_LIB_DIR}"
-      "--with-jemalloc-prefix=je_gazelle_"
-      "--with-private-namespace=je_gazelle_private_"
-      "--without-export"
-      "--disable-shared"
-      "--disable-cxx"
-      "--disable-libdl"
-      "--disable-initial-exec-tls"
-      "CFLAGS=-fPIC"
-      "CXXFLAGS=-fPIC")
-  set(JEMALLOC_BUILD_COMMAND ${MAKE} ${MAKE_BUILD_ARGS})
-  ExternalProject_Add(jemalloc_ep
-                      URL ${JEMALLOC_SOURCE_URL}
-                      PATCH_COMMAND touch doc/jemalloc.3 doc/jemalloc.html
-                      CONFIGURE_COMMAND "./configure" ${JEMALLOC_CONFIGURE_ARGS}
-                      BUILD_COMMAND ${JEMALLOC_BUILD_COMMAND}
-                      BUILD_IN_SOURCE 1
-                      BUILD_BYPRODUCTS "${JEMALLOC_STATIC_LIB}"
-                      INSTALL_COMMAND make install)
-
-  file(MAKE_DIRECTORY "${JEMALLOC_INCLUDE_DIR}")
-  add_library(jemalloc::libjemalloc STATIC IMPORTED)
-  set_target_properties(
-    jemalloc::libjemalloc
-    PROPERTIES INTERFACE_LINK_LIBRARIES Threads::Threads
-               IMPORTED_LOCATION "${JEMALLOC_STATIC_LIB}"
-               INTERFACE_INCLUDE_DIRECTORIES
-               "${JEMALLOC_INCLUDE_DIR}")
-  add_dependencies(jemalloc::libjemalloc protobuf_ep)
-endmacro()
-
-# Find Jemalloc
-macro(find_jemalloc)
-  # Find the existing Protobuf
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  find_package(jemalloc_pic)
-  if ("${Jemalloc_LIBRARY}" STREQUAL "Jemalloc_LIBRARY-NOTFOUND")
-    message(FATAL_ERROR "Jemalloc Library Not Found")
-  endif()
-  set(PROTOC_BIN ${Jemalloc_PROTOC_EXECUTABLE})
-endmacro()
-
 # Set up Proto
 set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
@@ -247,6 +183,20 @@ file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(spark_columnar_jni SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(spark_columnar_jni jni_proto)
 
+if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+  execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libstdc++fs.a
+    RESULT_VARIABLE LIBSTDCXXFS_STATIC_RESULT
+    OUTPUT_VARIABLE LIBSTDCXXFS_STATIC_PATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if (LIBSTDCXXFS_STATIC_RESULT EQUAL 0 AND EXISTS "${LIBSTDCXXFS_STATIC_PATH}")
+    message(STATUS "libstdc++fs.a found at: ${LIBSTDCXXFS_STATIC_PATH}")
+    target_link_libraries(spark_columnar_jni PRIVATE ${LIBSTDCXXFS_STATIC_PATH})
+  else()
+    find_library(LIBSTDCXXFS stdc++fs REQUIRED)
+    target_link_libraries(spark_columnar_jni PUBLIC ${LIBSTDCXXFS})
+  endif()
+endif()
+
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${PARQUET_LIB_NAME})
 
@@ -288,11 +238,12 @@ add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
                    VERBATIM)
 add_custom_target(jni_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)
-target_include_directories(spark_columnar_jni PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${source_root_directory} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
+target_include_directories(spark_columnar_jni PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
 set_target_properties(spark_columnar_jni PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
 )
 
+include(Findjemalloc_pic)
 # Build Jemalloc
 if(BUILD_JEMALLOC)
   build_jemalloc(${STATIC_JEMALLOC})
@@ -304,6 +255,7 @@ endif()
 
 if(BUILD_TESTS)
   add_test_case(exec_backend_test SOURCES compute/BackendTest.cc)
+  add_test_case(shuffle_test SOURCES tests/ShuffleSplitTest.cc)
 endif()
 
 if(BUILD_BENCHMARKS)
@@ -322,7 +274,7 @@ target_link_libraries(spark_columnar_jni
 
 install(TARGETS spark_columnar_jni
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES ${source_root_directory}/resources/libhdfs.so
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
         DESTINATION ${LIBHDFS3_DESTINATION})
-install(FILES ${source_root_directory}/resources/libprotobuf.so.13
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libprotobuf.so.13
         DESTINATION ${CMAKE_INSTALL_LIBDIR})

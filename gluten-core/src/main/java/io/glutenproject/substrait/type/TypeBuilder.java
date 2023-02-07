@@ -82,4 +82,8 @@ public class TypeBuilder {
   public static TypeNode makeList(Boolean nullable, TypeNode nestedType) {
     return new ListNode(nullable, nestedType);
   }
+
+  public static TypeNode makeNothing() {
+    return new NothingNode();
+  }
 }

@@ -17,6 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.sql.shims.SparkShimLoader
+import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -33,6 +34,7 @@ object ExpressionMappings {
   final val MAX = "max"
   final val STDDEV_SAMP = "stddev_samp"
   final val COLLECT_LIST = "collect_list"
+  final val BLOOM_FILTER_AGG = "bloom_filter_agg"
 
   // Function names used by Substrait plan.
   final val ADD = "add"
@@ -130,16 +132,6 @@ object ExpressionMappings {
   final val LOG10 = "log10"
 
   // SparkSQL DateTime functions
-  final val YEAR = "year"
-  final val QUARTER = "quarter"
-  final val MONTH = "month"
-  final val WEEK_OF_YEAR = "week_of_year"
-  final val WEEK_DAY = "week_day"
-  final val DAY_OF_WEEK = "day_of_week"
-  final val DAY_OF_MONTH = "day_of_month"
-  final val DAY_OF_YEAR = "day_of_year"
-  final val DAY = "day"
-  final val SECOND = "second"
   // Fully supporting wait for https://github.com/ClickHouse/ClickHouse/pull/43818
   final val FROM_UNIXTIME = "from_unixtime"
   final val DATE_ADD = "date_add"
@@ -151,9 +143,12 @@ object ExpressionMappings {
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
   final val JSON_ARRAY_LENGTH = "json_array_length"
+  final val TO_JSON = "to_json"
+  final val FROM_JSON = "from_json"
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
+  final val XXHASH64 = "xxhash64"
   final val MD5 = "md5"
 
   // Array functions
@@ -165,8 +160,12 @@ object ExpressionMappings {
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
 
+  // struct functions
+  final val GET_STRUCT_FIELD = "get_struct_field"
+
   // Spark 3.3
   final val SPLIT_PART = "split_part"
+  final val MIGHT_CONTAIN = "might_contain"
 
   // Specific expression
   final val IF = "if"
@@ -281,6 +280,7 @@ object ExpressionMappings {
     Sig[ToDegrees](DEGREES),
     // SparkSQL DateTime functions
     Sig[Year](EXTRACT),
+    Sig[YearOfWeek](EXTRACT),
     Sig[Quarter](EXTRACT),
     Sig[Month](EXTRACT),
     Sig[WeekOfYear](EXTRACT),
@@ -288,6 +288,8 @@ object ExpressionMappings {
     Sig[DayOfWeek](EXTRACT),
     Sig[DayOfMonth](EXTRACT),
     Sig[DayOfYear](EXTRACT),
+    Sig[Hour](EXTRACT),
+    Sig[Minute](EXTRACT),
     Sig[Second](EXTRACT),
     Sig[FromUnixTime](FROM_UNIXTIME),
     Sig[DateAdd](DATE_ADD),
@@ -298,8 +300,11 @@ object ExpressionMappings {
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
+    Sig[StructsToJson](TO_JSON),
+    Sig[JsonToStructs](FROM_JSON),
     // Hash functions
     Sig[Murmur3Hash](MURMUR3HASH),
+    Sig[XxHash64](XXHASH64),
     Sig[Md5](MD5),
     // Array functions
     Sig[Size](SIZE),
@@ -309,6 +314,8 @@ object ExpressionMappings {
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
+    // Struct functions
+    Sig[GetStructField](GET_STRUCT_FIELD),
     // Directly use child expression transformer
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
@@ -338,8 +345,20 @@ object ExpressionMappings {
     Sig[CollectList](COLLECT_LIST)
   )
 
+  // some spark new version class
+  def getScalarSigOther: Map[String, String] =
+    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+      Map((MIGHT_CONTAIN, MIGHT_CONTAIN))
+    } else Map()
+
+  def getAggSigOther: Map[String, String] =
+    if (GlutenConfig.getSessionConf.enableNativeBloomFilter) {
+      Map((BLOOM_FILTER_AGG, BLOOM_FILTER_AGG))
+    } else Map()
+
   lazy val scalar_functions_map: Map[Class[_], String] =
     SCALAR_SIGS.map(s => (s.expClass, s.name)).toMap
-  lazy val aggregate_functions_map: Map[Class[_], String] =
+  lazy val aggregate_functions_map: Map[Class[_], String] = {
     AGGREGATE_SIGS.map(s => (s.expClass, s.name)).toMap
+  }
 }

@@ -22,6 +22,7 @@ import com.google.protobuf.Any
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.expression.ExpressionNode
@@ -611,8 +612,16 @@ object FilterHandler {
           new BatchScanExecTransformer(batchScan.output, scan,
             leftFilters ++ newPartitionFilters)
         case _ =>
-          throw new UnsupportedOperationException(
-            s"${batchScan.scan.getClass.toString} is not supported.")
+          if (batchScan.runtimeFilters.isEmpty) {
+            throw new UnsupportedOperationException(
+              s"${batchScan.scan.getClass.toString} is not supported.")
+          } else {
+            // IF filter expressions aren't empty, we need to transform the inner operators.
+            val newSource = batchScan.copy(runtimeFilters = ExpressionConverter
+              .transformDynamicPruningExpr(batchScan.runtimeFilters))
+            TransformHints.tagNotTransformable(newSource)
+            newSource
+          }
       }
     case other =>
       throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")

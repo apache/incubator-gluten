@@ -18,8 +18,7 @@
 package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionMappings._
-import io.glutenproject.utils.GlutenExpressionUtil.{ARRAY_TYPE, EMPTY_TYPE, MAP_TYPE, STRUCT_TYPE}
-
+import io.glutenproject.utils.GlutenExpressionUtil.EMPTY_TYPE
 import org.apache.spark.sql.types.DataTypes
 
 object VeloxExpressionUtil {
@@ -30,7 +29,6 @@ object VeloxExpressionUtil {
    */
   // The expression with empty type will fall back directly.
   final val VELOX_EXPR_BLACKLIST: Map[String, Set[String]] = Map(
-    CAST -> Set(ARRAY_TYPE, MAP_TYPE, STRUCT_TYPE),
     REGEXP_REPLACE -> Set(EMPTY_TYPE),
     SPLIT -> Set(EMPTY_TYPE),
     SPLIT_PART -> Set(EMPTY_TYPE),

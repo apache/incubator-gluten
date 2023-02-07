@@ -260,10 +260,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
     TestStats.offloadGluten = true
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
 
-    // we should zip all dependent RDDs to current main RDD
-    // TODO: Does it still need these parameters?
-    val dependentKernels: mutable.ListBuffer[NativeExpressionEvaluator] = mutable.ListBuffer()
-    val dependentKernelIterators: mutable.ListBuffer[GeneralOutIterator] = mutable.ListBuffer()
     val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
 
     val inputRDDs = columnarInputRDDs
@@ -349,8 +345,6 @@ case class WholeStageTransformerExec(child: SparkPlan)(val transformStageId: Int
         resCtx,
         pipelineTime,
         buildRelationBatchHolder,
-        dependentKernels,
-        dependentKernelIterators,
         metricsUpdater().updateOutputMetrics,
         metricsUpdatingFunction)
     }
@@ -552,17 +546,28 @@ object WholeStageTransformerExec extends Logging {
           operatorMetrics,
           metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))
-
       case hau: HashAggregateMetricsUpdater =>
         hau.updateAggregationMetrics(operatorMetrics, aggParamsMap.get(operatorIdx))
-
+      case lu: LimitMetricsUpdater =>
+        // Limit over Sort is converted to TopN node in Velox, so there is only one suite of metrics
+        // for the two transformers. We do not update metrics for limit and leave it for sort.
+        if (!mutNode.children.head.updater.isInstanceOf[SortMetricsUpdater]) {
+          val opMetrics: OperatorMetrics = mergeMetrics(operatorMetrics)
+          lu.updateNativeMetrics(opMetrics)
+        }
       case u =>
         val opMetrics: OperatorMetrics = mergeMetrics(operatorMetrics)
         u.updateNativeMetrics(opMetrics)
     }
 
     var newOperatorIdx: java.lang.Long = operatorIdx - 1
-    var newMetricsIdx: Int = curMetricsIdx
+    var newMetricsIdx: Int = if (mutNode.updater.isInstanceOf[LimitMetricsUpdater] &&
+      mutNode.children.head.updater.isInstanceOf[SortMetricsUpdater]) {
+      // This suite of metrics is not consumed.
+      metricsIdx
+    } else {
+      curMetricsIdx
+    }
 
     mutNode.children.foreach { child =>
       if (child.updater ne NoopMetricsUpdater) {

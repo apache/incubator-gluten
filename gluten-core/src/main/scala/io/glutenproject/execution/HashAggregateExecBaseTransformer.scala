@@ -39,6 +39,7 @@ import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.sketch.BloomFilter
 
 import java.util
 import scala.collection.mutable.ListBuffer
@@ -634,8 +635,15 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     // Create Aggregation functions.
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(aggExpr.filter.get,
+            child.output).doTransform(context.registeredFunction)
+        aggFilterList.add(exprNode)
+      }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggregateFunc.children.toList.map(_ => {
@@ -651,7 +659,8 @@ abstract class HashAggregateExecBaseTransformer(
     })
 
     RelBuilder.makeAggregateRel(
-      inputRel, groupingList, aggregateFunctionList, context, operatorId)
+      inputRel, groupingList, aggregateFunctionList,
+      aggFilterList, context, operatorId)
   }
 
   protected def addFunctionNode(args: java.lang.Object,
@@ -812,8 +821,25 @@ abstract class HashAggregateExecBaseTransformer(
             case other =>
               throw new UnsupportedOperationException(s"not currently supported: $other.")
           }
-        case other =>
-          throw new UnsupportedOperationException(s"not currently supported: $other.")
+        case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
+        // for spark33
+          mode match {
+            case Partial =>
+              val bloom = aggregateFunc.asInstanceOf[TypedImperativeAggregate[BloomFilter]]
+              val aggBufferAttr = bloom.inputAggBufferAttributes
+              for (index <- aggBufferAttr.indices) {
+                val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+                aggregateAttr += attr
+              }
+              res_index += aggBufferAttr.size
+            case Final =>
+              aggregateAttr += aggregateAttributeList(res_index)
+              res_index += 1
+            case other =>
+              throw new UnsupportedOperationException(s"not currently supported: $other.")
+          }
+      case other =>
+        throw new UnsupportedOperationException(s"not currently supported: $other.")
       }
     }
     aggregateAttr.toList
@@ -845,8 +871,14 @@ abstract class HashAggregateExecBaseTransformer(
       groupingList.add(exprNode)
     })
     // Get the aggregate function nodes.
+    val aggFilterList = new util.ArrayList[ExpressionNode]()
     val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(aggExpr => {
+      if (aggExpr.filter.isDefined) {
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(aggExpr.filter.get, child.output).doTransform(args)
+        aggFilterList.add(exprNode)
+      }
       val aggregateFunc = aggExpr.aggregateFunction
       val childrenNodeList = new util.ArrayList[ExpressionNode]()
       val childrenNodes = aggExpr.mode match {
@@ -872,7 +904,7 @@ abstract class HashAggregateExecBaseTransformer(
     })
     if (!validation) {
       RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, context, operatorId)
+        input, groupingList, aggregateFunctionList, aggFilterList, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -882,7 +914,8 @@ abstract class HashAggregateExecBaseTransformer(
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(
-        input, groupingList, aggregateFunctionList, extensionNode, context, operatorId)
+        input, groupingList, aggregateFunctionList, aggFilterList,
+        extensionNode, context, operatorId)
     }
   }
 
@@ -904,7 +937,7 @@ abstract class HashAggregateExecBaseTransformer(
     if (!needsPostProjection(allAggregateResultAttributes)) {
       aggRel
     } else {
-    applyPostProjection(context, aggRel, operatorId, validation)
+      applyPostProjection(context, aggRel, operatorId, validation)
     }
   }
 }

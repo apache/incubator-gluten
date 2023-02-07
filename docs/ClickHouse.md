@@ -61,8 +61,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 - ninja-build 1.8.2
 - Java 8
 - Maven 3.6.3 or higher version
-- Spark 3.2.2
-- Intel Optimized Arrow 8.0.0 ( Please refer to [Intel-Optimized-Arrow-Installation](./ArrowInstallation.md) )
+- Spark 3.2.2 or Spark 3.3.1
 
 
 #### Setup Gluten development environment
@@ -92,7 +91,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
         And then add these options into CMake options:
 ```
-            -G "Unix Makefiles" -D WERROR=OFF -D ENABLE_PROTOBUF=1 -D ENABLE_JEMALLOC=0
+            -G "Unix Makefiles" -D WERROR=OFF -D ENABLE_PROTOBUF=1 -D ENABLE_JEMALLOC=1 -D ENABLE_BUILD_PATH_MAPPING=OFF
 ```
 - Build 'ch' target with Debug mode or Release mode:
 
@@ -110,14 +109,24 @@ Target file is `/tmp/build_clickhouse/utils/local-engine/libch.so`.
 ### Compile Gluten with ClickHouse backend
 
 The prerequisites are the same as the one above mentioned. Compile Gluten with ClickHouse backend through maven:
+
+##### With Spark 3.2.2
 ```
     git clone https://github.com/oap-project/gluten.git
     cd gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
     mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
-    ls -al backends-clickhouse/target/gluten-XXXXX-jar-with-dependencies.jar
+    ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.2-jar-with-dependencies.jar
 ```
 
+##### With Spark 3.3.1
+```
+    git clone https://github.com/oap-project/gluten.git
+    cd gluten/
+    export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
+    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.3 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
+    ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.3-jar-with-dependencies.jar
+```
 
 ### Test on local
 
@@ -126,11 +135,23 @@ The prerequisites are the same as the one above mentioned. Compile Gluten with C
 tar zxf spark-3.2.2-bin-hadoop2.7.tgz
 cd spark-3.2.2-bin-hadoop2.7
 rm -f jars/protobuf-java-2.5.0.jar
-#download protobuf-java-3.13.0.jar, delta-core_2.12-1.2.1.jar and delta-storage-1.2.1.jar
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.13.0/protobuf-java-3.13.0.jar -P ./jars -O protobuf-java-3.13.0.jar
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/1.2.1/delta-core_2.12-1.2.1.jar -P ./jars -O delta-core_2.12-1.2.1.jar
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/1.2.1/delta-storage-1.2.1.jar -P ./jars -O delta-storage-1.2.1.jar
-cp gluten-XXXXX-jar-with-dependencies.jar jars/
+#download protobuf-java-3.16.3.jar, delta-core_2.12-2.0.1.jar and delta-storage-2.0.1.jar
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars -O protobuf-java-3.16.3.jar
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P ./jars -O delta-core_2.12-2.0.1.jar
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P ./jars -O delta-storage-2.0.1.jar
+cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
+```
+
+#### Deploy Spark 3.3.1
+```
+tar zxf spark-3.3.1-bin-hadoop2.7.tgz
+cd spark-3.3.1-bin-hadoop2.7
+rm -f jars/protobuf-java-2.5.0.jar
+#download protobuf-java-3.16.3.jar, delta-core_2.12-2.2.0.jar and delta-storage-2.2.0.jar
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars -O protobuf-java-3.16.3.jar
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P ./jars -O delta-core_2.12-2.2.0.jar
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P ./jars -O delta-storage-2.2.0.jar
+cp gluten-XXXXX-spark-3.3-jar-with-dependencies.jar jars/
 ```
 
 #### Data preparation
@@ -482,3 +503,52 @@ The performance of Gluten + ClickHouse backend increases by **about 1/3**.
 | Spark + Parquet | 590ms | 592ms  | 597ms | 609ms | 588ms |
 | Spark + Gluten + ClickHouse backend | 402ms | 405ms  | 409ms | 425ms | 399ms |
 
+### Run on a yarn cluster
+
+We can to run a Spark SQL task by gluten on a yarn cluster as following
+```bash
+#!/bin/bash
+
+# The file contains the sql you want to run
+sql_file=$YOUR_SQL_FILE
+
+# Your need to setup the env varibale SPARK_HOME
+# export SPARK_HOME=xxx
+my_spark_sql=$SPARK_HOME/bin/spark-sql
+
+# The location of libch.so on local
+ch_lib=$LOCAL_PATH_OF_LIBCH
+
+# The location of gluten jar package on local
+gluten_jar=$LOCAL_PATH_OF_GLUTEN/gluten-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+
+# spark.gluten.sql.columnar.libpath is set to a relative path ./libch.so, since it is dispatched
+# to every worker node's working directory by conf --files.
+# Other configurations are almost the same as setup Spark Thriftserver.
+$my_spark_sql \
+  --master yarn \
+  --files $ch_lib \
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
+  --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
+  --conf spark.databricks.delta.snapshotPartitions=1 \
+  --conf spark.databricks.delta.properties.defaults.checkpointInterval=5 \
+  --conf spark.databricks.delta.stalenessLimit=3600000 \
+  --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.gluten.sql.columnar.columnartorow=true \
+  --conf spark.gluten.sql.columnar.backend.ch.worker.id=1 \
+  --conf spark.gluten.sql.columnar.loadnative=true \
+  --conf spark.gluten.sql.columnar.loadarrow=false \
+  --conf spark.gluten.sql.columnar.backend.lib=ch \
+  --conf spark.gluten.sql.columnar.libpath=./libch.so \
+  --conf spark.gluten.sql.columnar.iterator=true \
+  --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
+  --conf spark.gluten.sql.enable.native.validation=false \
+  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.union=true \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=5G \
+  -f $sql_file
+```
+
+We also can use `spark-submit` to run a task.

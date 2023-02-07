@@ -17,96 +17,48 @@
 
 #pragma once
 
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <folly/executors/IOThreadPoolExecutor.h>
+
 #include "VeloxColumnarToRowConverter.h"
+#include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "memory/VeloxColumnarBatch.h"
-#include "substrait/plan.pb.h"
-#include "velox/connectors/hive/FileHandle.h"
-#include "velox/connectors/hive/HiveConnector.h"
-#include "velox/connectors/hive/HiveConnectorSplit.h"
-#ifdef VELOX_ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
-#endif
-#ifdef VELOX_ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
-#endif
-#include "velox/core/PlanNode.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "velox/substrait/SubstraitToVeloxPlan.h"
 
 namespace gluten {
 
-std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx(
-    facebook::velox::memory::MemoryPool* memoryPool);
-
 class VeloxInitializer {
  public:
-  VeloxInitializer(std::unordered_map<std::string, std::string> conf) {
+  VeloxInitializer(const std::unordered_map<std::string, std::string>& conf) {
     Init(conf);
   }
-
+  ~VeloxInitializer() {
+    if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(mappedMemory_.get())) {
+      std::cout << mappedMemory_->toString() << std::endl;
+    }
+  }
   void Init(std::unordered_map<std::string, std::string> conf);
-};
 
-class WholeStageResIter {
- public:
-  WholeStageResIter(
-      std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
-      std::shared_ptr<const facebook::velox::core::PlanNode> planNode,
-      const std::unordered_map<std::string, std::string>& confMap)
-      : planNode_(planNode), pool_(pool), confMap_(confMap) {
-    getOrderedNodeIds(planNode_, orderedNodeIds_);
+  void InitCache();
+
+  std::string genUuid() {
+    return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
   }
-
-  virtual ~WholeStageResIter() = default;
-
-  arrow::Result<std::shared_ptr<VeloxColumnarBatch>> Next();
-
-  std::shared_ptr<Metrics> GetMetrics(int64_t exportNanos) {
-    collectMetrics();
-    metrics_->veloxToArrow = exportNanos;
-    return metrics_;
-  }
-
-  facebook::velox::memory::MemoryPool* getPool() const;
-
-  /// Set the Spark confs to Velox query context.
-  void setConfToQueryContext(const std::shared_ptr<facebook::velox::core::QueryCtx>& queryCtx);
-
-  std::shared_ptr<facebook::velox::exec::Task> task_;
-
-  std::function<void(facebook::velox::exec::Task*)> addSplits_;
-
-  std::shared_ptr<const facebook::velox::core::PlanNode> planNode_;
-
- private:
-  /// Get all the children plan node ids with postorder traversal.
-  void getOrderedNodeIds(
-      const std::shared_ptr<const facebook::velox::core::PlanNode>&,
-      std::vector<facebook::velox::core::PlanNodeId>& nodeIds);
-
-  /// Collect Velox metrics.
-  void collectMetrics();
-
-  /// Return a certain type of runtime metric. Supported metric types are: sum, count, min, max.
-  int64_t runtimeMetric(
-      const std::string& metricType,
-      const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
-      const std::string& metricId) const;
-
-  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
-
-  std::shared_ptr<Metrics> metrics_ = nullptr;
-  int64_t metricVeloxToArrowNanos_ = 0;
-
-  /// All the children plan node ids with postorder traversal.
-  std::vector<facebook::velox::core::PlanNodeId> orderedNodeIds_;
-
-  /// Node ids should be ommited in metrics.
-  std::unordered_set<facebook::velox::core::PlanNodeId> omittedNodeIds_;
-
-  /// A map of custome configs.
-  std::unordered_map<std::string, std::string> confMap_;
+  // Instance of AsyncDataCache used for all large allocations.
+  std::shared_ptr<facebook::velox::memory::MemoryAllocator> mappedMemory_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> cacheExecutor_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+  const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
+  const std::string kVeloxCachePath = "spark.gluten.sql.columnar.backend.velox.cachePath";
+  const std::string kVeloxCachePathDefault = "/tmp/";
+  const std::string kVeloxCacheSize = "spark.gluten.sql.columnar.backend.velox.cacheSize";
+  const std::string kVeloxCacheSizeDefault = "1073741824";
+  const std::string kVeloxCacheShards = "spark.gluten.sql.columnar.backend.velox.cacheShards";
+  const std::string kVeloxCacheShardsDefault = "1";
+  const std::string kVeloxCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.cacheIOTHreads";
+  const std::string kVeloxCacheIOThreadsDefault = "1";
 };
 
 // This class is used to convert the Substrait plan into Velox plan.
@@ -137,7 +89,7 @@ class VeloxBackend final : public Backend {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
   std::shared_ptr<Metrics> GetMetrics(void* raw_iter, int64_t exportNanos) override {
-    auto iter = static_cast<WholeStageResIter*>(raw_iter);
+    auto iter = static_cast<WholeStageResultIterator*>(raw_iter);
     return iter->GetMetrics(exportNanos);
   }
 
@@ -171,11 +123,6 @@ class VeloxBackend final : public Backend {
   std::string nextPlanNodeId();
 
   void cacheOutputSchema(const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode);
-
-  /* Result Iterator */
-  class WholeStageResIterFirstStage;
-
-  class WholeStageResIterMiddleStage;
 
   int planNodeId_ = 0;
 

@@ -44,14 +44,9 @@ class CHColumnarShuffleWriter[K, V](
   private val offheapSize = conf.getSizeAsBytes("spark.memory.offHeap.size", 0)
   private val executorNum = conf.getInt("spark.executor.cores", 1)
   private val offheapPerTask = offheapSize / executorNum;
-  private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
+  private val splitSize = GlutenConfig.getConf.shuffleSplitDefaultSize
   private val customizedCompressCodec =
     GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
-  private val defaultCompressionCodec = if (conf.getBoolean("spark.shuffle.compress", true)) {
-    conf.get("spark.io.compression.codec", "lz4")
-  } else {
-    "uncompressed"
-  }
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold;
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
@@ -96,8 +91,8 @@ class CHColumnarShuffleWriter[K, V](
       nativeSplitter = splitterJniWrapper.make(
         dep.nativePartitioning,
         mapId,
-        nativeBufferSize,
-        defaultCompressionCodec,
+        splitSize,
+        customizedCompressCodec,
         dataTmp.getAbsolutePath,
         localDirs)
     }

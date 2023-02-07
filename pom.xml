@@ -32,6 +32,7 @@
   <modules>
     <module>shims</module>
     <module>gluten-core</module>
+    <module>package</module>
     <module>substrait/substrait-spark</module>
   </modules>
 
@@ -42,13 +43,15 @@
     <spark33.version>3.3.1</spark33.version>
     <spark33.scala>2.12.15</spark33.scala>
     <spark33bundle.version>3.3</spark33bundle.version>
-    <delta2.version>2.0.0</delta2.version>
-    <delta1.version>1.2.1</delta1.version>
+    <delta20.version>2.0.1</delta20.version>
+    <delta22.version>2.2.0</delta22.version>
+    <delta.version>${delta20.version}</delta.version>
+    <delta.binary.version>20</delta.binary.version>
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>${spark32.scala}</scala.version>
     <spark.version>${spark32.version}</spark.version>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-    <delta.version>${delta1.version}</delta.version>
+    <arrow.version>10.0.0-SNAPSHOT</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>${hadoop.version}</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -64,7 +67,7 @@
     <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
     <junit.version>4.13.1</junit.version>
 
-    <substrait.version>gluten-0.1</substrait.version>
+    <substrait.version>0.5.0</substrait.version>
     <guava.version>31.1-jre</guava.version>
     <protobuf.version>3.16.3</protobuf.version>
     <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
@@ -102,32 +105,25 @@
 
   <profiles>
     <profile>
-      <id>spark</id>
+      <id>spark-3.2</id>
       <activation>
-          <activeByDefault>true</activeByDefault>
+        <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
         <scala.version>${spark32.scala}</scala.version>
         <spark.version>${spark32.version}</spark.version>
-        <delta.version>${delta1.version}</delta.version>
+        <delta.version>${delta20.version}</delta.version>
+        <delta.binary.version>20</delta.binary.version>
         <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
       </properties>
-    </profile>
-    <profile>
-        <id>spark-3.2</id>
-        <properties>
-          <scala.version>${spark32.scala}</scala.version>
-          <spark.version>${spark32.version}</spark.version>
-          <delta.version>${delta1.version}</delta.version>
-          <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-        </properties>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <properties>
         <scala.version>${spark33.scala}</scala.version>
         <spark.version>${spark33.version}</spark.version>
-        <delta.version>${delta1.version}</delta.version>
+        <delta.version>${delta22.version}</delta.version>
+        <delta.binary.version>22</delta.binary.version>
         <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
       </properties>
     </profile>
@@ -191,7 +187,6 @@
       <modules>
         <module>gluten-data</module>
         <module>backends-velox</module>
-        <module>package/velox</module>
       </modules>
       <properties>
         <backend_type>velox</backend_type>
@@ -207,7 +202,6 @@
       <modules>
         <module>gluten-data</module>
         <module>backends-gazelle</module>
-        <module>package/gazelle</module>
       </modules>
       <properties>
         <backend_type>gazelle_cpp</backend_type>
@@ -545,9 +539,36 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.1.1</version>
-            <configuration>
-              <configLocation>dev/checkstyle.xml</configLocation>
-            </configuration>
+          <configuration>
+            <failOnViolation>true</failOnViolation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <sourceDirectories>
+              <directory>${project.basedir}/src/main/java</directory>
+              <directory>${project.basedir}/src/main/scala</directory>
+            </sourceDirectories>
+            <testSourceDirectories>
+              <directory>${project.basedir}/src/test/java</directory>
+            </testSourceDirectories>
+            <configLocation>dev/checkstyle.xml</configLocation>
+            <outputFile>${project.basedir}/target/checkstyle-output.xml</outputFile>
+            <inputEncoding>UTF-8</inputEncoding>
+            <outputEncoding>UTF-8</outputEncoding>
+          </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>8.29</version>
+            </dependency>
+          </dependencies>
+          <executions>
+            <execution>
+              <phase>validate</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.scalastyle</groupId>
@@ -582,27 +603,33 @@
           </configuration>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.0.1</version>
+        </plugin>
+        <plugin>
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
           <configuration>
-<!--            <java>-->
-<!--              <googleJavaFormat>-->
-<!--                <version>1.7</version>-->
-<!--                <style>AOSP</style>-->
-<!--              </googleJavaFormat>-->
+            <!--            <java>-->
+            <!--              <googleJavaFormat>-->
+            <!--                <version>1.7</version>-->
+            <!--                <style>AOSP</style>-->
+            <!--              </googleJavaFormat>-->
 
-<!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
-<!--              <importOrder>-->
-<!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
-<!--              </importOrder>-->
+            <!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
+            <!--              <importOrder>-->
+            <!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
+            <!--              </importOrder>-->
 
-<!--              <removeUnusedImports />-->
-<!--            </java>-->
+            <!--              <removeUnusedImports />-->
+            <!--            </java>-->
             <scala>
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
+                <file>.scalafmt.conf</file>
               </scalafmt>
               <licenseHeader>
                 <content>${spotless.license.header}</content>
@@ -628,11 +655,6 @@
       </plugins>
     </pluginManagement>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>${maven.jar.plugin}</version>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
@@ -669,39 +691,4 @@
       </plugin>
     </plugins>
   </build>
-
-  <reporting>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.1.1</version>
-        <configuration>
-          <configLocation>${project.basedir}/dev/checkstyle.xml</configLocation>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-        <version>1.0.0</version>
-        <configuration>
-          <configLocation>${project.basedir}/scalastyle-config.xml</configLocation>
-        </configuration>
-      </plugin>
-    </plugins>
-  </reporting>
-  <repositories>
-    <repository>
-      <id>Kyligence</id>
-      <name>Kyligence Repository</name>
-      <url>https://repository.kyligence.io/repository/maven-public/
-      </url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
 </project>

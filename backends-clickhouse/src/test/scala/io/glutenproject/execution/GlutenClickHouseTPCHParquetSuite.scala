@@ -495,7 +495,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val sql =
       """
         |select avg(n_nationkey) over (partition by n_regionkey order by n_nationkey rows between
-        |current row and 3 following) from nation
+        |current row and 3 following) as x from nation
         |order by n_regionkey, n_nationkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
@@ -532,6 +532,36 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         | rank() over (partition by n_regionkey order by n_nationkey) as n_rank
         |from nation
         |order by n_regionkey,n_nationkey,n_name,n_rank
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("group with rollup") {
+    val sql =
+      """
+        |select l_shipdate, l_shipmode, count(l_shipmode) as n from lineitem
+        |group by l_shipdate, l_shipmode with rollup
+        |order by l_shipdate, l_shipmode, n
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("group with cube") {
+    val sql =
+      """
+        |select l_shipdate, l_shipmode, count(l_tax) as n from lineitem
+        |group by l_shipdate, l_shipmode with cube
+        |order by l_shipdate, l_shipmode, n
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("group with sets") {
+    val sql =
+      """
+        |select l_shipdate, l_shipmode, count(1) as cnt from lineitem
+        |group by grouping sets (l_shipdate, l_shipmode, (l_shipdate, l_shipmode))
+        |order by l_shipdate, l_shipmode, cnt
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }

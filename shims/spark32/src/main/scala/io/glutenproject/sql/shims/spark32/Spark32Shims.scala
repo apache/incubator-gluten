@@ -19,9 +19,15 @@ package io.glutenproject.sql.shims.spark32
 import io.glutenproject.expression.Sig
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.internal.SQLConf
 
@@ -47,4 +53,17 @@ class Spark32Shims extends SparkShims {
   }
 
   override def expressionMappings: Seq[Sig] = Seq.empty
+
+  override def convertPartitionTransforms(
+      partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
+    CatalogUtil.convertPartitionTransforms(partitions)
+  }
+
+  override def generateFileScanRDD(
+      sparkSession: SparkSession,
+      readFunction: PartitionedFile => Iterator[InternalRow],
+      filePartitions: Seq[FilePartition],
+      fileSourceScanExec: FileSourceScanExec): FileScanRDD = {
+    new FileScanRDD(sparkSession, readFunction, filePartitions)
+  }
 }

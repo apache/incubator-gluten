@@ -1,14 +1,10 @@
-FROM hongzezhang/gluten-buildenv:latest AS gluten-build
+FROM gluten-te/gluten-buildenv:latest AS gluten-build
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 # Whether debug build is enabled
 ARG JDK_DEBUG_BUILD
-ARG VELOX_DEBUG_BUILD
-ARG ARROW_DEBUG_BUILD
 ARG GLUTEN_DEBUG_BUILD
 RUN echo "JDK debug build is [$JDK_DEBUG_BUILD]!"
-RUN echo "Velox debug build is [$VELOX_DEBUG_BUILD]!"
-RUN echo "Arrow debug build is [$ARROW_DEBUG_BUILD]!"
 RUN echo "Gluten debug build is [$GLUTEN_DEBUG_BUILD]!"
 
 # If JDK debug is on
@@ -49,7 +45,7 @@ RUN ccache -M 128G
 RUN ccache -s
 
 # Default Gluten Maven build options (empty as of now)
-ENV GLUTEN_MAVEN_OPTIONS="-Ddebug_build=$GLUTEN_DEBUG_BUILD"
+ENV GLUTEN_MAVEN_OPTIONS=""
 
 ARG BUILD_BACKEND_TYPE
 
@@ -57,7 +53,8 @@ RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false
 
 RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     then \
-      DEPS_INSTALL_SCRIPT="bash /opt/gluten/dev/builddeps-veloxbe.sh  --enable_ep_cache=ON"; \
+      if [ "$GLUTEN_DEBUG_BUILD" == "ON" ]; then GLUTEN_BUILD_TYPE="Debug"; else GLUTEN_BUILD_TYPE="Release"; fi; \
+      DEPS_INSTALL_SCRIPT="bash /opt/gluten/dev/builddeps-veloxbe.sh --build_type=$GLUTEN_BUILD_TYPE --enable_ep_cache=ON"; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
                            -DskipTests \

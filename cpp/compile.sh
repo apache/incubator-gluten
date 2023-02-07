@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# deprecated, replaced by cmake command
 set -exu
 
 BUILD_TYPE=release

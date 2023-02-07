@@ -19,6 +19,8 @@ package io.glutenproject
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
+import java.util.Locale
+
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
     totalCoreRange: Array[String] = null,
@@ -28,6 +30,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   val enableNativeEngine: Boolean =
     conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean
+
+  val enableAnsiMode: Boolean =
+    conf.getConfString("spark.sql.ansi.enabled", "false").toBoolean
 
   // This is tmp config to specify whether to enable the native validation based on
   // Substrait plan. After the validations in all backends are correctly implemented,
@@ -155,7 +160,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   // The supported customized compression codec is lz4.
   val columnarShuffleUseCustomizedCompressionCodec: String =
-    conf.getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
+    conf
+      .getConfString("spark.gluten.sql.columnar.shuffle.customizedCompression.codec", "lz4")
+      .toUpperCase(Locale.ROOT)
 
   val columnarShuffleBatchCompressThreshold: Int =
     conf.getConfString("spark.gluten.sql.columnar.shuffle.batchCompressThreshold", "100").toInt
@@ -171,6 +178,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   val enableColumnarGenerate: Boolean =
     conf.getConfString("spark.gluten.sql.columnar.generate", "true").toBoolean
+
+  val enableNativeBloomFilter: Boolean =
+    conf.getConfString("spark.gluten.sql.native.bloomFilter", "true").toBoolean
 
   val numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean =
@@ -189,6 +199,27 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
     }
   }
+
+  // velox caching options
+  // enable Velox cache, default off
+  val enableVeloxCache: Boolean =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheEnabled", "false").toBoolean
+
+  // The folder to store the cache files, better on SSD
+  val veloxCachePath: String =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cachePath", "/tmp")
+
+  // The total cache size
+  val veloxCacheSize: Long =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheSize", "1073741824").toLong
+
+  // The cache shards
+  val veloxCacheShards: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheShards", "1").toInt
+
+  // The IO threads for cache promoting
+  val veloxIOThreads: Integer =
+    conf.getConfString("spark.gluten.sql.columnar.backend.velox.cacheIOThreads", "1").toInt
 
   val transformPlanLogLevel: String =
     conf.getConfString("spark.gluten.sql.transform.logLevel", "DEBUG")
@@ -215,6 +246,10 @@ object GlutenConfig {
   val SPARK_HIVE_EXEC_ORC_ROW_INDEX_STRIDE: String = "spark." + HIVE_EXEC_ORC_ROW_INDEX_STRIDE
   val HIVE_EXEC_ORC_COMPRESS = "hive.exec.orc.compress"
   val SPARK_HIVE_EXEC_ORC_COMPRESS: String = "spark." + HIVE_EXEC_ORC_COMPRESS
+
+  // Hadoop config
+  val HDFS_URI = "hadoop.fs.defaultFS"
+  val SPARK_HDFS_URI = "spark." + HDFS_URI
 
   // S3 config
   val S3_ACCESS_KEY = "hadoop.fs.s3a.access.key"
