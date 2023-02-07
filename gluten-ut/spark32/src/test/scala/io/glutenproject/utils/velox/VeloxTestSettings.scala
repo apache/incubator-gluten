@@ -355,4 +355,26 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceV2Suite]
     .exclude("columnar batch scan implementation")
     .exclude("partitioning reporting")
+  enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
+  enableSuite[GlutenCachedTableSuite]
+    .exclude("A cached table preserves the partitioning and ordering of its cached SparkPlan")
+  enableSuite[GlutenConfigBehaviorSuite]
+  enableSuite[GlutenCountMinSketchAggQuerySuite]
+  enableSuite[GlutenCsvFunctionsSuite]
+    .exclude("roundtrip to_csv -> from_csv")
+  enableSuite[GlutenCTEHintSuite]
+  enableSuite[GlutenCTEInlineSuiteAEOff]
+  enableSuite[GlutenCTEInlineSuiteAEOn]
+  enableSuite[GlutenDataFrameHintSuite]
+  enableSuite[GlutenDataFrameWriterV2Suite]
+  enableSuite[GlutenDatasetCacheSuite]
+  enableSuite[GlutenExpressionsSchemaSuite]
+  enableSuite[GlutenExtraStrategiesSuite]
+  enableSuite[GlutenMiscFunctionsSuite]
+  enableSuite[GlutenProcessingTimeSuite]
+  enableSuite[GlutenScalaReflectionRelationSuite]
+  enableSuite[GlutenSerializationSuite]
+  enableSuite[GlutenTypedImperativeAggregateSuite]
+  enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
+    .exclude("cases when literal is max")
 }
