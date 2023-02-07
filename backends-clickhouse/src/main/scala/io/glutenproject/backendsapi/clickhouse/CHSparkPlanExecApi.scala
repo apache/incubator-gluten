@@ -383,12 +383,4 @@ class CHSparkPlanExecApi extends ISparkPlanExecApi with AdaptiveSparkPlanHelper 
    * @return
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] = List()
-
-  /** Generate an ExpressionTransformer to transform GetStructFiled expression. */
-  override def genGetStructFieldTransformer(
-      substraitExprName: String,
-      childTransformer: ExpressionTransformer,
-      ordinal: Int,
-      original: GetStructField): ExpressionTransformer =
-    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
 }

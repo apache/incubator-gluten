@@ -16,34 +16,22 @@
  */
 package io.glutenproject.expression
 
+import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.GetStructField
-import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
-
-import com.google.common.collect.Lists
+import org.apache.spark.sql.types.{IntegerType}
 
 class GetStructFieldTransformer(
     substraitExprName: String,
     childTransformer: ExpressionTransformer,
     ordinal: Int,
     original: GetStructField)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: Object): ExpressionNode = {
     val childNode = childTransformer.doTransform(args)
-    // FIXME: Not sure which argument type velox support. ClickHouse supports both field name
-    // and field ordinal. Since ClickHouse require the ordinal argument must be an unsigned
-    // integer, but substrait doesn't support unsigned types, so we choose to use field name
-    // here.
-    val fieldName = original.child.dataType.asInstanceOf[StructType].names(ordinal)
-    if (fieldName.isEmpty()) {
-      throw new IllegalArgumentException(s"Field name should not be null.")
-    }
-    val ordinalNode = ExpressionBuilder.makeLiteral(fieldName, StringType, false)
+    val ordinalNode = ExpressionBuilder.makeLiteral(ordinal, IntegerType, false)
     val exprNodes = Lists.newArrayList(childNode, ordinalNode)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val fieldDataType = original.dataType

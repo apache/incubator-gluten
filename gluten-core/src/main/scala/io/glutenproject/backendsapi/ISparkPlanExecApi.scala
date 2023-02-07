@@ -18,8 +18,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
-import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer}
-
+import io.glutenproject.expression.{AliasBaseTransformer, ExpressionTransformer, GetStructFieldTransformer}
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -209,8 +208,11 @@ trait ISparkPlanExecApi {
 
   /**
    * Generate an ExpressionTransformer to transform GetStructFiled expression.
+   * GetStructFieldTransformer is the default implementation.
    */
   def genGetStructFieldTransformer(substraitExprName: String,
                                  childTransformer: ExpressionTransformer, ordinal: Int,
-                                 original: GetStructField): ExpressionTransformer = null
+                                 original: GetStructField): ExpressionTransformer = {
+    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+  }
 }
