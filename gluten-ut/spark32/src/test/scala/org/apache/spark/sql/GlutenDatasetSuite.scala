@@ -18,4 +18,15 @@
 package org.apache.spark.sql
 
 class GlutenDatasetSuite extends DatasetSuite with GlutenSQLTestsTrait {
+  import testImplicits._
+
+  test("dropDuplicates: columns with same column name after sort") {
+    val ds1 = Seq(("a", 1), ("a", 2), ("b", 1), ("a", 1)).toDS()
+    val ds2 = Seq(("a", 1), ("a", 2), ("b", 1), ("a", 1)).toDS()
+    // The dataset joined has two columns of the same name "_2".
+    val joined = ds1.join(ds2, "_1").select(ds1("_2").as[Int], ds2("_2").as[Int])
+    checkDatasetUnorderly(
+      joined.dropDuplicates(),
+      (1, 2), (1, 1), (2, 1), (2, 2))
+  }
 }
