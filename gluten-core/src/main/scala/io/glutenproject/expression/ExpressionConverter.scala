@@ -200,31 +200,59 @@ object ExpressionConverter extends Logging {
             attributeSeq),
           n)
       case t: StringTrim =>
-        if (t.trimStr != None) {
-          // todo: to be remove and deal all these three exprs together
-          //  when Velox support this argument
+        if (t.srcStr.isInstanceOf[Literal]) {
           throw new UnsupportedOperationException(s"not supported yet.")
         }
-        new String2TrimExpressionTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformer(t.srcStr, attributeSeq),
-          t)
+        t.trimStr match {
+          case Some(e) =>
+            new String2TrimExpressionTransformer(
+              substraitExprName,
+              replaceWithExpressionTransformer(t.srcStr, attributeSeq),
+              Some(replaceWithExpressionTransformer(e, attributeSeq)),
+              t)
+          case None =>
+            new String2TrimExpressionTransformer(
+              substraitExprName,
+              replaceWithExpressionTransformer(t.srcStr, attributeSeq),
+              None,
+              t)
+        }
       case l: StringTrimLeft =>
-        if (l.trimStr != None) {
+        if (l.srcStr.isInstanceOf[Literal]) {
           throw new UnsupportedOperationException(s"not supported yet.")
         }
-        new String2TrimExpressionTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformer(l.srcStr, attributeSeq),
-          l)
+        l.trimStr match {
+          case Some(e) =>
+            new String2TrimExpressionTransformer(
+              substraitExprName,
+              replaceWithExpressionTransformer(l.srcStr, attributeSeq),
+              Some(replaceWithExpressionTransformer(e, attributeSeq)),
+              l)
+          case None =>
+            new String2TrimExpressionTransformer(
+              substraitExprName,
+              replaceWithExpressionTransformer(l.srcStr, attributeSeq),
+              None,
+              l)
+        }
       case r: StringTrimRight =>
-        if (r.trimStr != None) {
+        if (r.srcStr.isInstanceOf[Literal]) {
           throw new UnsupportedOperationException(s"not supported yet.")
         }
-        new String2TrimExpressionTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformer(r.srcStr, attributeSeq),
-          r)
+        r.trimStr match {
+          case Some(e) =>
+            new String2TrimExpressionTransformer(
+              substraitExprName,
+              replaceWithExpressionTransformer(r.srcStr, attributeSeq),
+              Some(replaceWithExpressionTransformer(e, attributeSeq)),
+              r)
+          case None =>
+            new String2TrimExpressionTransformer(
+              substraitExprName,
+              replaceWithExpressionTransformer(r.srcStr, attributeSeq),
+              None,
+              r)
+        }
       case m: HashExpression[_] =>
         new HashExpressionTransformer(
           substraitExprName,

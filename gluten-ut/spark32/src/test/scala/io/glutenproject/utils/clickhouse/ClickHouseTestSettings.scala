@@ -141,7 +141,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenStringExpressionsSuite]
     .include(
-      "concat_ws"
+      "concat_ws",
+      "TRIM",
+      "LTRIM",
+      "RTRIM"
     )
 
   enableSuite[GlutenStringFunctionsSuite]

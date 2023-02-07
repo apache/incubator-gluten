@@ -18,18 +18,17 @@
 package io.glutenproject.expression
 
 import com.google.common.collect.Lists
-
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression._
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 
 class String2TrimExpressionTransformer(
-    substraitExprName: String,
-    srcStr: ExpressionTransformer,
-    original: Expression)
-    extends ExpressionTransformer with Logging {
+                                        substraitExprName: String,
+                                        srcStr: ExpressionTransformer,
+                                        trimTransformer: Option[ExpressionTransformer],
+                                        original: Expression)
+  extends ExpressionTransformer with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val srcStrNode = srcStr.doTransform(args)
@@ -41,6 +40,9 @@ class String2TrimExpressionTransformer(
         FunctionConfig.REQ)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val expressNodes = Lists.newArrayList(srcStrNode)
+    if (trimTransformer.isDefined) {
+      expressNodes.add(trimTransformer.get.doTransform(args))
+    }
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
   }
