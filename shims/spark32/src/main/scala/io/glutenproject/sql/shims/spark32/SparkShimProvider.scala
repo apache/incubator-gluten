@@ -19,7 +19,7 @@ package io.glutenproject.sql.shims.spark32
 import io.glutenproject.sql.shims.{SparkShimDescriptor, SparkShims}
 
 object SparkShimProvider {
-  val DESCRIPTOR = SparkShimDescriptor(3, 2, 2)
+  val DESCRIPTOR = SparkShimDescriptor(3, 2)
   val DESCRIPTOR_STRINGS = Seq(s"$DESCRIPTOR")
 }
 
@@ -29,6 +29,6 @@ class SparkShimProvider extends io.glutenproject.sql.shims.SparkShimProvider {
   }
 
   def matches(version: String): Boolean = {
-    SparkShimProvider.DESCRIPTOR_STRINGS.contains(version)
+    SparkShimProvider.DESCRIPTOR_STRINGS.contains(extractMajorAndMinorVersion(version))
   }
 }

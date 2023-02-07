@@ -20,4 +20,9 @@ package io.glutenproject.sql.shims
 trait SparkShimProvider {
   def matches(version: String): Boolean
   def createShim: SparkShims
+
+  protected def extractMajorAndMinorVersion(version: String): String = {
+    val Array(major, minor, patch) = version.split('.')
+    s"$major.$minor"
+  }
 }
