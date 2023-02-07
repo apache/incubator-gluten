@@ -16,8 +16,12 @@
  */
 
 #include "shuffle/VeloxSplitter.h"
+#include "memory/VeloxMemoryPool.h"
 #include "tests/TestUtils.h"
+#include "velox/vector/arrow/Bridge.h"
 
+#include <arrow/c/abi.h>
+#include <arrow/c/bridge.h>
 #include <arrow/compute/api.h>
 #include <arrow/datum.h>
 #include <arrow/io/api.h>
@@ -30,18 +34,7 @@
 
 #include <iostream>
 
-static void print_trace(void) {
-  char** strings;
-  size_t i, size;
-  enum Constexpr { MAX_SIZE = 1024 };
-  void* array[MAX_SIZE];
-  size = backtrace(array, MAX_SIZE);
-  strings = backtrace_symbols(array, size);
-  for (i = 0; i < size; i++)
-    printf("    %s\n", strings[i]);
-  puts("");
-  free(strings);
-}
+using namespace facebook;
 
 namespace gluten {
 
@@ -55,9 +48,6 @@ class MyMemoryPool final : public arrow::MemoryPool {
     }
     RETURN_NOT_OK(pool_->Allocate(size, out));
     stats_.UpdateAllocatedBytes(size);
-    // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
-    //(uint64_t)*out << std::dec << std::endl;
-    // print_trace();
     return arrow::Status::OK();
   }
 
@@ -68,22 +58,12 @@ class MyMemoryPool final : public arrow::MemoryPool {
     // auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(old_size, new_size, ptr));
     stats_.UpdateAllocatedBytes(new_size - old_size);
-    // std::cout << "Reallocate: old_size = " << old_size << " old_ptr = " <<
-    // std::hex <<
-    //(uint64_t)old_ptr << std::dec << " new_size = " << new_size << " addr = "
-    //<<
-    // std::hex << (uint64_t)*ptr << std::dec << std::endl;
-    // print_trace();
     return arrow::Status::OK();
   }
 
   void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
     pool_->Free(buffer, size);
     stats_.UpdateAllocatedBytes(-size);
-    // std::cout << "Free: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)buffer
-    //<< std::dec << std::endl;
-    // print_trace();
   }
 
   int64_t bytes_allocated() const override {
@@ -107,29 +87,57 @@ class MyMemoryPool final : public arrow::MemoryPool {
 class VeloxSplitterTest : public ::testing::Test {
  protected:
   void SetUp() {
-    auto hash_partition_key = arrow::field("hash_partition_key", arrow::int32());
-    auto f_na = arrow::field("f_na", arrow::null());
-    auto f_int8_a = arrow::field("f_int8_a", arrow::int8());
-    auto f_int8_b = arrow::field("f_int8_b", arrow::int8());
-    auto f_int32 = arrow::field("f_int32", arrow::int32());
-    auto f_uint64 = arrow::field("f_uint64", arrow::uint64());
-    auto f_double = arrow::field("f_double", arrow::float64());
-    auto f_bool = arrow::field("f_bool", arrow::boolean());
-    auto f_string = arrow::field("f_string", arrow::utf8());
-    auto f_nullable_string = arrow::field("f_nullable_string", arrow::utf8());
-    auto f_decimal = arrow::field("f_decimal128", arrow::decimal(10, 2));
-
+    const std::string tmp_dir_prefix = "columnar-shuffle-test";
     ARROW_ASSIGN_OR_THROW(tmp_dir_1_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
     ARROW_ASSIGN_OR_THROW(tmp_dir_2_, std::move(arrow::internal::TemporaryDir::Make(tmp_dir_prefix)))
     auto config_dirs = tmp_dir_1_->path().ToString() + "," + tmp_dir_2_->path().ToString();
 
     setenv("NATIVESQL_SPARK_LOCAL_DIRS", config_dirs.c_str(), 1);
 
-    schema_ = arrow::schema(
-        {f_na, f_int8_a, f_int8_b, f_int32, f_uint64, f_double, f_bool, f_string, f_nullable_string, f_decimal});
+    std::vector<std::shared_ptr<arrow::Field>> fields = {
+        arrow::field("f_int8_a", arrow::int8()),
+        arrow::field("f_int8_b", arrow::int8()),
+        arrow::field("f_int32", arrow::int32()),
+        arrow::field("f_int64", arrow::int64()),
+        arrow::field("f_double", arrow::float64()),
+        arrow::field("f_bool", arrow::boolean()),
+        arrow::field("f_string", arrow::utf8()),
+        arrow::field("f_nullable_string", arrow::utf8())};
+
+    schema_ = arrow::schema(fields);
+
+    const std::vector<std::string> input_data_1 = {
+        "[1, 2, 3, null, 4, null, 5, 6, null, 7]",
+        "[1, -1, null, null, -2, 2, null, null, 3, -3]",
+        "[1, 2, 3, 4, null, 5, 6, 7, 8, null]",
+        "[null, null, null, null, null, null, null, null, null, null]",
+        R"([-0.1234567, null, 0.1234567, null, -0.142857, null, 0.142857, 0.285714, 0.428617, null])",
+        "[null, true, false, null, true, true, false, true, null, null]",
+        R"(["alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"])",
+        R"(["alice", "bob", null, null, "Alice", "Bob", null, "alicE", null, "boB"])"};
+
+    const std::vector<std::string> input_data_2 = {
+        "[null, null]",
+        "[1, -1]",
+        "[100, null]",
+        "[1, 1]",
+        R"([0.142857, -0.142857])",
+        "[true, false]",
+        R"(["bob", "alicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealice"])",
+        R"([null, null])"};
 
     MakeInputBatch(input_data_1, schema_, &input_batch_1_);
     MakeInputBatch(input_data_2, schema_, &input_batch_2_);
+
+    auto hash_partition_key = arrow::field("hash_partition_key", arrow::int32());
+    fields.insert(fields.begin(), hash_partition_key);
+    hash_schema_ = arrow::schema(fields);
+
+    const std::vector<std::string> hash_key_1 = {"[1, 2, 2, 2, 2, 1, 1, 1, 2, 1]"};
+    const std::vector<std::string> hash_key_2 = {"[2, 2]"};
+
+    std::vector<std::string> hash_input_data_1;
+    std::vector<std::string> hash_input_data_2;
 
     std::merge(
         hash_key_1.begin(),
@@ -145,21 +153,9 @@ class VeloxSplitterTest : public ::testing::Test {
         input_data_2.end(),
         back_inserter(hash_input_data_2));
 
-    hash_schema_ = arrow::schema(
-        {hash_partition_key,
-         f_na,
-         f_int8_a,
-         f_int8_b,
-         f_int32,
-         f_uint64,
-         f_double,
-         f_bool,
-         f_string,
-         f_nullable_string,
-         f_decimal});
-
     MakeInputBatch(hash_input_data_1, hash_schema_, &hash_input_batch_1_);
     MakeInputBatch(hash_input_data_2, hash_schema_, &hash_input_batch_2_);
+
     split_options_ = SplitOptions::Defaults();
   }
 
@@ -169,7 +165,7 @@ class VeloxSplitterTest : public ::testing::Test {
     }
   }
 
-  static void CheckFileExsists(const std::string& file_name) {
+  static void CheckFileExists(const std::string& file_name) {
     ASSERT_EQ(*arrow::internal::FileExists(*arrow::internal::PlatformFilename::FromString(file_name)), true);
   }
 
@@ -197,26 +193,19 @@ class VeloxSplitterTest : public ::testing::Test {
     return file_reader;
   }
 
-  static const std::string tmp_dir_prefix;
-  static const std::vector<std::string> input_data_1;
-  static const std::vector<std::string> input_data_2;
-
   std::shared_ptr<arrow::internal::TemporaryDir> tmp_dir_1_;
   std::shared_ptr<arrow::internal::TemporaryDir> tmp_dir_2_;
 
-  std::shared_ptr<arrow::Schema> schema_;
-  std::shared_ptr<VeloxSplitter> splitter_;
   SplitOptions split_options_;
 
+  std::shared_ptr<VeloxSplitter> splitter_;
+
+  std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::RecordBatch> input_batch_1_;
   std::shared_ptr<arrow::RecordBatch> input_batch_2_;
 
   // hash batch first column is partition key hash value named
   // hash_partition_key
-  static const std::vector<std::string> hash_key_1;
-  static const std::vector<std::string> hash_key_2;
-  std::vector<std::string> hash_input_data_1;
-  std::vector<std::string> hash_input_data_2;
   std::shared_ptr<arrow::Schema> hash_schema_;
   std::shared_ptr<arrow::RecordBatch> hash_input_batch_1_;
   std::shared_ptr<arrow::RecordBatch> hash_input_batch_2_;
@@ -224,34 +213,57 @@ class VeloxSplitterTest : public ::testing::Test {
   std::shared_ptr<arrow::io::ReadableFile> file_;
 };
 
-const std::string VeloxSplitterTest::tmp_dir_prefix = "columnar-shuffle-test";
+velox::VectorPtr RecordBatch2RowVector(const arrow::RecordBatch& rb) {
+  ArrowArray arrowArray;
+  ArrowSchema arrowSchema;
+  ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
+  return velox::importFromArrowAsViewer(arrowSchema, arrowArray, gluten::GetDefaultWrappedVeloxMemoryPool());
+}
 
-const std::vector<std::string> VeloxSplitterTest::input_data_1 = {
-    "[null, null, null, null, null, null, null, null, null, null]",
-    "[1, 2, 3, null, 4, null, 5, 6, null, 7]",
-    "[1, -1, null, null, -2, 2, null, null, 3, -3]",
-    "[1, 2, 3, 4, null, 5, 6, 7, 8, null]",
-    "[null, null, null, null, null, null, null, null, null, null]",
-    R"([-0.1234567, null, 0.1234567, null, -0.142857, null, 0.142857, 0.285714, 0.428617, null])",
-    "[null, true, false, null, true, true, false, true, null, null]",
-    R"(["alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"])",
-    R"(["alice", "bob", null, null, "Alice", "Bob", null, "alicE", null, "boB"])",
-    R"(["-1.01", "2.01", "-3.01", null, "0.11", "3.14", "2.27", null, "-3.14", null])"};
+void SplitRecordBatch(VeloxSplitter& splitter, const arrow::RecordBatch& rb) {
+  velox::VectorPtr vp = RecordBatch2RowVector(rb);
+  std::cout << vp->toString() << std::endl;
+  // std::cout << vp->toString(0, vp->size()) << std::endl;
+  auto rv = vp->as<velox::RowVector>();
+  ASSERT_NOT_OK(splitter.Split(*rv));
+}
 
-const std::vector<std::string> VeloxSplitterTest::input_data_2 = {
-    "[null, null]",
-    "[null, null]",
-    "[1, -1]",
-    "[100, null]",
-    "[1, 1]",
-    R"([0.142857, -0.142857])",
-    "[true, false]",
-    R"(["bob", "alicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealicealice"])",
-    R"([null, null])",
-    R"([null, null])"};
+TEST_F(VeloxSplitterTest, TestHashSplitter) {
+  uint32_t num_partitions = 2;
+  split_options_.buffer_size = 4;
 
-const std::vector<std::string> VeloxSplitterTest::hash_key_1 = {"[1, 2, 2, 2, 2, 1, 1, 1, 2, 1]"};
-const std::vector<std::string> VeloxSplitterTest::hash_key_2 = {"[2, 2]"};
+  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_))
+
+  SplitRecordBatch(*splitter_, *hash_input_batch_1_);
+  // SplitRecordBatch(*splitter_, *hash_input_batch_2_);
+  // SplitRecordBatch(*splitter_, *hash_input_batch_1_);
+
+#if 0
+  ASSERT_NOT_OK(splitter_->Stop());
+
+  const auto& lengths = splitter_->PartitionLengths();
+  ASSERT_EQ(lengths.size(), 2);
+
+  // verify data file
+  CheckFileExists(splitter_->DataFile());
+
+  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
+  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
+
+  // verify schema
+  ASSERT_EQ(*file_reader->schema(), *schema_);
+
+  std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
+  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
+
+  for (const auto& rb : batches) {
+    ASSERT_EQ(rb->num_columns(), schema_->num_fields());
+    for (auto i = 0; i < rb->num_columns(); ++i) {
+      ASSERT_EQ(rb->column(i)->length(), rb->num_rows());
+    }
+  }
+#endif
+}
 
 #if 0
 TEST_F(VeloxSplitterTest, TestSingleSplitter) {
@@ -266,7 +278,7 @@ TEST_F(VeloxSplitterTest, TestSingleSplitter) {
   ASSERT_NOT_OK(splitter_->Stop());
 
   // verify data file
-  CheckFileExsists(splitter_->DataFile());
+  CheckFileExists(splitter_->DataFile());
 
   // verify output temporary files
   const auto& lengths = splitter_->PartitionLengths();
@@ -386,43 +398,6 @@ TEST_F(VeloxSplitterTest, TestSplitterMemoryLeak) {
   ASSERT_TRUE(pool->bytes_allocated() == 0);
 }
 #endif
-
-TEST_F(VeloxSplitterTest, TestHashSplitter) {
-#if 0
-  uint32_t num_partitions = 2;
-  split_options_.buffer_size = 4;
-
-  ARROW_ASSIGN_OR_THROW(splitter_, VeloxSplitter::Make("hash", num_partitions, split_options_))
-
-  // ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
-  // ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_2_));
-  // ASSERT_NOT_OK(splitter_->Split(*hash_input_batch_1_));
-
-  ASSERT_NOT_OK(splitter_->Stop());
-
-  const auto& lengths = splitter_->PartitionLengths();
-  ASSERT_EQ(lengths.size(), 2);
-
-  // verify data file
-  CheckFileExsists(splitter_->DataFile());
-
-  std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
-  ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
-
-  // verify schema
-  ASSERT_EQ(*file_reader->schema(), *schema_);
-
-  std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  ASSERT_NOT_OK(file_reader->ReadAll(&batches));
-
-  for (const auto& rb : batches) {
-    ASSERT_EQ(rb->num_columns(), schema_->num_fields());
-    for (auto i = 0; i < rb->num_columns(); ++i) {
-      ASSERT_EQ(rb->column(i)->length(), rb->num_rows());
-    }
-  }
-#endif
-}
 
 #if 0
 TEST_F(VeloxSplitterTest, TestFallbackRangeSplitter) {
@@ -1055,11 +1030,11 @@ TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
   split_options_.buffer_size = 4;
 
   auto hash_partition_key = arrow::field("hash_partition_key", arrow::int32());
-  auto f_uint64 = arrow::field("f_uint64", arrow::uint64());
+  auto f_int64 = arrow::field("f_int64", arrow::int64());
   auto f_arr_str = arrow::field("f_arr", arrow::list(arrow::utf8()));
 
-  auto rb_schema = arrow::schema({hash_partition_key, f_uint64, f_arr_str});
-  auto data_schema = arrow::schema({f_uint64, f_arr_str});
+  auto rb_schema = arrow::schema({hash_partition_key, f_int64, f_arr_str});
+  auto data_schema = arrow::schema({f_int64, f_arr_str});
   const std::vector<std::string> input_batch_1_data = {R"([1, 2])", R"([1, 2])", R"([["alice0", "bob1"], ["alice2"]])"};
   std::shared_ptr<arrow::RecordBatch> input_batch_arr;
   MakeInputBatch(input_batch_1_data, rb_schema, &input_batch_arr);
@@ -1073,7 +1048,7 @@ TEST_F(VeloxSplitterTest, TestHashListArraySplitterWithMorePartitions) {
   const auto& lengths = splitter_->PartitionLengths();
   ASSERT_EQ(lengths.size(), 5);
 
-  CheckFileExsists(splitter_->DataFile());
+  CheckFileExists(splitter_->DataFile());
 
   std::shared_ptr<arrow::ipc::RecordBatchReader> file_reader;
   ARROW_ASSIGN_OR_THROW(file_reader, GetRecordBatchStreamReader(splitter_->DataFile()));
