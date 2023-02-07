@@ -87,12 +87,16 @@ trait BasicScanExecTransformer extends TransformSupport {
   override def doValidate(): Boolean = {
     // TODO need also check orc file format and also move this check in native.
     ConverterUtils.getFileFormat(this) match {
-      case ParquetReadFormat | DwrfReadFormat =>
+      case ParquetReadFormat =>
         if (BackendsApiManager.getBackendName.equals("velox") &&
           unsupportedDataType()) {
           return false
         }
-      case _ => return false
+      case DwrfReadFormat =>
+      case _ =>
+        if (BackendsApiManager.getBackendName.equals("velox")) {
+          return false
+      }
     }
 
     val substraitContext = new SubstraitContext
