@@ -17,10 +17,7 @@
 
 package io.glutenproject.memory;
 
-import java.io.IOException;
-
 import io.glutenproject.memory.alloc.Spiller;
-
 import org.apache.spark.TaskContext;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
