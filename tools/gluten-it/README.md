@@ -12,7 +12,7 @@ https://github.com/oap-project/gluten
 
 ### 1. Install Gluten in your local machine
 
-See offical Gluten build guidence https://github.com/oap-project/gluten#how-to-use-gluten
+See offical Gluten build guidance https://github.com/oap-project/gluten#how-to-use-gluten
 
 ### 2. Install and run gluten-it
 
