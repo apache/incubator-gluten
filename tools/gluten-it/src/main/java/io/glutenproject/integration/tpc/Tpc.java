@@ -23,7 +23,7 @@ public class Tpc implements Callable<Integer> {
   @CommandLine.Option(names = {"--skip-data-gen"}, description = "Skip data generation", defaultValue = "false")
   private boolean skipDataGen;
 
-  @CommandLine.Option(names = {"--mode"}, description = "Mode: data-gen-only, queries, queries-compare, cli", defaultValue = "tpc-queries-compare")
+  @CommandLine.Option(names = {"--mode"}, description = "Mode: data-gen-only, queries, queries-compare, cli", defaultValue = "queries-compare")
   private String mode;
 
   @CommandLine.Option(names = {"-b", "--backend-type"}, description = "Backend used: vanilla, velox, gazelle-cpp, ...", defaultValue = "velox")
