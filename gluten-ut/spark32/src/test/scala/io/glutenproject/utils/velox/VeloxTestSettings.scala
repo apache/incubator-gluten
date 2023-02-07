@@ -230,7 +230,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenXPathFunctionsSuite]
   // enableSuite[GlutenFileBasedDataSourceSuite]
   enableSuite[GlutenEnsureRequirementsSuite]
-    .exclude("SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection")
+    // Rewrite to change the shuffle partitions for optimizing repartition
+    .excludeByPrefix("SPARK-35675")
   // enableSuite[GlutenCoalesceShufflePartitionsSuite]
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
