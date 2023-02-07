@@ -37,7 +37,6 @@ object CHExpressionUtil {
     LPAD -> Set(EMPTY_TYPE),
     RPAD -> Set(EMPTY_TYPE),
     REVERSE -> Set(EMPTY_TYPE),
-    GET_JSON_OBJECT -> Set(EMPTY_TYPE),
     JSON_ARRAY_LENGTH -> Set(EMPTY_TYPE),
     MURMUR3HASH -> Set(EMPTY_TYPE),
     MD5 -> Set(EMPTY_TYPE),
