@@ -454,6 +454,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window sum const") {
+    val sql =
+      """
+        |select n_regionkey, sum(2) over (partition by n_regionkey)
+        |from nation
+        |order by n_regionkey
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[WindowExecTransformer])
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window max") {
     val sql =
       """
