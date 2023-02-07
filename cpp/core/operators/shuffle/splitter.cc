@@ -796,8 +796,7 @@ Splitter::row_offset_type Splitter::CalculateSplitBatchSize(const arrow::RecordB
 
   for (size_t col = 0; col < array_idx_.size(); ++col) {
     auto col_idx = array_idx_[col];
-    if (col_idx < fixed_width_col_cnt_)
-      size_per_row += arrow::bit_width(column_type_id_[col_idx]->id()) >> 3;
+    size_per_row += arrow::bit_width(column_type_id_[col_idx]->id()) >> 3;
   }
 
   int64_t prealloc_row_cnt = options_.offheap_per_task > 0 && size_per_row > 0
@@ -835,12 +834,11 @@ arrow::Status Splitter::DoSplit(const arrow::RecordBatch& rb) {
 
   for (size_t col = 0; col < array_idx_.size(); ++col) {
     auto col_idx = array_idx_[col];
-    if (col_idx < fixed_width_col_cnt_)
-      // check input_has_null_[col] is cheaper than GetNullCount()
-      //  once input_has_null_ is set to true, we didn't reset it after spill
-      if (input_has_null_[col] == false && rb.column_data(col_idx)->GetNullCount() != 0) {
-        input_has_null_[col] = true;
-      }
+    // check input_has_null_[col] is cheaper than GetNullCount()
+    // once input_has_null_ is set to true, we didn't reset it after spill
+    if (!input_has_null_[col] && rb.column_data(col_idx)->GetNullCount() != 0) {
+      input_has_null_[col] = true;
+    }
   }
 
   // prepare partition buffers and spill if necessary

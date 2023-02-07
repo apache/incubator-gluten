@@ -182,4 +182,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include(
       "IN/INSET with bytes, shorts, ints, dates"
     )
+
+  enableSuite[GlutenJoinSuite]
+    .include(
+      "big inner join, 4 matches per row"
+    )
 }

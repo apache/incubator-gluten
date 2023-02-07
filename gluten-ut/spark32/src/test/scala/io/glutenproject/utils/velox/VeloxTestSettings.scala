@@ -20,10 +20,20 @@ package io.glutenproject.utils.velox
 import io.glutenproject.utils.BackendTestSettings
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuite, GlutenDataSourceV2Suite, GlutenFileDataSourceV2FallBackSuite, GlutenLocalScanSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.GlutenAdaptiveQueryExecSuite
+import org.apache.spark.sql.execution.datasources.{GlutenBucketingUtilsSuite, GlutenCSVReadSchemaSuite, GlutenDataSourceStrategySuite, GlutenDataSourceSuite, GlutenFileFormatWriterSuite, GlutenFileIndexSuite, GlutenFileSourceStrategySuite, GlutenHadoopFileLinesReaderSuite, GlutenHeaderCSVReadSchemaSuite, GlutenJsonReadSchemaSuite, GlutenMergedOrcReadSchemaSuite, GlutenMergedParquetReadSchemaSuite, GlutenOrcCodecSuite, GlutenOrcReadSchemaSuite, GlutenParquetCodecSuite, GlutenParquetReadSchemaSuite, GlutenPathFilterStrategySuite, GlutenPathFilterSuite, GlutenPruneFileSourcePartitionsSuite, GlutenVectorizedOrcReadSchemaSuite, GlutenVectorizedParquetReadSchemaSuite}
+import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
+import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
+import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
+import org.apache.spark.sql.execution.datasources.orc.{GlutenOrcColumnarBatchReaderSuite, GlutenOrcFilterSuite, GlutenOrcPartitionDiscoverySuite, GlutenOrcSourceSuite, GlutenOrcV1FilterSuite, GlutenOrcV1PartitionDiscoverySuite, GlutenOrcV1QuerySuite, GlutenOrcV1SchemaPruningSuite, GlutenOrcV2QuerySuite, GlutenOrcV2SchemaPruningSuite}
+import org.apache.spark.sql.execution.datasources.parquet.{GlutenParquetColumnIndexSuite, GlutenParquetCompressionCodecPrecedenceSuite, GlutenParquetEncodingSuite, GlutenParquetFileFormatV1Suite, GlutenParquetFileFormatV2Suite, GlutenParquetIOSuite, GlutenParquetInteroperabilitySuite, GlutenParquetProtobufCompatibilitySuite, GlutenParquetRebaseDatetimeV1Suite, GlutenParquetRebaseDatetimeV2Suite, GlutenParquetSchemaInferenceSuite, GlutenParquetSchemaSuite, GlutenParquetThriftCompatibilitySuite, GlutenParquetV1FilterSuite, GlutenParquetV1PartitionDiscoverySuite, GlutenParquetV1QuerySuite, GlutenParquetV1SchemaPruningSuite, GlutenParquetV2FilterSuite, GlutenParquetV2PartitionDiscoverySuite, GlutenParquetV2QuerySuite, GlutenParquetV2SchemaPruningSuite}
+import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
+import org.apache.spark.sql.execution.datasources.v2.GlutenFileTableSuite
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
+import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, GlutenBucketedWriteWithoutHiveSupportSuite, GlutenCreateTableAsSelectSuite, GlutenDDLSourceLoadSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE, GlutenExternalCommandRunnerSuite, GlutenFilteredScanSuite, GlutenFiltersSuite, GlutenInsertSuite, GlutenPartitionedWriteSuite, GlutenPathOptionSuite, GlutenPrunedScanSuite, GlutenResolvedDataSourceSuite, GlutenSaveLoadSuite, GlutenTableScanSuite}
 
 class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -207,12 +217,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
-    .exclude("special floating point values")
   enableSuite[GlutenDatasetSuite]
-    .exclude("typed aggregation: expr, expr, expr, expr, expr")
-    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr")
-    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr, expr")
-    .exclude("typed aggregation: expr, expr, expr, expr, expr, expr, expr, expr")
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
   enableSuite[GlutenJsonFunctionsSuite]
@@ -235,4 +240,142 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
+  enableSuite[GlutenBinaryFileFormatSuite]
+    .exclude("column pruning - non-readable file")
+  // enableSuite[GlutenCSVv1Suite]
+  // enableSuite[GlutenCSVv2Suite]
+  // enableSuite[GlutenCSVLegacyTimeParserSuite]
+  enableSuite[GlutenJsonV1Suite]
+    .exclude("SPARK-35047: Write Non-ASCII character as codepoint")
+    .exclude("SPARK-35104: Fix wrong indentation for multiple JSON even if `pretty` option is true")
+  // enableSuite[GlutenJsonV2Suite]
+  enableSuite[GlutenJsonLegacyTimeParserSuite]
+  enableSuite[GlutenTextV1Suite]
+  // enableSuite[GlutenTextV2Suite]
+  enableSuite[GlutenOrcColumnarBatchReaderSuite]
+  enableSuite[GlutenOrcFilterSuite]
+    .exclude("SPARK-32622: case sensitivity in predicate pushdown")
+  // enableSuite[GlutenOrcPartitionDiscoverySuite]
+  // enableSuite[GlutenOrcV1PartitionDiscoverySuite]
+  // enableSuite[GlutenOrcV1QuerySuite]
+  // enableSuite[GlutenOrcV2QuerySuite]
+  // enableSuite[GlutenOrcSourceSuite]
+  enableSuite[GlutenOrcV1FilterSuite]
+    .exclude("SPARK-32622: case sensitivity in predicate pushdown")
+  // enableSuite[GlutenOrcV1SchemaPruningSuite]
+  // enableSuite[GlutenOrcV2SchemaPruningSuite]
+  enableSuite[GlutenParquetColumnIndexSuite]
+  enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
+  enableSuite[GlutenParquetEncodingSuite]
+  enableSuite[GlutenParquetFileFormatV1Suite]
+  enableSuite[GlutenParquetFileFormatV2Suite]
+  // enableSuite[GlutenParquetV1FilterSuite]
+  // enableSuite[GlutenParquetV2FilterSuite]
+  enableSuite[GlutenParquetInteroperabilitySuite]
+    .exclude("parquet timestamp conversion")
+  // enableSuite[GlutenParquetIOSuite]
+  enableSuite[GlutenParquetV1PartitionDiscoverySuite]
+    .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
+    .exclude(
+      "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
+  enableSuite[GlutenParquetV2PartitionDiscoverySuite]
+    .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
+    .exclude(
+      "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
+  enableSuite[GlutenParquetProtobufCompatibilitySuite]
+  // enableSuite[GlutenParquetV1QuerySuite]
+  // enableSuite[GlutenParquetV2QuerySuite]
+  // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
+  // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
+  // enableSuite[GlutenParquetV1SchemaPruningSuite]
+  // enableSuite[GlutenParquetV2SchemaPruningSuite]
+  enableSuite[GlutenParquetSchemaInferenceSuite]
+  enableSuite[GlutenParquetSchemaSuite]
+    .exclude("schema mismatch failure error message for parquet reader")
+    .exclude("schema mismatch failure error message for parquet vectorized reader")
+  enableSuite[GlutenParquetThriftCompatibilitySuite]
+    // Rewrite for file locating.
+    .exclude("Read Parquet file generated by parquet-thrift")
+  enableSuite[GlutenFileTableSuite]
+  enableSuite[GlutenBucketingUtilsSuite]
+  enableSuite[GlutenDataSourceStrategySuite]
+  enableSuite[GlutenDataSourceSuite]
+  // enableSuite[GlutenFileFormatWriterSuite]
+  enableSuite[GlutenFileIndexSuite]
+  enableSuite[GlutenParquetCodecSuite]
+    .exclude("write and read - file source parquet - codec: lz4")
+  // enableSuite[GlutenOrcCodecSuite]
+  enableSuite[GlutenFileSourceStrategySuite]
+    .exclude("partitioned table - after scan filters")
+    .exclude(
+      "SPARK-32352: Partially push down support data filter if it mixed in partition filters")
+  enableSuite[GlutenHadoopFileLinesReaderSuite]
+  enableSuite[GlutenPathFilterStrategySuite]
+  enableSuite[GlutenPathFilterSuite]
+  enableSuite[GlutenPruneFileSourcePartitionsSuite]
+  enableSuite[GlutenCSVReadSchemaSuite]
+  enableSuite[GlutenHeaderCSVReadSchemaSuite]
+  enableSuite[GlutenJsonReadSchemaSuite]
+  // enableSuite[GlutenOrcReadSchemaSuite]
+  // enableSuite[GlutenVectorizedOrcReadSchemaSuite]
+  // enableSuite[GlutenMergedOrcReadSchemaSuite]
+  enableSuite[GlutenParquetReadSchemaSuite]
+  enableSuite[GlutenVectorizedParquetReadSchemaSuite]
+  enableSuite[GlutenMergedParquetReadSchemaSuite]
+  enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
+  enableSuite[GlutenDataSourceV2DataFrameSuite]
+  enableSuite[GlutenDataSourceV2FunctionSuite]
+  enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
+  // enableSuite[GlutenDataSourceV2SQLSuite]
+  enableSuite[GlutenFileDataSourceV2FallBackSuite]
+  enableSuite[GlutenLocalScanSuite]
+  enableSuite[GlutenSupportsCatalogOptionsSuite]
+  enableSuite[GlutenTableCapabilityCheckSuite]
+  // enableSuite[GlutenWriteDistributionAndOrderingSuite]
+  // enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
+  enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
+  enableSuite[GlutenCreateTableAsSelectSuite]
+    .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
+    .exclude("create a table, drop it and create another one with the same name")
+  enableSuite[GlutenDDLSourceLoadSuite]
+  enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
+  enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
+  enableSuite[GlutenExternalCommandRunnerSuite]
+  enableSuite[GlutenFilteredScanSuite]
+  enableSuite[GlutenFiltersSuite]
+  enableSuite[GlutenInsertSuite]
+    .exclude("SPARK-20236: dynamic partition overwrite with customer partition path")
+    .exclude("SPARK-35106: insert overwrite with custom partition path")
+    .exclude("SPARK-35106: dynamic partition overwrite with custom partition path")
+  enableSuite[GlutenPartitionedWriteSuite]
+  enableSuite[GlutenPathOptionSuite]
+  enableSuite[GlutenPrunedScanSuite]
+  enableSuite[GlutenResolvedDataSourceSuite]
+  enableSuite[GlutenSaveLoadSuite]
+  enableSuite[GlutenTableScanSuite]
+  enableSuite[GlutenDataSourceV2Suite]
+    .exclude("columnar batch scan implementation")
+    .exclude("partitioning reporting")
+  enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
+  enableSuite[GlutenCachedTableSuite]
+    .exclude("A cached table preserves the partitioning and ordering of its cached SparkPlan")
+  enableSuite[GlutenConfigBehaviorSuite]
+  enableSuite[GlutenCountMinSketchAggQuerySuite]
+  enableSuite[GlutenCsvFunctionsSuite]
+    .exclude("roundtrip to_csv -> from_csv")
+  enableSuite[GlutenCTEHintSuite]
+  enableSuite[GlutenCTEInlineSuiteAEOff]
+  enableSuite[GlutenCTEInlineSuiteAEOn]
+  enableSuite[GlutenDataFrameHintSuite]
+  enableSuite[GlutenDataFrameWriterV2Suite]
+  enableSuite[GlutenDatasetCacheSuite]
+  enableSuite[GlutenExpressionsSchemaSuite]
+  enableSuite[GlutenExtraStrategiesSuite]
+  enableSuite[GlutenMiscFunctionsSuite]
+  enableSuite[GlutenProcessingTimeSuite]
+  enableSuite[GlutenScalaReflectionRelationSuite]
+  enableSuite[GlutenSerializationSuite]
+  enableSuite[GlutenTypedImperativeAggregateSuite]
+  enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
+    .exclude("cases when literal is max")
 }

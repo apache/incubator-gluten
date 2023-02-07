@@ -165,7 +165,7 @@ abstract class GlutenIteratorApi extends IIteratorApi with Logging {
             SparkArrowUtil.fromArrowSchema(new Schema(expectedOutputArrowFields.asJava))
           val beforeConcat = System.nanoTime
           val resultColumnVectors =
-            ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType).toArray
+            ArrowWritableColumnVector.allocateColumns(rowCount, resultStructType)
           val target =
             new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), rowCount)
           coalesce(target, batchesToAppend.toList)

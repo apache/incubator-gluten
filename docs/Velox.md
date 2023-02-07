@@ -4,6 +4,9 @@ Currently, the mvn script can automatically fetch and build all dependency libra
 
 Currently Gluten+Velox backend is only tested on <b>Ubuntu20.04</b>. Other kinds of OS support are still in progress </b>. The long term goal is to support several
 common OS and conda env deployment.
+
+Gluten only support Spark3.2.2 and Spark3.3.1 now. Both versions are covered by CI. In future, Gluten will only support latest 2-3 Spark small versions. The other version may be supported but not covered by CI tests.
+
 Velox uses the script `setup-ubuntu.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
 So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, <b>java 8</b> is required and the support for java 11/17 is not ready.
 
@@ -59,11 +62,9 @@ cd /path_to_gluten
 ./tools/one_step_veloxbackend.sh
 ```
 
-Alternatively you may build gluten step by step as below.
+<b>Alternatively you may build gluten step by step as below.</b>
 
 ```shell script
-## Set for aarch64 build
-export CPU_TARGET="aarch64"
 
 ## fetch arrow and compile
 cd /path_to_gluten/ep/build-arrow/src/
@@ -297,14 +298,10 @@ If you are using instance credentials you do not have to set the access key or s
 Note if testing with local S3-like service(Minio/Ceph), users may need to use different values for these configurations. E.g., on Minio setup, the "spark.hadoop.fs.s3a.path.style.access" need to set to "true".
 
 # 3 Coverage
+Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [The Operators and Functions Support Progress](https://github.com/oap-project/gluten/blob/main/docs/SupportProgress.md).
 
-Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 53 functions.
+> Velox doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)), so as Gluten. Once ANSI mode is enabled in Spark config, Gluten will fallback to Vanilla Spark.
 
-Here is the operator support list:
-
-![image](https://user-images.githubusercontent.com/47296334/199826049-2ed7235a-f461-499d-917c-a83452b326c7.png)
-
-Union operator is implemented in JVM, needn't to offload to native.
 
 # 4 High-Bandwidth Memory (HBM) support
 

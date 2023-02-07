@@ -495,7 +495,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val sql =
       """
         |select avg(n_nationkey) over (partition by n_regionkey order by n_nationkey rows between
-        |current row and 3 following) from nation
+        |current row and 3 following) as x from nation
         |order by n_regionkey, n_nationkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })

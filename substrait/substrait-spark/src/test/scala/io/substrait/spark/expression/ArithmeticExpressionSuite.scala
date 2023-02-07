@@ -27,7 +27,7 @@ class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTe
 
   test("+ (Add)") {
     runTest(
-      "add:opt_i64_i64",
+      "add:i64_i64",
       Add(Literal(1), Literal(2L)),
       func => {
         assertResult(true)(func.arguments().get(1).isInstanceOf[SExpression.I64Literal])
@@ -38,15 +38,15 @@ class ArithmeticExpressionSuite extends SparkFunSuite with SubstraitExpressionTe
     ) // TODO: implicit calcite cast
 
     runTest(
-      "add:opt_i64_i64",
+      "add:i64_i64",
       Add(Cast(Literal(1), LongType), Literal(2L)),
       func => {},
       bidirectional = true)
 
-    runTest("add:opt_i32_i32", Add(Literal(1), Cast(Literal(2L), IntegerType)))
+    runTest("add:i32_i32", Add(Literal(1), Cast(Literal(2L), IntegerType)))
 
     runTest(
-      "add:opt_i32_i32",
+      "add:i32_i32",
       Add(Literal(1), Literal(2)),
       func => {
         assertResult(true)(func.arguments().get(0).isInstanceOf[SExpression.I32Literal])
