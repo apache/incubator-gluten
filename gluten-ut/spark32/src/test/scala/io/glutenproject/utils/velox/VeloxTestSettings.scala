@@ -218,6 +218,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSuite]
+    // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
   enableSuite[GlutenJsonFunctionsSuite]
