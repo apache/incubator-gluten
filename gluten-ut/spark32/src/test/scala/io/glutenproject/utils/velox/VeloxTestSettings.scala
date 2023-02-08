@@ -228,7 +228,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenXPathFunctionsSuite]
-  // enableSuite[GlutenFileBasedDataSourceSuite]
+  enableSuite[GlutenFileBasedDataSourceSuite]
+    .include("Do not use cache on append")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")

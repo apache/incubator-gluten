@@ -18,7 +18,7 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, ParquetReadFormat}
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
@@ -92,7 +92,11 @@ trait BasicScanExecTransformer extends TransformSupport {
           unsupportedDataType()) {
           return false
         }
+      case DwrfReadFormat =>
       case _ =>
+        if (BackendsApiManager.getBackendName.equals("velox")) {
+          return false
+      }
     }
 
     val substraitContext = new SubstraitContext
