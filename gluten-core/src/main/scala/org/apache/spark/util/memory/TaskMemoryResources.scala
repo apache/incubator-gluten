@@ -44,7 +44,7 @@ object TaskMemoryResources {
   private val RESOURCE_REGISTRIES =
     new java.util.IdentityHashMap[TaskContext, TaskMemoryResourceRegistry]()
 
-  private[memory] def getLocalTaskContext(): TaskContext = {
+  def getLocalTaskContext(): TaskContext = {
     TaskContext.get()
   }
 
