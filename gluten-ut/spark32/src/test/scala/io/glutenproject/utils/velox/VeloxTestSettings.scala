@@ -230,8 +230,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenXPathFunctionsSuite]
   // enableSuite[GlutenFileBasedDataSourceSuite]
   enableSuite[GlutenEnsureRequirementsSuite]
-    .exclude("SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection")
-  // enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite to change the shuffle partitions for optimizing repartition
+    .excludeByPrefix("SPARK-35675")
+  enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite with columnar operators
+    .excludeByPrefix("SPARK-24705")
+    .excludeByPrefix("SPARK-34790")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
     .exclude("char type values should be padded: nested in struct")
