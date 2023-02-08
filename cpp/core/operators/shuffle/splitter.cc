@@ -113,10 +113,18 @@ class Splitter::PartitionWriter {
 
   arrow::Status Spill(std::string file_name, std::shared_ptr<arrow::io::FileOutputStream> spill_os) {
     ARROW_ASSIGN_OR_RAISE(uint64_t start_pos, spill_os->Tell());
-    SpillFile spill_file = {file_name, spill_os, start_pos, 0};
-    spilled_file_.push_back(spill_file);
+    spilled_file_.push_back({file_name, spill_os, start_pos, 0});
+    SpillFile& spill_file = spilled_file_.back();
 
     RETURN_NOT_OK(WriteRecordBatchPayload());
+
+    // make sure the length is 4K aligned, so we can make prefetch easier
+    uint64_t pad_length = 4096 - (spill_file.length & (4096 - 1));
+    ARROW_ASSIGN_OR_RAISE(
+        std::shared_ptr<arrow::Buffer> pad,
+        arrow::AllocateResizableBuffer(pad_length, splitter_->options_.memory_pool.get()));
+    spill_os->Write(pad);
+
     ClearCache();
     return arrow::Status::OK();
   }
@@ -174,6 +182,10 @@ class Splitter::PartitionWriter {
         close(fd);
         return arrow::Status::IOError("File map failed");
       }
+      uint8_t* addr_ahead = static_cast<uint8_t*>(mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, start_pos + length));
+      if (addr_ahead != MAP_FAILED) {
+        posix_fadvise(fd, start_pos + length, length, POSIX_FADV_WILLNEED);
+      }
 
       RETURN_NOT_OK(splitter_->data_file_os_->Write(addr + offset_in_page, sf.length));
 
@@ -220,7 +232,8 @@ class Splitter::PartitionWriter {
     ARROW_ASSIGN_OR_RAISE(uint64_t start_pos, os->Tell());
     WriteRecordBatchPayload(os.get());
     ARROW_ASSIGN_OR_RAISE(uint64_t end_pos, os->Tell());
-    spilled_file_.back().length += end_pos - start_pos;
+    uint64_t length = end_pos - start_pos;
+    spilled_file_.back().length += length;
 #endif
     return arrow::Status::OK();
   }
