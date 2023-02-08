@@ -176,6 +176,7 @@ void WholeStageResultIterator::setConfToQueryContext(const std::shared_ptr<velox
   }
   // To align with Spark's behavior, set casting to int to be truncating.
   configs[velox::core::QueryConfig::kCastIntByTruncate] = std::to_string(true);
+  configs[velox::core::QueryConfig::kSpillEnabled] = std::to_string(true);
   queryCtx->setConfigOverridesUnsafe(std::move(configs));
 }
 
