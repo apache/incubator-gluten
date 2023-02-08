@@ -66,8 +66,8 @@ struct Metrics {
     numMemoryAllocations = new long[numMetrics]();
     spilledBytes = new long[numMetrics]();
     spilledRows = new long[numMetrics]();
-    spilledFiles = new int[numMetrics]();
-    spilledPartitions = new int[numMetrics]();
+    spilledFiles = new long[numMetrics]();
+    spilledPartitions = new long[numMetrics]();
     numDynamicFiltersProduced = new long[numMetrics]();
     numDynamicFiltersAccepted = new long[numMetrics]();
     numReplacedWithDynamicFilterRows = new long[numMetrics]();
