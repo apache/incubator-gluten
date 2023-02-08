@@ -240,13 +240,13 @@ trait HashJoinLikeExecTransformer
     "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash build memory allocations"),
     "hashBuildSpilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "Total bytes written for spilling of hash build"),
+      sparkContext, "total bytes written for spilling of hash build"),
     "hashBuildSpilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "Total rows written for spilling of hash build"),
+      sparkContext, "total rows written for spilling of hash build"),
     "hashBuildSpilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled partitions of hash build"),
+      sparkContext, "total spilled partitions of hash build"),
     "hashBuildSpilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled files of hash build"),
+      sparkContext, "total spilled files of hash build"),
 
     "hashProbeInputRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe input rows"),
@@ -273,13 +273,13 @@ trait HashJoinLikeExecTransformer
     "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe memory allocations"),
     "hashProbeSpilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "Total bytes written for spilling of hash probe"),
+      sparkContext, "total bytes written for spilling of hash probe"),
     "hashProbeSpilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "Total rows written for spilling of hash probe"),
+      sparkContext, "total rows written for spilling of hash probe"),
     "hashProbeSpilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled partitions of hash probe"),
+      sparkContext, "total spilled partitions of hash probe"),
     "hashProbeSpilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled files of hash probe"),
+      sparkContext, "total spilled files of hash probe"),
     "hashProbeReplacedWithDynamicFilterRows" -> SQLMetrics.createMetric(
       sparkContext, "number of hash probe replaced with dynamic filter rows"),
     "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(

@@ -133,13 +133,13 @@ abstract class HashAggregateExecBaseTransformer(
     "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of aggregation memory allocations"),
     "aggSpilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "Total bytes written for spilling"),
+      sparkContext, "total bytes written for spilling"),
     "aggSpilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "Total rows written for spilling"),
+      sparkContext, "total rows written for spilling"),
     "aggSpilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled partitions"),
+      sparkContext, "total spilled partitions"),
     "aggSpilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled files"),
+      sparkContext, "total spilled files"),
     "flushRowCount" -> SQLMetrics.createMetric(
       sparkContext, "number of aggregation flushed rows"),
 

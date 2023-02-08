@@ -68,13 +68,13 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     "numMemoryAllocations" -> SQLMetrics.createMetric(
       sparkContext, "number of memory allocations"),
     "spilledBytes" -> SQLMetrics.createMetric(
-      sparkContext, "Total bytes written for spilling"),
+      sparkContext, "total bytes written for spilling"),
     "spilledRows" -> SQLMetrics.createMetric(
-      sparkContext, "Total rows written for spilling"),
+      sparkContext, "total rows written for spilling"),
     "spilledPartitions" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled partitions"),
+      sparkContext, "total spilled partitions"),
     "spilledFiles" -> SQLMetrics.createMetric(
-      sparkContext, "Total spilled files")
+      sparkContext, "total spilled files")
   )
 
   object MetricsUpdaterImpl extends SortMetricsUpdater {
