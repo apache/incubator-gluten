@@ -92,8 +92,4 @@ cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
       -DENABLE_HBM=$ENABLE_HBM -DVELOX_ENABLE_S3=$ENABLE_S3 -DVELOX_ENABLE_HDFS=$ENABLE_HDFS ..
 make -j
 
-cd $GLUTEN_DIR
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
-mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
-
 

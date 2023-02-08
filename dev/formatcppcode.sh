@@ -1,1 +1,3 @@
-find cpp/ -regex '.*\.\(cc\|hpp\|cu\|c\|h\)' -exec clang-format -style=file -i {} \;
+find cpp/core -regex '.*\.\(cc\|hpp\|cu\|c\|h\)' -exec clang-format-11 -style=file -i {} \;
+find cpp/velox -regex '.*\.\(cc\|hpp\|cu\|c\|h\)' -exec clang-format-11 -style=file -i {} \;
+find cpp/gazelle-cpp -regex '.*\.\(cc\|hpp\|cu\|c\|h\)' -exec clang-format-11 -style=file -i {} \;
