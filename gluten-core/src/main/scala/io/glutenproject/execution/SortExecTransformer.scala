@@ -66,7 +66,16 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_sort"),
     "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
     "numMemoryAllocations" -> SQLMetrics.createMetric(
-      sparkContext, "number of memory allocations"))
+      sparkContext, "number of memory allocations"),
+    "spilledBytes" -> SQLMetrics.createMetric(
+      sparkContext, "Total bytes written for spilling"),
+    "spilledRows" -> SQLMetrics.createMetric(
+      sparkContext, "Total rows written for spilling"),
+    "spilledPartitions" -> SQLMetrics.createMetric(
+      sparkContext, "Total spilled partitions"),
+    "spilledFiles" -> SQLMetrics.createMetric(
+      sparkContext, "Total spilled files")
+  )
 
   object MetricsUpdaterImpl extends SortMetricsUpdater {
     val inputRows: SQLMetric = longMetric("inputRows")
@@ -81,6 +90,10 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     val wallNanos: SQLMetric = longMetric("wallNanos")
     val peakMemoryBytes: SQLMetric = longMetric("peakMemoryBytes")
     val numMemoryAllocations: SQLMetric = longMetric("numMemoryAllocations")
+    val spilledBytes: SQLMetric = longMetric("spilledBytes")
+    val spilledRows: SQLMetric = longMetric("spilledRows")
+    val spilledPartitions: SQLMetric = longMetric("spilledPartitions")
+    val spilledFiles: SQLMetric = longMetric("spilledFiles")
 
     override def updateNativeMetrics(operatorMetrics: OperatorMetrics): Unit = {
       if (operatorMetrics != null) {
@@ -96,6 +109,10 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         wallNanos += operatorMetrics.wallNanos
         peakMemoryBytes += operatorMetrics.peakMemoryBytes
         numMemoryAllocations += operatorMetrics.numMemoryAllocations
+        spilledBytes += operatorMetrics.spilledBytes
+        spilledRows += operatorMetrics.spilledRows
+        spilledPartitions += operatorMetrics.spilledPartitions
+        spilledFiles += operatorMetrics.spilledFiles
       }
     }
   }

@@ -30,6 +30,10 @@ public class OperatorMetrics {
   public long wallNanos;
   public long peakMemoryBytes;
   public long numMemoryAllocations;
+  public long spilledBytes;
+  public long spilledRows;
+  public long spilledPartitions;
+  public long spilledFiles;
   public long numDynamicFiltersProduced;
   public long numDynamicFiltersAccepted;
   public long numReplacedWithDynamicFilterRows;
@@ -53,6 +57,10 @@ public class OperatorMetrics {
       long wallNanos,
       long peakMemoryBytes,
       long numMemoryAllocations,
+      long spilledBytes,
+      long spilledRows,
+      long spilledPartitions,
+      long spilledFiles,
       long numDynamicFiltersProduced,
       long numDynamicFiltersAccepted,
       long numReplacedWithDynamicFilterRows,
@@ -69,6 +77,10 @@ public class OperatorMetrics {
     this.wallNanos = wallNanos;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
+    this.spilledBytes = spilledBytes;
+    this.spilledRows = spilledRows;
+    this.spilledPartitions = spilledPartitions;
+    this.spilledFiles = spilledFiles;
     this.numDynamicFiltersProduced = numDynamicFiltersProduced;
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;

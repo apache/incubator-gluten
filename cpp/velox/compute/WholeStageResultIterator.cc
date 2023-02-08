@@ -122,6 +122,10 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
       metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
       metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
+      metrics_->spilledBytes[metricsIdx] = entry.second->spilledBytes;
+      metrics_->spilledRows[metricsIdx] = entry.second->spilledRows;
+      metrics_->spilledPartitions[metricsIdx] = entry.second->spilledPartitions;
+      metrics_->spilledFiles[metricsIdx] = entry.second->spilledFiles;
       metrics_->numDynamicFiltersProduced[metricsIdx] =
           runtimeMetric("sum", entry.second->customStats, kDynamicFiltersProduced);
       metrics_->numDynamicFiltersAccepted[metricsIdx] =
