@@ -25,6 +25,7 @@
 #include "compute/DwrfDatasource.h"
 #include "compute/RegistrationAllFunctions.h"
 #include "compute/VeloxBackend.h"
+#include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
 #include "memory/VeloxMemoryPool.h"
 #include "velox/substrait/SubstraitToVeloxPlanValidator.h"
@@ -34,42 +35,6 @@
 using namespace facebook::velox;
 
 static std::unordered_map<std::string, std::string> sparkConfs_;
-
-// Extract Spark confs from Substrait plan and set them to the conf map.
-void setUpConfMap(JNIEnv* env, jobject obj, jbyteArray planArray) {
-  if (sparkConfs_.size() != 0) {
-    return;
-  }
-
-  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
-  auto planSize = env->GetArrayLength(planArray);
-  ::substrait::Plan subPlan;
-  gluten::ParseProtobuf(planData, planSize, &subPlan);
-
-  if (subPlan.has_advanced_extensions()) {
-    auto extension = subPlan.advanced_extensions();
-    if (extension.has_enhancement()) {
-      const auto& enhancement = extension.enhancement();
-      ::substrait::Expression expression;
-      if (!enhancement.UnpackTo(&expression)) {
-        std::string error_message =
-            "Can't Unapck the Any object to Expression Literal when passing the spark conf to velox";
-        gluten::JniThrow(error_message);
-      }
-      if (expression.has_literal()) {
-        auto literal = expression.literal();
-        if (literal.has_map()) {
-          auto literal_map = literal.map();
-          auto size = literal_map.key_values_size();
-          for (auto i = 0; i < size; i++) {
-            ::substrait::Expression_Literal_Map_KeyValue keyValue = literal_map.key_values(i);
-            sparkConfs_.emplace(keyValue.key().string(), keyValue.value().string());
-          }
-        }
-      }
-    }
-  }
-}
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,7 +62,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWr
     jobject obj,
     jbyteArray planArray) {
   JNI_METHOD_START
-  setUpConfMap(env, obj, planArray);
+  sparkConfs_ = gluten::getConfMap(env, planArray);
   gluten::SetBackendFactory([] { return std::make_shared<gluten::VeloxBackend>(sparkConfs_); });
   static auto veloxInitializer = std::make_shared<gluten::VeloxInitializer>(sparkConfs_);
   JNI_METHOD_END()

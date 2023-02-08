@@ -21,4 +21,6 @@
 
 namespace gluten {
 const std::string kGlutenSaveDir = "spark.gluten.saveDir";
-}
+
+std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
+} // namespace gluten
