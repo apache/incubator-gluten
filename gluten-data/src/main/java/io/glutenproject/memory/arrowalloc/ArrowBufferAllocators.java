@@ -35,9 +35,7 @@ public class ArrowBufferAllocators {
   private ArrowBufferAllocators() {
   }
 
-  private static final long MAX_ALLOCATION_SIZE = TaskMemoryResources.OFFHEAP_SIZE();
-
-  private static final BufferAllocator GLOBAL = new RootAllocator(MAX_ALLOCATION_SIZE);
+  private static final BufferAllocator GLOBAL = new RootAllocator(Long.MAX_VALUE);
 
   public static BufferAllocator globalInstance() {
     return GLOBAL;

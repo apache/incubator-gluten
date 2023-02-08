@@ -17,20 +17,17 @@
 
 package org.apache.spark.util.memory
 
-import java.util.concurrent.atomic.AtomicLong
-import java.util.UUID
-
-import scala.collection.JavaConverters._
-
 import io.glutenproject.memory.TaskMemoryMetrics
-
-import org.apache.spark.{SparkEnv, TaskContext}
-import org.apache.spark.internal.config.MEMORY_OFFHEAP_SIZE
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskCompletionListener
 import org.apache.spark.util.memory.TaskMemoryResources._
+
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
+import scala.collection.JavaConverters._
 
 object TaskMemoryResources {
   val DEBUG: Boolean = {
@@ -38,8 +35,6 @@ object TaskMemoryResources {
       .getConfString("spark.gluten.sql.memory.debug", "false").toBoolean
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
-
-  val OFFHEAP_SIZE: Long = SparkEnv.get.conf.get(MEMORY_OFFHEAP_SIZE)
 
   private val RESOURCE_REGISTRIES =
     new java.util.IdentityHashMap[TaskContext, TaskMemoryResourceRegistry]()
