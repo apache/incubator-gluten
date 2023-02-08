@@ -231,6 +231,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]
     .include("Do not use cache on append")
+    .includeByPrefix("SPARK-23072")
+   // To Fix
+  // SPARK-22790
+  // SPARK-25237
+  // Return correct results when data columns overlap with partition columns
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
