@@ -345,7 +345,9 @@ object GlutenConfig {
     nativeConfMap
   }
 
-  def getNativeStaticConf(conf: SparkConf, backendsPrefix: String): util.Map[String, String] = {
+  // TODO: some of the config is dynamic in spark, but is static in gluten, because it should be
+  //  used to construct HiveConnector which intends reused in velox
+  def getNativeStaticConf(conf: SparkConf, backendPrefix: String): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
       // DWRF datasource config
@@ -373,7 +375,7 @@ object GlutenConfig {
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.get(e._1, e._2)))
     // velox cache and HiveConnector config
     conf.getAll
-      .filter(_._1.startsWith(backendsPrefix))
+      .filter(_._1.startsWith(backendPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // for further use
