@@ -6,7 +6,7 @@ Since the same function may have different semantics between Presto and Spark, V
 
 The total supported functions' number for [Spark3.3 is 387](https://spark.apache.org/docs/latest/api/sql/) and for [Velox is 204](https://facebookincubator.github.io/velox/functions/coverage.html). 
 Gluten supported frequently used 94, in which offloaded 62 is implemented in velox/spark and 32 in velox/presto, shown as below picture.
-![support](./docs/image/support.png)
+![support](./image/support.png)
 
 | Value         | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
