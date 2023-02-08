@@ -18,7 +18,6 @@
 package io.glutenproject.memory;
 
 import io.glutenproject.memory.alloc.Spiller;
-import org.apache.spark.TaskContext;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
