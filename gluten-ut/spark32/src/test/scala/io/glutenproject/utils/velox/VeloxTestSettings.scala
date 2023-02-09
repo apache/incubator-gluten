@@ -222,8 +222,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
   enableSuite[GlutenJsonFunctionsSuite]
+    // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
-    .exclude("roundtrip in to_json and from_json - struct")
   enableSuite[GlutenProductAggSuite]
   enableSuite[GlutenReplaceNullWithFalseInPredicateEndToEndSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]

@@ -2,9 +2,10 @@
 
 set -exu
 #setting gluten root path
-ARROW_REPO=https://github.com/oap-project/arrow.git
+#ARROW_REPO=https://github.com/oap-project/arrow.git
+ARROW_REPO=https://github.com/JkSelf/arrow-1.git
 #for velox_backend
-ARROW_BRANCH=backend_velox_main
+ARROW_BRANCH=fix-int-overflow
 #for gazelle backend
 #ARROW_BRANCH=arrow-8.0.0-gluten-20220427a
 
