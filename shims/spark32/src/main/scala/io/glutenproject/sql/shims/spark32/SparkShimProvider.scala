@@ -16,8 +16,8 @@
  */
 package io.glutenproject.sql.shims.spark32
 
-import io.glutenproject.sql.shims.spark32.SparkShimProvider.DESCRIPTOR
 import io.glutenproject.sql.shims.{SparkShimDescriptor, SparkShims}
+import io.glutenproject.sql.shims.spark32.SparkShimProvider.DESCRIPTOR
 
 object SparkShimProvider {
   val DESCRIPTOR = SparkShimDescriptor(3, 2, 2)
@@ -32,8 +32,9 @@ class SparkShimProvider extends io.glutenproject.sql.shims.SparkShimProvider {
     val majorMinorVersionMatch = DESCRIPTOR.toMajorMinorVersion ==
       extractMajorAndMinorVersion(version)
     if (majorMinorVersionMatch && DESCRIPTOR.toString() != version) {
-      logWarning(s"Spark runtime version $version is not matched with Gluten's fully" +
-        s" tested version ${DESCRIPTOR.toString()}")
+      logWarning(
+        s"Spark runtime version $version is not matched with Gluten's fully" +
+          s" tested version ${DESCRIPTOR.toString()}")
     }
     majorMinorVersionMatch
   }
