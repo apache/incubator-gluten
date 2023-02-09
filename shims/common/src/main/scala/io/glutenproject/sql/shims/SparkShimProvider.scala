@@ -16,13 +16,15 @@
  */
 package io.glutenproject.sql.shims
 
+import org.apache.spark.internal.Logging
+
 /** Provider interface for matching and retrieving the Shims of a specific Spark version */
-trait SparkShimProvider {
+trait SparkShimProvider extends Logging {
   def matches(version: String): Boolean
   def createShim: SparkShims
 
   protected def extractMajorAndMinorVersion(version: String): String = {
-    val Array(major, minor, patch) = version.split('.')
+    val Array(major, minor, _) = version.split('.')
     s"$major.$minor"
   }
 }

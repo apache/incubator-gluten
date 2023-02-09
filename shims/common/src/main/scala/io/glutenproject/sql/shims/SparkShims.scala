@@ -29,8 +29,10 @@ import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, P
 
 sealed abstract class ShimDescriptor
 
-case class SparkShimDescriptor(major: Int, minor: Int) extends ShimDescriptor {
-  override def toString(): String = s"$major.$minor"
+case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
+  override def toString(): String = s"$major.$minor.$patch"
+
+  def toMajorMinorVersion: String = s"$major.$minor"
 }
 
 trait SparkShims {
