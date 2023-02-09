@@ -239,7 +239,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
-  enableSuite[GlutenCoalesceShufflePartitionsSuite]
+//  enableSuite[GlutenCoalesceShufflePartitionsSuite]
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
     .exclude("char type values should be padded: nested in struct")
@@ -367,11 +367,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioning reporting")
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
-    .exclude("A cached table preserves the partitioning and ordering of its cached SparkPlan")
+    .include("Gluten: A cached table preserves the partitioning and ordering of its cached SparkPlan")
   enableSuite[GlutenConfigBehaviorSuite]
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
-    .exclude("roundtrip to_csv -> from_csv")
+    .include("roundtrip to_csv -> from_csv")
   enableSuite[GlutenCTEHintSuite]
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]

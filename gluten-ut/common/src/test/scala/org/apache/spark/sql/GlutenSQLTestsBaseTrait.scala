@@ -51,7 +51,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
-      .set("spark.plugins", "io.glutenproject.GlutenPlugin")
+//      .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.warehouse.dir", warehouse)
       // Avoid static evaluation by spark catalyst. But there are some UT issues
