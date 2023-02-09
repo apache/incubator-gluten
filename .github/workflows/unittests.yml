@@ -75,7 +75,17 @@ jobs:
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
           mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
-      - name: Run unit test for Spark3.2
+      - name: Build for Spark 3.2.0
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.0'
+      - name: Build for Spark 3.2.1
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pbackends-velox -DskipTests -Dspark32.version=3.2.1'
+      - name: Build and run unit test for Spark 3.2.2
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
@@ -97,7 +107,12 @@ jobs:
             --backend-type=velox --benchmark-type=h --fixed-width-as-double --disable-aqe --off-heap-size=20g -s=1.0 --cpus=16 --iterations=1 \
           && java -Xmx5G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log -cp target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar io.glutenproject.integration.tpc.Tpc \
             --backend-type=velox --benchmark-type=ds --fixed-width-as-double --off-heap-size=8g -s=0.1 --cpus=16 --iterations=1'
-      - name: Run unit test for Spark3.3
+      - name: Build for Spark 3.3.0
+        run: |
+          docker exec velox-backend-test-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -DskipTests -Dspark33.version=3.3.0'
+      - name: Build and Run unit test for Spark 3.3.1
         run: |
           docker exec velox-backend-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -Pspark-ut'
