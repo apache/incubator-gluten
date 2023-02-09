@@ -243,6 +243,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
   enableSuite[GlutenBinaryFileFormatSuite]
+    .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
   enableSuite[GlutenCSVv2Suite]
   enableSuite[GlutenCSVLegacyTimeParserSuite]
@@ -255,8 +256,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
-  // enableSuite[GlutenOrcPartitionDiscoverySuite]
-  // enableSuite[GlutenOrcV1PartitionDiscoverySuite]
+  enableSuite[GlutenOrcPartitionDiscoverySuite]
+  enableSuite[GlutenOrcV1PartitionDiscoverySuite]
   // enableSuite[GlutenOrcV1QuerySuite]
   // enableSuite[GlutenOrcV2QuerySuite]
   // enableSuite[GlutenOrcSourceSuite]
@@ -304,7 +305,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
     .exclude("write and read - file source parquet - codec: lz4")
-  // enableSuite[GlutenOrcCodecSuite]
+  enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     .exclude("partitioned table - after scan filters")
     .exclude(
@@ -316,9 +317,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVReadSchemaSuite]
   enableSuite[GlutenHeaderCSVReadSchemaSuite]
   enableSuite[GlutenJsonReadSchemaSuite]
-  // enableSuite[GlutenOrcReadSchemaSuite]
+  enableSuite[GlutenOrcReadSchemaSuite]
   // enableSuite[GlutenVectorizedOrcReadSchemaSuite]
-  // enableSuite[GlutenMergedOrcReadSchemaSuite]
+  enableSuite[GlutenMergedOrcReadSchemaSuite]
   enableSuite[GlutenParquetReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]

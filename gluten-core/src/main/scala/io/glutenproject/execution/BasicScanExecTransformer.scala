@@ -18,7 +18,6 @@
 package io.glutenproject.execution
 
 import com.google.common.collect.Lists
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
@@ -74,41 +73,23 @@ trait BasicScanExecTransformer extends TransformSupport {
     )
   }
 
-  def unsupportedDataType () : Boolean = {
-    schema.fields.map(_.dataType).collect{
-      case byte: ByteType =>
-      case array: ArrayType =>
-      case bool: BooleanType =>
-      case map: MapType =>
-      case struct: StructType =>
-    }.nonEmpty
-  }
-
   override def doValidate(): Boolean = {
     val fileFormat = ConverterUtils.getFileFormat(this)
-    if (!BackendsApiManager.getTransformerApiInstance.supportsReadFileFormat(fileFormat)) {
+    if (!BackendsApiManager
+      .getTransformerApiInstance.supportsReadFileFormat(fileFormat, schema.fields)) {
       logDebug(
         s"Validation failed for ${this.getClass.toString} due to $fileFormat is not supported.")
       return false
     }
-    fileFormat match {
-      case ParquetReadFormat =>
-        if (BackendsApiManager.getBackendName.equals("velox") &&
-          unsupportedDataType()) {
-          return false
-        }
-      case _ =>
-    }
 
     val substraitContext = new SubstraitContext
-    val relNode =
-      try {
-        doTransform(substraitContext).root
-      } catch {
-        case e: Throwable =>
-          logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
-          return false
-      }
+    val relNode = try {
+      doTransform(substraitContext).root
+    } catch {
+      case e: Throwable =>
+        logDebug(s"Validation failed for ${this.getClass.toString} due to ${e.getMessage}")
+        return false
+    }
 
     if (GlutenConfig.getConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
@@ -117,6 +98,7 @@ trait BasicScanExecTransformer extends TransformSupport {
       true
     }
   }
+
   def collectAttributesNamesDFS(attributes: Seq[Attribute]): java.util.ArrayList[String] = {
     val nameList = new java.util.ArrayList[String]()
     attributes.foreach(

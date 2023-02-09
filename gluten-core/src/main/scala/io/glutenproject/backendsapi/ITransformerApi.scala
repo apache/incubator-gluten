@@ -21,7 +21,8 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.types.StructField
 
 trait ITransformerApi {
 
@@ -38,7 +39,7 @@ trait ITransformerApi {
    *
    * @return true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(fileFormat: ReadFileFormat): Boolean
+  def supportsReadFileFormat(fileFormat: ReadFileFormat, fields: Array[StructField]): Boolean
 
   /**
    * Generate Seq[InputPartition] for FileSourceScanExecTransformer.

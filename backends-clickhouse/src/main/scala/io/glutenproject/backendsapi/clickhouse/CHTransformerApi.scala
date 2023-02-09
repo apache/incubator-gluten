@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partition
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.types.{ArrayType, StructField}
 
 class CHTransformerApi extends ITransformerApi with Logging {
 
@@ -76,8 +77,8 @@ class CHTransformerApi extends ITransformerApi with Logging {
    * @return
    *   true if backend supports reading the file format.
    */
-  def supportsReadFileFormat(fileFormat: ReadFileFormat): Boolean =
-    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat)
+  def supportsReadFileFormat(fileFormat: ReadFileFormat, fields: Array[StructField]): Boolean =
+    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(

@@ -22,6 +22,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{ArrayType, StructField}
 
 class CHBackend extends Backend {
   override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
@@ -55,10 +56,15 @@ object CHBackendSettings extends BackendSettings {
       ".customized.buffer.size"
   val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = "4096"
 
-  override def supportFileFormatRead: ReadFileFormat => Boolean = {
-    case ParquetReadFormat => true
-    case OrcReadFormat => true
-    case _ => true
+  override def supportFileFormatRead(
+      format: ReadFileFormat,
+      fields: Array[StructField]): Boolean = {
+    format match {
+      case ParquetReadFormat => true
+      case OrcReadFormat => true
+      // True for CH backend for unknown type.
+      case _ => true
+    }
   }
 
   override def utilizeShuffledHashJoinHint(): Boolean = true
