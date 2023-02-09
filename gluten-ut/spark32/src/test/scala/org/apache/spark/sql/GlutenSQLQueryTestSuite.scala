@@ -380,7 +380,19 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "promoteStrings.sql",
     "stringCastAndExpressions.sql",
     "widenSetOperationTypes.sql",
-    "windowFrameCoercion.sql"
+    "windowFrameCoercion.sql",
+    "timestamp-ltz.sql",
+    "timestamp-ntz.sql",
+    "timezone.sql",
+    "transform.sql",
+    "try_arithmetic.sql",
+    "try_cast.sql",
+    "udaf.sql",
+    "union.sql",
+    "using-join.sql",
+    "window.sql",
+    "udf-union.sql",
+    "udf-window.sql"
   )
 
   /** List of supported cases to run with Clickhouse backend, in lower case.
