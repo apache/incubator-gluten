@@ -20,12 +20,13 @@ import io.glutenproject.backendsapi.IValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
+
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.delta.DeltaLogFileIndex
+import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
-import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 
 class CHValidatorApi extends IValidatorApi with AdaptiveSparkPlanHelper {
   override def doValidate(plan: PlanNode): Boolean = {
@@ -91,9 +92,7 @@ class CHValidatorApi extends IValidatorApi with AdaptiveSparkPlanHelper {
     true
   }
 
-  /**
-   * Validate against a whole Spark plan, before being interpreted by Gluten.
-   */
+  /** Validate against a whole Spark plan, before being interpreted by Gluten. */
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = {
     // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
     // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
