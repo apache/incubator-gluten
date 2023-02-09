@@ -25,8 +25,8 @@ object Actions {
         actions.add(QueriesCompare(scale, queryIds, explain, iterations))
       case "queries" =>
         actions.add(Queries(scale, queryIds, explain, iterations))
-      case "cli" =>
-        actions.add(Cli(scale))
+      case "spark-shell" =>
+        actions.add(SparkShell(scale))
       case _ =>
         throw new IllegalArgumentException("Unexpected mode: " + mode)
     }

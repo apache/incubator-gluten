@@ -79,7 +79,7 @@ Gluten integration test using TPC benchmark's data and queries
                              Default: 2
       --min-scan-partitions
                            Use minimum number of partitions to read data
-      --mode=<mode>        Mode: data-gen-only, queries, queries-compare, cli
+      --mode=<mode>        Mode: data-gen-only, queries, queries-compare, spark-shell
                              Default: queries-compare
       --off-heap-size=<offHeapSize>
                            Off heap memory size per executor
