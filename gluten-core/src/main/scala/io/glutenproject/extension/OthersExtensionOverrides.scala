@@ -19,7 +19,6 @@ package io.glutenproject.extension
 
 import io.glutenproject.GlutenSparkExtensionsInjector
 import io.glutenproject.backendsapi.BackendsApiManager
-
 import org.apache.spark.sql.SparkSessionExtensions
 
 object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {

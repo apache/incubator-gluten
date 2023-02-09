@@ -17,26 +17,24 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.columnar._
-import io.glutenproject.utils.SelectiveExecution
-
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import io.glutenproject.utils.PhysicalPlanSelector
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, SparkPlan}
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
 // BroadcastHashJoinExec and it's child BroadcastExec will be cut into different QueryStages,
 // so the columnar rules will be applied to the two QueryStages separately, and they cannot
 // see each other during transformation. In order to prevent BroadcastExec being transformed
 // to columnar while BHJ fallbacks, BroadcastExec need to be tagged not transformable when applying
 // queryStagePrepRules.
-case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPlan]
-with SelectiveExecution.Maybe[SparkPlan] {
-  override def doApply(plan: SparkPlan): SparkPlan = {
+case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>

@@ -17,21 +17,20 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.columnar.TRANSFORM_UNSUPPORTED
 import io.glutenproject.extension.columnar.TransformHints.TAG
-import io.glutenproject.utils.SelectiveExecution
-
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions, Strategy}
+import io.glutenproject.utils.LogicalPlanSelector
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan, Project, SHUFFLE_MERGE}
-import org.apache.spark.sql.execution.{joins, JoinSelectionShim, SparkPlan}
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.{JoinSelectionShim, SparkPlan, joins}
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions, Strategy}
 
 object StrategyOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
@@ -40,7 +39,7 @@ object StrategyOverrides extends GlutenSparkExtensionsInjector {
 }
 
 case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
-  JoinSelectionHelper with SQLConfHelper with SelectiveExecution.MaybeNil[LogicalPlan, SparkPlan]{
+  JoinSelectionHelper with SQLConfHelper {
 
   private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
     case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
@@ -177,7 +176,8 @@ case class JoinSelectionOverrides(session: SparkSession) extends Strategy with
     }.size > 0
   }
 
-  override def doApply(plan: LogicalPlan): Seq[SparkPlan] = {
+  override def apply(plan: LogicalPlan): Seq[SparkPlan] = LogicalPlanSelector.maybeNil(
+    session, plan) {
     // Ignore forceShuffledHashJoin if exist multi continuous joins
     if (GlutenConfig.getSessionConf.enableLogicalJoinOptimize &&
       existsMultiJoins(plan) && existLeftOuterJoin(plan)) {

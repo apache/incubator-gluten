@@ -17,19 +17,18 @@
 
 package io.glutenproject.extension
 
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.extension.columnar._
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.utils.SelectiveExecution
-
+import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Murmur3Hash}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
+import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
@@ -39,9 +38,8 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import io.glutenproject.extension.columnar.{AddTransformHintRule, FallbackEmptySchemaRelation, RemoveTransformHintRule, StoreExpandGroupExpression, TRANSFORM_SUPPORTED, TRANSFORM_UNSUPPORTED, TagBeforeTransformHits, TransformHints}
-import io.glutenproject.utils.LogLevelUtil
 import org.apache.spark.sql.internal.SQLConf.ADAPTIVE_EXECUTION_ENABLED
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides() extends Rule[SparkPlan] {
@@ -493,13 +491,8 @@ case class ColumnarOverrideRules(session: SparkSession)
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseCodegenStages(GlutenConfig.getSessionConf))
 
-  override def preColumnarTransitions: Rule[SparkPlan] = plan => SelectiveExecution.
+  override def preColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
-    val supportedGluten = BackendsApiManager.getSparkPlanExecApiInstance.supportedGluten(
-      nativeEngineEnabled,
-      plan)
-
-    if (supportedGluten) {
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
       logOnLevel(
@@ -516,21 +509,13 @@ case class ColumnarOverrideRules(session: SparkSession)
         transformPlanLogLevel,
         s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
-    } else {
-      plan
     }
-  }
 
-  override def postColumnarTransitions: Rule[SparkPlan] = plan => SelectiveExecution.
+  override def postColumnarTransitions: Rule[SparkPlan] = plan => PhysicalPlanSelector.
     maybe(session, plan) {
-    val supportedGluten = BackendsApiManager.getSparkPlanExecApiInstance.supportedGluten(
-      nativeEngineEnabled,
-      plan)
-
-    logOnLevel(
-      transformPlanLogLevel,
-      s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
-    if (supportedGluten) {
+      logOnLevel(
+        transformPlanLogLevel,
+        s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
       var overridden: SparkPlan = plan
       val startTime = System.nanoTime()
       postOverrides.foreach { r =>
@@ -544,12 +529,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         transformPlanLogLevel,
         s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
       overridden
-    } else {
-      plan
     }
-  }
-
-  def nativeEngineEnabled: Boolean = GlutenConfig.getSessionConf.enableNativeEngine
 
 }
 

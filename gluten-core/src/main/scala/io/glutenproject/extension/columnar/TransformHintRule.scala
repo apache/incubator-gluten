@@ -17,14 +17,13 @@
 
 package io.glutenproject.extension.columnar
 
-import scala.util.control.Breaks.{break, breakable}
-
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.utils.SelectiveExecution
+import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.commons.lang3.exception.ExceptionUtils
-
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
@@ -36,8 +35,8 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
+
+import scala.util.control.Breaks.{break, breakable}
 
 
 trait TransformHint {
@@ -118,7 +117,7 @@ case class StoreExpandGroupExpression() extends Rule[SparkPlan] {
 }
 
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = SelectiveExecution.maybe(session, plan) {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (GlutenConfig.getSessionConf.enableAnsiMode) {
       plan.foreach(TransformHints.tagNotTransformable)
     }
@@ -126,8 +125,7 @@ case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   }
 }
 
-case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan]
-with SelectiveExecution.Maybe[SparkPlan]{
+case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
   lazy val columnarConf: GlutenConfig = GlutenConfig.getSessionConf
   lazy val physicalJoinOptimize = columnarConf.enablePhysicalJoinOptimize
   lazy val optimizeLevel: Integer = columnarConf.physicalJoinOptimizationThrottle
@@ -193,7 +191,7 @@ with SelectiveExecution.Maybe[SparkPlan]{
     }
   }
 
-  override def doApply(plan: SparkPlan): SparkPlan = {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     if (physicalJoinOptimize) {
       insertRowGuardOrNot(plan)
     } else plan
@@ -202,9 +200,8 @@ with SelectiveExecution.Maybe[SparkPlan]{
 
 // This rule will fall back the whole plan if it contains OneRowRelation scan.
 // This should only affect some light-weight cases in some basic UTs.
-case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan]
-with SelectiveExecution.Maybe[SparkPlan]{
-  override def doApply(plan: SparkPlan): SparkPlan = {
+case class FallbackOneRowRelation(session: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
     val hasOneRowRelation =
       plan.find(_.isInstanceOf[RDDScanExec]) match {
         case Some(scan: RDDScanExec) => scan.name.equals("OneRowRelation")

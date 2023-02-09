@@ -480,7 +480,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff extends GlutenDynamicPartitionPr
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
-      //      "spark.gluten.sql.enable.native.engine" -> "false",
+      //      "spark.gluten.enabled" -> "false",
       SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
       withTable("fact", "dim") {
         val numPartitions = 10

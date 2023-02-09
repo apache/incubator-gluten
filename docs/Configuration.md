@@ -11,8 +11,9 @@ You can add these configuration into spark-defaults.conf to enable or disable th
 | spark.memory.offHeap.size| To set up how much memory to be used for Java OffHeap.<br /> Please notice Gluten Plugin will leverage this setting to allocate memory space for native usage even offHeap is disabled. <br /> The value is based on your system and it is recommended to set it larger if you are facing Out of Memory issue in Gluten Plugin | 30G |
 | spark.sql.sources.useV1SourceList | Choose to use V1 source | avro |
 | spark.sql.join.preferSortMergeJoin | To turn off preferSortMergeJoin in Spark | false |
-| spark.plugins | To turn on Gluten Plugin | com.intel.oap.GlutenPlugin |
+| spark.plugins | To load Gluten's components by Spark's plug-in loader | com.intel.oap.GlutenPlugin |
 | spark.shuffle.manager | To turn on Gluten Columnar Shuffle Plugin | org.apache.spark.shuffle.sort.ColumnarShuffleManager |
+| spark.gluten.enabled | Enable Gluten, default is true | true |
 | spark.gluten.sql.columnar.batchscan | Enable or Disable Columnar Batchscan, default is true | true |
 | spark.gluten.sql.columnar.hashagg | Enable or Disable Columnar Hash Aggregate, default is true | true |
 | spark.gluten.sql.columnar.projfilter | Enable or Disable Columnar Project and Filter, default is true | true |

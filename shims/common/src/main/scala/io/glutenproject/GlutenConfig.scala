@@ -33,9 +33,6 @@ case class GlutenNumaBindingInfo(
 
 class GlutenConfig(conf: SQLConf) extends Logging {
 
-  val enableNativeEngine: Boolean =
-    conf.getConfString("spark.gluten.sql.enable.native.engine", "true").toBoolean
-
   val enableAnsiMode: Boolean =
     conf.getConfString("spark.sql.ansi.enabled", "false").toBoolean
 
