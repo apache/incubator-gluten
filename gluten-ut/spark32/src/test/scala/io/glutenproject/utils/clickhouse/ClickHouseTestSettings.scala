@@ -77,7 +77,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include(
       "quarter",
       "second",
-      "dayofmonth"
+      "dayofmonth",
+      "function add_months"
     )
 
   enableSuite[GlutenDateExpressionsSuite]
@@ -85,7 +86,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       // "Quarter", // ch backend not support cast 'yyyy-MM-dd HH:mm:ss' as date32
       "date_add",
       "date_sub",
-      "datediff"
+      "datediff",
+      "add_months"
     )
 
 
@@ -144,12 +146,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include(
       "concat_ws",
       // "LPAD/RPAD", not ready because CH required the third arg to be constant string
-      "REVERSE"
+      "REVERSE",
+      "translate"
     )
 
   enableSuite[GlutenStringFunctionsSuite]
     .include(
-      "string concat_ws"
+      "string concat_ws",
+      "string translate"
     )
 
   enableSuite[GlutenSubquerySuite]
