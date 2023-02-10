@@ -147,6 +147,7 @@ object ExpressionMappings {
   final val TO_UNIX_TIMESTAMP = "to_unix_timestamp"
   final val UNIX_TIMESTAMP = "unix_timestamp"
   final val ADD_MONTHS = "add_months"
+  final val DATE_FORMAT = "date_format"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -325,6 +326,7 @@ object ExpressionMappings {
     Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),
     Sig[UnixTimestamp](UNIX_TIMESTAMP),
     Sig[AddMonths](ADD_MONTHS),
+    Sig[DateFormatClass](DATE_FORMAT),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
