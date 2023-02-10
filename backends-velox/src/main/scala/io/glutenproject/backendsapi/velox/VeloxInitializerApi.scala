@@ -32,6 +32,11 @@ class VeloxInitializerApi extends IInitializerApi {
       .loadAndCreateLink("libarrow.so.1000.0.0", "libarrow.so.1000", false)
       .loadAndCreateLink("libparquet.so.1000.0.0", "libparquet.so.1000", false)
       .commit()
+    if (conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false)) {
+      loader.newTransaction()
+        .loadAndCreateLink("libqatzip.so.3.0.1", "libqatzip.so.3", false)
+        .commit()
+    }
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
       JniLibLoader.loadFromPath(libPath, true)

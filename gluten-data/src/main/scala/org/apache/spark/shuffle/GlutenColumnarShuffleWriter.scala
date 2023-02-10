@@ -36,11 +36,10 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
-class GlutenColumnarShuffleWriter[K, V](
-  shuffleBlockResolver: IndexShuffleBlockResolver,
-  handle: BaseShuffleHandle[K, V, V],
-  mapId: Long,
-  writeMetrics: ShuffleWriteMetricsReporter)
+class GlutenColumnarShuffleWriter[K, V](shuffleBlockResolver: IndexShuffleBlockResolver,
+                                        handle: BaseShuffleHandle[K, V, V],
+                                        mapId: Long,
+                                        writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
     with Logging {
 
@@ -65,8 +64,17 @@ class GlutenColumnarShuffleWriter[K, V](
 
   private val nativeBufferSize = GlutenConfig.getConf.shuffleSplitDefaultSize
 
-  private val customizedCompressionCodec =
-    GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+  private val customizedCompressionCodec = {
+    val codec = GlutenConfig.getConf.columnarShuffleUseCustomizedCompressionCodec
+    val enableQat = conf.getBoolean(GlutenConfig.GLUTEN_ENABLE_QAT, false) &&
+      GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC.contains(codec)
+    if (enableQat) {
+      GlutenConfig.GLUTEN_QAT_CODEC_PREFIX + codec
+    } else {
+      codec
+    }
+  }
+
   private val batchCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBatchCompressThreshold
 
@@ -90,8 +98,12 @@ class GlutenColumnarShuffleWriter[K, V](
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeMetadataFileAndCommit(dep.shuffleId, mapId,
-        partitionLengths, Array[Long](), null)
+      shuffleBlockResolver.writeMetadataFileAndCommit(
+        dep.shuffleId,
+        mapId,
+        partitionLengths,
+        Array[Long](),
+        null)
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
       return
     }

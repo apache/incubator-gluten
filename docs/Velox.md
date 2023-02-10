@@ -307,7 +307,7 @@ Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions h
 
 Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It requires [Memkind library](http://memkind.github.io/memkind/) to be installed. Please follow memkind's [readme](https://github.com/memkind/memkind#memkind) to build and install all the dependencies and the library. 
 
-To enable this feature in Gluten, users can. Below command is used to enable this feature.
+Below command is used to enable this feature
 ```
 cd /path_to_gluten/cpp
 mkdir build
@@ -323,16 +323,114 @@ Note that memory allocation fallback is also supported and cannot be turned off.
 
 During testing, it is possible that HBM is detected but not being used at runtime. The workaround is to set `MEMKIND_HBW_NODES` enviroment variable in the runtime environment. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`
 
+# 5 Intel® QuickAssist Technology (QAT) support
 
-# 5 Test TPC-H on Gluten with Velox backend
+Gluten supports using Intel® QuickAssist Technology (QAT) for data compression during Spark Shuffle. It benefits from QAT Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
+
+This feature is based on QAT driver library and [QATzip](https://github.com/intel/QATzip) library. Please manually download QAT driver for your system, and follow its README to build and install on all Driver and Worker node: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
+
+Gluten will internally build and use a specific version of QATzip library. Please **uninstall QATzip library** before building Gluten if it's already installed. Additional environment set-up are also required:
+
+## 5.1 Build Gluten with QAT
+
+1. Setup ICP_ROOT environment variable. This environment variable is required during building Gluten and running Spark applicaitons. It's recommended to put it in .bashrc on Driver and Worker node.
+
+```shell script
+export ICP_ROOT=/path_to_QAT_driver
+```
+2. **This step is required if your application is running as Non-root user**. The users must be added to the 'qat' group after QAT drvier is installed:
+
+```shell script
+sudo usermod -g qat username # need to relogin
+```
+Change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf. To set 500MB add a line like this in /etc/security/limits.conf:
+```shell script
+cat /etc/security/limits.conf |grep qat
+@qat - memlock 500000
+```
+
+3. Enable huge page as root user. **Note that this step is required to execute each time after system reboot.**
+```shell script
+ echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+ rmmod usdm_drv
+ insmod $ICP_ROOT/build/usdm_drv.ko max_huge_pages=1024 max_huge_pages_per_process=32
+ ```
+ 
+After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
+```shell script
+cd /path_to_gluten/dev/
+./builddeps_veloxbe.sh --enable_qat=ON
+```
+
+## 5.2 Enable QAT with Gzip Compression for shuffle compression
+
+1. To enable QAT at run-time, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
+```shell script
+## run as root
+## Overwrite QAT configuration file.
+cd /etc
+for i in {0..7}; do echo "4xxx_dev$i.conf"; done | xargs -i cp -f /path_to_gluten/docs/qat/4x16.conf {}
+## Restart QAT after updating configuration files.
+adf_ctl restart
+```
+2. Check QAT status and make sure the status is up
+```shell script
+adf_ctl status
+```
+The output should be like:
+```
+Checking status of all devices.
+There is 8 QAT acceleration device(s) in the system:
+ qat_dev0 - type: 4xxx,  inst_id: 0,  node_id: 0,  bsf: 0000:6b:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev1 - type: 4xxx,  inst_id: 1,  node_id: 1,  bsf: 0000:70:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev2 - type: 4xxx,  inst_id: 2,  node_id: 2,  bsf: 0000:75:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev3 - type: 4xxx,  inst_id: 3,  node_id: 3,  bsf: 0000:7a:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev4 - type: 4xxx,  inst_id: 4,  node_id: 4,  bsf: 0000:e8:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev5 - type: 4xxx,  inst_id: 5,  node_id: 5,  bsf: 0000:ed:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev6 - type: 4xxx,  inst_id: 6,  node_id: 6,  bsf: 0000:f2:00.0,  #accel: 1 #engines: 9 state: up
+ qat_dev7 - type: 4xxx,  inst_id: 7,  node_id: 7,  bsf: 0000:f7:00.0,  #accel: 1 #engines: 9 state: up
+```
+
+2. Extra Gluten configurations are required when starting Spark application
+```
+--conf spark.gluten.sql.columnar.qat=true
+--conf spark.gluten.sql.columnar.shuffle.customizedCompression.codec=gzip
+```
+
+3. You can use below command to check whether QAT is working normally at run-time. The value of fw_counters should continue to increase during shuffle. 
+```
+while :; do cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/fw_counters; sleep 1; done
+```
+
+## 5.3 QAT driver references
+
+**Documentation**
+
+[README Text Files (README_QAT20.L.1.0.0-00021.txt)](https://downloadmirror.intel.com/765523/README_QAT20.L.1.0.0-00021.txt)
+
+**Release Notes**
+
+Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.intel.com/content/www/us/en/content-details/632507/intel-quickassist-technology-intel-qat-software-for-linux-release-notes-hardware-version-2-0.html) - Release Notes for the latest changes in this release.
+
+**Getting Started Guide**
+
+Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.intel.com/content/www/us/en/content-details/632506/intel-quickassist-technology-intel-qat-software-for-linux-getting-started-guide-hardware-version-2-0.html) - Getting Started Guide for detailed installation instructions.
+
+**Programmer's Guide**
+
+Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.intel.com/content/www/us/en/content-details/743912/intel-quickassist-technology-intel-qat-software-for-linux-programmers-guide-hardware-version-2-0.html) - Programmer's Guide for software usage guidelines.
+
+For more Intel® QuickAssist Technology resources go to [Intel® QuickAssist Technology (Intel® QAT)](https://developer.intel.com/quickassist)
+
+# 6 Test TPC-H on Gluten with Velox backend
 
 In Gluten, all 22 queries can be fully offloaded into Velox for computing.  
 
-## 5.1 Data preparation
+## 6.1 Data preparation
 
 Considering current Velox does not fully support Decimal and Date data type, the [datagen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.scala) transforms "Decimal-to-Double" and "Date-to-String". As a result, we need to modify the TPCH queries a bit. You can find the [modified TPC-H queries](../backends-velox/workload/tpch/tpch.queries.updated/).
 
-## 5.2 Submit the Spark SQL job
+## 6.2 Submit the Spark SQL job
 
 Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
 
@@ -365,12 +463,12 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
 
 Refer to [Gluten parameters ](./Configuration.md) for more details of each parameter used by Gluten.
 
-## 5.3 Result
+## 6.3 Result
 *wholestagetransformer* indicates that the offload works.
 
 ![TPC-H Q6](./image/TPC-H_Q6_DAG.png)
 
-## 5.4 Performance
+## 6.4 Performance
 
 Below table shows the TPC-H Q1 and Q6 Performance in a multiple-thread test (--num-executors 6 --executor-cores 6) for Velox and vanilla Spark.
 Both Parquet and ORC datasets are sf1024.
@@ -380,6 +478,6 @@ Both Parquet and ORC datasets are sf1024.
 | TPC-H Q6 | 13.6 | 21.6  | 34.9 |
 | TPC-H Q1 | 26.1 | 76.7 | 84.9 |
 
-# 6 External reference setup
+# 7 External reference setup
 
 TO ease your first-hand experience of using Gluten, we have set up an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com.

@@ -30,7 +30,9 @@
 #endif
 
 #include "compute/ProtobufUtils.h"
+#include "utils/compression.h"
 #include "utils/macros.h"
+
 namespace gluten {
 
 using arrow::internal::checked_cast;
@@ -58,11 +60,6 @@ using arrow::internal::checked_cast;
 #define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
 #endif
 // #define SKIPWRITE
-
-static const std::vector<arrow::Compression::type> supported_codec = {
-    arrow::Compression::LZ4_FRAME,
-    arrow::Compression::ZSTD,
-    arrow::Compression::GZIP};
 
 #if defined(__x86_64__)
 template <typename T>
@@ -364,13 +361,7 @@ int64_t Splitter::CompressedSize(const arrow::RecordBatch& rb) {
 }
 
 arrow::Status Splitter::SetCompressType(arrow::Compression::type compressed_type) {
-  if (std::any_of(supported_codec.begin(), supported_codec.end(), [&](const auto& codec) {
-        return codec == compressed_type;
-      })) {
-    ARROW_ASSIGN_OR_RAISE(options_.ipc_write_options.codec, arrow::util::Codec::Create(compressed_type));
-  } else {
-    options_.ipc_write_options.codec = nullptr;
-  }
+  ARROW_ASSIGN_OR_RAISE(options_.ipc_write_options.codec, CreateArrowIpcCodec(compressed_type));
   return arrow::Status::OK();
 }
 
