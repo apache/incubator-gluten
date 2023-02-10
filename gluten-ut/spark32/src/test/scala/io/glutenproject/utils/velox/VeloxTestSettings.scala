@@ -356,6 +356,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTableScanSuite]
   enableSuite[GlutenDataSourceV2Suite]
     .exclude("columnar batch scan implementation")
+    // Rewrite the following test in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
