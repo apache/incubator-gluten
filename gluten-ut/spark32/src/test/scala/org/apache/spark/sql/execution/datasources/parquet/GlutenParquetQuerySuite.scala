@@ -41,6 +41,27 @@ import org.apache.spark.util.Utils
  * A test suite that tests various Parquet queries.
  */
 class GlutenParquetV1QuerySuite extends ParquetV1QuerySuite with GlutenSQLTestsBaseTrait {
+
+  test("tmp") {
+    val data = (1 to 10).map { i =>
+      val ts = new java.sql.Timestamp(i)
+      ts.setNanos(2000)
+      Row(i, ts)
+    }
+    val schema = StructType(List(StructField("d", IntegerType, false),
+      StructField("time", TimestampType, false)).toArray)
+    withSQLConf(SQLConf.PARQUET_OUTPUT_TIMESTAMP_TYPE.key -> "TIMESTAMP_MICROS") {
+      withTempPath { file =>
+        val df = spark.createDataFrame(sparkContext.parallelize(data), schema)
+        df.write.parquet(file.getCanonicalPath)
+        withAllParquetReaders {
+          val df2 = spark.read.parquet(file.getCanonicalPath)
+          df2.explain(true)
+          checkAnswer(df2, df.collect().toSeq)
+        }
+      }
+    }
+  }
 }
 
 class GlutenParquetV2QuerySuite extends ParquetV2QuerySuite with GlutenSQLTestsBaseTrait {

@@ -285,7 +285,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
-  // enableSuite[GlutenParquetV1QuerySuite]
+  enableSuite[GlutenParquetV1QuerySuite]
+    .include("tmp")
   // enableSuite[GlutenParquetV2QuerySuite]
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
